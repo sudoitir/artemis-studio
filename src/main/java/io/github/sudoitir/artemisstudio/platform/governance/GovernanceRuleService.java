@@ -4,6 +4,8 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.governance.internal.persistence.GovernanceRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.governance.internal.persistence.GovernanceRuleRepository;
@@ -33,6 +35,7 @@ public class GovernanceRuleService {
     private final AuditService audit;
     private final ActorResolver actors;
     private final ApplicationEventPublisher events;
+    private final StudioBus bus;
 
     @PreAuthorize(
             "@perm.can(T(io.github.sudoitir.artemisstudio.platform.governance.GovernancePermissions).GOVERNANCE_READ)")
@@ -127,6 +130,7 @@ public class GovernanceRuleService {
     private void changed() {
         rules.bumpPolicyVersion();
         events.publishEvent(new PolicyStore.PolicyChanged());
+        bus.publish(new ReplicaSignal("policy", ""));
     }
 
     private AuditEvent begin(String action, String targetName, Map<String, ?> params) {

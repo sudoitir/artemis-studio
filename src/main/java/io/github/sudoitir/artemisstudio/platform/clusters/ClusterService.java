@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
@@ -13,7 +15,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
-import io.github.sudoitir.artemisstudio.platform.broker.BrokerSessions;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
 import io.github.sudoitir.artemisstudio.platform.broker.CapabilityProbe;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionSettings;
@@ -89,7 +90,7 @@ public class ClusterService {
     private final HaStateEvaluator evaluator;
     private final CoreSubscriptionManager coreSubscriptions;
     private final CoreSubscriptionCheck coreSubscriptionCheck;
-    private final BrokerSessions brokerSessions;
+    private final StudioBus bus;
     private final SecretVault vault;
     private final AuditService audit;
     private final ApplicationEventPublisher eventPublisher;
@@ -477,7 +478,7 @@ public class ClusterService {
                 Map.of(),
                 false);
         clusters.delete(cluster);
-        brokerSessions.release(clusterId);
+        bus.publish(new ReplicaSignal("cluster-deleted", clusterId.toString()));
         environmentIndex.invalidate();
         audit.succeed(event, 1);
     }

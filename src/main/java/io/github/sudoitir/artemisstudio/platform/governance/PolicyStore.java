@@ -1,15 +1,19 @@
 package io.github.sudoitir.artemisstudio.platform.governance;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.governance.internal.persistence.GovernanceRuleEntity;
 import io.github.sudoitir.artemisstudio.platform.governance.internal.persistence.GovernanceRuleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Holds the current {@link PolicySnapshot}. A rule write drops it after commit on this instance;
- * the refresh job reloads it when another instance moved the version.
+ * Holds the current {@link PolicySnapshot}. A rule write drops it after commit on this replica, so the
+ * writer reads its own change, and every other replica drops it on the {@code policy} signal the write
+ * sent in the same transaction.
  */
 @Component
 @RequiredArgsConstructor
@@ -33,16 +37,19 @@ class PolicyStore {
         return current;
     }
 
-    /** Cheap version probe; the rules are only re-read when the version moved. */
-    void refreshIfStale() {
-        PolicySnapshot snapshot = current;
-        if (snapshot == null || snapshot.version() != rules.policyVersion()) {
-            reload();
-        }
-    }
-
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void onChange(PolicyChanged ignored) {
+        current = null;
+    }
+
+    @EventListener(condition = "#signal.kind() == 'policy'")
+    void on(ReplicaSignal signal) {
+        current = null;
+    }
+
+    /** The bus was down: a rule may have changed in the gap. */
+    @EventListener
+    void on(BusResumed resumed) {
         current = null;
     }
 

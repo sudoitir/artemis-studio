@@ -3,8 +3,8 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
-import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
 import java.io.IOException;
 import java.time.Instant;
@@ -211,10 +211,17 @@ public class SseHub {
         }
     }
 
-    /** A session ended on this instance: complete the streams it opened, so a signed-out user gets no more events. */
-    @EventListener
-    void onSessionEnded(SessionEnded ended) {
-        complete(s -> ended.sessionId().equals(s.sessionId()));
+    /** A session ended on any replica: complete the streams it opened, so a signed-out user gets no more events. */
+    @EventListener(condition = "#signal.kind() == 'session-ended'")
+    void onSessionEnded(ReplicaSignal signal) {
+        complete(s -> signal.key().equals(s.sessionId()));
+    }
+
+    /** An API token was revoked on any replica: complete the streams it opened. */
+    @EventListener(condition = "#signal.kind() == 'token-revoked'")
+    void onTokenRevoked(ReplicaSignal signal) {
+        UUID tokenId = UUID.fromString(signal.key());
+        complete(s -> tokenId.equals(s.tokenId()));
     }
 
     /** A session was given a new id: its streams follow it, so they are not mistaken for those of a session that ended. */
@@ -229,7 +236,7 @@ public class SseHub {
 
     /**
      * Complete the streams whose session {@code isLive} no longer accepts, which finds what
-     * {@link #onSessionEnded} cannot see: a session that timed out, or ended on another instance.
+     * {@link #onSessionEnded} cannot see: a session that timed out, or a signal lost while the bus was down.
      * Asks once per session however many streams it holds.
      */
     public void closeEndedSessions(Predicate<String> isLive) {

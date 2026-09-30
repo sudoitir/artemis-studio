@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Broker connectivity",
-        allowedDependencies = {"kernel.core", "kernel.jobs", "kernel.plugin", "kernel.settings"})
+        allowedDependencies = {"kernel.core", "kernel.jobs", "kernel.plugin", "kernel.replica", "kernel.settings"})
 package io.github.sudoitir.artemisstudio.platform.broker;
 
 import org.springframework.modulith.ApplicationModule;

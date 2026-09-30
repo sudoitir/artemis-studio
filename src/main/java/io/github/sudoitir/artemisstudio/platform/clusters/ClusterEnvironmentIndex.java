@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
@@ -8,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,13 +19,14 @@ import org.springframework.stereotype.Component;
  * {@link PermissionResolver} can walk cluster -> environment scope without a
  * query per permission check (design.md decision 3). The cluster set is tiny
  * and already fully resident in memory for the scrape scheduler; this mirrors
- * that assumption. Invalidated on any cluster write.
+ * that assumption. Invalidated on any cluster write, on every replica.
  */
 @Component
 @RequiredArgsConstructor
 public class ClusterEnvironmentIndex implements ScopeHierarchy {
 
     private final ClusterRepository clusters;
+    private final StudioBus bus;
     private volatile Map<UUID, UUID> index;
 
     /** Cluster id -> environment id (absent if the cluster has none, or does not exist). */
@@ -35,8 +40,23 @@ public class ClusterEnvironmentIndex implements ScopeHierarchy {
         return clusters.findById(clusterId).map(ClusterEntity::getName).orElse(null);
     }
 
-    /** Call after any create/update/delete that could change a cluster's environment. */
+    /**
+     * Call after any create/update/delete that could change a cluster's environment. Drops the map
+     * here at once, and on every replica (this one again) when the writing transaction commits.
+     */
     public void invalidate() {
+        index = null;
+        bus.publish(new ReplicaSignal("env-index", ""));
+    }
+
+    @EventListener(condition = "#signal.kind() == 'env-index'")
+    void on(ReplicaSignal signal) {
+        index = null;
+    }
+
+    /** The bus was down: a cluster may have moved environment in the gap. */
+    @EventListener
+    void on(BusResumed resumed) {
         index = null;
     }
 

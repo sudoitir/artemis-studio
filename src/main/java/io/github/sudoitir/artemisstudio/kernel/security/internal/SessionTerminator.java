@@ -1,9 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
@@ -22,7 +22,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class SessionTerminator {
 
     private final FindByIndexNameSessionRepository<? extends Session> sessions;
-    private final ApplicationEventPublisher events;
+    private final StudioBus bus;
 
     void endSessionsOf(Collection<String> usernames) {
         if (usernames.isEmpty()) {
@@ -42,10 +42,10 @@ public class SessionTerminator {
                 .forEach(this::delete));
     }
 
-    /** Deletes one session and tells this instance's open streams of it to stop. */
+    /** Deletes one session and tells every replica's open streams of it to stop. */
     void delete(String sessionId) {
         sessions.deleteById(sessionId);
-        events.publishEvent(new SessionEnded(sessionId));
+        bus.publish(new ReplicaSignal("session-ended", sessionId));
     }
 
     private static void afterCommit(Runnable action) {

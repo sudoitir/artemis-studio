@@ -5,6 +5,9 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
@@ -61,6 +64,7 @@ public class SettingsService {
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final FeatureRegistry features;
+    private final StudioBus bus;
 
     /**
      * Insertion-ordered: this is also the order the settings screen renders. Immutable at rest,
@@ -89,11 +93,13 @@ public class SettingsService {
             AuditService audit,
             ActorResolver actorResolver,
             FeatureRegistry features,
+            StudioBus bus,
             List<SettingsContribution> contributions) {
         this.repo = repo;
         this.audit = audit;
         this.actorResolver = actorResolver;
         this.features = features;
+        this.bus = bus;
         for (FeatureDescriptor module : features.enabled()) {
             for (SettingsContribution contribution : contributions) {
                 if (contribution.featureId().equals(module.id())) {
@@ -286,7 +292,7 @@ public class SettingsService {
         String json = asJsonScalar(value);
         repo.findById(key).ifPresentOrElse(e -> e.setValue(json), () -> repo.save(new StudioSettingEntity(key, json)));
         repo.flush();
-        refreshOverrides();
+        changed();
         audit.succeed(event, 1);
     }
 
@@ -310,13 +316,36 @@ public class SettingsService {
 
         repo.deleteById(key);
         repo.flush();
-        refreshOverrides();
+        changed();
         audit.succeed(event, 1);
     }
 
     /**
+     * Applies the write here at once, so the writer reads its own change, and tells every replica,
+     * this one included, to do the same once it has committed (ADR-0148).
+     */
+    private void changed() {
+        refreshOverrides();
+        bus.publish(new ReplicaSignal("settings", ""));
+    }
+
+    /** Another replica wrote a setting: re-read the overrides and push them. */
+    @EventListener(condition = "#signal.kind() == 'settings'")
+    @Transactional(readOnly = true)
+    public void on(ReplicaSignal signal) {
+        refreshOverrides();
+    }
+
+    /** The bus was down: a setting may have changed in the gap. */
+    @EventListener
+    @Transactional(readOnly = true)
+    public void on(BusResumed resumed) {
+        refreshOverrides();
+    }
+
+    /**
      * Re-read the stored overrides and push the cached ones to their holders. Runs on
-     * boot and after every change. A stored value for a key no enabled module owns is
+     * boot and after every change, on any replica. A stored value for a key no enabled module owns is
      * left in the table and ignored.
      */
     @EventListener(ApplicationReadyEvent.class)

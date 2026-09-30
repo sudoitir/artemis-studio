@@ -26,14 +26,4 @@ class GovernanceJobs {
         return ScheduledJob.fixedDelay(
                 "governance-remask", FEATURE, ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(1), remasking::run);
     }
-
-    @Bean
-    ScheduledJob governancePolicyRefreshJob(PolicyStore store) {
-        return ScheduledJob.fixedDelay(
-                "governance-policy-refresh",
-                FEATURE,
-                ScheduledJob.Scope.INSTANCE,
-                () -> Duration.ofSeconds(30),
-                store::refreshIfStale);
-    }
 }

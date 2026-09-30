@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.InitialInstallers;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionTerminator;
 import java.time.Duration;
@@ -33,7 +34,8 @@ class SessionAuthenticationTest {
             mock(SessionTerminator.class),
             lifetimes,
             mock(FindByIndexNameSessionRepository.class),
-            mock(ApplicationEventPublisher.class));
+            mock(ApplicationEventPublisher.class),
+            mock(StudioBus.class));
 
     /**
      * A sign-in that does not go through the password login (single sign-on) never clears the session
