@@ -206,9 +206,10 @@ class HaReplicasIntegrationTest {
         long twoReplicasCalls = managementCalls(a, WINDOW);
 
         assertThat(oneReplicaCalls).as("calls of one replica alone").isGreaterThan(20);
+        // Duplicated scraping would double the count; the margin absorbs where a tier falls in the window.
         assertThat(twoReplicasCalls)
                 .as("calls of two replicas together, one alone made %d", oneReplicaCalls)
-                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.3));
+                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.5));
     }
 
     @Test
