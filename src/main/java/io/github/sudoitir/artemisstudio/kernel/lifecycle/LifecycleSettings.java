@@ -47,21 +47,29 @@ public class LifecycleSettings implements SettingsContribution {
                         null));
     }
 
-    /** The namespace of one store's settings. */
-    static String namespace(String storeId) {
-        return "lifecycle." + storeId;
+    /** Where plugin stores' settings live, apart from the core stores' and the lifecycle's own. */
+    static final String PLUGIN_NAMESPACE = "lifecycle.plugin.";
+
+    /**
+     * The namespace of one store's settings: {@code lifecycle.<store>} for a core store and
+     * {@code lifecycle.plugin.<pluginId>.<store>} for a plugin's, so a plugin can never shadow or
+     * remove a core store's policy, whatever its id.
+     */
+    static String namespace(RegisteredStore store) {
+        return (store.plugin() == null ? "lifecycle." : PLUGIN_NAMESPACE) + store.id();
     }
 
-    static String key(String storeId, String part) {
-        return namespace(storeId) + "." + part;
+    static String key(RegisteredStore store, String part) {
+        return namespace(store) + "." + part;
     }
 
     /** The policy settings of one store. */
-    static List<SettingDef> policy(String storeId, StoreDef def) {
+    static List<SettingDef> policy(RegisteredStore store) {
+        StoreDef def = store.def();
         String unit = def.quotaUnit() == StoreDef.QuotaUnit.BYTES ? "MiB" : "thousand rows";
         return List.of(
                 new SettingDef(
-                        key(storeId, RETENTION),
+                        key(store, RETENTION),
                         "Data lifecycle",
                         def.label() + " retention",
                         "Older data is purged by the next housekeeping run.",
@@ -71,7 +79,7 @@ public class LifecycleSettings implements SettingsContribution {
                         format(def.minRetention()),
                         def.maxRetention() == null ? SettingDef.FOREVER : format(def.maxRetention())),
                 new SettingDef(
-                        key(storeId, QUOTA),
+                        key(store, QUOTA),
                         "Data lifecycle",
                         def.label() + " quota (" + unit + ")",
                         "0 means no quota.",
@@ -81,7 +89,7 @@ public class LifecycleSettings implements SettingsContribution {
                         "0",
                         null),
                 new SettingDef(
-                        key(storeId, QUOTA_WARN_PERCENT),
+                        key(store, QUOTA_WARN_PERCENT),
                         "Data lifecycle",
                         def.label() + " quota warning (%)",
                         "Usage at this share of the quota raises a storage alert.",

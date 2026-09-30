@@ -35,12 +35,17 @@ public class MessageIndexStore implements HousekeepingContributor, ManagedStore 
     private static final String DEFAULT_PARTITION = "message_index_default";
     private static final String DEFAULT_PREDICATE = "observed_at < ?";
     private static final DateTimeFormatter SUFFIX = DateTimeFormatter.ofPattern("yyyyMMdd");
+    /**
+     * 90 days by default, the longest a subscription may keep: the store's retention caps every
+     * subscription's, so a shorter default would silently cut short a subscription an operator set
+     * to keep longer. Lowering it is the operator's call, with the preview showing what goes.
+     */
     private static final StoreDef DEF = new StoreDef(
             ID,
             "Message index",
             List.of(TABLE),
             QuotaUnit.BYTES,
-            Duration.ofDays(7),
+            Duration.ofDays(90),
             Duration.ofDays(1),
             Duration.ofDays(90));
 

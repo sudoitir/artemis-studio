@@ -17,7 +17,7 @@ ALTER TABLE alert_rule
 INSERT INTO alert_rule (name, kind, state_condition, for_seconds, severity) VALUES
     ('Storage quota', 'STATE', 'STORAGE_QUOTA', 0, 'WARNING'),
     ('Storage health', 'STATE', 'STORAGE_HEALTH', 0, 'WARNING');
---rollback DELETE FROM alert_rule WHERE cluster_id IS NULL;
+--rollback DELETE FROM alert_rule WHERE cluster_id IS NULL AND state_condition IN ('STORAGE_QUOTA', 'STORAGE_HEALTH');
 --rollback ALTER TABLE alert_firing ALTER COLUMN cluster_id SET NOT NULL;
 --rollback ALTER TABLE alert_rule DROP CONSTRAINT ck_alert_rule_state_condition;
 --rollback ALTER TABLE alert_rule ADD CONSTRAINT ck_alert_rule_state_condition CHECK (((state_condition IS NULL) OR (state_condition = ANY (ARRAY['SPLIT_BRAIN'::text, 'NODE_DOWN'::text, 'REPLICATION_BEHIND'::text, 'CLUSTER_DEGRADED'::text, 'CLOCK_SKEW'::text, 'CONFIG_DRIFT'::text, 'SETUP_RISK'::text]))));

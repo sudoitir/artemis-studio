@@ -82,7 +82,7 @@ its own record.
 | Store id | Tables | Rule | Default · bounds |
 | --- | --- | --- | --- |
 | `metrics` | `metric_sample*` | partitions by `ts` | 7d · 1d–90d |
-| `message-index` | `message_index*` | partitions by `observed_at`. A subscription's `retention_days` must be ≤ the store's retention, which is its cap | 7d · 1d–90d |
+| `message-index` | `message_index*` | partitions by `observed_at`. A subscription's `retention_days` must be ≤ the store's retention, which is its cap; the default is the longest a subscription may keep, so none is cut short | 90d · 1d–90d |
 | `captured-payloads` | `rr_event.detail` body preview | strips the captured body (`detail - 'bodyPreview'`) from events older than the cutoff | 3d · 1h–90d |
 | `broker-events` | `broker_event` | rows by `received_at` | 72h · 1h–90d |
 | `rr-flows` | `rr_flow`, `rr_event`, `rr_expectation`* | rows by `requested_at`; events cascade | 7d · 1d–90d |

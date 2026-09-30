@@ -85,7 +85,7 @@ public class LifecycleService {
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.lifecycle.DataPermissions).DATA_READ)")
     public PurgeEstimate preview(String storeId, String retention) {
         RegisteredStore store = registry.require(storeId);
-        settings.check(LifecycleSettings.key(storeId, LifecycleSettings.RETENTION), retention);
+        settings.check(registry.key(storeId, LifecycleSettings.RETENTION), retention);
         if (SettingDef.FOREVER.equalsIgnoreCase(retention.trim())) {
             return new PurgeEstimate(0, 0);
         }
@@ -101,10 +101,9 @@ public class LifecycleService {
     public void update(String storeId, String retention, int quota, int quotaWarnPercent) {
         registry.require(storeId);
         Map<String, String> values = Map.of(
-                LifecycleSettings.key(storeId, LifecycleSettings.RETENTION), retention.trim(),
-                LifecycleSettings.key(storeId, LifecycleSettings.QUOTA), Integer.toString(quota),
-                LifecycleSettings.key(storeId, LifecycleSettings.QUOTA_WARN_PERCENT),
-                        Integer.toString(quotaWarnPercent));
+                registry.key(storeId, LifecycleSettings.RETENTION), retention.trim(),
+                registry.key(storeId, LifecycleSettings.QUOTA), Integer.toString(quota),
+                registry.key(storeId, LifecycleSettings.QUOTA_WARN_PERCENT), Integer.toString(quotaWarnPercent));
         values.forEach(settings::check);
         values.forEach((key, value) -> {
             if (!settings.value(key).equals(value)) {

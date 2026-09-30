@@ -48,26 +48,31 @@ public class LifecycleRegistry {
         return store;
     }
 
+    /** The settings key of one part of a store's policy. */
+    public String key(String id, String part) {
+        return LifecycleSettings.key(require(id), part);
+    }
+
     /** The store's retention, or empty when it keeps everything. */
     public Optional<Duration> retention(String id) {
-        String value = settings.value(LifecycleSettings.key(id, LifecycleSettings.RETENTION));
-        return SettingDef.FOREVER.equalsIgnoreCase(value.trim())
+        String key = key(id, LifecycleSettings.RETENTION);
+        return SettingDef.FOREVER.equalsIgnoreCase(settings.value(key).trim())
                 ? Optional.empty()
-                : Optional.of(settings.duration(LifecycleSettings.key(id, LifecycleSettings.RETENTION)));
+                : Optional.of(settings.duration(key));
     }
 
     /** The raw retention value, as an operator set it: {@code 7d}, {@code forever}. */
     public String retentionValue(String id) {
-        return settings.value(LifecycleSettings.key(id, LifecycleSettings.RETENTION));
+        return settings.value(key(id, LifecycleSettings.RETENTION));
     }
 
     /** The store's quota in its own unit (MiB or thousand rows); 0 means none. */
     public int quota(String id) {
-        return settings.intValue(LifecycleSettings.key(id, LifecycleSettings.QUOTA));
+        return settings.intValue(key(id, LifecycleSettings.QUOTA));
     }
 
     public int quotaWarnPercent(String id) {
-        return settings.intValue(LifecycleSettings.key(id, LifecycleSettings.QUOTA_WARN_PERCENT));
+        return settings.intValue(key(id, LifecycleSettings.QUOTA_WARN_PERCENT));
     }
 
     /** Adds a plugin's stores, replacing any it registered before (a new version attaches before the old detaches). */
@@ -87,7 +92,7 @@ public class LifecycleRegistry {
         Map<String, RegisteredStore> next = new LinkedHashMap<>(stores);
         next.values().removeIf(s -> s.source().equals(pluginId));
         stores = java.util.Collections.unmodifiableMap(next);
-        settings.removeSettings(LifecycleSettings.namespace(pluginId));
+        settings.removeSettings(LifecycleSettings.PLUGIN_NAMESPACE + pluginId);
     }
 
     private synchronized void add(List<RegisteredStore> added) {
@@ -99,9 +104,7 @@ public class LifecycleRegistry {
         }
         for (RegisteredStore store : added) {
             settings.addSettings(
-                    LifecycleSettings.namespace(store.id()),
-                    LifecycleSettings.policy(store.id(), store.def()),
-                    DataPermissions.DATA_WRITE);
+                    LifecycleSettings.namespace(store), LifecycleSettings.policy(store), DataPermissions.DATA_WRITE);
         }
         stores = java.util.Collections.unmodifiableMap(next);
     }
