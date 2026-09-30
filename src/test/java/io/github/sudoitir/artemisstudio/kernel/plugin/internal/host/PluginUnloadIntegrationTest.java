@@ -44,7 +44,7 @@ import org.springframework.web.context.WebApplicationContext;
  * scanners, Spring AI's JSON mapper and MCP schema caches, Spring's {@code @Bean} metadata — is
  * covered here; without the eviction, this test fails with a heap dump in {@code target/}.
  */
-class PluginUnloadIT extends PostgresIntegrationTest {
+class PluginUnloadIntegrationTest extends PostgresIntegrationTest {
 
     private static final String ID = "acme-unload";
     private static final String PKG = "com.acme.unload";

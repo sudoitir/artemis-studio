@@ -44,7 +44,7 @@ import tools.jackson.databind.JsonNode;
  * services, and detach removes every one of them — the registries are left exactly as they were,
  * built-in behaviour untouched.
  */
-class PluginBridgesIT extends PostgresIntegrationTest {
+class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     WebApplicationContext webContext;

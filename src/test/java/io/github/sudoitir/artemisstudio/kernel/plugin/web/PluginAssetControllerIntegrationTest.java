@@ -35,7 +35,7 @@ import org.springframework.web.context.WebApplicationContext;
  * the active runtime's own materialized jar, gated like {@code /api/**}, never falling back to the
  * SPA shell.
  */
-class PluginAssetControllerIT extends PostgresIntegrationTest {
+class PluginAssetControllerIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     WebApplicationContext webContext;

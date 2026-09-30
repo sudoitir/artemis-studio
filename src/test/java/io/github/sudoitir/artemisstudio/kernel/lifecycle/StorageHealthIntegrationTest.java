@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-class StorageHealthIT extends PostgresIntegrationTest {
+class StorageHealthIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     StorageHealthService health;

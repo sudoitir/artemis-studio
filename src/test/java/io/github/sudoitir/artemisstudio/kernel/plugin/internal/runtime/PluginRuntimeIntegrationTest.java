@@ -40,7 +40,7 @@ import org.springframework.web.context.WebApplicationContext;
  * {@link io.github.sudoitir.artemisstudio.kernel.plugin.web.PluginGateway} with real MockMvc (the
  * main application's own security filter chain included).
  */
-class PluginRuntimeIT extends PostgresIntegrationTest {
+class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     WebApplicationContext webContext;

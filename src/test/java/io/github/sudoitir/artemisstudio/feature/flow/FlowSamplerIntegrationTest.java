@@ -38,7 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * sampler reads exist, two sweeps give producer and consumer rates, and a row cap below the
  * client count is reported as truncation rather than hidden.
  */
-class FlowSamplerIT extends PostgresIntegrationTest {
+class FlowSamplerIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     ClientSampler sampler;

@@ -28,7 +28,7 @@ import org.springframework.session.Session;
  * against the real JDBC session store: a session carries the grants resolved at sign-in, so a
  * surviving one would keep the old rights until it timed out.
  */
-class SessionRevocationIT extends PostgresIntegrationTest {
+class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     UserService userService;

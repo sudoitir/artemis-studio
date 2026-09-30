@@ -40,7 +40,7 @@ Their host is `kernel.plugin.internal.{host,runtime,validation,store}`, their ad
 `web/src/sdk/` (published as `@artemis-studio/plugin-sdk` from `web/packages/plugin-sdk`),
 and the author's starting point `examples/plugin-template/`. Only `@PluginApi` types
 are the supported Java API. A class that JVM-wide caches may key by a plugin type gets
-an eviction in `PluginClassloaderCaches`; `PluginUnloadIT` fails with a heap dump when
+an eviction in `PluginClassloaderCaches`; `PluginUnloadIntegrationTest` fails with a heap dump when
 one is missing.
 
 ## Stack (fixed — changing any of these needs an ADR)

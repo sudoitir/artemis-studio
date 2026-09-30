@@ -25,7 +25,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** A user's effective permissions per scope and source role (authorization spec). */
-class EffectiveAccessIT extends PostgresIntegrationTest {
+class EffectiveAccessIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     EffectiveAccess effective;

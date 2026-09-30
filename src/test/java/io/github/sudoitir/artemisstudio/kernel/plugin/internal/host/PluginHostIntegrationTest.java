@@ -42,7 +42,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code requires}, downgrade, vendor-mismatch and connection-budget refusals, and the
  * {@code RESTART} activation class.
  */
-class PluginHostIT extends PostgresIntegrationTest {
+class PluginHostIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     PluginHost host;

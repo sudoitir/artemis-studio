@@ -36,9 +36,9 @@ import org.slf4j.LoggerFactory;
  * design already committed to (§13 answers 4 and 5); the rest is captured for
  * inspection.
  */
-class RequestReplySpikeIT extends ArtemisIntegrationTest {
+class RequestReplySpikeIntegrationTest extends ArtemisIntegrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(RequestReplySpikeIT.class);
+    private static final Logger log = LoggerFactory.getLogger(RequestReplySpikeIntegrationTest.class);
     private static final String NOTIF_ADDRESS = "activemq.notifications";
 
     @Test

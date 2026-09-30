@@ -35,7 +35,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * reports who signed a jar and never refuses for it, and activation, rollback and enable refuse an
  * untrusted or unsigned jar, or one that needs an acknowledgement, on the server.
  */
-class PluginTrustGateIT extends PostgresIntegrationTest {
+class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
 
     private static final String PUBLISHER = TestSigningKeys.PUBLISHER.fingerprint();
     private static final String OTHER = TestSigningKeys.OTHER.fingerprint();

@@ -38,7 +38,7 @@ import tools.jackson.databind.JsonNode;
  * does; a global tool's names the permission. The fixture's tools count their invocations in a
  * system property, so "the plugin never ran" is asserted, not assumed.
  */
-class PluginMcpAccessIT extends PostgresIntegrationTest {
+class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
 
     private static final String CALLS = "acme-access.calls";
 

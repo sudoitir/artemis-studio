@@ -23,7 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * with its own lock executor over the shared {@code shedlock} table, as two Studio processes would
  * have. An installation-wide job runs on one of them per tick; an instance job runs on both.
  */
-class JobSchedulerIT extends PostgresIntegrationTest {
+class JobSchedulerIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     DataSource dataSource;

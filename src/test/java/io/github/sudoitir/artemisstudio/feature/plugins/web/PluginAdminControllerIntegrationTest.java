@@ -55,7 +55,7 @@ import tools.jackson.databind.json.JsonMapper;
  * must step up, a token caller never installs, a step-up that fails five times ends the session,
  * and uploads are rate-limited.
  */
-class PluginAdminControllerIT extends PostgresIntegrationTest {
+class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
 
     private static final String PASSWORD = "correct-horse-battery";
 

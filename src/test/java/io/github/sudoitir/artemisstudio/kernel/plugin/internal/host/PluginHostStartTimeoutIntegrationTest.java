@@ -26,11 +26,11 @@ import tools.jackson.databind.json.JsonMapper;
  * design.md §2/task 6.8: a plugin bounded to {@code artemis-studio.plugins.start-timeout-seconds} at boot
  * — this class pins it to one second, and its fixture plugin sleeps three in {@code
  * @PostConstruct}, so its {@code active} row is expected to time out into {@code needs_restart}
- * rather than delay the rest of boot. A separate context from {@link PluginHostIT}'s, since the
+ * rather than delay the rest of boot. A separate context from {@link PluginHostIntegrationTest}'s, since the
  * timeout is a singleton {@code PluginProperties} value read once at context start.
  */
 @TestPropertySource(properties = "artemis-studio.plugins.start-timeout-seconds=1")
-class PluginHostStartTimeoutIT extends PostgresIntegrationTest {
+class PluginHostStartTimeoutIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     PluginHost host;

@@ -50,15 +50,15 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Task 6.11's remaining half: the full lifecycle through {@link PluginHost} itself (not through
  * {@link io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeFactory}
- * directly, which {@code PluginRuntimeIT} already covers) — install, an Instant update, a
+ * directly, which {@code PluginRuntimeIntegrationTest} already covers) — install, an Instant update, a
  * Brief-maintenance update, a code rollback, disable, enable, uninstall and purge — asserting the
  * gateway API, {@code tools/list}/{@code studio_help} through the real MCP server, the manifest
  * version, schema presence, the per-plugin pool count, classloader collection after an update, and
  * {@code @PreAuthorize} enforcement at every step. Plus one test per host failure-matrix row
- * (design.md §5) not already exercised by {@code PluginHostIT} (connection budget, disable
- * cascade) or {@code PluginRuntimeIT} (schema-confinement rollback-to-tag).
+ * (design.md §5) not already exercised by {@code PluginHostIntegrationTest} (connection budget, disable
+ * cascade) or {@code PluginRuntimeIntegrationTest} (schema-confinement rollback-to-tag).
  */
-class PluginLifecycleIT extends PostgresIntegrationTest {
+class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     WebApplicationContext webContext;
@@ -360,7 +360,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         String toolName = snake + "_ping";
 
         // ---- install (v1.0.0) then an Instant update (v2.0.0) -------------------------------------
-        // Classloader collection after a plugin did real work is PluginUnloadIT's; this test is
+        // Classloader collection after a plugin did real work is PluginUnloadIntegrationTest's; this test is
         // about the lifecycle itself.
         installThenInstantUpdate(id, http, key, toolName);
 
@@ -534,7 +534,8 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         return count == null ? 0 : count;
     }
 
-    // ==== failure-matrix rows not already covered by PluginHostIT / PluginRuntimeIT =============
+    // ==== failure-matrix rows not already covered by PluginHostIntegrationTest / PluginRuntimeIntegrationTest
+    // =============
 
     /** A plugin whose one component throws a real {@link LinkageError} the moment Spring tries to
      * instantiate it — standing in for "a linkage error against a changed API surface" (design.md
@@ -602,7 +603,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
      * in the plugin's own schema — a deterministic Postgres "relation already exists" failure,
      * declared reversible (a {@code --rollback}), so this exercises design.md §5's "Migration fails
      * ... the old version resumes" branch of {@code PluginHost#handleBriefMaintenanceFailure} (the
-     * {@code PluginMigrationException} branch — schema confinement — is {@code PluginRuntimeIT}'s).
+     * {@code PluginMigrationException} branch — schema confinement — is {@code PluginRuntimeIntegrationTest}'s).
      */
     private PluginJarBuilder duplicateTableJar(String id, String version) {
         String pkg = "com.acme.badsql";

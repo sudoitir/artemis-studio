@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** {@link PluginTrust} against a real Postgres: pinned keys, the decision, and the allowance. */
-class PluginTrustIT extends PostgresIntegrationTest {
+class PluginTrustIntegrationTest extends PostgresIntegrationTest {
 
     private static final Signer PUBLISHER = Signer.of(TestSigningKeys.PUBLISHER.certificate());
 

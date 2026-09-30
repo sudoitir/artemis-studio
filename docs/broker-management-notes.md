@@ -631,7 +631,7 @@ What actually shipped, against the plan in §8-§9:
 
 ## 13. Phase 5 slice 0 spike — request-reply correlation
 
-`RequestReplySpikeIT` (real broker via `ArtemisIntegrationTest`) ran both reply
+`RequestReplySpikeIntegrationTest` (real broker via `ArtemisIntegrationTest`) ran both reply
 patterns and a stuck-request case, answering the seven questions design.md D1
 posed before slice 1 committed to a join strategy.
 
