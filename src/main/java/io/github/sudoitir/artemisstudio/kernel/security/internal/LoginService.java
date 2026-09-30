@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
+import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
@@ -14,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -21,8 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The one username-and-password login path (identity-and-sessions spec). It throttles, audits
- * the attempt, asks the named credential provider — {@code local} when none is named — and
+ * The one username-and-password login path (identity-and-sessions spec). It audits the attempt,
+ * throttles, asks the named credential provider — {@code local} when none is named — and
  * starts the session. A provider that is not configured fails exactly like a wrong password,
  * so a login request cannot probe which providers exist.
  */
@@ -39,6 +41,7 @@ public class LoginService {
     private final SessionAuthentication sessions;
     private final AuthenticationAudit audit;
     private final UserAccounts accounts;
+    private final AccountLockout lockout;
 
     @Transactional
     public StudioPrincipal login(
@@ -48,28 +51,61 @@ public class LoginService {
             HttpServletRequest request,
             HttpServletResponse response) {
         sessions.clearForLogin(request, response);
-        String sourceIp = request.getRemoteAddr();
-        if (limiter.isLocked(username, sourceIp)) {
+        AuthenticationAudit.Attempt attempt = audit.loginAttempted(username, request);
+        if (limiter.isLocked(username, request.getRemoteAddr())) {
+            attempt.failed("throttled");
             throw new LoginThrottledException();
         }
-        AuthenticationAudit.Attempt attempt = audit.loginAttempted(username, request);
+        String provider = providerIdOrDefault(providerId);
         Optional<StudioPrincipal> principal;
         try {
-            principal = credentialProvider(providerId).flatMap(p -> p.authenticate(username, password));
+            principal = credentialProvider(provider).flatMap(p -> p.authenticate(username, password));
         } catch (DisabledException e) {
-            limiter.recordFailure(username, sourceIp);
+            lockout.failed(null, username, request);
             attempt.failed(INVALID_CREDENTIALS);
             throw e;
         }
         if (principal.isEmpty()) {
-            limiter.recordFailure(username, sourceIp);
+            lockout.failed(lockableAccount(provider, username), username, request);
             attempt.failed(INVALID_CREDENTIALS);
             throw new BadCredentialsException("Invalid username or password");
         }
-        limiter.recordSuccess(username, sourceIp);
+        if (lockedOut(principal.get())) {
+            // Answered exactly like a wrong password, so a locked account is not told apart.
+            lockout.failed(principal.get().userId(), username, request);
+            attempt.failed("account locked");
+            throw new BadCredentialsException("Invalid username or password");
+        }
         sessions.establish(principal.get(), SessionFacts.signedIn(request), request, response);
+        completed(principal.get(), request);
         attempt.succeeded();
         return principal.get();
+    }
+
+    /**
+     * The one place a sign-in counts as a success: the whole sign-in finished, second factor
+     * included. The second-factor step calls it once the factor verified; a correct password alone
+     * never does.
+     */
+    public void completed(StudioPrincipal principal, HttpServletRequest request) {
+        lockout.completed(principal.userId(), principal.getUsername(), request);
+    }
+
+    /** The one place the account lock is enforced for a sign-in that presented the right password. */
+    private boolean lockedOut(StudioPrincipal principal) {
+        // A valid trusted-device cookie for this user will exempt them here (task 6.6).
+        return lockout.isLocked(principal.userId());
+    }
+
+    /**
+     * The account a failed attempt counts against: the one the provider signs in, so failing local
+     * sign-ins for a single-sign-on user's name cannot lock that user out.
+     */
+    private UUID lockableAccount(String providerId, String username) {
+        return accounts.byUsername(username)
+                .filter(a -> a.providerId().equals(providerId))
+                .map(UserAccounts.Account::id)
+                .orElse(null);
     }
 
     /**
@@ -122,8 +158,12 @@ public class LoginService {
         sessions.end(request, response);
     }
 
+    private static String providerIdOrDefault(String providerId) {
+        return providerId == null || providerId.isBlank() ? DEFAULT_PROVIDER : providerId.trim();
+    }
+
     private Optional<CredentialIdentityProvider> credentialProvider(String providerId) {
-        String id = providerId == null || providerId.isBlank() ? DEFAULT_PROVIDER : providerId.trim();
+        String id = providerIdOrDefault(providerId);
         return contributions.stream()
                 .flatMap(c -> c.providers().stream())
                 .filter(p -> p instanceof CredentialIdentityProvider && p.id().equals(id))

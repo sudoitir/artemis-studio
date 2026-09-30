@@ -18,9 +18,17 @@ class AuthenticationAuditRecorder implements AuthenticationAudit {
 
     @Override
     public Attempt loginAttempted(String username, HttpServletRequest request) {
-        // No session exists yet, so the actor is the anonymous caller at this address.
-        Actor anonymous = new Actor(Actor.ANONYMOUS, request.getRemoteAddr(), request.getHeader("X-Request-Id"), null);
-        return attempt(audit.begin(anonymous, "LOGIN", "user", username, null, null, null, false));
+        return attempt(audit.begin(anonymous(request), "LOGIN", "user", username, null, null, null, false));
+    }
+
+    @Override
+    public void accountLocked(String username, HttpServletRequest request) {
+        audit.succeed(audit.begin(anonymous(request), "ACCOUNT_LOCK", "user", username, null, null, null, false), 1);
+    }
+
+    /** No session exists yet, so the actor is the anonymous caller at this address. */
+    private static Actor anonymous(HttpServletRequest request) {
+        return new Actor(Actor.ANONYMOUS, request.getRemoteAddr(), request.getHeader("X-Request-Id"), null);
     }
 
     @Override
