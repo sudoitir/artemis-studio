@@ -28,16 +28,20 @@ const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: 'login',
 /**
  * The open tab is an `admin.tabs` contribution's id; the page falls back to the first tab for any
  * other. `plugin` is the plugin whose details are open on the Plugins tab; `upload` reopens an
- * inspected upload's review, which is where a single-sign-on step-up returns to.
+ * inspected upload's review, which is where a single-sign-on step-up returns to. `view` is the Data
+ * tab's open view.
  */
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin',
   component: AdminView,
-  validateSearch: (raw: Record<string, unknown>): { tab?: string; plugin?: string; upload?: string } => ({
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { tab?: string; plugin?: string; upload?: string; view?: 'retention' | 'health' } => ({
     ...(typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {}),
     ...(typeof raw.plugin === 'string' && raw.plugin ? { plugin: raw.plugin } : {}),
     ...(typeof raw.upload === 'string' && /^[0-9a-f]{64}$/.test(raw.upload) ? { upload: raw.upload } : {}),
+    ...(raw.view === 'retention' || raw.view === 'health' ? { view: raw.view } : {}),
   }),
 });
 

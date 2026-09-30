@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
@@ -8,8 +9,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * The statements a row store needs (ADR-0132). {@code predicate} is a SQL condition with exactly
  * one {@code ?}, bound to the cutoff, such as {@code "received_at < ?"}. Each call runs in its own
- * auto-committed statement, which is what makes a batch its own short transaction.
+ * auto-committed statement, which is what makes a batch its own short transaction. A plugin's
+ * store uses it with a {@code JdbcTemplate} over its own data source, so an unqualified table name
+ * resolves in the plugin's schema.
  */
+@PluginApi
 public final class LifecycleSql {
 
     private static final String USAGE = """

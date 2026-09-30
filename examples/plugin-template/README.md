@@ -11,7 +11,7 @@ It shows every kind of contribution a plugin can make:
 | An API behind Studio's permissions (`acme-notes:read`, `acme-notes:write`) | `NotesController.java` |
 | An assistant (MCP) tool | `NotesTools.java` |
 | A setting on Studio's Settings page | `NotesSettings.java` |
-| A background job | `NotesConfiguration.java` |
+| Its table under Studio's data retention, quotas and purge (Administration → Data) | `NotesStore.java` |
 | A page in each cluster, a navigation entry, a panel in every queue's details, live updates | `web/src/` |
 
 ## Build
@@ -42,6 +42,9 @@ You need Java 25 and Maven. Node is downloaded by the build.
 
 ## Rules worth knowing before you write code
 
+- **A table that grows with use is a store.** Contribute a `HousekeepingContributor`, the way `NotesStore`
+  does, rather than a pruning job: operators then see it, set its retention and quota, and preview a purge on
+  Administration → Data, and Studio purges it in small batches on one instance and audits each purge.
 - **No `@Scheduled`, `@Async` or threads of your own.** Contribute a `ScheduledJob` bean; Studio runs it and
   stops it with the plugin. Give it a scope: `INSTALLATION` for work on shared rows (it runs on one Studio
   instance per tick), `INSTANCE` for work on this instance's own state (it runs everywhere).

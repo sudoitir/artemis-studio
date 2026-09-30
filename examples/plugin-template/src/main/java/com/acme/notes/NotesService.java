@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -89,12 +88,5 @@ public class NotesService {
         em.remove(note);
         audit.succeed(event, 1);
         stream.publish(clusterId, TOPIC);
-    }
-
-    @Transactional
-    public void pruneOlderThanAYear() {
-        em.createQuery("DELETE FROM Note n WHERE n.createdAt < :cutoff")
-                .setParameter("cutoff", clock.instant().minus(Duration.ofDays(365)))
-                .executeUpdate();
     }
 }
