@@ -32,7 +32,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.JsonNode;
 
 /**
- * The gate every MCP request passes through (mcp-server spec, ADR-0135): a token's tool
+ * The gate every MCP request passes through (mcp-server spec, ADR-0137): a token's tool
  * allow-list, the installation's read-only mode, and an audit row for every call, reads included.
  */
 class McpGateIntegrationTest extends PostgresIntegrationTest {

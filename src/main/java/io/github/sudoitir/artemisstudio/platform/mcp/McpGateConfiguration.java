@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Primary;
 import reactor.core.publisher.Mono;
 
 /**
- * Puts {@link McpGate} between the servlet transport and the MCP server (ADR-0135). The
+ * Puts {@link McpGate} between the servlet transport and the MCP server (ADR-0137). The
  * autoconfigured {@link WebMvcStatelessServerTransport} still serves {@code /mcp} through its router;
  * the server is handed this transport instead, whose {@code setMcpHandler} installs the server's
  * handler on the real transport wrapped in the gate. The router bean asks for the concrete type and

@@ -22,7 +22,7 @@ import { formatInstant } from './format.ts';
 import { OneTimeSecret, TokenStatus, TokenUsagePanel } from './TokenParts.tsx';
 
 /**
- * Personal API keys (ADR-0039), and the only place a key is minted or rotated (ADR-0134). A key is
+ * Personal API keys (ADR-0039), and the only place a key is minted or rotated (ADR-0136). A key is
  * the credential the MCP surface authenticates with (ADR-0046), which is why minting asks for its
  * grants: a key created with no grants can sign in and do nothing.
  */

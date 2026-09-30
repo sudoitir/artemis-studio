@@ -6,7 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/** The token lifetime policy and request limits (ADR-0134). Read on each use, so a change applies at once. */
+/** The token lifetime policy and request limits (ADR-0136). Read on each use, so a change applies at once. */
 @Component
 public class ApiTokensSettings implements SettingsContribution {
 

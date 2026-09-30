@@ -37,7 +37,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Rotation, the live lifetime cap, and the administrators' inventory (api-tokens spec, ADR-0134),
+ * Rotation, the live lifetime cap, and the administrators' inventory (api-tokens spec, ADR-0136),
  * through the real token path.
  */
 class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {

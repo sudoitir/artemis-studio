@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The MCP tools a key can be restricted to (ADR-0135): every registered tool, the plugins' included,
+ * The MCP tools a key can be restricted to (ADR-0137): every registered tool, the plugins' included,
  * for the allow-list picker on the account page. Whether a key may then use one is still its grants'
  * decision.
  */

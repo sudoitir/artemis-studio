@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Personal API tokens (api-tokens spec, ADR-0039, ADR-0134). */
+/** Personal API tokens (api-tokens spec, ADR-0039, ADR-0136). */
 public final class TokenViews {
 
     private TokenViews() {}

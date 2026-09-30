@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
- * Hourly per-token request counters (ADR-0134): counted in memory per request and written by the
+ * Hourly per-token request counters (ADR-0136): counted in memory per request and written by the
  * minute flush, so a busy token costs one upsert a minute, not a row per request.
  */
 @Component

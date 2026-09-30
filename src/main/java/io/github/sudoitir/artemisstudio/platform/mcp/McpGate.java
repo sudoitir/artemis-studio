@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * The one point every MCP request passes through, built-in and plugin tools alike (ADR-0135). It
+ * The one point every MCP request passes through, built-in and plugin tools alike (ADR-0137). It
  * wraps the SDK's request handler, so it sees each JSON-RPC request on the servlet thread where the
  * caller's security context lives:
  *

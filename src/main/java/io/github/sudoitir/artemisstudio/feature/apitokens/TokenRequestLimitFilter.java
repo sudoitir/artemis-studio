@@ -19,7 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Rate and concurrency limits on token-authenticated requests, the MCP endpoint included, and the
- * count behind each token's usage summary (api-tokens spec, ADR-0134). Registered at the default
+ * count behind each token's usage summary (api-tokens spec, ADR-0136). Registered at the default
  * order, after the security chain, so it sees the principal. Browser sessions pass untouched: the
  * UI polls, and limiting it would only break the console.
  */

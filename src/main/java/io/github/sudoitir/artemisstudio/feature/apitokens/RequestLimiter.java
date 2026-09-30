@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Fixed one-minute request windows and in-flight counts, keyed by token or user id (ADR-0134).
+ * Fixed one-minute request windows and in-flight counts, keyed by token or user id (ADR-0136).
  * In memory: Studio runs as one instance (ADR-0037).
  */
 // ponytail: fixed windows allow up to twice the rate across a minute boundary and live in one JVM;

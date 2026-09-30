@@ -24,7 +24,7 @@ import org.hibernate.type.SqlTypes;
  * Maps {@code api_token}. {@code tokenHash} is SHA-256 of the generated secret; the
  * plaintext is disclosed exactly once, at creation or rotation (ADR-0039). Lookup is by
  * the indexed {@code prefix}, or {@code previousPrefix} for the secret a rotation replaced
- * (ADR-0134).
+ * (ADR-0136).
  */
 @Entity
 @Table(name = "api_token")
@@ -88,7 +88,7 @@ public class ApiTokenEntity {
         this.mcpTools = new ArrayList<>(mcpTools);
     }
 
-    /** The earlier of the token's own expiry and its creation plus the current cap (ADR-0134). */
+    /** The earlier of the token's own expiry and its creation plus the current cap (ADR-0136). */
     public Instant effectiveExpiry(Duration cap) {
         Instant capped = createdAt.plus(cap);
         return capped.isBefore(expiresAt) ? capped : expiresAt;

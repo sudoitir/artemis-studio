@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * A principal authenticated by a personal API token: the owner, narrowed to the token's grants,
- * plus the token's id and MCP tool allow-list (ADR-0134, ADR-0135). The request limits, usage
+ * plus the token's id and MCP tool allow-list (ADR-0136, ADR-0137). The request limits, usage
  * counters and the MCP gate read these. Not plugin API; plugins see the {@link StudioPrincipal}.
  */
 public final class TokenPrincipal extends StudioPrincipal {

@@ -25,7 +25,7 @@ const TOKEN_ADMIN = 'token:admin';
 
 /**
  * Every user's API keys, metadata only, so a leaked key can be revoked without its owner
- * (identity-and-sessions spec, ADR-0134). Keys are minted and rotated only by their owners, on the
+ * (identity-and-sessions spec, ADR-0136). Keys are minted and rotated only by their owners, on the
  * account page; there is no such action here.
  */
 export function AdminTokensPanel() {

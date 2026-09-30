@@ -6,7 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/** The installation-wide read-only switch for the agent surface (ADR-0135). */
+/** The installation-wide read-only switch for the agent surface (ADR-0137). */
 @Component
 public class McpSettings implements SettingsContribution {
 

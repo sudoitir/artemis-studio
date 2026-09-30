@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
  * from the catalogue, which is the same argument ADR-0045 made about listing size:
  * review does not catch drift, a build failure does.
  *
- * <p>What it describes is narrowed to the caller (ADR-0135): a token's MCP tool allow-list and the
+ * <p>What it describes is narrowed to the caller (ADR-0137): a token's MCP tool allow-list and the
  * installation's read-only mode decide what is {@linkplain #offered offered}, and every description
  * below — index, detail, instructions — names only offered tools, so a restricted token learns
  * nothing about the rest. {@code studio_help} is always offered.

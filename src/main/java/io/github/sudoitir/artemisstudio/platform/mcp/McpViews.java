@@ -100,7 +100,7 @@ public final class McpViews {
     /**
      * {@code studio://permissions} — what <em>this key</em> can do, not what the product supports.
      * {@code mcpTools} is the token's tool allow-list, empty when it may call every tool its grants
-     * permit; {@code readOnly} says the installation refuses every mutating tool (ADR-0135).
+     * permit; {@code readOnly} says the installation refuses every mutating tool (ADR-0137).
      */
     public record TokenPermissions(
             String user, String tokenName, List<GrantEntry> grants, List<String> mcpTools, boolean readOnly) {}

@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Mints, authenticates, rotates and revokes personal API tokens (api-tokens spec,
- * ADR-0039, ADR-0134). A minted secret is 256 bits of entropy — its hash is looked
+ * ADR-0039, ADR-0136). A minted secret is 256 bits of entropy — its hash is looked
  * up by an indexed plaintext prefix and compared in constant time, never through a
  * slow password KDF. A token's effective expiry is capped live by the installation's
  * maximum lifetime.

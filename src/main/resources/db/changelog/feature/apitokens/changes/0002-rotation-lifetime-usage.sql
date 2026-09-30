@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Token rotation, the lifetime cap, MCP tool allow-lists and hourly usage (ADR-0134).
+-- Token rotation, the lifetime cap, MCP tool allow-lists and hourly usage (ADR-0136).
 -- Every token now has an expiry: tokens minted without one get created_at + 90 days, the
 -- default cap. The rotation columns hold the previous secret, kept after its overlap ends so
 -- a late use is recognised and audited. The new columns are appended; rewriting api_token to

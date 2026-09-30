@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Every user's API tokens, metadata only, for holders of {@code token:admin} (api-tokens spec,
- * ADR-0134): so a leaked token can be revoked without its owner. No mint and no rotate here.
+ * ADR-0136): so a leaked token can be revoked without its owner. No mint and no rotate here.
  */
 @RestController
 @RequestMapping("/api/v1/admin/tokens")

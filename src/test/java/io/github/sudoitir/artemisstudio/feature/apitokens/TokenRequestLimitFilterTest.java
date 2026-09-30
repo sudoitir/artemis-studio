@@ -18,7 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Per-token and per-user request limits (api-tokens spec, ADR-0134). */
+/** Per-token and per-user request limits (api-tokens spec, ADR-0136). */
 class TokenRequestLimitFilterTest {
 
     private final SettingsService settings = mock(SettingsService.class);
