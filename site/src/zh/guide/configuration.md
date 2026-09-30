@@ -27,16 +27,24 @@ description: Artemis Studio 读取的环境变量、哪些是必需的，以及�
 |---|---|---|
 | `env`（默认） | `ARTEMIS_STUDIO_SECRET_KEY`：单个 Base64 密钥（版本 1），或用 `1=<b64>,2=<b64>` 表示多个版本 | 无 |
 | `file` | 一个目录，内含名为 `kek-<n>` 的文件（32 字节的 Base64，`n` 为版本号）。挂载的 Kubernetes Secret 卷符合此格式 | `artemis-studio.secrets.file.directory` |
-| `vault` | HashiCorp Vault KV 版本 2。每个有效 KV 版本的 `kek` 字段就是一个密钥版本 | `artemis-studio.secrets.vault.uri`、`.mount` [`secret`]、`.path`、`.authentication` [`token`；或 `approle`、`kubernetes`]、`.token`、`.role-id`、`.secret-id`、`.kubernetes-role`、`.kubernetes-token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`] |
+| `vault` | HashiCorp Vault KV 版本 2。每个有效 KV 版本的 `kek` 字段就是一个密钥版本 | `artemis-studio.secrets.vault.uri`、`.mount` [`secret`]、`.path`、`.oidc-path` [默认与 `.path` 相同]、`.authentication` [`token`；或 `approle`、`kubernetes`]、`.token`、`.role-id`、`.secret-id`、`.kubernetes-role`、`.kubernetes-token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`] |
 | `kubernetes` | 一个含 `kek-<n>` 键的 Kubernetes Secret，通过 API 服务器并以 Pod 的服务账号读取 | `artemis-studio.secrets.kubernetes.secret-name`、`.namespace` [Pod 自身所在的命名空间]、`.api-url` [`https://kubernetes.default.svc`]、`.token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`]、`.ca-path` [`/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`] |
 
 `kubernetes` 提供者的服务账号需要对该 Secret 拥有 `get` 权限。
 
 每个密钥都必须是恰好 32 字节的 Base64。密钥的版本就是其名称中的数字（`kek-2`、环境变量中的 `2=`，或 Vault 中的 KV 版本）。
 
+### Vault 默认只保留少量版本
+
+KV 版本 2 默认只保留 **10 个版本**，写入第 11 个时会删除最旧的版本，而且每次写入都算，哪怕只是修改了 `oidc-client-secret`。丢失一个仍有机密在使用的版本，这些机密就无法再读取。因此：
+
+- 把该路径的 `max_versions` 设得足够大（例如 `vault kv metadata put -max-versions=0 secret/artemis-studio`，`0` 表示不限制）。
+- 用 `artemis-studio.secrets.vault.oidc-path` 把 `oidc-client-secret` 放在单独的路径上，这样修改它不会给密钥路径增加版本。
+- 不要删除或销毁仍在使用的版本。若有机密使用某个版本而提供者已没有它，**设置 → 安全** 会把它列为缺失，日志中也会警告该版本及其数量。
+
 ### OIDC 客户端密钥
 
-提供者同样负责提供 OIDC 客户端密钥，名称为 `oidc-client-secret`：即同名的文件或 Kubernetes Secret 键、Vault 最新版本的 `oidc-client-secret` 字段，或在 `env` 提供者下的 `ARTEMIS_STUDIO_OIDC_CLIENT_SECRET`。只在这里配置，不要在别处配置：提供者不是 `env` 时，在 Studio 自己的 OIDC 设置里写入客户端密钥会报错。
+提供者同样负责提供 OIDC 客户端密钥，名称为 `oidc-client-secret`：即同名的文件或 Kubernetes Secret 键、Vault 中 `.oidc-path` 最新版本的 `oidc-client-secret` 字段，或在 `env` 提供者下的 `ARTEMIS_STUDIO_OIDC_CLIENT_SECRET`。只在这里配置，不要在别处配置：提供者不是 `env` 时，在 Studio 自己的 OIDC 设置里写入客户端密钥会报错。
 
 ### 轮换密钥
 

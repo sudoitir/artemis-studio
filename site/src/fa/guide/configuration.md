@@ -27,16 +27,24 @@ description: متغیرهای محیطی که Artemis Studio می‌خواند،
 |---|---|---|
 | `env` (پیش‌فرض) | `ARTEMIS_STUDIO_SECRET_KEY`: یک کلید Base64 ساده (نسخهٔ ۱)، یا `1=<b64>,2=<b64>` برای چند نسخه | ندارد |
 | `file` | پوشه‌ای از فایل‌هایی به نام `kek-<n>` (Base64 از ۳۲ بایت؛ `n` شمارهٔ نسخه). یک volume از Kubernetes Secret مناسب است | `artemis-studio.secrets.file.directory` |
-| `vault` | HashiCorp Vault، KV نسخهٔ ۲. فیلد `kek` هر نسخهٔ زندهٔ KV یک نسخهٔ کلید است | `artemis-studio.secrets.vault.uri`، `.mount` [`secret`]، `.path`، `.authentication` [`token`؛ یا `approle`، `kubernetes`]، `.token`، `.role-id`، `.secret-id`، `.kubernetes-role`، `.kubernetes-token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`] |
+| `vault` | HashiCorp Vault، KV نسخهٔ ۲. فیلد `kek` هر نسخهٔ زندهٔ KV یک نسخهٔ کلید است | `artemis-studio.secrets.vault.uri`، `.mount` [`secret`]، `.path`، `.oidc-path` [پیش‌فرض همان `.path`]، `.authentication` [`token`؛ یا `approle`، `kubernetes`]، `.token`، `.role-id`، `.secret-id`، `.kubernetes-role`، `.kubernetes-token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`] |
 | `kubernetes` | یک Kubernetes Secret با کلیدهای `kek-<n>` که از طریق API server و با service account پاد خوانده می‌شود | `artemis-studio.secrets.kubernetes.secret-name`، `.namespace` [namespace خودِ پاد]، `.api-url` [`https://kubernetes.default.svc`]، `.token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`]، `.ca-path` [`/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`] |
 
 service account ارائه‌دهندهٔ `kubernetes` روی همان یک Secret به دسترسی `get` نیاز دارد.
 
 هر کلید باید Base64 از دقیقاً ۳۲ بایت باشد. نسخهٔ کلید همان عددِ نامش است (`kek-2`، یا `2=` در متغیر محیطی، یا نسخهٔ KV در Vault).
 
+### Vault به‌طور پیش‌فرض نسخه‌های کمی نگه می‌دارد
+
+KV نسخهٔ ۲ به‌طور پیش‌فرض فقط **۱۰ نسخه** نگه می‌دارد و با نوشتن نسخهٔ یازدهم قدیمی‌ترین را پاک می‌کند؛ هر نوشتنی حساب می‌شود، حتی اگر فقط `oidc-client-secret` را عوض کند. از دست رفتن نسخه‌ای که هنوز رازهایی زیر آن بسته شده‌اند، آن رازها را ناخوانا می‌کند. بنابراین:
+
+- `max_versions` را روی آن مسیر بالا بگذارید (برای نمونه `vault kv metadata put -max-versions=0 secret/artemis-studio`؛ `0` یعنی بی‌حد).
+- `oidc-client-secret` را با `artemis-studio.secrets.vault.oidc-path` در مسیر جدایی نگه دارید تا ویرایش آن نسخه‌ای به مسیر کلیدها اضافه نکند.
+- نسخه‌ای را که هنوز در کار است هرگز پاک یا نابود نکنید. اگر رازهایی از نسخه‌ای استفاده کنند که ارائه‌دهنده دیگر ندارد، **تنظیمات ← امنیت** آن را «گم‌شده» نشان می‌دهد و در گزارش هشداری با شمارهٔ نسخه و تعداد ثبت می‌شود.
+
 ### رازِ کلاینت OIDC
 
-ارائه‌دهنده رازِ کلاینت OIDC را هم با نام `oidc-client-secret` می‌دهد: کلیدی با همین نام در فایل یا Kubernetes Secret، فیلد `oidc-client-secret` در آخرین نسخهٔ Vault، یا `ARTEMIS_STUDIO_OIDC_CLIENT_SECRET` با ارائه‌دهندهٔ `env`. آن را فقط همین‌جا تنظیم کنید: وقتی ارائه‌دهنده `env` نیست، رازِ کلاینتی که در تنظیمات OIDC خودِ Studio داده شود خطا می‌دهد.
+ارائه‌دهنده رازِ کلاینت OIDC را هم با نام `oidc-client-secret` می‌دهد: کلیدی با همین نام در فایل یا Kubernetes Secret، فیلد `oidc-client-secret` در آخرین نسخهٔ `.oidc-path` در Vault، یا `ARTEMIS_STUDIO_OIDC_CLIENT_SECRET` با ارائه‌دهندهٔ `env`. آن را فقط همین‌جا تنظیم کنید: وقتی ارائه‌دهنده `env` نیست، رازِ کلاینتی که در تنظیمات OIDC خودِ Studio داده شود خطا می‌دهد.
 
 ### چرخاندن کلید
 

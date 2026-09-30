@@ -35,7 +35,7 @@ underscore and a dot becomes an underscore, so `artemis-studio.secrets.vault.uri
 |---|---|---|
 | `env` (default) | `ARTEMIS_STUDIO_SECRET_KEY`: a bare base64 key (version 1), or `1=<b64>,2=<b64>` for several versions | none |
 | `file` | A directory of files `kek-<n>` (base64 of 32 bytes; `n` is the version). A mounted Kubernetes Secret volume fits | `artemis-studio.secrets.file.directory` |
-| `vault` | HashiCorp Vault KV version 2. The field `kek` of each live KV version is a key version | `artemis-studio.secrets.vault.uri`, `.mount` [`secret`], `.path`, `.authentication` [`token`; or `approle`, `kubernetes`], `.token`, `.role-id`, `.secret-id`, `.kubernetes-role`, `.kubernetes-token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`] |
+| `vault` | HashiCorp Vault KV version 2. The field `kek` of each live KV version is a key version | `artemis-studio.secrets.vault.uri`, `.mount` [`secret`], `.path`, `.oidc-path` [the same as `.path`], `.authentication` [`token`; or `approle`, `kubernetes`], `.token`, `.role-id`, `.secret-id`, `.kubernetes-role`, `.kubernetes-token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`] |
 | `kubernetes` | One Kubernetes Secret with keys `kek-<n>`, read through the API server with the pod's service account | `artemis-studio.secrets.kubernetes.secret-name`, `.namespace` [the pod's own], `.api-url` [`https://kubernetes.default.svc`], `.token-path` [`/var/run/secrets/kubernetes.io/serviceaccount/token`], `.ca-path` [`/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`] |
 
 The service account of the `kubernetes` provider needs `get` on that one Secret.
@@ -43,10 +43,24 @@ The service account of the `kubernetes` provider needs `get` on that one Secret.
 Every key must be base64 of exactly 32 bytes. The version of a key is the number in its name
 (`kek-2`, or `2=` in the environment variable, or the KV version in Vault).
 
+### Vault keeps few versions by default
+
+KV version 2 keeps only **10 versions** of a secret and deletes the oldest when an eleventh is
+written, and every write counts, even one that changes nothing but `oidc-client-secret`. Losing a
+version that stored secrets are still wrapped under makes them unreadable. So:
+
+- Set `max_versions` on the path high (for example `vault kv metadata put -max-versions=0 secret/artemis-studio`,
+  where `0` means unlimited).
+- Keep `oidc-client-secret` on a separate path with `artemis-studio.secrets.vault.oidc-path`, so
+  editing it never adds a version to the key path.
+- Never delete or destroy a version that is still in use. **Settings → Security** lists a version
+  that stored secrets use but the provider lacks as missing, and the log warns with its version and
+  count.
+
 ### The OIDC client secret
 
 The provider also supplies the OIDC client secret, under the name `oidc-client-secret`: the file or
-Kubernetes Secret key of that name, the field `oidc-client-secret` of the latest Vault version, or
+Kubernetes Secret key of that name, the field `oidc-client-secret` of the latest version at `.oidc-path` in Vault, or
 `ARTEMIS_STUDIO_OIDC_CLIENT_SECRET` with the `env` provider. Configure it there and nowhere else:
 a client secret set in Studio's own OIDC settings is an error when the provider is not `env`.
 
