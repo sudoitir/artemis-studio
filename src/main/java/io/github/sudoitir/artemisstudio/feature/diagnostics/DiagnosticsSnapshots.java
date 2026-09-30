@@ -22,7 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * The prepared support bundles, shared by every replica: the preview and the download of one
- * bundle can reach different replicas (ADR-0148). Expired rows are purged by the data lifecycle
+ * bundle can reach different replicas (ADR-0152). Expired rows are purged by the data lifecycle
  * (ADR-0134).
  */
 @Component

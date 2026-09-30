@@ -27,7 +27,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Which replica runs a cluster's broker duties (ADR-0148, design D2). Every cluster has one owner:
+ * Which replica runs a cluster's broker duties (ADR-0152, design D2). Every cluster has one owner:
  * the ready replica with the highest rendezvous hash of (cluster, replica), so owners spread over
  * the replicas and a join or a leave moves only the clusters that must move. The owner holds a row
  * of {@code cluster_lease}.

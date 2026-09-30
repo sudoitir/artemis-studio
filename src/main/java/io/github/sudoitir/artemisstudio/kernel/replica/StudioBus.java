@@ -23,7 +23,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * The bus the replicas talk over (ADR-0148): PostgreSQL {@code LISTEN}/{@code NOTIFY} on channel
+ * The bus the replicas talk over (ADR-0152): PostgreSQL {@code LISTEN}/{@code NOTIFY} on channel
  * {@code studio}. One dedicated connection listens, opened from the {@code spring.datasource}
  * values rather than taken from the pool, because it stays open for as long as the process runs.
  * A {@code studio-bus} thread reads notifications and pings the connection, and reconnects with a

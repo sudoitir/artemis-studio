@@ -137,7 +137,7 @@ public class PluginStore {
      * Mutates the install row for {@code id} within one transaction — the generic escape hatch
      * {@code PluginHost} (task 6.8) uses for progress/step updates and version bumps that do not
      * fit one of this store's own named transitions above. A change of status is announced to the
-     * other replicas when it commits, so each brings its own runtimes in line with the row (ADR-0148).
+     * other replicas when it commits, so each brings its own runtimes in line with the row (ADR-0152).
      */
     @Transactional
     public void update(String id, Consumer<PluginInstallEntity> mutation) {

@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Which replica owns a cluster's broker work (ADR-0148): one row per owned cluster, renewed every
+-- Which replica owns a cluster's broker work (ADR-0152): one row per owned cluster, renewed every
 -- heartbeat and expiring a ttl later. A released lease is not deleted but expired at once, so a
 -- cluster nobody has taken up for one more ttl stays distinguishable from one just released. Column
 -- order follows the padding rule (8-byte first, then uuid last). Rows are rewritten every few

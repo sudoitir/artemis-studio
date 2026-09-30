@@ -43,7 +43,7 @@ public class ClusterDirectory {
         return List.copyOf(clusters.findAllByOrderByNameAsc());
     }
 
-    /** The registered clusters this replica owns (ADR-0148): the ones its timed broker duties visit. */
+    /** The registered clusters this replica owns (ADR-0152): the ones its timed broker duties visit. */
     public List<RegisteredCluster> owned() {
         return clusters().stream().filter(c -> ownership.owns(c.getId())).toList();
     }

@@ -8,7 +8,7 @@ import org.springframework.boot.health.contributor.Health;
 import org.springframework.stereotype.Component;
 
 /**
- * The {@code replica} contributor to readiness (ADR-0148): up once this replica is ready, which is
+ * The {@code replica} contributor to readiness (ADR-0152): up once this replica is ready, which is
  * after the plugin boot sequence, and the bus listens or has been down for less than ten seconds;
  * down while it is starting, while it drains and once the bus has been gone for longer. It says
  * nothing about brokers, as the operational health rule requires.

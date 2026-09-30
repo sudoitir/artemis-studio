@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-/** Probes and drain (ADR-0148): ready once started, not ready while draining. */
+/** Probes and drain (ADR-0152): ready once started, not ready while draining. */
 class ReplicaReadinessTest extends PostgresIntegrationTest {
 
     @Autowired

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
- * What crosses the bus between replicas (ADR-0148). The wire names the shape, never a class, so a
+ * What crosses the bus between replicas (ADR-0152). The wire names the shape, never a class, so a
  * rolling upgrade can rename a type without breaking its neighbours.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "t")

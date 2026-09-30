@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * Fixed one-minute request windows, keyed by token or user id, and in-flight counts (ADR-0136).
  * The windows live in the {@code api_request_window} table, so the limit is exact across replicas
- * (ADR-0148): a request is one statement, which counts it against its minute unless the minute is
+ * (ADR-0152): a request is one statement, which counts it against its minute unless the minute is
  * at the limit, and drops the key's older minutes. The in-flight counts stay in memory and are per
  * replica: a token may have its concurrency limit in flight on each replica.
  */

@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * thread of its own, as the operator who started it, and can be asked to stop.
  *
  * <p>The stop flags are in-process, and so is the run: a stop asked of another replica travels as a
- * {@link ReplicaSignal} that every replica hears, and the one executing the run acts on it (ADR-0148).
+ * {@link ReplicaSignal} that every replica hears, and the one executing the run acts on it (ADR-0152).
  * What a run whose replica is gone becomes is each feature's own recovery.
  */
 @Slf4j

@@ -20,7 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * This process as one replica of the installation (ADR-0148). It mints an identity, records itself
+ * This process as one replica of the installation (ADR-0152). It mints an identity, records itself
  * in {@code studio_replica}, and a dedicated platform thread renews a heartbeat taken from database
  * time, so clock skew between replicas does not matter. The thread is not on the job pool: a
  * starved pool must not make a healthy replica look dead.

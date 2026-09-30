@@ -1,7 +1,7 @@
 --liquibase formatted sql
 
 -- The per-minute request count of each API token and each token owner (ADR-0136), shared by the
--- replicas (ADR-0148) so the limit is exact across them. A request is one INSERT ... ON CONFLICT
+-- replicas (ADR-0152) so the limit is exact across them. A request is one INSERT ... ON CONFLICT
 -- DO UPDATE, which also removes the key's older minutes; a key that stops calling leaves one row,
 -- which the data lifecycle purges (ADR-0134). Counts are lost, harmlessly, on a crash, so the table
 -- is UNLOGGED. Updated on every request, so it keeps room for HOT updates and is vacuumed early.

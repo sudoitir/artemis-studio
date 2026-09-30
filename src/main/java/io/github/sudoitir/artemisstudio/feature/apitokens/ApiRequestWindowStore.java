@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * The request windows of tokens and owners that stopped calling, under the data lifecycle
- * (ADR-0134, ADR-0148). A key that keeps calling trims its own older minutes; this removes what a
+ * (ADR-0134, ADR-0152). A key that keeps calling trims its own older minutes; this removes what a
  * key that stopped left behind.
  */
 @Component

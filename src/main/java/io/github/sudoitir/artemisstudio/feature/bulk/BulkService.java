@@ -322,7 +322,7 @@ public class BulkService {
                 throw new ConflictException(
                         "bulk-run-not-running", "This bulk run is not executing, so there is nothing to stop.");
             }
-            // Executing on another replica (ADR-0148): every replica hears it, the executing one acts.
+            // Executing on another replica (ADR-0152): every replica hears it, the executing one acts.
             runner.signalStop(runId);
         }
         return view(run);

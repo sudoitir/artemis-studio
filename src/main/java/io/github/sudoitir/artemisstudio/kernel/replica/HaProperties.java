@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * The timings of a replicated installation (ADR-0148).
+ * The timings of a replicated installation (ADR-0152).
  *
  * @param heartbeat how often a replica records that it is alive, using database time
  * @param ttl how old a heartbeat may be before its replica counts as gone

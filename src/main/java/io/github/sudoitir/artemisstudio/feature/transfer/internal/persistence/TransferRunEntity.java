@@ -142,7 +142,7 @@ public class TransferRunEntity {
     @Column(name = "operator_id")
     private UUID operatorId;
 
-    /** The replica executing the current segment: recovery leaves the run alone while it is alive (ADR-0148). */
+    /** The replica executing the current segment: recovery leaves the run alone while it is alive (ADR-0152). */
     @Column(name = "replica_id")
     private UUID replicaId;
 

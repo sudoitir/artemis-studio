@@ -16,7 +16,7 @@ class JobsShutdownSteps {
     /** Long enough for a normal pass to finish; a stuck one is not allowed to hold shutdown. */
     private static final Duration IN_FLIGHT_WAIT = Duration.ofSeconds(10);
 
-    /** Bulk runs and transfers get the grace to finish, then are stopped and recorded interrupted (ADR-0148). */
+    /** Bulk runs and transfers get the grace to finish, then are stopped and recorded interrupted (ADR-0152). */
     @Bean
     ShutdownStep runsShutdown(BackgroundRuns runs, HaProperties ha) {
         return new ShutdownStep("runs", ShutdownPhases.RUNS, () -> runs.stopForShutdown(ha.runGrace()));

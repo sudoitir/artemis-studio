@@ -27,7 +27,7 @@ import tools.jackson.databind.ObjectMapper;
  * query key — so a broker that changes nothing produces only the heartbeat.
  *
  * <p>{@link #publish} does not deliver directly: it broadcasts a {@link BusFrame} to every replica
- * (ADR-0148), this one included, and each delivers it to its own subscribers when it arrives, so a
+ * (ADR-0152), this one included, and each delivers it to its own subscribers when it arrives, so a
  * plugin publishing on one replica reaches the clients of all of them. The registry itself is
  * per-instance and does not survive a restart. The bus carries at most about 7 KB a frame: a larger
  * payload arrives as the plain {@code {topic,clusterId,ts}} signal, and the client refetches.

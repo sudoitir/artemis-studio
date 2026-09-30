@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Short-lived references to a console query (ADR-0064), shared by the replicas (ADR-0148): the POST
+-- Short-lived references to a console query (ADR-0064), shared by the replicas (ADR-0152): the POST
 -- that issues one and the stream GET that redeems it may reach different replicas. A ticket is
 -- worthless a minute after it is issued and is lost, harmlessly, on a crash, so the table is
 -- UNLOGGED. It is redeemed once, by a DELETE ... RETURNING, and expired rows are purged by the data

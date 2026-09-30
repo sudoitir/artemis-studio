@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-/** The replicas and the clusters each one holds a lease on (ADR-0148), for the health view. */
+/** The replicas and the clusters each one holds a lease on (ADR-0152), for the health view. */
 @Component
 @RequiredArgsConstructor
 class ClusterReplicaDirectory implements ReplicaDirectory {

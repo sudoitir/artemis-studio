@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Support bundles prepared for preview and not yet downloaded (ADR-0148): the download may reach
+-- Support bundles prepared for preview and not yet downloaded (ADR-0152): the download may reach
 -- another replica than the preparation did, so the snapshot lives here and not in a replica's
 -- memory. A snapshot is worthless ten minutes after it is made and is lost, harmlessly, on a
 -- crash, so the table is UNLOGGED. Expired rows are purged by the data lifecycle (ADR-0134).

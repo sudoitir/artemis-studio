@@ -322,7 +322,7 @@ public class SettingsService {
 
     /**
      * Applies the write here at once, so the writer reads its own change, and tells every replica,
-     * this one included, to do the same once it has committed (ADR-0148).
+     * this one included, to do the same once it has committed (ADR-0152).
      */
     private void changed() {
         refreshOverrides();

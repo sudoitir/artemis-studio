@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- The replica executing a bulk run (ADR-0148): set when the run starts, so recovery interrupts a
+-- The replica executing a bulk run (ADR-0152): set when the run starts, so recovery interrupts a
 -- run only when its replica is gone, never one another replica is executing. No foreign key: the
 -- replicas store reaps old rows, and a run outlives its replica. A run with no replica_id predates
 -- this column and counts as orphaned. Never edit this file once released; add a new changeset

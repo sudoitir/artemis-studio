@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- The replicas of this installation (ADR-0148): every Studio process registers itself here and
+-- The replicas of this installation (ADR-0152): every Studio process registers itself here and
 -- heartbeats with database time. A row with no stopped_at and a stale heartbeat is a crash, which
 -- is what the plugin crash-loop guard counts. Rows are kept bounded by the replicas store
 -- (ADR-0134). Column order follows the padding rule (8-byte first, then 4-byte, uuid last). Never

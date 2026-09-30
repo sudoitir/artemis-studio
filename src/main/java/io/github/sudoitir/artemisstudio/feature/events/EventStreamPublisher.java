@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Fans a flushed batch of broker events out over SSE (ADR-0027, ADR-0148). The replica that wrote
+ * Fans a flushed batch of broker events out over SSE (ADR-0027, ADR-0152). The replica that wrote
  * the batch announces its seqs on the bus, in the transaction that stores them; every replica, that one included, loads the rows when the
  * announcement arrives and sends each as a frame on the data-bearing {@code events} topic, with its
  * {@code seq} as the SSE id. So a frame is delivered once per replica, and only the writer nudges the

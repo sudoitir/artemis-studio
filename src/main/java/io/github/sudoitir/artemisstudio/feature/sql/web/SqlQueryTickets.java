@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * expires in a minute.
  *
  * <p>Kept in an unlogged table, so that the request that issues a ticket and the stream that
- * redeems it may reach different replicas (ADR-0148). Redeeming is one {@code DELETE ... RETURNING},
+ * redeems it may reach different replicas (ADR-0152). Redeeming is one {@code DELETE ... RETURNING},
  * so a ticket is used once however many replicas race for it. The rows that expire unredeemed are
  * purged by the data lifecycle ({@link SqlQueryTicketStore}).
  */

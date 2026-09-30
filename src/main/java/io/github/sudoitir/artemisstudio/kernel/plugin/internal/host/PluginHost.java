@@ -92,7 +92,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Slf4j
 public class PluginHost implements SmartLifecycle {
 
-    /** Three crashes of any replica within 15 minutes trip safe mode (ADR-0148, after design.md §2). */
+    /** Three crashes of any replica within 15 minutes trip safe mode (ADR-0152, after design.md §2). */
     private static final int CRASH_LOOP_CRASH_COUNT = 3;
 
     private static final Duration CRASH_LOOP_WINDOW = Duration.ofMinutes(15);
@@ -473,7 +473,7 @@ public class PluginHost implements SmartLifecycle {
         }
     }
 
-    // ---- reconcile with the other replicas (ADR-0148) --------------------------------------------
+    // ---- reconcile with the other replicas (ADR-0152) --------------------------------------------
 
     /** The statuses whose runtime must not run, on any replica. The others are left as they are. */
     private static final Set<PluginInstallStatus> NOT_RUNNING =

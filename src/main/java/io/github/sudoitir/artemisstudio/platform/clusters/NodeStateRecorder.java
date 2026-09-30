@@ -58,7 +58,7 @@ public class NodeStateRecorder {
     /**
      * Persist a corroboration pass: every node of the cluster takes the verdict of its NodeID, and
      * one the pass has no verdict for is not in split-brain. Written with the tier-A state so every
-     * replica reads what the owner decided (ADR-0148).
+     * replica reads what the owner decided (ADR-0152).
      */
     @Transactional
     public void recordSplitBrain(UUID clusterId, Map<String, SplitBrainStatus> verdictsByNodeId) {

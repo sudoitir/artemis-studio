@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * A run still recorded as executing by a replica that is gone was cut off by its stop or crash
- * (ADR-0093 D6, ADR-0148). It is marked, never resumed: its preview is stale and its operator is not
+ * (ADR-0093 D6, ADR-0152). It is marked, never resumed: its preview is stale and its operator is not
  * watching. A run another live replica is executing is left alone. Runs once at startup and then every
  * 30 seconds, on one replica.
  */

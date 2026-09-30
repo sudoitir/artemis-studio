@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- The replica executing a transfer run (ADR-0148): set whenever a segment begins (execute, resume
+-- The replica executing a transfer run (ADR-0152): set whenever a segment begins (execute, resume
 -- or return), so recovery interrupts a run only when its replica is gone, never one another replica
 -- is executing. No foreign key: the replicas store reaps old rows, and a run outlives its replica.
 -- A run with no replica_id predates this column and counts as orphaned. Never edit this file once

@@ -1,5 +1,5 @@
 /**
- * The replicas of one installation (ADR-0148): who is alive, the Postgres notification bus they
+ * The replicas of one installation (ADR-0152): who is alive, the Postgres notification bus they
  * talk over, and the readiness and drain behaviour a load balancer relies on.
  */
 @ApplicationModule(

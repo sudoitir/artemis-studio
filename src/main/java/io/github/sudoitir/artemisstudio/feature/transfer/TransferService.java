@@ -488,7 +488,7 @@ public class TransferService {
                 throw new ConflictException(
                         "transfer-run-not-running", "This transfer is not running, so there is nothing to stop.");
             }
-            // Executing on another replica (ADR-0148): every replica hears it, the executing one acts.
+            // Executing on another replica (ADR-0152): every replica hears it, the executing one acts.
             runner.signalStop(runId);
         }
         Operator operator = handoff.capture();

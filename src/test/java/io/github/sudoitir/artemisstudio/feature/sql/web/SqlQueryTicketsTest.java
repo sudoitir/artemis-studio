@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * A ticket issued by one replica is redeemed by another, once (ADR-0064, ADR-0148). The store holds
+ * A ticket issued by one replica is redeemed by another, once (ADR-0064, ADR-0152). The store holds
  * no ticket of its own, so two instances on one database stand for two replicas.
  */
 class SqlQueryTicketsTest extends PostgresIntegrationTest {
