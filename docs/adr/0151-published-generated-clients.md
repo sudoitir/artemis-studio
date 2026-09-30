@@ -1,4 +1,4 @@
-# ADR-0150: Every release publishes its OpenAPI document and generated TypeScript and Java clients
+# ADR-0151: Every release publishes its OpenAPI document and generated TypeScript and Java clients
 
 - **Status**: accepted
 - **Date**: 2026-09-30
@@ -39,7 +39,7 @@ types inside the app, and does not publish them.
   on npmjs.com.
 - A generator regression can fail a pull request that never touched the generator, because the document
   is its input; that is the point of building it in CI.
-- The clients are as compatible as the API is: before stable, a marked break (ADR-0148) breaks them too.
+- The clients are as compatible as the API is: before stable, a marked break (ADR-0149) breaks them too.
 
 ## Alternatives considered
 

@@ -17,7 +17,7 @@ import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
  * The REST API's version is the second path segment ({@code /api/v1/...}), resolved by Spring's API
- * versioning (ADR-0148). Controllers map only what follows it; the prefix is added here for every
+ * versioning (ADR-0149). Controllers map only what follows it; the prefix is added here for every
  * Studio {@code @RestController} that is not {@link Unversioned}. Only {@code 1} is supported, so
  * {@code /api/v2/...} is a 400 {@code invalid-api-version} until a v2 exists.
  */

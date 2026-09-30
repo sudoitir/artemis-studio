@@ -67,7 +67,7 @@ class OpenApiSnapshotTest extends PostgresIntegrationTest {
                 .isEqualTo(existing);
     }
 
-    /** ADR-0148: a list is the paged envelope; no GET returns a bare array. */
+    /** ADR-0149: a list is the paged envelope; no GET returns a bare array. */
     @Test
     void noGetReturnsATopLevelArray() throws Exception {
         MockMvc mvc = webAppContextSetup(webContext).build();

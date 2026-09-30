@@ -8,7 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Idempotency keys under the data lifecycle (ADR-0134, ADR-0149). The retention is how long a repeat of a
+ * Idempotency keys under the data lifecycle (ADR-0134, ADR-0150). The retention is how long a repeat of a
  * key replays the first result, 24 hours by default and never shorter. Like {@link ExpiredSessionStore} it
  * lives here, not in {@code kernel.security} which owns the table, because this module depends on security.
  */

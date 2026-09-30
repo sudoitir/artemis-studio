@@ -59,7 +59,7 @@ version already there, so a failed publish is retried by the next release:
   publishing is bound to that file name;
 - `publish-client-ts` and `publish-client-java`: `@artemis-studio/client` to npm and
   `io.github.sudoitir:artemis-studio-client` to Central, on **every** release, generated from the
-  release's `web/openapi.json` (ADR-0150). The release also attaches `artemis-studio-<version>.openapi.json`.
+  release's `web/openapi.json` (ADR-0151). The release also attaches `artemis-studio-<version>.openapi.json`.
 
 A pull request that changes the image inputs scans the built image with Grype and fails on a
 critical or high finding that has a fix; bump the base-image digest or the dependency.

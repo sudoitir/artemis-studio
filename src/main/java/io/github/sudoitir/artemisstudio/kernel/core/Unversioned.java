@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a controller that is not part of the versioned REST API. Every other Studio controller
- * is served under {@code /api/{version}} (ADR-0148) and maps only what follows it.
+ * is served under {@code /api/{version}} (ADR-0149) and maps only what follows it.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

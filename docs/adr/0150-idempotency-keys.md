@@ -1,4 +1,4 @@
-# ADR-0149: Mutating requests are idempotent on request, through a persisted, user-scoped key
+# ADR-0150: Mutating requests are idempotent on request, through a persisted, user-scoped key
 
 - **Status**: accepted
 - **Date**: 2026-09-30

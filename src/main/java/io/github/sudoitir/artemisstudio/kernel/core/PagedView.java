@@ -8,7 +8,7 @@ import java.util.function.Function;
 import org.springframework.data.domain.Page;
 
 /**
- * A page of any listing (ADR-0148). {@code count} is the total across all nodes, not the page size, and is
+ * A page of any listing (ADR-0149). {@code count} is the total across all nodes, not the page size, and is
  * null only where the total is unknown; {@code hasNext} says whether another page follows either way.
  */
 public record PagedView<T>(

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Breaking-change gate for the public API (ADR-0148): compares web/openapi.json with the one where the
+# Breaking-change gate for the public API (ADR-0149): compares web/openapi.json with the one where the
 # branch left BASE, so only the breaks this branch introduces count (main is the last release for API
 # purposes: every merge that touches web/ releases). A break passes only when a commit in BASE..HEAD is
 # marked as one, the same marker that puts it under "### Breaking" in the release notes (ADR-0051).
