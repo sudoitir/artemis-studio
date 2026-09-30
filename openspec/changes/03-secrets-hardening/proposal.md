@@ -15,9 +15,9 @@ Studio protects every stored secret with one AES-GCM master key from the environ
 ## What Changes
 - Envelope encryption: per-secret data keys wrapped by a key-encryption key, for every stored secret including broker credentials, OIDC client secrets, channel secrets and plugin vault entries.
 - Key-encryption-key rotation with online re-wrap and visible status.
-- Pluggable secret providers (environment or file, HashiCorp Vault, Kubernetes Secrets) chosen by configuration; the plugin-facing vault contract is unchanged.
+- Pluggable secret providers (environment by default, file, HashiCorp Vault, Kubernetes Secrets) chosen by configuration; the provider also supplies the OIDC client secret; the plugin-facing vault contract is unchanged.
 - Redaction of secrets and credential-like values in logs, audit, error responses and exported bundles, with tests proving known secrets never appear.
-- **BREAKING**: the stored secret format changes; existing installations must re-enter or re-encrypt secrets on upgrade.
+- **BREAKING**: the stored secret format changes; existing installations re-enter broker credentials, channel secrets and plugin secrets on upgrade.
 
 ## Capabilities
 ### New Capabilities
@@ -25,6 +25,7 @@ Studio protects every stored secret with one AES-GCM master key from the environ
 ### Modified Capabilities
 - `plugin-secrets`: stored under the envelope scheme, contract for plugins unchanged
 - `studio-settings`: secret provider and rotation settings and status
+- `broker-connectivity`: broker credentials are stored under the envelope scheme
 
 ## Out of scope
 - A hardware security module integration.
