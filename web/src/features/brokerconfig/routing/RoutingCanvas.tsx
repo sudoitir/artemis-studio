@@ -66,7 +66,7 @@ const CanvasToolbar = forwardRef<
 >(function CanvasToolbar({ onEnter, canEnter, leading, actions }, entry) {
   const flow = useReactFlow();
   const reduced =
-    typeof globalThis.window !== 'undefined' && globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    globalThis.window !== undefined && globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const zoom = reduced ? { duration: 0 } : ZOOM;
   const view = (label: string, icon: ReactNode, onClick: () => void) => (
     <Tooltip label={label} withArrow openDelay={300}>

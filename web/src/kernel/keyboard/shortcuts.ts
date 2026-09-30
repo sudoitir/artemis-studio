@@ -17,7 +17,7 @@ function read(): boolean {
   }
 }
 
-let enabled = typeof globalThis.window === 'undefined' ? true : read();
+let enabled = globalThis.window === undefined ? true : read();
 
 export function singleKeyShortcutsEnabled(): boolean {
   return enabled;
