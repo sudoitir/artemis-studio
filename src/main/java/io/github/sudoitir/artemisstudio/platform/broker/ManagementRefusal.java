@@ -95,7 +95,7 @@ public class ManagementRefusal extends RuntimeException {
         if (res.ok()) {
             return;
         }
-        ManagementRefusal refusal = classify(res.error(), operation);
+        ManagementRefusal refusal = classify(res.error());
         if (refusal != null) {
             throw refusal;
         }
@@ -109,7 +109,7 @@ public class ManagementRefusal extends RuntimeException {
      * not one of the known management refusals and should be treated as a
      * connection-level failure instead.
      */
-    static ManagementRefusal classify(String error, String operation) {
+    static ManagementRefusal classify(String error) {
         if (error == null) {
             return null;
         }
