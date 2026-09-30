@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMe
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,7 @@ class RrSamplerTest {
     private static BrokerNodeEntity node(String name, String coreUrl) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(CLUSTER, name, "PRIMARY", name);
         n.applyManualCoreUrl(coreUrl);
-        n.applyHaState(true, "STARTED", "PRIMARY", true, 1L, "2.44.0", name, Instant.now());
+        n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", true, "2.44.0", name), 1L, Instant.now());
         return n;
     }
 
@@ -192,7 +193,8 @@ class RrSamplerTest {
         BrokerNodeEntity errored = node("n-errored", "core://errored:61616");
         errored.recordError(Instant.now(), "last scrape failed");
         BrokerNodeEntity noCore = BrokerNodeEntity.fromSeed(CLUSTER, "n-no-core", "PRIMARY", "n-no-core");
-        noCore.applyHaState(true, "STARTED", "PRIMARY", true, 1L, "2.44.0", "n-no-core", Instant.now());
+        noCore.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", true, "2.44.0", "n-no-core"), 1L, Instant.now());
 
         List<String> browsed = new ArrayList<>();
         CoreMessageTransport transport = mock(CoreMessageTransport.class);

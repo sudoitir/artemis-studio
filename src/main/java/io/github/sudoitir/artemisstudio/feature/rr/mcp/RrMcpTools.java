@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr.mcp;
 
+import io.github.sudoitir.artemisstudio.feature.rr.FlowQuery;
 import io.github.sudoitir.artemisstudio.feature.rr.RequestReplyService;
 import io.github.sudoitir.artemisstudio.feature.rr.RrMetrics;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews;
@@ -69,7 +70,8 @@ public class RrMcpTools {
     }
 
     private McpViews.Page<McpViews.FlowRow> flows(UUID clusterId, String address, int limit) {
-        RrViews.FlowPageView page = requestReply.flowPage(clusterId, null, address, null, null, null, 1, limit + 1);
+        RrViews.FlowPageView page =
+                requestReply.flowPage(clusterId, new FlowQuery(null, address, null, null, null, 1, limit + 1));
         List<McpViews.FlowRow> rows = page.data().stream()
                 .map(f -> new McpViews.FlowRow(
                         f.correlationId(),

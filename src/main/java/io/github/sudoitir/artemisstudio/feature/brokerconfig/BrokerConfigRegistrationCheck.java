@@ -49,7 +49,7 @@ class BrokerConfigRegistrationCheck implements RegistrationCheckContributor {
                             Map.of(),
                             Set.of(),
                             List.of()));
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return null;
         }
     }

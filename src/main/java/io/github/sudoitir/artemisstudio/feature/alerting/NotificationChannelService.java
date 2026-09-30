@@ -41,6 +41,8 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class NotificationChannelService {
 
+    private static final String AUDIT_TARGET = "NOTIFICATION_CHANNEL";
+
     /** The delivery log's page size ceiling. */
     static final int LOG_MAX = 100;
 
@@ -87,7 +89,7 @@ public class NotificationChannelService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "CREATE_NOTIFICATION_CHANNEL",
-                "NOTIFICATION_CHANNEL",
+                AUDIT_TARGET,
                 channel.getName(),
                 null,
                 null,
@@ -109,7 +111,7 @@ public class NotificationChannelService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_NOTIFICATION_CHANNEL",
-                "NOTIFICATION_CHANNEL",
+                AUDIT_TARGET,
                 channel.getName(),
                 null,
                 null,
@@ -135,7 +137,7 @@ public class NotificationChannelService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "DELETE_NOTIFICATION_CHANNEL",
-                "NOTIFICATION_CHANNEL",
+                AUDIT_TARGET,
                 channel.getName(),
                 null,
                 null,
@@ -167,17 +169,21 @@ public class NotificationChannelService {
         }
         validator.validate(
                 request.kind(), request.config(), request.secret(), stored != null && stored.getSecretCt() != null);
-        String secret = hasSecret ? request.secret().trim() : stored != null ? storedSecret(stored) : "";
+        String secret = hasSecret ? request.secret().trim() : storedSecretOrEmpty(stored);
         String name =
                 stored != null ? stored.getName() : "(unsaved " + request.kind().toLowerCase() + " channel)";
         return send(name, request.kind(), request.config() != null ? request.config() : "{}", secret);
+    }
+
+    private String storedSecretOrEmpty(NotificationChannelEntity stored) {
+        return stored != null ? storedSecret(stored) : "";
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_READ)")
     @Transactional(readOnly = true)
     public List<AlertDeliveryView> deliveries(UUID channelId, int limit) {
         requireChannel(channelId);
-        int size = Math.min(Math.max(limit, 1), LOG_MAX);
+        int size = Math.clamp(limit, 1, LOG_MAX);
         return deliveries.findByChannelIdOrderBySeqDesc(channelId, PageRequest.of(0, size)).stream()
                 .map(this::deliveryView)
                 .toList();
@@ -201,7 +207,7 @@ public class NotificationChannelService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "RETRY_NOTIFICATION_DELIVERY",
-                "NOTIFICATION_CHANNEL",
+                AUDIT_TARGET,
                 channel.getName(),
                 null,
                 null,
@@ -217,7 +223,7 @@ public class NotificationChannelService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "TEST_NOTIFICATION_CHANNEL",
-                "NOTIFICATION_CHANNEL",
+                AUDIT_TARGET,
                 name,
                 null,
                 null,
@@ -270,7 +276,7 @@ public class NotificationChannelService {
         String summary;
         try {
             summary = AlertMessageFormatter.title(AlertMessage.parse(d.getPayload(), json));
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             summary = "(unreadable payload)";
         }
         return new AlertDeliveryView(

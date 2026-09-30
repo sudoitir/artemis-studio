@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.springframework.stereotype.Component;
@@ -22,7 +21,8 @@ public class BrokerListOps {
     public ListPage fetch(JolokiaBrokerClient client, String op, String options, int page, int size) {
         JsonNode env = client.execOnBrokerParsed(op + "(java.lang.String,int,int)", options, page, size);
         JsonNode data = env == null ? null : env.get("data");
-        long count = env == null ? 0L : env.path("count").asLong(data != null && data.isArray() ? data.size() : 0);
+        int fallback = data != null && data.isArray() ? data.size() : 0;
+        long count = env == null ? 0L : env.path("count").asLong(fallback);
         return new ListPage(data, count);
     }
 
@@ -39,13 +39,12 @@ public class BrokerListOps {
         }
         List<JolokiaResponse> responses =
                 client.batch(objectNames.stream().map(JolokiaRequest::readAll).toList());
-        List<T> rows = new ArrayList<>();
-        for (JolokiaResponse response : responses) {
-            if (response.ok() && response.value() != null && response.value().isObject()) {
-                rows.add(parse.apply(response.value()));
-            }
-        }
-        return List.copyOf(rows);
+        return responses.stream()
+                .filter(response -> response.ok()
+                        && response.value() != null
+                        && response.value().isObject())
+                .map(response -> parse.apply(response.value()))
+                .toList();
     }
 
     public static long num(JsonNode row, String field) {
@@ -58,7 +57,7 @@ public class BrokerListOps {
         }
         try {
             return Long.parseLong(v.asText().trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0L;
         }
     }

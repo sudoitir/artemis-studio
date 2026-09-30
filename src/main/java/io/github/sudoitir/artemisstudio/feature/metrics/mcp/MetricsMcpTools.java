@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.metrics.mcp;
 
+import io.github.sudoitir.artemisstudio.feature.metrics.MetricQuery;
 import io.github.sudoitir.artemisstudio.feature.metrics.MetricQueryService;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
@@ -52,12 +53,14 @@ public class MetricsMcpTools {
         boolean perQueue = queue != null && !queue.isBlank();
         MetricViews.MetricSeriesResponse response = metrics.query(
                 clusterId,
-                List.of(metric),
-                perQueue ? "QUEUE" : "CLUSTER",
-                perQueue ? queue : null,
-                to.minus(window),
-                to,
-                null);
+                new MetricQuery(
+                        List.of(metric),
+                        perQueue ? "QUEUE" : "CLUSTER",
+                        perQueue ? queue : null,
+                        to.minus(window),
+                        to,
+                        null,
+                        null));
         List<McpViews.MetricPoint> points = response.series().isEmpty()
                 ? List.of()
                 : response.series().get(0).points().stream()

@@ -62,7 +62,7 @@ public class DlqService {
                 kinds.putIfAbsent(ea, "expiry");
             }
             settingsAvailable = true;
-        } catch (BrokerConnectionException e) {
+        } catch (BrokerConnectionException _) {
             settingsAvailable = false;
         }
 

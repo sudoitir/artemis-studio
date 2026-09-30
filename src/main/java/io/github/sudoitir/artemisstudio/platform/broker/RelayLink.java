@@ -234,15 +234,11 @@ public final class RelayLink implements AutoCloseable {
             if (consumer == null) {
                 reopen();
             }
-            while (out.size() < max) {
-                ClientMessage m = consumer.receive(out.isEmpty() ? FIRST_WAIT_MS : NEXT_WAIT_MS);
-                if (m == null) {
-                    break;
+            ClientMessage m;
+            while (out.size() < max && (m = consumer.receive(out.isEmpty() ? FIRST_WAIT_MS : NEXT_WAIT_MS)) != null) {
+                if (hooks.selected(m.getMessageID())) {
+                    out.add(new Received(m, OutboundMessages.from(m, route.provenance())));
                 }
-                if (!hooks.selected(m.getMessageID())) {
-                    continue;
-                }
-                out.add(new Received(m, OutboundMessages.from(m, route.provenance())));
             }
             return out;
         } catch (ActiveMQException e) {
@@ -291,12 +287,12 @@ public final class RelayLink implements AutoCloseable {
     private void rollbackQuietly() {
         try {
             target.rollback();
-        } catch (ActiveMQException | RuntimeException e) {
+        } catch (ActiveMQException | RuntimeException _) {
             // The session is going away; the broker rolls it back when it closes.
         }
         try {
             giveBack();
-        } catch (ActiveMQException | RuntimeException e) {
+        } catch (ActiveMQException | RuntimeException _) {
             // As above.
         }
     }
@@ -320,7 +316,7 @@ public final class RelayLink implements AutoCloseable {
             if (consumer != null) {
                 consumer.close();
             }
-        } catch (ActiveMQException | RuntimeException e) {
+        } catch (ActiveMQException | RuntimeException _) {
             // Closing the session below closes it too.
         }
         source.close();

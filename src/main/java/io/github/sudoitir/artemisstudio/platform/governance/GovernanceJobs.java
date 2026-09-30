@@ -9,11 +9,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class GovernanceJobs {
 
+    private static final String FEATURE = "governance";
+
     @Bean
     ScheduledJob governanceFindingsFlushJob(FindingsRecorder findings) {
         return ScheduledJob.fixedDelay(
                 "governance-findings-flush",
-                "governance",
+                FEATURE,
                 ScheduledJob.Scope.INSTANCE,
                 () -> Duration.ofSeconds(30),
                 findings::flush);
@@ -22,18 +24,14 @@ class GovernanceJobs {
     @Bean
     ScheduledJob governanceRemaskJob(GovernanceRemasking remasking) {
         return ScheduledJob.fixedDelay(
-                "governance-remask",
-                "governance",
-                ScheduledJob.Scope.INSTANCE,
-                () -> Duration.ofMinutes(1),
-                remasking::run);
+                "governance-remask", FEATURE, ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(1), remasking::run);
     }
 
     @Bean
     ScheduledJob governancePolicyRefreshJob(PolicyStore store) {
         return ScheduledJob.fixedDelay(
                 "governance-policy-refresh",
-                "governance",
+                FEATURE,
                 ScheduledJob.Scope.INSTANCE,
                 () -> Duration.ofSeconds(30),
                 store::refreshIfStale);

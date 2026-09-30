@@ -68,7 +68,11 @@ class AuditControllerTest extends PostgresIntegrationTest {
 
     private void save(String action, String outcome, Integer count, boolean dryRun) {
         AuditEventEntity e = new AuditEventEntity(
-                action, "QUEUE", "Q", "anonymous", "req", null, null, clusterId, "prod", null, null, dryRun);
+                action,
+                new Actor("anonymous", null, "req", null),
+                new AuditEventEntity.Target("QUEUE", "Q", clusterId, "prod", null),
+                null,
+                dryRun);
         if ("SUCCESS".equals(outcome)) {
             e.markSuccess(count == null ? 0 : count);
         } else if ("FAILURE".equals(outcome)) {

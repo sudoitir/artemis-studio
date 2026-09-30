@@ -79,6 +79,9 @@ public class TransferService {
 
     static final Duration PREVIEW_LIFETIME = Duration.ofMinutes(10);
     static final String AUDIT_ACTION = "message.transfer";
+    private static final String AUDIT_QUEUE = "QUEUE";
+    private static final String RUN_ID = "runId";
+    private static final String ANYCAST = "ANYCAST";
     private static final int HISTORY = 100;
 
     private final TransferRunRepository runs;
@@ -129,7 +132,7 @@ public class TransferService {
                 request.targetAddress() != null && !request.targetAddress().isBlank()
                         ? request.targetAddress().strip()
                         : to.map(QueueLocation::address).orElse(request.targetQueue());
-        String targetRoutingType = to.map(QueueLocation::routingType).orElse("ANYCAST");
+        String targetRoutingType = to.map(QueueLocation::routingType).orElse(ANYCAST);
         boolean sameCluster = clusterId.equals(request.targetClusterId());
         boolean sameNode = sameCluster && source.getArtemisNodeId().equals(target.getArtemisNodeId());
         Instant t0 = Instant.now();
@@ -191,8 +194,16 @@ public class TransferService {
                 .selection(json.writeValueAsString(selection))
                 .findings(json.writeValueAsString(findings))
                 .t0(t0)
-                .planHash(planHash(
-                        mode, source, target, from.queueName(), request.targetQueue(), targetAddress, selection, t0))
+                .planHash(new Plan(
+                                mode,
+                                source,
+                                target,
+                                from.queueName(),
+                                request.targetQueue(),
+                                targetAddress,
+                                selection,
+                                t0)
+                        .hash())
                 .estimate(count)
                 .estimateBytes(bytes)
                 .username(handoff.capture().actor().displayName())
@@ -259,7 +270,7 @@ public class TransferService {
                     String mbean = BrokerMBeans.queue(
                             client.resolveBrokerObjectName(), from.address(), from.queueName(), from.routingType());
                     yield messages.countMessages(client, mbean, FrozenFilter.compose(selection.filter(), t0));
-                } catch (BrokerConnectionException e) {
+                } catch (BrokerConnectionException _) {
                     yield null;
                 }
             }
@@ -295,8 +306,7 @@ public class TransferService {
                     "The source node %s is not live now, so its messages cannot be taken.".formatted(source.getName()),
                     null));
         }
-        boolean relay = mode == TransferMode.COPY || !sameNode;
-        if (relay) {
+        if (mode == TransferMode.COPY || !sameNode) {
             for (ClusterNode node : sameNode ? List.of(source) : List.of(source, target)) {
                 if (node.getCoreUrl() == null) {
                     out.add(new Finding(
@@ -309,43 +319,47 @@ public class TransferService {
             }
         }
         if (mode == TransferMode.MOVE) {
-            capabilities
-                    .managementWrite(clusterId)
-                    .ifPresentOrElse(
-                            assessment -> {
-                                if (assessment.status()
-                                        != io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities
-                                                .CapabilityStatus.AVAILABLE) {
-                                    out.add(new Finding(
-                                            FindingKind.REFUSE,
-                                            "management-write",
-                                            "A move takes messages off the source through management operations, and "
-                                                    + assessment.reason(),
-                                            assessment.brokerXmlSnippet()));
-                                }
-                            },
-                            () -> out.add(new Finding(
-                                    FindingKind.UNKNOWN,
-                                    "management-write",
-                                    "Whether the source broker allows Studio's management writes has not been"
-                                            + " established yet; a move needs them.",
-                                    BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING)));
-            if (!sameNode) {
-                out.add(new Finding(
-                        FindingKind.UNKNOWN,
-                        "staging-rights",
-                        "A move parks its messages in a queue named %s<run> on the source broker. Whether Studio's"
-                                        .formatted(StagingQueues.PREFIX)
-                                + " broker user may create and consume it is known only when the run starts; it"
-                                + " fails then, before moving anything, if it may not.",
-                        BrokerXmlSnippets.STAGING_SECURITY_SETTING));
-            }
+            moveFindings(clusterId, sameNode, out);
         }
         return out;
     }
 
-    /** SHA-256 over what the run will do: both ends, the mode, the selection, and its frozen moment. */
-    static String planHash(
+    private void moveFindings(UUID clusterId, boolean sameNode, List<Finding> out) {
+        capabilities
+                .managementWrite(clusterId)
+                .ifPresentOrElse(
+                        assessment -> {
+                            if (assessment.status()
+                                    != io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities
+                                            .CapabilityStatus.AVAILABLE) {
+                                out.add(new Finding(
+                                        FindingKind.REFUSE,
+                                        "management-write",
+                                        "A move takes messages off the source through management operations, and "
+                                                + assessment.reason(),
+                                        assessment.brokerXmlSnippet()));
+                            }
+                        },
+                        () -> out.add(new Finding(
+                                FindingKind.UNKNOWN,
+                                "management-write",
+                                "Whether the source broker allows Studio's management writes has not been"
+                                        + " established yet; a move needs them.",
+                                BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING)));
+        if (!sameNode) {
+            out.add(new Finding(
+                    FindingKind.UNKNOWN,
+                    "staging-rights",
+                    "A move parks its messages in a queue named %s<run> on the source broker. Whether Studio's"
+                                    .formatted(StagingQueues.PREFIX)
+                            + " broker user may create and consume it is known only when the run starts; it"
+                            + " fails then, before moving anything, if it may not.",
+                    BrokerXmlSnippets.STAGING_SECURITY_SETTING));
+        }
+    }
+
+    /** What the run will do: both ends, the mode, the selection, and its frozen moment. */
+    private record Plan(
             TransferMode mode,
             ClusterNode source,
             ClusterNode target,
@@ -354,25 +368,29 @@ public class TransferService {
             String targetAddress,
             TransferSelection selection,
             Instant t0) {
-        String plan = String.join(
-                "\n",
-                mode.name(),
-                source.getClusterId().toString(),
-                source.getArtemisNodeId(),
-                sourceQueue,
-                target.getClusterId().toString(),
-                target.getArtemisNodeId(),
-                targetQueue,
-                targetAddress,
-                selection.kind().name(),
-                String.valueOf(selection.ids()),
-                String.valueOf(selection.filter()),
-                Long.toString(t0.toEpochMilli()));
-        try {
-            return HexFormat.of()
-                    .formatHex(MessageDigest.getInstance("SHA-256").digest(plan.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+
+        /** SHA-256 over the plan, so an execute can only run what the preview showed. */
+        String hash() {
+            String plan = String.join(
+                    "\n",
+                    mode.name(),
+                    source.getClusterId().toString(),
+                    source.getArtemisNodeId(),
+                    sourceQueue,
+                    target.getClusterId().toString(),
+                    target.getArtemisNodeId(),
+                    targetQueue,
+                    targetAddress,
+                    selection.kind().name(),
+                    String.valueOf(selection.ids()),
+                    String.valueOf(selection.filter()),
+                    Long.toString(t0.toEpochMilli()));
+            try {
+                return HexFormat.of()
+                        .formatHex(MessageDigest.getInstance("SHA-256").digest(plan.getBytes(StandardCharsets.UTF_8)));
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 
@@ -471,11 +489,11 @@ public class TransferService {
                 () -> audit.begin(
                         operator.actor(),
                         AUDIT_ACTION + ".stop",
-                        "QUEUE",
+                        AUDIT_QUEUE,
                         run.getSourceQueue(),
                         run.getSourceClusterId(),
                         run.getSourceNodeId(),
-                        Map.of("runId", runId.toString()),
+                        Map.of(RUN_ID, runId.toString()),
                         false));
         audit.succeed(event, 0);
         return view(run);
@@ -532,11 +550,11 @@ public class TransferService {
                 () -> audit.begin(
                         operator.actor(),
                         AUDIT_ACTION + ".return",
-                        "QUEUE",
+                        AUDIT_QUEUE,
                         returning.getSourceQueue(),
                         returning.getSourceClusterId(),
                         returning.getSourceNodeId(),
-                        Map.of("runId", runId.toString(), "stagingQueue", StagingQueues.queueName(runId)),
+                        Map.of(RUN_ID, runId.toString(), "stagingQueue", StagingQueues.queueName(runId)),
                         false));
         run.attachAudit(event.getId(), null);
         run = runs.save(run);
@@ -571,7 +589,7 @@ public class TransferService {
                 throw new ConflictException(
                         "transfer-run-state", "This transfer changed state meanwhile. Reload it and try again.");
             }
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             throw new ConflictException(
                     "transfer-run-in-progress",
                     "Another transfer is running from queue %s. Wait for it to finish, or stop it."
@@ -584,7 +602,7 @@ public class TransferService {
         AuditEvent source = audit.begin(
                 operator.actor(),
                 action,
-                "QUEUE",
+                AUDIT_QUEUE,
                 run.getSourceQueue(),
                 run.getSourceClusterId(),
                 run.getSourceNodeId(),
@@ -595,7 +613,7 @@ public class TransferService {
                 () -> audit.begin(
                         operator.actor(),
                         action + ".in",
-                        "QUEUE",
+                        AUDIT_QUEUE,
                         run.getTargetQueue(),
                         run.getTargetClusterId(),
                         run.getTargetNodeId(),
@@ -612,7 +630,7 @@ public class TransferService {
 
     private Map<String, Object> auditParams(TransferRunEntity run) {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("runId", run.getId().toString());
+        params.put(RUN_ID, run.getId().toString());
         params.put("mode", run.getMode().name());
         params.put("source", run.getSourceNodeName() + "/" + run.getSourceQueue());
         params.put("target", run.getTargetNodeName() + "/" + run.getTargetQueue());
@@ -667,7 +685,7 @@ public class TransferService {
                     }
                     out.add(new OrphanView(node.getId(), node.getName(), queue, depth(client, queue)));
                 }
-            } catch (BrokerConnectionException e) {
+            } catch (BrokerConnectionException _) {
                 // A node that cannot be read shows none; its orphans are still there for the next look.
             }
         }
@@ -693,7 +711,7 @@ public class TransferService {
         AuditEvent event = audit.begin(
                 operator.actor(),
                 AUDIT_ACTION + ".orphan-return",
-                "QUEUE",
+                AUDIT_QUEUE,
                 queue,
                 clusterId,
                 node.getId(),
@@ -702,7 +720,7 @@ public class TransferService {
         long returned = 0;
         try {
             JolokiaBrokerClient client = nodes.client(node);
-            String mbean = BrokerMBeans.queue(client.resolveBrokerObjectName(), queue, queue, "ANYCAST");
+            String mbean = BrokerMBeans.queue(client.resolveBrokerObjectName(), queue, queue, ANYCAST);
             int chunk = settings.intValue(TransferSettings.BATCH_SIZE);
             long moved;
             do {
@@ -735,8 +753,8 @@ public class TransferService {
     private Long depth(JolokiaBrokerClient client, String queue) {
         try {
             return messages.messageCount(
-                    client, BrokerMBeans.queue(client.resolveBrokerObjectName(), queue, queue, "ANYCAST"));
-        } catch (BrokerConnectionException e) {
+                    client, BrokerMBeans.queue(client.resolveBrokerObjectName(), queue, queue, ANYCAST));
+        } catch (BrokerConnectionException _) {
             return null;
         }
     }
@@ -744,7 +762,7 @@ public class TransferService {
     private static UUID runIdOf(String stagingQueue) {
         try {
             return UUID.fromString(stagingQueue.substring(StagingQueues.PREFIX.length()));
-        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+        } catch (IllegalArgumentException | IndexOutOfBoundsException _) {
             return null;
         }
     }

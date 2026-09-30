@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -100,29 +101,20 @@ public class AuditEventEntity implements AuditEvent {
     @Column(name = "parent_id", updatable = false)
     private Long parentId;
 
-    public AuditEventEntity(
-            String action,
-            String targetType,
-            String targetName,
-            String username,
-            String requestId,
-            String sourceIp,
-            UUID userId,
-            UUID clusterId,
-            String clusterName,
-            UUID nodeId,
-            String params,
-            boolean dryRun) {
+    /** What an action is aimed at: the target, and the cluster and node it sits on. */
+    public record Target(String type, String name, UUID clusterId, String clusterName, UUID nodeId) {}
+
+    public AuditEventEntity(String action, Actor actor, Target target, String params, boolean dryRun) {
         this.action = action;
-        this.targetType = targetType;
-        this.targetName = targetName;
-        this.username = username;
-        this.requestId = requestId;
-        this.sourceIp = sourceIp;
-        this.userId = userId;
-        this.clusterId = clusterId;
-        this.clusterName = clusterName;
-        this.nodeId = nodeId;
+        this.targetType = target.type();
+        this.targetName = target.name();
+        this.username = actor.displayName();
+        this.requestId = actor.requestId();
+        this.sourceIp = actor.sourceIp();
+        this.userId = actor.userId();
+        this.clusterId = target.clusterId();
+        this.clusterName = target.clusterName();
+        this.nodeId = target.nodeId();
         this.params = params;
         this.dryRun = dryRun;
     }

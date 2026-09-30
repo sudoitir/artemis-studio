@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
  */
 public final class PluginRefusedException extends RuntimeException {
 
-    private final List<Violation> violations;
+    private final transient List<Violation> violations;
 
     public PluginRefusedException(List<Violation> violations) {
         super(violations.stream().map(Violation::message).collect(Collectors.joining("; ")));

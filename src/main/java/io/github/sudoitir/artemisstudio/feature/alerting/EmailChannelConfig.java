@@ -22,8 +22,20 @@ public record EmailChannelConfig(
 
     public static EmailChannelConfig parse(String json, ObjectMapper mapper) {
         JsonNode root = mapper.readTree(json == null || json.isBlank() ? "{}" : json);
+        List<String> to = recipients(root.get("to"));
+        JsonNode port = root.get("port");
+        return new EmailChannelConfig(
+                text(root, "host"),
+                port == null || port.isNull() ? 0 : port.asInt(0),
+                text(root, "security") == null ? STARTTLS : text(root, "security"),
+                text(root, "username"),
+                text(root, "from"),
+                List.copyOf(to),
+                text(root, "subjectPrefix"));
+    }
+
+    private static List<String> recipients(JsonNode list) {
         List<String> to = new ArrayList<>();
-        JsonNode list = root.get("to");
         if (list != null && list.isArray()) {
             for (JsonNode address : list) {
                 if (!address.isNull() && !address.asString().isBlank()) {
@@ -37,15 +49,7 @@ public record EmailChannelConfig(
                 }
             }
         }
-        JsonNode port = root.get("port");
-        return new EmailChannelConfig(
-                text(root, "host"),
-                port == null || port.isNull() ? 0 : port.asInt(0),
-                text(root, "security") == null ? STARTTLS : text(root, "security"),
-                text(root, "username"),
-                text(root, "from"),
-                List.copyOf(to),
-                text(root, "subjectPrefix"));
+        return to;
     }
 
     private static String text(JsonNode node, String field) {

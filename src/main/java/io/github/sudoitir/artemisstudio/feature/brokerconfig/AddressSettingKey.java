@@ -152,21 +152,21 @@ public enum AddressSettingKey {
      * runtime write should make.
      */
     CONFIG_DELETE_QUEUES(
-            "config-delete-queues", "configDeleteQueues", Type.ENUM, List.of("OFF", "FORCE"), HazardClass.HIGH, false),
+            "config-delete-queues", "configDeleteQueues", Type.ENUM, ConfigDelete.VALUES, HazardClass.HIGH, false),
     CONFIG_DELETE_ADDRESSES(
             "config-delete-addresses",
             "configDeleteAddresses",
             Type.ENUM,
-            List.of("OFF", "FORCE"),
+            ConfigDelete.VALUES,
             HazardClass.HIGH,
             false),
     CONFIG_DELETE_DIVERTS(
-            "config-delete-diverts",
-            "configDeleteDiverts",
-            Type.ENUM,
-            List.of("OFF", "FORCE"),
-            HazardClass.HIGH,
-            false);
+            "config-delete-diverts", "configDeleteDiverts", Type.ENUM, ConfigDelete.VALUES, HazardClass.HIGH, false);
+
+    /** The values of the {@code config-delete-*} keys. Held apart because an enum constant cannot read its own static fields. */
+    private static final class ConfigDelete {
+        static final List<String> VALUES = List.of("OFF", "FORCE");
+    }
 
     /** The scalar type a key's value must have. */
     public enum Type {

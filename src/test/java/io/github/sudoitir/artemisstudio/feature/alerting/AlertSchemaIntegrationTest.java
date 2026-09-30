@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity.Condition;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
@@ -70,7 +71,8 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
     @Test
     void thresholdAndStateRulesBothPersistAndAreFilterableByKind() {
         UUID c = cluster();
-        rules.save(AlertRuleEntity.threshold(c, "Deep queue", "messageCount", "GT", 1000.0, 60, "WARNING", null));
+        rules.save(AlertRuleEntity.threshold(
+                c, "Deep queue", new Condition("messageCount", "GT", 1000.0), 60, "WARNING", null));
         rules.save(AlertRuleEntity.state(c, "Split-brain", "SPLIT_BRAIN", 0, "CRITICAL"));
 
         List<AlertRuleEntity> thresholds = rules.findByClusterIdAndKindAndEnabledTrue(c, "METRIC_THRESHOLD");

@@ -79,7 +79,7 @@ public class MessageIndexCapture {
     }
 
     /** Registered with {@code JobScheduler}; the tail poller does the actual reading. */
-    public void reconcile() {
+    public void reconcileSampling() {
         // A CAPTURE subscription is drained by the capture consumer, not polled here.
         // Running both would double the broker load and write the same message twice,
         // once as SAMPLED and once as CAPTURED (ADR-0062).
@@ -219,7 +219,7 @@ public class MessageIndexCapture {
         @Override
         public boolean isCancelled() {
             // A capture ends when its subscription is disabled or deleted, which
-            // reconcile() acts on; it never ends because a client went away.
+            // reconcileSampling() acts on; it never ends because a client went away.
             return false;
         }
     }

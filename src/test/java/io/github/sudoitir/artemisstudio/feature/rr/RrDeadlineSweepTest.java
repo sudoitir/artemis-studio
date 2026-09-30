@@ -46,17 +46,16 @@ class RrDeadlineSweepTest extends PostgresIntegrationTest {
 
     private RrFlowEntity overdueFlow(UUID clusterId, String responderConsumer) {
         Instant past = Instant.now().minusSeconds(60);
-        RrFlowEntity flow = new RrFlowEntity(
+        RrFlowEntity flow = new RrFlowEntity(new RrFlowEntity.Awaiting(
                 clusterId,
                 null,
                 "rr.request",
                 null,
                 "SHARED_QUEUE",
-                RrState.AWAITING_REPLY.name(),
                 "corr-sweep",
                 "m-" + UUID.randomUUID(),
                 past,
-                past.plusSeconds(1)); // already overdue
+                past.plusSeconds(1))); // already overdue
         flow.setResponderConsumer(responderConsumer);
         return flows.save(flow);
     }
@@ -88,17 +87,16 @@ class RrDeadlineSweepTest extends PostgresIntegrationTest {
     void aFlowNotYetPastItsDeadlineIsUntouched() {
         UUID clusterId = cluster();
         Instant now = Instant.now();
-        RrFlowEntity flow = flows.save(new RrFlowEntity(
+        RrFlowEntity flow = flows.save(new RrFlowEntity(new RrFlowEntity.Awaiting(
                 clusterId,
                 null,
                 "rr.request",
                 null,
                 "SHARED_QUEUE",
-                RrState.AWAITING_REPLY.name(),
                 "corr-future",
                 "m-future",
                 now,
-                now.plusSeconds(300)));
+                now.plusSeconds(300))));
 
         sweep.sweep();
 

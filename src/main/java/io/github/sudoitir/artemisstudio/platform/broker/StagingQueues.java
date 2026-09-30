@@ -86,7 +86,7 @@ public class StagingQueues {
         try {
             String quoted = new ObjectName(objectName).getKeyProperty("queue");
             return quoted == null ? null : ObjectName.unquote(quoted);
-        } catch (MalformedObjectNameException | IllegalArgumentException e) {
+        } catch (MalformedObjectNameException | IllegalArgumentException _) {
             return null;
         }
     }

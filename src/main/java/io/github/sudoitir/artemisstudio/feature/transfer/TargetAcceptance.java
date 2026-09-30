@@ -46,6 +46,35 @@ public final class TargetAcceptance {
             int thresholdPercent) {}
 
     public static List<Finding> evaluate(Input in, String address, String queue) {
+        List<Finding> out = refusals(in);
+        if (!out.isEmpty()) {
+            return out;
+        }
+
+        Facts f = in.target();
+        JsonNode settings = f.addressSettings();
+        queue(in, f, settings, address, queue, out);
+        policy(in, f, settings, address, out);
+        disk(in, f, out);
+        duplicateDetection(f, out);
+        if (in.sameCluster()
+                && Boolean.TRUE.equals(f.queueExists())
+                && f.consumerCount() != null
+                && f.consumerCount() == 0
+                && settings != null
+                && settings.path("redistributionDelay").asLong(-1) >= 0) {
+            out.add(warn(
+                    "may-redistribute",
+                    "Queue %s on the target node has no consumers and redistribution is enabled for its address,"
+                                    .formatted(queue)
+                            + " so the cluster may move the messages to another node again.",
+                    null));
+        }
+        return out;
+    }
+
+    /** What rules the target out before its queue is even looked at. */
+    private static List<Finding> refusals(Input in) {
         List<Finding> out = new ArrayList<>();
         if (in.sameQueueSameNode()) {
             out.add(refuse(
@@ -65,21 +94,16 @@ public final class TargetAcceptance {
         } else if (!in.targetLive()) {
             out.add(refuse("target-not-live", "The target node is not live, so it cannot accept messages now."));
         }
-        if (!out.isEmpty()) {
-            return out;
-        }
+        return out;
+    }
 
-        Facts f = in.target();
-        JsonNode settings = f.addressSettings();
-        queue(in, f, settings, address, queue, out);
-        policy(in, f, settings, address, out);
-        disk(in, f, out);
+    private static void duplicateDetection(Facts f, List<Finding> out) {
         if (f.idCacheSize() == null || f.persistIdCache() == null) {
             out.add(unknown(
                     "duplicate-detection",
                     "Whether the target broker detects duplicates could not be read, so an interruption at the wrong"
                             + " moment may duplicate one batch."));
-        } else if (f.idCacheSize() <= 0 || !f.persistIdCache()) {
+        } else if (f.idCacheSize() <= 0 || !Boolean.TRUE.equals(f.persistIdCache())) {
             out.add(warn(
                     "duplicates-possible",
                     "The target broker's duplicate-id cache is %s, so if Studio stops between delivering a batch and"
@@ -90,20 +114,6 @@ public final class TargetAcceptance {
                     <persist-id-cache>true</persist-id-cache>
                     """));
         }
-        if (in.sameCluster()
-                && Boolean.TRUE.equals(f.queueExists())
-                && f.consumerCount() != null
-                && f.consumerCount() == 0
-                && settings != null
-                && settings.path("redistributionDelay").asLong(-1) >= 0) {
-            out.add(warn(
-                    "may-redistribute",
-                    "Queue %s on the target node has no consumers and redistribution is enabled for its address,"
-                                    .formatted(queue)
-                            + " so the cluster may move the messages to another node again.",
-                    null));
-        }
-        return out;
     }
 
     private static void queue(Input in, Facts f, JsonNode settings, String address, String queue, List<Finding> out) {
@@ -112,7 +122,7 @@ public final class TargetAcceptance {
                     "queue-unknown", "Whether queue %s exists on the target node could not be read.".formatted(queue)));
             return;
         }
-        if (!f.queueExists()) {
+        if (Boolean.FALSE.equals(f.queueExists())) {
             JsonNode auto = settings == null ? null : settings.get("autoCreateQueues");
             if (auto == null || auto.isNull()) {
                 out.add(unknown(
@@ -200,40 +210,17 @@ public final class TargetAcceptance {
                     </address-setting>
                     """.formatted(address)));
         }
-        if (!"FAIL".equals(policy) && !"BLOCK".equals(policy)) {
-            return;
+        if ("FAIL".equals(policy) || "BLOCK".equals(policy)) {
+            boundedCapacity(in, f, settings, policy, address, out);
         }
+    }
+
+    /** An address that fails or blocks when full: does the selection fit, and is the target getting tight. */
+    private static void boundedCapacity(
+            Input in, Facts f, JsonNode settings, String policy, String address, List<Finding> out) {
         long maxBytes = settings.path("maxSizeBytes").asLong(-1);
         if (maxBytes > 0) {
-            if (f.addressSize() == null || in.bytes() == null) {
-                out.add(unknown(
-                        "capacity-unknown",
-                        "Address %s holds at most %s (%s), and %s could not be read."
-                                .formatted(
-                                        address,
-                                        mb(maxBytes),
-                                        policy,
-                                        f.addressSize() == null ? "how full it is" : "the selection's size")));
-            } else {
-                long headroom = Math.max(0, maxBytes - f.addressSize());
-                if (in.bytes() > headroom) {
-                    out.add(refuse(
-                            "capacity",
-                            "The selection is about %s; address %s has %s of room left before it %s."
-                                    .formatted(
-                                            mb(in.bytes()),
-                                            address,
-                                            mb(headroom),
-                                            "FAIL".equals(policy) ? "refuses messages" : "blocks producers")));
-                } else if ((f.addressSize() + in.bytes()) * 100 >= maxBytes * in.thresholdPercent()) {
-                    out.add(warn(
-                            "capacity-tight",
-                            "After the selection (about %s), address %s would be over %d%% full; the run will wait"
-                                            .formatted(mb(in.bytes()), address, in.thresholdPercent())
-                                    + " whenever it reaches that.",
-                            null));
-                }
-            }
+            byteCapacity(in, f, maxBytes, policy, address, out);
         }
         long maxMessages = settings.path("maxSizeMessages").asLong(-1);
         if (maxMessages > 0 && in.count() != null) {
@@ -252,6 +239,39 @@ public final class TargetAcceptance {
                             .formatted(
                                     f.addressMemoryUsagePercentage(),
                                     "FAIL".equals(policy) ? "refuse messages" : "block producers"),
+                    null));
+        }
+    }
+
+    private static void byteCapacity(
+            Input in, Facts f, long maxBytes, String policy, String address, List<Finding> out) {
+        if (f.addressSize() == null || in.bytes() == null) {
+            out.add(unknown(
+                    "capacity-unknown",
+                    "Address %s holds at most %s (%s), and %s could not be read."
+                            .formatted(
+                                    address,
+                                    mb(maxBytes),
+                                    policy,
+                                    f.addressSize() == null ? "how full it is" : "the selection's size")));
+            return;
+        }
+        long headroom = Math.max(0, maxBytes - f.addressSize());
+        if (in.bytes() > headroom) {
+            out.add(refuse(
+                    "capacity",
+                    "The selection is about %s; address %s has %s of room left before it %s."
+                            .formatted(
+                                    mb(in.bytes()),
+                                    address,
+                                    mb(headroom),
+                                    "FAIL".equals(policy) ? "refuses messages" : "blocks producers")));
+        } else if ((f.addressSize() + in.bytes()) * 100 >= maxBytes * in.thresholdPercent()) {
+            out.add(warn(
+                    "capacity-tight",
+                    "After the selection (about %s), address %s would be over %d%% full; the run will wait"
+                                    .formatted(mb(in.bytes()), address, in.thresholdPercent())
+                            + " whenever it reaches that.",
                     null));
         }
     }
@@ -313,27 +333,42 @@ public final class TargetAcceptance {
                     null);
         }
         if ("FAIL".equals(policy) || "BLOCK".equals(policy)) {
-            long maxBytes = settings.path("maxSizeBytes").asLong(-1);
-            if (maxBytes > 0
-                    && f.addressSize() != null
-                    && (f.addressSize() + batchBytes) * 100 >= maxBytes * thresholdPercent) {
-                return new BatchVerdict(
-                        null,
-                        "Address %s is %d%% full (%s of %s), at the %d%% threshold."
-                                .formatted(
-                                        address,
-                                        f.addressSize() * 100 / maxBytes,
-                                        mb(f.addressSize()),
-                                        mb(maxBytes),
-                                        thresholdPercent));
-            }
-            if (f.addressLimitPercent() != null && f.addressLimitPercent() >= thresholdPercent) {
-                return new BatchVerdict(
-                        null,
-                        "Address %s is %d%% full, at the %d%% threshold."
-                                .formatted(address, f.addressLimitPercent(), thresholdPercent));
+            BatchVerdict full = addressNearFull(f, settings, batchBytes, thresholdPercent, address);
+            if (full != null) {
+                return full;
             }
         }
+        BatchVerdict disk = diskNearFull(f, thresholdPercent);
+        return disk != null ? disk : new BatchVerdict(null, null);
+    }
+
+    /** A wait verdict when the batch would take the address to the threshold, else null. */
+    private static BatchVerdict addressNearFull(
+            Facts f, JsonNode settings, long batchBytes, int thresholdPercent, String address) {
+        long maxBytes = settings.path("maxSizeBytes").asLong(-1);
+        if (maxBytes > 0
+                && f.addressSize() != null
+                && (f.addressSize() + batchBytes) * 100 >= maxBytes * thresholdPercent) {
+            return new BatchVerdict(
+                    null,
+                    "Address %s is %d%% full (%s of %s), at the %d%% threshold."
+                            .formatted(
+                                    address,
+                                    f.addressSize() * 100 / maxBytes,
+                                    mb(f.addressSize()),
+                                    mb(maxBytes),
+                                    thresholdPercent));
+        }
+        if (f.addressLimitPercent() != null && f.addressLimitPercent() >= thresholdPercent) {
+            return new BatchVerdict(
+                    null,
+                    "Address %s is %d%% full, at the %d%% threshold."
+                            .formatted(address, f.addressLimitPercent(), thresholdPercent));
+        }
+        return null;
+    }
+
+    private static BatchVerdict diskNearFull(Facts f, int thresholdPercent) {
         if (f.diskStoreUsage() != null && f.maxDiskUsage() != null && f.maxDiskUsage() > 0 && f.maxDiskUsage() < 100) {
             double used = f.diskStoreUsage() * 100;
             if (used >= f.maxDiskUsage() * thresholdPercent / 100.0) {
@@ -343,7 +378,7 @@ public final class TargetAcceptance {
                                 .formatted(used, f.maxDiskUsage()));
             }
         }
-        return new BatchVerdict(null, null);
+        return null;
     }
 
     private static String policy(JsonNode settings) {

@@ -60,11 +60,10 @@ public class HealthVerdictCondition implements AlertCondition {
         Set<String> universe = new HashSet<>();
         Map<String, Double> active = new HashMap<>();
         for (ConsumerHealth health : consumerHealth.evaluate(clusterId)) {
-            if (!scope.matchesAddress(health.address()) || !scope.matchesQueue(health.queueName())) {
-                continue;
-            }
-            if (!health.verdict().known()) {
-                // No verdict this tick. Not healthy, and not a resolution either.
+            // No verdict this tick is not healthy, and not a resolution either.
+            if (!scope.matchesAddress(health.address())
+                    || !scope.matchesQueue(health.queueName())
+                    || !health.verdict().known()) {
                 continue;
             }
             String key = "queue:" + health.queueName();

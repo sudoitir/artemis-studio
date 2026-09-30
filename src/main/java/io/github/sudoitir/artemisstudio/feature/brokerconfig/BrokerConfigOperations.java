@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import org.springframework.stereotype.Component;
@@ -58,6 +60,11 @@ public class BrokerConfigOperations {
     static final String GET_ADDRESS_SETTINGS = "getAddressSettingsAsJSON(java.lang.String)";
     static final String GET_ROLES = "getRolesAsJSON(java.lang.String)";
     static final String DEFAULT_MATCH = "#";
+    private static final String ACTIVE = "Active";
+    private static final String ADDRESS_NAMES = "AddressNames";
+    private static final String ROUTING_TYPES = "RoutingTypes";
+    private static final String ADDRESS = "address";
+    private static final String ROUTING_TYPE = "routing-type";
 
     /** Address MBeans read per node for usage and routing types, so a wide match does not become a wide POST. */
     static final int ADDRESS_READ_CAP = 200;
@@ -162,9 +169,9 @@ public class BrokerConfigOperations {
         patch.remove("auto-create-address");
         String queueMbean = BrokerMBeans.queue(
                 brokerMbean,
-                declared.get("address").toString(),
+                declared.get(ADDRESS).toString(),
                 declared.get("name").toString(),
-                declared.get("routing-type").toString());
+                declared.get(ROUTING_TYPE).toString());
         queueOps.updateQueue(client, brokerMbean, queueMbean, patch);
     }
 
@@ -213,107 +220,54 @@ public class BrokerConfigOperations {
     public ObservedNodeConfig read(JolokiaBrokerClient client, UUID nodeId, String nodeName, ReadScope scope) {
         String broker = client.resolveBrokerObjectName();
 
-        List<String> settingMatches = new ArrayList<>();
-        settingMatches.add(DEFAULT_MATCH);
-        scope.addressSettingMatches().stream()
-                .filter(m -> !m.equals(DEFAULT_MATCH))
-                .forEach(settingMatches::add);
-        List<String> securityMatches = new ArrayList<>();
-        securityMatches.add(DEFAULT_MATCH);
-        scope.securitySettingMatches().stream()
-                .filter(m -> !m.equals(DEFAULT_MATCH))
-                .forEach(securityMatches::add);
+        List<String> settingMatches = withDefaultMatch(scope.addressSettingMatches());
+        List<String> securityMatches = withDefaultMatch(scope.securitySettingMatches());
 
         List<JolokiaRequest> first = new ArrayList<>();
-        first.add(JolokiaRequest.read(broker, "Active", "AddressNames", "QueueNames", "DivertNames"));
-        for (String m : settingMatches) {
-            first.add(JolokiaRequest.exec(broker, GET_ADDRESS_SETTINGS, m));
-        }
-        for (String m : securityMatches) {
-            first.add(JolokiaRequest.exec(broker, GET_ROLES, m));
-        }
+        first.add(JolokiaRequest.read(broker, ACTIVE, ADDRESS_NAMES, "QueueNames", "DivertNames"));
+        settingMatches.forEach(m -> first.add(JolokiaRequest.exec(broker, GET_ADDRESS_SETTINGS, m)));
+        securityMatches.forEach(m -> first.add(JolokiaRequest.exec(broker, GET_ROLES, m)));
         first.add(JolokiaRequest.search(BrokerMBeans.divertsPattern(broker)));
         first.add(JolokiaRequest.search(BrokerMBeans.bridgesPattern(broker)));
-        List<JolokiaResponse> r1 = client.batch(first);
-        requireCount(r1, first);
+        Iterator<JolokiaResponse> r1 = batch(client, first).iterator();
 
-        JsonNode head = client.parsed(r1.getFirst());
-        boolean live = head.path("Active").asBoolean(false);
-        Set<String> addressNames = names(head.get("AddressNames"));
+        JsonNode head = client.parsed(r1.next());
+        boolean live = head.path(ACTIVE).asBoolean(false);
+        Set<String> addressNames = names(head.get(ADDRESS_NAMES));
         Set<String> queueNames = names(head.get("QueueNames"));
-
-        Map<String, Map<String, Object>> addressSettings = new LinkedHashMap<>();
-        int i = 1;
-        for (String m : settingMatches) {
-            JolokiaResponse res = r1.get(i++);
-            if (res.ok()) {
-                JsonNode json = client.parsed(res);
-                if (json != null && json.isObject()) {
-                    addressSettings.put(
-                            m,
-                            mapper.convertValue(
-                                    json, new tools.jackson.core.type.TypeReference<Map<String, Object>>() {}));
-                }
-            }
-        }
-        Map<String, Map<PermissionType, Set<String>>> securitySettings = new LinkedHashMap<>();
-        for (String m : securityMatches) {
-            JolokiaResponse res = r1.get(i++);
-            if (res.ok()) {
-                securitySettings.put(m, roles(client.parsed(res)));
-            }
-        }
-        List<String> divertMbeans = mbeanNames(r1.get(i++));
-        List<String> bridgeMbeans = mbeanNames(r1.get(i));
+        Map<String, Map<String, Object>> addressSettings = readAddressSettings(client, settingMatches, r1);
+        Map<String, Map<PermissionType, Set<String>>> securitySettings = readRoles(client, securityMatches, r1);
+        List<String> divertMbeans = mbeanNames(r1.next());
+        List<String> bridgeMbeans = mbeanNames(r1.next());
 
         // Second POST: the MBeans the first one named.
-        List<JolokiaRequest> second = new ArrayList<>();
-        for (String mbean : divertMbeans) {
-            second.add(JolokiaRequest.readAll(mbean));
-        }
-        for (String mbean : bridgeMbeans) {
-            second.add(JolokiaRequest.readAll(mbean));
-        }
         List<String> addressesToRead = addressesToRead(scope, settingMatches, addressNames);
-        for (String a : addressesToRead) {
-            second.add(JolokiaRequest.read(
-                    BrokerMBeans.address(broker, a), "RoutingTypes", "AddressSize", "MessageCount"));
-        }
-        List<String[]> queuesToRead = new ArrayList<>();
-        for (BrokerConfigDocument.AddressDecl a : scope.addresses().values()) {
-            for (BrokerConfigDocument.QueueDecl q : a.queues()) {
-                if (queueNames.contains(q.name())) {
-                    queuesToRead.add(new String[] {a.name(), q.name(), q.routingType()});
-                    second.add(JolokiaRequest.readAll(BrokerMBeans.queue(broker, a.name(), q.name(), q.routingType())));
-                }
-            }
-        }
+        List<String[]> queuesToRead = queuesToRead(scope, queueNames);
         // The queues bound to each declared address, with their routing types, from the
         // MBean names alone: a routing type the plan would drop is High only when a queue of
         // that type is bound (ADR-0082 D2), and most of those queues are not declared.
         List<String> declaredPresent = scope.addresses().keySet().stream()
                 .filter(addressNames::contains)
                 .toList();
-        for (String a : declaredPresent) {
-            second.add(JolokiaRequest.search(BrokerMBeans.address(broker, a) + ",subcomponent=queues,*"));
-        }
-        List<JolokiaResponse> r2 = second.isEmpty() ? List.of() : client.batch(second);
-        if (!second.isEmpty()) {
-            requireCount(r2, second);
-        }
+        List<JolokiaRequest> second = new ArrayList<>();
+        divertMbeans.stream().map(JolokiaRequest::readAll).forEach(second::add);
+        bridgeMbeans.stream().map(JolokiaRequest::readAll).forEach(second::add);
+        addressesToRead.stream()
+                .map(a -> JolokiaRequest.read(
+                        BrokerMBeans.address(broker, a), ROUTING_TYPES, "AddressSize", "MessageCount"))
+                .forEach(second::add);
+        queuesToRead.stream()
+                .map(q -> JolokiaRequest.readAll(BrokerMBeans.queue(broker, q[0], q[1], q[2])))
+                .forEach(second::add);
+        declaredPresent.stream()
+                .map(a -> JolokiaRequest.search(BrokerMBeans.address(broker, a) + ",subcomponent=queues,*"))
+                .forEach(second::add);
+        Iterator<JolokiaResponse> r2 = batch(client, second).iterator();
 
-        Map<String, DivertDecl> diverts = new LinkedHashMap<>();
-        int j = 0;
-        for (int k = 0; k < divertMbeans.size(); k++, j++) {
-            JolokiaResponse res = r2.get(j);
-            if (res.ok() && res.value() != null && res.value().isObject()) {
-                DivertRow row = DivertRow.parse(res.value(), nodeId, nodeName);
-                diverts.put(row.uniqueName(), asDecl(row));
-            }
-        }
+        Map<String, DivertDecl> diverts = readDiverts(r2, divertMbeans.size(), nodeId, nodeName);
         List<BridgeRow> bridgeRows = new ArrayList<>();
-        for (int k = 0; k < bridgeMbeans.size(); k++, j++) {
-            JolokiaResponse res = r2.get(j);
+        for (int k = 0; k < bridgeMbeans.size(); k++) {
+            JolokiaResponse res = r2.next();
             if (res.ok() && res.value() != null && res.value().isObject()) {
                 bridgeRows.add(BridgeRow.parse(res.value(), nodeId, nodeName));
             }
@@ -323,27 +277,26 @@ public class BrokerConfigOperations {
         addressNames.forEach(a -> addresses.put(a, Set.of()));
         Map<String, AddressUsage> usage = new LinkedHashMap<>();
         for (String a : addressesToRead) {
-            JolokiaResponse res = r2.get(j++);
-            if (!res.ok() || res.value() == null) {
-                continue;
+            JolokiaResponse res = r2.next();
+            if (res.ok() && res.value() != null) {
+                JsonNode v = res.value();
+                addresses.put(a, names(v.get(ROUTING_TYPES)));
+                usage.put(
+                        a,
+                        new AddressUsage(
+                                v.path("AddressSize").asLong(0),
+                                v.path("MessageCount").asLong(0)));
             }
-            JsonNode v = res.value();
-            addresses.put(a, names(v.get("RoutingTypes")));
-            usage.put(
-                    a,
-                    new AddressUsage(
-                            v.path("AddressSize").asLong(0),
-                            v.path("MessageCount").asLong(0)));
         }
         Map<String, Map<String, Object>> queues = new LinkedHashMap<>();
         for (String[] q : queuesToRead) {
-            JolokiaResponse res = r2.get(j++);
+            JolokiaResponse res = r2.next();
             if (res.ok()) {
                 queues.put(q[1], queueOps.toQueueConfig(res.value()));
             }
         }
         for (int k = 0; k < declaredPresent.size(); k++) {
-            JolokiaResponse res = r2.get(j++);
+            JolokiaResponse res = r2.next();
             if (res.ok() && res.value() != null && res.value().isArray()) {
                 res.value()
                         .forEach(n ->
@@ -367,6 +320,73 @@ public class BrokerConfigOperations {
                 bridges,
                 usage,
                 null);
+    }
+
+    /** One POST of the batch, checked to have been answered in full; nothing to send is nothing to ask. */
+    private static List<JolokiaResponse> batch(JolokiaBrokerClient client, List<JolokiaRequest> requests) {
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        List<JolokiaResponse> responses = client.batch(requests);
+        requireCount(responses, requests);
+        return responses;
+    }
+
+    /** The default match first, then every other one the scope names. */
+    private static List<String> withDefaultMatch(Set<String> scoped) {
+        List<String> matches = new ArrayList<>();
+        matches.add(DEFAULT_MATCH);
+        scoped.stream().filter(m -> !m.equals(DEFAULT_MATCH)).forEach(matches::add);
+        return matches;
+    }
+
+    private Map<String, Map<String, Object>> readAddressSettings(
+            JolokiaBrokerClient client, List<String> matches, Iterator<JolokiaResponse> responses) {
+        Map<String, Map<String, Object>> out = new LinkedHashMap<>();
+        for (String m : matches) {
+            JolokiaResponse res = responses.next();
+            if (res.ok()) {
+                JsonNode json = client.parsed(res);
+                if (json != null && json.isObject()) {
+                    out.put(m, asMap(json));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static Map<String, Map<PermissionType, Set<String>>> readRoles(
+            JolokiaBrokerClient client, List<String> matches, Iterator<JolokiaResponse> responses) {
+        Map<String, Map<PermissionType, Set<String>>> out = new LinkedHashMap<>();
+        for (String m : matches) {
+            JolokiaResponse res = responses.next();
+            if (res.ok()) {
+                out.put(m, roles(client.parsed(res)));
+            }
+        }
+        return out;
+    }
+
+    private static Map<String, DivertDecl> readDiverts(
+            Iterator<JolokiaResponse> responses, int count, UUID nodeId, String nodeName) {
+        Map<String, DivertDecl> diverts = new LinkedHashMap<>();
+        for (int k = 0; k < count; k++) {
+            JolokiaResponse res = responses.next();
+            if (res.ok() && res.value() != null && res.value().isObject()) {
+                DivertRow row = DivertRow.parse(res.value(), nodeId, nodeName);
+                diverts.put(row.uniqueName(), asDecl(row));
+            }
+        }
+        return diverts;
+    }
+
+    /** Address, queue name and routing type of each declared queue the node already has. */
+    private static List<String[]> queuesToRead(ReadScope scope, Set<String> queueNames) {
+        return scope.addresses().values().stream()
+                .flatMap(a -> a.queues().stream()
+                        .filter(q -> queueNames.contains(q.name()))
+                        .map(q -> new String[] {a.name(), q.name(), q.routingType()}))
+                .toList();
     }
 
     private static List<String> mbeanNames(JolokiaResponse search) {
@@ -464,19 +484,15 @@ public class BrokerConfigOperations {
     public ObservedNodeConfig readForAdoption(JolokiaBrokerClient client, UUID nodeId, String nodeName) {
         String broker = client.resolveBrokerObjectName();
         List<JolokiaRequest> first = List.of(
-                JolokiaRequest.read(broker, "Active", "AddressNames"),
+                JolokiaRequest.read(broker, ACTIVE, ADDRESS_NAMES),
                 JolokiaRequest.exec(broker, GET_ADDRESS_SETTINGS, DEFAULT_MATCH),
                 JolokiaRequest.exec(broker, GET_ROLES, DEFAULT_MATCH),
                 JolokiaRequest.search(BrokerMBeans.divertsPattern(broker)));
-        List<JolokiaResponse> r1 = client.batch(first);
-        requireCount(r1, first);
+        List<JolokiaResponse> r1 = batch(client, first);
         JsonNode head = client.parsed(r1.get(0));
-        boolean live = head.path("Active").asBoolean(false);
-        List<String> addressNames = new TreeSet<>(names(head.get("AddressNames")))
-                .stream()
-                        .filter(a -> !a.startsWith("activemq.") && !a.startsWith("$sys."))
-                        .limit(ADDRESS_READ_CAP)
-                        .toList();
+        boolean live = head.path(ACTIVE).asBoolean(false);
+        List<String> addressNames = new TreeSet<>(names(head.get(ADDRESS_NAMES)))
+                .stream().filter(a -> !isSystem(a)).limit(ADDRESS_READ_CAP).toList();
 
         Map<String, Map<String, Object>> addressSettings = new LinkedHashMap<>();
         Map<String, Map<PermissionType, Set<String>>> securitySettings = new LinkedHashMap<>();
@@ -486,30 +502,23 @@ public class BrokerConfigOperations {
         if (r1.get(2).ok()) {
             securitySettings.put(DEFAULT_MATCH, roles(client.parsed(r1.get(2))));
         }
-        List<String> divertMbeans = new ArrayList<>();
-        if (r1.get(3).ok() && r1.get(3).value() != null && r1.get(3).value().isArray()) {
-            r1.get(3).value().forEach(n -> divertMbeans.add(n.asString()));
-        }
+        List<String> divertMbeans = mbeanNames(r1.get(3));
 
         List<JolokiaRequest> second = new ArrayList<>();
         for (String a : addressNames) {
-            second.add(JolokiaRequest.read(BrokerMBeans.address(broker, a), "RoutingTypes"));
+            second.add(JolokiaRequest.read(BrokerMBeans.address(broker, a), ROUTING_TYPES));
             second.add(JolokiaRequest.exec(broker, GET_ADDRESS_SETTINGS, a));
             second.add(JolokiaRequest.exec(broker, GET_ROLES, a));
         }
-        divertMbeans.forEach(m -> second.add(JolokiaRequest.readAll(m)));
-        List<JolokiaResponse> r2 = second.isEmpty() ? List.of() : client.batch(second);
-        if (!second.isEmpty()) {
-            requireCount(r2, second);
-        }
+        divertMbeans.stream().map(JolokiaRequest::readAll).forEach(second::add);
+        Iterator<JolokiaResponse> r2 = batch(client, second).iterator();
         Map<String, Set<String>> addresses = new LinkedHashMap<>();
-        int j = 0;
         for (String a : addressNames) {
-            JolokiaResponse types = r2.get(j++);
-            JolokiaResponse settings = r2.get(j++);
-            JolokiaResponse roles = r2.get(j++);
+            JolokiaResponse types = r2.next();
+            JolokiaResponse settings = r2.next();
+            JolokiaResponse roles = r2.next();
             addresses.put(
-                    a, types.ok() && types.value() != null ? names(types.value().get("RoutingTypes")) : Set.of());
+                    a, types.ok() && types.value() != null ? names(types.value().get(ROUTING_TYPES)) : Set.of());
             if (settings.ok()) {
                 addressSettings.put(a, asMap(client.parsed(settings)));
             }
@@ -517,14 +526,7 @@ public class BrokerConfigOperations {
                 securitySettings.put(a, roles(client.parsed(roles)));
             }
         }
-        Map<String, DivertDecl> diverts = new LinkedHashMap<>();
-        for (int k = 0; k < divertMbeans.size(); k++) {
-            JolokiaResponse res = r2.get(j++);
-            if (res.ok() && res.value() != null && res.value().isObject()) {
-                DivertRow row = DivertRow.parse(res.value(), nodeId, nodeName);
-                diverts.put(row.uniqueName(), asDecl(row));
-            }
-        }
+        Map<String, DivertDecl> diverts = readDiverts(r2, divertMbeans.size(), nodeId, nodeName);
         return new ObservedNodeConfig(
                 nodeId,
                 nodeName,
@@ -551,16 +553,19 @@ public class BrokerConfigOperations {
         try {
             ObjectName name = new ObjectName(mbean);
             String queue = name.getKeyProperty("queue");
-            String address = name.getKeyProperty("address");
-            String routingType = name.getKeyProperty("routing-type");
+            String address = name.getKeyProperty(ADDRESS);
+            String routingType = name.getKeyProperty(ROUTING_TYPE);
             if (queue == null || address == null || routingType == null) {
                 return Optional.empty();
             }
             return Optional.of(Map.of(
-                    "name", ObjectName.unquote(queue),
-                    "address", ObjectName.unquote(address),
-                    "routing-type", ObjectName.unquote(routingType).toUpperCase(Locale.ROOT)));
-        } catch (MalformedObjectNameException | IllegalArgumentException e) {
+                    "name",
+                    ObjectName.unquote(queue),
+                    ADDRESS,
+                    ObjectName.unquote(address),
+                    ROUTING_TYPE,
+                    ObjectName.unquote(routingType).toUpperCase(Locale.ROOT)));
+        } catch (MalformedObjectNameException | IllegalArgumentException _) {
             return Optional.empty();
         }
     }
@@ -568,31 +573,22 @@ public class BrokerConfigOperations {
     /** Declared addresses first, then addresses covered by a declared match, capped. */
     private static List<String> addressesToRead(ReadScope scope, List<String> matches, Set<String> addressNames) {
         LinkedHashSet<String> out = new LinkedHashSet<>();
-        for (String a : scope.addresses().keySet()) {
-            if (addressNames.contains(a)) {
-                out.add(a);
-            }
-        }
-        for (String a : scope.divertEndpoints()) {
-            if (addressNames.contains(a)) {
-                out.add(a);
-            }
-        }
+        Stream.concat(scope.addresses().keySet().stream(), scope.divertEndpoints().stream())
+                .filter(addressNames::contains)
+                .forEach(out::add);
         for (String a : new TreeSet<>(addressNames)) {
             if (out.size() >= ADDRESS_READ_CAP) {
                 break;
             }
-            if (a.startsWith("activemq.") || a.startsWith("$sys.")) {
-                continue;
-            }
-            for (String m : matches) {
-                if (!m.equals(DEFAULT_MATCH) && AddressMatch.covers(m, a)) {
-                    out.add(a);
-                    break;
-                }
+            if (!isSystem(a) && matches.stream().anyMatch(m -> !m.equals(DEFAULT_MATCH) && AddressMatch.covers(m, a))) {
+                out.add(a);
             }
         }
         return new ArrayList<>(out);
+    }
+
+    private static boolean isSystem(String address) {
+        return address.startsWith("activemq.") || address.startsWith("$sys.");
     }
 
     private static Set<String> names(JsonNode array) {

@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -36,11 +37,9 @@ public class CaptureAddresses {
      * are bound to it: a divert copies at address routing (D3).
      */
     public Set<String> of(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
-        Set<String> addresses = new LinkedHashSet<>();
-        for (QueryPlan.Target target : targets(clusterId, subscription)) {
-            addresses.add(addressOf(target));
-        }
-        return addresses;
+        return targets(clusterId, subscription).stream()
+                .map(CaptureAddresses::addressOf)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /** The queues the pattern matches, Studio's own capture objects left out; empty when it does not resolve. */

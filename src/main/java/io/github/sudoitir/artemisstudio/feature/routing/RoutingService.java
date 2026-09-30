@@ -165,11 +165,15 @@ public class RoutingService {
                 String.valueOf(row.exclusive()));
     }
 
+    private static String operatorOwner(String name, Set<String> ownedByOperator) {
+        return ownedByOperator.contains(name) ? OWNER_OPERATOR : null;
+    }
+
     private DivertView toDivertView(List<DivertRow> group, int nodesTotal, Set<String> ownedByOperator) {
         DivertRow first = group.get(0);
         String name = first.uniqueName();
         boolean capture = name != null && name.startsWith(DivertOperations.CAPTURE_PREFIX);
-        String owner = capture ? OWNER_CAPTURE : (ownedByOperator.contains(name) ? OWNER_OPERATOR : null);
+        String owner = capture ? OWNER_CAPTURE : operatorOwner(name, ownedByOperator);
         return new DivertView(
                 name,
                 first.routingName(),
@@ -240,7 +244,7 @@ public class RoutingService {
         }
         try {
             return UUID.fromString(divertName.substring(lastDot + 1));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }

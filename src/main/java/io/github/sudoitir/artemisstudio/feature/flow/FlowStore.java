@@ -27,6 +27,18 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FlowStore {
 
+    private static final String CLUSTER_ID = "clusterId";
+    private static final String NODE_ID = "nodeId";
+    private static final String SAMPLED_AT = "sampledAt";
+    private static final String NODE_ID_COLUMN = "node_id";
+    private static final String SAMPLED_AT_COLUMN = "sampled_at";
+    private static final String STALE_CLUSTERS = "SELECT cluster_id FROM flow_demand WHERE observed_until < :before";
+    private static final String FORGET_EDGES =
+            "DELETE FROM flow_client_edge WHERE cluster_id IN (" + STALE_CLUSTERS + ")";
+    private static final String FORGET_NODE_SAMPLES =
+            "DELETE FROM flow_node_sample WHERE cluster_id IN (" + STALE_CLUSTERS + ")";
+    private static final String FORGET_ROUTES = "DELETE FROM flow_route WHERE cluster_id IN (" + STALE_CLUSTERS + ")";
+
     /** One node's outcome of one sweep. {@code errorKind} is null when the node answered in full. */
     public record NodeSample(
             UUID nodeId,
@@ -138,7 +150,7 @@ public class FlowStore {
                 INSERT INTO flow_demand (observed_until, cluster_id) VALUES (:until, :clusterId)
                 ON CONFLICT (cluster_id) DO UPDATE
                    SET observed_until = GREATEST(flow_demand.observed_until, EXCLUDED.observed_until)
-                """, new MapSqlParameterSource("until", Timestamp.from(until)).addValue("clusterId", clusterId));
+                """, new MapSqlParameterSource("until", Timestamp.from(until)).addValue(CLUSTER_ID, clusterId));
     }
 
     /** Clusters whose lease has not expired at {@code now}, whichever instance renewed it. */
@@ -163,8 +175,8 @@ public class FlowStore {
         }
         jdbc.update(
                 "DELETE FROM flow_client_edge WHERE node_id = :nodeId AND sampled_at < :sampledAt",
-                new MapSqlParameterSource("nodeId", sample.nodeId())
-                        .addValue("sampledAt", Timestamp.from(sample.sampledAt())));
+                new MapSqlParameterSource(NODE_ID, sample.nodeId())
+                        .addValue(SAMPLED_AT, Timestamp.from(sample.sampledAt())));
         if (!routes.isEmpty()) {
             jdbc.batchUpdate(
                     UPSERT_ROUTE,
@@ -172,8 +184,8 @@ public class FlowStore {
         }
         jdbc.update(
                 "DELETE FROM flow_route WHERE node_id = :nodeId AND sampled_at < :sampledAt",
-                new MapSqlParameterSource("nodeId", sample.nodeId())
-                        .addValue("sampledAt", Timestamp.from(sample.sampledAt())));
+                new MapSqlParameterSource(NODE_ID, sample.nodeId())
+                        .addValue(SAMPLED_AT, Timestamp.from(sample.sampledAt())));
         jdbc.update(UPSERT_NODE, nodeParams(sample));
     }
 
@@ -181,31 +193,30 @@ public class FlowStore {
     @Transactional
     public void forgetUnobserved(Instant before) {
         MapSqlParameterSource p = new MapSqlParameterSource("before", Timestamp.from(before));
-        String stale = "SELECT cluster_id FROM flow_demand WHERE observed_until < :before";
-        jdbc.update("DELETE FROM flow_client_edge WHERE cluster_id IN (" + stale + ")", p);
-        jdbc.update("DELETE FROM flow_node_sample WHERE cluster_id IN (" + stale + ")", p);
-        jdbc.update("DELETE FROM flow_route WHERE cluster_id IN (" + stale + ")", p);
+        jdbc.update(FORGET_EDGES, p);
+        jdbc.update(FORGET_NODE_SAMPLES, p);
+        jdbc.update(FORGET_ROUTES, p);
         jdbc.update("DELETE FROM flow_demand WHERE observed_until < :before", p);
     }
 
     public List<StoredEdge> edges(UUID clusterId) {
         return jdbc.query(
                 "SELECT * FROM flow_client_edge WHERE cluster_id = :clusterId",
-                Map.of("clusterId", clusterId),
+                Map.of(CLUSTER_ID, clusterId),
                 (rs, i) -> new StoredEdge(
-                        rs.getObject("node_id", UUID.class),
-                        rs.getTimestamp("sampled_at").toInstant(),
+                        rs.getObject(NODE_ID_COLUMN, UUID.class),
+                        rs.getTimestamp(SAMPLED_AT_COLUMN).toInstant(),
                         edge(rs)));
     }
 
     public List<NodeSample> nodeSamples(UUID clusterId) {
         return jdbc.query(
                 "SELECT * FROM flow_node_sample WHERE cluster_id = :clusterId",
-                Map.of("clusterId", clusterId),
+                Map.of(CLUSTER_ID, clusterId),
                 (rs, i) -> new NodeSample(
-                        rs.getObject("node_id", UUID.class),
+                        rs.getObject(NODE_ID_COLUMN, UUID.class),
                         rs.getObject("cluster_id", UUID.class),
-                        rs.getTimestamp("sampled_at").toInstant(),
+                        rs.getTimestamp(SAMPLED_AT_COLUMN).toInstant(),
                         rs.getInt("producers_seen"),
                         rs.getInt("producers_total"),
                         rs.getInt("consumers_seen"),
@@ -217,10 +228,10 @@ public class FlowStore {
     public List<StoredRoute> routes(UUID clusterId) {
         return jdbc.query(
                 "SELECT * FROM flow_route WHERE cluster_id = :clusterId",
-                Map.of("clusterId", clusterId),
+                Map.of(CLUSTER_ID, clusterId),
                 (rs, i) -> new StoredRoute(
-                        rs.getObject("node_id", UUID.class),
-                        rs.getTimestamp("sampled_at").toInstant(),
+                        rs.getObject(NODE_ID_COLUMN, UUID.class),
+                        rs.getTimestamp(SAMPLED_AT_COLUMN).toInstant(),
                         new Route(
                                 RouteKind.valueOf(rs.getString("kind")),
                                 rs.getString("name"),
@@ -236,7 +247,7 @@ public class FlowStore {
 
     private static SqlParameterSource routeParams(NodeSample s, Route r) {
         return new MapSqlParameterSource()
-                .addValue("sampledAt", Timestamp.from(s.sampledAt()))
+                .addValue(SAMPLED_AT, Timestamp.from(s.sampledAt()))
                 .addValue("rate", r.rate())
                 .addValue("counter", r.counter())
                 .addValue("kind", r.kind().name())
@@ -245,8 +256,8 @@ public class FlowStore {
                 .addValue("target", r.target() == null ? "" : r.target())
                 .addValue("filter", r.filter())
                 .addValue("transformer", r.transformer())
-                .addValue("nodeId", s.nodeId())
-                .addValue("clusterId", s.clusterId())
+                .addValue(NODE_ID, s.nodeId())
+                .addValue(CLUSTER_ID, s.clusterId())
                 .addValue("exclusive", r.exclusive())
                 .addValue("connected", r.connected());
     }
@@ -271,7 +282,7 @@ public class FlowStore {
 
     private static SqlParameterSource edgeParams(NodeSample s, Edge e) {
         return new MapSqlParameterSource()
-                .addValue("sampledAt", Timestamp.from(s.sampledAt()))
+                .addValue(SAMPLED_AT, Timestamp.from(s.sampledAt()))
                 .addValue("rate", e.rate())
                 .addValue("unacked", e.unacked())
                 .addValue("memberCount", e.memberCount())
@@ -282,21 +293,21 @@ public class FlowStore {
                 .addValue("protocol", e.protocol())
                 .addValue("address", e.address())
                 .addValue("queueName", e.queue())
-                .addValue("nodeId", s.nodeId())
-                .addValue("clusterId", s.clusterId())
+                .addValue(NODE_ID, s.nodeId())
+                .addValue(CLUSTER_ID, s.clusterId())
                 .addValue("stalled", e.stalled());
     }
 
     private static SqlParameterSource nodeParams(NodeSample s) {
         return new MapSqlParameterSource()
-                .addValue("sampledAt", Timestamp.from(s.sampledAt()))
+                .addValue(SAMPLED_AT, Timestamp.from(s.sampledAt()))
                 .addValue("producersSeen", s.producersSeen())
                 .addValue("producersTotal", s.producersTotal())
                 .addValue("consumersSeen", s.consumersSeen())
                 .addValue("consumersTotal", s.consumersTotal())
                 .addValue("error", s.error())
                 .addValue("errorKind", s.errorKind())
-                .addValue("nodeId", s.nodeId())
-                .addValue("clusterId", s.clusterId());
+                .addValue(NODE_ID, s.nodeId())
+                .addValue(CLUSTER_ID, s.clusterId());
     }
 }

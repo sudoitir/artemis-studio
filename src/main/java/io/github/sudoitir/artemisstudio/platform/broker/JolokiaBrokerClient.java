@@ -147,7 +147,7 @@ public class JolokiaBrokerClient {
      */
     private void recordClock(JolokiaResponse entry, long t0, long t1) {
         if (clockOffsets != null && entry.timestamp() != null) {
-            clockOffsets.record(jolokiaUrl, entry.timestamp(), t0, t1);
+            clockOffsets.recordReading(jolokiaUrl, entry.timestamp(), t0, t1);
         }
     }
 
@@ -324,13 +324,11 @@ public class JolokiaBrokerClient {
     private static String notJsonHint(RestClientException e) {
         if (e instanceof UnknownContentTypeException unknown) {
             MediaType type = unknown.getContentType();
-            if (type != null && MediaType.TEXT_HTML.isCompatibleWith(type)) {
+            if (MediaType.TEXT_HTML.isCompatibleWith(type)) {
                 return " It answered with an HTML page, which is the console UI rather than the"
                         + " Jolokia agent \u2014 check that the URL ends in /console/jolokia.";
             }
-            if (type != null) {
-                return " The response content type was " + type + ", not JSON.";
-            }
+            return " The response content type was " + type + ", not JSON.";
         }
         return "";
     }

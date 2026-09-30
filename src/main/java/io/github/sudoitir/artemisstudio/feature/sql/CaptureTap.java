@@ -59,6 +59,7 @@ import tools.jackson.databind.ObjectMapper;
 @Slf4j
 public class CaptureTap {
 
+    private static final String ANYCAST = "ANYCAST";
     private static final String ADD_ADDRESS_SETTINGS = "addAddressSettings(java.lang.String,java.lang.String)";
 
     private static final String ADD_SECURITY_SETTINGS = "addSecuritySettings(java.lang.String,java.lang.String,"
@@ -93,13 +94,13 @@ public class CaptureTap {
         applySecuritySettings(client, broker, instanceId);
 
         String queue = CaptureNames.queueOf(name);
-        tolerateAlready(() -> queueOps.createAddress(client, broker, queue, "ANYCAST"));
+        tolerateAlready(() -> queueOps.createAddress(client, broker, queue, ANYCAST));
         tolerateAlready(() -> queueOps.createQueue(client, broker, queueConfig(queue, spec.ringSize())));
         tolerateAlready(() -> divertOps.createDivert(
                 client,
                 broker,
                 DivertOperations.divertConfig(
-                        name, routingNameFor(name), spec.address(), queue, false, spec.filter(), "ANYCAST")));
+                        name, routingNameFor(name), spec.address(), queue, false, spec.filter(), ANYCAST)));
 
         // Verified, not assumed. Artemis answers 200 and logs a WARN when it declines
         // to deploy a divert — a routing-name that collides with an existing binding is
@@ -297,7 +298,7 @@ public class CaptureTap {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("name", name);
         config.put("address", name);
-        config.put("routing-type", "ANYCAST");
+        config.put("routing-type", ANYCAST);
         config.put("durable", false);
         config.put("ring-size", ringSize);
         config.put("max-consumers", 1);

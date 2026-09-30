@@ -100,13 +100,7 @@ public class CaptureLoss {
         captureNodes.save(node);
 
         if (subscription.getFilterString() != null) {
-            // Only a store failure can be stated; a count difference means nothing here.
-            if (shortfall.storeFailure() != null) {
-                degrade(node, lossDetail(0, null, shortfall));
-            } else if (node.getCaptureState() == CaptureState.ACTIVE) {
-                node.setCaptureDetail(FILTERED);
-                captureNodes.save(node);
-            }
+            measureFiltered(node, shortfall);
             return;
         }
 
@@ -124,9 +118,7 @@ public class CaptureLoss {
         Instant now = Instant.now();
         if (asOf == null) {
             // Nothing scraped for these addresses on this node yet: there is no instant to measure at.
-            if (shortfall.storeFailure() != null) {
-                degrade(node, lossDetail(0, null, shortfall));
-            }
+            degradeOnStoreFailure(node, shortfall);
             return;
         }
         long routed = routedToCovered(used, covered);
@@ -142,9 +134,7 @@ public class CaptureLoss {
         // either; the pass re-establishes the marks rather than reporting the jump as loss.
         if (previous == null || routed < previous.routed() || captured < previous.captured()) {
             marks.put(key, new Mark(routed, captured, unaccounted, now));
-            if (shortfall.storeFailure() != null) {
-                degrade(node, lossDetail(0, null, shortfall));
-            }
+            degradeOnStoreFailure(node, shortfall);
             return;
         }
         long baseline = Math.min(previous.baseline(), unaccounted);
@@ -163,6 +153,26 @@ public class CaptureLoss {
             degrade(node, lossDetail(losing ? lost : 0, previous.since(), shortfall));
             return;
         }
+        recoverIfDegraded(node, now);
+    }
+
+    /** Only a store failure can be stated for a filtered capture; a count difference means nothing there. */
+    private void measureFiltered(MessageCaptureNodeEntity node, CaptureConsumer.Shortfall shortfall) {
+        if (shortfall.storeFailure() != null) {
+            degrade(node, lossDetail(0, null, shortfall));
+        } else if (node.getCaptureState() == CaptureState.ACTIVE) {
+            node.setCaptureDetail(FILTERED);
+            captureNodes.save(node);
+        }
+    }
+
+    private void degradeOnStoreFailure(MessageCaptureNodeEntity node, CaptureConsumer.Shortfall shortfall) {
+        if (shortfall.storeFailure() != null) {
+            degrade(node, lossDetail(0, null, shortfall));
+        }
+    }
+
+    private void recoverIfDegraded(MessageCaptureNodeEntity node, Instant now) {
         if (node.getCaptureState() == CaptureState.DEGRADED) {
             // A full interval recorded everything routed: healthy again. Earlier loss stays in
             // droppedEstimate, and the detail of when it happened went with the last degraded pass.

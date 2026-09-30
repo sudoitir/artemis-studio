@@ -18,6 +18,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * store's javadoc used to promise is only worth the extra plumbing if that cap ever moves into
  * the hundreds of megabytes.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PluginStore {
@@ -173,10 +175,13 @@ public class PluginStore {
         } else {
             Path file = Files.createTempFile(TEMP_DIR, "partial-", ".jar");
             File f = file.toFile();
-            f.setReadable(false, false);
-            f.setWritable(false, false);
-            f.setReadable(true, true);
-            f.setWritable(true, true);
+            boolean ownerOnly = f.setReadable(false, false);
+            ownerOnly &= f.setWritable(false, false);
+            ownerOnly &= f.setReadable(true, true);
+            ownerOnly &= f.setWritable(true, true);
+            if (!ownerOnly) {
+                log.warn("Could not restrict {} to its owner; this file system has no POSIX permissions.", file);
+            }
             return file;
         }
     }

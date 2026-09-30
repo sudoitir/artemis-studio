@@ -69,13 +69,17 @@ public final class PluginRuntime implements AutoCloseable {
     private volatile boolean closed;
     private volatile boolean stuck;
 
-    PluginRuntime(
-            PluginDescriptor descriptor,
-            URLClassLoader classLoader,
+    /** What {@link PluginRuntimeFactory} built for one plugin version: its context, servlet, pool and JPA stack. */
+    record Parts(
             GenericWebApplicationContext context,
             DispatcherServlet servlet,
             HikariDataSource dataSource,
-            EntityManagerFactory entityManagerFactory,
+            EntityManagerFactory entityManagerFactory) {}
+
+    PluginRuntime(
+            PluginDescriptor descriptor,
+            URLClassLoader classLoader,
+            Parts parts,
             ApplicationContext mainContext,
             String servletName,
             Path jarPath,
@@ -83,10 +87,10 @@ public final class PluginRuntime implements AutoCloseable {
         this.id = descriptor.id();
         this.descriptor = descriptor;
         this.classLoader = classLoader;
-        this.context = context;
-        this.servlet = servlet;
-        this.dataSource = dataSource;
-        this.entityManagerFactory = entityManagerFactory;
+        this.context = parts.context();
+        this.servlet = parts.servlet();
+        this.dataSource = parts.dataSource();
+        this.entityManagerFactory = parts.entityManagerFactory();
         this.mainContext = mainContext;
         this.servletContextAttribute =
                 org.springframework.web.servlet.FrameworkServlet.SERVLET_CONTEXT_PREFIX + servletName;
@@ -202,7 +206,7 @@ public final class PluginRuntime implements AutoCloseable {
         boolean acquired;
         try {
             acquired = lock.writeLock().tryLock(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             acquired = false;
         }
@@ -278,7 +282,7 @@ public final class PluginRuntime implements AutoCloseable {
         // and caches a serializer per type for as long as the JVM runs.
         mainContext
                 .getBeanProvider(tools.jackson.databind.json.JsonMapper.class)
-                .ifAvailable(mapper -> mapper.clearCaches());
+                .ifAvailable(tools.jackson.databind.ObjectMapper::clearCaches);
     }
 
     private final class Handle implements PluginHandle {

@@ -112,17 +112,19 @@ public class MessageController {
         Outcome outcome = unwrap(attempt);
         Object body =
                 switch (outcome) {
-                    case Outcome.Affected a -> new AffectedView(a.count(), false, a.node());
-                    case Outcome.DryRun d -> new DryRunView(d.count(), d.cap(), d.overCap(), d.node());
-                    case Outcome.Partial p -> new PartialView(p.count(), p.notDone(), p.error(), true, p.node());
+                    case Outcome.Affected(var count, var node) -> new AffectedView(count, false, node);
+                    case Outcome.DryRun(var count, var cap, var overCap, var node) ->
+                        new DryRunView(count, cap, overCap, node);
+                    case Outcome.Partial(var count, var notDone, var error, var node) ->
+                        new PartialView(count, notDone, error, true, node);
                 };
         return ResponseEntity.ok(body);
     }
 
     private static <T> T unwrap(Attempt<T> attempt) {
         return switch (attempt) {
-            case Attempt.Ok<T> ok -> ok.value();
-            case Attempt.Failed<T> failed -> throw new BrokerConnectionException(failed.kind(), failed.detail());
+            case Attempt.Ok<T>(var value) -> value;
+            case Attempt.Failed<T>(var kind, var detail) -> throw new BrokerConnectionException(kind, detail);
         };
     }
 }

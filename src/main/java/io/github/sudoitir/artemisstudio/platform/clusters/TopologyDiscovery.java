@@ -7,6 +7,7 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.net.URI;
 import java.time.Instant;
@@ -87,12 +88,16 @@ public class TopologyDiscovery {
         }
 
         // 3. Re-read and evaluate.
-        return currentTopology(clusterId);
+        return evaluated(clusterId);
     }
 
     /** The persisted topology, evaluated — no broker calls. */
     @Transactional(readOnly = true)
     public ClusterTopology currentTopology(UUID clusterId) {
+        return evaluated(clusterId);
+    }
+
+    private ClusterTopology evaluated(UUID clusterId) {
         List<NodeEndpoint> endpoints = nodeMapper.toEndpoints(nodes.findByClusterIdOrderByNameAsc(clusterId));
         return new ClusterTopology(
                 clusterId, evaluator.toLogicalNodes(endpoints, splitBrainRegistry.statusesFor(clusterId)));
@@ -193,7 +198,10 @@ public class TopologyDiscovery {
                         nodes.save(BrokerNodeEntity.fromSeed(clusterId, seedName(r.jolokiaUrl()), haRole, r.nodeId())));
 
         node.attachManagementUrl(r.jolokiaUrl());
-        node.applyHaState(r.active(), state, haRole, r.replicaSync(), 0L, r.version(), r.nodeId(), Instant.now());
+        node.applyHaState(
+                new HaObservation(r.active(), state, haRole, r.replicaSync(), r.version(), r.nodeId()),
+                0L,
+                Instant.now());
         nodes.save(node);
     }
 
@@ -225,7 +233,7 @@ public class TopologyDiscovery {
             URI u = URI.create(jolokiaUrl);
             int port = u.getPort();
             return port > 0 ? u.getHost() + ":" + port : u.getHost();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return jolokiaUrl;
         }
     }

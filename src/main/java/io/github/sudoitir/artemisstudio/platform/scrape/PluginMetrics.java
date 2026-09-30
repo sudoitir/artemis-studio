@@ -164,10 +164,10 @@ public class PluginMetrics implements PluginBridge {
         Future<T> future = calls.submit(() -> handle.runInPlugin(body));
         try {
             return future.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
+        } catch (TimeoutException _) {
             future.cancel(true);
             throw new IllegalStateException("did not answer within " + TIMEOUT.toSeconds() + " s");
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("interrupted");
         } catch (java.util.concurrent.ExecutionException e) {

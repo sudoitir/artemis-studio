@@ -60,15 +60,14 @@ public class QueueTargetResolver {
         QueueSnapshot onThisNode = null;
         QueueSnapshot anywhere = null;
         for (QueueSnapshot row : rows) {
-            if (!address.equals(row.address())) {
-                continue;
-            }
-            if (nodeId != null && nodeId.equals(row.nodeId())) {
-                onThisNode = row;
-                break;
-            }
-            if (anywhere == null) {
-                anywhere = row;
+            if (address.equals(row.address())) {
+                if (nodeId != null && nodeId.equals(row.nodeId())) {
+                    onThisNode = row;
+                    break;
+                }
+                if (anywhere == null) {
+                    anywhere = row;
+                }
             }
         }
         QueueSnapshot chosen = onThisNode != null ? onThisNode : anywhere;

@@ -98,14 +98,7 @@ public class MessageIndexService {
             objects.add("address-setting " + CaptureNames.matchFor(instance.id()));
             objects.add("security-setting " + CaptureNames.matchFor(instance.id()));
         }
-        String role = captureProperties.brokerRole();
-        String refusal = addresses.isEmpty()
-                ? "The pattern '" + draft.getQueuePattern() + "' matches no address on this cluster, so nothing would"
-                        + " be captured."
-                : role == null || role.isBlank()
-                        ? "Capture needs artemis-studio.capture.broker-role (ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE) set to"
-                                + " the broker role Studio's own user holds."
-                        : null;
+        String refusal = refusal(addresses, draft);
         return new Preview(
                 addresses,
                 nodeNames,
@@ -206,13 +199,13 @@ public class MessageIndexService {
         Map<String, Object> params = new java.util.LinkedHashMap<>();
         params.put("queuePattern", pattern);
         params.put("mode", mode.name());
-        params.put("intervalMs", entity.getIntervalMs());
-        params.put("retentionDays", entity.getRetentionDays());
+        params.put(INTERVAL_MS, entity.getIntervalMs());
+        params.put(RETENTION_DAYS, entity.getRetentionDays());
         params.put("storesMessageBodies", true);
         // What sets exposure is exactly what gets audited: every bound the capture runs under.
         params.putAll(bounds(entity));
         AuditEvent event = audit.begin(
-                actorResolver.resolve(), "sql.index.create", "CLUSTER", pattern, clusterId, null, params, false);
+                actorResolver.resolve(), "sql.index.create", CLUSTER, pattern, clusterId, null, params, false);
         try {
             MessageIndexSubscriptionEntity saved = subscriptions.save(entity);
             audit.succeed(event, 1);
@@ -246,13 +239,13 @@ public class MessageIndexService {
         Map<String, Object> params = new java.util.LinkedHashMap<>();
         params.put("enabled", String.valueOf(spec.enabled()));
         params.put("mode", String.valueOf(target));
-        params.put("intervalMs", String.valueOf(spec.intervalMs()));
-        params.put("retentionDays", String.valueOf(spec.retentionDays()));
+        params.put(INTERVAL_MS, String.valueOf(spec.intervalMs()));
+        params.put(RETENTION_DAYS, String.valueOf(spec.retentionDays()));
         before.forEach((k, v) -> params.put(k + "Before", String.valueOf(v)));
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "sql.index.update",
-                "CLUSTER",
+                CLUSTER,
                 entity.getQueuePattern(),
                 clusterId,
                 null,
@@ -314,7 +307,7 @@ public class MessageIndexService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "sql.index.delete",
-                "CLUSTER",
+                CLUSTER,
                 entity.getQueuePattern(),
                 clusterId,
                 null,
@@ -352,6 +345,10 @@ public class MessageIndexService {
     /** The largest capture queue, in messages (ADR-0079). The byte bound on the broker is the other half. */
     static final long MAX_RING_SIZE = 1_000_000L;
 
+    private static final String INTERVAL_MS = "intervalMs";
+    private static final String RETENTION_DAYS = "retentionDays";
+    private static final String CLUSTER = "CLUSTER";
+
     /**
      * Bounds outside their range are refused, naming the field and the range, never adjusted.
      * A value silently changed into range is a value the operator did not choose, applied to
@@ -360,6 +357,20 @@ public class MessageIndexService {
      * default — the defaults live on the entity so that a subscription created any other way is
      * bounded too.
      */
+    /** Why a capture cannot start, or null when nothing stands in its way. */
+    private String refusal(List<String> addresses, MessageIndexSubscriptionEntity draft) {
+        if (addresses.isEmpty()) {
+            return "The pattern '" + draft.getQueuePattern() + "' matches no address on this cluster, so nothing would"
+                    + " be captured.";
+        }
+        String role = captureProperties.brokerRole();
+        if (role == null || role.isBlank()) {
+            return "Capture needs artemis-studio.capture.broker-role (ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE) set to"
+                    + " the broker role Studio's own user holds.";
+        }
+        return null;
+    }
+
     private static void applyBounds(MessageIndexSubscriptionEntity entity, Spec spec) {
         if (spec.ringSize() != null) {
             entity.setRingSize(inRange("ringSize", spec.ringSize(), 100L, MAX_RING_SIZE));
@@ -371,7 +382,7 @@ public class MessageIndexService {
             entity.setMaxRate((int) inRange("maxRate", spec.maxRate(), 1, 1_000_000));
         }
         if (spec.bodyCapBytes() != null) {
-            entity.setBodyCapBytes((int) inRange("bodyCapBytes", spec.bodyCapBytes(), 1024, 16 * 1024 * 1024));
+            entity.setBodyCapBytes((int) inRange("bodyCapBytes", spec.bodyCapBytes(), 1024, 16L * 1024 * 1024));
         }
         if (spec.filterString() != null) {
             if (spec.filterString().length() > 4096) {
@@ -382,11 +393,11 @@ public class MessageIndexService {
     }
 
     private static long validInterval(long intervalMs) {
-        return inRange("intervalMs", intervalMs, 1000, 3_600_000);
+        return inRange(INTERVAL_MS, intervalMs, 1000, 3_600_000);
     }
 
     private static int validRetention(int retentionDays) {
-        return (int) inRange("retentionDays", retentionDays, 1, 90);
+        return (int) inRange(RETENTION_DAYS, retentionDays, 1, 90);
     }
 
     private static long inRange(String field, long value, long min, long max) {
@@ -436,7 +447,7 @@ public class MessageIndexService {
      */
     private void converge(MessageIndexSubscriptionEntity entity) {
         if (entity.getMode() != CaptureMode.CAPTURE) {
-            capture.reconcile();
+            capture.reconcileSampling();
         }
     }
 

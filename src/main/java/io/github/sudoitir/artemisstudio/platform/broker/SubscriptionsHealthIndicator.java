@@ -34,15 +34,15 @@ class SubscriptionsHealthIndicator extends AbstractHealthIndicator {
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("name", names.getOrDefault(e.getKey(), e.getKey().toString()));
             switch (e.getValue()) {
-                case CoreEventClient.State.Connected c -> {
+                case CoreEventClient.State.Connected(var since) -> {
                     detail.put("established", true);
-                    detail.put("since", c.since());
+                    detail.put("since", since);
                 }
-                case CoreEventClient.State.Failed f -> {
+                case CoreEventClient.State.Failed(var kind, var reason, var at) -> {
                     lost = true;
                     detail.put("established", false);
-                    detail.put("reason", f.kind() + ": " + f.reason());
-                    detail.put("at", f.at());
+                    detail.put("reason", kind + ": " + reason);
+                    detail.put("at", at);
                 }
             }
             perNode.put(e.getKey().toString(), detail);

@@ -78,15 +78,15 @@ public class CoreSubscriptionManager {
 
         Map<UUID, NodeEndpoint> byId = endpoints.stream().collect(Collectors.toMap(NodeEndpoint::id, e -> e));
         for (UUID nodeId : desired) {
-            if (active.containsKey(nodeId)) {
-                continue;
+            if (!active.containsKey(nodeId) && !backingOff(nodeId)) {
+                start(clusterId, nodeId, byId.get(nodeId));
             }
-            Backoff backoff = retry.get(nodeId);
-            if (backoff != null && backoff.notDueYet()) {
-                continue;
-            }
-            start(clusterId, nodeId, byId.get(nodeId));
         }
+    }
+
+    private boolean backingOff(UUID nodeId) {
+        Backoff backoff = retry.get(nodeId);
+        return backoff != null && backoff.notDueYet();
     }
 
     private void start(UUID clusterId, UUID nodeId, NodeEndpoint endpoint) {

@@ -80,13 +80,7 @@ public class SlowConsumerCondition implements AlertCondition {
         Map<String, Long> consumersBySubject = new HashMap<>();
         Map<String, String> queueNameBySubject = new HashMap<>();
         for (QueueSnapshot row : snapshots.forCluster(clusterId)) {
-            if (row.consumerCount() <= 0 || row.messageCount() <= 0 || row.paused()) {
-                continue;
-            }
-            if (!scope.matchesAddress(row.address()) || !scope.matchesQueue(row.queueName())) {
-                continue;
-            }
-            if (nodeScoped && !scope.node().equals(row.nodeId().toString())) {
+            if (!hasBacklogWithConsumers(row) || !inScope(row, scope, nodeScoped)) {
                 continue;
             }
             String key = nodeScoped ? "node:" + row.nodeId() + "/queue:" + row.queueName() : "queue:" + row.queueName();
@@ -94,6 +88,24 @@ public class SlowConsumerCondition implements AlertCondition {
             queueNameBySubject.put(key, row.queueName());
         }
 
+        return verdicts(rule, consumersBySubject, queueNameBySubject, ackRateByQueue);
+    }
+
+    private static boolean hasBacklogWithConsumers(QueueSnapshot row) {
+        return row.consumerCount() > 0 && row.messageCount() > 0 && !row.paused();
+    }
+
+    private static boolean inScope(QueueSnapshot row, AlertScope scope, boolean nodeScoped) {
+        return scope.matchesAddress(row.address())
+                && scope.matchesQueue(row.queueName())
+                && (!nodeScoped || scope.node().equals(row.nodeId().toString()));
+    }
+
+    private static Evaluation verdicts(
+            AlertRuleSpec rule,
+            Map<String, Long> consumersBySubject,
+            Map<String, String> queueNameBySubject,
+            Map<String, Double> ackRateByQueue) {
         Set<String> universe = new HashSet<>();
         Map<String, Double> active = new HashMap<>();
         for (Map.Entry<String, Long> e : consumersBySubject.entrySet()) {

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.metrics.web;
 
+import io.github.sudoitir.artemisstudio.feature.metrics.MetricQuery;
 import io.github.sudoitir.artemisstudio.feature.metrics.MetricQueryService;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
 import java.time.Duration;
@@ -36,7 +37,8 @@ public class MetricsController {
         Instant effectiveFrom = from != null ? from : effectiveTo.minus(Duration.ofHours(1));
         Duration requestedStep = step != null ? Duration.parse(step) : null;
         return metricQuery.query(
-                clusterId, metric, subjectType, subject, effectiveFrom, effectiveTo, requestedStep, splitBy);
+                clusterId,
+                new MetricQuery(metric, subjectType, subject, effectiveFrom, effectiveTo, requestedStep, splitBy));
     }
 
     /** A plugin metric's series for one subject (ADR-0113). */

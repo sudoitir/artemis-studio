@@ -87,7 +87,7 @@ public class BrokerEventWriter implements BrokerEventSink {
             dropped.computeIfAbsent(event.clusterId(), k -> new AtomicLong()).incrementAndGet();
             return;
         }
-        buffer.offer(event);
+        buffer.add(event);
     }
 
     public long droppedFor(UUID clusterId) {

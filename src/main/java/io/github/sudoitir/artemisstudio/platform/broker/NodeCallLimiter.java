@@ -75,7 +75,7 @@ public class NodeCallLimiter {
                                     + " it as fast as the configured rate allows.");
                 }
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.UNREACHABLE,

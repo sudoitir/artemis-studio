@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ApiTokenService {
 
+    private static final String RESOURCE = "token";
     private static final String PREFIX_TAG = "as_";
     private static final int PREFIX_BYTES = 8;
     private static final int SECRET_BYTES = 32;
@@ -72,7 +74,7 @@ public class ApiTokenService {
             }
         }
         AuditEvent event = audit.begin(
-                actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, java.util.Map.of(), false);
+                actorResolver.resolve(), "TOKEN_CREATE", RESOURCE, name, null, null, java.util.Map.of(), false);
         audit.succeed(event, 1);
         return new Minted(entity, plaintext);
     }
@@ -83,16 +85,16 @@ public class ApiTokenService {
 
     @Transactional
     public void revoke(UUID userId, UUID tokenId) {
-        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException("token", tokenId));
+        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException(RESOURCE, tokenId));
         if (!token.getUserId().equals(userId)) {
-            throw new NotFoundException("token", tokenId);
+            throw new NotFoundException(RESOURCE, tokenId);
         }
         token.setRevokedAt(Instant.now());
         tokens.save(token);
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "TOKEN_REVOKE",
-                "token",
+                RESOURCE,
                 token.getName(),
                 null,
                 null,
@@ -127,11 +129,9 @@ public class ApiTokenService {
             return null;
         }
         Set<Grant> ownerGrants = grantLoader.loadFor(owner.id());
-        Set<Grant> tokenGrantSet = new HashSet<>();
-        for (ApiTokenGrantEntity g : tokenGrants.findByIdTokenId(token.getId())) {
-            tokenGrantSet.add(
-                    new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())));
-        }
+        Set<Grant> tokenGrantSet = tokenGrants.findByIdTokenId(token.getId()).stream()
+                .map(g -> new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())))
+                .collect(Collectors.toSet());
         Set<Grant> intersected = intersect(tokenGrantSet, ownerGrants);
         pendingLastUsed.put(token.getId(), Instant.now());
         return new StudioPrincipal(owner.id(), owner.username(), intersected, false, token.getName());

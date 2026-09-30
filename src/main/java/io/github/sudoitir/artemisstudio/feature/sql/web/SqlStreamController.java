@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -146,7 +147,7 @@ public class SqlStreamController {
         try {
             ticket = tickets.redeem(UUID.fromString(queryId), clusterId, tickets.currentOwner())
                     .orElse(null);
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException _) {
             // Not a reference at all; the message below is the same either way.
         }
         if (ticket == null) {
@@ -181,14 +182,15 @@ public class SqlStreamController {
         // The static rows are already on the client. Advancing the mark past them is
         // what stops the first poll from sending every one of them again.
         executed.result().rows().forEach(running::seen);
-        session.tail = running;
+        session.tail.set(running);
     }
 
     private void release(UUID clusterId, Subscriber subscriber, Session session) {
         hub.remove(clusterId, subscriber);
         session.cancelled = true;
-        if (session.tail != null) {
-            session.tail.stop();
+        SqlTailPoller.Tail tail = session.tail.get();
+        if (tail != null) {
+            tail.stop();
         }
         session.recordTailClearViews();
     }
@@ -229,7 +231,7 @@ public class SqlStreamController {
         private final boolean clearAccess;
         private final Actor actor;
         private volatile boolean cancelled;
-        private volatile SqlTailPoller.Tail tail;
+        private final AtomicReference<SqlTailPoller.Tail> tail = new AtomicReference<>();
 
         /** False while the static result streams, true once the tail delivers. They are audited separately. */
         private volatile boolean tailing;
@@ -271,7 +273,7 @@ public class SqlStreamController {
             }
             Map<String, Long> classes = Map.copyOf(tailClear);
             tailClear.clear();
-            clearViews.record(
+            clearViews.recordClear(
                     actor,
                     new GovernContext(clusterId, null, true),
                     "CLUSTER",
@@ -301,7 +303,7 @@ public class SqlStreamController {
             }
             try {
                 emitter.send(SseEmitter.event().name(name).data(payload));
-            } catch (IOException | RuntimeException e) {
+            } catch (IOException | RuntimeException _) {
                 // A write failure is how a disconnect is discovered, so it is the
                 // signal to stop rather than something to report.
                 cancelled = true;
@@ -311,7 +313,7 @@ public class SqlStreamController {
         private void complete() {
             try {
                 emitter.complete();
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // already closed
             }
         }

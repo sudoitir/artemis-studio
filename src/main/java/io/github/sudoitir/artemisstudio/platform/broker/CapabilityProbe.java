@@ -117,16 +117,16 @@ public class CapabilityProbe {
                 + (notificationsAddress ? "present" : "not found") + ".";
 
         return switch (verdict) {
-            case SubscriptionVerdict.Connected connected ->
+            case SubscriptionVerdict.Connected(var nodeCount, var since) ->
                 CapabilityAssessment.available(
-                        "Subscribed to " + NOTIFICATIONS_ADDRESS + " on " + connected.nodeCount()
-                                + " node(s) since " + connected.since()
+                        "Subscribed to " + NOTIFICATIONS_ADDRESS + " on " + nodeCount
+                                + " node(s) since " + since
                                 + ". Connection, session, delivered and expired events additionally require"
                                 + " NotificationActiveMQServerPlugin; Studio cannot tell a broker without the"
                                 + " plugin from an idle one, so the snippet is shown either way. " + preconditions,
                         BrokerXmlSnippets.NOTIFICATION_PLUGIN);
             case SubscriptionVerdict.Failed failed -> assessFailedSubscription(failed, preconditions);
-            case SubscriptionVerdict.NotAttempted ignored ->
+            case SubscriptionVerdict.NotAttempted _ ->
                 CapabilityAssessment.unknown(
                         "No live node has been probed yet — the first scrape cycle has not completed. " + preconditions,
                         null);
@@ -184,31 +184,29 @@ public class CapabilityProbe {
                     "Could not read the catch-all address setting to assess slow-consumer detection.",
                     BrokerXmlSnippets.forSlowConsumerDetection());
         }
-        {
-            JsonNode threshold = settings == null ? null : settings.get("slowConsumerThreshold");
-            if (threshold == null || threshold.isNull()) {
-                return CapabilityAssessment.unavailable(
-                        "No slow-consumer-threshold is set on the catch-all address setting, so the broker"
-                                + " does its own detection on nothing. A broker that has one reports it here"
-                                + " (measured on 2.44.0); a much older one may not echo it at all, in which case"
-                                + " it is configured and this row is wrong. Studio's own ackRatePerConsumer alert"
-                                + " rule works either way, but resolves to a queue on a node, never to one"
-                                + " consumer.",
-                        BrokerXmlSnippets.forSlowConsumerDetection());
-            }
-            long value = threshold.asLong(-1L);
-            if (value <= 0) {
-                return CapabilityAssessment.unavailable(
-                        "Native slow-consumer detection is disabled (slow-consumer-threshold " + value + ").",
-                        BrokerXmlSnippets.forSlowConsumerDetection());
-            }
-            JsonNode unit = settings.get("slowConsumerThresholdMeasurementUnit");
-            JsonNode policy = settings.get("slowConsumerPolicy");
-            return CapabilityAssessment.available("Native slow-consumer detection is on: threshold " + value
-                    + (unit == null || unit.isNull() ? "" : " " + unit.asString())
-                    + (policy == null || policy.isNull() ? "" : ", policy " + policy.asString())
-                    + ". The broker's own CONSUMER_SLOW notification is authoritative and names the consumer.");
+        JsonNode threshold = settings == null ? null : settings.get("slowConsumerThreshold");
+        if (threshold == null || threshold.isNull()) {
+            return CapabilityAssessment.unavailable(
+                    "No slow-consumer-threshold is set on the catch-all address setting, so the broker"
+                            + " does its own detection on nothing. A broker that has one reports it here"
+                            + " (measured on 2.44.0); a much older one may not echo it at all, in which case"
+                            + " it is configured and this row is wrong. Studio's own ackRatePerConsumer alert"
+                            + " rule works either way, but resolves to a queue on a node, never to one"
+                            + " consumer.",
+                    BrokerXmlSnippets.forSlowConsumerDetection());
         }
+        long value = threshold.asLong(-1L);
+        if (value <= 0) {
+            return CapabilityAssessment.unavailable(
+                    "Native slow-consumer detection is disabled (slow-consumer-threshold " + value + ").",
+                    BrokerXmlSnippets.forSlowConsumerDetection());
+        }
+        JsonNode unit = settings.get("slowConsumerThresholdMeasurementUnit");
+        JsonNode policy = settings.get("slowConsumerPolicy");
+        return CapabilityAssessment.available("Native slow-consumer detection is on: threshold " + value
+                + (unit == null || unit.isNull() ? "" : " " + unit.asString())
+                + (policy == null || policy.isNull() ? "" : ", policy " + policy.asString())
+                + ". The broker's own CONSUMER_SLOW notification is authoritative and names the consumer.");
     }
 
     /** A sentinel for "the read failed", distinct from "the broker returned nothing". */
@@ -217,7 +215,7 @@ public class CapabilityProbe {
     private JsonNode catchAllSettings(JolokiaBrokerClient client) {
         try {
             return client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
-        } catch (BrokerConnectionException e) {
+        } catch (BrokerConnectionException _) {
             return UNREADABLE;
         }
     }
@@ -286,7 +284,7 @@ public class CapabilityProbe {
                 if (protocols.asText().toUpperCase().contains("CORE")) {
                     return true;
                 }
-            } catch (BrokerConnectionException e) {
+            } catch (BrokerConnectionException _) {
                 // A single unreadable acceptor is not decisive; try the next.
             }
         }

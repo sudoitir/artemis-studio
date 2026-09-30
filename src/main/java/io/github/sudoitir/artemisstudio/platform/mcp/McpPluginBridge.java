@@ -212,12 +212,12 @@ class McpPluginBridge implements PluginBridge {
             UUID clusterId;
             try {
                 clusterId = UUID.fromString(String.valueOf(raw));
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException _) {
                 throw McpErrors.invalidParams("clusterId must be a cluster id; read studio://clusters for them.");
             }
             try {
                 clusterAccess.requireCluster(clusterId, declaration.permission());
-            } catch (NotFoundException e) {
+            } catch (NotFoundException _) {
                 return McpErrors.error(McpErrors.CLUSTER_DENIED);
             }
             return null;

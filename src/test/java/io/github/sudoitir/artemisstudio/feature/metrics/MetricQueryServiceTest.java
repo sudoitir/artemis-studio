@@ -76,12 +76,14 @@ class MetricQueryServiceTest {
 
         MetricSeriesResponse response = service.query(
                 clusterId,
-                List.of("messagesAdded"),
-                "CLUSTER",
-                null,
-                bucket,
-                bucket.plusSeconds(60),
-                Duration.ofSeconds(60));
+                new MetricQuery(
+                        List.of("messagesAdded"),
+                        "CLUSTER",
+                        null,
+                        bucket,
+                        bucket.plusSeconds(60),
+                        Duration.ofSeconds(60),
+                        null));
 
         assertThat(response.series().get(0).points())
                 .allSatisfy(p -> assertThat(p.value()).isNotNegative());
@@ -94,8 +96,9 @@ class MetricQueryServiceTest {
 
         Instant to = Instant.now();
         Instant from = to.minus(Duration.ofDays(7));
-        MetricSeriesResponse response =
-                service.query(clusterId, List.of("messageCount"), "CLUSTER", null, from, to, Duration.ofSeconds(1));
+        MetricSeriesResponse response = service.query(
+                clusterId,
+                new MetricQuery(List.of("messageCount"), "CLUSTER", null, from, to, Duration.ofSeconds(1), null));
 
         assertThat(response.truncated()).isTrue();
         assertThat(Duration.parse(response.step())).isGreaterThan(Duration.ofSeconds(1));
@@ -108,8 +111,8 @@ class MetricQueryServiceTest {
 
         Instant to = Instant.now();
         Instant from = to.minus(Duration.ofDays(30));
-        MetricSeriesResponse response =
-                service.query(clusterId, List.of("messageCount"), "CLUSTER", null, from, to, null);
+        MetricSeriesResponse response = service.query(
+                clusterId, new MetricQuery(List.of("messageCount"), "CLUSTER", null, from, to, null, null));
 
         assertThat(response.truncated()).isTrue();
         assertThat(response.from()).isAfter(from);
@@ -139,7 +142,8 @@ class MetricQueryServiceTest {
                 .thenReturn(List.of(new NodeBucket(a, to.minusSeconds(60), 30.0, null)));
 
         MetricSeriesResponse response = service.query(
-                clusterId, List.of("messagesAdded"), "QUEUE", "orders", to.minusSeconds(3600), to, null, "NODE");
+                clusterId,
+                new MetricQuery(List.of("messagesAdded"), "QUEUE", "orders", to.minusSeconds(3600), to, null, "NODE"));
 
         assertThat(response.splitBy()).isEqualTo("NODE");
         assertThat(response.series().get(0).points()).hasSize(1);
@@ -161,13 +165,14 @@ class MetricQueryServiceTest {
 
         MetricSeriesResponse response = service.query(
                 clusterId,
-                List.of("messageCount"),
-                "QUEUE",
-                "orders",
-                to.minus(Duration.ofHours(24)),
-                to,
-                Duration.ofSeconds(60),
-                "NODE");
+                new MetricQuery(
+                        List.of("messageCount"),
+                        "QUEUE",
+                        "orders",
+                        to.minus(Duration.ofHours(24)),
+                        to,
+                        Duration.ofSeconds(60),
+                        "NODE"));
 
         long buckets = Duration.ofHours(24).dividedBy(Duration.parse(response.step()));
         assertThat(buckets * many.size()).isLessThanOrEqualTo(2_000);
@@ -178,18 +183,15 @@ class MetricQueryServiceTest {
     void aSplitIsRefusedForTheClusterScopeAndForAnyOtherDimension() {
         Instant to = Instant.now();
         assertThatThrownBy(() -> service.query(
-                        clusterId, List.of("messageCount"), "CLUSTER", null, to.minusSeconds(60), to, null, "NODE"))
+                        clusterId,
+                        new MetricQuery(
+                                List.of("messageCount"), "CLUSTER", null, to.minusSeconds(60), to, null, "NODE")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("needs one queue");
         assertThatThrownBy(() -> service.query(
                         clusterId,
-                        List.of("messageCount"),
-                        "QUEUE",
-                        "orders",
-                        to.minusSeconds(60),
-                        to,
-                        null,
-                        "ADDRESS"))
+                        new MetricQuery(
+                                List.of("messageCount"), "QUEUE", "orders", to.minusSeconds(60), to, null, "ADDRESS")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("splitBy must be NODE");
     }

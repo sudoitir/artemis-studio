@@ -16,52 +16,46 @@ final class PredicateText {
 
     static String of(Predicate predicate) {
         return switch (predicate) {
-            case Predicate.And and ->
-                and.parts().stream().map(PredicateText::of).collect(Collectors.joining(" AND "));
-            case Predicate.Or or ->
-                or.parts().stream().map(PredicateText::of).collect(Collectors.joining(" OR ", "(", ")"));
-            case Predicate.Not not -> "NOT " + of(not.inner());
-            case Predicate.Compare compare ->
-                term(compare.term()) + " " + compare.op().sql() + " " + literal(compare.value());
-            case Predicate.In in ->
-                term(in.term())
-                        + (in.negated() ? " NOT IN " : " IN ")
-                        + in.values().stream().map(PredicateText::literal).collect(Collectors.joining(", ", "(", ")"));
-            case Predicate.IsNull isNull -> term(isNull.term()) + (isNull.negated() ? " IS NOT NULL" : " IS NULL");
+            case Predicate.And(var parts) ->
+                parts.stream().map(PredicateText::of).collect(Collectors.joining(" AND "));
+            case Predicate.Or(var parts) ->
+                parts.stream().map(PredicateText::of).collect(Collectors.joining(" OR ", "(", ")"));
+            case Predicate.Not(var inner) -> "NOT " + of(inner);
+            case Predicate.Compare(var term, var op, var value) -> term(term) + " " + op.sql() + " " + literal(value);
+            case Predicate.In(var term, var values, var negated) ->
+                term(term)
+                        + (negated ? " NOT IN " : " IN ")
+                        + values.stream().map(PredicateText::literal).collect(Collectors.joining(", ", "(", ")"));
+            case Predicate.IsNull(var term, var negated) -> term(term) + (negated ? " IS NOT NULL" : " IS NULL");
             case Predicate.Like like ->
                 term(like.term())
                         + (like.negated() ? " NOT " : " ")
                         + (like.caseInsensitive() ? "ILIKE " : "LIKE ")
                         + "'" + like.pattern() + "'";
-            case Predicate.Between between ->
-                term(between.term())
-                        + (between.negated() ? " NOT BETWEEN " : " BETWEEN ")
-                        + literal(between.low())
-                        + " AND "
-                        + literal(between.high());
-            case Predicate.Match match -> "MATCH(body, '" + match.terms() + "')";
+            case Predicate.Between(var term, var low, var high, var negated) ->
+                term(term) + (negated ? " NOT BETWEEN " : " BETWEEN ") + literal(low) + " AND " + literal(high);
+            case Predicate.Match(var terms) -> "MATCH(body, '" + terms + "')";
         };
     }
 
     static String term(Term term) {
         return switch (term) {
-            case Term.ColumnTerm column -> column.column().sqlName();
-            case Term.PropertyTerm property -> "props." + property.name();
-            case Term.JsonTerm json -> "body->>'" + json.path() + "'";
-            case Term.CaseFold fold -> (fold.upper() ? "upper(" : "lower(") + term(fold.inner()) + ")";
-            case Term.MatchRank ignored -> "match_rank";
+            case Term.ColumnTerm(var column) -> column.sqlName();
+            case Term.PropertyTerm(var name) -> "props." + name;
+            case Term.JsonTerm(var path) -> "body->>'" + path + "'";
+            case Term.CaseFold(var inner, var upper) -> (upper ? "upper(" : "lower(") + term(inner) + ")";
+            case Term.MatchRank _ -> "match_rank";
         };
     }
 
     private static String literal(Literal literal) {
         return switch (literal) {
-            case Literal.Str str -> "'" + str.value() + "'";
-            case Literal.Num num -> num.integral() ? Long.toString((long) num.value()) : Double.toString(num.value());
-            case Literal.Bool bool -> Boolean.toString(bool.value());
-            case Literal.RelativeTime relative ->
-                relative.before().isZero()
-                        ? "now()"
-                        : "now() - interval '" + relative.before().toString() + "'";
+            case Literal.Str(var value) -> "'" + value + "'";
+            case Literal.Num(var value, var integral) ->
+                integral ? Long.toString((long) value) : Double.toString(value);
+            case Literal.Bool(var value) -> Boolean.toString(value);
+            case Literal.RelativeTime(var before) ->
+                before.isZero() ? "now()" : "now() - interval '" + before.toString() + "'";
         };
     }
 }

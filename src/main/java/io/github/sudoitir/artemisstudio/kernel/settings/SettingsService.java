@@ -10,7 +10,8 @@ import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.Stu
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,7 +72,7 @@ public class SettingsService {
     /**
      * Every stored override, refreshed on boot and after each write. Reads are on the
      * scheduling hot path — a trigger asks for its interval on every fire — and writes
-     * are the only thing that can invalidate this, all through {@link #applyRuntime()}.
+     * are the only thing that can invalidate this, all through {@link #refreshOverrides()}.
      */
     private volatile Map<String, String> overrides = Map.of();
 
@@ -87,17 +88,8 @@ public class SettingsService {
         this.features = features;
         for (FeatureDescriptor module : features.enabled()) {
             for (SettingsContribution contribution : contributions) {
-                if (!contribution.featureId().equals(module.id())) {
-                    continue;
-                }
-                for (SettingDef def : contribution.settings()) {
-                    if (!module.settingKeys().contains(def.key())) {
-                        throw new IllegalStateException("Setting '" + def.key() + "' is contributed by '" + module.id()
-                                + "' but not declared in its descriptor");
-                    }
-                    if (registry.putIfAbsent(def.key(), def) != null) {
-                        throw new IllegalStateException("Setting '" + def.key() + "' is contributed twice");
-                    }
+                if (contribution.featureId().equals(module.id())) {
+                    register(module, contribution);
                 }
             }
             for (String key : module.settingKeys()) {
@@ -108,6 +100,18 @@ public class SettingsService {
             }
         }
         registry = java.util.Collections.unmodifiableMap(registry);
+    }
+
+    private void register(FeatureDescriptor module, SettingsContribution contribution) {
+        for (SettingDef def : contribution.settings()) {
+            if (!module.settingKeys().contains(def.key())) {
+                throw new IllegalStateException("Setting '" + def.key() + "' is contributed by '" + module.id()
+                        + "' but not declared in its descriptor");
+            }
+            if (registry.putIfAbsent(def.key(), def) != null) {
+                throw new IllegalStateException("Setting '" + def.key() + "' is contributed twice");
+            }
+        }
     }
 
     /**
@@ -233,7 +237,7 @@ public class SettingsService {
         String json = asJsonScalar(value);
         repo.findById(key).ifPresentOrElse(e -> e.setValue(json), () -> repo.save(new StudioSettingEntity(key, json)));
         repo.flush();
-        applyRuntime();
+        refreshOverrides();
         audit.succeed(event, 1);
     }
 
@@ -257,7 +261,7 @@ public class SettingsService {
 
         repo.deleteById(key);
         repo.flush();
-        applyRuntime();
+        refreshOverrides();
         audit.succeed(event, 1);
     }
 
@@ -269,6 +273,10 @@ public class SettingsService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
     public void applyRuntime() {
+        refreshOverrides();
+    }
+
+    private void refreshOverrides() {
         Map<String, String> fresh = new LinkedHashMap<>();
         for (StudioSettingEntity row : repo.findAll()) {
             if (registry.containsKey(row.getKey())) {
@@ -326,9 +334,9 @@ public class SettingsService {
             throw new IllegalArgumentException(key + " must be a six-field cron expression");
         }
         CronExpression cron = CronExpression.parse(value);
-        LocalDateTime from = LocalDateTime.of(2000, 1, 1, 0, 0);
-        LocalDateTime first = cron.next(from);
-        LocalDateTime second = first == null ? null : cron.next(first);
+        ZonedDateTime from = ZonedDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+        ZonedDateTime first = cron.next(from);
+        ZonedDateTime second = first == null ? null : cron.next(first);
         if (first != null && second != null && Duration.between(first, second).toSeconds() < 60) {
             throw new IllegalArgumentException(key + " must not fire more than once a minute");
         }

@@ -151,26 +151,22 @@ public class BrokerNodeEntity implements ClusterNode {
         this.manualOverride = true;
     }
 
+    /** What one HA read of a broker reported; a null {@code version} or {@code artemisNodeId} leaves the stored one. */
+    public record HaObservation(
+            Boolean active, String state, String haRole, Boolean replicaSync, String version, String artemisNodeId) {}
+
     /** The refresh loop's write: HA state tagged with the cycle it was observed in (ADR-0012). */
-    public void applyHaState(
-            Boolean active,
-            String state,
-            String haRole,
-            Boolean replicaSync,
-            long observedCycle,
-            String version,
-            String artemisNodeId,
-            Instant lastSeenAt) {
-        this.active = active;
-        this.state = state;
-        this.haRole = haRole;
-        this.replicaSync = replicaSync;
+    public void applyHaState(HaObservation observed, long observedCycle, Instant lastSeenAt) {
+        this.active = observed.active();
+        this.state = observed.state();
+        this.haRole = observed.haRole();
+        this.replicaSync = observed.replicaSync();
         this.observedCycle = observedCycle;
-        if (version != null) {
-            this.version = version;
+        if (observed.version() != null) {
+            this.version = observed.version();
         }
-        if (artemisNodeId != null) {
-            this.artemisNodeId = artemisNodeId;
+        if (observed.artemisNodeId() != null) {
+            this.artemisNodeId = observed.artemisNodeId();
         }
         this.lastSeenAt = lastSeenAt;
         this.lastError = null;

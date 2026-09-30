@@ -27,7 +27,7 @@ public class TransferLedger {
 
     private final JdbcClient jdbc;
 
-    public void record(UUID runId, List<Long> messageIds) {
+    public void recordCopied(UUID runId, List<Long> messageIds) {
         if (messageIds.isEmpty()) {
             return;
         }

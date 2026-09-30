@@ -25,27 +25,18 @@ public class AuditQueryService {
     private final ClusterAccessGuard clusterAccess;
 
     @Transactional(readOnly = true)
-    public AuditPageView page(
-            UUID clusterId,
-            String username,
-            String action,
-            String outcome,
-            Long parentId,
-            Instant from,
-            Instant to,
-            int page,
-            int size) {
+    public AuditPageView page(UUID clusterId, AuditQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        int p = Math.max(page, 1);
-        int s = Math.min(Math.max(size, 1), 500);
+        int p = Math.max(query.page(), 1);
+        int s = Math.clamp(query.size(), 1, 500);
         Page<AuditEventEntity> result = events.findPage(
                 clusterId,
-                blankToNull(username),
-                blankToNull(action),
-                blankToNull(outcome),
-                parentId,
-                from != null ? from : Instant.EPOCH,
-                to != null ? to : Instant.parse("9999-12-31T23:59:59Z"),
+                blankToNull(query.username()),
+                blankToNull(query.action()),
+                blankToNull(query.outcome()),
+                query.parentId(),
+                query.from() != null ? query.from() : Instant.EPOCH,
+                query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
                 PageRequest.of(p - 1, s));
         return new AuditPageView(
                 result.getContent().stream().map(AuditQueryService::toView).toList(), result.getTotalElements(), p, s);
@@ -67,7 +58,7 @@ public class AuditQueryService {
     public List<AuditEventView> forTarget(String targetType, String targetName, int limit) {
         return events
                 .findByTargetTypeAndTargetNameOrderByTsDesc(
-                        targetType, targetName, PageRequest.of(0, Math.min(Math.max(limit, 1), 500)))
+                        targetType, targetName, PageRequest.of(0, Math.clamp(limit, 1, 500)))
                 .stream()
                 .map(AuditQueryService::toView)
                 .toList();

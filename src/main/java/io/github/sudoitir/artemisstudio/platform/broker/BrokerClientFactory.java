@@ -127,7 +127,7 @@ public class BrokerClientFactory implements DisposableBean {
                 : new JacksonJsonHttpMessageConverter();
         converter.setSupportedMediaTypes(
                 List.of(MediaType.APPLICATION_JSON, MediaType.valueOf("application/*+json"), MediaType.TEXT_PLAIN));
-        converters.removeIf(c -> c instanceof AbstractJacksonHttpMessageConverter);
+        converters.removeIf(AbstractJacksonHttpMessageConverter.class::isInstance);
         converters.add(0, converter);
     }
 
@@ -162,8 +162,9 @@ public class BrokerClientFactory implements DisposableBean {
         }
         HttpClient client = new JdkHttpClientBuilder().build(s.withReadTimeout(null));
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
-        if (s.readTimeout() != null) {
-            factory.setReadTimeout(s.readTimeout());
+        Duration readTimeout = s.readTimeout();
+        if (readTimeout != null) {
+            factory.setReadTimeout(readTimeout);
         }
         return new Transport(client, factory);
     }

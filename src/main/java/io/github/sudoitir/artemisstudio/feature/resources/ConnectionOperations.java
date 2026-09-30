@@ -42,6 +42,11 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class ConnectionOperations {
 
+    private static final String CONNECTION_ID = "connectionID";
+    private static final String LIST_SESSIONS = "listSessions";
+    private static final String CLIENT_ID = "clientID";
+    private static final String LIST_CONSUMERS = "listConsumers";
+
     /**
      * Everything the confirmation and the audit record need about a connection,
      * read immediately before it is closed (ADR-0057 D3). After the close none of
@@ -67,7 +72,10 @@ public class ConnectionOperations {
          * cannot tell from {@code a3f1-…} that they have the right one.
          */
         public String label() {
-            return blank(clientId) ? (blank(remoteAddress) ? connectionId : remoteAddress) : clientId;
+            if (!blank(clientId)) {
+                return clientId;
+            }
+            return blank(remoteAddress) ? connectionId : remoteAddress;
         }
 
         private static boolean blank(String s) {
@@ -95,8 +103,8 @@ public class ConnectionOperations {
      */
     public ConnectionSnapshot readConnection(JolokiaBrokerClient client, String connectionId) {
         List<JolokiaResponse> head = client.batch(List.of(
-                listRequest(client, "listConnections", filter("connectionID", connectionId)),
-                listRequest(client, "listSessions", filter("connectionID", connectionId))));
+                listRequest(client, "listConnections", filter(CONNECTION_ID, connectionId)),
+                listRequest(client, LIST_SESSIONS, filter(CONNECTION_ID, connectionId))));
         JsonNode connection = firstRow(client, head.get(0));
         if (connection == null) {
             return null;
@@ -115,7 +123,7 @@ public class ConnectionOperations {
 
         return new ConnectionSnapshot(
                 connectionId,
-                BrokerListOps.str(connection, "clientID"),
+                BrokerListOps.str(connection, CLIENT_ID),
                 BrokerListOps.str(connection, "remoteAddress"),
                 BrokerListOps.str(connection, "users"),
                 BrokerListOps.str(connection, "protocol"),
@@ -129,13 +137,13 @@ public class ConnectionOperations {
 
     /** The connection a session belongs to, or {@code null} when the session is gone. */
     public String connectionIdOfSession(JolokiaBrokerClient client, String sessionId) {
-        JsonNode row = firstRow(client, listRequest(client, "listSessions", filter("id", sessionId)));
-        return row == null ? null : BrokerListOps.str(row, "connectionID");
+        JsonNode row = firstRow(client, listRequest(client, LIST_SESSIONS, filter("id", sessionId)));
+        return row == null ? null : BrokerListOps.str(row, CONNECTION_ID);
     }
 
     /** The session a consumer belongs to, or {@code null} when the consumer is gone. */
     public String sessionIdOfConsumer(JolokiaBrokerClient client, String consumerId) {
-        JsonNode row = firstRow(client, listRequest(client, "listConsumers", filter("id", consumerId)));
+        JsonNode row = firstRow(client, listRequest(client, LIST_CONSUMERS, filter("id", consumerId)));
         return row == null ? null : BrokerListOps.str(row, "session");
     }
 
@@ -151,17 +159,17 @@ public class ConnectionOperations {
      * ADR-0057 D3 forbids.
      */
     public ConnectionSnapshot readSession(JolokiaBrokerClient client, String sessionId) {
-        JsonNode row = firstRow(client, listRequest(client, "listSessions", filter("id", sessionId)));
+        JsonNode row = firstRow(client, listRequest(client, LIST_SESSIONS, filter("id", sessionId)));
         if (row == null) {
             return null;
         }
-        String connectionId = BrokerListOps.str(row, "connectionID");
+        String connectionId = BrokerListOps.str(row, CONNECTION_ID);
         JsonNode connection = connectionId == null
                 ? null
-                : firstRow(client, listRequest(client, "listConnections", filter("connectionID", connectionId)));
+                : firstRow(client, listRequest(client, "listConnections", filter(CONNECTION_ID, connectionId)));
         return new ConnectionSnapshot(
                 connectionId,
-                firstNonBlank(BrokerListOps.str(row, "clientID"), str(connection, "clientID")),
+                firstNonBlank(BrokerListOps.str(row, CLIENT_ID), str(connection, CLIENT_ID)),
                 str(connection, "remoteAddress"),
                 firstNonBlank(BrokerListOps.str(row, "user"), str(connection, "users")),
                 str(connection, "protocol"),
@@ -183,7 +191,7 @@ public class ConnectionOperations {
      * close's per-node estimate, which the bulk cap is checked against (D6).
      */
     public long countConsumersForAddress(JolokiaBrokerClient client, String address) {
-        return listOps.fetch(client, "listConsumers", filter("address", address), -1, -1)
+        return listOps.fetch(client, LIST_CONSUMERS, filter("address", address), -1, -1)
                 .count();
     }
 
@@ -218,7 +226,7 @@ public class ConnectionOperations {
             return null;
         }
         List<JolokiaRequest> requests = sessionIds.stream()
-                .map(id -> listRequest(client, "listConsumers", filter("session", id)))
+                .map(id -> listRequest(client, LIST_CONSUMERS, filter("session", id)))
                 .toList();
         long total = 0;
         for (JolokiaResponse entry : client.batch(requests)) {

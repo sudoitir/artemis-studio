@@ -47,8 +47,10 @@ public class AlertDeliveryEntity {
     @Column(name = "payload", nullable = false, updatable = false)
     private String payload;
 
+    private static final String PENDING = "PENDING";
+
     @Column(name = "state", nullable = false)
-    private String state = "PENDING";
+    private String state = PENDING;
 
     @Column(name = "attempts", nullable = false)
     private int attempts;
@@ -69,7 +71,7 @@ public class AlertDeliveryEntity {
         this.ruleId = ruleId;
         this.channelId = channelId;
         this.payload = payload;
-        this.state = "PENDING";
+        this.state = PENDING;
         Instant now = Instant.now();
         this.createdAt = now;
         this.nextAttemptAt = now;
@@ -100,7 +102,7 @@ public class AlertDeliveryEntity {
      * next attempt replaces it, so the log still says why it died.
      */
     public void requeue(Instant now) {
-        this.state = "PENDING";
+        this.state = PENDING;
         this.attempts = 0;
         this.nextAttemptAt = now;
     }

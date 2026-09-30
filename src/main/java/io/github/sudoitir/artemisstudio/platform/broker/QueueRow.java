@@ -77,7 +77,7 @@ public record QueueRow(
         }
         try {
             return Long.parseLong(v.asText().trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0L;
         }
     }

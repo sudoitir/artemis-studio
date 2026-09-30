@@ -5,6 +5,7 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxed
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.time.Instant;
 import java.util.List;
@@ -34,13 +35,14 @@ public class NodeStateRecorder {
             String state = evaluator.deriveState(boxedBool(ha, "Started"));
             String haRole = evaluator.deriveHaRole(boxedBool(ha, "Backup"), boxedBool(ha, "Clustered"));
             node.applyHaState(
-                    bool(ha, "Active"),
-                    state,
-                    haRole,
-                    boxedBool(ha, "ReplicaSync"),
+                    new HaObservation(
+                            bool(ha, "Active"),
+                            state,
+                            haRole,
+                            boxedBool(ha, "ReplicaSync"),
+                            text(ha, "Version"),
+                            text(ha, "NodeID")),
                     cycle,
-                    text(ha, "Version"),
-                    text(ha, "NodeID"),
                     Instant.now());
         });
     }

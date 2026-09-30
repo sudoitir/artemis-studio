@@ -293,22 +293,12 @@ public class CaptureReconciler {
         // Drift only. A pass that re-asserts what is already there would be one
         // management write per tap per interval, forever, for no change (D4).
         for (Desired d : wanted) {
-            // A tap is healthy only when both halves are: the divert is on the broker and
-            // this instance is draining its queue. Draining alone is not enough — a divert
-            // removed out of band leaves the drain reading an empty queue while capture
-            // reports ACTIVE. The divert alone is not enough either: a promoted backup
-            // inherits the divert through the bindings journal but not the non-durable
-            // capture queue.
-            if (consumers.isDraining(node.getId(), d.name()) && actual.contains(d.name())) {
-                continue;
+            if (needsInstall(node, d, actual)) {
+                if (consumers.isDraining(node.getId(), d.name())) {
+                    consumers.stop(node.getId(), d.name());
+                }
+                install(clusterId, node, d);
             }
-            if (fingerprint(d, node).equals(refused.get(refusalKey(node, d)))) {
-                continue;
-            }
-            if (consumers.isDraining(node.getId(), d.name())) {
-                consumers.stop(node.getId(), d.name());
-            }
-            install(clusterId, node, d);
         }
 
         // What was removed is no longer installed, so the checks below read what is left: an
@@ -323,6 +313,20 @@ public class CaptureReconciler {
             }
         }
         return wanted.isEmpty() && actual.isEmpty();
+    }
+
+    /**
+     * A tap is healthy only when both halves are: the divert is on the broker and
+     * this instance is draining its queue. Draining alone is not enough — a divert
+     * removed out of band leaves the drain reading an empty queue while capture
+     * reports ACTIVE. The divert alone is not enough either: a promoted backup
+     * inherits the divert through the bindings journal but not the non-durable
+     * capture queue. An unhealthy tap is installed unless the broker already refused
+     * this exact one.
+     */
+    private boolean needsInstall(ClusterNode node, Desired d, Set<String> actual) {
+        boolean healthy = consumers.isDraining(node.getId(), d.name()) && actual.contains(d.name());
+        return !healthy && !fingerprint(d, node).equals(refused.get(refusalKey(node, d)));
     }
 
     private void install(UUID clusterId, ClusterNode node, Desired desired) {

@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -42,6 +43,9 @@ public class PluginValidator {
     static final int MAX_ENTRIES = 20_000;
     static final long MAX_RATIO = 100;
 
+    private static final String JAR_UNREADABLE = "jar-unreadable";
+    private static final String REUPLOAD = "Re-upload the jar.";
+
     private static final Pattern METRIC_NAME = Pattern.compile("[a-z0-9-]+:[a-z][a-z0-9_.]{0,63}");
     private static final Set<String> METRIC_UNITS = Set.of("count", "per_second", "ms", "ratio");
     private static final Set<String> DENIED_MANIFEST_ATTRIBUTES =
@@ -60,8 +64,8 @@ public class PluginValidator {
             "liquibase.",
             "org.apache.activemq.");
 
-    private static final Pattern ID_PATTERN = Pattern.compile("^[a-z0-9]+(-[a-z0-9]+)+$");
-    private static final Pattern PACKAGE_PATTERN = Pattern.compile("^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$");
+    private static final Pattern ID_PATTERN = Pattern.compile("^[a-z0-9]++(?:-[a-z0-9]++)++$");
+    private static final Pattern PACKAGE_PATTERN = Pattern.compile("^[a-z][a-z0-9_]*+(?:\\.[a-z][a-z0-9_]*+)*+$");
 
     private final PluginDescriptorParser descriptorParser;
     private final StudioVersion studioVersion;
@@ -78,48 +82,60 @@ public class PluginValidator {
      */
     public ValidationReport validate(Path jarFile, Set<String> otherBasePackages) {
         List<Violation> violations = new ArrayList<>();
+        if (!sizeAcceptable(jarFile, violations)) {
+            return new ValidationReport(null, violations);
+        }
+
+        Optional<List<String>> scanned = scanEntries(jarFile, violations);
+        if (scanned.isEmpty()) {
+            // A structural problem (zip slip, a nested archive, an oversize entry) stops here:
+            // nothing past this point can be trusted to describe the jar's real contents.
+            return new ValidationReport(null, violations);
+        }
+        List<String> entryNames = scanned.get();
+
+        try (JarFile jar = new JarFile(jarFile.toFile(), false, ZipFile.OPEN_READ, Runtime.version())) {
+            return validateJar(jar, entryNames, otherBasePackages, violations);
+        } catch (IOException e) {
+            violations.add(new Violation(JAR_UNREADABLE, "The jar could not be opened: " + e.getMessage(), REUPLOAD));
+            return new ValidationReport(null, violations);
+        }
+    }
+
+    private boolean sizeAcceptable(Path jarFile, List<Violation> violations) {
         long size;
         try {
             size = Files.size(jarFile);
         } catch (IOException e) {
-            violations.add(new Violation(
-                    "jar-unreadable", "The jar could not be read: " + e.getMessage(), "Re-upload the jar."));
-            return new ValidationReport(null, violations);
+            violations.add(new Violation(JAR_UNREADABLE, "The jar could not be read: " + e.getMessage(), REUPLOAD));
+            return false;
         }
         if (size > MAX_FILE_BYTES) {
             violations.add(new Violation(
                     "jar-too-large",
                     "The jar is %d bytes, over the %d byte limit.".formatted(size, MAX_FILE_BYTES),
                     "Shrink the jar — relocate only the libraries you actually use, and shade with minimization."));
-            return new ValidationReport(null, violations);
+            return false;
         }
+        return true;
+    }
 
-        List<String> entryNames = scanEntries(jarFile, violations);
-        if (entryNames == null) {
-            // A structural problem (zip slip, a nested archive, an oversize entry) stops here:
-            // nothing past this point can be trusted to describe the jar's real contents.
+    private ValidationReport validateJar(
+            JarFile jar, List<String> entryNames, Set<String> otherBasePackages, List<Violation> violations)
+            throws IOException {
+        if (!consistent(jar, entryNames, violations)) {
             return new ValidationReport(null, violations);
         }
-
-        try (JarFile jar = new JarFile(jarFile.toFile(), false, ZipFile.OPEN_READ, Runtime.version())) {
-            if (!consistent(jar, entryNames, violations)) {
-                return new ValidationReport(null, violations);
-            }
-            checkManifest(jar, violations);
-            PluginDescriptor descriptor = readDescriptor(jar, violations);
-            if (descriptor == null) {
-                return new ValidationReport(null, violations);
-            }
-            checkAllowlist(entryNames, descriptor, violations);
-            checkDescriptorFields(descriptor, otherBasePackages, violations);
-            new BytecodeChecks(descriptor).check(jar, entryNames, violations);
-            List<ChangesetInfo> changesets = new LiquibasePreflight(descriptor).check(jar, entryNames, violations);
-            return new ValidationReport(descriptor, violations, changesets);
-        } catch (IOException e) {
-            violations.add(new Violation(
-                    "jar-unreadable", "The jar could not be opened: " + e.getMessage(), "Re-upload the jar."));
+        checkManifest(jar, violations);
+        PluginDescriptor descriptor = readDescriptor(jar, violations);
+        if (descriptor == null) {
             return new ValidationReport(null, violations);
         }
+        checkAllowlist(entryNames, descriptor, violations);
+        checkDescriptorFields(descriptor, otherBasePackages, violations);
+        new BytecodeChecks(descriptor).check(jar, entryNames, violations);
+        List<ChangesetInfo> changesets = new LiquibasePreflight(descriptor).check(jar, entryNames, violations);
+        return new ValidationReport(descriptor, violations, changesets);
     }
 
     /**
@@ -153,14 +169,14 @@ public class PluginValidator {
 
     /**
      * A raw, sequential scan for zip-slip and zip-bomb shapes, done before the jar is trusted to
-     * {@link JarFile}. Returns the entry names, or {@code null} once a structural violation has
+     * {@link JarFile}. Returns the entry names, or empty once a structural violation has
      * been recorded (the caller stops there).
      *
      * <p>ponytail: per-entry compressed size can read as {@code -1} while streaming a deflated
      * entry; the ratio check is then skipped for that one entry rather than guessed at. The total
      * 250&nbsp;MB read cap still bounds the damage.
      */
-    private List<String> scanEntries(Path jarFile, List<Violation> violations) {
+    private Optional<List<String>> scanEntries(Path jarFile, List<Violation> violations) {
         List<String> names = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         long totalRead = 0;
@@ -175,7 +191,7 @@ public class PluginValidator {
                             "jar-too-many-entries",
                             "The jar has more than %d entries.".formatted(MAX_ENTRIES),
                             "Remove unused resources from the jar."));
-                    return null;
+                    return Optional.empty();
                 }
                 String name = entry.getName();
                 if (!isSafeName(name)) {
@@ -183,14 +199,14 @@ public class PluginValidator {
                             "jar-unsafe-entry-name",
                             "\"%s\" is an absolute, backslash or path-traversal entry name.".formatted(name),
                             "Rebuild the jar with a standard zip tool; do not hand-craft entries."));
-                    return null;
+                    return Optional.empty();
                 }
                 if (!seen.add(name)) {
                     violations.add(new Violation(
                             "jar-duplicate-entry",
                             "\"%s\" appears more than once in the jar.".formatted(name),
                             "Rebuild the jar without duplicate entries."));
-                    return null;
+                    return Optional.empty();
                 }
                 String lower = name.toLowerCase(java.util.Locale.ROOT);
                 if (!entry.isDirectory() && (lower.endsWith(".jar") || lower.endsWith(".zip"))) {
@@ -199,7 +215,7 @@ public class PluginValidator {
                                     "jar-nested-archive",
                                     "\"%s\" is a nested jar or zip.".formatted(name),
                                     "Shade and relocate dependencies into this jar's own classes instead of bundling nested archives."));
-                    return null;
+                    return Optional.empty();
                 }
                 long entryRead = discard(zis, MAX_READ_BYTES - totalRead);
                 totalRead += entryRead;
@@ -208,7 +224,7 @@ public class PluginValidator {
                             "jar-too-much-content",
                             "The jar decompresses to more than %d bytes.".formatted(MAX_READ_BYTES),
                             "Shrink the jar's contents."));
-                    return null;
+                    return Optional.empty();
                 }
                 long compressed = entry.getCompressedSize();
                 if (compressed > 0 && entryRead / compressed > MAX_RATIO) {
@@ -216,16 +232,15 @@ public class PluginValidator {
                             "jar-compression-ratio",
                             "\"%s\" compresses at more than %d:1.".formatted(name, MAX_RATIO),
                             "Remove the entry; a legitimate class or resource does not compress this far."));
-                    return null;
+                    return Optional.empty();
                 }
                 names.add(name);
             }
         } catch (IOException e) {
-            violations.add(new Violation(
-                    "jar-unreadable", "The jar could not be read: " + e.getMessage(), "Re-upload the jar."));
-            return null;
+            violations.add(new Violation(JAR_UNREADABLE, "The jar could not be read: " + e.getMessage(), REUPLOAD));
+            return Optional.empty();
         }
-        return names;
+        return Optional.of(names);
     }
 
     private static long discard(InputStream in, long limit) throws IOException {
@@ -326,47 +341,8 @@ public class PluginValidator {
 
     private void checkDescriptorFields(
             PluginDescriptor descriptor, Set<String> otherBasePackages, List<Violation> violations) {
-        String id = descriptor.id();
-        if (id == null || !ID_PATTERN.matcher(id).matches() || id.length() > 50) {
-            violations.add(
-                    new Violation(
-                            "id-invalid",
-                            "\"%s\" is not a valid plugin id.".formatted(id),
-                            "Use at least two kebab-case segments (vendor-name), lowercase letters and digits only, at most 50 characters."));
-        } else if (id.startsWith("identity-")) {
-            violations.add(new Violation(
-                    "id-reserved", "Plugin ids starting with \"identity-\" are reserved.", "Choose a different id."));
-        }
-
-        String basePackage = descriptor.basePackage();
-        if (basePackage == null || !PACKAGE_PATTERN.matcher(basePackage).matches()) {
-            violations.add(new Violation(
-                    "base-package-invalid",
-                    "\"%s\" is not a valid Java package name.".formatted(basePackage),
-                    "Use a lowercase dotted package name for basePackage."));
-        } else {
-            for (String reserved : RESERVED_PREFIXES) {
-                if ((basePackage + ".").startsWith(reserved) || reserved.startsWith(basePackage + ".")) {
-                    violations.add(
-                            new Violation(
-                                    "base-package-overlap",
-                                    "basePackage \"%s\" overlaps the reserved prefix \"%s\"."
-                                            .formatted(basePackage, reserved),
-                                    "Choose a basePackage that is not inside, and does not contain, a Studio, JDK or framework package."));
-                }
-            }
-            for (String other : otherBasePackages) {
-                if ((basePackage + ".").startsWith(other + ".")
-                        || (other + ".").startsWith(basePackage + ".")
-                        || basePackage.equals(other)) {
-                    violations.add(new Violation(
-                            "base-package-overlap",
-                            "basePackage \"%s\" overlaps another installed plugin's basePackage \"%s\"."
-                                    .formatted(basePackage, other),
-                            "Choose a basePackage no other installed plugin uses."));
-                }
-            }
-        }
+        checkId(descriptor.id(), violations);
+        checkBasePackage(descriptor.basePackage(), otherBasePackages, violations);
 
         if (descriptor.contract() != Contract.VERSION) {
             violations.add(new Violation(
@@ -379,6 +355,50 @@ public class PluginValidator {
         checkStudioRange(descriptor, violations);
         checkNamespaces(descriptor, violations);
         checkMetrics(descriptor, violations);
+    }
+
+    private void checkId(String id, List<Violation> violations) {
+        if (id == null || !ID_PATTERN.matcher(id).matches() || id.length() > 50) {
+            violations.add(
+                    new Violation(
+                            "id-invalid",
+                            "\"%s\" is not a valid plugin id.".formatted(id),
+                            "Use at least two kebab-case segments (vendor-name), lowercase letters and digits only, at most 50 characters."));
+        } else if (id.startsWith("identity-")) {
+            violations.add(new Violation(
+                    "id-reserved", "Plugin ids starting with \"identity-\" are reserved.", "Choose a different id."));
+        }
+    }
+
+    private void checkBasePackage(String basePackage, Set<String> otherBasePackages, List<Violation> violations) {
+        if (basePackage == null || !PACKAGE_PATTERN.matcher(basePackage).matches()) {
+            violations.add(new Violation(
+                    "base-package-invalid",
+                    "\"%s\" is not a valid Java package name.".formatted(basePackage),
+                    "Use a lowercase dotted package name for basePackage."));
+            return;
+        }
+        for (String reserved : RESERVED_PREFIXES) {
+            if ((basePackage + ".").startsWith(reserved) || reserved.startsWith(basePackage + ".")) {
+                violations.add(
+                        new Violation(
+                                "base-package-overlap",
+                                "basePackage \"%s\" overlaps the reserved prefix \"%s\"."
+                                        .formatted(basePackage, reserved),
+                                "Choose a basePackage that is not inside, and does not contain, a Studio, JDK or framework package."));
+            }
+        }
+        for (String other : otherBasePackages) {
+            if ((basePackage + ".").startsWith(other + ".")
+                    || (other + ".").startsWith(basePackage + ".")
+                    || basePackage.equals(other)) {
+                violations.add(new Violation(
+                        "base-package-overlap",
+                        "basePackage \"%s\" overlaps another installed plugin's basePackage \"%s\"."
+                                .formatted(basePackage, other),
+                        "Choose a basePackage no other installed plugin uses."));
+            }
+        }
     }
 
     private void checkStudioRange(PluginDescriptor descriptor, List<Violation> violations) {
@@ -417,7 +437,9 @@ public class PluginValidator {
                         "studio.until \"%s\" is not a YYYY.MM.PATCH version or a YYYY.MM.* wildcard."
                                 .formatted(studio.until()),
                         "Fix studio.until."));
-            case COMPATIBLE -> {}
+            case COMPATIBLE -> {
+                // in range: nothing to report
+            }
         }
     }
 
@@ -452,6 +474,12 @@ public class PluginValidator {
                         "Name the topic \"%s\" or \"%s.<name>\".".formatted(id, id)));
             }
         }
+        checkMcpTools(descriptor, id, violations);
+        // The @ConfigurationProperties prefix itself (artemis-studio.plugins.<id>) is checked
+        // against bytecode in BytecodeChecks, which needs the class file, not just the descriptor.
+    }
+
+    private void checkMcpTools(PluginDescriptor descriptor, String id, List<Violation> violations) {
         String mcpPrefix = id.replace('-', '_') + "_";
         Set<String> declared = new HashSet<>();
         descriptor.permissions().forEach(p -> declared.add(p.action()));
@@ -472,8 +500,6 @@ public class PluginValidator {
                         "Declare that permission under permissions, or name one that is declared."));
             }
         }
-        // The @ConfigurationProperties prefix itself (artemis-studio.plugins.<id>) is checked
-        // against bytecode in BytecodeChecks, which needs the class file, not just the descriptor.
     }
 
     /** ADR-0113: metrics are namespaced, readable with a declared permission, and rules watch declared ones. */
@@ -513,6 +539,10 @@ public class PluginValidator {
                         "Declare that permission under permissions, or name one that is declared."));
             }
         }
+        checkAlertRules(descriptor, metrics, violations);
+    }
+
+    private void checkAlertRules(PluginDescriptor descriptor, Set<String> metrics, List<Violation> violations) {
         Set<String> keys = new HashSet<>();
         for (var rule : descriptor.alertRules()) {
             if (rule.key() == null || rule.key().isBlank() || !keys.add(rule.key())) {

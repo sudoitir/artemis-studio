@@ -120,7 +120,7 @@ public class StudioRestart {
         Thread.ofPlatform().name("studio-restart").daemon(false).start(() -> {
             try {
                 Thread.sleep(DELAY);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
             exit.accept(SpringApplication.exit(context, () -> EXIT_CODE));

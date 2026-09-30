@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity.Condition;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginBridge;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
@@ -66,9 +67,7 @@ class PluginAlertRules implements PluginBridge {
                     rules.save(AlertRuleEntity.threshold(
                             clusterId,
                             rule.name(),
-                            rule.metric(),
-                            rule.comparator(),
-                            rule.threshold(),
+                            new Condition(rule.metric(), rule.comparator(), rule.threshold()),
                             rule.forSeconds(),
                             rule.severity(),
                             null));

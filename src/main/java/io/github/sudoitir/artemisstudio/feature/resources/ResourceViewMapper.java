@@ -20,6 +20,8 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class ResourceViewMapper {
 
+    private static final String PROTOCOL = "protocol";
+
     /** The logical node a fanned-out row belongs to. */
     public record NodeRef(UUID id, String name) {}
 
@@ -41,7 +43,7 @@ public class ResourceViewMapper {
                 str(row, "session"),
                 str(row, "queue"),
                 str(row, "address"),
-                str(row, "protocol"),
+                str(row, PROTOCOL),
                 num(row, "messagesDelivered"),
                 num(row, "messagesAcknowledged"),
                 str(row, "status"));
@@ -65,7 +67,7 @@ public class ResourceViewMapper {
                 node.name(),
                 str(row, "connectionID"),
                 str(row, "remoteAddress"),
-                str(row, "protocol"),
+                str(row, PROTOCOL),
                 str(row, "clientID"),
                 num(row, "sessionCount"),
                 str(row, "creationTime"));
@@ -79,7 +81,7 @@ public class ResourceViewMapper {
                 str(row, "name"),
                 str(row, "session"),
                 str(row, "address"),
-                str(row, "protocol"),
+                str(row, PROTOCOL),
                 num(row, "msgSent"));
     }
 }

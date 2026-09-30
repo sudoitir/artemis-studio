@@ -96,17 +96,7 @@ public final class CoreEventClient implements AutoCloseable {
             try {
                 Message message = consumer.receive(RECEIVE_TIMEOUT_MILLIS);
                 if (message != null) {
-                    BrokerEvent event = mapper.toEvent(clusterId, nodeId, message);
-                    for (BrokerEventSink sink : sinks) {
-                        try {
-                            sink.accept(event);
-                        } catch (RuntimeException e) {
-                            log.warn(
-                                    "Notification sink {} rejected an event: {}",
-                                    sink.getClass().getSimpleName(),
-                                    e.toString());
-                        }
-                    }
+                    dispatch(message);
                 }
             } catch (JMSException e) {
                 if (running) {
@@ -120,6 +110,20 @@ public final class CoreEventClient implements AutoCloseable {
                     log.warn("Core notification subscription for node {} errored", nodeId, e);
                 }
                 return;
+            }
+        }
+    }
+
+    private void dispatch(Message message) throws JMSException {
+        BrokerEvent event = mapper.toEvent(clusterId, nodeId, message);
+        for (BrokerEventSink sink : sinks) {
+            try {
+                sink.accept(event);
+            } catch (RuntimeException e) {
+                log.warn(
+                        "Notification sink {} rejected an event: {}",
+                        sink.getClass().getSimpleName(),
+                        e.toString());
             }
         }
     }
@@ -162,13 +166,13 @@ public final class CoreEventClient implements AutoCloseable {
         closeQuietly(connection);
         try {
             factory.close();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // factory close is best-effort
         }
         if (drainThread != null) {
             try {
                 drainThread.join(Duration.ofSeconds(2));
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -180,7 +184,7 @@ public final class CoreEventClient implements AutoCloseable {
         }
         try {
             c.close();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // teardown
         }
     }

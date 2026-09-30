@@ -1,13 +1,15 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.platform.mcp.McpReportable;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /** A declaration that cannot be saved or applied, with every reason and the field it belongs to. */
 public class BrokerConfigInvalidException extends RuntimeException implements McpReportable {
 
-    private final List<Violation> violations;
+    private final ArrayList<Violation> violations;
 
     public BrokerConfigInvalidException(List<Violation> violations) {
         super(
@@ -15,11 +17,11 @@ public class BrokerConfigInvalidException extends RuntimeException implements Mc
                         ? violations.getFirst().message()
                         : violations.size() + " problems with the declaration; the first: "
                                 + violations.getFirst().message());
-        this.violations = List.copyOf(violations);
+        this.violations = new ArrayList<>(violations);
     }
 
     public List<Violation> violations() {
-        return violations;
+        return Collections.unmodifiableList(violations);
     }
 
     @Override

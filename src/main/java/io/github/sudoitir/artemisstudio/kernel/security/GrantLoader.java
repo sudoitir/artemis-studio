@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -38,10 +39,9 @@ public class GrantLoader {
                 actions.add(rp.getAction());
             }
         }
-        Set<Grant> grants = new HashSet<>();
-        for (String key : byScope.keySet()) {
-            grants.add(new Grant(scopeTypeByKey.get(key), scopeIdByKey.get(key), Set.copyOf(byScope.get(key))));
-        }
-        return grants;
+        return byScope.entrySet().stream()
+                .map(e -> new Grant(
+                        scopeTypeByKey.get(e.getKey()), scopeIdByKey.get(e.getKey()), Set.copyOf(e.getValue())))
+                .collect(Collectors.toSet());
     }
 }
