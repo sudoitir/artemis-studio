@@ -57,6 +57,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Replicas replace the boot log behind the crash-loop guard (ADR-0148, changesets
                     // kernel-replica 0001 and kernel-plugin 0009).
                     "studio_replica",
+                    // Which replica owns a cluster's broker duties (ADR-0148, changeset platform-clusters 0003).
+                    "cluster_lease",
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).
                     "plugin_secret",

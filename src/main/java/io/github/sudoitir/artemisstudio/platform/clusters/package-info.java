@@ -7,6 +7,7 @@
             "kernel.audit",
             "kernel.core",
             "kernel.plugin",
+            "kernel.replica",
             "kernel.security",
             "kernel.settings",
             "platform.broker"
