@@ -78,6 +78,15 @@ public class SseHub {
         }
     }
 
+    /**
+     * Tell a subscriber that has just connected that its stream is open. Nothing else is sent until
+     * the first event or heartbeat, up to {@code sse.heartbeat-interval} away, and the browser fires
+     * {@code onopen} only once the first bytes arrive, so the console would sit "connecting" until then.
+     */
+    public void greet(Subscriber subscriber) {
+        sendTo(subscriber, PING, Instant.now().toEpochMilli(), null);
+    }
+
     /** Send one event to one subscriber — used for {@code Last-Event-ID} replay on connect. */
     public void sendTo(Subscriber subscriber, String topic, Object data, String eventId) {
         // clusterId is only needed to deregister a dead emitter; on the replay path the

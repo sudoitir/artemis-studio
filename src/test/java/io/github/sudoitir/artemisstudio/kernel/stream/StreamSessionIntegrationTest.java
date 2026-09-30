@@ -114,17 +114,13 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
             return http.send(request.build(), BodyHandlers.ofString());
         }
 
-        /**
-         * Opens the event stream; completes when the server ends it. The server sends no headers
-         * before its first event, so one is published to make the connection observable.
-         */
+        /** Opens the event stream, which answers at once; completes when the server ends it. */
         CompletableFuture<Void> openStream(UUID clusterId) throws Exception {
             var request = HttpRequest.newBuilder(
                             URI.create("http://localhost:" + port + "/api/v1/stream?clusterId=" + clusterId))
                     .build();
             var pending = http.sendAsync(request, BodyHandlers.ofInputStream());
             awaitSubscribed(clusterId, 1);
-            hub.publish(clusterId, "topology");
             var response = pending.get(10, TimeUnit.SECONDS);
             assertThat(response.statusCode()).isEqualTo(200);
             return CompletableFuture.runAsync(() -> {

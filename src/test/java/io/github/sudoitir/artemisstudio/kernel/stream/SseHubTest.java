@@ -72,6 +72,17 @@ class SseHubTest {
     }
 
     @Test
+    void aNewSubscriberIsGreetedWithAPingSoItsClientSeesTheStreamOpenAtOnce() throws IOException {
+        SseEmitter emitter = mock(SseEmitter.class);
+
+        hub.greet(new Subscriber(emitter, Set.of("queues"), null));
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter).send(frame.capture());
+        assertThat(render(frame.getValue())).contains("event:" + SseHub.PING);
+    }
+
+    @Test
     void aDeadEmitterIsDroppedOnTheHeartbeat() throws IOException {
         UUID clusterId = UUID.randomUUID();
         SseEmitter dead = mock(SseEmitter.class);
