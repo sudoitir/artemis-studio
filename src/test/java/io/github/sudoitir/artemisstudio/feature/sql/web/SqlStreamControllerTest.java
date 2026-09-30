@@ -114,11 +114,11 @@ class SqlStreamControllerTest extends PostgresIntegrationTest {
 
     @Test
     void theQueryTextNeverAppearsInTheStreamUrl() throws Exception {
-        String queryId = reference("SELECT * FROM \"NOTHING.HERE\" WHERE body LIKE '%4471%'");
+        String queryId = reference("SELECT * FROM \"NOTHING.HERE\" WHERE body LIKE '%PAYROLL%'");
 
         // The whole point of the reference: an operator's predicate — and the value
         // they are searching for — is not in a URL any proxy will log.
-        assertThat(queryId).doesNotContain("4471").doesNotContain("SELECT");
+        assertThat(queryId).doesNotContain("PAYROLL").doesNotContain("SELECT");
     }
 
     @Test
