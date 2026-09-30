@@ -42,6 +42,8 @@ _Others_
 * `i.g.s.a.p.b.NodeCallLimiter`
 * `i.g.s.a.p.b.NotificationMapper`
 * `i.g.s.a.p.b.StagingQueues`
+|Bean references
+|* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===
