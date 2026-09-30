@@ -14,11 +14,17 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Use
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.support.Browser;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.TotpCodes;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +34,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Passkeys, end to end over real HTTP (ADR-0142): registering and signing in with a software
@@ -66,6 +74,9 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     JdbcClient jdbc;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     private final AtomicInteger sources = new AtomicInteger();
 
@@ -176,6 +187,78 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
                         .query(Long.class)
                         .single())
                 .isZero();
+    }
+
+    /**
+     * Two sessions of one user enrol their first factor at once, an authenticator app and a passkey. Each
+     * reads that the account has no factor yet, and each would issue recovery codes, so the second set
+     * replaces the first and one browser shows codes that no longer work. The confirmation is held halfway,
+     * after it has looked, by locking the pending secret's row while the registration runs.
+     */
+    @Test
+    void enrollingTheFirstFactorTwiceAtOnceIssuesOneSetOfRecoveryCodes() throws Exception {
+        UUID id = newUser("pk-race");
+        Browser app = signedIn("pk-race");
+        Browser key = signedIn("pk-race");
+        String secret = JsonPath.read(app.post("/api/v1/auth/mfa/totp", null).body(), "$.secret");
+        String creation = new PasskeyDevice(ORIGIN)
+                .create(key.post("/api/v1/auth/mfa/webauthn/options", null).body());
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        List<Future<HttpResponse<String>>> responses = new java.util.ArrayList<>();
+        try {
+            new TransactionTemplate(transactions).executeWithoutResult(status -> {
+                jdbc.sql("SELECT user_id FROM local_totp_pending WHERE user_id = ? FOR UPDATE")
+                        .param(id)
+                        .query(UUID.class)
+                        .single();
+                responses.add(pool.submit(() -> app.post(
+                        "/api/v1/auth/mfa/totp/confirm", "{\"code\":\"%s\"}".formatted(TotpCodes.now(secret)))));
+                awaitALockWait();
+                responses.add(pool.submit(() -> key.post(
+                        "/api/v1/auth/mfa/webauthn", "{\"label\":\"Laptop\",\"credential\":%s}".formatted(creation))));
+                try {
+                    responses.get(1).get(3, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    // it waits for the confirmation, which is what it should do
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            var confirmed = responses.get(0).get(10, TimeUnit.SECONDS);
+            var registered = responses.get(1).get(10, TimeUnit.SECONDS);
+
+            assertThat(confirmed.statusCode()).as(confirmed.body()).isEqualTo(200);
+            assertThat(registered.statusCode()).as(registered.body()).isEqualTo(200);
+            assertThat(java.util.stream.Stream.of(confirmed, registered)
+                            .filter(r -> JsonPath.read(r.body(), "$.recoveryCodes") != null))
+                    .as("the sessions that were shown recovery codes")
+                    .hasSize(1);
+            assertThat(jdbc.sql("SELECT count(*) FROM local_recovery_code WHERE user_id = ? AND used_at IS NULL")
+                            .param(id)
+                            .query(Long.class)
+                            .single())
+                    .isEqualTo(10);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private void awaitALockWait() {
+        for (int i = 0; i < 100; i++) {
+            if (jdbc.sql("SELECT count(*) FROM pg_locks WHERE NOT granted")
+                            .query(Long.class)
+                            .single()
+                    > 0) {
+                return;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            }
+        }
+        throw new AssertionError("nothing is waiting for a lock");
     }
 
     @Test

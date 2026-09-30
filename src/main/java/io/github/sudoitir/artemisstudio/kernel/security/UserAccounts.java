@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -40,6 +41,16 @@ public class UserAccounts {
     @Transactional(readOnly = true)
     public Optional<Account> byUsername(String username) {
         return users.findByUsername(username).map(UserAccounts::account);
+    }
+
+    /**
+     * Serialise the caller's transaction with every other that locks this account, until it ends: work
+     * that reads the account's state and then acts on it, such as issuing recovery codes to whoever
+     * enrols the first factor, so two of them cannot both find the account bare.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lock(UUID userId) {
+        users.findWithLockById(userId).orElseThrow(() -> new NotFoundException("user", userId));
     }
 
     @Transactional(readOnly = true)

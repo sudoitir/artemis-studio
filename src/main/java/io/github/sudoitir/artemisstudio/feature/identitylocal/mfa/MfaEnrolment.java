@@ -141,6 +141,7 @@ public class MfaEnrolment {
             HttpServletResponse response) {
         requireLocalSession(principal);
         requirePasskeysAvailable();
+        accounts.lock(principal.userId());
         boolean hadFactor = requireStepUpWhenEnrolled(principal, request);
         CredentialRecord passkey = passkeys.register(principal.userId(), label.strip(), credential, request);
         List<String> codes = hadFactor ? null : recoveryCodes.issue(principal.userId());
@@ -173,8 +174,9 @@ public class MfaEnrolment {
     public TotpConfirmedView confirmTotp(
             StudioPrincipal principal, String code, HttpServletRequest request, HttpServletResponse response) {
         requireLocalSession(principal);
-        boolean hadFactor = requireStepUpWhenEnrolled(principal, request);
         UUID userId = principal.userId();
+        accounts.lock(userId);
+        boolean hadFactor = requireStepUpWhenEnrolled(principal, request);
         byte[] pending = totp.pending(userId)
                 .orElseThrow(() -> new ConflictException(
                         "no-pending-totp", "There is no authenticator waiting for a code. Start the set-up again."));

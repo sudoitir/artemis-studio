@@ -177,6 +177,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - **Recovery codes:**
   - 10 codes of 10 base32 characters, stored as an HMAC-SHA256, because 50 bits fall to an offline guess as a plain hash. The key is 32 random bytes made once (`local_recovery_key`), sealed by `SecretVault` and registered as a `SealedStore`, so a key rotation re-wraps it and never changes it (a key derived from a key-encryption key would change and orphan every hash).
   - **Issued at the first enrolment of any factor**, TOTP or passkey.
+  - Enrolling a factor locks the user's `app_user` row first (`UserAccounts.lock`), so two enrolments at once cannot both find the account bare and both issue codes, the second set replacing the first.
   - Input ignores case and dashes.
   - Use is atomic: `UPDATE … SET used_at=now() WHERE hash=:h AND used_at IS NULL`. Each use is audited `RECOVERY_CODE_USE`.
   - Regenerating them needs step-up.
