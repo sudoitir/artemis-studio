@@ -10,6 +10,8 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Rol
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -50,6 +52,20 @@ public final class McpFixture {
             Grant.ScopeType scopeType,
             UUID scopeId,
             Set<String> permissions) {
+        return mintKey(users, roles, rolePermissions, userRoles, tokens, scopeType, scopeId, permissions, List.of());
+    }
+
+    /** As above, with the key restricted to the named MCP tools; empty means every tool. */
+    public static Key mintKey(
+            AppUserRepository users,
+            RoleRepository roles,
+            RolePermissionRepository rolePermissions,
+            UserRoleRepository userRoles,
+            ApiTokenService tokens,
+            Grant.ScopeType scopeType,
+            UUID scopeId,
+            Set<String> permissions,
+            List<String> mcpTools) {
         // user_role.scope_id and api_token_grant.scope_id are NOT NULL; a GLOBAL row
         // carries the nil UUID sentinel (014-identity.sql), not null. The token/owner
         // grant intersection compares scope ids for equality, so both sides must use it.
@@ -68,7 +84,11 @@ public final class McpFixture {
         userRoles.save(new UserRoleEntity(user.getId(), role.getId(), scopeType.name(), scope));
 
         var minted = tokens.mint(
-                user.getId(), "mcp-test-key", null, List.of(new Grant(scopeType, scope, Set.copyOf(permissions))));
+                user.getId(),
+                "mcp-test-key",
+                Instant.now().plus(Duration.ofDays(1)),
+                List.of(new Grant(scopeType, scope, Set.copyOf(permissions))),
+                mcpTools);
         return new Key(user.getId(), username, minted.plaintext());
     }
 

@@ -5,7 +5,7 @@ import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Writes each token's last use at most once a minute (api-tokens spec). */
+/** Writes each token's last use and usage counters at most once a minute (api-tokens spec). */
 @Configuration(proxyBeanMethods = false)
 class ApiTokensJobs {
 
@@ -16,6 +16,6 @@ class ApiTokensJobs {
                 "apitokens",
                 ScheduledJob.Scope.INSTANCE,
                 () -> Duration.ofMinutes(1),
-                tokens::flushLastUsed);
+                tokens::flush);
     }
 }

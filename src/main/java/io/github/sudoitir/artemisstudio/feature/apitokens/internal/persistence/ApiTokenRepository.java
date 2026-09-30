@@ -9,5 +9,9 @@ public interface ApiTokenRepository extends JpaRepository<ApiTokenEntity, UUID> 
 
     Optional<ApiTokenEntity> findByPrefix(String prefix);
 
+    Optional<ApiTokenEntity> findByPreviousPrefix(String previousPrefix);
+
+    List<ApiTokenEntity> findAllByOrderByCreatedAtDesc();
+
     List<ApiTokenEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
 }

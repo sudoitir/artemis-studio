@@ -18,6 +18,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Use
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -75,7 +76,8 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
     }
 
     private StudioPrincipal authenticateKeyFor(UUID userId, Grant tokenGrant) {
-        var minted = tokens.mint(userId, "k-" + UUID.randomUUID(), null, List.of(tokenGrant));
+        var minted = tokens.mint(
+                userId, "k-" + UUID.randomUUID(), Instant.now().plusSeconds(3600), List.of(tokenGrant), List.of());
         return tokens.authenticate(minted.plaintext());
     }
 

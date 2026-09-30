@@ -9,6 +9,7 @@
             "kernel.jobs",
             "kernel.plugin",
             "kernel.security",
+            "kernel.settings",
             "platform.clusters"
         })
 package io.github.sudoitir.artemisstudio.feature.apitokens;

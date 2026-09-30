@@ -1,14 +1,18 @@
 package io.github.sudoitir.artemisstudio.feature.apitokens.web;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
-import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenEntity;
+import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokensSettings;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.CreateTokenRequest;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.CreatedTokenView;
+import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenPolicyView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenView;
+import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.UsageView;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -21,13 +25,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Personal API tokens, always scoped to the caller's own account (api-tokens
- * spec) — there is no admin listing of other users' tokens; a token is
- * narrowable only to a subset of its own owner's grants.
+ * The caller's own API tokens (api-tokens spec). Minting and rotation happen only here; a token
+ * is narrowable only to a subset of its own owner's grants. Administrators see and revoke every
+ * user's tokens through {@link AdminTokensController}.
  */
 @RestController
 @RequestMapping("/api/v1/tokens")
@@ -35,12 +40,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class TokensController {
 
     private final ApiTokenService tokens;
+    private final TokenViewAssembler views;
+    private final SettingsService settings;
 
     @GetMapping
     public List<TokenView> list(@AuthenticationPrincipal StudioPrincipal principal) {
-        return tokens.listFor(principal.userId()).stream()
-                .map(TokensController::toView)
-                .toList();
+        return views.views(tokens.listFor(principal.userId()));
+    }
+
+    @GetMapping("/policy")
+    public TokenPolicyView policy() {
+        return new TokenPolicyView(
+                tokens.maxLifetime().toString(),
+                Instant.now().plus(tokens.maxLifetime()),
+                settings.duration(ApiTokensSettings.ROTATION_OVERLAP).toString());
     }
 
     @PostMapping
@@ -53,24 +66,32 @@ public class TokensController {
                         g.scopeId() != null ? g.scopeId() : ScopeIds.GLOBAL,
                         Set.of(g.action())))
                 .toList();
-        var minted = tokens.mint(principal.userId(), request.name(), request.expiresAt(), requested);
-        return new CreatedTokenView(toView(minted.entity()), minted.plaintext());
+        var minted = tokens.mint(
+                principal.userId(),
+                request.name(),
+                request.expiresAt(),
+                requested,
+                request.mcpTools() == null ? List.of() : request.mcpTools());
+        return new CreatedTokenView(views.view(minted.entity()), minted.plaintext());
+    }
+
+    @PostMapping("/{tokenId}/rotate")
+    public CreatedTokenView rotate(@AuthenticationPrincipal StudioPrincipal principal, @PathVariable UUID tokenId) {
+        var rotated = tokens.rotate(principal.userId(), tokenId);
+        return new CreatedTokenView(views.view(rotated.entity()), rotated.plaintext());
+    }
+
+    @GetMapping("/{tokenId}/usage")
+    public UsageView usage(
+            @AuthenticationPrincipal StudioPrincipal principal,
+            @PathVariable UUID tokenId,
+            @RequestParam(defaultValue = "7") int days) {
+        return TokenViewAssembler.usage(tokens.usage(principal.userId(), tokenId, TokenViewAssembler.period(days)));
     }
 
     @DeleteMapping("/{tokenId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revoke(@AuthenticationPrincipal StudioPrincipal principal, @PathVariable UUID tokenId) {
         tokens.revoke(principal.userId(), tokenId);
-    }
-
-    private static TokenView toView(ApiTokenEntity t) {
-        return new TokenView(
-                t.getId(),
-                t.getName(),
-                t.getPrefix(),
-                t.getExpiresAt(),
-                t.getLastUsedAt(),
-                t.getRevokedAt(),
-                t.getCreatedAt());
     }
 }

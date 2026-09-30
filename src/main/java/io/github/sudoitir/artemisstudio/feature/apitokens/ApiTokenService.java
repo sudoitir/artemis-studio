@@ -6,17 +6,22 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.A
 import io.github.sudoitir.artemisstudio.feature.apitokens.internal.persistence.ApiTokenRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
-import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashSet;
@@ -30,10 +35,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Mints, authenticates, and revokes personal API tokens (api-tokens spec,
- * ADR-0039, design.md decision 5). A minted secret is 256 bits of entropy — its
- * hash is looked up by an indexed plaintext prefix and compared in constant
- * time, never through a slow password KDF.
+ * Mints, authenticates, rotates and revokes personal API tokens (api-tokens spec,
+ * ADR-0039, ADR-0134). A minted secret is 256 bits of entropy — its hash is looked
+ * up by an indexed plaintext prefix and compared in constant time, never through a
+ * slow password KDF. A token's effective expiry is capped live by the installation's
+ * maximum lifetime.
  */
 @Service
 @RequiredArgsConstructor
@@ -52,27 +58,66 @@ public class ApiTokenService {
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final ScopeHierarchy environments;
+    private final SettingsService settings;
+    private final TokenUsage usage;
     private final SecureRandom random = new SecureRandom();
 
-    /** token id -> last-flushed instant, batched at most once a minute (design.md decision 5, task 8.4). */
+    /** token id -> last use, batched at most once a minute (ADR-0039). */
     private final Map<UUID, Instant> pendingLastUsed = new ConcurrentHashMap<>();
+
+    /** token id -> when a late use of its replaced secret was last audited; one row a minute at most. */
+    private final Map<UUID, Instant> rejectionAudited = new ConcurrentHashMap<>();
 
     public record Minted(ApiTokenEntity entity, String plaintext) {}
 
+    private record Secret(String prefix, byte[] hash, String plaintext) {}
+
+    /** The maximum lifetime currently in force. */
+    public Duration maxLifetime() {
+        return settings.duration(ApiTokensSettings.MAX_LIFETIME);
+    }
+
+    public Duration staleAfter() {
+        return settings.duration(ApiTokensSettings.STALE_AFTER);
+    }
+
+    public Instant effectiveExpiry(ApiTokenEntity token) {
+        return token.effectiveExpiry(maxLifetime());
+    }
+
+    /** Unused, or never used since creation, for longer than the stale period. */
+    public boolean isStale(ApiTokenEntity token) {
+        Instant lastSeen = token.getLastUsedAt() != null ? token.getLastUsedAt() : token.getCreatedAt();
+        return lastSeen.plus(staleAfter()).isBefore(Instant.now());
+    }
+
     @Transactional
-    public Minted mint(UUID userId, String name, Instant expiresAt, List<Grant> requestedGrants) {
-        String prefix = PREFIX_TAG + randomToken(PREFIX_BYTES);
-        String secret = randomToken(SECRET_BYTES);
-        String plaintext = prefix + "_" + secret;
-        ApiTokenEntity entity = tokens.save(new ApiTokenEntity(userId, name, prefix, sha256(secret), expiresAt));
+    public Minted mint(
+            UUID userId, String name, Instant expiresAt, List<Grant> requestedGrants, List<String> mcpTools) {
+        Instant now = Instant.now();
+        Instant latest = now.plus(maxLifetime());
+        if (expiresAt == null) {
+            throw new IllegalArgumentException("A token needs an expiry, at the latest " + latest);
+        }
+        if (!expiresAt.isAfter(now)) {
+            throw new IllegalArgumentException("The expiry must be in the future");
+        }
+        if (expiresAt.isAfter(latest)) {
+            throw new IllegalArgumentException("The expiry is beyond the maximum token lifetime of "
+                    + settings.value(ApiTokensSettings.MAX_LIFETIME) + "; the latest allowed is " + latest);
+        }
+        Secret secret = newSecret();
+        ApiTokenEntity entity = tokens.save(new ApiTokenEntity(
+                userId, name, secret.prefix(), secret.hash(), expiresAt, mcpTools == null ? List.of() : mcpTools));
+        String plaintext = secret.plaintext();
         for (Grant g : requestedGrants) {
             for (String action : g.permissions()) {
                 tokenGrants.save(new ApiTokenGrantEntity(
                         entity.getId(), action, g.scopeType().name(), g.scopeId()));
             }
         }
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, java.util.Map.of(), false);
+        AuditEvent event =
+                audit.begin(actorResolver.resolve(), "TOKEN_CREATE", "token", name, null, null, Map.of(), false);
         audit.succeed(event, 1);
         return new Minted(entity, plaintext);
     }
@@ -81,24 +126,78 @@ public class ApiTokenService {
         return tokens.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    /** Every user's tokens, newest first, for the administrators' inventory. */
+    public List<ApiTokenEntity> listAll() {
+        return tokens.findAllByOrderByCreatedAtDesc();
+    }
+
+    public List<Grant> grantsOf(UUID tokenId) {
+        return tokenGrants.findByIdTokenId(tokenId).stream()
+                .map(g -> new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())))
+                .toList();
+    }
+
     @Transactional
     public void revoke(UUID userId, UUID tokenId) {
+        revoke(owned(userId, tokenId), Map.of());
+    }
+
+    /** An administrator revokes any user's token; the audit row names the owner. */
+    @Transactional
+    public void revokeAny(UUID tokenId) {
         ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException("token", tokenId));
-        if (!token.getUserId().equals(userId)) {
-            throw new NotFoundException("token", tokenId);
+        String owner = accounts.byId(token.getUserId())
+                .map(UserAccounts.Account::username)
+                .orElse(token.getUserId().toString());
+        revoke(token, Map.of("owner", owner));
+    }
+
+    private void revoke(ApiTokenEntity token, Map<String, Object> params) {
+        if (token.getRevokedAt() == null) {
+            token.setRevokedAt(Instant.now());
+            tokens.save(token);
         }
-        token.setRevokedAt(Instant.now());
+        AuditEvent event = audit.begin(
+                actorResolver.resolve(), "TOKEN_REVOKE", "token", token.getName(), null, null, params, false);
+        audit.succeed(event, 1);
+    }
+
+    /**
+     * A new secret for the same token. The replaced one keeps working until the overlap ends;
+     * grants, allow-list, creation time and expiry stay, so rotation never extends a lifetime.
+     */
+    @Transactional
+    public Minted rotate(UUID userId, UUID tokenId) {
+        ApiTokenEntity token = owned(userId, tokenId);
+        if (!token.isActive(Instant.now(), maxLifetime())) {
+            throw new ConflictException("token-inactive", "A revoked or expired token cannot be rotated");
+        }
+        Secret secret = newSecret();
+        token.rotate(
+                secret.prefix(),
+                secret.hash(),
+                Instant.now().plus(settings.duration(ApiTokensSettings.ROTATION_OVERLAP)));
         tokens.save(token);
         AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                "TOKEN_REVOKE",
-                "token",
-                token.getName(),
-                null,
-                null,
-                java.util.Map.of(),
-                false);
+                actorResolver.resolve(), "TOKEN_ROTATE", "token", token.getName(), null, null, Map.of(), false);
         audit.succeed(event, 1);
+        return new Minted(token, secret.plaintext());
+    }
+
+    public TokenUsage.Summary usage(UUID userId, UUID tokenId, int days) {
+        return usage.summary(owned(userId, tokenId).getId(), days);
+    }
+
+    public TokenUsage.Summary usageAny(UUID tokenId, int days) {
+        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException("token", tokenId));
+        return usage.summary(token.getId(), days);
+    }
+
+    /** Someone else's token reads as missing, never as forbidden. */
+    private ApiTokenEntity owned(UUID userId, UUID tokenId) {
+        return tokens.findById(tokenId)
+                .filter(t -> t.getUserId().equals(userId))
+                .orElseThrow(() -> new NotFoundException("token", tokenId));
     }
 
     /**
@@ -106,7 +205,7 @@ public class ApiTokenService {
      * its owner's current live grants (design.md decision 5) so demoting or
      * disabling the owner immediately narrows or disables the token.
      */
-    public StudioPrincipal authenticate(String presented) {
+    public TokenPrincipal authenticate(String presented) {
         // Fixed-length prefix, not underscore-delimited: base64url's alphabet includes
         // '_', so searching for a separator character would be ambiguous.
         if (presented.length() <= PREFIX_LENGTH + 1
@@ -115,11 +214,22 @@ public class ApiTokenService {
             return null;
         }
         String prefix = presented.substring(0, PREFIX_LENGTH);
-        String secret = presented.substring(PREFIX_LENGTH + 1);
+        byte[] hash = sha256(presented.substring(PREFIX_LENGTH + 1));
+        Instant now = Instant.now();
         ApiTokenEntity token = tokens.findByPrefix(prefix).orElse(null);
-        if (token == null
-                || !token.isActive(Instant.now())
-                || !MessageDigest.isEqual(sha256(secret), token.getTokenHash())) {
+        if (token == null) {
+            token = tokens.findByPreviousPrefix(prefix).orElse(null);
+            if (token == null || !MessageDigest.isEqual(hash, token.getPreviousTokenHash())) {
+                return null;
+            }
+            if (!token.getPreviousValidUntil().isAfter(now)) {
+                auditLateUse(token, now);
+                return null;
+            }
+        } else if (!MessageDigest.isEqual(hash, token.getTokenHash())) {
+            return null;
+        }
+        if (!token.isActive(now, maxLifetime())) {
             return null;
         }
         var owner = accounts.byId(token.getUserId()).orElse(null);
@@ -133,22 +243,58 @@ public class ApiTokenService {
                     new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())));
         }
         Set<Grant> intersected = intersect(tokenGrantSet, ownerGrants);
-        pendingLastUsed.put(token.getId(), Instant.now());
-        return new StudioPrincipal(owner.id(), owner.username(), intersected, false, token.getName());
+        pendingLastUsed.put(token.getId(), now);
+        return new TokenPrincipal(
+                owner.id(),
+                owner.username(),
+                intersected,
+                token.getId(),
+                token.getName(),
+                Set.copyOf(token.getMcpTools()));
+    }
+
+    /**
+     * The secret a rotation replaced, presented after its overlap: rejected, and audited under
+     * the owner and token so a leaked old secret shows up in the trail. One row a minute per
+     * token at most, so a flood of rejected requests cannot flood the audit trail.
+     */
+    private void auditLateUse(ApiTokenEntity token, Instant now) {
+        Instant last = rejectionAudited.get(token.getId());
+        if (last != null && last.isAfter(now.minus(Duration.ofMinutes(1)))) {
+            return;
+        }
+        rejectionAudited.put(token.getId(), now);
+        Actor anonymous = actorResolver.resolve();
+        String owner = accounts.byId(token.getUserId())
+                .map(UserAccounts.Account::username)
+                .orElse(Actor.ANONYMOUS);
+        Actor actor = new Actor(owner, anonymous.sourceIp(), anonymous.requestId(), token.getUserId(), token.getName());
+        AuditEvent event = audit.begin(
+                actor, "TOKEN_REJECTED", "token", token.getName(), null, null, Map.of("reason", "rotated"), false);
+        audit.fail(event, "The secret was replaced by a rotation and its overlap has ended");
     }
 
     /**
      * At most one row-write per token per minute, however many requests it authenticates in that
-     * window. Driven by {@code ApiTokensJobs}.
+     * window, plus the hourly usage counters. Driven by {@code ApiTokensJobs}.
      */
     @Transactional
-    public void flushLastUsed() {
-        var snapshot = Map.copyOf(pendingLastUsed);
-        pendingLastUsed.clear();
-        snapshot.forEach((tokenId, at) -> tokens.findById(tokenId).ifPresent(t -> {
-            t.setLastUsedAt(at);
-            tokens.save(t);
-        }));
+    public void flush() {
+        for (UUID tokenId : List.copyOf(pendingLastUsed.keySet())) {
+            Instant at = pendingLastUsed.remove(tokenId);
+            tokens.findById(tokenId).ifPresent(t -> {
+                t.setLastUsedAt(at);
+                tokens.save(t);
+            });
+        }
+        usage.flush();
+        rejectionAudited.clear();
+    }
+
+    private Secret newSecret() {
+        String prefix = PREFIX_TAG + randomToken(PREFIX_BYTES);
+        String secret = randomToken(SECRET_BYTES);
+        return new Secret(prefix, sha256(secret), prefix + "_" + secret);
     }
 
     private Set<Grant> intersect(Set<Grant> tokenGrants, Set<Grant> ownerGrants) {
@@ -205,7 +351,7 @@ public class ApiTokenService {
 
     private static byte[] sha256(String value) {
         try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
