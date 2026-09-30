@@ -25,28 +25,8 @@ interface Row {
   faults: string[];
 }
 
-/**
- * The same paths the graph draws, as rows (flow-visualization spec: the table presents the same
- * paths as the graph). One row per edge; activating a row focuses its client or queue, and its
- * menu opens that resource elsewhere, never changing the broker.
- */
-export function FlowTable({
-  clusterId,
-  graph,
-  sort,
-  onSortChange,
-  onFocus,
-}: Readonly<{
-  clusterId: string;
-  graph: FlowGraphView;
-  sort: string | undefined;
-  onSortChange: (sort: string | undefined) => void;
-  onFocus: (focus: string) => void;
-}>) {
-  const now = useServerNow(5_000);
-  const rows = useMemo(() => sortRows(toRows(graph), sort), [graph, sort]);
-
-  const columns: GridColumn<Row>[] = [
+function pathColumns(now: number): GridColumn<Row>[] {
+  return [
     {
       id: 'from',
       header: 'From',
@@ -115,12 +95,34 @@ export function FlowTable({
         ),
     },
   ];
+}
+
+/**
+ * The same paths the graph draws, as rows (flow-visualization spec: the table presents the same
+ * paths as the graph). One row per edge; activating a row focuses its client or queue, and its
+ * menu opens that resource elsewhere, never changing the broker.
+ */
+export function FlowTable({
+  clusterId,
+  graph,
+  sort,
+  onSortChange,
+  onFocus,
+}: Readonly<{
+  clusterId: string;
+  graph: FlowGraphView;
+  sort: string | undefined;
+  onSortChange: (sort: string | undefined) => void;
+  onFocus: (focus: string) => void;
+}>) {
+  const now = useServerNow(5_000);
+  const rows = useMemo(() => sortRows(toRows(graph), sort), [graph, sort]);
 
   return (
     <VirtualTable
       label="Flow paths"
       storageKey="flow.paths"
-      columns={columns}
+      columns={pathColumns(now)}
       data={rows}
       sort={sort}
       onSortChange={onSortChange}

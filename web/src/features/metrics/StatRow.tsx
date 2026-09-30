@@ -59,6 +59,12 @@ function StatTile({ stat }: Readonly<{ stat: Stat }>) {
   );
 }
 
+/** The arrow and the word for a change: none, up or down. */
+function movement(flat: boolean, delta: number) {
+  if (flat) return { Icon: IconMinus, word: 'unchanged' };
+  return delta > 0 ? { Icon: IconArrowUpRight, word: 'up' } : { Icon: IconArrowDownRight, word: 'down' };
+}
+
 /**
  * Movement across the window. The direction is a word and an arrow, never the
  * colour alone — and it carries no colour at all, because a rising queue depth is
@@ -73,8 +79,7 @@ function Delta({ delta, format }: Readonly<{ delta: number | null; format: (valu
     );
   }
   const flat = Math.abs(delta) < Number.EPSILON;
-  const Icon = flat ? IconMinus : delta > 0 ? IconArrowUpRight : IconArrowDownRight;
-  const word = flat ? 'unchanged' : delta > 0 ? 'up' : 'down';
+  const { Icon, word } = movement(flat, delta);
   return (
     <Group gap={4} mt={2} wrap="nowrap">
       <Icon size={14} aria-hidden="true" />

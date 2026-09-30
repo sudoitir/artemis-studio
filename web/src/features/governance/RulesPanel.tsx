@@ -152,7 +152,7 @@ export function RulesPanel() {
   function save() {
     const next = validate(form);
     setErrors(next);
-    const firstInvalid = next.selector ? 'rule-selector' : next.addressPattern ? 'rule-address' : null;
+    const firstInvalid = (next.selector && 'rule-selector') || (next.addressPattern && 'rule-address') || null;
     if (firstInvalid) {
       document.getElementById(firstInvalid)?.focus();
       return;

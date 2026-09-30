@@ -11,6 +11,11 @@ interface Tile {
   alarm?: boolean;
 }
 
+function faultsLabel(faults: number): string {
+  if (faults === 0) return 'none';
+  return `${faults} ${faults === 1 ? 'fault' : 'faults'}`;
+}
+
 /** The cluster's current totals, leading the view (metrics spec: a view leads with the current values). */
 export function FlowKpis({ kpis }: Readonly<{ kpis: Kpis }>) {
   const faults = kpis.faults ?? 0;
@@ -21,7 +26,7 @@ export function FlowKpis({ kpis }: Readonly<{ kpis: Kpis }>) {
     { label: 'Clients', value: `${formatCount(kpis.clients ?? 0)} connected` },
     {
       label: 'Faults',
-      value: faults === 0 ? 'none' : `${faults} ${faults === 1 ? 'fault' : 'faults'}`,
+      value: faultsLabel(faults),
       alarm: faults > 0,
     },
   ];

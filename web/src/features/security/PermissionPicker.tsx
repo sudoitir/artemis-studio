@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Accordion,
   Badge,
@@ -68,6 +68,22 @@ function matches(entry: Entry, query: string): boolean {
   return q === '' || entry.action.toLowerCase().includes(q) || entry.label.toLowerCase().includes(q);
 }
 
+/** What stands in for the groups when no permission is declared, or none matches the search. */
+function pickerNotice(groupCount: number, visibleCount: number, query: string, clear: () => void): ReactNode {
+  if (groupCount === 0) {
+    return <Text size="sm">No module or plugin declares a permission, so there is nothing to grant.</Text>;
+  }
+  if (visibleCount > 0) return null;
+  return (
+    <Stack gap={4} align="flex-start">
+      <Text size="sm">No permission matches “{query}”.</Text>
+      <Button size="xs" variant="subtle" onClick={clear}>
+        Clear search
+      </Button>
+    </Stack>
+  );
+}
+
 /**
  * The role editor's permission picker (operator-ui spec): grouped by module or plugin, searchable,
  * with each permission's description and whether it acts only at global scope, and select-all or
@@ -126,16 +142,7 @@ export function PermissionPicker({
         {announcement}
       </VisuallyHidden>
 
-      {groups.length === 0 ? (
-        <Text size="sm">No module or plugin declares a permission, so there is nothing to grant.</Text>
-      ) : visible.length === 0 ? (
-        <Stack gap={4} align="flex-start">
-          <Text size="sm">No permission matches “{query}”.</Text>
-          <Button size="xs" variant="subtle" onClick={() => setQuery('')}>
-            Clear search
-          </Button>
-        </Stack>
-      ) : (
+      {pickerNotice(groups.length, visible.length, query, () => setQuery('')) ?? (
         <Accordion
           multiple
           chevronPosition="left"

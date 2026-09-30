@@ -159,6 +159,12 @@ function RevealSelected({ id, ready }: { id: string | null; ready: boolean }) {
   return null;
 }
 
+/** Reduced motion turns the animation off; a paused or hidden canvas holds it; otherwise it runs. */
+function motionOf(reducedMotion: boolean, held: boolean): FlowCanvasState['motion'] {
+  if (reducedMotion) return 'off';
+  return held ? 'paused' : 'running';
+}
+
 /**
  * The flow graph (flow-visualization spec, ADR-0080): four columns laid out by ELK in a worker,
  * rates as width, labels and moving dots, faults in words, and the path through whatever is hovered,
@@ -207,7 +213,7 @@ export function FlowCanvas({
     };
   }, []);
 
-  const motion: FlowCanvasState['motion'] = reducedMotion ? 'off' : paused || !visible ? 'paused' : 'running';
+  const motion = motionOf(reducedMotion, paused || !visible);
 
   const emphasisId = hovered ?? selectedId;
   const emphasis = useMemo(() => (emphasisId ? pathThrough(graph, emphasisId) : null), [graph, emphasisId]);

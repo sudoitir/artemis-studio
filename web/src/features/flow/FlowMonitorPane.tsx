@@ -135,6 +135,126 @@ function clientRows(graph: FlowGraphView, node: FlowNodeView): NodeRow[] {
   return [...rows.values()].sort((a, b) => a.node.localeCompare(b.node));
 }
 
+/** With nothing selected: each broker node's totals now. */
+function BrokerNodeTotals({ graph, stale }: Readonly<{ graph: FlowGraphView; stale: boolean }>) {
+  const rows: NodeRow[] = (graph.brokerNodes ?? []).map((b) => ({
+    nodeId: b.nodeId ?? b.name ?? '',
+    node: b.name ?? b.nodeId ?? '',
+    messageCount: b.backlog,
+    consumerCount: b.consumers,
+    inRate: b.inRate,
+    outRate: b.outRate,
+    stale: b.state === 'UNREACHABLE' || b.state === 'FAILED',
+  }));
+  return (
+    <section className={classes.pane} aria-label="Broker nodes">
+      <Stack gap="sm">
+        <Title order={4}>Broker nodes</Title>
+        <Text size="sm" c="dimmed">
+          {stale ? 'The selection is not in the shown paths any more. ' : ''}
+          Select a client, address or queue to break it down per node. These are each node's totals now.
+        </Text>
+        <NodeTable label="Totals per broker node" rows={rows} shape="resource" />
+      </Stack>
+    </section>
+  );
+}
+
+type Panels = ReturnType<typeof useSlot<'flow.selection.panels'>>;
+
+const SHAPE: Record<string, Columns> = { PRODUCER: 'producer', CONSUMER: 'consumer' };
+
+/** The per-node table with its imbalance statements, or why there is none (still asking, or nothing reports it). */
+function Breakdown({
+  node,
+  rows,
+  statements,
+  client,
+  pending,
+}: Readonly<{
+  node: FlowNodeView;
+  rows: NodeRow[];
+  statements: ReturnType<typeof imbalance>;
+  client: boolean;
+  pending: boolean;
+}>) {
+  if (pending) {
+    return (
+      <Text size="sm" c="dimmed" role="status">
+        Breaking this down per node…
+      </Text>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        {client
+          ? 'No per-node rate is measured for this client yet.'
+          : 'No broker node reports this on its own, so there is no per-node breakdown.'}
+      </Text>
+    );
+  }
+  return (
+    <>
+      {statements.length ? (
+        <ul className={classes.statements} aria-label="Balance across nodes">
+          {statements.map((s) => (
+            <li key={s.text} data-kind={s.kind}>
+              <Text size="sm" fw={s.kind === 'balanced' || s.kind === 'unknown' ? undefined : 600}>
+                {s.text}
+              </Text>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <NodeTable label={`${node.label} per node`} rows={rows} shape={SHAPE[node.kind ?? ''] ?? 'resource'} />
+    </>
+  );
+}
+
+/** A queue's history per node from the contributed panels; a client keeps none. */
+function History({
+  clusterId,
+  node,
+  client,
+  panels,
+  range,
+  onRangeChange,
+}: Readonly<{
+  clusterId: string;
+  node: FlowNodeView;
+  client: boolean;
+  panels: Panels;
+  range: MetricRange;
+  onRangeChange: (range: MetricRange) => void;
+}>) {
+  if (client) {
+    return (
+      <Text size="sm" c="dimmed">
+        Client history is not kept, so there are no trends for a client.
+      </Text>
+    );
+  }
+  if (node.kind !== 'QUEUE' || panels.length === 0) return null;
+  return (
+    <Stack gap="xs">
+      <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+        <Title order={5}>Over time</Title>
+        <SegmentedControl
+          size="xs"
+          aria-label="History range"
+          data={METRIC_RANGES.map((r) => ({ value: r, label: r }))}
+          value={range}
+          onChange={(value) => onRangeChange(value as MetricRange)}
+        />
+      </Group>
+      {panels.map(({ id, Component }) => (
+        <Component key={id} clusterId={clusterId} queueName={node.label ?? ''} range={range} />
+      ))}
+    </Stack>
+  );
+}
+
 /**
  * The Split layout's monitoring pane (flow-visualization spec, ADR-0110): what the selection is
  * now, per broker node, with any imbalance stated in words; for a queue, its history per node from
@@ -162,29 +282,7 @@ export function FlowMonitorPane({
   const panels = useSlot('flow.selection.panels');
   const node = nodeId ? (graph.nodes ?? []).find((n) => n.id === nodeId) : undefined;
 
-  if (!node) {
-    const rows: NodeRow[] = (graph.brokerNodes ?? []).map((b) => ({
-      nodeId: b.nodeId ?? b.name ?? '',
-      node: b.name ?? b.nodeId ?? '',
-      messageCount: b.backlog,
-      consumerCount: b.consumers,
-      inRate: b.inRate,
-      outRate: b.outRate,
-      stale: b.state === 'UNREACHABLE' || b.state === 'FAILED',
-    }));
-    return (
-      <section className={classes.pane} aria-label="Broker nodes">
-        <Stack gap="sm">
-          <Title order={4}>Broker nodes</Title>
-          <Text size="sm" c="dimmed">
-            {nodeId ? 'The selection is not in the shown paths any more. ' : ''}
-            Select a client, address or queue to break it down per node. These are each node's totals now.
-          </Text>
-          <NodeTable label="Totals per broker node" rows={rows} shape="resource" />
-        </Stack>
-      </section>
-    );
-  }
+  if (!node) return <BrokerNodeTotals graph={graph} stale={Boolean(nodeId)} />;
 
   const client = node.kind === 'PRODUCER' || node.kind === 'CONSUMER';
   const shares: FlowNodeShare[] = node.byNode ?? [];
@@ -214,58 +312,16 @@ export function FlowMonitorPane({
           </Text>
         ) : null}
 
-        {breakdownPending ? (
-          <Text size="sm" c="dimmed" role="status">
-            Breaking this down per node…
-          </Text>
-        ) : rows.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            {client
-              ? 'No per-node rate is measured for this client yet.'
-              : 'No broker node reports this on its own, so there is no per-node breakdown.'}
-          </Text>
-        ) : (
-          <>
-            {statements.length ? (
-              <ul className={classes.statements} aria-label="Balance across nodes">
-                {statements.map((s) => (
-                  <li key={s.text} data-kind={s.kind}>
-                    <Text size="sm" fw={s.kind === 'balanced' || s.kind === 'unknown' ? undefined : 600}>
-                      {s.text}
-                    </Text>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <NodeTable
-              label={`${node.label} per node`}
-              rows={rows}
-              shape={node.kind === 'PRODUCER' ? 'producer' : node.kind === 'CONSUMER' ? 'consumer' : 'resource'}
-            />
-          </>
-        )}
+        <Breakdown node={node} rows={rows} statements={statements} client={client} pending={breakdownPending} />
 
-        {client ? (
-          <Text size="sm" c="dimmed">
-            Client history is not kept, so there are no trends for a client.
-          </Text>
-        ) : node.kind === 'QUEUE' && panels.length > 0 ? (
-          <Stack gap="xs">
-            <Group justify="space-between" align="center" wrap="wrap" gap="xs">
-              <Title order={5}>Over time</Title>
-              <SegmentedControl
-                size="xs"
-                aria-label="History range"
-                data={METRIC_RANGES.map((r) => ({ value: r, label: r }))}
-                value={range}
-                onChange={(value) => onRangeChange(value as MetricRange)}
-              />
-            </Group>
-            {panels.map(({ id, Component }) => (
-              <Component key={id} clusterId={clusterId} queueName={node.label ?? ''} range={range} />
-            ))}
-          </Stack>
-        ) : null}
+        <History
+          clusterId={clusterId}
+          node={node}
+          client={client}
+          panels={panels}
+          range={range}
+          onRangeChange={onRangeChange}
+        />
       </Stack>
     </section>
   );

@@ -18,6 +18,48 @@ import { useSlot } from '../../kernel/slots.ts';
 
 const METRICS = ['messageCount', 'consumerCount', 'messagesAdded', 'messagesAcked'];
 
+/** The note that the series cover one queue, with the way back to the cluster and the per-node split. */
+function QueueScope({ subject, split }: Readonly<{ subject: string; split: boolean }>) {
+  const navigate = useNavigate();
+  return (
+    <>
+      <Alert color="gray" variant="light" title="Scoped to one queue">
+        These series cover <strong>{subject}</strong> only.{' '}
+        <Anchor
+          component="button"
+          type="button"
+          onClick={() =>
+            navigate({
+              to: '.',
+              search: (prev: Record<string, unknown>) => ({ ...prev, subject: undefined, split: undefined }),
+            })
+          }
+        >
+          Show the whole cluster
+        </Anchor>
+        .
+      </Alert>
+      <Switch
+        label="Break down by broker node"
+        checked={split}
+        onChange={(event) => {
+          const on = event.currentTarget.checked;
+          void navigate({
+            to: '.',
+            search: (prev: Record<string, unknown>) => ({ ...prev, split: on ? 'node' : undefined }),
+          });
+        }}
+      />
+    </>
+  );
+}
+
+/** A table cell in the unit of its column: depth as a count, consumers exactly, the rest as rates. */
+function formatCell(name: string, value: number): string {
+  if (name === 'depth') return formatCount(value);
+  return name === 'consumers' ? formatExact(value) : formatRate(value);
+}
+
 /**
  * Cluster-wide (or queue-scoped) historical metrics: depth, throughput and consumers,
  * sharing one crosshair, then whatever the enabled features add (`metrics.panels`),
@@ -30,7 +72,6 @@ const METRICS = ['messageCount', 'consumerCount', 'messagesAdded', 'messagesAcke
  */
 export function MetricsView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const navigate = useNavigate();
   const panels = useSlot('metrics.panels');
   const search = useSearch({ strict: false }) as {
     range?: MetricRange;
@@ -122,38 +163,7 @@ export function MetricsView() {
         <RangePicker />
       </Group>
 
-      {subject ? (
-        <Alert color="gray" variant="light" title="Scoped to one queue">
-          These series cover <strong>{subject}</strong> only.{' '}
-          <Anchor
-            component="button"
-            type="button"
-            onClick={() =>
-              navigate({
-                to: '.',
-                search: (prev: Record<string, unknown>) => ({ ...prev, subject: undefined, split: undefined }),
-              })
-            }
-          >
-            Show the whole cluster
-          </Anchor>
-          .
-        </Alert>
-      ) : null}
-
-      {subject ? (
-        <Switch
-          label="Break down by broker node"
-          checked={split}
-          onChange={(event) => {
-            const on = event.currentTarget.checked;
-            void navigate({
-              to: '.',
-              search: (prev: Record<string, unknown>) => ({ ...prev, split: on ? 'node' : undefined }),
-            });
-          }}
-        />
-      ) : null}
+      {subject ? <QueueScope subject={subject} split={split} /> : null}
 
       {metrics.data?.truncated ? (
         <Alert color="gray" variant="light" title="Window adjusted">
@@ -217,9 +227,7 @@ export function MetricsView() {
               { name: 'acked', label: 'Acked (msg/s)', series: acked },
               { name: 'consumers', label: 'Consumers', series: consumers },
             ]}
-            format={(name, value) =>
-              name === 'depth' ? formatCount(value) : name === 'consumers' ? formatExact(value) : formatRate(value)
-            }
+            format={formatCell}
           />
         </Spoiler>
       )}

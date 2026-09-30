@@ -81,19 +81,39 @@ export function rateSortValue(rate: number | null | undefined, descending: boole
 
 /** The text an edge carries: what it does, the rate where one is counted, and any fault, in words. */
 export function edgeText(view: FlowEdgeView): string {
+  const parts = kindParts(view);
+  for (const f of view.faults ?? []) parts.push(faultText(f, view));
+  if (view.studio) parts.push('Studio capture');
+  if (view.stale) parts.push('stale');
+  return parts.join(' · ');
+}
+
+function routeParts(view: FlowEdgeView): string[] {
+  const parts: string[] = [];
+  if (view.delivery) parts.push(view.delivery === 'COPY' ? 'copy' : 'shared');
+  if (view.filter) parts.push('filtered');
+  if (view.bypassed) parts.push('bypassed by an exclusive divert');
+  parts.push(rateLabel(view));
+  return parts;
+}
+
+function divertParts(view: FlowEdgeView): string[] {
+  const parts = [view.exclusive ? 'reroutes' : 'copies'];
+  if (view.filter) parts.push('filtered');
+  if (view.transformer) parts.push('transformed');
+  parts.push(rateLabel(view));
+  return parts;
+}
+
+/** What an edge of this kind does, with the rate where one is counted. */
+function kindParts(view: FlowEdgeView): string[] {
   const parts: string[] = [];
   switch (view.kind) {
     case 'ROUTE':
-      if (view.delivery) parts.push(view.delivery === 'COPY' ? 'copy' : 'shared');
-      if (view.filter) parts.push('filtered');
-      if (view.bypassed) parts.push('bypassed by an exclusive divert');
-      parts.push(rateLabel(view));
+      parts.push(...routeParts(view));
       break;
     case 'DIVERT':
-      parts.push(view.exclusive ? 'reroutes' : 'copies');
-      if (view.filter) parts.push('filtered');
-      if (view.transformer) parts.push('transformed');
-      parts.push(rateLabel(view));
+      parts.push(...divertParts(view));
       break;
     case 'BRIDGE':
       parts.push('bridge', rateLabel(view));
@@ -113,14 +133,13 @@ export function edgeText(view: FlowEdgeView): string {
     default:
       parts.push(rateLabel(view));
   }
-  for (const f of view.faults ?? []) {
-    parts.push(
-      f === 'PARTIAL_PRESENCE' && view.presentOn !== undefined && view.presentOn !== null
-        ? `on ${view.presentOn} of ${view.presentOf} nodes`
-        : (FAULT_LABELS[f] ?? f.toLowerCase()),
-    );
+  return parts;
+}
+
+/** A fault in words; a partial presence says how many nodes carry it. */
+function faultText(fault: string, view: FlowEdgeView): string {
+  if (fault === 'PARTIAL_PRESENCE' && view.presentOn !== undefined && view.presentOn !== null) {
+    return `on ${view.presentOn} of ${view.presentOf} nodes`;
   }
-  if (view.studio) parts.push('Studio capture');
-  if (view.stale) parts.push('stale');
-  return parts.join(' · ');
+  return FAULT_LABELS[fault] ?? fault.toLowerCase();
 }

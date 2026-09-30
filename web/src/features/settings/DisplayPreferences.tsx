@@ -12,6 +12,32 @@ import {
   zoneOptions,
 } from '../../kernel/time/timezone.ts';
 
+/** Where the zone in use comes from: this browser, UTC, or an explicit pin. */
+function ZoneNote({ preference, resolved }: Readonly<{ preference: string; resolved: string }>) {
+  if (preference === AUTO) {
+    return (
+      <Text size="xs" c="dimmed">
+        Detected from this browser, currently <strong>{localZone()}</strong>, and it follows the machine if that
+        changes. Choose a zone above to pin it instead &mdash; a pinned choice is kept and is never reset back to
+        automatic.
+      </Text>
+    );
+  }
+  if (resolved === 'UTC') {
+    return (
+      <Text size="xs" c="dimmed">
+        UTC, which is what Studio&rsquo;s container and the broker logs you are likely correlating against are in.
+      </Text>
+    );
+  }
+  return (
+    <Text size="xs" c="dimmed">
+      Pinned to <strong>{resolved}</strong>, so it stays put wherever this browser is. Every timestamp names its offset,
+      so a screen can still be lined up against a UTC log.
+    </Text>
+  );
+}
+
 /**
  * The operator's own display preferences.
  *
@@ -64,22 +90,7 @@ export function DisplayPreferences() {
         </Text>
       </Text>
 
-      {preference === AUTO ? (
-        <Text size="xs" c="dimmed">
-          Detected from this browser, currently <strong>{localZone()}</strong>, and it follows the machine if that
-          changes. Choose a zone above to pin it instead &mdash; a pinned choice is kept and is never reset back to
-          automatic.
-        </Text>
-      ) : resolved === 'UTC' ? (
-        <Text size="xs" c="dimmed">
-          UTC, which is what Studio&rsquo;s container and the broker logs you are likely correlating against are in.
-        </Text>
-      ) : (
-        <Text size="xs" c="dimmed">
-          Pinned to <strong>{resolved}</strong>, so it stays put wherever this browser is. Every timestamp names its
-          offset, so a screen can still be lined up against a UTC log.
-        </Text>
-      )}
+      <ZoneNote preference={preference} resolved={resolved} />
 
       <Switch
         mt="md"

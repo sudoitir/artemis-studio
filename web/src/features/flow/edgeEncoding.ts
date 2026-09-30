@@ -19,7 +19,7 @@ export const DOT_BUDGET = 400;
  * Square root, not linear, so a 5 msg/s edge is still visibly heavier than a 1 msg/s one.
  */
 export function rateScale(rate: number | null | undefined): number {
-  if (rate === null || rate === undefined || !(rate > 0)) return 0;
+  if (rate === null || rate === undefined || Number.isNaN(rate) || rate <= 0) return 0;
   return Math.sqrt(Math.min(rate, RATE_CAP) / RATE_CAP);
 }
 

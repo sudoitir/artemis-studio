@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Badge, Button, Drawer, Loader, Stack, Table, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
@@ -8,6 +8,27 @@ function scopeLabel(v: EffectivePermissionView): string {
   if (v.scopeType === 'GLOBAL') return 'Global';
   const kind = v.scopeType === 'CLUSTER' ? 'Cluster' : 'Environment';
   return `${kind} ${v.scopeId?.slice(0, 8) ?? ''}`;
+}
+
+/** What stands in for the permissions while they load, fail to load, or the user holds no role. */
+function permissionsNotice(result: ReturnType<typeof useEffectivePermissions>): ReactNode {
+  if (result.isPending) return <Loader size="sm" aria-label="Loading effective permissions" />;
+  if (result.isError) {
+    return (
+      <Alert color="red" variant="light" title="Could not load the effective permissions" role="alert">
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">{result.error.message}</Text>
+          <Button size="xs" variant="light" onClick={() => void result.refetch()}>
+            Retry
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (result.data.length === 0) {
+    return <Text size="sm">This user holds no role, so they can do nothing. Grant a role from the users table.</Text>;
+  }
+  return null;
 }
 
 /** A user's effective permissions per scope, with the role and wildcard each came through (operator-ui spec). */
@@ -34,20 +55,7 @@ export function EffectivePermissionsDrawer({
       size="xl"
       title={user ? `Effective permissions of ${user.username}` : ''}
     >
-      {result.isPending ? (
-        <Loader size="sm" aria-label="Loading effective permissions" />
-      ) : result.isError ? (
-        <Alert color="red" variant="light" title="Could not load the effective permissions" role="alert">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">{result.error.message}</Text>
-            <Button size="xs" variant="light" onClick={() => void result.refetch()}>
-              Retry
-            </Button>
-          </Stack>
-        </Alert>
-      ) : result.data.length === 0 ? (
-        <Text size="sm">This user holds no role, so they can do nothing. Grant a role from the users table.</Text>
-      ) : (
+      {permissionsNotice(result) ?? (
         <Stack gap="md">
           <TextInput
             label="Filter by permission or role"
