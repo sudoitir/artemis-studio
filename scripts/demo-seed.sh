@@ -137,8 +137,8 @@ routing "capture subscription"   /sql/index '{"queuePattern":"PAYMENTS.capture",
 # A bridge from the primary pair to the secondary one: audit records archived in the other
 # data centre. Runtime-deployed through the broker's management operations (not persisted).
 jolokia() { # node json
-  $COMPOSE exec -T "$1" curl -sS -u artemis:artemis -H 'Origin: http://localhost' \
-    -H 'Content-Type: application/json' -d "$2" http://localhost:8161/console/jolokia >/dev/null 2>&1 || true
+  curl -sS -u artemis:artemis -H 'Origin: http://localhost' \
+    -H 'Content-Type: application/json' -d "$2" "http://$($COMPOSE port "$1" 8161)/console/jolokia" >/dev/null 2>&1 || true
 }
 PRIMARY_MBEAN='org.apache.activemq.artemis:broker=\"primary\"'
 jolokia artemis-primary "{\"type\":\"exec\",\"mbean\":\"$PRIMARY_MBEAN\",\"operation\":\"addConnector(java.lang.String,java.lang.String)\",\"arguments\":[\"secondary-connector\",\"tcp://artemis-secondary:61616\"]}"

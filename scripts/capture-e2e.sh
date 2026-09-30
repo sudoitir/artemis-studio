@@ -42,8 +42,8 @@ pass() { printf '\033[32m  ✓ %s\033[0m\n' "$*"; }
 psql_() { $COMPOSE exec -T postgres psql -qtAX -U artemis_studio -d artemis_studio -c "$1"; }
 
 jolokia() { # node-service operation-json
-  $COMPOSE exec -T "$1" curl -sS -u artemis:artemis -H 'Content-Type: application/json' \
-    -d "$2" http://localhost:8161/console/jolokia/
+  curl -sS -u artemis:artemis -H 'Content-Type: application/json' \
+    -d "$2" "http://$($COMPOSE port "$1" 8161)/console/jolokia/"
 }
 
 say "waiting for Studio"
@@ -176,8 +176,8 @@ if [ "${SKIP_FAILOVER:-0}" != "1" ]; then
   say "bringing the primary back"
   $COMPOSE start artemis-primary >/dev/null
   for _ in $(seq 1 40); do
-    $COMPOSE exec -T artemis-primary curl -sf -u artemis:artemis \
-      'http://localhost:8161/console/jolokia/read/org.apache.activemq.artemis:broker=%22primary%22/Started' \
+    curl -sf -u artemis:artemis \
+      "http://$($COMPOSE port artemis-primary 8161)/console/jolokia/read/org.apache.activemq.artemis:broker=%22primary%22/Started" \
       >/dev/null 2>&1 && break
     sleep 3
   done
