@@ -1444,6 +1444,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/diagnostics/bundles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["prepare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/diagnostics/bundles/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["download"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/sql/index/{id}": {
         parameters: {
             query?: never;
@@ -1724,6 +1756,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diagnostics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4687,6 +4735,29 @@ export interface components {
             changeNotes?: string | null;
             error?: string | null;
         };
+        BundleView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            sections: components["schemas"]["SectionView"][];
+        };
+        SectionView: {
+            key: string;
+            title: string;
+            fileName: string;
+            content: string;
+            /** Format: int64 */
+            bytes: number;
+            /** Format: int32 */
+            redactions: number;
+        };
+        DownloadRequest: {
+            sections: string[];
+        };
+        StreamingResponseBody: unknown;
         UpdateQueueRequest: {
             /** @description A JMS selector limiting what the queue accepts. */
             filter?: string | null;
@@ -4887,6 +4958,14 @@ export interface components {
             rowsUnderEarlierVersion: number;
             /** @description The count reached its cap; there are at least this many. */
             capped: boolean;
+        };
+        SummaryView: {
+            studioVersion: string;
+            /** Format: int32 */
+            contractVersion: number;
+            java: string;
+            os: string;
+            database: string;
         };
         StoreView: {
             id: string;
@@ -9093,6 +9172,52 @@ export interface operations {
             };
         };
     };
+    prepare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BundleView"];
+                };
+            };
+        };
+    };
+    download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": components["schemas"]["StreamingResponseBody"];
+                };
+            };
+        };
+    };
     delete_4: {
         parameters: {
             query?: never;
@@ -9565,6 +9690,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FindingView"][];
+                };
+            };
+        };
+    };
+    summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SummaryView"];
                 };
             };
         };

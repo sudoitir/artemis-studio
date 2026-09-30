@@ -28,6 +28,10 @@
     "kind" : "PLATFORM",
     "required" : true
   }, {
+    "id" : "diagnostics",
+    "kind" : "FEATURE",
+    "required" : false
+  }, {
     "id" : "events",
     "kind" : "FEATURE",
     "required" : false
