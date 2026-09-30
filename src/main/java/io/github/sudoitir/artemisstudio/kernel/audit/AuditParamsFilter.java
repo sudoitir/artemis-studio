@@ -11,5 +11,5 @@ import java.util.Map;
 public interface AuditParamsFilter {
 
     /** The parameters to write. Must not change keys, only values. */
-    Map<String, ?> filter(Map<String, ?> params);
+    Map<String, Object> filter(Map<String, ?> params);
 }

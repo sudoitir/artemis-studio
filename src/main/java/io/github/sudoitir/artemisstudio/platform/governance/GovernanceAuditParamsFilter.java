@@ -24,12 +24,12 @@ class GovernanceAuditParamsFilter implements AuditParamsFilter {
 
     /** A name, or {@code props->>'name'}, compared with a quoted literal. */
     private static final Pattern COMPARISON = Pattern.compile(
-            "(?i)(?:props\\s*->>?\\s*'([^']+)'|\\b([A-Za-z_][\\w$.-]*))\\s*(?:=|<>|!=|\\bLIKE\\b)\\s*('(?:[^']|'')*')");
+            "(?i)(?:props\\s*->>?\\s*'([^']+)'|\\b([a-z_][\\w$.-]*))\\s*(?:=|<>|!=|\\bLIKE\\b)\\s*('[^']*+(?:''[^']*+)*')");
 
     private final ContentPolicy policy;
 
     @Override
-    public Map<String, ?> filter(Map<String, ?> params) {
+    public Map<String, Object> filter(Map<String, ?> params) {
         Map<String, Object> out = new LinkedHashMap<>();
         params.forEach((key, value) -> out.put(key, value(value)));
         return out;
@@ -57,9 +57,10 @@ class GovernanceAuditParamsFilter implements AuditParamsFilter {
         StringBuilder out = new StringBuilder();
         while (m.find()) {
             String name = m.group(1) != null ? m.group(1) : m.group(2);
-            String replacement =
-                    classified(name) ? text.substring(m.start(), m.start(3)) + REDACTED_LITERAL : m.group();
-            m.appendReplacement(out, Matcher.quoteReplacement(replacement));
+            m.appendReplacement(
+                    out,
+                    Matcher.quoteReplacement(
+                            classified(name) ? text.substring(m.start(), m.start(3)) + REDACTED_LITERAL : m.group()));
         }
         m.appendTail(out);
         return policy.governText(out.toString());

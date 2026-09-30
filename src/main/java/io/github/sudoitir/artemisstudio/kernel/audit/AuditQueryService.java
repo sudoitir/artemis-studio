@@ -37,7 +37,7 @@ public class AuditQueryService {
             int size) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         int p = Math.max(page, 1);
-        int s = Math.min(Math.max(size, 1), 500);
+        int s = Math.clamp(size, 1, 500);
         Page<AuditEventEntity> result = events.findPage(
                 clusterId,
                 blankToNull(username),
@@ -67,7 +67,7 @@ public class AuditQueryService {
     public List<AuditEventView> forTarget(String targetType, String targetName, int limit) {
         return events
                 .findByTargetTypeAndTargetNameOrderByTsDesc(
-                        targetType, targetName, PageRequest.of(0, Math.min(Math.max(limit, 1), 500)))
+                        targetType, targetName, PageRequest.of(0, Math.clamp(limit, 1, 500)))
                 .stream()
                 .map(AuditQueryService::toView)
                 .toList();
