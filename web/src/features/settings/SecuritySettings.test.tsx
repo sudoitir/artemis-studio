@@ -26,6 +26,7 @@ function status(over: Record<string, unknown> = {}) {
       currentVersion: 1,
       availableVersions: [1, 2],
       countsByVersion: { '1': 7 },
+      missingVersions: [],
       ...over,
     }),
   );
@@ -137,6 +138,7 @@ describe('SecuritySettings', () => {
           currentVersion: 1,
           availableVersions: [1, 2],
           countsByVersion: { '1': 7 },
+          missingVersions: [],
           lastRotation: {
             ...ROTATION,
             status: 'RUNNING',
@@ -188,6 +190,18 @@ describe('SecuritySettings', () => {
     renderWithProviders(<SecuritySettings />);
     expect(await screen.findByText('Older, unused: keep until the rotation succeeds')).toBeInTheDocument();
     expect(screen.queryByText(/safe to remove/)).not.toBeInTheDocument();
+  });
+
+  it('warns when a version that still protects secrets is missing from the provider', async () => {
+    server.use(
+      me(fresh()),
+      status({ currentVersion: 2, availableVersions: [2], countsByVersion: { '1': 3, '2': 4 }, missingVersions: [1] }),
+    );
+    renderWithProviders(<SecuritySettings />);
+    expect(await screen.findByRole('alert', { name: /missing from the provider/ })).toHaveTextContent(
+      'Version 1 still protects 3 stored secrets.',
+    );
+    expect(screen.getByText('Missing from the provider: restore it')).toBeInTheDocument();
   });
 
   it('shows the cause of a failed rotation', async () => {

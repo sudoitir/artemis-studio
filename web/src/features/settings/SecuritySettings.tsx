@@ -120,6 +120,19 @@ export function SecuritySettings() {
         </Text>
       </Paper>
 
+      {s.missingVersions.length > 0 ? (
+        <Alert color="red" variant="light" role="alert" title="A key version is missing from the provider">
+          {s.missingVersions
+            .map((v) => {
+              const n = s.countsByVersion[String(v)] ?? 0;
+              return `Version ${v} still protects ${n} stored ${n === 1 ? 'secret' : 'secrets'}.`;
+            })
+            .join(' ')}{' '}
+          Those secrets cannot be read until the key is restored to the provider. Restore it, then rotate so nothing
+          depends on it.
+        </Alert>
+      ) : null}
+
       <Table aria-label="Key versions">
         <Table.Thead>
           <Table.Tr>
@@ -192,6 +205,7 @@ export function SecuritySettings() {
 
 function versionState(s: SecretsStatus, v: number, running: boolean): string {
   const n = s.countsByVersion[String(v)] ?? 0;
+  if (s.missingVersions.includes(v)) return 'Missing from the provider: restore it';
   if (v === s.currentVersion) return 'Current';
   if (v > s.currentVersion) return 'Newer, available to rotate to';
   if (n > 0) return `Older, still wraps ${n} ${n === 1 ? 'secret' : 'secrets'}`;
