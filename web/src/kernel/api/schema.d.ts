@@ -3507,12 +3507,12 @@ export interface components {
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
-            finishedAt?: string;
+            finishedAt?: string | null;
             /** Format: int64 */
             rewrapped: number;
             /** Format: int64 */
             remaining: number;
-            error?: string;
+            error?: string | null;
         };
         GroupMappingRequest: {
             groupName: string;
@@ -4892,7 +4892,7 @@ export interface components {
             countsByVersion: {
                 [key: string]: number;
             };
-            lastRotation?: components["schemas"]["RotationView"];
+            lastRotation?: components["schemas"]["RotationView"] | null;
         };
         PagedViewRoleView: {
             data: components["schemas"]["RoleView"][];

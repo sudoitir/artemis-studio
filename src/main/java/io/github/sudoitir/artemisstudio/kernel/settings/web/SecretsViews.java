@@ -25,7 +25,7 @@ public final class SecretsViews {
             @Schema(requiredMode = REQUIRED) List<Integer> availableVersions,
             @Schema(requiredMode = REQUIRED) List<Integer> missingVersions,
             @Schema(requiredMode = REQUIRED) Map<String, Long> countsByVersion,
-            RotationView lastRotation) {}
+            @Schema(nullable = true) RotationView lastRotation) {}
 
     /**
      * @param status {@code RUNNING}, {@code SUCCEEDED} or {@code FAILED}
@@ -38,10 +38,10 @@ public final class SecretsViews {
             @Schema(requiredMode = REQUIRED) String status,
             @Schema(requiredMode = REQUIRED) String startedBy,
             @Schema(requiredMode = REQUIRED) Instant startedAt,
-            Instant finishedAt,
+            @Schema(nullable = true) Instant finishedAt,
             @Schema(requiredMode = REQUIRED) long rewrapped,
             @Schema(requiredMode = REQUIRED) long remaining,
-            String error) {
+            @Schema(nullable = true) String error) {
 
         static RotationView of(SecretRotations.Rotation r) {
             return new RotationView(

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * Fails the test whose MockMvc requests broke the contract ({@link ApiContractConfig}). Auto-detected
- * (junit-platform.properties), and a no-op unless {@code -Dapi.contract=true}, when nothing records.
+ * (junit-platform.properties), and silent when the check is off ({@code -Dapi.contract=false}), as nothing records.
  */
 public class ApiContractExtension implements BeforeEachCallback, AfterTestExecutionCallback {
 

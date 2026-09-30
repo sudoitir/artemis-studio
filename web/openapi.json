@@ -23305,7 +23305,7 @@
             "format" : "date-time"
           },
           "finishedAt" : {
-            "type" : "string",
+            "type" : [ "string", "null" ],
             "format" : "date-time"
           },
           "rewrapped" : {
@@ -23317,7 +23317,7 @@
             "format" : "int64"
           },
           "error" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "fromVersion", "id", "remaining", "rewrapped", "startedAt", "startedBy", "status", "toVersion" ]
@@ -26696,7 +26696,11 @@
             }
           },
           "lastRotation" : {
-            "$ref" : "#/components/schemas/RotationView"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/RotationView"
+            }, {
+              "type" : "null"
+            } ]
           }
         },
         "required" : [ "availableVersions", "countsByVersion", "currentVersion", "missingVersions", "provider" ]

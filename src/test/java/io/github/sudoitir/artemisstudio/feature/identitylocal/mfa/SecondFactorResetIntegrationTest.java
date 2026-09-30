@@ -89,7 +89,7 @@ class SecondFactorResetIntegrationTest extends AccountIntegrationTest {
         newAdministrator("rs-list-admin");
         Browser admin = signedIn("rs-list-admin");
 
-        var users = admin.send("GET", "/api/v1/users", null).body();
+        var users = admin.send("GET", "/api/v1/users?size=500", null).body();
 
         assertThat((List<String>) JsonPath.read(users, "$.data[?(@.username == 'rs-list-enrolled')].secondFactors[*]"))
                 .containsExactly("TOTP");

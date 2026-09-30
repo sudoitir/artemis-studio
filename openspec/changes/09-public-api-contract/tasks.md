@@ -32,7 +32,7 @@
 
 ## 6. Contract tests (D6)
 - [x] 6.1 Pick the OpenAPI 3.1 validator (ctx7); test-scope `MockMvcBuilderCustomizer` validates every `/api/v1` JSON response against `web/openapi.json` with undocumented properties rejected
-- [ ] 6.2 Fix every drift it surfaces (document or remove the field)
+- [x] 6.2 Fix every drift it surfaces (document or remove the field)
 - [x] 6.3 Negative test: an extra field fails validation
 
 ## 7. Break detection (D1)
