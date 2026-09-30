@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Group, Loader, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
 import { useResetSetting, useSettings, useUpdateSetting } from './api.ts';
@@ -60,6 +60,34 @@ export function OperationalConfig() {
             if (!current) return null;
             const value = draft[key] ?? '';
             const dirty = value !== current.value;
+            const save = (next: string) =>
+              update.mutate(
+                { key, value: next },
+                {
+                  onSuccess: () => notifications.show({ message: `${current.label} saved` }),
+                  onError: (err) => notifications.show({ color: 'red', message: err.message }),
+                },
+              );
+            if (current.kind === 'BOOLEAN') {
+              // A switch saves as it is flipped: there is no half-typed value to hold back.
+              return (
+                <Group key={key} align="flex-start" gap="xs">
+                  <Switch
+                    label={current.label}
+                    description={current.hint}
+                    checked={current.value === 'true'}
+                    disabled={update.isPending}
+                    onChange={(e) => save(String(e.currentTarget.checked))}
+                    size="sm"
+                  />
+                  {current.overridden ? (
+                    <Button size="xs" variant="subtle" onClick={() => reset.mutate(key)}>
+                      Reset
+                    </Button>
+                  ) : null}
+                </Group>
+              );
+            }
             return (
               <div key={key}>
                 <Group align="flex-end" gap="xs">
@@ -75,20 +103,7 @@ export function OperationalConfig() {
                     w={300}
                     size="xs"
                   />
-                  <Button
-                    size="xs"
-                    disabled={!dirty}
-                    loading={update.isPending}
-                    onClick={() =>
-                      update.mutate(
-                        { key, value },
-                        {
-                          onSuccess: () => notifications.show({ message: `${current.label} saved` }),
-                          onError: (err) => notifications.show({ color: 'red', message: err.message }),
-                        },
-                      )
-                    }
-                  >
+                  <Button size="xs" disabled={!dirty} loading={update.isPending} onClick={() => save(value)}>
                     Save
                   </Button>
                   {current.overridden ? (

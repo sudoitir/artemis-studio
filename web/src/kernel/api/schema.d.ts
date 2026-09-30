@@ -292,7 +292,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/settings/secrets/rotations": {
+    "/api/v1/tokens/{tokenId}/rotate": {
         parameters: {
             query?: never;
             header?: never;
@@ -302,6 +302,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/secrets/rotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rotate_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1348,6 +1364,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tokens/{tokenId}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tokens/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["policy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/time": {
         parameters: {
             query?: never;
@@ -1436,6 +1484,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1851,7 +1915,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2187,7 +2251,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2324,6 +2388,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_12"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tokens/{tokenId}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["usage_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plugins": {
         parameters: {
             query?: never;
@@ -2331,7 +2427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2463,6 +2559,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["deleteAddress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tokens/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2995,8 +3107,10 @@ export interface components {
         CreateTokenRequest: {
             name: string;
             /** Format: date-time */
-            expiresAt?: string | null;
+            expiresAt: string;
             grants: components["schemas"]["TokenGrantRequest"][];
+            /** @description MCP tools the token may call; empty or absent means every tool */
+            mcpTools?: string[] | null;
         };
         TokenGrantRequest: {
             action: string;
@@ -3008,19 +3122,31 @@ export interface components {
             token: components["schemas"]["TokenView"];
             value: string;
         };
+        TokenGrantView: {
+            action: string;
+            scopeType: string;
+            /** Format: uuid */
+            scopeId: string;
+        };
         TokenView: {
             /** Format: uuid */
             id: string;
             name: string;
+            owner: string;
             prefix: string;
             /** Format: date-time */
-            expiresAt?: string | null;
+            expiresAt: string;
             /** Format: date-time */
             lastUsedAt?: string | null;
             /** Format: date-time */
             revokedAt?: string | null;
             /** Format: date-time */
             createdAt: string;
+            /** Format: date-time */
+            previousValidUntil?: string | null;
+            grants: components["schemas"]["TokenGrantView"][];
+            mcpTools: string[];
+            stale: boolean;
         };
         RotationView: {
             /** Format: uuid */
@@ -4152,6 +4278,39 @@ export interface components {
             effective: boolean;
             reason?: string | null;
         };
+        UsageDayView: {
+            /** Format: date */
+            day: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            denied: number;
+            /** Format: int64 */
+            limited: number;
+            /** Format: int64 */
+            errors: number;
+        };
+        UsageView: {
+            /** Format: int32 */
+            days: number;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            denied: number;
+            /** Format: int64 */
+            limited: number;
+            /** Format: int64 */
+            errors: number;
+            perDay: components["schemas"]["UsageDayView"][];
+        };
+        TokenPolicyView: {
+            /** @description ISO-8601 duration */
+            maxLifetime: string;
+            /** Format: date-time */
+            latestExpiry: string;
+            /** @description ISO-8601 duration */
+            rotationOverlap: string;
+        };
         TimeView: {
             /** Format: int64 */
             nowMs: number;
@@ -4223,6 +4382,12 @@ export interface components {
             featureId: string;
             featureTitle: string;
             globalOnly: boolean;
+        };
+        McpToolView: {
+            name: string;
+            /** @enum {string} */
+            posture: "READ" | "MUTATE";
+            summary: string;
         };
         ManifestFeatureView: {
             id: string;
@@ -6287,6 +6452,28 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreatedTokenView"];
+                };
+            };
+        };
+    };
+    rotate_1: {
+        parameters: {
+            query?: never;
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -8323,6 +8510,50 @@ export interface operations {
             };
         };
     };
+    usage: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UsageView"];
+                };
+            };
+        };
+    };
+    policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TokenPolicyView"];
+                };
+            };
+        };
+    };
     now: {
         parameters: {
             query?: never;
@@ -8444,6 +8675,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PermissionView"][];
+                };
+            };
+        };
+    };
+    list_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["McpToolView"][];
                 };
             };
         };
@@ -9057,7 +9308,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: {
                 type?: string;
@@ -9550,7 +9801,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: {
                 user?: string;
@@ -9757,7 +10008,51 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TokenView"][];
+                };
+            };
+        };
+    };
+    usage_1: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UsageView"];
+                };
+            };
+        };
+    };
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -9975,6 +10270,26 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
+            };
+        };
+    };
+    revoke_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

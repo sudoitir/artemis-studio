@@ -4,6 +4,7 @@
 @ApplicationModule(
         displayName = "MCP server",
         allowedDependencies = {
+            "kernel.audit",
             "kernel.core",
             "kernel.plugin",
             "kernel.plugin :: descriptor",

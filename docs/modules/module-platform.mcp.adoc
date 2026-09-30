@@ -3,7 +3,11 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.platform.mcp`
 |Spring components
-|_Configuration properties_
+|_Controllers_
+
+* `i.g.s.a.p.m.McpToolsController`
+
+_Configuration properties_
 
 * `i.g.s.a.p.m.McpProperties`
 
@@ -12,10 +16,12 @@ _Others_
 * `i.g.s.a.p.m.McpCatalogResources`
 * `i.g.s.a.p.m.McpHelpTool`
 * `i.g.s.a.p.m.McpRunbookPrompts`
-* `i.g.s.a.p.m.McpServerInstructions`
+* `i.g.s.a.p.m.McpSettings`
 * `i.g.s.a.p.m.SettingsMcpTools`
 |Bean references
 |* `i.g.s.a.p.c.ClusterService` (in Clusters)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.p.PluginRuntimeStatus` (in Plugin contract)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)

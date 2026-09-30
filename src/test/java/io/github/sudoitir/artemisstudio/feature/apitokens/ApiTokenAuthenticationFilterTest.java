@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -37,6 +38,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
 
     @Autowired
     ApiTokenService apiTokenService;
+
+    @Autowired
+    JdbcClient jdbc;
 
     @Autowired
     AppUserRepository users;
@@ -71,8 +75,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
 
         mvc().perform(get("/api/v1/clusters").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isOk());
@@ -85,8 +90,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
 
         // The token was minted with only cluster:read, so even reading environments
         // (which needs environment:read) is forbidden — narrowing is per-permission,
@@ -108,8 +114,12 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                Instant.now().minusSeconds(60),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
+        jdbc.sql("UPDATE api_token SET expires_at = now() - interval '1 minute' WHERE id = ?")
+                .param(minted.entity().getId())
+                .update();
 
         mvc().perform(get("/api/v1/clusters").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isUnauthorized());
@@ -122,8 +132,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
         apiTokenService.revoke(user.getId(), minted.entity().getId());
 
         mvc().perform(get("/api/v1/clusters").header("Authorization", "Bearer " + minted.plaintext()))
@@ -137,8 +148,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
         String prefix = minted.plaintext().substring(0, minted.plaintext().indexOf('_', 3));
         String tampered = prefix + "_" + "x".repeat(43);
 
@@ -153,8 +165,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("environment:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("environment:read"))),
+                List.of());
 
         mvc().perform(get("/api/v1/environments").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isOk());
@@ -173,8 +186,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
 
         user.setDisabled(true);
         users.save(user);
@@ -231,8 +245,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         var minted = apiTokenService.mint(
                 user.getId(),
                 "ci-name",
-                null,
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))));
+                Instant.now().plusSeconds(3600),
+                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of());
 
         String body = mvc().perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isOk())

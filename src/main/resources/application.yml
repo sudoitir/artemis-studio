@@ -83,8 +83,8 @@ spring:
           # Declaring a capability we do not implement is worse than not having it.
           # There is no @McpComplete anywhere in the surface.
           completion: false
-        # The instructions block is NOT written here. It is generated from
-        # McpToolCatalog by McpServerInstructions (ADR-0054) — the hand-written one
+        # The instructions block is NOT written here. McpGate generates it per caller
+        # from McpToolCatalog (ADR-0054, ADR-0137) — the hand-written one
         # that used to live here had already drifted, omitting two tools, which told
         # a tool-searching host that two capabilities did not exist.
 

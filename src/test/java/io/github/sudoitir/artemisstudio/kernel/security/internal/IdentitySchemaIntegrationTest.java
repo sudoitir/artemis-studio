@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Rol
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.EnvironmentEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.EnvironmentRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -80,10 +81,15 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
     @Test
     void anApiTokenRoundTrips() {
         AppUserEntity owner = users.save(AppUserEntity.local("token-owner-" + UUID.randomUUID(), null, "{noop}x"));
-        ApiTokenEntity token =
-                tokens.save(new ApiTokenEntity(owner.getId(), "ci", "as_abcdefghijk", new byte[32], null));
+        ApiTokenEntity token = tokens.save(new ApiTokenEntity(
+                owner.getId(),
+                "ci",
+                "as_abcdefghijk",
+                new byte[32],
+                Instant.now().plusSeconds(60),
+                List.of()));
         assertThat(tokens.findByPrefix("as_abcdefghijk")).isPresent();
-        assertThat(token.isActive(Instant.now())).isTrue();
+        assertThat(token.isActive(Instant.now(), Duration.ofDays(90))).isTrue();
 
         tokens.delete(token);
         users.delete(owner);

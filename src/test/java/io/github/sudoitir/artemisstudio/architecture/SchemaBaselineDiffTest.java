@@ -76,7 +76,12 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "lifecycle_purge",
                     "storage_sample",
                     // Installation-scoped alert rules (ADR-0135, changeset feature-alerting 0005).
-                    "CREATE TABLE alert_firing ")
+                    "CREATE TABLE alert_firing ",
+                    // Token rotation, the lifetime cap, MCP allow-lists and usage (ADR-0136, changeset
+                    // feature-apitokens 0002).
+                    "CREATE TABLE api_token ",
+                    "uq_api_token_previous_prefix",
+                    "api_token_usage")
             .map(Pattern::compile)
             .toList();
 

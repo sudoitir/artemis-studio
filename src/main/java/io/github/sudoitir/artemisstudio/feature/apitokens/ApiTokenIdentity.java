@@ -32,6 +32,6 @@ class ApiTokenIdentity implements IdentityProviders, BearerIdentityProvider {
 
     @Override
     public Optional<StudioPrincipal> authenticate(String token) {
-        return Optional.ofNullable(tokens.authenticate(token));
+        return Optional.<StudioPrincipal>ofNullable(tokens.authenticate(token));
     }
 }

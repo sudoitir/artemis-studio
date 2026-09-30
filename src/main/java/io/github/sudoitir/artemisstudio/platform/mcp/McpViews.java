@@ -97,8 +97,13 @@ public final class McpViews {
     /** One grant the calling key holds, as {@code studio://permissions} lists it. */
     public record GrantEntry(String scope, UUID scopeId, List<String> permissions) {}
 
-    /** {@code studio://permissions} — what <em>this key</em> can do, not what the product supports. */
-    public record TokenPermissions(String user, String tokenName, List<GrantEntry> grants) {}
+    /**
+     * {@code studio://permissions} — what <em>this key</em> can do, not what the product supports.
+     * {@code mcpTools} is the token's tool allow-list, empty when it may call every tool its grants
+     * permit; {@code readOnly} says the installation refuses every mutating tool (ADR-0137).
+     */
+    public record TokenPermissions(
+            String user, String tokenName, List<GrantEntry> grants, List<String> mcpTools, boolean readOnly) {}
 
     /** One capability a cluster's connection either has or does not, with the remedy when it does not. */
     public record CapabilityEntry(String capability, String status, String reason, String brokerXmlSnippet) {}
