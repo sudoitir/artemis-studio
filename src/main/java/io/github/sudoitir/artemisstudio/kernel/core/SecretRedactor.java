@@ -42,7 +42,9 @@ public final class SecretRedactor {
             Pattern.compile("(?i)((?<![a-z0-9+.-])[a-z][a-z0-9+.-]{0,31}+://)[^\\s/?#]{1,256}@");
 
     private static final Pattern PEM_PRIVATE_KEY = Pattern.compile(
-            "(?s)-----BEGIN [A-Z ]{0,32}PRIVATE KEY-----.*?(?:-----END [A-Z ]{0,32}PRIVATE KEY-----|\\z)");
+            // Possessive body up to the END marker (or the end of the text), so repeated BEGIN markers stay linear.
+            "-----BEGIN [A-Z ]{0,32}PRIVATE KEY-----(?:[^-]++|-(?!----END ))*+"
+                    + "(?:-----END [A-Z ]{0,32}PRIVATE KEY-----)?");
 
     /** {@code as_<11-char prefix>_<43-char secret>}, the format {@code ApiTokenService} issues. */
     private static final Pattern API_TOKEN = Pattern.compile("(?<![A-Za-z0-9])as_[A-Za-z0-9_-]{11}_[A-Za-z0-9_-]{43}");

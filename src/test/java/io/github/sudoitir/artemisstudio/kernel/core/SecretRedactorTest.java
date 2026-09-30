@@ -86,7 +86,19 @@ class SecretRedactorTest {
 
     /** Adversarial 50 KB inputs; the unbounded patterns took seconds to minutes on these. */
     @ParameterizedTest
-    @ValueSource(strings = {"A", "token", "a.", "Zm9vYmFy", "password=\"", "://", "-----BEGIN ", "Bearer  ", "Basic "})
+    @ValueSource(
+            strings = {
+                "A",
+                "token",
+                "a.",
+                "Zm9vYmFy",
+                "password=\"",
+                "://",
+                "-----BEGIN ",
+                "-----BEGIN PRIVATE KEY-----",
+                "Bearer  ",
+                "Basic "
+            })
     void redactsAdversarialInputInLinearTime(String unit) {
         String input = unit.repeat(50_000 / unit.length());
 
