@@ -47,6 +47,16 @@ async function call(api: APIRequestContext, method: string, path: string, body?:
   return { status: response.status(), body: text ? JSON.parse(text) : undefined };
 }
 
+/** Every row of one of Studio's lists: the envelope's `data`, at the largest page, which these few rows fit. */
+async function list<T>(api: APIRequestContext, path: string): Promise<T[]> {
+  const page = (await expectStatus(await call(api, 'GET', `${path}?size=500`), 200, `list ${path}`)) as {
+    data: T[];
+    hasNext: boolean;
+  };
+  if (page.hasNext) throw new Error(`${path} has more than one page`);
+  return page.data;
+}
+
 async function expectStatus(result: { status: number; body: unknown }, want: number, what: string) {
   if (result.status !== want)
     throw new Error(`${what}: expected ${want}, got ${result.status} ${JSON.stringify(result.body)}`);
@@ -211,7 +221,7 @@ async function main() {
   await editor.getByRole('checkbox', { name: 'Select all in Notes' }).check();
   await editor.getByRole('button', { name: 'Save' }).click();
   await editor.waitFor({ state: 'hidden' });
-  const roles = (await call(api, 'GET', '/roles')).body as { id: string; name: string; permissions: string[] }[];
+  const roles = await list<{ id: string; name: string; permissions: string[] }>(api, '/roles');
   const role = roles.find((r) => r.name === roleName);
   if (!role || [...role.permissions].sort().join() !== `${ID}:read,${ID}:write`) {
     throw new Error(`role saved with ${JSON.stringify(role?.permissions)}`);
@@ -239,12 +249,10 @@ async function main() {
   if (gone.status !== 404) throw new Error(`disabled plugin answered ${gone.status}`);
 
   step('disabled: its permissions leave the catalogue and the role keeps them');
-  const catalogue = (await call(api, 'GET', '/permissions')).body as { action: string }[];
+  const catalogue = await list<{ action: string }>(api, '/permissions');
   if (catalogue.some((p) => p.action.startsWith(`${ID}:`)))
     throw new Error('a disabled plugin is still in the catalogue');
-  const kept2 = ((await call(api, 'GET', '/roles')).body as { id: string; permissions: string[] }[]).find(
-    (r) => r.id === role.id,
-  );
+  const kept2 = (await list<{ id: string; permissions: string[] }>(api, '/roles')).find((r) => r.id === role.id);
   if (kept2?.permissions.length !== 2) throw new Error(`the role lost its permissions: ${JSON.stringify(kept2)}`);
   await expectStatus(await call(api, 'DELETE', `/roles/${role.id}`), 204, 'delete role');
 
