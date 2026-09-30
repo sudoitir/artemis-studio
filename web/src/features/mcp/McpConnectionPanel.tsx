@@ -38,7 +38,13 @@ export function McpConnectionPanel() {
       </Text>
 
       <Group align="flex-end">
-        <TextInput label="Endpoint" value={endpoint} readOnly ff="monospace" style={{ flex: 1 }} />
+        <TextInput
+          label="Endpoint"
+          value={endpoint}
+          readOnly
+          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
+          style={{ flex: 1 }}
+        />
         <CopyButton value={endpoint}>
           {({ copy }) => (
             <ActionIcon size="lg" variant="default" onClick={copy} aria-label="Copy endpoint">

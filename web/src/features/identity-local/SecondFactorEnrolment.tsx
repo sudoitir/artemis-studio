@@ -299,7 +299,8 @@ function PasskeySetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => void }
             }}
             error={fieldError}
             maxLength={100}
-            w={320}
+            w="100%"
+            maw={420}
           />
           <Button type="submit" leftSection={<IconKey size={16} aria-hidden />} loading={asking}>
             Create passkey

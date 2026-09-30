@@ -26,6 +26,15 @@ html:root[data-mantine-color-scheme='light'] {
   --mantine-color-red-filled-hover: color-mix(in srgb, var(--as-danger) 88%, black);
 }
 
+/* Mantine draws a field's error, red text and a red alert's words in red-7/red-8 steps that measure 3.3-3.4:1 on
+   the card and the page ("Use at least 12 characters." in both schemes). --as-danger is the red already measured
+   for text in each scheme (5.46:1 on white in light, 4.7:1 on the dark card). */
+html:root[data-mantine-color-scheme] {
+  --mantine-color-error: var(--as-danger);
+  --mantine-color-red-text: var(--as-danger);
+  --mantine-color-red-light-color: var(--as-danger);
+}
+
 /* A filled button's label is white by default: on pine-5 that is 3.15:1 (and on red-5 2.8:1), under the AA 4.5:1
    floor. Black measures 6.7:1 and 7.6:1. Mantine sets the label as an inline variable, hence !important. */
 :root[data-mantine-color-scheme='dark'] .mantine-Button-root:is(:not([data-variant]), [data-variant='filled']) {

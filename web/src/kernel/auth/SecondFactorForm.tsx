@@ -228,7 +228,7 @@ export function SecondFactorForm({
                 autoCapitalize="characters"
                 spellCheck={false}
                 autoFocus={!canUsePasskey}
-                ff="monospace"
+                styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
               />
             )}
 
