@@ -411,3 +411,279 @@ describe('Administration → Plugins', () => {
     expect(screen.getByText('Drop to inspect. Nothing is installed until you confirm.')).toBeInTheDocument();
   });
 });
+
+function listing(plugins: PluginView[], overrides: Partial<PluginsView> = {}) {
+  server.use(
+    me(),
+    http.get('*/api/v1/admin/plugins', () => HttpResponse.json(inventory(plugins, overrides))),
+  );
+}
+
+describe('Administration → Plugins inventory', () => {
+  it("shows a plugin's icon, and falls back to a monogram when the icon cannot be loaded", async () => {
+    listing([plugin({ iconUrl: '/icons/acme-notes.svg' })]);
+    const { container } = renderPanel();
+
+    await screen.findByRole('row', { name: /Notes/ });
+    const icon = container.ownerDocument.querySelector('img[src="/icons/acme-notes.svg"]') as HTMLImageElement;
+    expect(icon).not.toBeNull();
+    expect(screen.queryByText('NO')).toBeNull();
+
+    fireEvent.error(icon);
+    expect(await screen.findByText('NO')).toBeInTheDocument();
+    expect(container.ownerDocument.querySelector('img[src="/icons/acme-notes.svg"]')).toBeNull();
+  });
+
+  it('shows a plugin with no icon as a monogram, with its vendor and what it adds', async () => {
+    listing([plugin()]);
+    renderPanel();
+
+    const row = await screen.findByRole('row', { name: /Notes/ });
+    expect(row).toHaveTextContent('NO');
+    expect(row).toHaveTextContent('Acme');
+    expect(row).toHaveTextContent('1.0.0');
+    expect(row).toHaveTextContent('Active');
+    expect(row).toHaveTextContent('screens · 1 assistant tool · 1 permission');
+    // Nothing is wrong, so there is no fix button and no attention summary.
+    expect(within(row).queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(
+      screen.getByText(/Database connections: 13 in use of 80 allowed \(100 maximum; each active plugin uses 3\)/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the step an activating plugin is on', async () => {
+    listing([plugin({ status: 'activating', progress: 'migrating' })]);
+    renderPanel();
+    expect(await screen.findByRole('row', { name: /Activating · migrating/ })).toBeInTheDocument();
+  });
+
+  it('names what needs a restart: waiting plugins, ones that did not stop, and versions still in memory', async () => {
+    listing(
+      [
+        plugin({ id: 'acme-notes', status: 'needs_restart' }),
+        plugin({ id: 'acme-wiki', stuck: true, info: { ...INFO, title: 'Wiki' } }),
+      ],
+      {
+        restart: {
+          ...inventory([]).restart,
+          needed: true,
+          unreleased: ['acme-notes 1.0.0', 'acme-notes 1.0.1', 'gone-plugin 2.0.0'],
+        },
+      },
+    );
+    renderPanel();
+
+    const alert = await screen.findByText(/Notes starts after a restart\./);
+    expect(alert).toHaveTextContent('Wiki did not stop cleanly.');
+    expect(alert).toHaveTextContent(
+      'Stopped versions of Notes (1.0.0, 1.0.1) are still in memory; a restart frees it.',
+    );
+    // A plugin no longer listed is named by its id.
+    expect(alert).toHaveTextContent('Stopped versions of gone-plugin (2.0.0) are still in memory');
+    // A stuck plugin says so in its own row, and both count as needing attention.
+    expect(screen.getByRole('row', { name: /Wiki/ })).toHaveTextContent('Did not stop cleanly');
+    expect(screen.getByRole('status')).toHaveTextContent('2 plugins need attention');
+  });
+
+  it('labels each fix by what is wrong and opens the plugin from the row or from its fix', async () => {
+    listing([
+      plugin({ id: 'a-failed', status: 'failed', failure: 'boom', info: { ...INFO, title: 'Alpha' } }),
+      plugin({ id: 'b-old', status: 'incompatible', info: { ...INFO, title: 'Bravo' } }),
+      plugin({ id: 'c-wait', status: 'needs_restart', info: { ...INFO, title: 'Charlie' } }),
+    ]);
+    const user = userEvent.setup();
+    renderPanel();
+
+    expect(await screen.findByRole('button', { name: 'See why' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Update…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Details' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'See why' }));
+    expect(await screen.findByRole('dialog', { name: 'Alpha 1.0.0' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Alpha 1.0.0' })).toBeNull());
+
+    await user.click(screen.getByRole('row', { name: /Bravo/ }));
+    expect(await screen.findByRole('dialog', { name: 'Bravo 1.0.0' })).toBeInTheDocument();
+  });
+
+  it('opens the plugin a link names', async () => {
+    listing([plugin()]);
+    server.use(http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])));
+    renderPanel('/admin?tab=plugins&plugin=acme-notes');
+    expect(await screen.findByRole('dialog', { name: 'Notes 1.0.0' })).toBeInTheDocument();
+  });
+
+  it('resumes an upload a link names at its confirmation, and forgets the upload when closed', async () => {
+    listing([]);
+    let discarded = false;
+    server.use(
+      http.get('*/api/v1/admin/plugins/uploads/abc123', () => HttpResponse.json(PLAN)),
+      http.delete('*/api/v1/admin/plugins/uploads/abc123', () => {
+        discarded = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel('/admin?tab=plugins&upload=abc123');
+    const dialog = await screen.findByRole('dialog', { name: 'Install Notes 1.0.0 (1 database change)' });
+    expect(within(dialog).getByLabelText('Type "acme-notes" to confirm')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(discarded).toBe(true);
+  });
+
+  it('explains safe mode, with the reason when there is one', async () => {
+    listing([], { safeMode: true, safeModeReason: 'A plugin crashed the last start.' });
+    const first = renderPanel();
+    const alert = await screen.findByText('Safe mode: no plugin is running');
+    expect(alert.closest('[role="alert"]')).toHaveTextContent('A plugin crashed the last start.');
+    first.unmount();
+
+    listing([], { safeMode: true, safeModeReason: null });
+    renderPanel();
+    expect(await screen.findByText(/Studio started without plugins\./)).toBeInTheDocument();
+  });
+
+  it('lists who can install for an installer', async () => {
+    listing([]);
+    server.use(
+      http.get('*/api/v1/admin/plugins/installers', () =>
+        HttpResponse.json([{ userId: 'u1', username: 'ops', grantedAt: NOW, grantedBy: null }]),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole('button', { name: 'Who can install' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Who can install plugins' });
+    expect(await within(dialog).findByText('ops')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Who can install plugins' })).toBeNull());
+  });
+});
+
+describe('Administration → Plugins updates', () => {
+  it('says when no plugin names an update URL, and when every one is up to date', async () => {
+    listing([plugin()]);
+    let answer: unknown[] = [];
+    server.use(http.post('*/api/v1/admin/plugins/check-updates', () => HttpResponse.json(answer)));
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole('button', { name: 'Check for updates' }));
+    expect(await screen.findByText('No installed plugin names an update URL to check.')).toBeInTheDocument();
+
+    answer = [{ id: 'acme-notes', currentVersion: '1.0.0', availableVersion: null, error: null }];
+    await user.click(screen.getByRole('button', { name: 'Check for updates' }));
+    expect(await screen.findByText('Every plugin with an update URL is up to date.')).toBeInTheDocument();
+  });
+
+  it('offers an available update beside the version, and names a plugin that could not be checked', async () => {
+    listing([plugin(), plugin({ id: 'acme-wiki', info: { ...INFO, title: 'Wiki' } })]);
+    server.use(
+      http.post('*/api/v1/admin/plugins/check-updates', () =>
+        HttpResponse.json([
+          { id: 'acme-notes', currentVersion: '1.0.0', availableVersion: '1.1.0', error: null },
+          { id: 'acme-wiki', currentVersion: '1.0.0', availableVersion: null, error: 'timed out' },
+        ]),
+      ),
+      http.post('*/api/v1/admin/plugins/acme-notes/download-update', () =>
+        HttpResponse.json({
+          sha256: 'b'.repeat(64),
+          plan: { ...PLAN, fromVersion: '1.0.0', toVersion: '1.1.0' },
+          warnings: [],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole('button', { name: 'Check for updates' }));
+    expect(
+      await screen.findByText(/1 update\(s\) available\. acme-wiki: could not check \(timed out\)\./),
+    ).toBeInTheDocument();
+    const notes = screen.getByRole('row', { name: /Notes/ });
+    await user.click(within(notes).getByRole('button', { name: '1.1.0 available' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('keeps update checks disabled when installing is not allowed', async () => {
+    listing([plugin()], { canInstall: false });
+    renderPanel();
+    expect(await screen.findByRole('button', { name: 'Check for updates' })).toBeDisabled();
+  });
+});
+
+describe('Administration → Plugins drop', () => {
+  const jar = () => new File(['PK'], 'acme-notes-1.0.0.jar', { type: 'application/java-archive' });
+  const dropOf = (files: File[]) => ({ dataTransfer: { files } });
+
+  it('takes a dropped jar into review, and removes the overlay when the drag leaves', async () => {
+    listing([]);
+    server.use(
+      http.put('*/api/v1/admin/plugins/upload', () =>
+        HttpResponse.json({ sha256: 'b'.repeat(64), plan: PLAN, warnings: [] }, { status: 201 }),
+      ),
+    );
+    renderPanel();
+    const empty = await screen.findByText('No plugins yet');
+    const zone = empty.closest('div[class*="drop"]') ?? empty.parentElement!.parentElement!;
+
+    fireEvent.dragOver(zone);
+    expect(screen.getByText('Drop to inspect. Nothing is installed until you confirm.')).toBeInTheDocument();
+    fireEvent.dragLeave(zone);
+    expect(screen.queryByText('Drop to inspect. Nothing is installed until you confirm.')).toBeNull();
+
+    fireEvent.dragOver(zone);
+    fireEvent.drop(zone, dropOf([new File(['x'], 'readme.txt'), jar()]));
+    expect(screen.queryByText('Drop to inspect. Nothing is installed until you confirm.')).toBeNull();
+    expect(await screen.findByText(/Give the assistant 1 read-only tool/)).toBeInTheDocument();
+  });
+
+  it('ignores a drop with no jar in it', async () => {
+    listing([]);
+    renderPanel();
+    const empty = await screen.findByText('No plugins yet');
+    const zone = empty.parentElement!.parentElement!;
+
+    fireEvent.drop(zone, dropOf([new File(['x'], 'readme.txt')]));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('accepts no drop from someone who cannot install', async () => {
+    listing([], { canInstall: false });
+    renderPanel();
+    const empty = await screen.findByText('No plugins yet');
+    const zone = empty.parentElement!.parentElement!;
+
+    fireEvent.dragOver(zone);
+    expect(screen.queryByText('Drop to inspect. Nothing is installed until you confirm.')).toBeNull();
+    fireEvent.drop(zone, dropOf([jar()]));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('Administration → Plugins loading and failure', () => {
+  it('shows a loader while the inventory is on its way', async () => {
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () => new Promise(() => {})),
+    );
+    const { container } = renderPanel();
+    await waitFor(() => expect(container.ownerDocument.querySelector('.mantine-Loader-root')).not.toBeNull());
+    expect(screen.queryByText('No plugins yet')).toBeNull();
+  });
+
+  it('says listing needs user:admin when it is refused', async () => {
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () => HttpResponse.json({ title: 'Forbidden' }, { status: 403 })),
+    );
+    renderPanel();
+    expect(await screen.findByText('Plugins could not be listed')).toBeInTheDocument();
+    expect(screen.getByText('Listing plugins needs the user:admin permission.')).toBeInTheDocument();
+  });
+});

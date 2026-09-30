@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { notifications } from '@mantine/notifications';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -294,5 +295,469 @@ describe('IndexSubscriptions', () => {
     expect(await screen.findByText(/Must be between 100 and 1,000,000/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Preview capture/i })).toBeDisabled();
     expect(screen.getByText(/Correct the highlighted fields first/)).toBeInTheDocument();
+  });
+});
+
+function grants(permissions: string[]) {
+  server.use(
+    http.get('*/api/v1/auth/me', () =>
+      HttpResponse.json({
+        username: 'op',
+        displayName: 'Op',
+        provider: 'LOCAL',
+        mustChangePassword: false,
+        grants: [{ scopeType: 'GLOBAL', scopeId: null, roleName: 'r', permissions }],
+      }),
+    ),
+  );
+}
+
+function listing(rows: unknown[]) {
+  server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(rows)));
+}
+
+const node = (over: Record<string, unknown>) => ({
+  nodeId: 'n1',
+  nodeName: 'primary',
+  state: 'ACTIVE',
+  detail: null,
+  capturedFrom: '2026-09-07T09:00:00Z',
+  droppedEstimate: 0,
+  ...over,
+});
+
+describe('IndexSubscriptions loading and failure', () => {
+  it('says why the subscriptions could not be listed', async () => {
+    mockMe();
+    server.use(
+      http.get('*/api/v1/clusters/c1/sql/index', () =>
+        HttpResponse.json({ title: 'Forbidden', detail: 'You may not see this cluster.' }, { status: 403 }),
+      ),
+    );
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText('Forbidden')).toBeInTheDocument();
+    expect(screen.getByText('You may not see this cluster.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Queue or pattern')).toBeNull();
+  });
+
+  it('shows nothing of the form while the subscriptions are on their way', () => {
+    mockMe();
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => new Promise(() => {})));
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(screen.queryByLabelText('Queue or pattern')).toBeNull();
+    expect(screen.queryByText(/Nothing is being indexed/)).toBeNull();
+  });
+});
+
+describe('IndexSubscriptions rows', () => {
+  it('states each capture node in words: degraded and losing messages, not reached, and why', async () => {
+    mockMe();
+    listing([
+      subscription({
+        mode: 'CAPTURE',
+        maxBytes: 1024 * 1024 * 1024,
+        nodes: [
+          node({ nodeName: 'a', state: 'DEGRADED', droppedEstimate: 1200, detail: 'ring full' }),
+          node({ nodeId: 'n2', nodeName: null, state: 'PENDING' }),
+        ],
+      }),
+    ]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(
+      await screen.findByText('a: capturing, losing messages · about 1,200 missed — ring full'),
+    ).toBeInTheDocument();
+    // A node with no name is named by its id, and a state the screen has no words for is "not reached yet".
+    expect(screen.getByText('n2: not reached yet')).toBeInTheDocument();
+    expect(screen.getByText(/of 1\.0 GB allowed/)).toBeInTheDocument();
+  });
+
+  it('says how many were missed cannot be known when a filter narrows the capture', async () => {
+    mockMe();
+    listing([
+      subscription({
+        mode: 'CAPTURE',
+        filterString: "tenant = 'acme'",
+        nodes: [node({ state: 'DEGRADED', droppedEstimate: 50 })],
+      }),
+    ]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText(/how many were missed is unavailable/)).toBeInTheDocument();
+    expect(screen.queryByText(/about 50 missed/)).toBeNull();
+    expect(screen.getByText(/filter tenant = 'acme'/)).toBeInTheDocument();
+    expect(screen.getByText(/capturing since/)).toBeInTheDocument();
+  });
+
+  it('says no node has been reached yet, and offers no sampling caveat for a capture', async () => {
+    mockMe();
+    listing([subscription({ mode: 'CAPTURE', nodes: [] })]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText(/No node has been reached yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/Just sampling: a message consumed between two polls/)).toBeNull();
+  });
+
+  it('says what is not being recorded and that the backlog is still being indexed', async () => {
+    mockMe();
+    listing([subscription({ notCapturing: 'the queue does not exist on any node.', backlogInProgress: true })]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText('Recording nothing — the queue does not exist on any node.')).toBeInTheDocument();
+    expect(screen.getByText(/Still indexing the messages that were already on these queues/)).toBeInTheDocument();
+  });
+
+  it('says one day, one message and a small payload in the singular and in bytes', async () => {
+    mockMe();
+    listing([subscription({ retentionDays: 1, messagesHeld: 1, bytesHeld: 512, oldestObservedAt: null })]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText('1 message')).toBeInTheDocument();
+    expect(screen.getByText('1 day')).toBeInTheDocument();
+    expect(screen.getByText('512 B of payload')).toBeInTheDocument();
+    expect(screen.queryByText(/oldest/)).toBeNull();
+  });
+
+  it('shows a date that cannot be read as a dash, and a large payload in its own unit', async () => {
+    mockMe();
+    listing([subscription({ captureFrom: 'not a date', bytesHeld: 3 * 1024 ** 4 })]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText(/sampling since —/)).toBeInTheDocument();
+    expect(screen.getByText(/3\.0 TB of payload/)).toBeInTheDocument();
+  });
+
+  it('pauses and resumes a subscription from its switch', async () => {
+    mockMe();
+    listing([subscription({ enabled: false })]);
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch('*/api/v1/clusters/c1/sql/index/s1', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(subscription({ enabled: true }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    const toggle = await screen.findByRole('switch', { name: 'Paused' });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    await waitFor(() => expect(bodies).toEqual([{ enabled: true }]));
+  });
+
+  it('keeps the switch and delete visible but disabled without the permission the subscription needs', async () => {
+    // Sampling is settings:write; capture is its own authority, capture:write.
+    grants(['capture:write']);
+    listing([subscription(), subscription({ id: 's2', queuePattern: 'PAY.IN', mode: 'CAPTURE', nodes: [] })]);
+    renderWithProviders(<IndexSubscriptions />);
+
+    const sampled = (await screen.findByText('ORDER.IN')).closest('tr')!;
+    expect(within(sampled).getByRole('switch')).toBeDisabled();
+    expect(within(sampled).getByRole('button', { name: 'Delete' })).toBeDisabled();
+    const captured = screen.getByText('PAY.IN').closest('tr')!;
+    expect(within(captured).getByRole('switch')).toBeEnabled();
+    expect(within(captured).getByRole('button', { name: 'Delete' })).toBeEnabled();
+  });
+});
+
+describe('IndexSubscriptions deleting', () => {
+  it('deletes once the pattern is typed, and says how many captured messages were destroyed', async () => {
+    mockMe();
+    listing([subscription()]);
+    server.use(http.delete('*/api/v1/clusters/c1/sql/index/s1', () => HttpResponse.json({ messagesDestroyed: 1284 })));
+    const show = vi.spyOn(notifications, 'show').mockReturnValue('n');
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    expect(screen.queryByText(/removes the divert, the capture queue/)).toBeNull();
+    await user.type(screen.getByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
+    await user.click(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
+
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith({ message: 'Deleted ORDER.IN — 1,284 captured messages destroyed' }),
+    );
+    await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
+    show.mockRestore();
+  });
+
+  it('states that a capture leaves objects on every node, and can be cancelled', async () => {
+    mockMe();
+    listing([subscription({ mode: 'CAPTURE', nodes: [], messagesHeld: 1 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    expect(screen.getByText(/1 captured message it holds/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/removes the divert, the capture queue, the address setting and the security setting/),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
+  it('says why a delete failed and leaves the confirmation open', async () => {
+    mockMe();
+    listing([subscription()]);
+    server.use(
+      http.delete('*/api/v1/clusters/c1/sql/index/s1', () =>
+        HttpResponse.json({ title: 'Conflict', detail: 'The subscription is being reconciled.' }, { status: 409 }),
+      ),
+    );
+    const show = vi.spyOn(notifications, 'show').mockReturnValue('n');
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.type(screen.getByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
+    await user.click(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
+
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith({ color: 'red', message: 'The subscription is being reconciled.' }),
+    );
+    expect(screen.getByLabelText('Type "ORDER.IN" to confirm')).toBeInTheDocument();
+    show.mockRestore();
+  });
+});
+
+describe('IndexSubscriptions sampling form', () => {
+  it('starts sampling a pattern with the defaults, says so, and clears the form', async () => {
+    mockMe();
+    listing([]);
+    const bodies: unknown[] = [];
+    server.use(
+      http.post('*/api/v1/clusters/c1/sql/index', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(subscription());
+      }),
+    );
+    const show = vi.spyOn(notifications, 'show').mockReturnValue('n');
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    const pattern = await screen.findByLabelText('Queue or pattern');
+    await user.type(pattern, '  ORDER.IN ');
+    await user.click(screen.getByRole('button', { name: 'Start sampling' }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({
+      queuePattern: 'ORDER.IN',
+      retentionDays: 7,
+      intervalMs: 5000,
+      enabled: true,
+      mode: 'SAMPLE',
+    });
+    await waitFor(() => expect(show).toHaveBeenCalledWith({ message: 'Now sampling ORDER.IN' }));
+    await waitFor(() => expect(pattern).toHaveValue(''));
+    show.mockRestore();
+  });
+
+  it('says why a subscription was refused, beside the form', async () => {
+    mockMe();
+    listing([]);
+    server.use(
+      http.post('*/api/v1/clusters/c1/sql/index', () =>
+        HttpResponse.json({ title: 'Already indexed', detail: 'ORDER.IN is already indexed.' }, { status: 409 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
+    await user.click(screen.getByRole('button', { name: 'Start sampling' }));
+
+    const alert = (await screen.findByText('Already indexed')).closest('[role="alert"]');
+    expect(alert).toHaveTextContent('Already indexed');
+    expect(alert).toHaveTextContent('ORDER.IN is already indexed.');
+  });
+
+  it('says what stops the form, by reason: nothing entered, or no permission', async () => {
+    mockMe();
+    listing([]);
+    const first = renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByText('Enter a queue or pattern first.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start sampling' })).toBeDisabled();
+    first.unmount();
+
+    grants(['cluster:read']);
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
+    expect(await screen.findByText('Creating a subscription needs the settings write permission.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start sampling' })).toBeDisabled();
+
+    await user.click(screen.getByRole('radio', { name: /capture everything/i }));
+    expect(screen.getByText('Turning capture on needs the capture write permission.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Preview capture' })).toBeDisabled();
+  });
+
+  it('states retention in the singular and checks the day and interval bounds on blur', async () => {
+    mockMe();
+    listing([]);
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
+    const days = screen.getByLabelText('Keep for (days)');
+    await user.clear(days);
+    await user.type(days, '1');
+    expect(screen.getByText(/for 1 day, and then delete it/)).toBeInTheDocument();
+
+    await user.clear(days);
+    await user.type(days, '99');
+    await user.tab();
+    expect(await screen.findByText('Must be between 1 and 90.')).toBeInTheDocument();
+    expect(screen.getByText('Correct the highlighted fields first.')).toBeInTheDocument();
+
+    await user.clear(days);
+    await user.type(days, '30');
+    await user.tab();
+    await waitFor(() => expect(screen.queryByText('Must be between 1 and 90.')).toBeNull());
+
+    const interval = screen.getByLabelText('Read every (ms)');
+    await user.clear(interval);
+    await user.type(interval, '10');
+    await user.tab();
+    expect(await screen.findByText('Must be between 1,000 and 3,600,000.')).toBeInTheDocument();
+  });
+});
+
+describe('IndexSubscriptions capture form', () => {
+  const previewBody = {
+    addresses: ['ORDER.IN', 'ORDER.OUT'],
+    nodes: ['primary', 'backup'],
+    ringMessages: 10000,
+    ringBytes: 500,
+    brokerObjects: ['divert artemis-studio.capture.abc.ORDER.IN.s1'],
+    brokerXml: '<diverts/>',
+    refusal: null,
+  };
+
+  async function fillCapture(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.#');
+    await user.click(screen.getByRole('radio', { name: /capture everything/i }));
+    await user.type(screen.getByLabelText(/Capture filter/), " tenant = 'acme' ");
+    await user.click(screen.getByRole('button', { name: /Capture bounds/ }));
+    await user.type(screen.getByLabelText(/Ring size/), '500');
+    await user.type(screen.getByLabelText(/Stored payload limit/), '2');
+    await user.type(screen.getByLabelText(/Rate limit/), '50');
+    await user.type(screen.getByLabelText(/Body stored per message/), '4');
+  }
+
+  it('previews exactly what it will create, from the bounds given, and lets the operator edit them again', async () => {
+    mockMe();
+    listing([]);
+    const bodies: unknown[] = [];
+    server.use(
+      http.post('*/api/v1/clusters/c1/sql/index', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(previewBody);
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await fillCapture(user);
+    expect(screen.getByRole('button', { name: 'Hide capture bounds' })).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('button', { name: 'Preview capture' }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({
+      queuePattern: 'ORDER.#',
+      retentionDays: 7,
+      intervalMs: 5000,
+      enabled: true,
+      mode: 'CAPTURE',
+      filterString: "tenant = 'acme'",
+      ringSize: 500,
+      maxBytes: 2 * 1024 * 1024,
+      maxRate: 50,
+      bodyCapBytes: 4 * 1024,
+    });
+    expect(await screen.findByText('Covers 2 addresses: ORDER.IN, ORDER.OUT')).toBeInTheDocument();
+    expect(screen.getByText('Installed on 2 live nodes: primary, backup')).toBeInTheDocument();
+    expect(screen.getByText(/at most 10,000 messages or 500 B, whichever is reached first/)).toBeInTheDocument();
+    expect(screen.getByText('divert artemis-studio.capture.abc.ORDER.IN.s1')).toBeInTheDocument();
+    expect(screen.getByText('<diverts/>')).toBeInTheDocument();
+    // The form is frozen on what was previewed until the operator asks to edit it.
+    expect(screen.getByLabelText(/Capture filter/)).toHaveAttribute('readonly');
+    expect(screen.getByLabelText(/Ring size/)).toHaveAttribute('readonly');
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.queryByText(/Covers 2 addresses/)).toBeNull();
+    expect(screen.getByLabelText('Queue or pattern')).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Preview capture' })).toBeEnabled();
+  });
+
+  it('sends only the bounds that were filled, and the capture toggle back off drops them', async () => {
+    mockMe();
+    listing([]);
+    const bodies: unknown[] = [];
+    server.use(
+      http.post('*/api/v1/clusters/c1/sql/index', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ ...previewBody, addresses: ['ORDER.IN'], nodes: ['primary'], brokerXml: null });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
+    await user.click(screen.getByRole('radio', { name: /capture everything/i }));
+    await user.click(screen.getByRole('button', { name: 'Preview capture' }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({
+      queuePattern: 'ORDER.IN',
+      retentionDays: 7,
+      intervalMs: 5000,
+      enabled: true,
+      mode: 'CAPTURE',
+    });
+    expect(await screen.findByText('Covers 1 address: ORDER.IN')).toBeInTheDocument();
+    expect(screen.getByText('Installed on 1 live node: primary')).toBeInTheDocument();
+    expect(screen.queryByText('The equivalent broker.xml')).toBeNull();
+  });
+
+  it('says why a preview failed', async () => {
+    mockMe();
+    listing([]);
+    server.use(
+      http.post('*/api/v1/clusters/c1/sql/index', () =>
+        HttpResponse.json({ title: 'No live node', detail: 'No node of this cluster is live.' }, { status: 409 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
+    await user.click(screen.getByRole('radio', { name: /capture everything/i }));
+    await user.click(screen.getByRole('button', { name: 'Preview capture' }));
+
+    const alert = (await screen.findByText('No live node')).closest('[role="alert"]');
+    expect(alert).toHaveTextContent('No live node');
+    expect(alert).toHaveTextContent('No node of this cluster is live.');
+  });
+
+  it('names the queues when no pattern is typed yet, and says capture records everything up to its bounds', async () => {
+    mockMe();
+    listing([]);
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    await user.click(await screen.findByRole('radio', { name: /capture everything/i }));
+    expect(screen.getByText(/On each live node Studio will create a/)).toHaveTextContent('from these queues');
+    expect(screen.getByText(/Capture records everything the address routed, up to its bounds/)).toBeInTheDocument();
+    expect(screen.getByText(/for 7 days or until the size bound is reached/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /^sample$/i }));
+    expect(screen.getByText(/Sampling records what was seen, not everything that passed through/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Capture filter/)).toBeNull();
   });
 });
