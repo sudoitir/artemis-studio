@@ -1198,7 +1198,7 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["startTotp"];
-        delete?: never;
+        delete: operations["removeTotp"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1506,6 +1506,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["configure"];
+        trace?: never;
+    };
+    "/api/v1/users/{userId}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sessionsOf"];
+        put?: never;
+        post?: never;
+        delete: operations["endSessionsOf"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/users/{userId}/effective-permissions": {
@@ -2500,6 +2516,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ownSessions"];
+        put?: never;
+        post?: never;
+        delete: operations["endOtherOwnSessions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/providers": {
         parameters: {
             query?: never;
@@ -2523,7 +2555,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["status"];
+        get: operations["status_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2660,6 +2692,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{userId}/sessions/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["endSessionOf"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{userId}/second-factors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["resetSecondFactors"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{userId}/grants/{roleId}": {
         parameters: {
             query?: never;
@@ -2740,7 +2804,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/tokens/{tokenId}": {
+    "/api/v1/auth/sessions/{handle}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2750,7 +2814,23 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["revoke_1"];
+        delete: operations["endOwnSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/webauthn/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removePasskey"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2767,6 +2847,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["removeKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tokens/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2813,6 +2909,10 @@ export interface components {
              * @description When repeated failed sign-ins stop blocking this account; null when it is not locked.
              */
             lockedUntil?: string | null;
+            /** @description The second factors the user has set up: TOTP for an authenticator app and WEBAUTHN for passkeys. Empty when they have none. */
+            secondFactors: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[];
+            /** @description The user must hold a second factor: a local account with a role that requires one. */
+            secondFactorRequired: boolean;
             grants: components["schemas"]["GrantSummary"][];
         };
         SetDisabledRequest: {
@@ -4570,6 +4670,16 @@ export interface components {
             reportUndeclared: boolean;
             undeclaredExclusions: string[];
         };
+        AccountSessionView: {
+            handle: string;
+            /** Format: date-time */
+            signedInAt: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+            clientAddress?: string | null;
+            userAgent?: string | null;
+            current: boolean;
+        };
         EffectivePermissionView: {
             action: string;
             description?: string | null;
@@ -6088,6 +6198,10 @@ export interface components {
             /** Format: date-time */
             grantedAt: string;
             grantedBy?: string | null;
+        };
+        EndedSessionsView: {
+            /** Format: int32 */
+            ended: number;
         };
         /** @description How many captured messages the deletion destroyed. */
         DeletedView: {
@@ -8536,6 +8650,24 @@ export interface operations {
             };
         };
     };
+    removeTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     confirmTotp: {
         parameters: {
             query?: never;
@@ -9063,6 +9195,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+        };
+    };
+    sessionsOf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountSessionView"][];
+                };
+            };
+        };
+    };
+    endSessionsOf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EndedSessionsView"];
                 };
             };
         };
@@ -10527,6 +10703,46 @@ export interface operations {
             };
         };
     };
+    ownSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountSessionView"][];
+                };
+            };
+        };
+    };
+    endOtherOwnSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EndedSessionsView"];
+                };
+            };
+        };
+    };
     providers: {
         parameters: {
             query?: never;
@@ -10547,7 +10763,7 @@ export interface operations {
             };
         };
     };
-    status: {
+    status_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -10757,6 +10973,49 @@ export interface operations {
             };
         };
     };
+    endSessionOf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resetSecondFactors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
+        };
+    };
     removeGrant: {
         parameters: {
             query: {
@@ -10872,12 +11131,32 @@ export interface operations {
             };
         };
     };
-    revoke_1: {
+    endOwnSession: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                tokenId: string;
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removePasskey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
             };
             cookie?: never;
         };
@@ -10898,6 +11177,26 @@ export interface operations {
             header?: never;
             path: {
                 fingerprint: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revoke_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
             };
             cookie?: never;
         };

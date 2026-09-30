@@ -3361,6 +3361,15 @@
             }
           }
         }
+      },
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "removeTotp",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
       }
     },
     "/api/v1/auth/mfa/totp/confirm" : {
@@ -4041,6 +4050,61 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ConfigDeclarationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/sessions" : {
+      "get" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "sessionsOf",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AccountSessionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "endSessionsOf",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EndedSessionsView"
                 }
               }
             }
@@ -6284,6 +6348,43 @@
         }
       }
     },
+    "/api/v1/auth/sessions" : {
+      "get" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "ownSessions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AccountSessionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "endOtherOwnSessions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EndedSessionsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/providers" : {
       "get" : {
         "tags" : [ "auth-session-controller" ],
@@ -6308,7 +6409,7 @@
     "/api/v1/auth/mfa" : {
       "get" : {
         "tags" : [ "mfa-controller" ],
-        "operationId" : "status",
+        "operationId" : "status_1",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -6535,6 +6636,60 @@
         }
       }
     },
+    "/api/v1/users/{userId}/sessions/{handle}" : {
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "endSessionOf",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "handle",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/second-factors" : {
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "resetSecondFactors",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{userId}/grants/{roleId}" : {
       "delete" : {
         "tags" : [ "users-controller" ],
@@ -6709,17 +6864,35 @@
         }
       }
     },
-    "/api/v1/admin/tokens/{tokenId}" : {
+    "/api/v1/auth/sessions/{handle}" : {
       "delete" : {
-        "tags" : [ "admin-tokens-controller" ],
-        "operationId" : "revoke_1",
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "endOwnSession",
         "parameters" : [ {
-          "name" : "tokenId",
+          "name" : "handle",
           "in" : "path",
           "required" : true,
           "schema" : {
-            "type" : "string",
-            "format" : "uuid"
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/webauthn/{id}" : {
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "removePasskey",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {
@@ -6739,6 +6912,26 @@
           "required" : true,
           "schema" : {
             "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tokens/{tokenId}" : {
+      "delete" : {
+        "tags" : [ "admin-tokens-controller" ],
+        "operationId" : "revoke_1",
+        "parameters" : [ {
+          "name" : "tokenId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         } ],
         "responses" : {
@@ -6818,6 +7011,18 @@
             "format" : "date-time",
             "description" : "When repeated failed sign-ins stop blocking this account; null when it is not locked."
           },
+          "secondFactors" : {
+            "type" : "array",
+            "description" : "The second factors the user has set up: TOTP for an authenticator app and WEBAUTHN for passkeys. Empty when they have none.",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "TOTP", "WEBAUTHN", "RECOVERY_CODE", "TRUSTED_DEVICE" ]
+            }
+          },
+          "secondFactorRequired" : {
+            "type" : "boolean",
+            "description" : "The user must hold a second factor: a local account with a role that requires one."
+          },
           "grants" : {
             "type" : "array",
             "items" : {
@@ -6825,7 +7030,7 @@
             }
           }
         },
-        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "username" ]
+        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "secondFactorRequired", "secondFactors", "username" ]
       },
       "SetDisabledRequest" : {
         "type" : "object",
@@ -11320,6 +11525,32 @@
         },
         "required" : [ "applyMode", "reportUndeclared", "undeclaredExclusions" ]
       },
+      "AccountSessionView" : {
+        "type" : "object",
+        "properties" : {
+          "handle" : {
+            "type" : "string"
+          },
+          "signedInAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastActivityAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "clientAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "userAgent" : {
+            "type" : [ "string", "null" ]
+          },
+          "current" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "current", "handle", "lastActivityAt", "signedInAt" ]
+      },
       "EffectivePermissionView" : {
         "type" : "object",
         "properties" : {
@@ -15146,6 +15377,16 @@
           }
         },
         "required" : [ "grantedAt", "userId", "username" ]
+      },
+      "EndedSessionsView" : {
+        "type" : "object",
+        "properties" : {
+          "ended" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "ended" ]
       },
       "DeletedView" : {
         "type" : "object",
