@@ -24,10 +24,10 @@
 
 ## 3. Dashboards, rules, release, docs (slice C)
 
-- [ ] 3.1 Add `deploy/observability/grafana/studio-overview.json` and `deploy/observability/prometheus/studio-alerts.yml` (D7)
-- [ ] 3.2 Add `ObservabilityAssetsIntegrationTest`: every metric name in both files is present on `/actuator/prometheus`
-- [ ] 3.3 In CI, run `promtool check rules`. In the release job, attach `artemis-studio-observability-<version>.tar.gz` and its checksum
-- [ ] 3.4 Add `site/src/guide/observability.md` (the OTEL_* variables, JSON logs, redaction, dashboards, sampling) and a sidebar entry
+- [x] 3.1 Add `deploy/observability/grafana/studio-overview.json` and `deploy/observability/prometheus/studio-alerts.yml` (D7)
+- [x] 3.2 Add `ObservabilityAssetsIntegrationTest`: every metric name in both files is present on `/actuator/prometheus`
+- [x] 3.3 In CI, run `promtool check rules`. In the release job, attach `artemis-studio-observability-<version>.tar.gz` and its checksum
+- [x] 3.4 Add `site/src/guide/observability.md` (the OTEL_* variables, JSON logs, redaction, dashboards, sampling) and a sidebar entry
 - [x] 3.5 Add ADR-0147 "OpenTelemetry export through Micrometer Observation, redacted at export"
 
 ## 4. Finish
