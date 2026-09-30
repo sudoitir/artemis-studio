@@ -3789,6 +3789,61 @@
         }
       }
     },
+    "/api/v1/admin/diagnostics/bundles" : {
+      "post" : {
+        "tags" : [ "diagnostics-controller" ],
+        "operationId" : "prepare",
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BundleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/diagnostics/bundles/{id}/download" : {
+      "post" : {
+        "tags" : [ "diagnostics-controller" ],
+        "operationId" : "download",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DownloadRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/zip" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StreamingResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/sql/index/{id}" : {
       "delete" : {
         "tags" : [ "sql-index-controller" ],
@@ -4415,6 +4470,24 @@
                   "items" : {
                     "$ref" : "#/components/schemas/FindingView"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/diagnostics/summary" : {
+      "get" : {
+        "tags" : [ "diagnostics-controller" ],
+        "operationId" : "summary",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SummaryView"
                 }
               }
             }
@@ -11507,6 +11580,70 @@
         },
         "required" : [ "currentVersion", "id" ]
       },
+      "BundleView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "sections" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SectionView"
+            }
+          }
+        },
+        "required" : [ "createdAt", "expiresAt", "id", "sections" ]
+      },
+      "SectionView" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "content" : {
+            "type" : "string"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "redactions" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "bytes", "content", "fileName", "key", "redactions", "title" ]
+      },
+      "DownloadRequest" : {
+        "type" : "object",
+        "properties" : {
+          "sections" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "minItems" : 1
+          }
+        },
+        "required" : [ "sections" ]
+      },
+      "StreamingResponseBody" : { },
       "UpdateQueueRequest" : {
         "type" : "object",
         "properties" : {
@@ -12028,6 +12165,28 @@
           }
         },
         "required" : [ "capped", "rowsUnderEarlierVersion", "version" ]
+      },
+      "SummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "studioVersion" : {
+            "type" : "string"
+          },
+          "contractVersion" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "java" : {
+            "type" : "string"
+          },
+          "os" : {
+            "type" : "string"
+          },
+          "database" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "contractVersion", "database", "java", "os", "studioVersion" ]
       },
       "StoreView" : {
         "type" : "object",

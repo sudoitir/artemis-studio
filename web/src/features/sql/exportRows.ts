@@ -58,15 +58,3 @@ export function toJson(rows: SqlRowView[]): string {
     2,
   );
 }
-
-/** Hand the file to the browser. Same-document blob, nothing leaves the machine. */
-export function download(filename: string, contents: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([contents], { type }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}

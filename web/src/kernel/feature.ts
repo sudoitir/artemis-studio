@@ -36,6 +36,7 @@ export const FEATURE_IDS = [
   'bulk',
   'transfer',
   'setupreview',
+  'diagnostics',
   'apitokens',
   'plugins',
   'identity-local',

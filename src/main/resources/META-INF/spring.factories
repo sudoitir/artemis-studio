@@ -4,5 +4,7 @@ org.springframework.cloud.bootstrap.BootstrapConfiguration=\
 io.github.sudoitir.artemisstudio.kernel.settings.internal.JdbcConfigPropertySourceConfiguration
 
 # Masks credential-like values in every Logback pattern word, before Boot configures logging (ADR-0133).
+# Keeps the most recent redacted log lines for the support bundle (ADR-0146).
 org.springframework.context.ApplicationListener=\
-io.github.sudoitir.artemisstudio.kernel.core.internal.RedactingLogging
+io.github.sudoitir.artemisstudio.kernel.core.internal.RedactingLogging,\
+io.github.sudoitir.artemisstudio.feature.diagnostics.LogCapture

@@ -8,6 +8,8 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigFeature
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigModule;
 import io.github.sudoitir.artemisstudio.feature.bulk.BulkFeature;
 import io.github.sudoitir.artemisstudio.feature.bulk.BulkModule;
+import io.github.sudoitir.artemisstudio.feature.diagnostics.DiagnosticsFeature;
+import io.github.sudoitir.artemisstudio.feature.diagnostics.DiagnosticsModule;
 import io.github.sudoitir.artemisstudio.feature.events.EventsFeature;
 import io.github.sudoitir.artemisstudio.feature.events.EventsModule;
 import io.github.sudoitir.artemisstudio.feature.flow.FlowFeature;
@@ -77,6 +79,7 @@ import org.springframework.context.annotation.Import;
     BulkFeature.class,
     TransferFeature.class,
     SetupReviewFeature.class,
+    DiagnosticsFeature.class,
     ApiTokensFeature.class,
     PluginsFeature.class,
     IdentityLocalFeature.class,
@@ -112,6 +115,7 @@ public class StudioFeatures {
                 BulkModule.DESCRIPTOR,
                 TransferModule.DESCRIPTOR,
                 SetupReviewModule.DESCRIPTOR,
+                DiagnosticsModule.DESCRIPTOR,
                 ApiTokensModule.DESCRIPTOR,
                 PluginsModule.DESCRIPTOR,
                 IdentityLocalModule.DESCRIPTOR,

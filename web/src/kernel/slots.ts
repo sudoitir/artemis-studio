@@ -74,6 +74,11 @@ export interface SlotProps {
   'admin.tabs': object;
   /** A section of the signed-in user's Account page, under the contribution's title. */
   'account.sections': object;
+  /**
+   * A dialog opened from the user menu. The menu lists the contribution's title after Account and hosts
+   * the dialog outside the menu, so it outlives the menu closing.
+   */
+  'shell.userMenu': { opened: boolean; onClose: () => void };
 
   /*
    * Row actions (ADR-0107): the items of a resource's row menu, wherever a grid lists it. Each
