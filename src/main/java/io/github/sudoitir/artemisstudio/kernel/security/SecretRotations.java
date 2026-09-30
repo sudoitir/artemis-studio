@@ -37,10 +37,10 @@ public class SecretRotations implements SmartInitializingSingleton {
 
     /**
      * How long after the start (by the database clock) a rotation must have stood before it can succeed: longer than
-     * {@link SecretVault#CONFIRM_WINDOW}, so afterwards every replica has either learned the new current version or
-     * refuses to seal.
+     * {@link SecretVault#REFRESH_INTERVAL} with room for a seal already in flight, so afterwards every replica has
+     * either learned the new current version or refuses to seal.
      */
-    static final Duration SETTLE = SecretVault.CONFIRM_WINDOW.plusSeconds(15);
+    static final Duration SETTLE = SecretVault.REFRESH_INTERVAL.multipliedBy(3).plusSeconds(15);
 
     /** The stored counts and the provider's keys are read again at most this often by the status view. */
     static final Duration STATUS_TTL = Duration.ofSeconds(10);

@@ -202,43 +202,45 @@ class SecretVaultTest {
     }
 
     @Test
-    void sealingIsRefusedWhenTheCurrentVersionWasNotConfirmedWithinTheWindow() {
+    void sealingConfirmsAStaleCurrentVersionItselfAndUsesTheNewOne() {
         TestClock clock = new TestClock();
-        SecretVault vault = vault(new FakeProvider(1), stored(0), clock);
-        vault.seal(AAD, "x");
+        int[] stored = {1};
+        SecretVault vault = vault(new FakeProvider(1, 2), storedVersion(stored), clock);
+        assertThat(SecretVault.kekVersion(vault.seal(AAD, "x"))).isEqualTo(1);
 
-        clock.now = clock.now.plus(SecretVault.CONFIRM_WINDOW).plusSeconds(1);
+        stored[0] = 2; // a rotation on another replica; no refresh job has run here
+        assertThat(SecretVault.kekVersion(vault.seal(AAD, "x"))).isEqualTo(1); // still within the refresh interval
 
-        assertThatThrownBy(() -> vault.seal(AAD, "x"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("not been confirmed");
-        // opening keeps working, and a fresh confirmation lets sealing resume
-        assertThat(vault.open(AAD, sealUnder(new FakeProvider(1), 1))).isEqualTo("x");
-        vault.refreshCurrentVersion();
-        assertThat(vault.open(AAD, vault.seal(AAD, "y"))).isEqualTo("y");
+        clock.now = clock.now.plus(SecretVault.REFRESH_INTERVAL).plusSeconds(1);
+        byte[] blob = vault.seal(AAD, "y");
+        assertThat(SecretVault.kekVersion(blob)).isEqualTo(2);
+        assertThat(vault.open(AAD, blob)).isEqualTo("y");
     }
 
     @Test
-    void aRefreshThatFailsBecauseTheKeyringLacksTheNewVersionDoesNotConfirmIt() {
+    void sealingIsRefusedWhenTheCurrentVersionCannotBeConfirmed() {
         TestClock clock = new TestClock();
         int[] stored = {1};
-        SecretKeyState state = new SecretKeyState(null) {
+        SecretVault vault = vault(new FakeProvider(1), storedVersion(stored), clock);
+
+        stored[0] = 2; // another replica rotated; this one's provider does not hold version 2 yet
+        assertThatThrownBy(vault::refreshCurrentVersion).hasMessageContaining("version 2");
+
+        clock.now = clock.now.plus(SecretVault.REFRESH_INTERVAL).plusSeconds(1);
+        assertThatThrownBy(() -> vault.seal(AAD, "x"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("could not be confirmed");
+        // opening keeps working
+        assertThat(vault.open(AAD, sealUnder(new FakeProvider(1), 1))).isEqualTo("x");
+    }
+
+    private static SecretKeyState storedVersion(int[] stored) {
+        return new SecretKeyState(null) {
             @Override
             public int currentOrInit(int initial) {
                 return stored[0];
             }
         };
-        SecretVault vault = vault(new FakeProvider(1), state, clock);
-
-        stored[0] = 2; // another replica rotated; this one's provider does not hold version 2 yet
-        clock.now = clock.now.plusSeconds(20);
-        assertThatThrownBy(vault::refreshCurrentVersion).hasMessageContaining("version 2");
-        assertThat(SecretVault.kekVersion(vault.seal(AAD, "x"))).isEqualTo(1);
-
-        clock.now = clock.now.plus(SecretVault.CONFIRM_WINDOW);
-        assertThatThrownBy(() -> vault.seal(AAD, "x"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("not been confirmed");
     }
 
     @Test

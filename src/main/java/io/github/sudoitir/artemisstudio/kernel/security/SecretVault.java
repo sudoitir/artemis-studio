@@ -34,18 +34,16 @@ import org.springframework.stereotype.Component;
  * New secrets are wrapped with the stored current version ({@link SecretKeyState}). Key bytes are never logged or
  * put in a message.
  *
- * <p>A replica seals only while it has confirmed the current version from the database within
- * {@link #CONFIRM_WINDOW}; otherwise {@link #seal} refuses, so a replica cut off from the database or the provider
- * cannot go on writing under a key that a rotation has replaced.
+ * <p>A replica seals only with a current version it has confirmed from the database within
+ * {@link #REFRESH_INTERVAL}: {@link #seal} reads it again when the last confirmation is older, and refuses when it
+ * cannot, so a replica cut off from the database or the provider cannot go on writing under a key that a rotation
+ * has replaced.
  */
 @Component
 public class SecretVault implements SmartInitializingSingleton {
 
     /** How often each replica reads the stored current version again (ADR-0132 D5). */
     public static final Duration REFRESH_INTERVAL = Duration.ofSeconds(10);
-
-    /** How long the current version stays valid for sealing after it was last read from the database. */
-    public static final Duration CONFIRM_WINDOW = REFRESH_INTERVAL.multipliedBy(3);
 
     /** A version missing from the keyring asks the provider again at most this often. */
     static final Duration RELOAD_BACKOFF = Duration.ofSeconds(30);
@@ -120,16 +118,35 @@ public class SecretVault implements SmartInitializingSingleton {
     }
 
     /**
-     * @throws IllegalStateException when the current version has not been confirmed within {@link #CONFIRM_WINDOW},
-     *     or the keyring lacks it
+     * The current version, read from the database again when the last confirmation is older than
+     * {@link #REFRESH_INTERVAL}, so a seal never relies on the refresh job and never uses a version a rotation has
+     * replaced longer ago than that.
+     */
+    private int confirmedVersion() {
+        Instant confirmed = confirmedAt;
+        if (confirmed != null && !clock.instant().isAfter(confirmed.plus(REFRESH_INTERVAL))) {
+            return currentVersion;
+        }
+        synchronized (this) {
+            confirmed = confirmedAt;
+            if (confirmed != null && !clock.instant().isAfter(confirmed.plus(REFRESH_INTERVAL))) {
+                return currentVersion;
+            }
+            try {
+                return refreshCurrentVersion();
+            } catch (RuntimeException e) {
+                throw new IllegalStateException(
+                        "Cannot seal a secret: the current key version could not be confirmed from the database.", e);
+            }
+        }
+    }
+
+    /**
+     * @throws IllegalStateException when the current version cannot be confirmed from the database, or the keyring
+     *     lacks it
      */
     public byte[] seal(String aad, String plaintext) {
-        int version = currentVersion;
-        Instant confirmed = confirmedAt;
-        if (confirmed == null || clock.instant().isAfter(confirmed.plus(CONFIRM_WINDOW))) {
-            throw new IllegalStateException("Cannot seal a secret: the current key version has not been confirmed "
-                    + "from the database for " + CONFIRM_WINDOW.toSeconds() + " seconds.");
-        }
+        int version = confirmedVersion();
         byte[] dek = new byte[Keyring.KEY_BYTES];
         random.nextBytes(dek);
         byte[] nonce = randomNonce();
