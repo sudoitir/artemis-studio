@@ -16,6 +16,8 @@ public final class McpModule {
                     McpToolDef.Posture.READ,
                     "This index, or one tool's accepted values and body shapes.",
                     List.of(McpToolDef.Param.note("topic", "A tool name. Omit for the index of every tool."))))
+            .settingKey(McpSettings.READ_ONLY)
+            .apiPrefix("/api/v1/mcp")
             .build();
 
     private McpModule() {}

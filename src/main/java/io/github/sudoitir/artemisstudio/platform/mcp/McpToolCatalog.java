@@ -3,12 +3,17 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef.Posture;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,6 +33,11 @@ import org.springframework.stereotype.Component;
  * from the catalogue, which is the same argument ADR-0045 made about listing size:
  * review does not catch drift, a build failure does.
  *
+ * <p>What it describes is narrowed to the caller (ADR-0135): a token's MCP tool allow-list and the
+ * installation's read-only mode decide what is {@linkplain #offered offered}, and every description
+ * below — index, detail, instructions — names only offered tools, so a restricted token learns
+ * nothing about the rest. {@code studio_help} is always offered.
+ *
  * <p>This is documentation, not validation. Every discriminator is still checked in
  * {@link McpArgs} and every rejection names both the accepted values and
  * {@code studio_help}, so a model that reads none of this is inconvenienced, never
@@ -41,16 +51,62 @@ class McpToolCatalog {
 
     private final List<McpToolDef> builtin;
     private final Map<String, List<McpToolDef>> pluginEntries = new ConcurrentHashMap<>();
+    private final FeatureRegistry features;
+    private final ObjectProvider<SettingsService> settings;
     private volatile List<McpToolDef> entries;
 
-    McpToolCatalog(FeatureRegistry features) {
+    McpToolCatalog(FeatureRegistry features, ObjectProvider<SettingsService> settings) {
+        this.features = features;
         this.builtin =
                 features.enabled().stream().flatMap(d -> d.mcpTools().stream()).toList();
+        this.settings = settings;
         this.entries = builtin;
     }
 
+    /** Every registered tool, whoever asks. */
     List<McpToolDef> entries() {
         return entries;
+    }
+
+    /** The tools offered to the current caller. */
+    List<McpToolDef> visible() {
+        return entries.stream().filter(e -> offered(e.name())).toList();
+    }
+
+    /** Whether the current caller is offered this tool: allowed by its token and not refused as read-only. */
+    boolean offered(String tool) {
+        return allowedByToken(tool) && !refusedAsReadOnly(tool);
+    }
+
+    /** The help tool always; anything else when the caller's token has no allow-list or lists it. */
+    boolean allowedByToken(String tool) {
+        if (HELP_TOOL.equals(tool)) {
+            return true;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth == null || !(auth.getPrincipal() instanceof TokenPrincipal token) || token.mayCallTool(tool);
+    }
+
+    /** A mutating tool while the installation's agent surface is read-only. */
+    boolean refusedAsReadOnly(String tool) {
+        if (!readOnly()) {
+            return false;
+        }
+        McpToolDef def = definition(tool);
+        return def != null && def.posture() == Posture.MUTATE;
+    }
+
+    /** With the MCP module disabled its setting does not exist, and there is no surface to make read-only. */
+    boolean readOnly() {
+        return features.isEnabled(McpModule.DESCRIPTOR.id())
+                && settings.getObject().bool(McpSettings.READ_ONLY);
+    }
+
+    private McpToolDef definition(String tool) {
+        return entries.stream()
+                .filter(e -> e.name().equalsIgnoreCase(tool))
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -76,15 +132,13 @@ class McpToolCatalog {
     }
 
     List<String> toolNames() {
-        return entries.stream().map(McpToolDef::name).toList();
+        return visible().stream().map(McpToolDef::name).toList();
     }
 
-    /** One tool's detail, or {@code null} when the topic names nothing registered. */
+    /** One offered tool's detail, or {@code null} when the topic names nothing the caller is offered. */
     McpToolDef find(String tool) {
-        return entries.stream()
-                .filter(e -> e.name().equalsIgnoreCase(tool))
-                .findFirst()
-                .orElse(null);
+        McpToolDef def = definition(tool);
+        return def != null && offered(def.name()) ? def : null;
     }
 
     /**
@@ -94,10 +148,11 @@ class McpToolCatalog {
      */
     Map<String, List<Map<String, String>>> index() {
         Map<String, List<Map<String, String>>> out = new LinkedHashMap<>();
+        List<McpToolDef> offered = visible();
         for (Posture posture : Posture.values()) {
             out.put(
                     posture == Posture.READ ? "read" : "mutate",
-                    entries.stream()
+                    offered.stream()
                             .filter(e -> e.posture() == posture)
                             .map(McpToolCatalog::indexEntry)
                             .toList());
@@ -119,23 +174,29 @@ class McpToolCatalog {
 
     /**
      * The {@code instructions} sent at initialisation, generated rather than
-     * retyped. Under a host that searches tools instead of dumping {@code
-     * tools/list}, this is the only text guaranteed to be read, so it names every
-     * tool and where the detail is.
+     * retyped and built for the caller. Under a host that searches tools instead of
+     * dumping {@code tools/list}, this is the only text guaranteed to be read, so it
+     * names every offered tool and where the detail is.
      */
     String instructions() {
-        String reads = entries.stream()
+        List<McpToolDef> offered = visible();
+        String reads = offered.stream()
                 .filter(e -> e.posture() == Posture.READ)
                 .map(McpToolDef::name)
                 .collect(Collectors.joining(", "));
-        String mutations = entries.stream()
+        String mutations = offered.stream()
                 .filter(e -> e.posture() == Posture.MUTATE)
                 .map(McpToolDef::name)
                 .collect(Collectors.joining(", "));
+        String mutating = readOnly()
+                ? "The agent surface is read-only on this installation: no mutating tool is offered. "
+                : mutations.isEmpty()
+                        ? "This key is offered no mutating tools. "
+                        : "Mutating tools: " + mutations + " — all default to dryRun=true, and a real destructive "
+                                + "run needs `confirm` to equal the subject's name. ";
         return "Artemis Studio: cluster-wide management and observability for Apache ActiveMQ Artemis brokers. "
                 + "Read tools: " + reads + ". "
-                + "Mutating tools: " + mutations + " — all default to dryRun=true, and a real destructive run "
-                + "needs `confirm` to equal the subject's name. "
+                + mutating
                 + "Call " + HELP_TOOL + " for the accepted values and JSON body shapes the tool schemas leave "
                 + "out; the schemas are deliberately terse and " + HELP_TOOL + " is the complete reference. "
                 + "Resources mirror the same detail for hosts that read them: studio://clusters (the source of "

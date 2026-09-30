@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -67,7 +68,7 @@ public class McpCatalogResources {
             description = "Accepted values and JSON body shapes for every tool. Mirrors the studio_help tool.",
             mimeType = "application/json")
     public McpSchema.ReadResourceResult toolDetail() {
-        return json("studio://tools", catalog.entries());
+        return json("studio://tools", catalog.visible());
     }
 
     @McpResource(
@@ -89,7 +90,14 @@ public class McpCatalogResources {
         // answer stays true as the owner is promoted or demoted (ADR-0046).
         return json(
                 "studio://permissions",
-                new McpViews.TokenPermissions(principal.getUsername(), principal.tokenName(), grants));
+                new McpViews.TokenPermissions(
+                        principal.getUsername(),
+                        principal.tokenName(),
+                        grants,
+                        principal instanceof TokenPrincipal t
+                                ? t.mcpTools().stream().sorted().toList()
+                                : List.of(),
+                        catalog.readOnly()));
     }
 
     @McpResource(
