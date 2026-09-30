@@ -54,6 +54,8 @@ public class AuthService {
         limiter.recordSuccess(principal.getUsername(), sourceIp);
         passwordPolicy.check(user.username(), newPassword);
         accounts.changePassword(user.id(), passwordEncoder.encode(newPassword));
+        // A stolen device that was trusted must not survive the password being changed.
+        secondFactors.revokeTrustedDevices(user.id(), "password changed");
         auditService.succeed(
                 auditService.begin(
                         actorResolver.resolve(), "PASSWORD_CHANGE", "user", user.username(), null, null, null, false),

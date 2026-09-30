@@ -43,6 +43,21 @@ public record SessionFacts(
         return new SessionFacts(now, null, null, now, request.getRemoteAddr(), userAgent);
     }
 
+    /**
+     * A sign-in a trusted device completed after the password. Not fresh, so a step-up still asks for
+     * the password and a second factor: a trusted device never satisfies one.
+     */
+    public static SessionFacts signedInOnTrustedDevice(HttpServletRequest request) {
+        SessionFacts facts = signedIn(request);
+        return new SessionFacts(
+                null,
+                facts.signedInAt(),
+                Method.TRUSTED_DEVICE,
+                facts.signedInAt(),
+                facts.clientAddress(),
+                facts.userAgent());
+    }
+
     /** A sign-in that just proved the user in full and verified a second factor. */
     public static SessionFacts signedInWithSecondFactor(HttpServletRequest request, Method method) {
         return signedIn(request).withMfaVerified(Instant.now(), method);

@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -49,6 +50,7 @@ public class UserService {
     private final AccountLockout lockout;
     private final SessionTerminator sessions;
     private final Optional<PasswordRules> passwordRules;
+    private final Optional<SecondFactors> secondFactors;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -84,6 +86,7 @@ public class UserService {
         audit.changed(disabled ? "USER_DISABLE" : "USER_ENABLE", "user", user.getUsername(), null);
         if (disabled) {
             sessions.endSessionsOf(List.of(user.getUsername()));
+            secondFactors.ifPresent(f -> f.revokeTrustedDevices(userId, "account disabled"));
         }
         return toView(user);
     }

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /** The second-factor enrolment requests and views (identity-and-sessions spec, ADR-0142). */
 public final class MfaViews {
@@ -28,7 +29,8 @@ public final class MfaViews {
             @Schema(requiredMode = REQUIRED) boolean totpEnrolled,
             @Schema(requiredMode = REQUIRED) int recoveryCodesRemaining,
             @Schema(requiredMode = REQUIRED) WebAuthnAvailabilityView webauthn,
-            @Schema(requiredMode = REQUIRED) List<PasskeyView> passkeys) {}
+            @Schema(requiredMode = REQUIRED) List<PasskeyView> passkeys,
+            @Schema(requiredMode = REQUIRED) List<TrustedDeviceView> trustedDevices) {}
 
     /** Whether passkeys can be enrolled; {@code reason} says why not, and what to configure. */
     public record WebAuthnAvailabilityView(
@@ -45,6 +47,20 @@ public final class MfaViews {
                     requiredMode = REQUIRED,
                     description = "When the passkey was last used to sign in; when it was created until then.")
             Instant lastUsed) {}
+
+    /**
+     * A browser the caller chose to trust after a second factor. {@code client} is its User-Agent and
+     * {@code address} where it last signed in from; {@code expires} is when it stops counting, taking the
+     * trusted-device lifetime now in force into account; {@code current} marks the browser making this request.
+     */
+    public record TrustedDeviceView(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(nullable = true) String client,
+            @Schema(nullable = true) String address,
+            @Schema(requiredMode = REQUIRED) Instant created,
+            @Schema(requiredMode = REQUIRED) Instant lastUsed,
+            @Schema(requiredMode = REQUIRED) Instant expires,
+            @Schema(requiredMode = REQUIRED) boolean current) {}
 
     /**
      * The passkey to register: the {@code label} the user gave it, and the credential the browser

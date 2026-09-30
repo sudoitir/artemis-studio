@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +25,21 @@ public interface SecondFactors {
 
     /** The ways the user can prove a second factor now, best first. Empty when they are not enrolled. */
     List<SessionFacts.Method> methods(UUID userId);
+
+    /** How long a browser stays trusted after a second factor; zero when trusted devices are switched off (ADR-0142). */
+    Duration trustedDeviceLifetime();
+
+    /**
+     * Whether {@code token}, read from a trusted-device cookie, is a live trusted device of this user
+     * (in constant time, and within the lifetime now in force). A device that is live has its use recorded.
+     */
+    boolean useTrustedDevice(UUID userId, String token);
+
+    /** Trust the browser that just gave a second factor; returns the token to put in its cookie, which is never stored. */
+    String trustDevice(UUID userId, String clientAddress, String userAgent);
+
+    /** Stop trusting every browser of the user, for a reason that goes in the audit trail. */
+    void revokeTrustedDevices(UUID userId, String reason);
 
     /**
      * A challenge for the passkeys of the user, to be answered with a {@link WebAuthnAssertion}; empty

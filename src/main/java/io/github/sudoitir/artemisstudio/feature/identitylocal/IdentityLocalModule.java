@@ -11,6 +11,7 @@ public final class IdentityLocalModule {
             .kind(FeatureDescriptor.Kind.IDENTITY_PROVIDER)
             .settingKey(IdentityLocalSettings.PASSWORD_MIN_LENGTH)
             .settingKey(IdentityLocalSettings.BREACH_LOOKUP)
+            .settingKey(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME)
             .build();
 
     /** The id of the credential provider whose accounts this module owns. */

@@ -115,9 +115,17 @@ public class AuthSessionController {
             @Schema(
                     nullable = true,
                     description = "How the user can prove a second factor; set when the status is "
-                            + "SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, RECOVERY_CODE one "
-                            + "of the single-use codes.")
-            List<SessionFacts.Method> methods) {}
+                            + "SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, WEBAUTHN a passkey, "
+                            + "RECOVERY_CODE one of the single-use codes.")
+            List<SessionFacts.Method> methods,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "For a sign-in that needs a second factor: for how many days the user may trust "
+                            + "this browser after giving it, so the next sign-in asks for the password only. 0 when "
+                            + "trusted devices are off, and always 0 in any other case. Send trustDevice with the "
+                            + "second factor to trust it.")
+            int trustDeviceDays) {}
 
     /** Exactly one of {@code totpCode}, {@code recoveryCode} and {@code webauthn} is set. */
     public record SecondFactorRequest(
@@ -131,7 +139,13 @@ public class AuthSessionController {
                     nullable = true,
                     description = "The credential a passkey returned for the options from "
                             + "POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it.")
-            Map<String, Object> webauthn) {}
+            Map<String, Object> webauthn,
+
+            @Schema(
+                    nullable = true,
+                    description = "Trust this browser, so the next sign-in needs only the password. Honoured at "
+                            + "sign-in when trusted devices are on (see trustDeviceDays); ignored for a step-up.")
+            Boolean trustDevice) {}
 
     public record IdentityProviderView(
             @Schema(requiredMode = REQUIRED) String id,
@@ -184,7 +198,13 @@ public class AuthSessionController {
         String passkey = request.webauthn() == null ? null : json.writeValueAsString(request.webauthn());
         return result(
                 logins.secondFactor(
-                        new LoginService.Submission(request.totpCode(), request.recoveryCode(), passkey), req, resp),
+                        new LoginService.Submission(
+                                request.totpCode(),
+                                request.recoveryCode(),
+                                passkey,
+                                Boolean.TRUE.equals(request.trustDevice())),
+                        req,
+                        resp),
                 req);
     }
 
@@ -237,9 +257,9 @@ public class AuthSessionController {
     private AuthResult result(LoginService.Outcome outcome, HttpServletRequest req) {
         return switch (outcome) {
             case LoginService.Outcome.Authenticated done ->
-                new AuthResult(AuthStatus.AUTHENTICATED, view(done.principal(), req), null);
+                new AuthResult(AuthStatus.AUTHENTICATED, view(done.principal(), req), null, 0);
             case LoginService.Outcome.SecondFactorRequired pending ->
-                new AuthResult(AuthStatus.SECOND_FACTOR_REQUIRED, null, pending.methods());
+                new AuthResult(AuthStatus.SECOND_FACTOR_REQUIRED, null, pending.methods(), pending.trustDeviceDays());
         };
     }
 

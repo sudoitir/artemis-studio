@@ -7,20 +7,24 @@ import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.Passk
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.RecoveryCodesView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.TotpConfirmedView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.TotpEnrolmentView;
+import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.TrustedDeviceView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.WebAuthnAvailabilityView;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.Branding;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts.Method;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TrustedDeviceCookie;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +52,7 @@ public class MfaEnrolment {
     private final TotpStore totp;
     private final Passkeys passkeys;
     private final RecoveryCodes recoveryCodes;
+    private final TrustedDevices trustedDevices;
     private final SecondFactorService factors;
     private final UserAccounts accounts;
     private final SessionAuthentication sessions;
@@ -56,8 +61,10 @@ public class MfaEnrolment {
     private final SecureRandom random = new SecureRandom();
 
     @Transactional(readOnly = true)
-    public MfaStatusView status(StudioPrincipal principal) {
+    public MfaStatusView status(StudioPrincipal principal, HttpServletRequest request) {
         UUID userId = principal.userId();
+        Duration lifetime = trustedDevices.lifetime();
+        String cookie = TrustedDeviceCookie.read(request).orElse(null);
         return new MfaStatusView(
                 factors.required(userId),
                 factors.enrolled(userId),
@@ -65,7 +72,42 @@ public class MfaEnrolment {
                 recoveryCodes.remaining(userId),
                 new WebAuthnAvailabilityView(
                         passkeys.available(), passkeys.available() ? null : Passkeys.UNAVAILABLE_REASON),
-                passkeys.of(userId).stream().map(MfaEnrolment::view).toList());
+                passkeys.of(userId).stream().map(MfaEnrolment::view).toList(),
+                trustedDevices.live(userId).stream()
+                        .map(d -> new TrustedDeviceView(
+                                d.id(),
+                                d.userAgent(),
+                                d.clientAddress(),
+                                d.createdAt(),
+                                d.lastUsedAt(),
+                                TrustedDevices.effectiveExpiry(d, lifetime),
+                                TrustedDevices.isCurrent(d, cookie)))
+                        .toList());
+    }
+
+    /** Stop trusting one of the caller's browsers; the browser it is, if it is this one, is told to forget it. */
+    @Transactional
+    public void revokeTrustedDevice(
+            StudioPrincipal principal, UUID deviceId, HttpServletRequest request, HttpServletResponse response) {
+        requireLocalSession(principal);
+        String cookie = TrustedDeviceCookie.read(request).orElse(null);
+        boolean thisBrowser = trustedDevices.live(principal.userId()).stream()
+                .anyMatch(d -> d.id().equals(deviceId) && TrustedDevices.isCurrent(d, cookie));
+        if (!trustedDevices.revoke(principal.userId(), deviceId)) {
+            throw new NotFoundException("trusted device", deviceId);
+        }
+        if (thisBrowser) {
+            TrustedDeviceCookie.clear(request, response);
+        }
+    }
+
+    /** Stop trusting every one of the caller's browsers, this one included. */
+    @Transactional
+    public void revokeTrustedDevices(
+            StudioPrincipal principal, HttpServletRequest request, HttpServletResponse response) {
+        requireLocalSession(principal);
+        trustedDevices.revokeAll(principal.userId(), "revoked by the user");
+        TrustedDeviceCookie.clear(request, response);
     }
 
     private static PasskeyView view(CredentialRecord passkey) {

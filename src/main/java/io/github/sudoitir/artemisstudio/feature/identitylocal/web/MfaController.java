@@ -13,12 +13,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -33,8 +38,8 @@ public class MfaController {
     private final MfaEnrolment enrolment;
 
     @GetMapping
-    public MfaStatusView status(@AuthenticationPrincipal StudioPrincipal principal) {
-        return enrolment.status(principal);
+    public MfaStatusView status(@AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        return enrolment.status(principal, req);
     }
 
     /** Start (or restart) setting up an authenticator app. Nothing is active until {@code /totp/confirm}. */
@@ -70,6 +75,25 @@ public class MfaController {
             HttpServletRequest req,
             HttpServletResponse resp) {
         return enrolment.registerPasskey(principal, request.label(), request.credential(), req, resp);
+    }
+
+    /** Stop trusting one browser. Ending the trust of the one making the request also clears its cookie. */
+    @DeleteMapping("/trusted-devices/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeTrustedDevice(
+            @AuthenticationPrincipal StudioPrincipal principal,
+            @PathVariable UUID id,
+            HttpServletRequest req,
+            HttpServletResponse resp) {
+        enrolment.revokeTrustedDevice(principal, id, req, resp);
+    }
+
+    /** Stop trusting every browser of the caller. */
+    @DeleteMapping("/trusted-devices")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeTrustedDevices(
+            @AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req, HttpServletResponse resp) {
+        enrolment.revokeTrustedDevices(principal, req, resp);
     }
 
     /** New recovery codes; the old ones stop working. */

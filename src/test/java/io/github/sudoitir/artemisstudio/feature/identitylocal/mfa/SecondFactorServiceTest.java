@@ -20,6 +20,7 @@ class SecondFactorServiceTest {
             mock(TotpStore.class),
             mock(Passkeys.class),
             mock(RecoveryCodes.class),
+            mock(TrustedDevices.class),
             accounts,
             mock(AuditService.class),
             mock(ActorResolver.class));

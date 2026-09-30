@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts.Method;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ class SecondFactorService implements SecondFactors {
     private final TotpStore totp;
     private final Passkeys passkeys;
     private final RecoveryCodes recoveryCodes;
+    private final TrustedDevices trustedDevices;
     private final UserAccounts accounts;
     private final AuditService audit;
     private final ActorResolver actors;
@@ -60,6 +62,26 @@ class SecondFactorService implements SecondFactors {
             methods.add(Method.RECOVERY_CODE);
         }
         return methods;
+    }
+
+    @Override
+    public Duration trustedDeviceLifetime() {
+        return trustedDevices.lifetime();
+    }
+
+    @Override
+    public boolean useTrustedDevice(UUID userId, String token) {
+        return trustedDevices.use(userId, token);
+    }
+
+    @Override
+    public String trustDevice(UUID userId, String clientAddress, String userAgent) {
+        return trustedDevices.create(userId, clientAddress, userAgent);
+    }
+
+    @Override
+    public void revokeTrustedDevices(UUID userId, String reason) {
+        trustedDevices.revokeAll(userId, reason);
     }
 
     @Override

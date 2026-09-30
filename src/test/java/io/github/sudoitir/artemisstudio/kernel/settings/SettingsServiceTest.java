@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
+import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
@@ -89,14 +90,34 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         assertThatThrownBy(() -> settings.put("bogus.key", "1")).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void aDurationOrOffAcceptsZeroButNotANegativeDuration() {
+        settings.put(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME, "0");
+
+        assertThat(settings.duration(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME))
+                .isEqualTo(Duration.ZERO);
+        settings.put(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME, "7d");
+        assertThat(settings.duration(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME))
+                .isEqualTo(Duration.ofDays(7));
+        assertThatThrownBy(() -> settings.put(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME, "-5m"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(settings.effective()
+                        .get(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME)
+                        .defaultValue())
+                .isEqualTo("PT720H");
+    }
+
     /** One key of each {@link SettingDef.Kind}, so a new kind cannot land untested. */
     @Test
     void everyKindRoundTrips() {
         settings.put(BrokerSettings.READ_TIMEOUT, "45s");
+        settings.put(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME, "12h");
         settings.put(AlertingSettings.MAX_ATTEMPTS, "9");
         settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "0 45 4 * * *");
 
         assertThat(settings.duration(BrokerSettings.READ_TIMEOUT)).isEqualTo(Duration.ofSeconds(45));
+        assertThat(settings.duration(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME))
+                .isEqualTo(Duration.ofHours(12));
         assertThat(settings.intValue(AlertingSettings.MAX_ATTEMPTS)).isEqualTo(9);
         assertThat(settings.value(ScrapeSettings.METRIC_PARTITION_CRON)).isEqualTo("0 45 4 * * *");
         assertThat(settings.effective()

@@ -15,9 +15,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.SignInExpiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TrustedDeviceCookie;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,7 +59,8 @@ public class LoginService {
     public sealed interface Outcome {
         record Authenticated(StudioPrincipal principal) implements Outcome {}
 
-        record SecondFactorRequired(List<SessionFacts.Method> methods) implements Outcome {}
+        /** {@code trustDeviceDays} is how long a browser may be trusted after the factor, rounded up to a day; 0 when it may not. */
+        record SecondFactorRequired(List<SessionFacts.Method> methods, int trustDeviceDays) implements Outcome {}
     }
 
     @Transactional
@@ -87,18 +90,31 @@ public class LoginService {
             attempt.failed(INVALID_CREDENTIALS);
             throw new BadCredentialsException("Invalid username or password");
         }
-        if (lockedOut(principal.get())) {
-            // Answered exactly like a wrong password, so a locked account is not told apart.
-            lockout.failed(principal.get().userId(), username, request);
+        StudioPrincipal found = principal.get();
+        boolean enrolled = secondFactors.isPresent() && secondFactors.get().enrolled(found.userId());
+        boolean trusted = enrolled && trustedDevice(found, request, response);
+        if (lockout.isLocked(found.userId()) && !trusted) {
+            // Answered exactly like a wrong password, so a locked account is not told apart. A trusted
+            // device is the one exception: it stops spraying from locking its owner out of the account.
+            lockout.failed(found.userId(), username, request);
             attempt.failed("account locked");
             throw new BadCredentialsException("Invalid username or password");
         }
-        StudioPrincipal found = principal.get();
-        if (secondFactors.isPresent() && secondFactors.get().enrolled(found.userId())) {
+        if (trusted) {
+            // The password and a device the user trusted: signed in, but not fresh, so a step-up still asks for the
+            // factor.
+            sessions.establish(found, SessionFacts.signedInOnTrustedDevice(request), request, response);
+            completed(found, request);
+            audit.secondFactorVerified(found.getUsername(), SessionFacts.Method.TRUSTED_DEVICE);
+            attempt.succeeded();
+            return new Outcome.Authenticated(found);
+        }
+        if (enrolled) {
             // The password alone opens nothing: no principal, and no success recorded, until the factor.
             sessions.awaitSecondFactor(found.userId(), provider, request, response);
             attempt.succeeded();
-            return new Outcome.SecondFactorRequired(secondFactors.get().methods(found.userId()));
+            return new Outcome.SecondFactorRequired(
+                    secondFactors.get().methods(found.userId()), trustDeviceDays(secondFactors.get()));
         }
         StudioPrincipal user =
                 secondFactors.filter(f -> f.enrolmentRequired(found.userId())).isPresent()
@@ -112,9 +128,10 @@ public class LoginService {
 
     /**
      * What a caller sent as their second factor: exactly one of a code from an authenticator app, a
-     * recovery code, or a browser's answer to a passkey challenge ({@code webauthn}, as JSON).
+     * recovery code, or a browser's answer to a passkey challenge ({@code webauthn}, as JSON), and whether
+     * to trust this browser afterwards (a sign-in only).
      */
-    public record Submission(String totpCode, String recoveryCode, String webauthn) {}
+    public record Submission(String totpCode, String recoveryCode, String webauthn, boolean trustDevice) {}
 
     /**
      * The options a browser needs to ask for a passkey, as JSON, for whoever is waiting to give a second
@@ -204,6 +221,9 @@ public class LoginService {
         sessions.establish(principal, SessionFacts.signedInWithSecondFactor(request, method), request, response);
         completed(principal, request);
         audit.secondFactorVerified(account.username(), method);
+        if (submission.trustDevice()) {
+            trustBrowser(factors, principal, request, response);
+        }
         return new Outcome.Authenticated(principal);
     }
 
@@ -270,10 +290,38 @@ public class LoginService {
         lockout.completed(principal.userId(), principal.getUsername(), request);
     }
 
-    /** The one place the account lock is enforced for a sign-in that presented the right password. */
-    private boolean lockedOut(StudioPrincipal principal) {
-        // A valid trusted-device cookie for this user will exempt them here (task 6.6).
-        return lockout.isLocked(principal.userId());
+    /**
+     * Whether the browser presented a live trusted-device cookie for this user. Trusted devices switched
+     * off (lifetime 0) means the cookie is ignored, and cleared so the browser stops sending it.
+     */
+    private boolean trustedDevice(StudioPrincipal user, HttpServletRequest request, HttpServletResponse response) {
+        Optional<String> token = TrustedDeviceCookie.read(request);
+        if (token.isEmpty()) {
+            return false;
+        }
+        SecondFactors factors = secondFactors.orElseThrow();
+        if (factors.trustedDeviceLifetime().isZero()) {
+            TrustedDeviceCookie.clear(request, response);
+            return false;
+        }
+        return factors.useTrustedDevice(user.userId(), token.get());
+    }
+
+    private static int trustDeviceDays(SecondFactors factors) {
+        return (int) Math.ceilDiv(
+                factors.trustedDeviceLifetime().toSeconds(), Duration.ofDays(1).toSeconds());
+    }
+
+    /** The user asked to trust this browser: remember it, if trusted devices are on, and hand the browser its cookie. */
+    private void trustBrowser(
+            SecondFactors factors, StudioPrincipal user, HttpServletRequest request, HttpServletResponse response) {
+        Duration lifetime = factors.trustedDeviceLifetime();
+        if (lifetime.isZero()) {
+            return;
+        }
+        SessionFacts facts = sessions.facts(request).orElseThrow();
+        String token = factors.trustDevice(user.userId(), facts.clientAddress(), facts.userAgent());
+        TrustedDeviceCookie.set(request, response, token, lifetime);
     }
 
     /**
@@ -330,7 +378,7 @@ public class LoginService {
         if (secondFactors.isPresent() && secondFactors.get().enrolled(current.userId())) {
             // The password alone never makes an account with a factor fresh, and does not clear its failures.
             sessions.awaitStepUp(current.userId(), request);
-            return new Outcome.SecondFactorRequired(secondFactors.get().methods(current.userId()));
+            return new Outcome.SecondFactorRequired(secondFactors.get().methods(current.userId()), 0);
         }
         limiter.recordSuccess(username, sourceIp);
         sessions.reauthenticated(request);

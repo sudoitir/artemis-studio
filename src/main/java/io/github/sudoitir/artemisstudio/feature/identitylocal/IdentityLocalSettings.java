@@ -7,13 +7,14 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** What a local password must satisfy (ADR-0143). */
+/** What a local password must satisfy (ADR-0143), and how long a trusted device stays trusted (ADR-0142). */
 @Component
 @RequiredArgsConstructor
 public class IdentityLocalSettings implements SettingsContribution {
 
     public static final String PASSWORD_MIN_LENGTH = "identity-local.password.min-length";
     public static final String BREACH_LOOKUP = "identity-local.password.breach-lookup";
+    public static final String TRUSTED_DEVICE_LIFETIME = "identity-local.mfa.trusted-device-lifetime";
 
     private final IdentityLocalProperties defaults;
 
@@ -42,6 +43,17 @@ public class IdentityLocalSettings implements SettingsContribution {
                                 + " through. The offline list of the most common passwords is always checked.",
                         Kind.BOOLEAN,
                         () -> "false",
+                        null),
+                new SettingDef(
+                        TRUSTED_DEVICE_LIFETIME,
+                        "Password login",
+                        "Trusted device lifetime",
+                        "After giving a second factor at sign-in, a user may trust that browser for this long, so a"
+                                + " password alone signs in from it. 0 turns trusted devices off. Users can revoke"
+                                + " their devices at any time, and a password change, a factor reset and disabling the"
+                                + " account revoke them.",
+                        Kind.DURATION_OR_OFF,
+                        () -> defaults.trustedDeviceLifetime().toString(),
                         null));
     }
 }

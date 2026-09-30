@@ -193,9 +193,9 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
   - `RoleService` allows only this field to change on built-in roles. Its update already ends members' sessions.
   - `UserService.addGrant` **also ends the user's sessions when the granted role requires MFA**, so the requirement takes effect at once.
 - **Trusted devices (D5):**
-  - Table `local_trusted_device(expires_at, created_at, last_used_at, user_id, user_agent, client_address, token_hash)`.
+  - Table `local_trusted_device(expires_at, created_at, last_used_at, user_agent, client_address, token_hash, user_id, id)`, with the uuids last as non-negotiable 7 has it and `user_id` cascading from `app_user`.
   - The cookie `as_trusted_device` holds a 32-byte random token. It is HttpOnly, Secure, `SameSite=Strict`, with path `/api/v1/auth`.
-  - Lookup is by user and hash, compared in constant time.
+  - Lookup is by user: every one of the user's rows is compared with the presented token's SHA-256 in constant time.
   - Runtime DURATION setting `identity-local.mfa.trusted-device-lifetime`, default 30d. The effective expiry is `min(expires_at, created_at + current setting)`.
   - Setting it to `0` turns the feature off: the checkbox is disabled with a reason, and cookies are ignored and cleared.
   - Revoked on password change, factor reset, disable, break-glass, or removal of all factors. The user can also revoke devices from the account page.
