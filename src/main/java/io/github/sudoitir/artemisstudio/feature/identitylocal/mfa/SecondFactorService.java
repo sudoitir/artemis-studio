@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The second factors of local accounts as the sign-in path sees them (ADR-0142): TOTP and recovery
- * codes today. Only accounts of the local provider are ever required to hold one; any other provider
+ * The second factors of local accounts as the sign-in path sees them (ADR-0142): TOTP, passkeys and
+ * recovery codes. Only accounts of the local provider are ever required to hold one; any other provider
  * does its own multi-factor authentication.
  */
 @Component
@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SecondFactorService implements SecondFactors {
 
     private final TotpStore totp;
+    private final Passkeys passkeys;
     private final RecoveryCodes recoveryCodes;
     private final UserAccounts accounts;
     private final AuditService audit;
@@ -33,7 +34,9 @@ class SecondFactorService implements SecondFactors {
 
     @Override
     public boolean enrolled(UUID userId) {
-        return totp.hasActive(userId);
+        // A passkey counts even while passkeys are unavailable: an account that had one is still an
+        // account with a second factor, and a recovery code completes its sign-in.
+        return totp.hasActive(userId) || passkeys.count(userId) > 0;
     }
 
     @Override
@@ -47,13 +50,21 @@ class SecondFactorService implements SecondFactors {
     @Override
     public List<Method> methods(UUID userId) {
         List<Method> methods = new ArrayList<>();
+        if (passkeys.available() && passkeys.count(userId) > 0) {
+            methods.add(Method.WEBAUTHN);
+        }
         if (totp.hasActive(userId)) {
             methods.add(Method.TOTP);
-            if (recoveryCodes.remaining(userId) > 0) {
-                methods.add(Method.RECOVERY_CODE);
-            }
+        }
+        if (enrolled(userId) && recoveryCodes.remaining(userId) > 0) {
+            methods.add(Method.RECOVERY_CODE);
         }
         return methods;
+    }
+
+    @Override
+    public Optional<PasskeyChallenge> passkeyChallenge(UUID userId) {
+        return passkeys.challenge(userId);
     }
 
     @Override
@@ -62,6 +73,7 @@ class SecondFactorService implements SecondFactors {
         return switch (proof) {
             case TotpCode t -> verifyTotp(userId, t.code());
             case RecoveryCode r -> verifyRecoveryCode(userId, r.code());
+            case WebAuthnAssertion w -> passkeys.verify(userId, w) ? Optional.of(Method.WEBAUTHN) : Optional.empty();
         };
     }
 

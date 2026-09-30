@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.identitylocal.mfa;
 
 import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalModule;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.MfaStatusView;
+import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.PasskeyRegisteredView;
+import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.PasskeyView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.RecoveryCodesView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.TotpConfirmedView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.TotpEnrolmentView;
@@ -26,12 +28,13 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
 
 /**
- * Enrolling the caller's second factors and their recovery codes (identity-and-sessions spec,
+ * Enrolling the caller's second factors (an authenticator app, passkeys) and their recovery codes (identity-and-sessions spec,
  * ADR-0142). The first factor of an account is trust on first use: it needs no step-up, because the
  * user has nothing to step up with, and the enrolment is audited with the source address. Adding or
  * replacing a factor when one exists needs a fresh step-up, which includes that factor.
@@ -43,6 +46,7 @@ public class MfaEnrolment {
     private static final int SECRET_BYTES = 20; // 160 bits, the size of an HMAC-SHA1 key
 
     private final TotpStore totp;
+    private final Passkeys passkeys;
     private final RecoveryCodes recoveryCodes;
     private final SecondFactorService factors;
     private final UserAccounts accounts;
@@ -59,7 +63,56 @@ public class MfaEnrolment {
                 factors.enrolled(userId),
                 totp.hasActive(userId),
                 recoveryCodes.remaining(userId),
-                new WebAuthnAvailabilityView(false, "Passkeys are not available yet."));
+                new WebAuthnAvailabilityView(
+                        passkeys.available(), passkeys.available() ? null : Passkeys.UNAVAILABLE_REASON),
+                passkeys.of(userId).stream().map(MfaEnrolment::view).toList());
+    }
+
+    private static PasskeyView view(CredentialRecord passkey) {
+        return new PasskeyView(
+                passkey.getCredentialId().toBase64UrlString(),
+                passkey.getLabel(),
+                passkey.getCreated(),
+                passkey.getLastUsed());
+    }
+
+    /** The options the browser needs to create a passkey; nothing is kept until {@link #registerPasskey}. */
+    @Transactional
+    public Map<String, Object> passkeyOptions(StudioPrincipal principal, HttpServletRequest request) {
+        requireLocalSession(principal);
+        requirePasskeysAvailable();
+        requireStepUpWhenEnrolled(principal, request);
+        return passkeys.creationOptions(principal, request);
+    }
+
+    /**
+     * Keep the passkey the browser created from the options this session was given. Like a confirmed
+     * authenticator app it lifts the enrolment restriction, and it is the first factor's moment for recovery codes.
+     */
+    @Transactional
+    public PasskeyRegisteredView registerPasskey(
+            StudioPrincipal principal,
+            String label,
+            Map<String, Object> credential,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        requireLocalSession(principal);
+        requirePasskeysAvailable();
+        boolean hadFactor = requireStepUpWhenEnrolled(principal, request);
+        CredentialRecord passkey = passkeys.register(principal.userId(), label.strip(), credential, request);
+        List<String> codes = hadFactor ? null : recoveryCodes.issue(principal.userId());
+        audited(
+                principal,
+                "MFA_ENROL",
+                Map.of("method", Method.WEBAUTHN.name(), "firstFactor", !hadFactor, "label", passkey.getLabel()));
+        sessions.reestablishAfterEnrolment(principal, Method.WEBAUTHN, request, response);
+        return new PasskeyRegisteredView(view(passkey), codes);
+    }
+
+    private void requirePasskeysAvailable() {
+        if (!passkeys.available()) {
+            throw new ConflictException("passkeys-unavailable", Passkeys.UNAVAILABLE_REASON);
+        }
     }
 
     @Transactional

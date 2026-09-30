@@ -4,7 +4,11 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /** The second-factor enrolment requests and views (identity-and-sessions spec, ADR-0142). */
 public final class MfaViews {
@@ -16,18 +20,46 @@ public final class MfaViews {
      *
      * @param required the caller's role requires a second factor
      * @param enrolled the caller holds one that can complete a sign-in
+     * @param passkeys the caller's passkeys, oldest first, whether or not passkeys can be used now
      */
     public record MfaStatusView(
             @Schema(requiredMode = REQUIRED) boolean required,
             @Schema(requiredMode = REQUIRED) boolean enrolled,
             @Schema(requiredMode = REQUIRED) boolean totpEnrolled,
             @Schema(requiredMode = REQUIRED) int recoveryCodesRemaining,
-            @Schema(requiredMode = REQUIRED) WebAuthnAvailabilityView webauthn) {}
+            @Schema(requiredMode = REQUIRED) WebAuthnAvailabilityView webauthn,
+            @Schema(requiredMode = REQUIRED) List<PasskeyView> passkeys) {}
 
     /** Whether passkeys can be enrolled; {@code reason} says why not, and what to configure. */
     public record WebAuthnAvailabilityView(
             @Schema(requiredMode = REQUIRED) boolean available,
             @Schema(nullable = true) String reason) {}
+
+    /** One of the caller's passkeys. {@code id} is what {@code DELETE /auth/mfa/webauthn/{id}} takes. */
+    public record PasskeyView(
+            @Schema(requiredMode = REQUIRED) String id,
+            @Schema(requiredMode = REQUIRED) String label,
+            @Schema(requiredMode = REQUIRED) Instant created,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "When the passkey was last used to sign in; when it was created until then.")
+            Instant lastUsed) {}
+
+    /**
+     * The passkey to register: the {@code label} the user gave it, and the credential the browser
+     * returned for the options from {@code POST /auth/mfa/webauthn/options}, as
+     * {@code PublicKeyCredential.toJSON()} gives it.
+     */
+    public record RegisterPasskeyRequest(
+            @NotBlank @Size(max = 100) String label,
+
+            @NotNull @Schema(requiredMode = REQUIRED) Map<String, Object> credential) {}
+
+    /** {@code recoveryCodes} is set only when this was the caller's first factor; it is the only time they are shown. */
+    public record PasskeyRegisteredView(
+            @Schema(requiredMode = REQUIRED) PasskeyView passkey,
+            @Schema(nullable = true) List<String> recoveryCodes) {}
 
     /**
      * A new authenticator waiting for its first code. {@code secret} is Base32 for typing in;

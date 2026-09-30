@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
@@ -110,24 +111,80 @@ public class LoginService {
     }
 
     /**
+     * What a caller sent as their second factor: exactly one of a code from an authenticator app, a
+     * recovery code, or a browser's answer to a passkey challenge ({@code webauthn}, as JSON).
+     */
+    public record Submission(String totpCode, String recoveryCode, String webauthn) {}
+
+    /**
+     * The options a browser needs to ask for a passkey, as JSON, for whoever is waiting to give a second
+     * factor: the sign-in whose password was right, or the step-up whose password was. The challenge is
+     * kept in the session and answers one attempt.
+     */
+    public String passkeyOptions(HttpServletRequest request) {
+        SecondFactors factors = secondFactors.orElseThrow(SignInExpiredException::new);
+        UUID userId = waitingUser(request);
+        SecondFactors.PasskeyChallenge challenge = factors.passkeyChallenge(userId)
+                .orElseThrow(() -> new ConflictException(
+                        "no-passkey", "There is no passkey to use here. Use a code or a recovery code instead."));
+        sessions.awaitPasskey(userId, challenge.state(), request);
+        return challenge.options();
+    }
+
+    /** The user whose password was right and who now owes a second factor; a sign-in or a step-up. */
+    private UUID waitingUser(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof StudioPrincipal current) {
+            return sessions.pendingStepUp(request)
+                    .filter(p -> p.userId().equals(current.userId()))
+                    .map(SessionAuthentication.PendingStepUp::userId)
+                    .orElseThrow(
+                            () -> new ReauthenticationFailedException("Enter your password first, then your code."));
+        }
+        return sessions.pendingSecondFactor(request)
+                .map(SessionAuthentication.PendingSecondFactor::userId)
+                .orElseThrow(SignInExpiredException::new);
+    }
+
+    /** The proof a submission carries; a passkey answer is checked against the challenge this user was issued. */
+    private SecondFactors.Proof proof(Submission submission, UUID userId, HttpServletRequest request) {
+        boolean totp = submission.totpCode() != null && !submission.totpCode().isBlank();
+        boolean recovery =
+                submission.recoveryCode() != null && !submission.recoveryCode().isBlank();
+        boolean passkey =
+                submission.webauthn() != null && !submission.webauthn().isBlank();
+        if ((totp ? 1 : 0) + (recovery ? 1 : 0) + (passkey ? 1 : 0) != 1) {
+            throw new IllegalArgumentException("Send one of totpCode, recoveryCode or webauthn.");
+        }
+        if (totp) {
+            return new SecondFactors.TotpCode(submission.totpCode());
+        }
+        if (recovery) {
+            return new SecondFactors.RecoveryCode(submission.recoveryCode());
+        }
+        // Not a guess at anything, so it is not counted against the account: there was just nothing to answer.
+        SessionAuthentication.PendingPasskey challenge = sessions.takePasskey(userId, request)
+                .orElseThrow(() -> new SecondFactorInvalidException(
+                        "The passkey prompt has expired. Choose “Use a passkey” to start it again."));
+        return new SecondFactors.WebAuthnAssertion(challenge.challenge(), submission.webauthn());
+    }
+
+    /**
      * The second factor of a sign-in or a step-up. With no principal it completes the sign-in the
      * password started; with one, the step-up its password started. A wrong factor counts against the
      * account and the source address exactly as a wrong password does.
      */
     @Transactional
-    public Outcome secondFactor(SecondFactors.Proof proof, HttpServletRequest request, HttpServletResponse response) {
+    public Outcome secondFactor(Submission submission, HttpServletRequest request, HttpServletResponse response) {
         SecondFactors factors = secondFactors.orElseThrow(SignInExpiredException::new);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getPrincipal() instanceof StudioPrincipal current
-                ? completeStepUp(factors, current, proof, request, response)
-                : completeSignIn(factors, proof, request, response);
+                ? completeStepUp(factors, current, submission, request, response)
+                : completeSignIn(factors, submission, request, response);
     }
 
     private Outcome completeSignIn(
-            SecondFactors factors,
-            SecondFactors.Proof proof,
-            HttpServletRequest request,
-            HttpServletResponse response) {
+            SecondFactors factors, Submission submission, HttpServletRequest request, HttpServletResponse response) {
         var pending = sessions.pendingSecondFactor(request).orElseThrow(SignInExpiredException::new);
         UserAccounts.Account account = accounts.byId(pending.userId())
                 .filter(a -> a.providerId().equals(pending.providerId()))
@@ -138,8 +195,9 @@ public class LoginService {
             sessions.clearPending(request);
             throw new BadCredentialsException("Invalid username or password");
         }
+        SecondFactors.Proof proof = proof(submission, account.id(), request);
         SessionFacts.Method method = verified(factors, account.id(), account.username(), proof, request)
-                .orElseThrow(SecondFactorInvalidException::new);
+                .orElseThrow(() -> invalid(proof));
         sessions.clearPending(request);
         StudioPrincipal principal = new StudioPrincipal(
                 account.id(), account.username(), grants.loadFor(account.id()), account.mustChangePassword());
@@ -152,12 +210,13 @@ public class LoginService {
     private Outcome completeStepUp(
             SecondFactors factors,
             StudioPrincipal current,
-            SecondFactors.Proof proof,
+            Submission submission,
             HttpServletRequest request,
             HttpServletResponse response) {
         sessions.pendingStepUp(request)
                 .filter(p -> p.userId().equals(current.userId()))
                 .orElseThrow(() -> new ReauthenticationFailedException("Enter your password first, then your code."));
+        SecondFactors.Proof proof = proof(submission, current.userId(), request);
         Optional<SessionFacts.Method> method =
                 verified(factors, current.userId(), current.getUsername(), proof, request);
         if (method.isEmpty()) {
@@ -165,12 +224,19 @@ public class LoginService {
                 sessions.end(request, response);
                 throw new BadCredentialsException("Too many failed attempts; the session was ended.");
             }
-            throw new SecondFactorInvalidException();
+            throw invalid(proof);
         }
         limiter.recordSuccess(current.getUsername(), request.getRemoteAddr());
         sessions.reauthenticated(request, method.get());
         audit.secondFactorVerified(current.getUsername(), method.get());
         return new Outcome.Authenticated(current);
+    }
+
+    private static SecondFactorInvalidException invalid(SecondFactors.Proof proof) {
+        return proof instanceof SecondFactors.WebAuthnAssertion
+                ? new SecondFactorInvalidException(
+                        "That passkey was not accepted. Try again, or use a code or a recovery code.")
+                : new SecondFactorInvalidException();
     }
 
     /**

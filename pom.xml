@@ -81,6 +81,8 @@
              There is no Boot 4.1 train yet. Kept only if the context actually starts. -->
         <spring-cloud.version>2025.1.3</spring-cloud.version>
         <spring-modulith.version>2.1.1</spring-modulith.version>
+        <!-- The WebAuthn test authenticator; the version spring-security-webauthn pulls in (ADR-0142). -->
+        <webauthn4j.version>0.31.9.RELEASE</webauthn4j.version>
         <!-- SQL Console dialect parser (ADR-0058). Not BOM-managed. -->
         <jsqlparser.version>5.4</jsqlparser.version>
         <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
@@ -177,6 +179,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Passkeys for local accounts (ADR-0142): WebAuthnRelyingPartyOperations and its JDBC
+                 repositories, called from our own JSON endpoints. Brings webauthn4j-core. -->
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-webauthn</artifactId>
         </dependency>
         <!-- OIDC login (Phase 8, ADR-0040). -->
         <dependency>
@@ -307,6 +315,13 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- A software authenticator, so the passkey tests register and sign in for real. -->
+            <groupId>com.webauthn4j</groupId>
+            <artifactId>webauthn4j-test</artifactId>
+            <version>${webauthn4j.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -3230,6 +3230,25 @@
         }
       }
     },
+    "/api/v1/auth/second-factor/options" : {
+      "post" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "secondFactorOptions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/reauthenticate" : {
       "post" : {
         "tags" : [ "auth-session-controller" ],
@@ -3275,6 +3294,53 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/webauthn" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "registerPasskey",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterPasskeyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PasskeyRegisteredView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/webauthn/options" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "passkeyOptions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            }
           }
         }
       }
@@ -10839,6 +10905,11 @@
           "recoveryCode" : {
             "type" : [ "string", "null" ],
             "description" : "A single-use recovery code; dashes and case are ignored."
+          },
+          "webauthn" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : { },
+            "description" : "The credential a passkey returned for the options from POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it."
           }
         }
       },
@@ -10958,6 +11029,57 @@
           }
         },
         "required" : [ "currentPassword", "newPassword" ]
+      },
+      "RegisterPasskeyRequest" : {
+        "type" : "object",
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "credential" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        },
+        "required" : [ "credential", "label" ]
+      },
+      "PasskeyRegisteredView" : {
+        "type" : "object",
+        "properties" : {
+          "passkey" : {
+            "$ref" : "#/components/schemas/PasskeyView"
+          },
+          "recoveryCodes" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "passkey" ]
+      },
+      "PasskeyView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "created" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastUsed" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "When the passkey was last used to sign in; when it was created until then."
+          }
+        },
+        "required" : [ "created", "id", "label", "lastUsed" ]
       },
       "TotpEnrolmentView" : {
         "type" : "object",
@@ -14782,9 +14904,15 @@
           },
           "webauthn" : {
             "$ref" : "#/components/schemas/WebAuthnAvailabilityView"
+          },
+          "passkeys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PasskeyView"
+            }
           }
         },
-        "required" : [ "enrolled", "recoveryCodesRemaining", "required", "totpEnrolled", "webauthn" ]
+        "required" : [ "enrolled", "passkeys", "recoveryCodesRemaining", "required", "totpEnrolled", "webauthn" ]
       },
       "WebAuthnAvailabilityView" : {
         "type" : "object",

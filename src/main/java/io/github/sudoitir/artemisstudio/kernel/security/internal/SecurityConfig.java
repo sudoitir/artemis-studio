@@ -78,6 +78,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/second-factor",
+                                "/api/v1/auth/second-factor/options",
                                 "/api/v1/auth/providers",
                                 "/actuator/health",
                                 "/actuator/health/**")

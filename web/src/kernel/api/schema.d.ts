@@ -1108,6 +1108,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/second-factor/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["secondFactorOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/reauthenticate": {
         parameters: {
             query?: never;
@@ -1134,6 +1150,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/webauthn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["registerPasskey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/webauthn/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["passkeyOptions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4372,6 +4420,10 @@ export interface components {
             totpCode?: string | null;
             /** @description A single-use recovery code; dashes and case are ignored. */
             recoveryCode?: string | null;
+            /** @description The credential a passkey returned for the options from POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it. */
+            webauthn?: {
+                [key: string]: unknown;
+            } | null;
         };
         AuthResult: {
             /** @enum {string} */
@@ -4415,6 +4467,27 @@ export interface components {
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        RegisterPasskeyRequest: {
+            label: string;
+            credential: {
+                [key: string]: unknown;
+            };
+        };
+        PasskeyRegisteredView: {
+            passkey: components["schemas"]["PasskeyView"];
+            recoveryCodes?: string[] | null;
+        };
+        PasskeyView: {
+            id: string;
+            label: string;
+            /** Format: date-time */
+            created: string;
+            /**
+             * Format: date-time
+             * @description When the passkey was last used to sign in; when it was created until then.
+             */
+            lastUsed: string;
         };
         TotpEnrolmentView: {
             secret: string;
@@ -5929,6 +6002,7 @@ export interface components {
             /** Format: int32 */
             recoveryCodesRemaining: number;
             webauthn: components["schemas"]["WebAuthnAvailabilityView"];
+            passkeys: components["schemas"]["PasskeyView"][];
         };
         WebAuthnAvailabilityView: {
             available: boolean;
@@ -8327,6 +8401,28 @@ export interface operations {
             };
         };
     };
+    secondFactorOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     reauthenticate: {
         parameters: {
             query?: never;
@@ -8370,6 +8466,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    registerPasskey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterPasskeyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PasskeyRegisteredView"];
+                };
+            };
+        };
+    };
+    passkeyOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };

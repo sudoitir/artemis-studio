@@ -41,6 +41,7 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
     private static final Set<String> ALLOWED_UNAUTHENTICATED = Set.of(
             "/api/v1/auth/login",
             "/api/v1/auth/second-factor",
+            "/api/v1/auth/second-factor/options",
             "/api/v1/auth/providers",
             "/actuator/health",
             "/actuator/health/**");

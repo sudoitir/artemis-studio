@@ -58,6 +58,9 @@ public class SessionAuthentication {
     /** Held by a signed-in session whose user gave the right password for a step-up and has yet to give a second factor. */
     public static final String PENDING_STEP_UP = PENDING_PREFIX + "STEP_UP";
 
+    /** Held by a session that asked for a passkey challenge and has yet to answer it. */
+    public static final String PENDING_PASSKEY = PENDING_PREFIX + "PASSKEY";
+
     /** How long a password stays good for the second factor that completes it. */
     public static final Duration PENDING_WINDOW = Duration.ofMinutes(5);
 
@@ -66,6 +69,9 @@ public class SessionAuthentication {
 
     /** A step-up awaiting its second factor. */
     public record PendingStepUp(UUID userId, Instant at) implements Serializable {}
+
+    /** A passkey challenge issued to {@code userId}, held as the implementation gave it. */
+    public record PendingPasskey(UUID userId, Serializable challenge, Instant at) implements Serializable {}
 
     private final SecurityContextRepository securityContextRepository;
     private final CsrfTokenRepository csrfTokenRepository;
@@ -130,6 +136,21 @@ public class SessionAuthentication {
     /** The step-up this session is waiting to complete, when there is one and it is not too old. */
     public Optional<PendingStepUp> pendingStepUp(HttpServletRequest request) {
         return pending(request, PENDING_STEP_UP, PendingStepUp.class).filter(p -> current(p.at()));
+    }
+
+    /** Keep the challenge just issued to the user, in place of any earlier one. */
+    public void awaitPasskey(UUID userId, Serializable challenge, HttpServletRequest request) {
+        request.getSession().setAttribute(PENDING_PASSKEY, new PendingPasskey(userId, challenge, Instant.now()));
+    }
+
+    /**
+     * The passkey challenge issued to this user, which is spent by asking: an answer to it counts once,
+     * whether or not it is right. Empty when there is none, it is too old, or it was issued to someone else.
+     */
+    public Optional<PendingPasskey> takePasskey(UUID userId, HttpServletRequest request) {
+        Optional<PendingPasskey> pending = pending(request, PENDING_PASSKEY, PendingPasskey.class);
+        pending.ifPresent(p -> request.getSession(false).removeAttribute(PENDING_PASSKEY));
+        return pending.filter(p -> p.userId().equals(userId)).filter(p -> current(p.at()));
     }
 
     private static <T> Optional<T> pending(HttpServletRequest request, String attribute, Class<T> type) {

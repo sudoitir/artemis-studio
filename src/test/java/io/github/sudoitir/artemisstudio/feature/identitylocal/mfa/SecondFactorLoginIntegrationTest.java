@@ -567,6 +567,23 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void passkeysAreUnavailableUntilThePublicAddressIsSetAndTheReportSaysWhatToSet() throws Exception {
+        newUser("sf-no-address");
+        Browser browser = signedIn("sf-no-address");
+
+        var status = browser.send("GET", "/api/v1/auth/mfa", null).body();
+        assertThat((Boolean) JsonPath.read(status, "$.webauthn.available")).isFalse();
+        assertThat((String) JsonPath.read(status, "$.webauthn.reason"))
+                .isEqualTo("Set ARTEMIS_STUDIO_PUBLIC_URL to the address people open Studio at to enable passkeys.");
+        assertThat((List<Object>) JsonPath.read(status, "$.passkeys")).isEmpty();
+        var options = browser.post("/api/v1/auth/mfa/webauthn/options", null);
+        assertThat(options.statusCode()).isEqualTo(409);
+        assertThat(problem(options)).endsWith("/passkeys-unavailable");
+        // An authenticator app still works.
+        assertThat(enrol(browser).recoveryCodes()).hasSize(10);
+    }
+
+    @Test
     void enrollingDoesNotMakeAStaleSessionFresh() throws Exception {
         newUser("sf-stale-enrol");
         Browser browser = signedIn("sf-stale-enrol");

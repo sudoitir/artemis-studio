@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
-import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
@@ -19,6 +18,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +31,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Sign-in, sign-out, the current identity and the providers to sign in with
@@ -47,6 +49,7 @@ public class AuthSessionController {
     private final UserAccounts accounts;
     private final SessionAuthentication sessions;
     private final SessionService sessionService;
+    private final JsonMapper json;
 
     public record LoginRequest(
             @Schema(nullable = true, description = "The credential provider to sign in with. Omit for local.")
@@ -116,23 +119,19 @@ public class AuthSessionController {
                             + "of the single-use codes.")
             List<SessionFacts.Method> methods) {}
 
-    /** Exactly one of the fields is set. */
+    /** Exactly one of {@code totpCode}, {@code recoveryCode} and {@code webauthn} is set. */
     public record SecondFactorRequest(
             @Schema(nullable = true, description = "A code from an authenticator app.")
             String totpCode,
 
             @Schema(nullable = true, description = "A single-use recovery code; dashes and case are ignored.")
-            String recoveryCode) {
+            String recoveryCode,
 
-        SecondFactors.Proof proof() {
-            boolean totp = totpCode != null && !totpCode.isBlank();
-            boolean recovery = recoveryCode != null && !recoveryCode.isBlank();
-            if (totp == recovery) {
-                throw new IllegalArgumentException("Send either totpCode or recoveryCode.");
-            }
-            return totp ? new SecondFactors.TotpCode(totpCode) : new SecondFactors.RecoveryCode(recoveryCode);
-        }
-    }
+            @Schema(
+                    nullable = true,
+                    description = "The credential a passkey returned for the options from "
+                            + "POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it.")
+            Map<String, Object> webauthn) {}
 
     public record IdentityProviderView(
             @Schema(requiredMode = REQUIRED) String id,
@@ -182,7 +181,22 @@ public class AuthSessionController {
     @PostMapping("/second-factor")
     public AuthResult secondFactor(
             @RequestBody SecondFactorRequest request, HttpServletRequest req, HttpServletResponse resp) {
-        return result(logins.secondFactor(request.proof(), req, resp), req);
+        String passkey = request.webauthn() == null ? null : json.writeValueAsString(request.webauthn());
+        return result(
+                logins.secondFactor(
+                        new LoginService.Submission(request.totpCode(), request.recoveryCode(), passkey), req, resp),
+                req);
+    }
+
+    /**
+     * The options a browser needs to ask for a passkey, for a sign-in or a step-up whose password was
+     * right: the object {@code PublicKeyCredential.parseRequestOptionsFromJSON} takes. Reachable
+     * without a session, because a sign-in has none yet; it still needs the CSRF token, and answers
+     * only while a password is waiting for its second factor.
+     */
+    @PostMapping("/second-factor/options")
+    public Map<String, Object> secondFactorOptions(HttpServletRequest req) {
+        return json.readValue(logins.passkeyOptions(req), new TypeReference<>() {});
     }
 
     @PostMapping("/logout")

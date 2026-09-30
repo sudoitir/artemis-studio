@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,12 @@ public interface SecondFactors {
     List<SessionFacts.Method> methods(UUID userId);
 
     /**
+     * A challenge for the passkeys of the user, to be answered with a {@link WebAuthnAssertion}; empty
+     * when the user has none they can use now (none enrolled, or passkeys are not available).
+     */
+    Optional<PasskeyChallenge> passkeyChallenge(UUID userId);
+
+    /**
      * Checks a proof and spends it: a proof, however it is presented, verifies once.
      *
      * @return how it was verified, or empty when it was not valid or was already used
@@ -36,14 +43,36 @@ public interface SecondFactors {
         return required(userId) && !enrolled(userId);
     }
 
+    /**
+     * What to show the browser so it can ask for a passkey, and what the session keeps meanwhile.
+     *
+     * @param options the WebAuthn request options as JSON, exactly as {@code navigator.credentials.get} takes them
+     * @param state whatever the implementation needs to check the answer against; the session holds it
+     *     and hands it back in the {@link WebAuthnAssertion}, and never looks inside
+     */
+    record PasskeyChallenge(String options, Serializable state) {}
+
     /** What a user presents as a second factor. Later factors add a case here. */
-    sealed interface Proof permits TotpCode, RecoveryCode {}
+    sealed interface Proof permits TotpCode, RecoveryCode, WebAuthnAssertion {}
 
     /** A code from an authenticator app. */
     record TotpCode(String code) implements Proof {
         @Override
         public String toString() {
             return "TotpCode[***]";
+        }
+    }
+
+    /**
+     * A browser's answer to a {@link PasskeyChallenge}.
+     *
+     * @param challenge the {@link PasskeyChallenge#state()} the session held
+     * @param credential the {@code PublicKeyCredential} the browser returned, as JSON
+     */
+    record WebAuthnAssertion(Serializable challenge, String credential) implements Proof {
+        @Override
+        public String toString() {
+            return "WebAuthnAssertion[***]";
         }
     }
 

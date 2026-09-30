@@ -4,6 +4,10 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 public class SecondFactorInvalidException extends RuntimeException {
 
     public SecondFactorInvalidException() {
-        super("That code is not valid. Try the current code from your app, or a recovery code.");
+        this("That code is not valid. Try the current code from your app, or a recovery code.");
+    }
+
+    public SecondFactorInvalidException(String message) {
+        super(message);
     }
 }

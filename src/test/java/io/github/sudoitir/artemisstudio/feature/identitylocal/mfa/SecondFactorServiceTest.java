@@ -18,6 +18,7 @@ class SecondFactorServiceTest {
     private final UserAccounts accounts = mock(UserAccounts.class);
     private final SecondFactorService factors = new SecondFactorService(
             mock(TotpStore.class),
+            mock(Passkeys.class),
             mock(RecoveryCodes.class),
             accounts,
             mock(AuditService.class),
