@@ -76,18 +76,11 @@ the structured result.
 
 ### Requirement: Broker credentials are encrypted at rest
 
-The system SHALL store broker credentials only as authenticated ciphertext.
-Encryption SHALL use AES in GCM mode with a 96-bit random nonce per secret and
-a 128-bit authentication tag. The root key SHALL be read from the
-`ARTEMIS_STUDIO_SECRET_KEY` environment value, which MUST decode as base64 to
-exactly 32 bytes; if it is missing or the wrong length the application SHALL
-fail to start. The additional authenticated data SHALL bind each ciphertext to
-its owning cluster and credential kind so a ciphertext cannot be moved to
-another row.
+The system SHALL store broker credentials only as envelope-encrypted sealed values (`secret-management`): the credential encrypted with AES-GCM under its own data key, and the data key wrapped by a versioned key-encryption key from the configured key provider. With no provider configured, the key comes from `ARTEMIS_STUDIO_SECRET_KEY`, which MUST decode as base64 to exactly 32 bytes (or list numbered keys that each do); if no valid key is available the application SHALL fail to start. The additional authenticated data SHALL bind each ciphertext to its owning cluster and credential kind so a sealed value cannot be moved to another row.
 
 #### Scenario: Missing key stops startup
 
-- **WHEN** the application starts with no `ARTEMIS_STUDIO_SECRET_KEY` set
+- **WHEN** the application starts with the environment provider and no `ARTEMIS_STUDIO_SECRET_KEY` set
 - **THEN** startup fails with an error that names the missing key
 
 #### Scenario: Wrong-length key stops startup
@@ -102,8 +95,7 @@ another row.
 
 #### Scenario: Ciphertext is bound to its row
 
-- **WHEN** a stored ciphertext for cluster A is decrypted with cluster B's
-  identity as additional authenticated data
+- **WHEN** a sealed value for cluster A is opened with cluster B's identity as additional authenticated data
 - **THEN** decryption fails rather than returning a value
 
 ### Requirement: TLS to brokers is configured by named bundle

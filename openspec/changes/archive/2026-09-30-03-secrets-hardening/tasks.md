@@ -33,5 +33,5 @@
 
 ## 8. Finish
 - [x] 8.1 Reviewer pass on the full diff; findings fixed
-- [ ] 8.2 `just verify` green; Security tab screenshots (light, dark, empty, running, error)
-- [ ] 8.3 PR merged on green CI; change archived; roadmap ticked
+- [x] 8.2 `just verify` green; Security tab screenshots (light, dark, empty, running, error)
+- [x] 8.3 PR merged on green CI; change archived; roadmap ticked
