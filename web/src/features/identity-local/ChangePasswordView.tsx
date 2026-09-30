@@ -22,6 +22,9 @@ export function ChangePasswordView() {
   const forced = me.data?.mustChangePassword ?? false;
 
   const mismatch = confirm.length > 0 && newPassword !== confirm;
+  const error = changePassword.error;
+  // The policy's reason belongs beside the field it is about; anything else is about the attempt.
+  const policyReason = error?.type.endsWith('/password-policy') ? error.message : undefined;
 
   function onSubmit(e: React.SubmitEvent) {
     e.preventDefault();
@@ -70,6 +73,7 @@ export function ChangePasswordView() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.currentTarget.value)}
                 autoComplete="new-password"
+                error={policyReason}
                 required
               />
               <PasswordInput
@@ -80,7 +84,9 @@ export function ChangePasswordView() {
                 error={mismatch ? 'Passwords do not match' : undefined}
                 required
               />
-              {changePassword.isError ? <Alert color="red">Current password is incorrect.</Alert> : null}
+              {error && !policyReason ? (
+                <Alert color="red">{error.status === 401 ? 'Current password is incorrect.' : error.message}</Alert>
+              ) : null}
               <Button
                 type="submit"
                 loading={changePassword.isPending || logout.isPending}

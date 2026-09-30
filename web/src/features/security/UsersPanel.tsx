@@ -35,6 +35,8 @@ export function UsersPanel() {
   const [roleId, setRoleId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<{ id: string; username: string } | null>(null);
 
+  const policyReason = createUser.error?.type.endsWith('/password-policy') ? createUser.error.message : undefined;
+
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
   return (
@@ -127,7 +129,14 @@ export function UsersPanel() {
 
       <EffectivePermissionsDrawer user={previewing} onClose={() => setPreviewing(null)} />
 
-      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="New user">
+      <Modal
+        opened={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          createUser.reset();
+        }}
+        title="New user"
+      >
         <Stack gap="sm">
           <TextInput label="Username" value={username} onChange={(e) => setUsername(e.currentTarget.value)} required />
           <TextInput label="Email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
@@ -136,6 +145,7 @@ export function UsersPanel() {
             value={password}
             onChange={(e) => setPassword(e.currentTarget.value)}
             description="The user will be required to change it on first login."
+            error={policyReason}
             required
           />
           <Button
@@ -151,7 +161,9 @@ export function UsersPanel() {
                     setPassword('');
                     notifications.show({ message: `Created ${username}`, color: 'green' });
                   },
-                  onError: (e) => notifications.show({ message: e.message, color: 'red' }),
+                  onError: (e) => {
+                    if (!e.type.endsWith('/password-policy')) notifications.show({ message: e.message, color: 'red' });
+                  },
                 },
               )
             }
