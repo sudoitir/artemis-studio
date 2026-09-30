@@ -117,8 +117,7 @@ export function CredentialsSection({ clusterId }: Readonly<{ clusterId: string }
       <Text size="sm" c="dimmed" mb="sm">
         The accounts Studio uses to reach every node of <strong>{cluster.data?.name ?? 'this cluster'}</strong>.
         Management and Core are stored separately, so a cluster whose management account is its{' '}
-        <code>&lt;cluster-user&gt;</code>
-        can still open a Core connection.
+        <code>&lt;cluster-user&gt;</code> can still open a Core connection.
       </Text>
       {cluster.data ? <CredentialRotation clusterId={clusterId} clusterName={cluster.data.name} /> : null}
     </>

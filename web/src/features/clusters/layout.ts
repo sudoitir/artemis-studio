@@ -169,6 +169,7 @@ function brokerNode(
 ): Node<BrokerNodeData> {
   const kind = kindOf(endpoint, serving);
   const statusWord = statusWordOf(kind, endpoint);
+  const version = endpoint.version ? `, Artemis ${endpoint.version}` : '';
   return {
     id,
     type: kind === 'unmanaged' ? 'unmanaged' : 'broker',
@@ -188,7 +189,7 @@ function brokerNode(
       offset,
       unmanaged: kind === 'unmanaged',
       nodeIds: [endpoint.id],
-      srSentence: `${endpoint.name}: ${statusWord}${endpoint.version ? `, Artemis ${endpoint.version}` : ''}.`,
+      srSentence: `${endpoint.name}: ${statusWord}${version}.`,
     },
   };
 }
@@ -212,6 +213,60 @@ function axisNoteOf(status: AxisStatus): string {
   }
 }
 
+/** Both live endpoints of a split brain, side by side: neither is the primary and neither a backup. */
+function splitBrainChildren(
+  logical: LogicalNodeView,
+  groupId: string,
+  serving: NodeEndpointView[],
+): { children: Node<BrokerNodeData>[]; edges: Edge[] } {
+  const children = serving.map((e, i) =>
+    brokerNode(e.id, groupId, GROUP_PAD + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId ?? null),
+  );
+  return { children, edges: [] };
+}
+
+/** The serving endpoint above its backup, with the replication line between them. */
+function pairChildren(
+  logical: LogicalNodeView,
+  groupId: string,
+  serving: NodeEndpointView[],
+  others: NodeEndpointView[],
+): { children: Node<BrokerNodeData>[]; edges: Edge[] } {
+  const children: Node<BrokerNodeData>[] = [];
+  const edges: Edge[] = [];
+  const top = serving[0] ?? null;
+  const bottom = others[0] ?? null;
+  if (top) {
+    children.push(brokerNode(top.id, groupId, GROUP_PAD, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
+  }
+  if (bottom) {
+    children.push(
+      brokerNode(
+        bottom.id,
+        groupId,
+        GROUP_PAD,
+        BACKUP_Y,
+        bottom,
+        false,
+        logical.replicationBehind,
+        logical.artemisNodeId ?? null,
+      ),
+    );
+  }
+  if (top && bottom) {
+    edges.push({
+      id: `${top.id}--${bottom.id}`,
+      source: top.id,
+      target: bottom.id,
+      style: {
+        stroke: logical.replicationBehind ? 'var(--as-graph-edge-behind)' : 'var(--as-graph-edge)',
+        strokeDasharray: logical.replicationBehind ? '6 4' : undefined,
+      },
+    });
+  }
+  return { children, edges };
+}
+
 /**
  * One logical node → one group node plus its endpoint children. Returns the
  * group's own width so the caller can pack groups left to right without a
@@ -227,56 +282,10 @@ function layoutLogicalNode(
   const serving = logical.endpoints.filter((e) => e.active && !e.lastError);
   const others = logical.endpoints.filter((e) => !(e.active && !e.lastError));
 
-  const children: Node<BrokerNodeData>[] = [];
-  const edges: Edge[] = [];
-
-  if (axisStatus === 'critical') {
-    serving.forEach((e, i) => {
-      children.push(
-        brokerNode(
-          e.id,
-          groupId,
-          GROUP_PAD + i * SPLIT_BRAIN_DX,
-          LIVE_Y,
-          e,
-          true,
-          false,
-          logical.artemisNodeId ?? null,
-        ),
-      );
-    });
-  } else {
-    const top = serving[0] ?? null;
-    const bottom = others[0] ?? null;
-    if (top) {
-      children.push(brokerNode(top.id, groupId, GROUP_PAD, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
-    }
-    if (bottom) {
-      children.push(
-        brokerNode(
-          bottom.id,
-          groupId,
-          GROUP_PAD,
-          BACKUP_Y,
-          bottom,
-          false,
-          logical.replicationBehind,
-          logical.artemisNodeId ?? null,
-        ),
-      );
-    }
-    if (top && bottom) {
-      edges.push({
-        id: `${top.id}--${bottom.id}`,
-        source: top.id,
-        target: bottom.id,
-        style: {
-          stroke: logical.replicationBehind ? 'var(--as-graph-edge-behind)' : 'var(--as-graph-edge)',
-          strokeDasharray: logical.replicationBehind ? '6 4' : undefined,
-        },
-      });
-    }
-  }
+  const { children, edges } =
+    axisStatus === 'critical'
+      ? splitBrainChildren(logical, groupId, serving)
+      : pairChildren(logical, groupId, serving, others);
 
   const spread = Math.max(0, children.length - 1) * (axisStatus === 'critical' ? SPLIT_BRAIN_DX : 0);
   const width = NODE_W + spread + 2 * GROUP_PAD;
@@ -296,6 +305,19 @@ function layoutLogicalNode(
   return { nodes: [group, ...children], edges, width };
 }
 
+function collapsedKind(axisStatus: AxisStatus, serving: number): NodeKind {
+  if (axisStatus === 'critical' || axisStatus === 'suspected') return 'down';
+  if (axisStatus === 'behind') return 'behind';
+  return serving > 0 ? 'live' : 'down';
+}
+
+function collapsedStatusWord(axisStatus: AxisStatus, serving: number, standby: number): string {
+  if (axisStatus === 'critical') return `split brain — ${serving} serving`;
+  if (axisStatus === 'suspected') return 'split brain suspected';
+  if (axisStatus === 'behind') return 'replication behind';
+  return serving === 0 ? 'nothing serving' : `serving · ${standby} standby`;
+}
+
 /**
  * One logical node as a single box, for the reduced-detail layout.
  *
@@ -312,25 +334,8 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
   const head = serving[0] ?? others[0] ?? null;
   const shortId = (logical.artemisNodeId ?? '—').slice(0, 8);
 
-  const kind: NodeKind =
-    axisStatus === 'critical' || axisStatus === 'suspected'
-      ? 'down'
-      : axisStatus === 'behind'
-        ? 'behind'
-        : serving.length > 0
-          ? 'live'
-          : 'down';
-
-  const statusWord =
-    axisStatus === 'critical'
-      ? `split brain — ${serving.length} serving`
-      : axisStatus === 'suspected'
-        ? 'split brain suspected'
-        : axisStatus === 'behind'
-          ? 'replication behind'
-          : serving.length === 0
-            ? 'nothing serving'
-            : `serving · ${others.length} standby`;
+  const kind = collapsedKind(axisStatus, serving.length);
+  const statusWord = collapsedStatusWord(axisStatus, serving.length, others.length);
 
   return {
     id: `collapsed:${logical.artemisNodeId ?? shortId}`,
@@ -386,20 +391,20 @@ export function layout(topology: TopologyView, health: HealthView): TopologyLayo
   return { nodes, edges, summary: summarise(topology, health), dense };
 }
 
+/** The sentence the roll-up adds to the health level, when a pair is in trouble. */
+function rollUpOf(health: HealthView): string {
+  if (health.splitBrain === 'CRITICAL') return ' Split-brain confirmed.';
+  if (health.splitBrain === 'SUSPECTED') return ' Split-brain suspected.';
+  return health.replicationBehind ? ' Replication is not caught up.' : '';
+}
+
 function summarise(topology: TopologyView, health: HealthView): string {
   const parts = topology.nodes.map((n) => {
     const id = (n.artemisNodeId ?? 'unknown').slice(0, 8);
     const live = n.endpoints.filter((e) => e.active && !e.lastError).map((e) => e.name);
     const standby = n.endpoints.filter((e) => !(e.active && !e.lastError)).map((e) => e.name);
-    return `node ${id}: ${live.join(', ') || 'none'} live${standby.length ? `, ${standby.join(', ')} standby` : ''}`;
+    const standbyNote = standby.length ? `, ${standby.join(', ')} standby` : '';
+    return `node ${id}: ${live.join(', ') || 'none'} live${standbyNote}`;
   });
-  const rollUp =
-    health.splitBrain === 'CRITICAL'
-      ? ' Split-brain confirmed.'
-      : health.splitBrain === 'SUSPECTED'
-        ? ' Split-brain suspected.'
-        : health.replicationBehind
-          ? ' Replication is not caught up.'
-          : '';
-  return `Cluster health ${health.level.toLowerCase()}.${rollUp} ${parts.join('; ')}.`;
+  return `Cluster health ${health.level.toLowerCase()}.${rollUpOf(health)} ${parts.join('; ')}.`;
 }

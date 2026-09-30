@@ -114,34 +114,21 @@ function CopyEventLink({ clusterId, seq }: Readonly<{ clusterId: string; seq: nu
   );
 }
 
-/** The events screen: this cluster's activemq.notifications history, newest first. */
-export function EventsView() {
-  // `/` focuses this view's filter (ADR-0109).
-  const filterRef = useRef<HTMLInputElement>(null);
-  useFilterShortcut(filterRef);
-  // Absolute timestamps here read the display zone from module state, so this
-  // subscribes the view to a zone change (`app/timezone.ts`).
-  useDisplayZone();
-  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const search = useSearch({ strict: false }) as {
-    type?: string;
-    address?: string;
-    event?: number;
-    page?: number;
-  };
-  const navigate = useNavigate();
+type EventsSearch = {
+  type?: string;
+  address?: string;
+  event?: number;
+  page?: number;
+};
 
-  const cluster = useCluster(clusterId);
-  const notifications = cluster.data?.capabilities.notifications;
+type Notifications = NonNullable<ReturnType<typeof useCluster>['data']>['capabilities']['notifications'];
 
-  const [address, setAddress] = useState(search.address ?? '');
-  const [debouncedAddress] = useDebouncedValue(address, 250);
-  const page = search.page ?? 1;
-
-  const [live, setLive] = useState(true);
+/**
+ * The live feed: events pushed on the `events` topic, newest first, capped. The topic carries each
+ * event itself — there is no resource behind it to refetch — so the frame goes straight into the buffer.
+ */
+function useLiveEvents(clusterId: string, live: boolean): BrokerEventView[] {
   const [buffer, setBuffer] = useState<BrokerEventView[]>([]);
-  // The events topic carries each event itself: there is no resource behind the
-  // live feed to refetch, so the frame goes straight into the buffer.
   const onFrame = useCallback((topic: string, data: string) => {
     if (topic !== 'events') return;
     let e: BrokerEventView;
@@ -153,6 +140,148 @@ export function EventsView() {
     setBuffer((prev) => (prev.some((x) => x.seq === e.seq) ? prev : [e, ...prev].slice(0, LIVE_BUFFER_MAX)));
   }, []);
   useClusterStream(clusterId, live ? ['events'] : [], onFrame);
+  return buffer;
+}
+
+/** Notifications not available: name the gap, show the broker.xml, infer nothing. */
+function NotificationsUnavailable({ notifications }: Readonly<{ notifications: Notifications }>) {
+  return (
+    <Stack gap="sm">
+      <Title order={3}>Events</Title>
+      <Alert
+        color={notifications.status === 'UNKNOWN' ? 'blue' : 'yellow'}
+        variant="light"
+        title="Live events not available"
+      >
+        {notifications.reason}
+      </Alert>
+      {notifications.brokerXmlSnippet ? <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" /> : null}
+    </Stack>
+  );
+}
+
+/** The event table, or what stands in for it while loading, on error, or when nothing was recorded. */
+function EventsTable({
+  query,
+  rows,
+  clusterId,
+  onOpen,
+}: Readonly<{
+  query: ReturnType<typeof useEvents>;
+  rows: BrokerEventView[];
+  clusterId: string;
+  onOpen: (e: BrokerEventView) => void;
+}>) {
+  if (query.isError) {
+    return (
+      <Alert color="red" variant="light" title={query.error.title}>
+        {query.error.message}
+      </Alert>
+    );
+  }
+  if (query.isPending && rows.length === 0) {
+    return (
+      <Stack gap={4}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <Skeleton key={i} height={28} />
+        ))}
+      </Stack>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        No broker events recorded yet. Consumer, session, connection and binding activity on this cluster's brokers
+        shows up here as it happens.
+      </Text>
+    );
+  }
+  return (
+    <VirtualTable
+      label="Broker events"
+      storageKey="events"
+      columns={columns}
+      data={rows}
+      rowKey={(e) => String(e.seq)}
+      onRowClick={onOpen}
+      rowMenu={{
+        label: (e) => `${e.type} at ${occurredAt(e)}`,
+        render: (e) => <CopyEventLink clusterId={clusterId} seq={e.seq} />,
+      }}
+    />
+  );
+}
+
+/** The open event's detail, or the reason it cannot be shown (loading, gone, failed to load). */
+function EventDetail({
+  selected,
+  offPage,
+}: Readonly<{ selected: BrokerEventView | null; offPage: ReturnType<typeof useEvent> }>) {
+  if (!selected) {
+    if (offPage.isPending) return <Skeleton height={28} />;
+    if (offPage.error?.status === 404) {
+      return (
+        <Alert color="blue" variant="light" title="This event no longer exists">
+          Broker events are kept for a limited time, so retention may have removed it, or the link names an event of
+          another cluster.
+        </Alert>
+      );
+    }
+    if (offPage.isError) {
+      return (
+        <Alert color="red" variant="light" title={offPage.error.title}>
+          {offPage.error.message}
+        </Alert>
+      );
+    }
+    return null;
+  }
+  return (
+    <Stack gap="xs">
+      <Text size="xs" c="dimmed">
+        {occurredAt(selected)} · {selected.address ?? 'no address'} · {subjectOf(selected)}
+      </Text>
+      {selected.props && Object.keys(selected.props).length > 0 ? (
+        <Code block className={styles.props}>
+          {JSON.stringify(selected.props, null, 2)}
+        </Code>
+      ) : (
+        <Text size="sm" c="dimmed">
+          This notification carried no properties.
+        </Text>
+      )}
+    </Stack>
+  );
+}
+
+/** The live buffer merged over the fetched history, newest first, de-duplicated on seq. */
+function mergeLive(history: BrokerEventView[], buffer: BrokerEventView[], showLive: boolean): BrokerEventView[] {
+  if (!showLive || buffer.length === 0) return history;
+  const seen = new Set(buffer.map((e) => e.seq));
+  return [...buffer, ...history.filter((e) => !seen.has(e.seq))];
+}
+
+/** The events screen: this cluster's activemq.notifications history, newest first. */
+export function EventsView() {
+  // `/` focuses this view's filter (ADR-0109).
+  const filterRef = useRef<HTMLInputElement>(null);
+  useFilterShortcut(filterRef);
+  // Absolute timestamps here read the display zone from module state, so this
+  // subscribes the view to a zone change (`app/timezone.ts`).
+  useDisplayZone();
+  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
+  const search = useSearch({ strict: false }) as EventsSearch;
+  const navigate = useNavigate();
+
+  const cluster = useCluster(clusterId);
+  const notifications = cluster.data?.capabilities.notifications;
+
+  const [address, setAddress] = useState(search.address ?? '');
+  const [debouncedAddress] = useDebouncedValue(address, 250);
+  const page = search.page ?? 1;
+
+  const [live, setLive] = useState(true);
+  const buffer = useLiveEvents(clusterId, live);
 
   const setParam = (patch: Record<string, unknown>) =>
     navigate({
@@ -179,16 +308,12 @@ export function EventsView() {
   const total = query.data?.count ?? 0;
   const dropped = query.data?.dropped ?? 0;
 
-  // On page 1 with no filter, merge the live buffer over the fetched history,
-  // newest first, de-duplicated on seq.
+  // On page 1 with no filter, merge the live buffer over the fetched history.
   const historyData = query.data?.data;
-  const rows = useMemo(() => {
-    const history = historyData ?? [];
-    const showLive = page === 1 && !search.type && !debouncedAddress;
-    if (!showLive || buffer.length === 0) return history;
-    const seen = new Set(buffer.map((e) => e.seq));
-    return [...buffer, ...history.filter((e) => !seen.has(e.seq))];
-  }, [buffer, historyData, page, search.type, debouncedAddress]);
+  const rows = useMemo(
+    () => mergeLive(historyData ?? [], buffer, page === 1 && !search.type && !debouncedAddress),
+    [buffer, historyData, page, search.type, debouncedAddress],
+  );
 
   const onPage = rows.find((e) => e.seq === search.event);
   const offPage = useEvent(clusterId, !onPage ? search.event : undefined);
@@ -197,19 +322,7 @@ export function EventsView() {
   // Notifications not available: name the gap, show the broker.xml, infer nothing
   // (same stance as DlqView on address settings). All hooks run above this.
   if (notifications && notifications.status !== 'AVAILABLE') {
-    return (
-      <Stack gap="sm">
-        <Title order={3}>Events</Title>
-        <Alert
-          color={notifications.status === 'UNKNOWN' ? 'blue' : 'yellow'}
-          variant="light"
-          title="Live events not available"
-        >
-          {notifications.reason}
-        </Alert>
-        {notifications.brokerXmlSnippet ? <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" /> : null}
-      </Stack>
-    );
+    return <NotificationsUnavailable notifications={notifications} />;
   }
 
   return (
@@ -252,35 +365,7 @@ export function EventsView() {
         />
       </Group>
 
-      {query.isError ? (
-        <Alert color="red" variant="light" title={query.error.title}>
-          {query.error.message}
-        </Alert>
-      ) : query.isPending && rows.length === 0 ? (
-        <Stack gap={4}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} height={28} />
-          ))}
-        </Stack>
-      ) : rows.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No broker events recorded yet. Consumer, session, connection and binding activity on this cluster's brokers
-          shows up here as it happens.
-        </Text>
-      ) : (
-        <VirtualTable
-          label="Broker events"
-          storageKey="events"
-          columns={columns}
-          data={rows}
-          rowKey={(e) => String(e.seq)}
-          onRowClick={setOpen}
-          rowMenu={{
-            label: (e) => `${e.type} at ${occurredAt(e)}`,
-            render: (e) => <CopyEventLink clusterId={clusterId} seq={e.seq} />,
-          }}
-        />
-      )}
+      <EventsTable query={query} rows={rows} clusterId={clusterId} onOpen={setOpen} />
 
       <Pager
         page={page}
@@ -302,33 +387,7 @@ export function EventsView() {
         size="lg"
         title={selected ? selected.type : 'Event'}
       >
-        {search.event === undefined ? null : !selected && offPage.isPending ? (
-          <Skeleton height={28} />
-        ) : !selected && offPage.error?.status === 404 ? (
-          <Alert color="blue" variant="light" title="This event no longer exists">
-            Broker events are kept for a limited time, so retention may have removed it, or the link names an event of
-            another cluster.
-          </Alert>
-        ) : !selected && offPage.isError ? (
-          <Alert color="red" variant="light" title={offPage.error.title}>
-            {offPage.error.message}
-          </Alert>
-        ) : selected ? (
-          <Stack gap="xs">
-            <Text size="xs" c="dimmed">
-              {occurredAt(selected)} · {selected.address ?? 'no address'} · {subjectOf(selected)}
-            </Text>
-            {selected.props && Object.keys(selected.props).length > 0 ? (
-              <Code block className={styles.props}>
-                {JSON.stringify(selected.props, null, 2)}
-              </Code>
-            ) : (
-              <Text size="sm" c="dimmed">
-                This notification carried no properties.
-              </Text>
-            )}
-          </Stack>
-        ) : null}
+        {search.event === undefined ? null : <EventDetail selected={selected} offPage={offPage} />}
       </Drawer>
     </Stack>
   );

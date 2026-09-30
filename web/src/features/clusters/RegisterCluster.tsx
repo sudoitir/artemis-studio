@@ -49,6 +49,60 @@ const EMPTY: Fields = {
   tlsBundle: '',
 };
 
+/** What is wrong with the management URLs typed so far, once the field has been touched. */
+function seedsProblem(count: number, unparseable: { original: string }[]): string | null {
+  if (count === 0) return 'Add at least one management URL.';
+  if (unparseable.length > 0) return `Couldn't make sense of: ${unparseable.map((s) => s.original).join(', ')}`;
+  return null;
+}
+
+/** A username and password go together; one without the other is the mistake to name. */
+function unpairedProblem(touched: boolean, username: string, password: string, message: string): string | null {
+  return touched && Boolean(username) !== Boolean(password) ? message : null;
+}
+
+/** Why registering is not offered yet, once the inputs are valid. */
+function blockedReason(
+  check: ReturnType<typeof useCheckConnection>,
+  checkPassed: boolean,
+  stale: boolean,
+): string | null {
+  if (check.isPending) return 'Checking the connection…';
+  if (checkPassed) return null;
+  if (stale || check.isError) return 'Check the connection again — the details changed since the last check.';
+  return 'Check the connection first.';
+}
+
+/** What the connection check found, or why it failed, and why registering failed if it did. */
+function CheckOutcome({
+  check,
+  register,
+}: Readonly<{ check: ReturnType<typeof useCheckConnection>; register: ReturnType<typeof useRegisterCluster> }>) {
+  return (
+    <div aria-live="polite">
+      {check.isSuccess ? (
+        <Text size="sm" c="dimmed">
+          {`Found ${check.data.discoveredNodes} node${
+            check.data.discoveredNodes === 1 ? '' : 's'
+          } across ${check.data.reachableSeeds} address${
+            check.data.reachableSeeds === 1 ? '' : 'es'
+          }. Nothing saved yet.`}
+        </Text>
+      ) : null}
+      {check.isError ? (
+        <Alert color="red" variant="light" title={check.error.title}>
+          {check.error.message}
+        </Alert>
+      ) : null}
+      {register.isError ? (
+        <Alert color="red" variant="light" title={register.error.title}>
+          {register.error.message}
+        </Alert>
+      ) : null}
+    </div>
+  );
+}
+
 /** The registration form. Rendered inline on the empty state, in a modal after. */
 export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: () => void }>) {
   const [f, setF] = useState<Fields>(EMPTY);
@@ -74,21 +128,19 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
   const rewritten = normalised.filter((s) => s.url !== null && s.url !== s.original);
   const unparseable = normalised.filter((s) => s.url === null);
 
-  const seedsError =
-    touched.seeds && normalised.length === 0
-      ? 'Add at least one management URL.'
-      : touched.seeds && unparseable.length > 0
-        ? `Couldn't make sense of: ${unparseable.map((s) => s.original).join(', ')}`
-        : null;
-  const credError =
-    (touched.username || touched.password) && Boolean(f.username) !== Boolean(f.password)
-      ? 'Provide both a username and a password, or neither.'
-      : null;
-
-  const coreCredError =
-    (touched.coreUsername || touched.corePassword) && Boolean(f.coreUsername) !== Boolean(f.corePassword)
-      ? 'Provide both a Core username and password, or neither.'
-      : null;
+  const seedsError = touched.seeds ? seedsProblem(normalised.length, unparseable) : null;
+  const credError = unpairedProblem(
+    touched.username || touched.password,
+    f.username,
+    f.password,
+    'Provide both a username and a password, or neither.',
+  );
+  const coreCredError = unpairedProblem(
+    touched.coreUsername || touched.corePassword,
+    f.coreUsername,
+    f.corePassword,
+    'Provide both a Core username and password, or neither.',
+  );
 
   const valid = seedList.length > 0 && !seedsError && !credError && !coreCredError;
 
@@ -112,15 +164,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
   // registration, where it reads as a broken cluster rather than a typo.
   const checkPassed = check.isSuccess && checkedThis;
   const afterProbe = useSlot('cluster.registration.afterProbe');
-  const registerBlockedReason = !valid
-    ? null
-    : check.isPending
-      ? 'Checking the connection…'
-      : checkPassed
-        ? null
-        : stale || check.isError
-          ? 'Check the connection again — the details changed since the last check.'
-          : 'Check the connection first.';
+  const registerBlockedReason = valid ? blockedReason(check, checkPassed, stale) : null;
 
   // Open the advanced fields on their own once a check reveals they'd matter —
   // the operator never has to know they exist until the ledger says so.
@@ -214,27 +258,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
             </Stack>
           </Collapse>
 
-          <div aria-live="polite">
-            {check.isSuccess ? (
-              <Text size="sm" c="dimmed">
-                {`Found ${check.data.discoveredNodes} node${
-                  check.data.discoveredNodes === 1 ? '' : 's'
-                } across ${check.data.reachableSeeds} address${
-                  check.data.reachableSeeds === 1 ? '' : 'es'
-                }. Nothing saved yet.`}
-              </Text>
-            ) : null}
-            {check.isError ? (
-              <Alert color="red" variant="light" title={check.error.title}>
-                {check.error.message}
-              </Alert>
-            ) : null}
-            {register.isError ? (
-              <Alert color="red" variant="light" title={register.error.title}>
-                {register.error.message}
-              </Alert>
-            ) : null}
-          </div>
+          <CheckOutcome check={check} register={register} />
 
           {check.isSuccess ? <CapabilityLedger capabilities={check.data.capabilities} /> : null}
 

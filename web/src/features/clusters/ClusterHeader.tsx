@@ -4,9 +4,17 @@ import { Alert, Button, Group, Loader, Stack, Text, Title } from '@mantine/core'
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { RemoveCluster } from './AddManagementUrl.tsx';
-import { useCluster } from './api.ts';
+import { useCluster, type CapabilitiesView } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import styles from './ClusterHeader.module.css';
+
+/** The capabilities the connection reports as unavailable. */
+function capabilityGaps(caps: CapabilitiesView | undefined): string[] {
+  if (!caps) return [];
+  return (['managementRead', 'managementWrite', 'messageIo', 'notifications'] as const).filter(
+    (k) => caps[k].status === 'UNAVAILABLE',
+  );
+}
 
 /**
  * Above every view of a cluster (`cluster.header`): its identity, the health banner, and a notice
@@ -23,13 +31,7 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   // managementWrite and messageIo stay UNKNOWN until a write has actually been
   // attempted, and a notice on every freshly registered cluster — for a broker
   // that is very likely fine — is noise the operator learns to dismiss unread.
-  const gaps = caps
-    ? ([
-        ...(['managementRead', 'managementWrite', 'messageIo', 'notifications'] as const).filter(
-          (k) => caps[k].status === 'UNAVAILABLE',
-        ),
-      ] as string[])
-    : [];
+  const gaps = capabilityGaps(caps);
   // Keyed on which capabilities are short, so dismissing today's gap does not
   // also hide a different one that appears tomorrow. Computed before the early
   // returns below so the hook order never depends on the query state.

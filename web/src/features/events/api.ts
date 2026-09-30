@@ -39,7 +39,8 @@ export function useEvents(clusterId: string, filter: EventFilter = {}): UseQuery
         if (v !== undefined && v !== '' && !(k === 'page' && v === 1)) sp.set(k, String(v));
       }
       const qs = sp.toString();
-      return request<BrokerEventPageView>(`/clusters/${clusterId}/events${qs ? `?${qs}` : ''}`);
+      const query = qs ? `?${qs}` : '';
+      return request<BrokerEventPageView>(`/clusters/${clusterId}/events${query}`);
     },
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,

@@ -58,6 +58,7 @@ export function CapabilityLedger({
         const word = statusWord(key, cap);
         const expandable = word.text !== 'Available';
         const isOpen = open === key;
+        const chevron = isOpen ? ' ⌃' : ' ⌄';
 
         return (
           <div key={key}>
@@ -72,7 +73,7 @@ export function CapabilityLedger({
               <span className={styles.label}>{LABELS[key]}</span>
               <span className={styles.status} data-tone={word.tone}>
                 {word.text}
-                {expandable ? (isOpen ? ' ⌃' : ' ⌄') : ''}
+                {expandable ? chevron : ''}
               </span>
             </button>
 

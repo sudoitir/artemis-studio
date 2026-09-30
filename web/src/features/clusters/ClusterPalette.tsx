@@ -18,15 +18,16 @@ export function ClusterPalette({ report }: { report: (groups: SpotlightActionGro
     report([
       {
         group: 'Clusters',
-        actions: (clusters.data ?? []).map((c) => ({
-          id: `cluster-${c.id}`,
-          label: c.name,
-          description:
-            view?.item && view.clusterId !== c.id
-              ? `${view.item.label} on this cluster · ${c.nodeCount} node${c.nodeCount === 1 ? '' : 's'}`
-              : `${c.nodeCount} node${c.nodeCount === 1 ? '' : 's'}`,
-          onClick: () => navigate({ to: view?.item ? sameViewOn(c.id, view) : `/clusters/${c.id}/topology` }),
-        })),
+        actions: (clusters.data ?? []).map((c) => {
+          const nodes = `${c.nodeCount} node${c.nodeCount === 1 ? '' : 's'}`;
+          return {
+            id: `cluster-${c.id}`,
+            label: c.name,
+            description:
+              view?.item && view.clusterId !== c.id ? `${view.item.label} on this cluster · ${nodes}` : nodes,
+            onClick: () => navigate({ to: view?.item ? sameViewOn(c.id, view) : `/clusters/${c.id}/topology` }),
+          };
+        }),
       },
     ]);
   }, [clusters.data, navigate, report, view]);
