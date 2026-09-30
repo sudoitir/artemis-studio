@@ -43,6 +43,8 @@ public class MetricQueryService {
 
     private static final int MAX_POINTS = 500;
 
+    private static final String GAUGE = "GAUGE";
+
     /** A split by node draws at most this many nodes (ADR-0110). */
     static final int MAX_SPLIT_NODES = 16;
 
@@ -185,7 +187,7 @@ public class MetricQueryService {
                 to,
                 window.step().toString(),
                 window.truncated(),
-                List.of(new MetricSeries(metric, "GAUGE", declared.metric().unit(), points)));
+                List.of(new MetricSeries(metric, GAUGE, declared.metric().unit(), points)));
     }
 
     private record Window(Instant from, Duration step, boolean truncated) {}
@@ -274,7 +276,7 @@ public class MetricQueryService {
 
     private static MetricSeries nodeSeries(String metric, List<MetricPoint> points) {
         boolean gauge = GAUGE_METRICS.contains(metric);
-        return new MetricSeries(metric, gauge ? "GAUGE" : "RATE", gauge ? "count" : "msg/s", points);
+        return new MetricSeries(metric, gauge ? GAUGE : "RATE", gauge ? "count" : "msg/s", points);
     }
 
     private MetricSeries buildSeries(
@@ -286,6 +288,6 @@ public class MetricQueryService {
         List<MetricPoint> points = buckets.stream()
                 .map(b -> new MetricPoint(b.ts(), b.value(), b.peak()))
                 .toList();
-        return new MetricSeries(metric, isGauge ? "GAUGE" : "RATE", isGauge ? "count" : "msg/s", points);
+        return new MetricSeries(metric, isGauge ? GAUGE : "RATE", isGauge ? "count" : "msg/s", points);
     }
 }
