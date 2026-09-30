@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { layout, isBrokerNode, LIVE_Y, BACKUP_Y, GROUP_PAD } from './layout.ts';
+import { layout, isBrokerNode, LIVE_Y, BACKUP_Y, GROUP_PAD, DENSE_THRESHOLD, COL_W } from './layout.ts';
 import type { Node } from '@xyflow/react';
 import type { BrokerNodeData, TopologyLayout } from './layout.ts';
 import type { HealthView, NodeEndpointView, TopologyView } from './api.ts';
@@ -256,5 +256,216 @@ describe('topology layout', () => {
     const model = layout(topo(), health());
     expect(model.nodes).toHaveLength(0);
     expect(model.edges).toHaveLength(0);
+  });
+});
+
+describe('topology layout: endpoint states', () => {
+  const lone = (e: Partial<NodeEndpointView>, serving = false) =>
+    box(
+      layout(
+        topo({
+          artemisNodeId: 'NID',
+          splitBrain: 'NONE',
+          replicationBehind: false,
+          endpoints: [{ ...endpoint({ id: 'e', ...e, active: serving }), ...e }],
+        }),
+        health(),
+      ),
+      'e',
+    );
+
+  it('a stopped endpoint reads stopped, and one with an error reads unreachable', () => {
+    expect(lone({ state: 'STOPPED' }).data).toMatchObject({ kind: 'down', statusWord: 'stopped' });
+    const failing = lone({ lastError: 'connection refused' }, true);
+    expect(failing.data).toMatchObject({ kind: 'down', statusWord: 'unreachable', lastError: 'connection refused' });
+  });
+
+  it('a live endpoint states its version in the screen-reader sentence, and a versionless one does not', () => {
+    const live = lone({ name: 'a', version: '2.44.0' }, true);
+    expect(live.data).toMatchObject({ kind: 'live', statusWord: 'live', srSentence: 'a: live, Artemis 2.44.0.' });
+    const bare = lone({ name: 'a', version: null }, true);
+    expect(bare.data).toMatchObject({ version: null, srSentence: 'a: live.' });
+  });
+
+  it('a standby whose replica is not in sync is behind, otherwise in sync', () => {
+    expect(lone({ replicaSync: false }).data).toMatchObject({ kind: 'behind', statusWord: 'not caught up' });
+    expect(lone({ replicaSync: true }).data).toMatchObject({ kind: 'standby', statusWord: 'standby' });
+  });
+
+  it('an unmanaged endpoint says it has no management URL', () => {
+    expect(lone({ manageable: false })).toMatchObject({
+      type: 'unmanaged',
+      data: { unmanaged: true, statusWord: 'discovered — no management URL' },
+    });
+  });
+
+  it('shows the management host and port, falling back to the raw text, then the core URL', () => {
+    expect(lone({ jolokiaUrl: 'http://broker.example:8161/jolokia' }).data.address).toBe('broker.example:8161');
+    expect(lone({ jolokiaUrl: 'https://broker.example/jolokia' }).data.address).toBe('broker.example');
+    expect(lone({ jolokiaUrl: 'not a url' }).data.address).toBe('not a url');
+    expect(lone({ jolokiaUrl: null, coreUrl: 'core:61616' }).data.address).toBe('core:61616');
+    expect(lone({ jolokiaUrl: null, coreUrl: null }).data.address).toBeNull();
+  });
+
+  it('a pair with no serving endpoint still lays out its backup, without an edge', () => {
+    const model = layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain: 'NONE',
+        replicationBehind: false,
+        endpoints: [endpoint({ id: 'b', active: false })],
+      }),
+      health(),
+    );
+    expect(box(model, 'b').position.y).toBe(BACKUP_Y);
+    expect(model.edges).toHaveLength(0);
+  });
+});
+
+describe('topology layout: axis and summary', () => {
+  const pair = (splitBrain: string, replicationBehind = false) =>
+    layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain,
+        replicationBehind,
+        endpoints: [endpoint({ id: 'p', active: true }), endpoint({ id: 'b', active: false })],
+      }),
+      health(),
+    );
+
+  it('names the axis by what is wrong with the pair', () => {
+    expect(groups(pair('NONE', false))[0].data).toMatchObject({ axisStatus: 'ok', axisNote: 'shared NodeID' });
+    expect(groups(pair('NONE', true))[0].data).toMatchObject({ axisStatus: 'behind', axisNote: 'replication behind' });
+    expect(groups(pair('SUSPECTED'))[0].data).toMatchObject({
+      axisStatus: 'suspected',
+      axisNote: 'checking — two nodes reporting active',
+    });
+    expect(groups(pair('CRITICAL'))[0].data).toMatchObject({
+      axisStatus: 'critical',
+      axisNote: 'two nodes live in one pair',
+    });
+  });
+
+  it('a node with no NodeID is grouped under a placeholder id', () => {
+    const model = layout(
+      topo({ artemisNodeId: null, splitBrain: 'NONE', replicationBehind: false, endpoints: [] }),
+      health(),
+    );
+    expect(groups(model)[0]).toMatchObject({ id: 'pair:—', data: { shortId: '—' } });
+  });
+
+  it('packs pairs left to right in NodeID order, a split brain taking more room', () => {
+    const model = layout(
+      topo(
+        {
+          artemisNodeId: 'B',
+          splitBrain: 'NONE',
+          replicationBehind: false,
+          endpoints: [endpoint({ id: 'b1', active: true })],
+        },
+        {
+          artemisNodeId: 'A',
+          splitBrain: 'CRITICAL',
+          replicationBehind: false,
+          endpoints: [endpoint({ id: 'a1', active: true }), endpoint({ id: 'a2', active: true })],
+        },
+      ),
+      health(),
+    );
+    const [first, second] = groups(model);
+    expect(first.id).toBe('pair:A');
+    expect(second.id).toBe('pair:B');
+    expect(second.position.x).toBeGreaterThan(first.position.x + 2 * (COL_W - 44));
+  });
+
+  it('adds the split-brain sentences and lists standbys in the summary', () => {
+    const t = topo({
+      artemisNodeId: 'NIDNIDNID',
+      splitBrain: 'NONE',
+      replicationBehind: false,
+      endpoints: [endpoint({ id: 'p', name: 'primary', active: true }), endpoint({ id: 'b', name: 'backup' })],
+    });
+    expect(layout(t, health({ level: 'CRITICAL', splitBrain: 'CRITICAL' })).summary).toBe(
+      'Cluster health critical. Split-brain confirmed. node NIDNIDNI: primary live, backup standby.',
+    );
+    expect(layout(t, health({ level: 'DEGRADED', splitBrain: 'SUSPECTED' })).summary).toContain(
+      'Split-brain suspected.',
+    );
+    expect(layout(t, health()).summary).toBe('Cluster health ok. node NIDNIDNI: primary live, backup standby.');
+  });
+
+  it('says none is live when nothing serves, and names an unknown node', () => {
+    const t = topo({
+      artemisNodeId: null,
+      splitBrain: 'NONE',
+      replicationBehind: false,
+      endpoints: [endpoint({ id: 'x', name: 'x' })],
+    });
+    expect(layout(t, health()).summary).toContain('node unknown: none live, x standby');
+  });
+});
+
+describe('topology layout: reduced detail', () => {
+  const logical = (id: string, over: Partial<TopologyView['nodes'][number]> = {}): TopologyView['nodes'][number] => ({
+    artemisNodeId: id,
+    splitBrain: 'NONE',
+    replicationBehind: false,
+    endpoints: [
+      endpoint({ id: `${id}-p`, name: `${id}-primary`, active: true }),
+      endpoint({ id: `${id}-b`, name: `${id}-backup` }),
+    ],
+    ...over,
+  });
+  const many = (n: number) => Array.from({ length: n }, (_, i) => logical(`N${String(i).padStart(3, '0')}`));
+
+  it('keeps the full layout at the threshold and collapses one past it', () => {
+    expect(layout(topo(...many(DENSE_THRESHOLD)), health()).dense).toBe(false);
+    const model = layout(topo(...many(DENSE_THRESHOLD + 1)), health());
+    expect(model.dense).toBe(true);
+    expect(model.edges).toHaveLength(0);
+    expect(model.nodes).toHaveLength(DENSE_THRESHOLD + 1);
+    expect(groups(model)).toHaveLength(0);
+  });
+
+  it('wraps the collapsed boxes into a grid of eight columns', () => {
+    const model = layout(topo(...many(DENSE_THRESHOLD + 1)), health());
+    const at = (i: number) => model.nodes[i].position;
+    expect(at(0)).toEqual({ x: 0, y: 0 });
+    expect(at(7)).toEqual({ x: 7 * COL_W, y: 0 });
+    expect(at(8)).toEqual({ x: 0, y: 140 });
+  });
+
+  it('a collapsed pair says in words what the axis would have shown', () => {
+    const t = (over: Partial<TopologyView['nodes'][number]>) =>
+      layout(topo(...many(DENSE_THRESHOLD), logical('ZZZ', over)), health()).nodes.at(-1) as Node<BrokerNodeData>;
+
+    expect(t({}).data).toMatchObject({
+      kind: 'live',
+      statusWord: 'serving · 1 standby',
+      name: 'ZZZ-primary',
+      shortId: 'ZZZ',
+      nodeIds: ['ZZZ-p', 'ZZZ-b'],
+      srSentence: 'Node ZZZ: serving · 1 standby. 2 endpoints.',
+    });
+    expect(t({ replicationBehind: true }).data).toMatchObject({ kind: 'behind', statusWord: 'replication behind' });
+    expect(t({ splitBrain: 'SUSPECTED' }).data).toMatchObject({ kind: 'down', statusWord: 'split brain suspected' });
+    expect(
+      t({
+        splitBrain: 'CRITICAL',
+        endpoints: [endpoint({ id: 'a', active: true }), endpoint({ id: 'b', active: true })],
+      }).data,
+    ).toMatchObject({ kind: 'down', statusWord: 'split brain — 2 serving' });
+    expect(t({ endpoints: [endpoint({ id: 'only', name: 'only' })] }).data).toMatchObject({
+      kind: 'down',
+      statusWord: 'nothing serving',
+      name: 'only',
+      srSentence: 'Node ZZZ: nothing serving. 1 endpoint.',
+    });
+    const anonymous = layout(
+      topo(logical('ZZZ', { endpoints: [], artemisNodeId: null }), ...many(DENSE_THRESHOLD)),
+      health(),
+    ).nodes[0] as Node<BrokerNodeData>;
+    expect(anonymous.data).toMatchObject({ name: '—', shortId: '—', nodeIds: [] });
   });
 });

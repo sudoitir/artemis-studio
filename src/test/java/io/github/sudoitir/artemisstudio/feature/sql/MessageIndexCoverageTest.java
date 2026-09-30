@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -30,16 +33,15 @@ class MessageIndexCoverageTest {
     private final SqlQueryParser parser = new SqlQueryParser();
     private MessageIndexSubscriptionRepository subscriptions;
     private MessageCaptureNodeRepository captureNodes;
+    private QueueSnapshots snapshots;
     private MessageIndexCoverage coverage;
 
     @BeforeEach
     void setUp() {
         subscriptions = mock(MessageIndexSubscriptionRepository.class);
         captureNodes = mock(MessageCaptureNodeRepository.class);
-        coverage = new MessageIndexCoverage(
-                subscriptions,
-                captureNodes,
-                mock(io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots.class));
+        snapshots = mock(QueueSnapshots.class);
+        coverage = new MessageIndexCoverage(subscriptions, captureNodes, snapshots);
     }
 
     private MessageIndexSubscriptionEntity subscription(String pattern, Instant captureFrom, int retentionDays) {
@@ -174,6 +176,189 @@ class MessageIndexCoverageTest {
                 .thenReturn(Optional.of(node(captured, pay, CaptureState.ACTIVE)));
         assertThat(coverage.isCaptured(CLUSTER, List.of(pay))).isTrue();
         assertThat(coverage.isCaptured(CLUSTER, List.of(target("ORDER.IN")))).isFalse();
+    }
+
+    private static QueueSnapshot snapshot(String queue, String address) {
+        return new QueueSnapshot(
+                CLUSTER,
+                UUID.randomUUID(),
+                queue,
+                address,
+                "MULTICAST",
+                true,
+                false,
+                Instant.now(),
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
+    }
+
+    private MessageIndexSubscriptionEntity capturing(String pattern) {
+        MessageIndexSubscriptionEntity entity =
+                subscription(pattern, Instant.now().minus(Duration.ofDays(1)), 7);
+        entity.setMode(CaptureMode.CAPTURE);
+        return entity;
+    }
+
+    private static Target onAddress(String queue, String address, String nodeName) {
+        return new Target(UUID.randomUUID(), nodeName, queue, address, "MULTICAST", 10, Instant.now(), true);
+    }
+
+    @Test
+    void noTargetsIsNeverCaptured() {
+        assertThat(coverage.isCaptured(CLUSTER, List.of())).isFalse();
+    }
+
+    @Test
+    void aMissingCaptureNodeRowMeansNotCaptured() {
+        MessageIndexSubscriptionEntity captured = capturing("ORDER.IN");
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(captured));
+        when(captureNodes.findBySubscriptionIdAndNodeId(any(), any())).thenReturn(Optional.empty());
+
+        assertThat(coverage.isCaptured(CLUSTER, List.of(target("ORDER.IN")))).isFalse();
+    }
+
+    @Test
+    void pluralUncoveredQueuesAreAllNamed() {
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(subscription("OTHER", Instant.now(), 7)));
+
+        List<Notice> notices = coverage.check(
+                CLUSTER,
+                ast("SELECT * FROM index.\"A.*\""),
+                List.of(target("A.ONE"), target("A.TWO"), target("A.ONE")));
+
+        assertThat(notices)
+                .anySatisfy(notice ->
+                        assertThat(notice.detail()).contains("A.ONE, A.TWO").contains("captures them."));
+    }
+
+    @Test
+    void noSubscriptionAtAllOnlyReportsTheUncoveredQueue() {
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of());
+
+        List<Notice> notices = coverage.check(CLUSTER, ast("SELECT * FROM \"Q\""), List.of(target("Q")));
+
+        assertThat(notices)
+                .singleElement()
+                .satisfies(notice ->
+                        assertThat(notice.detail()).contains("nothing for Q").endsWith("captures it."));
+    }
+
+    @Test
+    void aNodeWhereCaptureIsNotActiveIsNamed() {
+        MessageIndexSubscriptionEntity captured = capturing("ORDER.IN");
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(captured));
+        Target active = onAddress("ORDER.IN", "ORDER.IN", "node-a");
+        Target refused = onAddress("ORDER.IN", "ORDER.IN", "node-b");
+        Target refusedAgain = onAddress("ORDER.IN", "ORDER.IN", "node-b");
+        when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), active.nodeId()))
+                .thenReturn(Optional.of(node(captured, active, CaptureState.ACTIVE)));
+        when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), refused.nodeId()))
+                .thenReturn(Optional.of(node(captured, refused, CaptureState.PENDING)));
+        when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), refusedAgain.nodeId()))
+                .thenReturn(Optional.empty());
+
+        List<Notice> notices =
+                coverage.check(CLUSTER, ast("SELECT * FROM \"ORDER.IN\""), List.of(active, refused, refusedAgain));
+
+        assertThat(notices).anySatisfy(notice -> {
+            assertThat(notice.kind()).isEqualTo(Notice.Kind.CAPTURE_NODE_GAP);
+            assertThat(notice.detail()).contains("Not capturing on node-b").doesNotContain("node-a");
+        });
+    }
+
+    @Test
+    void anAddressWithSeveralBoundQueuesIsReportedAsScoped() {
+        MessageIndexSubscriptionEntity captured = capturing("SUB.*");
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(captured));
+        Target one = onAddress("SUB.ONE", "topic.a", "node-a");
+        Target two = onAddress("SUB.TWO", "topic.b", "node-a");
+        Target lone = onAddress("SUB.LONE", "topic.c", "node-a");
+        Target noAddress = onAddress("SUB.NONE", null, "node-a");
+        for (Target t : List.of(one, two, lone, noAddress)) {
+            when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), t.nodeId()))
+                    .thenReturn(Optional.of(node(captured, t, CaptureState.ACTIVE)));
+        }
+        when(snapshots.forCluster(CLUSTER))
+                .thenReturn(List.of(
+                        snapshot("SUB.ONE", "topic.a"),
+                        snapshot("SUB.ONE.B", "topic.a"),
+                        snapshot("SUB.TWO", "topic.b"),
+                        snapshot("SUB.TWO.B", "topic.b"),
+                        snapshot("SUB.TWO.B", "topic.b"),
+                        snapshot("SUB.LONE", "topic.c")));
+
+        List<Notice> notices =
+                coverage.check(CLUSTER, ast("SELECT * FROM \"SUB.*\""), List.of(one, two, lone, noAddress));
+
+        assertThat(notices)
+                .filteredOn(n -> n.kind() == Notice.Kind.ADDRESS_SCOPED_CAPTURE)
+                .singleElement()
+                .satisfies(notice ->
+                        assertThat(notice.detail()).isEqualTo("topic.a, topic.b have more than one queue bound."));
+        assertThat(notices).noneMatch(n -> n.kind() == Notice.Kind.CAPTURE_NODE_GAP);
+    }
+
+    @Test
+    void oneFannedOutAddressReadsInTheSingular() {
+        MessageIndexSubscriptionEntity captured = capturing("SUB.*");
+        when(subscriptions.findByClusterId(CLUSTER)).thenReturn(List.of(captured));
+        Target one = onAddress("SUB.ONE", "topic.a", "node-a");
+        when(captureNodes.findBySubscriptionIdAndNodeId(captured.getId(), one.nodeId()))
+                .thenReturn(Optional.of(node(captured, one, CaptureState.ACTIVE)));
+        when(snapshots.forCluster(CLUSTER))
+                .thenReturn(List.of(snapshot("SUB.ONE", "topic.a"), snapshot("SUB.ONE.B", "topic.a")));
+
+        assertThat(coverage.check(CLUSTER, ast("SELECT * FROM \"SUB.*\""), List.of(one)))
+                .filteredOn(n -> n.kind() == Notice.Kind.ADDRESS_SCOPED_CAPTURE)
+                .singleElement()
+                .satisfies(notice -> assertThat(notice.detail()).isEqualTo("topic.a has more than one queue bound."));
+    }
+
+    /** The widest relative window anywhere in the predicate decides how far back the query reaches. */
+    @Test
+    void theWidestTimeWindowInAnyPredicateShapeIsWhatIsChecked() {
+        when(subscriptions.findByClusterId(CLUSTER))
+                .thenReturn(List.of(subscription("Q", Instant.now().minus(Duration.ofDays(1)), 30)));
+        List<Target> targets = List.of(target("Q"));
+
+        // Each is a window of 2 days, past the 1 day capture began: a gap, however the window is spelled.
+        for (String where : List.of(
+                "timestamp > now() - interval '2 days'",
+                "priority > 1 AND timestamp > now() - interval '2 days'",
+                "priority > 1 OR timestamp > now() - interval '2 days'",
+                "NOT timestamp < now() - interval '2 days'",
+                "timestamp BETWEEN now() - interval '2 days' AND now()")) {
+            assertThat(coverage.check(CLUSTER, ast("SELECT * FROM index.\"Q\" WHERE " + where), targets))
+                    .as(where)
+                    .singleElement()
+                    .satisfies(n -> assertThat(n.detail()).contains("reaches further back"));
+        }
+    }
+
+    @Test
+    void predicatesWithoutARelativeTimeAreAWindowlessQuery() {
+        when(subscriptions.findByClusterId(CLUSTER))
+                .thenReturn(List.of(subscription("Q", Instant.now().minus(Duration.ofDays(1)), 30)));
+        List<Target> targets = List.of(target("Q"));
+
+        for (String where : List.of(
+                "priority > 1",
+                "priority IN (1, 2)",
+                "correlationId IS NULL",
+                "correlationId LIKE 'a%'",
+                "MATCH (body) AGAINST ('word')",
+                "priority BETWEEN 1 AND 2")) {
+            List<Notice> notices = coverage.check(CLUSTER, ast("SELECT * FROM index.\"Q\" WHERE " + where), targets);
+            assertThat(notices)
+                    .as(where)
+                    .singleElement()
+                    .satisfies(n -> assertThat(n.detail()).contains("holds nothing routed before"));
+        }
     }
 
     private static MessageCaptureNodeEntity node(
