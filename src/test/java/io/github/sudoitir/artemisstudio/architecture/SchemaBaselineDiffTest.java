@@ -74,7 +74,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "shedlock",
                     // The data lifecycle's purge record (ADR-0132, changeset kernel-lifecycle 0001).
                     "lifecycle_purge",
-                    "storage_sample")
+                    "storage_sample",
+                    // Installation-scoped alert rules (ADR-0133, changeset feature-alerting 0004).
+                    "CREATE TABLE alert_firing ")
             .map(Pattern::compile)
             .toList();
 

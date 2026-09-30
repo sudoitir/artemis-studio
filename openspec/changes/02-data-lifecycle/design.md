@@ -27,9 +27,9 @@ jobs run once through ShedLock (ADR-0125).
 - `HousekeepingContributor`: `List<ManagedStore> stores()`;
 - `ManagedStore`: `StoreDef def()`, `StoreUsage usage()`, `PurgeEstimate preview(Instant cutoff)`,
   `long purgeBatch(Instant cutoff, int limit)`;
-- `StoreDef(id, label, List<String> tables, Duration defaultRetention, Duration minRetention,
-  Duration maxRetention, boolean foreverAllowed, QuotaUnit quotaUnit)`, where `maxRetention` is `null`
-  when the store may keep data forever.
+- `StoreDef(id, label, List<String> tables, QuotaUnit quotaUnit, Duration defaultRetention,
+  Duration minRetention, Duration maxRetention)`, where a `null` `defaultRetention` keeps everything
+  by default and a `null` `maxRetention` allows keeping everything (`forever`).
 
 Each module implements its stores as contributor beans, so a disabled feature's stores disappear with it.
 Plugins contribute through `HousekeepingPluginBridge` (a `PluginBridge`, like `SettingsPluginBridge`), and
@@ -120,14 +120,15 @@ The daily `storage-sample` INSTALLATION job writes per-table sizes to `storage_s
 - its store is over the quota warning.
 
 ### 6. Installation-scoped alert rules (ADR-0133)
-- **Schema:** `alert_rule.cluster_id` becomes nullable, and `alert_state` and `alert_firing` follow. A
-  null means the rule is about the installation.
+- **Schema:** a rule with no cluster (`alert_rule.cluster_id IS NULL`) is about the installation;
+  `alert_firing.cluster_id` becomes nullable to match.
 - **Evaluation:** `AlertEvaluator.evaluateInstallation(kind)` evaluates such rules against
   `InstallationSignalSource` beans. There are two: `STORAGE_QUOTA` (a store over its warning) and
   `STORAGE_HEALTH` (a table unhealthy). Each subject names the store or table and its usage.
-- **Seeding:** `BuiltinAlertRules` seeds one of each, once per installation, as an ordinary rule that is
-  editable, can be disabled and has no channel.
-- **UI:** the alerts screen shows "Installation" where it would show a cluster.
+- **Seeding:** the changeset seeds one of each, once per database, as an ordinary rule that is
+  editable, can be disabled and has no channel; a deleted one is not recreated.
+- **UI:** installation rules and firings appear in every cluster's alerts view with an
+  "Installation" badge; only a global `alert:read` / `alert:write` grant sees or edits them.
 
 *Alternative:* seeding a per-cluster rule. It fires N duplicates for one database and never fires with
 zero clusters.
@@ -161,6 +162,7 @@ zero clusters.
 
 ## Migration Plan
 
-Liquibase adds `lifecycle_purge` and `storage_sample`, makes `alert_rule.cluster_id` nullable, and deletes
-the obsolete `studio_setting` rows of the removed keys. Spring Session's cleanup cron is disabled in
+Liquibase adds `lifecycle_purge` and `storage_sample`, makes `alert_firing.cluster_id` nullable and seeds
+the two installation rules. Stored overrides of the removed keys stay in `studio_setting` and are ignored,
+as any unknown key is. Spring Session's cleanup cron is disabled in
 `application.yml`. Contract.VERSION goes 4 → 5 (new SPI and a changed `SettingDef`).

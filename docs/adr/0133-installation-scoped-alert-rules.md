@@ -6,22 +6,27 @@
 
 ## Context
 
-Every alert rule belonged to a cluster (`alert_rule.cluster_id NOT NULL`), and evaluation took a
+Every alert rule belonged to a cluster in practice: rules were only ever created through a
+cluster, every firing required one (`alert_firing.cluster_id NOT NULL`), and evaluation took a
 cluster id. Storage quotas and table health are about Studio's own database, not about a broker.
 Seeding such a rule per cluster would fire one alert N times, and an installation with no cluster
 would get none.
 
 ## Decision
 
-- `alert_rule.cluster_id` is nullable. A rule without a cluster is **installation-scoped**, and so
-  are its state and firings.
+- A rule without a cluster (`alert_rule.cluster_id IS NULL`) is **installation-scoped**, and so are
+  its state and firings (`alert_firing.cluster_id` becomes nullable, changeset `feature-alerting 0004`).
 - `InstallationSignalSource` beans evaluate installation conditions, the way `AlertSignalSource`
   beans evaluate cluster ones. `AlertEvaluator.evaluateInstallation(kind)` runs the matching
   enabled installation rules through the same debounce, history and delivery as any rule.
 - The data lifecycle ([ADR-0132](0132-one-data-lifecycle-for-every-store.md)) provides
   `STORAGE_QUOTA` (a store over its quota warning) and `STORAGE_HEALTH` (a table unhealthy or a
-  partition missing). One rule of each is seeded per installation: enabled, bound to no channel,
-  and editable like any rule.
+  partition missing). One rule of each is seeded by the same changeset, so once per database and
+  never again: enabled, bound to no channel, editable like any rule, and not recreated once an
+  operator deletes it.
+- Installation rules and firings appear in every cluster's alerts view, marked "Installation". Only
+  a global `alert:read` / `alert:write` grant sees or changes them, so a cluster-scoped operator
+  cannot silence them.
 - The alerts screen shows "Installation" where a cluster would be.
 
 ## Consequences

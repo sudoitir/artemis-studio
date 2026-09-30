@@ -68,4 +68,13 @@ class AlertMessageFormatterTest {
         });
         assertThat(AlertMessageFormatter.title(m)).isEqualTo("[WARNING] Depth: 1 firing");
     }
+
+    @Test
+    void anInstallationPayloadSaysInstallationWhereAClusterWouldBeNamed() {
+        String payload = """
+                {"ruleId":"%s","ruleName":"Storage quota","severity":"WARNING","clusterId":null,"clusterName":null,
+                 "transitions":[{"subject":"audit","kind":"FIRED","value":90}]}""".formatted(UUID.randomUUID());
+        AlertMessage m = AlertMessage.parse(payload, mapper);
+        assertThat(AlertMessageFormatter.title(m)).isEqualTo("[WARNING] Storage quota — Installation: 1 firing");
+    }
 }

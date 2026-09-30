@@ -33,7 +33,7 @@ public class AlertFiringEntity {
     @EqualsAndHashCode.Include
     private Long seq;
 
-    @Column(name = "cluster_id", nullable = false, updatable = false)
+    @Column(name = "cluster_id", updatable = false)
     private UUID clusterId;
 
     @Column(name = "rule_id", nullable = false, updatable = false)

@@ -10,11 +10,11 @@
 - [ ] 2.2 `broker-events`, `rr-flows`, `captured-payloads`, `expired-sessions` (Spring Session cleanup disabled); old reapers, keys and jobs removed
 - [ ] 2.3 `audit`, `bulk-runs`, `transfer-runs` (preview housekeeping jobs folded in)
 - [ ] 2.4 `alert-history`, `broker-config-history`, `setup-reviews`, `classification-findings`
-- [ ] 2.5 `StoreCoverageTest` with the bounded-by-design allowlist; Liquibase cleanup of obsolete setting rows
+- [ ] 2.5 `StoreCoverageTest` with the bounded-by-design allowlist
 
 ## 3. Storage health and installation alerts
 - [ ] 3.1 `storage_sample` table and `storage-samples` store; `StorageHealthService` (pg_stat, sizes, growth, dead tuples, vacuum, partition coverage); daily `storage-sample` job
-- [ ] 3.2 `alert_rule.cluster_id` nullable; `InstallationSignalSource`; `STORAGE_QUOTA` and `STORAGE_HEALTH` signals; `AlertEvaluator.evaluateInstallation`; seeded installation rules; alerts UI shows "Installation"
+- [ ] 3.2 installation rules (`cluster_id IS NULL`, `alert_firing.cluster_id` nullable); `InstallationSignalSource`; `STORAGE_QUOTA` and `STORAGE_HEALTH` signals; `AlertEvaluator.evaluateInstallation`; seeded installation rules; alerts UI shows "Installation"
 
 ## 4. API and UI
 - [ ] 4.1 `/api/v1/data` controller (stores, update, preview, health) with `data:read`/`data:write`; OpenAPI regenerated

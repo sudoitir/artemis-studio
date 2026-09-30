@@ -15,7 +15,10 @@ public final class AlertViews {
 
     public record AlertRuleView(
             @Schema(requiredMode = REQUIRED) UUID id,
-            @Schema(requiredMode = REQUIRED) UUID clusterId,
+
+            @Schema(nullable = true, description = "Null for an installation-scoped rule (ADR-0133)")
+            UUID clusterId,
+
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) String kind,
             @Schema(nullable = true) String metric,
@@ -61,6 +64,10 @@ public final class AlertViews {
     public record AlertFiringView(
             @Schema(requiredMode = REQUIRED) long seq,
             @Schema(requiredMode = REQUIRED) UUID ruleId,
+
+            @Schema(nullable = true, description = "Null for an installation-scoped rule (ADR-0133)")
+            UUID clusterId,
+
             @Schema(requiredMode = REQUIRED) String ruleName,
             @Schema(requiredMode = REQUIRED) String subjectKey,
             @Schema(requiredMode = REQUIRED) String severity,
@@ -142,6 +149,8 @@ public final class AlertViews {
             @NotBlank String name, @NotBlank String kind, String config, String secret, boolean enabled) {}
 
     public record ClusterFiringCountView(
-            @Schema(requiredMode = REQUIRED) UUID clusterId,
+            @Schema(nullable = true, description = "Null for the installation's own firings (ADR-0133)")
+            UUID clusterId,
+
             @Schema(requiredMode = REQUIRED) long firing) {}
 }

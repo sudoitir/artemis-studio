@@ -20,6 +20,7 @@ import {
   METRIC_NOTES,
   RATE_METRICS,
   CONFIG_DRIFT_TEMPLATE,
+  INSTALLATION_CONDITIONS,
   SETUP_RISK_TEMPLATE,
   SLOW_CONSUMER_TEMPLATE,
   STATE_CONDITIONS,
@@ -55,6 +56,10 @@ function metricOptions(pluginMetrics: PluginMetricView[], current: string | null
     : STUDIO_METRIC_OPTIONS;
 }
 const STATE_OPTIONS = STATE_CONDITIONS.map((c) => ({ value: c, label: c.replace(/_/g, ' ').toLowerCase() }));
+const INSTALLATION_OPTIONS = INSTALLATION_CONDITIONS.map((c) => ({
+  value: c,
+  label: c.replace(/_/g, ' ').toLowerCase(),
+}));
 const SEVERITY_OPTIONS = ['INFO', 'WARNING', 'CRITICAL'];
 
 /**
@@ -78,6 +83,8 @@ export function RuleForm({
   submitting: boolean;
   onCancel?: () => void;
 }) {
+  // A rule with no cluster is about Studio itself: always a state rule, on a storage condition (ADR-0133).
+  const installation = initial !== undefined && !initial.clusterId;
   const [kind, setKind] = useState<'METRIC_THRESHOLD' | 'STATE'>(
     (initial?.kind as 'METRIC_THRESHOLD' | 'STATE') ?? 'METRIC_THRESHOLD',
   );
@@ -155,6 +162,7 @@ export function RuleForm({
           onChange={(v) => setKind((v as 'METRIC_THRESHOLD' | 'STATE') ?? 'METRIC_THRESHOLD')}
           w={170}
           allowDeselect={false}
+          disabled={installation}
         />
         <TextInput
           label="Name"
@@ -227,7 +235,7 @@ export function RuleForm({
           <Select
             label="State condition"
             placeholder="Choose a condition"
-            data={STATE_OPTIONS}
+            data={installation ? INSTALLATION_OPTIONS : STATE_OPTIONS}
             value={stateCondition}
             onChange={setStateCondition}
             w={220}

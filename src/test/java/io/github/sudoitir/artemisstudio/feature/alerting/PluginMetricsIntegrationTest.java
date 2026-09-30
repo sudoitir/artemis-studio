@@ -128,14 +128,13 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
                         .gauge()
                         .value())
                 .isEqualTo(9.0);
-        assertThat(firings.findByClusterIdAndResolvedAtIsNullOrderByStartedAtDesc(clusterId))
+        assertThat(firings.findOpenVisible(clusterId, false))
                 .singleElement()
                 .satisfies(f -> assertThat(f.getSubjectKey()).isEqualTo("note:daily"));
 
         System.setProperty(id + ".value", "1");
         tierB();
-        assertThat(firings.findByClusterIdAndResolvedAtIsNullOrderByStartedAtDesc(clusterId))
-                .isEmpty();
+        assertThat(firings.findOpenVisible(clusterId, false)).isEmpty();
     }
 
     @Test
@@ -171,8 +170,7 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
         assertThat(meters.find("studio.plugin.metric").tag("plugin", id).gauges())
                 .allSatisfy(g -> assertThat(g.getId().getTag("subject")).isNull());
         assertThat(pluginMetrics.declared(id + ":edits")).isEmpty();
-        assertThat(firings.findByClusterIdAndResolvedAtIsNullOrderByStartedAtDesc(clusterId))
-                .isEmpty();
+        assertThat(firings.findOpenVisible(clusterId, false)).isEmpty();
     }
 
     @Test
@@ -200,7 +198,7 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
     }
 
     private List<AlertRuleEntity> pluginRules() {
-        return rules.findByClusterIdOrderByName(clusterId).stream()
+        return rules.findVisible(clusterId, false).stream()
                 .filter(r -> (id + ":edits").equals(r.getMetric()))
                 .toList();
     }

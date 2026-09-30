@@ -100,6 +100,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data/stores/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_3"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/rr/expectations/{expectationId}": {
         parameters: {
             query?: never;
@@ -204,7 +220,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["update_3"];
+        put: operations["update_4"];
         post?: never;
         delete: operations["delete_3"];
         options?: never;
@@ -388,6 +404,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/data/stores/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clusters": {
         parameters: {
             query?: never;
@@ -477,7 +509,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview"];
+        post: operations["preview_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -893,7 +925,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview_1"];
+        post: operations["preview_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1249,7 +1281,7 @@ export interface paths {
         delete: operations["delete_4"];
         options?: never;
         head?: never;
-        patch: operations["update_4"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/clusters/{clusterId}/queues/{queueName}": {
@@ -1452,6 +1484,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/data/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1755,7 +1819,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["health"];
+        get: operations["health_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2517,6 +2581,13 @@ export interface components {
             /** Format: int32 */
             sortOrder: number;
         };
+        UpdatePolicyRequest: {
+            retention: string;
+            /** Format: int32 */
+            quota: number;
+            /** Format: int32 */
+            quotaWarnPercent: number;
+        };
         UpdateExpectationRequest: {
             replyAddresses?: string[];
             correlationProperty?: string;
@@ -2767,8 +2838,11 @@ export interface components {
         AlertRuleView: {
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
-            clusterId: string;
+            /**
+             * Format: uuid
+             * @description Null for an installation-scoped rule (ADR-0133)
+             */
+            clusterId?: string | null;
             name: string;
             kind: string;
             metric?: string | null;
@@ -2990,6 +3064,15 @@ export interface components {
             firstSeenAt: string;
             /** Format: date-time */
             lastSeenAt: string;
+        };
+        PreviewRequest: {
+            retention: string;
+        };
+        PreviewResponse: {
+            /** Format: int64 */
+            rows: number;
+            /** Format: int64 */
+            bytes: number;
         };
         Credentials: {
             username: string;
@@ -4186,6 +4269,59 @@ export interface components {
             /** @description The count reached its cap; there are at least this many. */
             capped: boolean;
         };
+        StoreView: {
+            id: string;
+            label: string;
+            source: string;
+            tables: string[];
+            retention: string;
+            defaultRetention: string;
+            minRetention: string;
+            maxRetention: string;
+            quotaUnit: string;
+            /** Format: int32 */
+            quota: number;
+            /** Format: int32 */
+            quotaWarnPercent: number;
+            /** Format: int64 */
+            rows?: number;
+            /** Format: int64 */
+            bytes?: number;
+            usageError?: string;
+            /** Format: int32 */
+            quotaUsedPercent?: number;
+            overWarning: boolean;
+            /** Format: date-time */
+            lastPurgeAt?: string;
+            /** Format: int64 */
+            lastPurged?: number;
+            lastPurgeError?: string;
+        };
+        StoresResponse: {
+            stores: components["schemas"]["StoreView"][];
+        };
+        HealthResponse: {
+            tables: components["schemas"]["TableView"][];
+        };
+        TableView: {
+            schema: string;
+            name: string;
+            /** Format: int64 */
+            rows: number;
+            /** Format: int64 */
+            deadRows: number;
+            /** Format: int32 */
+            deadPercent: number;
+            /** Format: date-time */
+            lastVacuum?: string;
+            /** Format: int64 */
+            bytes: number;
+            /** Format: int64 */
+            growthBytes?: number;
+            partitioned: boolean;
+            missingPartitions: string[];
+            problems: string[];
+        };
         ClusterSummary: {
             /** Format: uuid */
             id: string;
@@ -5343,6 +5479,11 @@ export interface components {
             seq: number;
             /** Format: uuid */
             ruleId: string;
+            /**
+             * Format: uuid
+             * @description Null for an installation-scoped rule (ADR-0133)
+             */
+            clusterId?: string | null;
             ruleName: string;
             subjectKey: string;
             severity: string;
@@ -5385,8 +5526,11 @@ export interface components {
             startPath?: string | null;
         };
         ClusterFiringCountView: {
-            /** Format: uuid */
-            clusterId: string;
+            /**
+             * Format: uuid
+             * @description Null for the installation's own firings (ADR-0133)
+             */
+            clusterId?: string | null;
             /** Format: int64 */
             firing: number;
         };
@@ -5699,6 +5843,30 @@ export interface operations {
             };
         };
     };
+    update_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     updateExpectation: {
         parameters: {
             query?: never;
@@ -5937,7 +6105,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -6359,6 +6527,32 @@ export interface operations {
             };
         };
     };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PreviewResponse"];
+                };
+            };
+        };
+    };
     list_5: {
         parameters: {
             query?: never;
@@ -6510,7 +6704,7 @@ export interface operations {
             };
         };
     };
-    preview: {
+    preview_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -7359,7 +7553,7 @@ export interface operations {
             };
         };
     };
-    preview_1: {
+    preview_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -7971,7 +8165,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -8312,6 +8506,46 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["FindingView"][];
+                };
+            };
+        };
+    };
+    stores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StoresResponse"];
+                };
+            };
+        };
+    };
+    health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HealthResponse"];
                 };
             };
         };
@@ -8771,7 +9005,7 @@ export interface operations {
             };
         };
     };
-    health: {
+    health_1: {
         parameters: {
             query?: never;
             header?: never;
