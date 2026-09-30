@@ -66,6 +66,6 @@ class SessionAuthenticationTest {
 
         assertThat(Collections.list(request.getSession().getAttributeNames()))
                 .noneMatch(name -> name.startsWith(SessionAuthentication.PENDING_PREFIX))
-                .contains("unrelated", SessionAuthentication.FACTS);
+                .contains("unrelated", SessionAuthentication.FACTS_ATTRIBUTE);
     }
 }

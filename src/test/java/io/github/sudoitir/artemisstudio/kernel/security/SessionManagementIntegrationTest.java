@@ -262,9 +262,9 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         Browser browser = signedIn("absolute");
         Instant now = Instant.now();
         change(store, "absolute", s -> {
-            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS);
+            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
             s.setAttribute(
-                    SessionAuthentication.FACTS,
+                    SessionAuthentication.FACTS_ATTRIBUTE,
                     new SessionFacts(
                             facts.authenticatedAt(),
                             null,
@@ -285,9 +285,9 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         Browser browser = signedIn("idle-password");
         Instant now = Instant.now();
         change(store, "idle-password", s -> {
-            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS);
+            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
             s.setAttribute(
-                    SessionAuthentication.FACTS,
+                    SessionAuthentication.FACTS_ATTRIBUTE,
                     new SessionFacts(
                             facts.authenticatedAt(),
                             null,

@@ -36,15 +36,15 @@ class TotpStore {
     }
 
     Optional<byte[]> active(UUID userId) {
-        return read("local_totp", userId);
+        return read("SELECT sealed FROM local_totp WHERE user_id = :id", userId);
     }
 
     Optional<byte[]> pending(UUID userId) {
-        return read("local_totp_pending", userId);
+        return read("SELECT sealed FROM local_totp_pending WHERE user_id = :id", userId);
     }
 
-    private Optional<byte[]> read(String table, UUID userId) {
-        return jdbc.sql("SELECT sealed FROM " + table + " WHERE user_id = :id")
+    private Optional<byte[]> read(String sql, UUID userId) {
+        return jdbc.sql(sql)
                 .param("id", userId)
                 .query(byte[].class)
                 .optional()

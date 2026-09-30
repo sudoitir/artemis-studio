@@ -163,7 +163,7 @@ public abstract class AccountIntegrationTest extends PostgresIntegrationTest {
     }
 
     protected SessionFacts facts(String sessionId) {
-        return store.findById(sessionId).getAttribute(SessionAuthentication.FACTS);
+        return store.findById(sessionId).getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
     }
 
     protected long audited(String action, String target) {
@@ -182,9 +182,9 @@ public abstract class AccountIntegrationTest extends PostgresIntegrationTest {
         @SuppressWarnings("unchecked")
         FindByIndexNameSessionRepository<S> repository = (FindByIndexNameSessionRepository<S>) store;
         S session = repository.findById(sessionId);
-        SessionFacts facts = session.getAttribute(SessionAuthentication.FACTS);
+        SessionFacts facts = session.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
         session.setAttribute(
-                SessionAuthentication.FACTS,
+                SessionAuthentication.FACTS_ATTRIBUTE,
                 facts.withAuthenticatedAt(Instant.now().minus(Duration.ofMinutes(10))));
         repository.save(session);
     }

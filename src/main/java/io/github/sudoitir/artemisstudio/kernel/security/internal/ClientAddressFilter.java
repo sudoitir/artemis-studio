@@ -10,6 +10,8 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -47,7 +49,7 @@ public class ClientAddressFilter extends OncePerRequestFilter {
         try {
             InetAddress parsed = InetAddress.getByName(address);
             return parsed instanceof Inet4Address ? parsed.getHostAddress() : compress(parsed.getAddress());
-        } catch (UnknownHostException e) {
+        } catch (UnknownHostException _) {
             return address;
         }
     }
@@ -58,27 +60,26 @@ public class ClientAddressFilter extends OncePerRequestFilter {
             groups[i] = ((bytes[2 * i] & 0xff) << 8) | (bytes[2 * i + 1] & 0xff);
         }
         int[] run = longestZeroRun(groups);
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < 8; i++) {
-            if (i == run[0]) {
-                out.append("::");
-                i += run[1] - 1;
-            } else {
-                if (!out.isEmpty() && out.charAt(out.length() - 1) != ':') {
-                    out.append(':');
-                }
-                out.append(Integer.toHexString(groups[i]));
-            }
+        if (run[0] < 0) {
+            return join(groups, 0, 8);
         }
-        return out.toString();
+        return join(groups, 0, run[0]) + "::" + join(groups, run[0] + run[1], 8);
+    }
+
+    private static String join(int[] groups, int from, int to) {
+        return IntStream.range(from, to)
+                .mapToObj(i -> Integer.toHexString(groups[i]))
+                .collect(Collectors.joining(":"));
     }
 
     /** The start and length of the longest run of zero groups; start -1 when there is none longer than one. */
     private static int[] longestZeroRun(int[] groups) {
         int runStart = -1;
         int runLength = 1; // a lone zero group is not compressed
-        for (int i = 0; i < 8; i++) {
+        int i = 0;
+        while (i < 8) {
             if (groups[i] != 0) {
+                i++;
                 continue;
             }
             int end = i;

@@ -207,9 +207,9 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
         String sha = json.readTree(body).get("sha256").asString();
 
         // A sign-in more than five minutes old must be confirmed first.
-        var facts = (SessionFacts) session.getAttribute(SessionAuthentication.FACTS);
+        var facts = (SessionFacts) session.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
         session.setAttribute(
-                SessionAuthentication.FACTS,
+                SessionAuthentication.FACTS_ATTRIBUTE,
                 facts.withAuthenticatedAt(Instant.now().minusSeconds(600)));
         mvc.perform(post("/api/v1/admin/plugins/uploads/{sha}/activate", sha)
                         .session(session)
@@ -413,9 +413,9 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
         MockMvc mvc = mvc();
         UUID[] userId = new UUID[1];
         MockHttpSession session = installerSession(mvc, userId);
-        var facts = (SessionFacts) session.getAttribute(SessionAuthentication.FACTS);
+        var facts = (SessionFacts) session.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
         session.setAttribute(
-                SessionAuthentication.FACTS,
+                SessionAuthentication.FACTS_ATTRIBUTE,
                 facts.withAuthenticatedAt(Instant.now().minusSeconds(600)));
 
         // Listing needs the installer tier only.

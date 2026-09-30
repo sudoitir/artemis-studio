@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.security.TableSealedStore;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,25 +20,28 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class RecoveryKey {
 
-    private static final String AAD = "local_recovery_key";
+    private static final String TABLE = "local_recovery_key";
+    private static final String AAD = TABLE;
     private static final int BYTES = 32;
 
     private final JdbcTemplate jdbc;
     private final SecretVault vault;
     private final SecureRandom random = new SecureRandom();
-    private volatile SecretKeySpec key;
+    private final AtomicReference<SecretKeySpec> key = new AtomicReference<>();
 
     /** The key, read (or made and stored on first use) once and kept for the life of the process. */
     SecretKeySpec get() {
-        SecretKeySpec known = key;
+        SecretKeySpec known = key.get();
         if (known != null) {
             return known;
         }
         synchronized (this) {
-            if (key == null) {
-                key = load();
+            known = key.get();
+            if (known == null) {
+                known = load();
+                key.set(known);
             }
-            return key;
+            return known;
         }
     }
 
@@ -57,7 +61,7 @@ class RecoveryKey {
     static class Sealed extends TableSealedStore {
 
         Sealed(JdbcTemplate jdbc) {
-            super(jdbc, "local_recovery_key", "singleton");
+            super(jdbc, TABLE, "singleton");
         }
     }
 }

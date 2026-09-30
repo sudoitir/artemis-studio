@@ -36,7 +36,7 @@ class SessionServiceListTest {
     void aSessionTheUserLookupReturnsWithoutItsFactsIsStillListed() {
         SessionFacts facts = SessionFacts.signedIn(new MockHttpServletRequest("POST", "/"));
         MapSession whole = new MapSession("whole");
-        whole.setAttribute(SessionAuthentication.FACTS, facts);
+        whole.setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, facts);
         MapSession fragment = new MapSession("whole"); // what the interleaved read returns: no attributes
         when(store.findByPrincipalName("alice")).thenReturn(Map.of("whole", fragment));
         when(store.findById("whole")).thenReturn(whole);

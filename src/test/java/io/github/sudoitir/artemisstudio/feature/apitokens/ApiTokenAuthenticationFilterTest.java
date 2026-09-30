@@ -228,7 +228,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 context);
         // A real sign-in records these facts; a session without them counts as signed out.
         session.setAttribute(
-                io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication.FACTS,
+                io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication.FACTS_ATTRIBUTE,
                 io.github.sudoitir.artemisstudio.kernel.security.SessionFacts.signedIn(
                         new org.springframework.mock.web.MockHttpServletRequest()));
 

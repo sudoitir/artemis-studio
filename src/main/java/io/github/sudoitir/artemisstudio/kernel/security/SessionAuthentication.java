@@ -37,7 +37,7 @@ public class SessionAuthentication {
     public static final Duration REAUTHENTICATION_WINDOW = Duration.ofMinutes(5);
 
     /** The session attribute holding the session's {@link SessionFacts}. */
-    public static final String FACTS = SessionAuthentication.class.getName() + ".facts";
+    public static final String FACTS_ATTRIBUTE = SessionAuthentication.class.getName() + ".facts";
 
     /**
      * The session attribute holding when the user last did something (an {@link Instant}). It is
@@ -94,7 +94,7 @@ public class SessionAuthentication {
         securityContextRepository.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
         HttpSession session = request.getSession(false);
         if (session != null) {
-            session.removeAttribute(FACTS);
+            session.removeAttribute(FACTS_ATTRIBUTE);
             session.removeAttribute(LAST_ACTIVITY_AT);
         }
         clearPending(request);
@@ -189,7 +189,7 @@ public class SessionAuthentication {
         // Whoever signs in here owes nothing of an earlier half-finished sign-in, step-up or passkey challenge.
         clearPending(request);
         HttpSession session = request.getSession();
-        session.setAttribute(FACTS, facts);
+        session.setAttribute(FACTS_ATTRIBUTE, facts);
         // Establishing a session is itself activity. The session's sign-in time is not: a re-established
         // session (a password change) can be hours old, and would look idle at its very next request.
         session.setAttribute(LAST_ACTIVITY_AT, Instant.now());
@@ -227,7 +227,7 @@ public class SessionAuthentication {
     public void reauthenticated(HttpServletRequest request) {
         SessionFacts facts = facts(request).orElseThrow(() -> new IllegalStateException("No session to step up"));
         rotate(request);
-        request.getSession().setAttribute(FACTS, facts.withAuthenticatedAt(Instant.now()));
+        request.getSession().setAttribute(FACTS_ATTRIBUTE, facts.withAuthenticatedAt(Instant.now()));
     }
 
     /** Step-up for an account with a second factor: the password was checked earlier, and {@code method} completes it. */
@@ -237,7 +237,7 @@ public class SessionAuthentication {
         rotate(request);
         HttpSession session = request.getSession();
         session.removeAttribute(PENDING_STEP_UP);
-        session.setAttribute(FACTS, facts.withAuthenticatedAt(now).withMfaVerified(now, method));
+        session.setAttribute(FACTS_ATTRIBUTE, facts.withAuthenticatedAt(now).withMfaVerified(now, method));
     }
 
     /**
@@ -273,7 +273,9 @@ public class SessionAuthentication {
     /** The facts of this session; empty without a session or before sign-in. */
     public Optional<SessionFacts> facts(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        return session == null ? Optional.empty() : Optional.ofNullable((SessionFacts) session.getAttribute(FACTS));
+        return session == null
+                ? Optional.empty()
+                : Optional.ofNullable((SessionFacts) session.getAttribute(FACTS_ATTRIBUTE));
     }
 
     /** When the user last did something in this session; its sign-in time until they do. */
@@ -300,7 +302,7 @@ public class SessionAuthentication {
      */
     public boolean isLive(String sessionId) {
         Session stored = store.findById(sessionId);
-        SessionFacts facts = stored == null ? null : stored.getAttribute(FACTS);
+        SessionFacts facts = stored == null ? null : stored.getAttribute(FACTS_ATTRIBUTE);
         if (facts == null) {
             return false;
         }

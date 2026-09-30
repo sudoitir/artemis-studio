@@ -171,7 +171,7 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
     }
 
     private SessionFacts facts(String sessionId) {
-        return store.findById(sessionId).getAttribute(SessionAuthentication.FACTS);
+        return store.findById(sessionId).getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
     }
 
     private static <S extends Session> void change(
@@ -183,9 +183,9 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
 
     private void makeStale(Browser browser) {
         change(store, browser.sessionId(), s -> {
-            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS);
+            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
             s.setAttribute(
-                    SessionAuthentication.FACTS,
+                    SessionAuthentication.FACTS_ATTRIBUTE,
                     facts.withAuthenticatedAt(Instant.now().minus(Duration.ofMinutes(10))));
         });
     }

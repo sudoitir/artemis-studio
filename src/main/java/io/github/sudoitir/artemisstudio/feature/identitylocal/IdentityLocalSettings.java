@@ -16,6 +16,8 @@ public class IdentityLocalSettings implements SettingsContribution {
     public static final String BREACH_LOOKUP = "identity-local.password.breach-lookup";
     public static final String TRUSTED_DEVICE_LIFETIME = "identity-local.mfa.trusted-device-lifetime";
 
+    private static final String GROUP = "Password login";
+
     private final IdentityLocalProperties defaults;
 
     @Override
@@ -28,7 +30,7 @@ public class IdentityLocalSettings implements SettingsContribution {
         return List.of(
                 new SettingDef(
                         PASSWORD_MIN_LENGTH,
-                        "Password login",
+                        GROUP,
                         "Password minimum length",
                         "The fewest characters a new local password may have. Longer is better than complicated.",
                         Kind.INT,
@@ -36,7 +38,7 @@ public class IdentityLocalSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         BREACH_LOOKUP,
-                        "Password login",
+                        GROUP,
                         "Check new passwords against known breaches",
                         "When on, a new password is also looked up at api.pwnedpasswords.com. Only the first five"
                                 + " characters of its SHA-1 leave Studio, and an unreachable service lets the password"
@@ -46,7 +48,7 @@ public class IdentityLocalSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         TRUSTED_DEVICE_LIFETIME,
-                        "Password login",
+                        GROUP,
                         "Trusted device lifetime",
                         "After giving a second factor at sign-in, a user may trust that browser for this long, so a"
                                 + " password alone signs in from it. 0 turns trusted devices off. Users can revoke"

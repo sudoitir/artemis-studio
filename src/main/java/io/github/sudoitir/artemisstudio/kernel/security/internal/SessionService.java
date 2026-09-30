@@ -112,7 +112,7 @@ public class SessionService {
         // The current session is read from the request, which has the activity the store has not seen yet.
         SessionFacts facts = current
                 ? sessions.facts(request).orElse(null)
-                : stored.<SessionFacts>getAttribute(SessionAuthentication.FACTS);
+                : stored.<SessionFacts>getAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
         if (facts == null) {
             return null;
         }

@@ -20,7 +20,9 @@ public final class SignedInSession {
         RequestPostProcessor authenticated = SecurityMockMvcRequestPostProcessors.authentication(authentication);
         return request -> {
             var processed = authenticated.postProcessRequest(request);
-            processed.getSession().setAttribute(SessionAuthentication.FACTS, SessionFacts.signedIn(processed));
+            processed
+                    .getSession()
+                    .setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, SessionFacts.signedIn(processed));
             return processed;
         };
     }

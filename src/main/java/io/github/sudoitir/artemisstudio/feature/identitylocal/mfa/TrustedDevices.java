@@ -32,7 +32,10 @@ class TrustedDevices {
 
     private static final int TOKEN_BYTES = 32;
 
-    /** A stored device; {@code expiresAt} is what the row says, not what the setting now allows. */
+    /**
+     * A stored device; {@code expiresAt} is what the row says, not what the setting now allows. A device is its
+     * row, so two are equal when their ids are, and {@code toString} leaves the token hash out.
+     */
     record Device(
             UUID id,
             String userAgent,
@@ -40,7 +43,23 @@ class TrustedDevices {
             Instant createdAt,
             Instant lastUsedAt,
             Instant expiresAt,
-            byte[] tokenHash) {}
+            byte[] tokenHash) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Device device && id.equals(device.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return id.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "Device[id=" + id + ", createdAt=" + createdAt + ", expiresAt=" + expiresAt + "]";
+        }
+    }
 
     private final JdbcClient jdbc;
     private final SettingsService settings;

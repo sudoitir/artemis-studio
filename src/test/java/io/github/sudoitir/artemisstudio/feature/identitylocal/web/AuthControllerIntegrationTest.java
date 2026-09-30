@@ -277,14 +277,14 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
         newUser("auth-fresh", "correct-horse-battery");
         MockMvc mvc = mvc();
         MockHttpSession session = signIn(mvc, "auth-fresh", "correct-horse-battery");
-        var stale = ((SessionFacts) session.getAttribute(SessionAuthentication.FACTS))
+        var stale = ((SessionFacts) session.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE))
                 .withAuthenticatedAt(Instant.now().minusSeconds(600));
-        session.setAttribute(SessionAuthentication.FACTS, stale);
+        session.setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, stale);
 
         changePassword(mvc, session, "correct-horse-battery", "a-brand-new-passphrase")
                 .andExpect(status().isNoContent());
 
-        assertThat(session.getAttribute(SessionAuthentication.FACTS)).isEqualTo(stale);
+        assertThat(session.getAttribute(SessionAuthentication.FACTS_ATTRIBUTE)).isEqualTo(stale);
         var request = new MockHttpServletRequest();
         request.setSession(session);
         assertThat(sessions.recentlyAuthenticated(request)).isFalse();
@@ -310,7 +310,7 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
         MockMvc mvc = mvc();
         MockHttpSession session = signIn(mvc, "auth-no-facts", "correct-horse-battery");
         // What a session created before facts existed looks like.
-        session.removeAttribute(SessionAuthentication.FACTS);
+        session.removeAttribute(SessionAuthentication.FACTS_ATTRIBUTE);
 
         mvc.perform(post("/api/v1/auth/reauthenticate")
                         .session(session)

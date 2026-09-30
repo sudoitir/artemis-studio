@@ -42,7 +42,8 @@ final class Totp {
                 | ((hash[offset + 1] & 0xff) << 16)
                 | ((hash[offset + 2] & 0xff) << 8)
                 | (hash[offset + 3] & 0xff);
-        return String.format("%0" + digits + "d", binary % POWERS_OF_TEN[digits]);
+        String value = String.valueOf(binary % POWERS_OF_TEN[digits]);
+        return "0".repeat(digits - value.length()) + value;
     }
 
     /**

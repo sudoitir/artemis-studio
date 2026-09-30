@@ -113,8 +113,8 @@ class SecondFactorService implements SecondFactors {
     @Transactional
     public Optional<Method> verify(UUID userId, Proof proof) {
         return switch (proof) {
-            case TotpCode t -> verifyTotp(userId, t.code());
-            case RecoveryCode r -> verifyRecoveryCode(userId, r.code());
+            case TotpCode(var code) -> verifyTotp(userId, code);
+            case RecoveryCode(var code) -> verifyRecoveryCode(userId, code);
             case WebAuthnAssertion w -> passkeys.verify(userId, w) ? Optional.of(Method.WEBAUTHN) : Optional.empty();
         };
     }

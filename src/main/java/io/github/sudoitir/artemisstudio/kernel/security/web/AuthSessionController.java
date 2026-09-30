@@ -269,10 +269,10 @@ public class AuthSessionController {
 
     private AuthResult result(LoginService.Outcome outcome, HttpServletRequest req) {
         return switch (outcome) {
-            case LoginService.Outcome.Authenticated done ->
-                new AuthResult(AuthStatus.AUTHENTICATED, view(done.principal(), req), null, 0);
-            case LoginService.Outcome.SecondFactorRequired pending ->
-                new AuthResult(AuthStatus.SECOND_FACTOR_REQUIRED, null, pending.methods(), pending.trustDeviceDays());
+            case LoginService.Outcome.Authenticated(var principal) ->
+                new AuthResult(AuthStatus.AUTHENTICATED, view(principal, req), null, 0);
+            case LoginService.Outcome.SecondFactorRequired(var methods, var trustDeviceDays) ->
+                new AuthResult(AuthStatus.SECOND_FACTOR_REQUIRED, null, methods, trustDeviceDays);
         };
     }
 

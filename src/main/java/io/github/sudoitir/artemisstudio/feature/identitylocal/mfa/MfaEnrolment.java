@@ -47,6 +47,7 @@ import org.springframework.web.util.UriUtils;
 @RequiredArgsConstructor
 public class MfaEnrolment {
 
+    private static final String METHOD = "method";
     private static final int SECRET_BYTES = 20; // 160 bits, the size of an HMAC-SHA1 key
 
     private final TotpStore totp;
@@ -149,7 +150,7 @@ public class MfaEnrolment {
         audited(
                 principal,
                 "MFA_ENROL",
-                Map.of("method", Method.WEBAUTHN.name(), "firstFactor", !hadFactor, "label", passkey.getLabel()));
+                Map.of(METHOD, Method.WEBAUTHN.name(), "firstFactor", !hadFactor, "label", passkey.getLabel()));
         sessions.reestablishAfterEnrolment(principal, Method.WEBAUTHN, request, response);
         return new PasskeyRegisteredView(view(passkey), codes);
     }
@@ -190,7 +191,7 @@ public class MfaEnrolment {
             throw new ConflictException("no-pending-totp", "That authenticator was already confirmed.");
         }
         List<String> codes = hadFactor ? null : recoveryCodes.issue(userId);
-        audited(principal, "MFA_ENROL", Map.of("method", Method.TOTP.name(), "firstFactor", !hadFactor));
+        audited(principal, "MFA_ENROL", Map.of(METHOD, Method.TOTP.name(), "firstFactor", !hadFactor));
         sessions.reestablishAfterEnrolment(principal, Method.TOTP, request, response);
         return new TotpConfirmedView(codes);
     }
@@ -270,7 +271,7 @@ public class MfaEnrolment {
             recoveryCodes.removeAll(principal.userId());
             trustedDevices.revokeAll(principal.userId(), "last factor removed");
         }
-        audited(principal, "MFA_REMOVE", Map.of("method", method.name(), "lastFactor", wasLast));
+        audited(principal, "MFA_REMOVE", Map.of(METHOD, method.name(), "lastFactor", wasLast));
     }
 
     /** A password-only account of this provider, in a browser session: tokens and other providers do not enrol here. */

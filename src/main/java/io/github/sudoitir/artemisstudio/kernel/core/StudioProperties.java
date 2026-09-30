@@ -38,7 +38,7 @@ public record StudioProperties(@DefaultValue("") String publicUrl) {
                     && uri.getQuery() == null
                     && uri.getFragment() == null
                     && uri.getUserInfo() == null;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return false;
         }
     }

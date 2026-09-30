@@ -205,7 +205,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
 
     private static MockHttpServletRequest freshSession() {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true).setAttribute(SessionAuthentication.FACTS, SessionFacts.signedIn(request));
+        request.getSession(true).setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, SessionFacts.signedIn(request));
         return request;
     }
 
