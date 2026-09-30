@@ -272,6 +272,29 @@ class AccountLockoutIntegrationTest extends PostgresIntegrationTest {
                 .isEqualTo(1);
     }
 
+    /**
+     * Usernames are matched exactly, so a name in another case is a name that does not exist, and the
+     * throttle keys on the name as typed: every key an account's own sign-ins use is that account's exact name.
+     */
+    @Test
+    void aNameInAnotherCaseIsAnUnknownNameWhoseFailuresNeverTouchTheAccountOrItsThrottle() throws Exception {
+        newUser("lock-case");
+        assertThat(login("LOCK-CASE", PASSWORD, "10.6.0.1").getResponse().getStatus())
+                .as("the right password under another case")
+                .isEqualTo(401);
+        for (int i = 0; i < 6; i++) {
+            login("LOCK-CASE", "wrong", "10.6.0.1");
+        }
+        assertThat(login("LOCK-CASE", "wrong", "10.6.0.1").getResponse().getStatus())
+                .as("the name typed is throttled")
+                .isEqualTo(429);
+
+        assertThat(row("lock-case").getFailedLoginCount()).isZero();
+        assertThat(login("lock-case", PASSWORD, "10.6.0.1").getResponse().getStatus())
+                .as("the account's own key was never used")
+                .isEqualTo(200);
+    }
+
     private void signInAs(Set<String> permissions) {
         var admin = new StudioPrincipal(
                 UUID.randomUUID(),

@@ -93,6 +93,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - **`LoginAttemptLimiter`** moves to Caffeine with `expireAfterWrite`, which fixes the unbounded map. It holds two keys, and both apply to unknown usernames too:
   - username + source (as today)
   - per IP across accounts: 30 failures per 10 min
+  - Usernames are matched exactly (`app_user.username` is unique and looked up without case folding), so the limiter keys on the name as typed and every key an account's own sign-ins use is its exact name. A name in another case is an unknown name: it fills its own key and the per-IP key, and never the account's.
 - **Account lock in the DB**, so it holds across instances.
   - Changeset `kernel/security/changes/0006-account-lockout.sql` adds `app_user.locked_until timestamptz` and `failed_login_count int`.
   - `AccountLockout` writes failures in a **`REQUIRES_NEW`** transaction, so the login rollback cannot undo them.
