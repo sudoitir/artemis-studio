@@ -349,12 +349,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <!-- Contract tests: every API response is validated against web/openapi.json (JSON Schema
-                 2020-12, so unevaluatedProperties can reject an undocumented field). -->
+            <!-- Contract tests validate every API response against web/openapi.json with it (JSON Schema
+                 2020-12, so unevaluatedProperties can reject an undocumented field). Not test scoped: the
+                 MCP server reads it at runtime too, and a test-scoped declaration here would leave it out
+                 of the jar and stop Studio starting. -->
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
             <version>${json-schema-validator.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
