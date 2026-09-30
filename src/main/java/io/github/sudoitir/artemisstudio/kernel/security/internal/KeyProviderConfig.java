@@ -15,9 +15,11 @@ class KeyProviderConfig {
         return switch (properties.provider()) {
             case "env" -> new EnvKeyProvider(environment);
             case "file" -> new FileKeyProvider(properties.file().directory());
+            case "vault" -> new VaultKeyProvider(properties.vault());
+            case "kubernetes" -> new KubernetesKeyProvider(properties.kubernetes());
             default ->
                 throw new IllegalStateException("Unknown artemis-studio.secrets.provider '" + properties.provider()
-                        + "'; expected env or file.");
+                        + "'; expected env, file, vault or kubernetes.");
         };
     }
 }

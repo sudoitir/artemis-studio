@@ -9,9 +9,9 @@
 - [x] 2.5 Move every caller to the new API (ClusterService, ClusterConnectionSettings, ClusterSecrets, NotificationChannelService, AlertDispatcher, PluginSecretStore, ContentSealer, MessageIndexWriter, MessageIndexRemasker, IndexQueryExecutor, RrPayloads) and their tests
 
 ## 3. Providers (B)
-- [ ] 3.1 Vault provider on `spring-vault-core` (KV v2 versions = key versions; token, AppRole, Kubernetes auth); test against Testcontainers Vault
-- [ ] 3.2 Kubernetes provider on JDK `HttpClient` (service-account token + CA); test against a stub API server
-- [ ] 3.3 OIDC client secret resolved from the provider; a configured secret alongside a non-env provider fails startup
+- [x] 3.1 Vault provider on `spring-vault-core` (KV v2 versions = key versions; token, AppRole, Kubernetes auth); test against Testcontainers Vault
+- [x] 3.2 Kubernetes provider on JDK `HttpClient` (service-account token + CA); test against a stub API server
+- [x] 3.3 OIDC client secret resolved from the provider; a configured secret alongside a non-env provider fails startup
 
 ## 4. Rotation (C)
 - [x] 4.1 `secret_rotation` changeset; `SealedStore` per store (count below version, rewrap batch guarded by old bytes)

@@ -94,12 +94,14 @@ class KeyProvidersTest {
         MockEnvironment environment = new MockEnvironment();
 
         assertThat(config.keyProvider(
-                                new SecretProviderProperties("env", new SecretProviderProperties.File(null)),
+                                new SecretProviderProperties(
+                                        "env", new SecretProviderProperties.File(null), null, null),
                                 environment)
                         .name())
                 .isEqualTo("env");
         assertThatThrownBy(() -> config.keyProvider(
-                        new SecretProviderProperties("nope", new SecretProviderProperties.File(null)), environment))
+                        new SecretProviderProperties("nope", new SecretProviderProperties.File(null), null, null),
+                        environment))
                 .hasMessageContaining("artemis-studio.secrets.provider 'nope'");
     }
 }
