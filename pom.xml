@@ -267,7 +267,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- OTLP export of metrics, traces and logs, off unless the OTEL_* variables switch it on (ADR-0146).
+        <!-- OTLP export of metrics, traces and logs, off unless the OTEL_* variables switch it on (ADR-0147).
              The starter brings the Micrometer Tracing OTel bridge, the OTLP span exporter and the
              OTLP meter registry; JDBC spans come from datasource-micrometer. -->
         <dependency>

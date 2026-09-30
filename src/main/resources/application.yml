@@ -151,7 +151,7 @@ management:
       percentiles:
         studio.broker.management: 0.95
 
-  # OTLP export of metrics, traces and logs (ADR-0146). Off by default: Studio sends nothing until the
+  # OTLP export of metrics, traces and logs (ADR-0147). Off by default: Studio sends nothing until the
   # standard OpenTelemetry variables switch it on, which Boot maps onto the properties below
   # (OpenTelemetryEnvironmentVariableEnvironmentPostProcessor): OTEL_EXPORTER_OTLP_ENDPOINT for the collector,
   # and OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER and OTEL_LOGS_EXPORTER set to otlp for the three signals,

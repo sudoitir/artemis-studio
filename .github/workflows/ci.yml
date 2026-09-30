@@ -620,7 +620,7 @@ jobs:
           V=${{ steps.ver.outputs.version }}
           cp target/artemis-studio-exec.jar "artemis-studio-$V.jar"
           sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
-          # The Grafana dashboard and Prometheus rules, as their own asset (ADR-0146).
+          # The Grafana dashboard and Prometheus rules, as their own asset (ADR-0147).
           tar -czf "artemis-studio-observability-$V.tar.gz" deploy/observability
           sha256sum "artemis-studio-observability-$V.tar.gz" > "artemis-studio-observability-$V.tar.gz.sha256"
 

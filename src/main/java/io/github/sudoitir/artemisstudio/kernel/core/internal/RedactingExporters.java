@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Wraps every span and log exporter, Boot's OTLP ones and any other, so that what leaves Studio is redacted
- * (ADR-0133, ADR-0146). The exporter is the last point every record passes: the SDK's processors cannot change a
+ * (ADR-0133, ADR-0147). The exporter is the last point every record passes: the SDK's processors cannot change a
  * log body, and a span's exception event is recorded before an observation filter runs.
  */
 @Configuration(proxyBeanMethods = false)

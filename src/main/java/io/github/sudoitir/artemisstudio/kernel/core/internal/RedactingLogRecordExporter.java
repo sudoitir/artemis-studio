@@ -19,7 +19,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Redacts each OTel log record on its way to the exporter (ADR-0133, ADR-0146): the body, every string attribute
+ * Redacts each OTel log record on its way to the exporter (ADR-0133, ADR-0147): the body, every string attribute
  * (which includes the exception message and stack trace). The appender reads the formatted message itself, so
  * Logback's redacting converters never see it, and the SDK's processors cannot change a body, so this sits on the
  * exporter, the last point every record passes.

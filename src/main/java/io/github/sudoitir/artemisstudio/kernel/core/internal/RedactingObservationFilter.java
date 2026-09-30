@@ -10,7 +10,7 @@ import java.util.stream.StreamSupport;
 import org.springframework.stereotype.Component;
 
 /**
- * Redacts every observation before it becomes a metric tag or a span attribute (ADR-0133, ADR-0146): a value goes
+ * Redacts every observation before it becomes a metric tag or a span attribute (ADR-0133, ADR-0147): a value goes
  * through {@link SecretRedactor} (and is masked whole under a credential-like key), a key that names message content
  * is dropped, and the error, which becomes the span's exception event, is copied with its messages redacted.
  */

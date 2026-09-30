@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
  * Ships Studio's logs over OTLP, only when {@code management.logging.export.otlp.enabled} is on ({@code
  * OTEL_LOGS_EXPORTER=otlp}). Boot builds the SDK's log exporter but leaves the Logback appender to the application, so
  * this attaches one to the root logger and hands it the {@link OpenTelemetry} instance. The records are redacted
- * on their way out by {@link RedactingExporters} (ADR-0146).
+ * on their way out by {@link RedactingExporters} (ADR-0147).
  */
 @Configuration(proxyBeanMethods = false)
 class OtlpLogExport {
