@@ -15,16 +15,18 @@ package io.github.sudoitir.artemisstudio.feature.queues;
  * routing for every producer on the source address and cannot be noticed by them.
  */
 public enum LifecycleKind {
-    CREATE_QUEUE("CREATE_QUEUE", "QUEUE", QueuePermissions.QUEUE_CREATE, false),
-    UPDATE_QUEUE("UPDATE_QUEUE", "QUEUE", QueuePermissions.QUEUE_UPDATE, false),
-    DELETE_QUEUE("DELETE_QUEUE", "QUEUE", QueuePermissions.QUEUE_DELETE, true),
-    PAUSE_QUEUE("PAUSE_QUEUE", "QUEUE", QueuePermissions.QUEUE_PAUSE, false),
-    RESUME_QUEUE("RESUME_QUEUE", "QUEUE", QueuePermissions.QUEUE_PAUSE, false),
-    RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", "QUEUE", QueuePermissions.QUEUE_UPDATE, false),
+    CREATE_QUEUE("CREATE_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_CREATE, false),
+    UPDATE_QUEUE("UPDATE_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_UPDATE, false),
+    DELETE_QUEUE("DELETE_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_DELETE, true),
+    PAUSE_QUEUE("PAUSE_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_PAUSE, false),
+    RESUME_QUEUE("RESUME_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_PAUSE, false),
+    RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_UPDATE, false),
     CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_CREATE, false),
     DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_DELETE, true),
     CREATE_DIVERT("CREATE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, false),
     DELETE_DIVERT("DELETE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, true);
+
+    private static final String QUEUE_TARGET = "QUEUE";
 
     private final String auditName;
     private final String targetType;

@@ -36,6 +36,8 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class BridgeOperations {
 
+    private static final String STATIC_CONNECTORS = "static-connectors";
+
     private final ObjectMapper mapper;
 
     public BridgeOperations(ObjectMapper mapper) {
@@ -177,10 +179,10 @@ public class BridgeOperations {
         text(differing, config, "forwarding-address", row.forwardingAddress());
         text(differing, config, "filter-string", row.filterString());
         text(differing, config, "discovery-group-name", row.discoveryGroupName());
-        if (config.containsKey("static-connectors")) {
-            List<?> wanted = (List<?>) config.get("static-connectors");
+        if (config.containsKey(STATIC_CONNECTORS)) {
+            List<?> wanted = (List<?>) config.get(STATIC_CONNECTORS);
             if (!row.staticConnectors().equals(wanted)) {
-                differing.add("static-connectors");
+                differing.add(STATIC_CONNECTORS);
             }
         }
         flag(differing, config, "ha", row.highlyAvailable());

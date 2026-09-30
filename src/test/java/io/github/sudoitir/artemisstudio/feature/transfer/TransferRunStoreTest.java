@@ -130,8 +130,8 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
     void theLedgerRecordsEachCopiedIdOnce() {
         UUID runId = preview(TransferMode.COPY, "orders").getId();
 
-        ledger.record(runId, List.of(1L, 2L, 3L));
-        ledger.record(runId, List.of(3L, 4L));
+        ledger.recordCopied(runId, List.of(1L, 2L, 3L));
+        ledger.recordCopied(runId, List.of(3L, 4L));
 
         assertThat(ledger.count(runId)).isEqualTo(4);
         assertThat(ledger.known(runId, List.of(2L, 4L, 9L))).isEqualTo(Set.of(2L, 4L));
