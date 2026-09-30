@@ -53,7 +53,8 @@ function Inventory() {
       </Text>
       {tokens.isError ? (
         <Alert color="red" title="The key inventory could not be loaded">
-          {tokens.error.message} Reload the page to try again.
+          <Text size="sm">{tokens.error.message}</Text>
+          <Text size="sm">Reload the page to try again.</Text>
         </Alert>
       ) : tokens.data?.length === 0 ? (
         <Text size="sm" c="dimmed">

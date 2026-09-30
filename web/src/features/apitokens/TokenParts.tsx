@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   ActionIcon,
   Alert,
-  Badge,
   CopyButton,
   Group,
   SegmentedControl,
@@ -22,23 +21,19 @@ const NUMERIC = { fontVariantNumeric: 'tabular-nums' } as const;
 export function TokenStatus({ token }: { token: TokenView }) {
   if (token.revokedAt) {
     return (
-      <Badge size="xs" color="red" variant="light">
-        revoked
-      </Badge>
+      <Text size="xs" fw={600} c="red">
+        Revoked
+      </Text>
     );
   }
   if (Date.parse(token.expiresAt) < serverNow()) {
     return (
-      <Badge size="xs" color="red" variant="light">
-        expired
-      </Badge>
+      <Text size="xs" fw={600} c="red">
+        Expired
+      </Text>
     );
   }
-  return (
-    <Badge size="xs" color="gray" variant="light">
-      active
-    </Badge>
-  );
+  return <Text size="xs">Active</Text>;
 }
 
 /** A secret disclosed once, at minting or rotation, with a copy control. */
@@ -81,7 +76,8 @@ export function TokenUsagePanel({ scope, tokenId }: { scope: 'own' | 'admin'; to
       />
       {usage.isError ? (
         <Alert color="red" title="Usage could not be loaded">
-          {usage.error.message} Try again, or check that you still hold the permission to see this key.
+          <Text size="sm">{usage.error.message}</Text>
+          <Text size="sm">Try again, or check that you still hold the permission to see this key.</Text>
         </Alert>
       ) : usage.isPending ? (
         <Text size="sm" c="dimmed">

@@ -41,7 +41,8 @@ export function MintKeyForm({ onMinted }: { onMinted: (created: CreatedTokenView
     [catalogue.data, clusterId, scope],
   );
 
-  const maxDays = policy.data ? Math.floor((Date.parse(policy.data.latestExpiry) - serverNow()) / DAY_MS) : null;
+  const latest = policy.data ? Date.parse(policy.data.latestExpiry) : null;
+  const maxDays = latest === null ? null : Math.round((latest - serverNow()) / DAY_MS);
   const lifetimeOptions = maxDays === null ? [] : LIFETIMES.filter((d) => d <= maxDays).map(String);
   if (maxDays !== null && maxDays >= 1 && !lifetimeOptions.includes(String(maxDays))) {
     lifetimeOptions.push(String(maxDays));
@@ -61,7 +62,10 @@ export function MintKeyForm({ onMinted }: { onMinted: (created: CreatedTokenView
       scopeType: scope === GLOBAL ? GLOBAL : 'CLUSTER',
       scopeId: scope === GLOBAL ? null : scope,
     }));
-    const expiresAt = new Date(serverNow() + Number(selectedLifetime) * DAY_MS).toISOString();
+    // Never past the cap the server stated, however long the form stayed open.
+    const expiresAt = new Date(
+      Math.min(serverNow() + Number(selectedLifetime) * DAY_MS, latest ?? Infinity),
+    ).toISOString();
     create.mutate({ name: name.trim(), expiresAt, grants, mcpTools }, { onSuccess: onMinted });
   };
 

@@ -52,7 +52,8 @@ export function ApiKeysPanel() {
 
       {tokens.isError ? (
         <Alert color="red" title="Your keys could not be loaded">
-          {tokens.error.message} Reload the page to try again.
+          <Text size="sm">{tokens.error.message}</Text>
+          <Text size="sm">Reload the page to try again.</Text>
         </Alert>
       ) : tokens.data?.length === 0 ? (
         <Text size="sm" c="dimmed">
@@ -98,7 +99,6 @@ function KeysTable({
       <Table.Thead>
         <Table.Tr>
           <Table.Th>Name</Table.Th>
-          <Table.Th>Prefix</Table.Th>
           <Table.Th>Status</Table.Th>
           <Table.Th>Expires</Table.Th>
           <Table.Th>Last used</Table.Th>
@@ -113,8 +113,6 @@ function KeysTable({
           <Table.Tr key={t.id}>
             <Table.Td>
               <Text size="sm">{t.name}</Text>
-            </Table.Td>
-            <Table.Td>
               <Text size="xs" ff="monospace" c="dimmed">
                 {t.prefix}
               </Text>
