@@ -15,10 +15,18 @@ export interface PagedView<T> {
 /** The largest page the server allows (`ResourceQuery.MAX_SIZE`). */
 export const MAX_PAGE_SIZE = 500;
 
-/** Every row of a short list (roles, environments, channels, …): one page at the maximum size, unwrapped. */
+/**
+ * Every row of a list the UI shows in full (roles, environments, channels, …): pages of the maximum size,
+ * followed while the server says another page exists. Stopping early would read as "no such row".
+ */
 export async function requestAll<T>(path: string): Promise<T[]> {
   const joiner = path.includes('?') ? '&' : '?';
-  return (await request<PagedView<T>>(`${path}${joiner}size=${MAX_PAGE_SIZE}`)).data;
+  const rows: T[] = [];
+  for (let page = 1; ; page++) {
+    const result = await request<PagedView<T>>(`${path}${joiner}size=${MAX_PAGE_SIZE}&page=${page}`);
+    rows.push(...result.data);
+    if (!result.hasNext) return rows;
+  }
 }
 
 export interface ResourceParams {
