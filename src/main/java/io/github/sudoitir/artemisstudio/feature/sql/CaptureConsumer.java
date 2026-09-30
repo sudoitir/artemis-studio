@@ -463,7 +463,7 @@ public class CaptureConsumer {
                 while (!closed && (remaining = (deadline - System.nanoTime()) / 1_000_000L) > 0) {
                     wait(remaining);
                 }
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -532,7 +532,7 @@ public class CaptureConsumer {
             }
             try {
                 consumer.close();
-            } catch (JMSException | RuntimeException ignored) {
+            } catch (JMSException | RuntimeException _) {
                 // the connection is already dead
             }
             jms.close();
@@ -551,7 +551,7 @@ public class CaptureConsumer {
             }
             try {
                 consumer.close();
-            } catch (JMSException ignored) {
+            } catch (JMSException _) {
                 // teardown
             }
             synchronized (this) {
@@ -578,7 +578,7 @@ public class CaptureConsumer {
     private static String messageId(Message message) {
         try {
             return message.getJMSMessageID();
-        } catch (JMSException | RuntimeException e) {
+        } catch (JMSException | RuntimeException _) {
             return null;
         }
     }
@@ -586,7 +586,7 @@ public class CaptureConsumer {
     private static String stringProperty(Message message, String name) {
         try {
             return message.getStringProperty(name);
-        } catch (JMSException e) {
+        } catch (JMSException _) {
             return null;
         }
     }
@@ -594,7 +594,7 @@ public class CaptureConsumer {
     private static Long longProperty(Message message, String name) {
         try {
             return message.propertyExists(name) ? message.getLongProperty(name) : null;
-        } catch (JMSException | RuntimeException e) {
+        } catch (JMSException | RuntimeException _) {
             return null;
         }
     }

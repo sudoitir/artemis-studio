@@ -184,21 +184,21 @@ public class MessageIndexCoverage {
             return java.util.Optional.empty();
         }
         return switch (predicate) {
-            case Predicate.And and -> widest(and.parts());
-            case Predicate.Or or -> widest(or.parts());
-            case Predicate.Not not -> reach(not.inner());
+            case Predicate.And(var parts) -> widest(parts);
+            case Predicate.Or(var parts) -> widest(parts);
+            case Predicate.Not(var inner) -> reach(inner);
             case Predicate.Compare compare ->
-                isTimeTerm(compare.term()) && compare.value() instanceof Literal.RelativeTime relative
-                        ? java.util.Optional.of(relative.before())
+                isTimeTerm(compare.term()) && compare.value() instanceof Literal.RelativeTime(var before)
+                        ? java.util.Optional.of(before)
                         : java.util.Optional.empty();
             case Predicate.Between between ->
-                isTimeTerm(between.term()) && between.low() instanceof Literal.RelativeTime relative
-                        ? java.util.Optional.of(relative.before())
+                isTimeTerm(between.term()) && between.low() instanceof Literal.RelativeTime(var before)
+                        ? java.util.Optional.of(before)
                         : java.util.Optional.empty();
-            case Predicate.In ignored -> java.util.Optional.empty();
-            case Predicate.IsNull ignored -> java.util.Optional.empty();
-            case Predicate.Like ignored -> java.util.Optional.empty();
-            case Predicate.Match ignored -> java.util.Optional.empty();
+            case Predicate.In _ -> java.util.Optional.empty();
+            case Predicate.IsNull _ -> java.util.Optional.empty();
+            case Predicate.Like _ -> java.util.Optional.empty();
+            case Predicate.Match _ -> java.util.Optional.empty();
         };
     }
 
@@ -210,6 +210,6 @@ public class MessageIndexCoverage {
     }
 
     private boolean isTimeTerm(Term term) {
-        return term instanceof Term.ColumnTerm column && column.column().type() == ColumnCatalogue.Type.TIMESTAMP;
+        return term instanceof Term.ColumnTerm(var column) && column.type() == ColumnCatalogue.Type.TIMESTAMP;
     }
 }

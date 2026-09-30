@@ -187,8 +187,8 @@ public class SqlQueryParser {
                 return List.of();
             }
             Term term = term(e);
-            if (term instanceof Term.ColumnTerm ct) {
-                columns.add(ct.column());
+            if (term instanceof Term.ColumnTerm(var column)) {
+                columns.add(column);
             } else {
                 // props.* and body->>'x' are selected by asking for the whole row;
                 // narrowing the projection to them would drop the identity columns a
@@ -266,7 +266,7 @@ public class SqlQueryParser {
             throw new SqlSyntaxException("MATCH searches one column: MATCH (body) AGAINST ('terms').", fts.toString());
         }
         Term target = columnTerm(columns.getFirst());
-        if (!(target instanceof Term.ColumnTerm column) || column.column() != Column.BODY) {
+        if (!(target instanceof Term.ColumnTerm(var column)) || column != Column.BODY) {
             throw new SqlSyntaxException(
                     "MATCH searches the body column: MATCH (body) AGAINST ('terms').",
                     columns.getFirst().toString());
@@ -306,19 +306,19 @@ public class SqlQueryParser {
 
     private Operator operator(ComparisonOperator cmp) {
         return switch (cmp) {
-            case EqualsTo ignored -> Operator.EQ;
-            case NotEqualsTo ignored -> Operator.NE;
-            case MinorThan ignored -> Operator.LT;
-            case MinorThanEquals ignored -> Operator.LTE;
-            case GreaterThan ignored -> Operator.GT;
-            case GreaterThanEquals ignored -> Operator.GTE;
+            case EqualsTo _ -> Operator.EQ;
+            case NotEqualsTo _ -> Operator.NE;
+            case MinorThan _ -> Operator.LT;
+            case MinorThanEquals _ -> Operator.LTE;
+            case GreaterThan _ -> Operator.GT;
+            case GreaterThanEquals _ -> Operator.GTE;
             default -> throw new SqlSyntaxException("Unsupported comparison.", cmp.getStringExpression());
         };
     }
 
     private Predicate like(LikeExpression like) {
         Literal pattern = literal(like.getRightExpression());
-        if (!(pattern instanceof Literal.Str str)) {
+        if (!(pattern instanceof Literal.Str(var text))) {
             throw new SqlSyntaxException(
                     "LIKE takes a quoted pattern.", like.getRightExpression().toString());
         }
@@ -331,7 +331,7 @@ public class SqlQueryParser {
             escape = raw.charAt(0);
         }
         boolean caseInsensitive = like.getLikeKeyWord() == LikeExpression.KeyWord.ILIKE;
-        return new Predicate.Like(term(like.getLeftExpression()), str.value(), escape, like.isNot(), caseInsensitive);
+        return new Predicate.Like(term(like.getLeftExpression()), text, escape, like.isNot(), caseInsensitive);
     }
 
     private Predicate in(InExpression in) {
@@ -409,7 +409,7 @@ public class SqlQueryParser {
     /** {@code body->>'orderId'} — a JSON path into the body. Only the body has one. */
     private Term jsonTerm(JsonExpression json) {
         Term base = term(json.getExpression());
-        if (!(base instanceof Term.ColumnTerm ct) || ct.column() != Column.BODY) {
+        if (!(base instanceof Term.ColumnTerm(var column)) || column != Column.BODY) {
             throw new SqlSyntaxException("A JSON path can only be taken from the body column.", json.toString());
         }
         for (String operator : json.getOperators()) {
@@ -486,8 +486,8 @@ public class SqlQueryParser {
 
     private Literal signedLiteral(SignedExpression signed) {
         Literal inner = literal(signed.getExpression());
-        if (inner instanceof Literal.Num num && signed.getSign() == '-') {
-            return new Literal.Num(-num.value(), num.integral());
+        if (inner instanceof Literal.Num(var value, var integral) && signed.getSign() == '-') {
+            return new Literal.Num(-value, integral);
         }
         if (signed.getSign() == '+') {
             return inner;
@@ -535,7 +535,7 @@ public class SqlQueryParser {
         long amount;
         try {
             amount = Long.parseLong(amountText);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             throw new SqlSyntaxException("An interval's amount must be a whole number.", amountText);
         }
         if (amount < 0) {

@@ -301,9 +301,11 @@ public final class BrokerXmlCodec {
                         case "exclusive" -> exclusive = Boolean.parseBoolean(text);
                         case "non-destructive" -> nonDestructive = Boolean.parseBoolean(text);
                         case "ring-size" -> ringSize = Long.parseLong(text.trim());
-                        default -> {}
+                        default -> {
+                            // Other children carry no queue setting.
+                        }
                     }
-                } catch (NumberFormatException e) {
+                } catch (NumberFormatException _) {
                     errors.add(new Violation(cp, "'" + text + "' is not a number."));
                 }
             }
@@ -374,7 +376,7 @@ public final class BrokerXmlCodec {
                     case ENUM -> text.toUpperCase(Locale.ROOT);
                     case STRING -> text;
                 };
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 errors.add(new Violation(path, "'" + text + "' is not a number."));
                 return text;
             }
@@ -655,7 +657,7 @@ public final class BrokerXmlCodec {
             }
             try {
                 return Long.parseLong(text);
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 errors.add(new Violation(cp, "'" + text + "' is not a number."));
                 return null;
             }
@@ -680,7 +682,7 @@ public final class BrokerXmlCodec {
             }
             try {
                 return Double.parseDouble(text);
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 errors.add(new Violation(cp, "'" + text + "' is not a number."));
                 return null;
             }

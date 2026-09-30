@@ -211,33 +211,30 @@ public class SqlGovernance {
             return;
         }
         switch (predicate) {
-            case Predicate.And and -> and.parts().forEach(p -> collect(p, out));
-            case Predicate.Or or -> or.parts().forEach(p -> collect(p, out));
-            case Predicate.Not not -> collect(not.inner(), out);
+            case Predicate.And(var parts) -> parts.forEach(p -> collect(p, out));
+            case Predicate.Or(var parts) -> parts.forEach(p -> collect(p, out));
+            case Predicate.Not(var inner) -> collect(inner, out);
             case Predicate.Compare compare -> out.add(compare.term());
             case Predicate.In in -> out.add(in.term());
             case Predicate.IsNull isNull -> out.add(isNull.term());
             case Predicate.Like like -> out.add(like.term());
             case Predicate.Between between -> out.add(between.term());
-            // Full-text search runs over the stored body, which holds only masked values.
-            case Predicate.Match ignored -> {}
+            case Predicate.Match _ -> {
+                // Full-text search runs over the stored body, which holds only masked values.
+            }
         }
     }
 
     private String classifiedField(Term term) {
         return switch (term) {
-            case Term.PropertyTerm property ->
-                policy.classifies(Location.PROPERTY, property.name()) ? "props." + property.name() : null;
-            case Term.JsonTerm json ->
-                policy.classifies(Location.BODY, json.path()) ? "body->>'" + json.path() + "'" : null;
-            case Term.ColumnTerm column -> {
-                String header = HEADER_COLUMNS.get(column.column());
-                yield header != null && policy.classifies(Location.HEADER, header)
-                        ? column.column().sqlName()
-                        : null;
+            case Term.PropertyTerm(var name) -> policy.classifies(Location.PROPERTY, name) ? "props." + name : null;
+            case Term.JsonTerm(var path) -> policy.classifies(Location.BODY, path) ? "body->>'" + path + "'" : null;
+            case Term.ColumnTerm(var column) -> {
+                String header = HEADER_COLUMNS.get(column);
+                yield header != null && policy.classifies(Location.HEADER, header) ? column.sqlName() : null;
             }
-            case Term.CaseFold fold -> classifiedField(fold.inner());
-            case Term.MatchRank ignored -> null;
+            case Term.CaseFold(var inner, var _) -> classifiedField(inner);
+            case Term.MatchRank _ -> null;
         };
     }
 }

@@ -146,7 +146,7 @@ public class SqlStreamController {
         try {
             ticket = tickets.redeem(UUID.fromString(queryId), clusterId, tickets.currentOwner())
                     .orElse(null);
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException _) {
             // Not a reference at all; the message below is the same either way.
         }
         if (ticket == null) {
@@ -301,7 +301,7 @@ public class SqlStreamController {
             }
             try {
                 emitter.send(SseEmitter.event().name(name).data(payload));
-            } catch (IOException | RuntimeException e) {
+            } catch (IOException | RuntimeException _) {
                 // A write failure is how a disconnect is discovered, so it is the
                 // signal to stop rather than something to report.
                 cancelled = true;
@@ -311,7 +311,7 @@ public class SqlStreamController {
         private void complete() {
             try {
                 emitter.complete();
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // already closed
             }
         }

@@ -560,7 +560,7 @@ public class BrokerConfigOperations {
                     "name", ObjectName.unquote(queue),
                     "address", ObjectName.unquote(address),
                     "routing-type", ObjectName.unquote(routingType).toUpperCase(Locale.ROOT)));
-        } catch (MalformedObjectNameException | IllegalArgumentException e) {
+        } catch (MalformedObjectNameException | IllegalArgumentException _) {
             return Optional.empty();
         }
     }

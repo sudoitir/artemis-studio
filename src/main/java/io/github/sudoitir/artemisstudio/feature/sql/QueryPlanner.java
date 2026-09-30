@@ -286,30 +286,31 @@ public class QueryPlanner {
             return;
         }
         switch (predicate) {
-            case Predicate.And and -> and.parts().forEach(p -> collectIndexOnly(p, into));
-            case Predicate.Or or -> or.parts().forEach(p -> collectIndexOnly(p, into));
-            case Predicate.Not not -> collectIndexOnly(not.inner(), into);
+            case Predicate.And(var parts) -> parts.forEach(p -> collectIndexOnly(p, into));
+            case Predicate.Or(var parts) -> parts.forEach(p -> collectIndexOnly(p, into));
+            case Predicate.Not(var inner) -> collectIndexOnly(inner, into);
             case Predicate.Compare compare -> collectTerm(compare.term(), into);
             case Predicate.In in -> collectTerm(in.term(), into);
             case Predicate.IsNull isNull -> collectTerm(isNull.term(), into);
             case Predicate.Like like -> collectTerm(like.term(), into);
             case Predicate.Between between -> collectTerm(between.term(), into);
             // MATCH() reads the stored body, which only the index has.
-            case Predicate.Match ignored -> into.add("MATCH(body, ...)");
+            case Predicate.Match _ -> into.add("MATCH(body, ...)");
         }
     }
 
     private void collectTerm(Term term, List<String> into) {
         switch (term) {
-            case Term.ColumnTerm column -> {
-                if (column.column().indexOnly()) {
-                    into.add(column.column().sqlName());
+            case Term.ColumnTerm(var column) -> {
+                if (column.indexOnly()) {
+                    into.add(column.sqlName());
                 }
             }
             case Term.CaseFold fold -> collectTerm(fold.inner(), into);
-            case Term.PropertyTerm ignored -> {}
-            case Term.JsonTerm ignored -> {}
-            case Term.MatchRank ignored -> into.add("match_rank");
+            case Term.PropertyTerm _, Term.JsonTerm _ -> {
+                // Only the index has neither; the message store reads both.
+            }
+            case Term.MatchRank _ -> into.add("match_rank");
         }
     }
 
@@ -352,17 +353,17 @@ public class QueryPlanner {
             return false;
         }
         return switch (predicate) {
-            case Predicate.And and -> and.parts().stream().anyMatch(this::usesRelativeTime);
-            case Predicate.Or or -> or.parts().stream().anyMatch(this::usesRelativeTime);
-            case Predicate.Not not -> usesRelativeTime(not.inner());
+            case Predicate.And(var parts) -> parts.stream().anyMatch(this::usesRelativeTime);
+            case Predicate.Or(var parts) -> parts.stream().anyMatch(this::usesRelativeTime);
+            case Predicate.Not(var inner) -> usesRelativeTime(inner);
             case Predicate.Compare compare -> compare.value() instanceof QueryAst.Literal.RelativeTime;
             case Predicate.In in -> in.values().stream().anyMatch(v -> v instanceof QueryAst.Literal.RelativeTime);
             case Predicate.Between between ->
                 between.low() instanceof QueryAst.Literal.RelativeTime
                         || between.high() instanceof QueryAst.Literal.RelativeTime;
-            case Predicate.IsNull ignored -> false;
-            case Predicate.Like ignored -> false;
-            case Predicate.Match ignored -> false;
+            case Predicate.IsNull _ -> false;
+            case Predicate.Like _ -> false;
+            case Predicate.Match _ -> false;
         };
     }
 
@@ -376,8 +377,8 @@ public class QueryPlanner {
     }
 
     private void describeInto(Predicate predicate, List<String> out) {
-        if (predicate instanceof Predicate.And and) {
-            and.parts().forEach(p -> describeInto(p, out));
+        if (predicate instanceof Predicate.And(var parts)) {
+            parts.forEach(p -> describeInto(p, out));
         } else {
             out.add(PredicateText.of(predicate));
         }

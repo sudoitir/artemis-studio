@@ -52,7 +52,7 @@ public class SelectorRenderer {
         try {
             render(predicate, Instant.EPOCH);
             return true;
-        } catch (UnrenderableSelectorException e) {
+        } catch (UnrenderableSelectorException _) {
             return false;
         }
     }
@@ -74,19 +74,17 @@ public class SelectorRenderer {
 
     private String expression(Predicate predicate, Instant now) {
         return switch (predicate) {
-            case Predicate.And and -> join(and.parts(), " AND ", now);
-            case Predicate.Or or -> join(or.parts(), " OR ", now);
-            case Predicate.Not not -> "(NOT " + expression(not.inner(), now) + ")";
+            case Predicate.And(var parts) -> join(parts, " AND ", now);
+            case Predicate.Or(var parts) -> join(parts, " OR ", now);
+            case Predicate.Not(var inner) -> "(NOT " + expression(inner, now) + ")";
             case Predicate.Compare compare -> compare(compare, now);
             case Predicate.In in -> in(in, now);
-            case Predicate.IsNull isNull ->
-                identifier(isNull.term()) + (isNull.negated() ? " IS NOT NULL" : " IS NULL");
+            case Predicate.IsNull(var term, var negated) -> identifier(term) + (negated ? " IS NOT NULL" : " IS NULL");
             case Predicate.Like like -> like(like);
             case Predicate.Between between -> between(between, now);
             // No JMS selector expresses full-text search, and an approximation would
             // silently mean something else — so it is unrenderable, not translated.
-            case Predicate.Match ignored ->
-                throw new UnrenderableSelectorException("a selector cannot express MATCH()");
+            case Predicate.Match _ -> throw new UnrenderableSelectorException("a selector cannot express MATCH()");
         };
     }
 
@@ -108,10 +106,10 @@ public class SelectorRenderer {
      * all. Any other operator on it would not be.
      */
     private String durable(Predicate.Compare compare, Instant now) {
-        if (!(compare.value() instanceof Literal.Bool bool)) {
+        if (!(compare.value() instanceof Literal.Bool(var flag))) {
             throw new UnrenderableSelectorException("durable compares against true or false");
         }
-        String value = bool.value() ? DURABLE_TRUE : DURABLE_FALSE;
+        String value = flag ? DURABLE_TRUE : DURABLE_FALSE;
         return switch (compare.op()) {
             case EQ -> ColumnCatalogue.Column.DURABLE.selectorId() + " = " + value;
             case NE -> ColumnCatalogue.Column.DURABLE.selectorId() + " <> " + value;
@@ -120,7 +118,7 @@ public class SelectorRenderer {
     }
 
     private boolean isDurable(Term term) {
-        return term instanceof Term.ColumnTerm column && column.column() == Column.DURABLE;
+        return term instanceof Term.ColumnTerm(var column) && column == Column.DURABLE;
     }
 
     private String in(Predicate.In in, Instant now) {
@@ -148,35 +146,33 @@ public class SelectorRenderer {
 
     private String identifier(Term term) {
         return switch (term) {
-            case Term.ColumnTerm column -> {
-                String selectorId = column.column().selectorId();
+            case Term.ColumnTerm(var column) -> {
+                String selectorId = column.selectorId();
                 if (selectorId == null) {
-                    throw new UnrenderableSelectorException(
-                            "no selector identifier for " + column.column().sqlName());
+                    throw new UnrenderableSelectorException("no selector identifier for " + column.sqlName());
                 }
                 yield selectorId;
             }
-            case Term.MatchRank ignored ->
-                throw new UnrenderableSelectorException("a selector cannot express match_rank");
-            case Term.PropertyTerm property -> {
-                if (!IDENTIFIER.matcher(property.name()).matches()) {
-                    throw new UnrenderableSelectorException(
-                            "a selector cannot quote the property name '" + property.name() + "'");
+            case Term.MatchRank _ -> throw new UnrenderableSelectorException("a selector cannot express match_rank");
+            case Term.PropertyTerm(var name) -> {
+                if (!IDENTIFIER.matcher(name).matches()) {
+                    throw new UnrenderableSelectorException("a selector cannot quote the property name '" + name + "'");
                 }
-                yield property.name();
+                yield name;
             }
-            case Term.JsonTerm ignored -> throw new UnrenderableSelectorException("a selector cannot read the body");
-            case Term.CaseFold ignored -> throw new UnrenderableSelectorException("a selector cannot fold case");
+            case Term.JsonTerm _ -> throw new UnrenderableSelectorException("a selector cannot read the body");
+            case Term.CaseFold _ -> throw new UnrenderableSelectorException("a selector cannot fold case");
         };
     }
 
     private String literal(Literal literal, Instant now) {
         return switch (literal) {
-            case Literal.Str str -> quote(str.value());
-            case Literal.Num num -> num.integral() ? Long.toString((long) num.value()) : Double.toString(num.value());
-            case Literal.Bool bool -> Boolean.toString(bool.value()).toUpperCase(java.util.Locale.ROOT);
-            case Literal.RelativeTime relative ->
-                Long.toString(now.minus(relative.before()).toEpochMilli());
+            case Literal.Str(var value) -> quote(value);
+            case Literal.Num(var value, var integral) ->
+                integral ? Long.toString((long) value) : Double.toString(value);
+            case Literal.Bool(var value) -> Boolean.toString(value).toUpperCase(java.util.Locale.ROOT);
+            case Literal.RelativeTime(var before) ->
+                Long.toString(now.minus(before).toEpochMilli());
         };
     }
 

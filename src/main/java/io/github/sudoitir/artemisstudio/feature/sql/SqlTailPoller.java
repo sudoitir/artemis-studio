@@ -79,7 +79,7 @@ public class SqlTailPoller {
             if (!closing.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
                 closing.shutdownNow();
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             closing.shutdownNow();
             Thread.currentThread().interrupt();
         }

@@ -413,7 +413,7 @@ public final class BrokerConfigValidator {
             case String s -> {
                 try {
                     yield new BigDecimal(s.trim());
-                } catch (NumberFormatException e) {
+                } catch (NumberFormatException _) {
                     yield null;
                 }
             }

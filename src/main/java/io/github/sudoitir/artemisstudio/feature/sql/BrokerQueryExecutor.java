@@ -189,7 +189,7 @@ public class BrokerQueryExecutor {
             for (java.util.concurrent.Future<?> future : running) {
                 try {
                     future.get();
-                } catch (InterruptedException e) {
+                } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
                     recordBound(
                             bounds,

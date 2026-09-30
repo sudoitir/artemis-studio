@@ -31,7 +31,7 @@ class SqlJobs {
     @Bean
     ScheduledJob sqlTailJob(SqlTailPoller poller, SqlProperties properties) {
         return ScheduledJob.fixedDelay(
-                "sql-tail", "sql", ScheduledJob.Scope.INSTANCE, () -> properties.tailInterval(), poller::tick);
+                "sql-tail", "sql", ScheduledJob.Scope.INSTANCE, properties::tailInterval, poller::tick);
     }
 
     /**
@@ -60,7 +60,7 @@ class SqlJobs {
                 "capture-reconcile",
                 "sql",
                 ScheduledJob.Scope.INSTANCE,
-                () -> properties.reconcileInterval(),
+                properties::reconcileInterval,
                 reconciler::reconcile);
     }
 

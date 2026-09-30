@@ -139,7 +139,7 @@ class BrokerConfigPlannerTest {
                 PlanOptions.defaults());
 
         assertThat(plan.hazards())
-                .extracting(h -> h.kind())
+                .extracting(Plan.Hazard::kind)
                 .contains(HazardKind.MESSAGE_LOSS_POLICY, HazardKind.LIMIT_BELOW_USAGE);
         assertThat(plan.hazards())
                 .filteredOn(h -> h.kind() == HazardKind.LIMIT_BELOW_USAGE)
@@ -168,7 +168,7 @@ class BrokerConfigPlannerTest {
         Plan plan = BrokerConfigPlanner.plan(d, List.of(n), Set.of(), PlanOptions.defaults());
 
         assertThat(plan.hazards())
-                .extracting(h -> h.kind())
+                .extracting(Plan.Hazard::kind)
                 .contains(HazardKind.BROAD_MATCH, HazardKind.MANAGEMENT_ACCESS);
         assertThat(plan.hazards())
                 .filteredOn(h -> h.kind() == HazardKind.MANAGEMENT_ACCESS)
@@ -210,7 +210,7 @@ class BrokerConfigPlannerTest {
 
         assertThat(pending(plan, N1)).extracting(Step::op).containsExactly(Op.REMOVE, Op.ADD);
         assertThat(plan.hazards())
-                .extracting(h -> h.kind())
+                .extracting(Plan.Hazard::kind)
                 .containsExactlyInAnyOrder(HazardKind.DIVERT_REPLACE, HazardKind.EXCLUSIVE_DIVERT);
         assertThat(plan.hazards())
                 .filteredOn(h -> h.kind() == HazardKind.EXCLUSIVE_DIVERT)
@@ -523,7 +523,7 @@ class BrokerConfigPlannerTest {
                 PlanOptions.defaults());
 
         assertThat(plan.findings())
-                .extracting(f -> f.kind())
+                .extracting(Plan.Finding::kind)
                 .containsExactlyInAnyOrder(FindingKind.NOT_EVALUATED, FindingKind.UNREACHABLE);
         assertThat(plan.stepCount()).isZero();
         assertThat(plan.canaryNodeId()).isNull();
