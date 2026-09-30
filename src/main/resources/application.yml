@@ -19,8 +19,8 @@ spring:
 
   session:
     jdbc:
-      # Liquibase owns this schema (014-identity.sql), not the library's own
-      # initializer (ADR-0011).
+      # Liquibase owns this schema (db/changelog/kernel/security/changes/0001-baseline.sql),
+      # not the library's own initializer (ADR-0011).
       initialize-schema: never
       table-name: spring_session
       # The data lifecycle purges expired sessions once per installation (expired-sessions

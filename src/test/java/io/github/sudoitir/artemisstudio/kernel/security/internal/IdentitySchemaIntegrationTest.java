@@ -21,9 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * {@code 014-identity.sql} applies cleanly on top of {@code 003-identity.sql}
- * / {@code 002-estate.sql} (Liquibase runs this for every test in the suite;
- * this test asserts what it produced), the three built-in roles are seeded
+ * The kernel/security {@code 0001-baseline.sql} applies cleanly (Liquibase runs this for
+ * every test in the suite; this test asserts what it produced), the three built-in roles are seeded
  * with the expected permissions, and the new entities round-trip
  * (identity-and-sessions spec, authorization spec, api-tokens spec).
  */
