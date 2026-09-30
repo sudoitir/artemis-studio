@@ -72,7 +72,7 @@ public class IndexQueryExecutor {
                 SELECT observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                        priority, message_type, queue_name, address, node_name, correlation_id, group_id,
                        user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
-                       origin, orig_address, source_message_id, body_truncated, sealed
+                       origin, orig_address, source_message_id, body_truncated, body_base64, body_compression, sealed
                   FROM message_index
                  WHERE cluster_id = ?
                 """);
@@ -222,12 +222,11 @@ public class IndexQueryExecutor {
     /**
      * {@code MATCH(body, 'terms')} against the functional GIN index (ADR-0063).
      *
-     * <p>The {@code message_type} test is not a filter an operator asked for — it is
+     * <p>The {@code body_base64} test is not a filter an operator asked for — it is
      * the index's own predicate, repeated so Postgres can use it. The index covers
-     * text-ish bodies only, because {@code to_tsvector} over base64 produces garbage
-     * tokens and bloats the index for no retrieval value; a {@code BytesMessage} is
-     * therefore not full-text searchable, and the console says so rather than
-     * returning a quietly short list.
+     * text bodies only, because {@code to_tsvector} over base64 produces garbage
+     * tokens and bloats the index for no retrieval value. A bytes message whose body
+     * is text is stored as text (ADR-0147) and is searchable like any other.
      *
      * <p>{@code websearch_to_tsquery} rather than {@code to_tsquery}: it accepts what
      * an operator types into a search box — quoted phrases, {@code -exclusion},
@@ -235,13 +234,9 @@ public class IndexQueryExecutor {
      */
     private Sql match(Predicate.Match match) {
         return new Sql(
-                "(message_type <> " + BINARY_MESSAGE_TYPE
-                        + " AND to_tsvector('simple', body) @@ websearch_to_tsquery('simple', ?))",
+                "(NOT body_base64 AND to_tsvector('simple', body) @@ websearch_to_tsquery('simple', ?))",
                 List.of(match.terms()));
     }
-
-    /** Artemis' numeric type for a {@code BytesMessage}, whose body is stored base64. */
-    private static final int BINARY_MESSAGE_TYPE = 4;
 
     // ---- terms ----------------------------------------------------------
 
@@ -392,6 +387,8 @@ public class IndexQueryExecutor {
                 rs.getString("reply_to"),
                 rs.getString("body"),
                 rs.getBoolean("body_truncated"),
+                rs.getBoolean("body_base64"),
+                rs.getString("body_compression"),
                 properties(rs.getString("props")),
                 Source.INDEX,
                 instant(rs.getTimestamp("observed_at")),

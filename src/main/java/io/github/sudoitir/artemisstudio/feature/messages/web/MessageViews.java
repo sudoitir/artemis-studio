@@ -55,6 +55,13 @@ public final class MessageViews {
             @Schema(nullable = true) String userId,
             @Schema(nullable = true) String body,
             @Schema(requiredMode = REQUIRED) String bodyEncoding,
+
+            @Schema(
+                    nullable = true,
+                    description =
+                            "How a text body was compressed on the broker (gzip or deflate); null when it was not.")
+            String bodyCompression,
+
             @Schema(nullable = true) String contentType,
             @Schema(requiredMode = REQUIRED) boolean bodyTruncated,
             @Schema(nullable = true) Integer observedLimitBytes,

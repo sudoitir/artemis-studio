@@ -95,9 +95,9 @@ public class MessageIndexWriter {
                 INSERT INTO message_index (
                     observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                     priority, message_type, queue_name, address, node_name, correlation_id, group_id,
-                    user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
-                    policy_version, sealed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
+                    user_id, reply_to, jms_type, body, body_compression, props, cluster_id, node_id, durable,
+                    body_truncated, body_base64, policy_version, sealed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """,
                 Timestamp.from(at),
@@ -117,10 +117,13 @@ public class MessageIndexWriter {
                 governed.headers().get("replyTo"),
                 row.jmsType(),
                 governed.body(),
+                row.bodyCompression(),
                 properties(governed.properties()),
                 clusterId,
                 row.nodeId(),
                 row.durable(),
+                row.bodyTruncated(),
+                row.bodyBase64(),
                 governed.policyVersion(),
                 new SqlParameterValue(Types.BINARY, stored.sealed()));
         return true;
@@ -187,12 +190,14 @@ public class MessageIndexWriter {
             statement.setString(++i, governed.headers().get("replyTo"));
             statement.setString(++i, row.jmsType());
             statement.setString(++i, governed.body());
+            statement.setString(++i, row.bodyCompression());
             statement.setString(++i, properties(governed.properties()));
             statement.setString(++i, captured.origAddress());
             statement.setObject(++i, captured.clusterId());
             statement.setObject(++i, row.nodeId());
             statement.setBoolean(++i, row.durable());
             statement.setBoolean(++i, row.bodyTruncated());
+            statement.setBoolean(++i, row.bodyBase64());
             statement.setInt(++i, governed.policyVersion());
             statement.setObject(++i, entry.stored().sealed(), Types.BINARY);
             statement.setObject(++i, captured.clusterId());
@@ -207,10 +212,10 @@ public class MessageIndexWriter {
             INSERT INTO message_index (
                 observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                 source_message_id, priority, message_type, queue_name, address, node_name,
-                correlation_id, group_id, user_id, reply_to, jms_type, body, props, origin,
-                orig_address, cluster_id, node_id, durable, body_truncated, policy_version, sealed)
-            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'CAPTURED',
-                   ?, ?, ?, ?, ?, ?, ?
+                correlation_id, group_id, user_id, reply_to, jms_type, body, body_compression, props, origin,
+                orig_address, cluster_id, node_id, durable, body_truncated, body_base64, policy_version, sealed)
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'CAPTURED',
+                   ?, ?, ?, ?, ?, ?, ?, ?
              WHERE NOT EXISTS (
                    SELECT 1 FROM message_index
                     WHERE cluster_id = ? AND queue_name = ? AND node_id = ? AND message_id = ?

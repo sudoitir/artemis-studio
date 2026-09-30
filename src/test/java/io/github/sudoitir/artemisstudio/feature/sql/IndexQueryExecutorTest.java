@@ -86,6 +86,8 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 null,
                 body,
                 false,
+                false,
+                null,
                 properties,
                 Source.BROKER,
                 null,
@@ -237,15 +239,42 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
 
     @Test
     void aBinaryBodyIsNotFullTextSearchable() {
-        // A BytesMessage body is stored base64, and to_tsvector over base64 is garbage
+        // A binary body is carried base64, and to_tsvector over base64 is garbage
         // that would bloat the index for no retrieval value — so it is not indexed, and
         // the query's own predicate is what keeps that consistent rather than accidental.
-        Row binary = new Row(
+        Row binary = binaryOrText(40, "acme", true);
+        writer.observe(CLUSTER, binary, Instant.now());
+
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('acme') LIMIT 10"))
+                .isEmpty();
+    }
+
+    @Test
+    void aBytesMessageCarryingTextIsSearchableByWordAndJsonPath() {
+        writer.observe(
+                CLUSTER,
+                binaryOrText(41, "{\"status\":\"FAILED\",\"lines\":[{\"sku\":\"acme-1\"}]}", false),
+                Instant.now());
+
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('failed') LIMIT 10"))
+                .extracting(Row::messageId)
+                .containsExactly(41L);
+        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE body->>'lines.0.sku' = 'acme-1' LIMIT 10"))
+                .singleElement()
+                .satisfies(r -> {
+                    assertThat(r.messageType()).isEqualTo(4);
+                    assertThat(r.bodyBase64()).isFalse();
+                });
+    }
+
+    /** A bytes message (type 4), its body stored as given and flagged binary or not. */
+    private static Row binaryOrText(long id, String body, boolean bodyBase64) {
+        return new Row(
                 NODE,
                 "primary",
                 "ORDER.IN",
                 "ORDER.IN",
-                40,
+                id,
                 4,
                 true,
                 4,
@@ -257,18 +286,16 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 null,
                 null,
                 null,
-                "acme",
+                body,
                 false,
+                bodyBase64,
+                null,
                 Map.of(),
                 Source.BROKER,
                 null,
                 null,
                 null,
                 null);
-        writer.observe(CLUSTER, binary, Instant.now());
-
-        assertThat(run("SELECT * FROM index.\"ORDER.IN\" WHERE MATCH (body) AGAINST ('acme') LIMIT 10"))
-                .isEmpty();
     }
 
     @Test
@@ -284,7 +311,7 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 "\n",
                 jdbc.queryForList(
                         "EXPLAIN SELECT * FROM message_index WHERE cluster_id = ?"
-                                + " AND (message_type <> 4 AND to_tsvector('simple', body)"
+                                + " AND (NOT body_base64 AND to_tsvector('simple', body)"
                                 + " @@ websearch_to_tsquery('simple', ?))",
                         String.class,
                         CLUSTER,
@@ -328,6 +355,8 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
                 null,
                 "body " + id,
                 false,
+                false,
+                null,
                 properties,
                 Source.BROKER,
                 null,

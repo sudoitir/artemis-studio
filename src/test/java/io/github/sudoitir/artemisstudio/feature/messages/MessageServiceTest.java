@@ -262,6 +262,7 @@ class MessageServiceTest {
 
         assertThat(detail.messageId()).isEqualTo(2);
         assertThat(detail.bodyEncoding()).isEqualTo("BASE64");
+        assertThat(detail.bodyCompression()).isNull();
         assertThat(detail.body()).isEqualTo("b");
         assertThat(detail.contentType()).isEqualTo("application/json");
         assertThat(detail.userId()).isEqualTo("user-1");
@@ -295,6 +296,45 @@ class MessageServiceTest {
         assertThat(detail.longProperties()).containsEntry("seq", 9L);
         // A number the broker did not report under either integer map is not guessed at.
         assertThat(detail.stringProperties()).containsEntry("stray", "5");
+    }
+
+    @Test
+    void aBytesMessageReadAsCompressedTextIsDetailedAsTextWithItsCompression() {
+        BrowsedMessage m = message(3, "{\"a\":1}", BodyEncoding.TEXT);
+        BrowsedMessage gzipped = new BrowsedMessage(
+                m.messageId(),
+                4,
+                m.durable(),
+                m.priority(),
+                m.timestamp(),
+                m.expiration(),
+                m.size(),
+                m.groupId(),
+                m.correlationId(),
+                m.replyTo(),
+                m.userId(),
+                m.body(),
+                BodyEncoding.TEXT,
+                Compression.GZIP,
+                m.contentType(),
+                false,
+                null,
+                m.stringProperties(),
+                m.intProperties(),
+                m.longProperties(),
+                m.doubleProperties(),
+                m.booleanProperties());
+        browses(jolokia, List.of(gzipped), Channel.JOLOKIA);
+
+        MessageDetailView detail = service.detail(CLUSTER, "orders", 3, null, null);
+
+        assertThat(detail.type()).isEqualTo(4);
+        assertThat(detail.bodyEncoding()).isEqualTo("TEXT");
+        assertThat(detail.bodyCompression()).isEqualTo("gzip");
+        assertThat(detail.body()).isEqualTo("{\"a\":1}");
+        // Text, so the content policy masks it field by field instead of withholding it as binary.
+        assertThat(MessageService.content(gzipped).base64()).isFalse();
+        assertThat(service.detail(CLUSTER, "orders", 3, null, null).withheld()).isEmpty();
     }
 
     @Test

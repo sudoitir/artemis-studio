@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
@@ -409,6 +410,8 @@ public class BrokerQueryExecutor {
                     message.replyTo(),
                     message.body(),
                     message.bodyTruncated(),
+                    message.bodyEncoding() == BodyEncoding.BASE64,
+                    message.bodyCompression().apiName(),
                     Map.copyOf(merged),
                     Source.BROKER,
                     null,

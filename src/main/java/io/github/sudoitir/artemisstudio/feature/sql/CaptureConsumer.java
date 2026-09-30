@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
 import io.github.sudoitir.artemisstudio.platform.broker.CorePool.PooledSession;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreUrl;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
@@ -514,6 +515,8 @@ public class CaptureConsumer {
                     message.replyTo(),
                     body,
                     truncated,
+                    message.bodyEncoding() == BodyEncoding.BASE64,
+                    message.bodyCompression().apiName(),
                     Map.copyOf(properties),
                     Source.BROKER,
                     null,

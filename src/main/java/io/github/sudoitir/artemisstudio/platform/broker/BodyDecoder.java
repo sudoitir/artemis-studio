@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -31,7 +32,12 @@ public final class BodyDecoder {
     public enum Compression {
         NONE,
         GZIP,
-        DEFLATE
+        DEFLATE;
+
+        /** As the API names it: {@code gzip} or {@code deflate}, and null for none. */
+        public String apiName() {
+            return this == NONE ? null : name().toLowerCase(Locale.ROOT);
+        }
     }
 
     /** {@code text} is null when the body is binary. */

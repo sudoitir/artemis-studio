@@ -59,7 +59,7 @@ Target（免费）：`queue`、`address`、`node`。
 
 Scan：`body`、`messageId`、`messageType`、`replyTo`，以及仅索引可用的 `observedAt`、`lastSeenAt`、`origin`、`origAddress` 与 `sourceMessageId`。
 
-在索引上，`MATCH (body) AGAINST ('terms')` 是对已存储消息体的全文检索，走 GIN 索引而非扫描；`ORDER BY match_rank` 按匹配程度排序。引号短语、`-排除` 和 `or` 的行为与搜索框一致。二进制消息体不建全文索引，所以 `BytesMessage` 永远不会命中——那种情况请用 `LIKE`。
+在索引上，`MATCH (body) AGAINST ('terms')` 是对已存储消息体的全文检索，走 GIN 索引而非扫描；`ORDER BY match_rank` 按匹配程度排序。引号短语、`-排除` 和 `or` 的行为与搜索框一致。二进制消息体不建全文索引；消息体为文本的字节消息与其他消息一样可被检索。
 
 消息体中的 JSON 字段写作 `body->>'orderId'`。该方言只接受 `now()`、`lower()`、`upper()` 这三个函数，以及相对时间中的 `interval`。相对时间会经由每个节点实测的时钟偏移做归一化，因此时钟有偏差的 Broker 也能给出正确答案。
 

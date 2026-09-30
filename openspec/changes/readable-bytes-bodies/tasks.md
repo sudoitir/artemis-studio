@@ -8,22 +8,21 @@
 
 ## 2. Messages API and governance
 
-- [ ] 2.1 `bodyCompression` on `MessageSummaryView` / `MessageDetailView`, mapped in `MessageService`
-- [ ] 2.2 Governance test: a bytes-JSON body with a masking rule is masked for a non-clear reader, not withheld; clear reader sees the original
+- [x] 2.1 `bodyCompression` on `MessageDetailView` (the summary's preview needs no label), mapped in `MessageService`
+- [x] 2.2 Governance test: a bytes-JSON body with a masking rule is masked for a non-clear reader, not withheld; clear reader sees the original
 
 ## 3. Message index
 
-- [ ] 3.1 Changeset `0005-body-encoding.sql` (D6)
-- [ ] 3.2 `QueryResult.Row` gains `bodyBase64`, `bodyCompression`; `CaptureConsumer.toRow`, `MessageIndexWriter`, `IndexQueryExecutor` (select + FTS predicate), `MessageIndexRemasker`, `SqlGovernance`, `SqlViews.RowView`, live-broker row mapping
-- [ ] 3.3 `MessagePredicate.jsonPath` steps into arrays by numeric segment (+ test)
-- [ ] 3.4 Index IT: a captured bytes-JSON message is found by `body->>'status'` and by MATCH
+- [x] 3.1 Changeset `0005-body-encoding.sql` (D6)
+- [x] 3.2 `QueryResult.Row` gains `bodyBase64`, `bodyCompression`; `CaptureConsumer.toRow`, `MessageIndexWriter`, `IndexQueryExecutor` (select + FTS predicate), `MessageIndexRemasker`, `SqlGovernance`, live-broker row mapping (the SQL console's drawer reads compression from the message detail, so `RowView` is unchanged)
+- [x] 3.3 `MessagePredicate.jsonPath` steps into arrays by numeric segment (+ test)
+- [x] 3.4 Index IT: a captured bytes-JSON message is found by `body->>'status'` and by MATCH
 
 ## 4. Frontend body views
 
-- [ ] 4.1 Regenerate `web/src/kernel/api/schema.d.ts`
+- [x] 4.1 Regenerate `web/src/kernel/api/schema.d.ts`
 - [ ] 4.2 `payload.ts` compression label (+ `payload.test.ts`)
 - [ ] 4.3 `JsonTree.tsx` (Mantine `Tree`, ctx7 for the API) + Tree option in `MessageDetailPanel`; tests: collapse/expand, search, copy path, keys rendered as text, no copy for dotted keys
-- [ ] 4.4 Pass `bodyCompression` from the SQL console into the drawer
 
 ## 5. Remove → Settings
 

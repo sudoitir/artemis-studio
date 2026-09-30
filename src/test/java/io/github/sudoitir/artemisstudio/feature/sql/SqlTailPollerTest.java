@@ -208,6 +208,8 @@ class SqlTailPollerTest {
                 null,
                 "body-" + messageId,
                 false,
+                false,
+                null,
                 Map.of(),
                 QueryAst.Source.INDEX,
                 observedAt,

@@ -72,6 +72,8 @@ class MessageIndexStoreTest extends PostgresIntegrationTest {
                 null,
                 "body",
                 false,
+                false,
+                null,
                 Map.of(),
                 Source.BROKER,
                 null,

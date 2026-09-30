@@ -145,6 +145,10 @@ class SqlGovernanceTest {
     // ---- rows ----------------------------------------------------------
 
     private static QueryResult.Row row(String address, int messageType) {
+        return row(address, messageType, false);
+    }
+
+    private static QueryResult.Row row(String address, int messageType, boolean bodyBase64) {
         return new QueryResult.Row(
                 UUID.randomUUID(),
                 "node-a",
@@ -164,6 +168,8 @@ class SqlGovernanceTest {
                 "reply",
                 "body text",
                 true,
+                bodyBase64,
+                null,
                 Map.of("k", "v"),
                 QueryAst.Source.INDEX,
                 java.time.Instant.parse("2026-01-01T00:00:00Z"),
@@ -191,9 +197,9 @@ class SqlGovernanceTest {
         assertThat(text.body()).isEqualTo("body text");
         assertThat(text.base64()).isFalse();
 
-        assertThat(SqlGovernance.content(row("orders", SqlGovernance.BYTES_MESSAGE))
-                        .base64())
-                .isTrue();
+        // Binary is a property of the stored body, not the message type: a bytes message carrying text is text.
+        assertThat(SqlGovernance.content(row("orders", 4)).base64()).isFalse();
+        assertThat(SqlGovernance.content(row("orders", 4, true)).base64()).isTrue();
     }
 
     @Test

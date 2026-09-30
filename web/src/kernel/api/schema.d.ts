@@ -5545,6 +5545,8 @@ export interface components {
             userId?: string | null;
             body?: string | null;
             bodyEncoding: string;
+            /** @description How a text body was compressed on the broker (gzip or deflate); null when it was not. */
+            bodyCompression?: string | null;
             contentType?: string | null;
             bodyTruncated: boolean;
             /** Format: int32 */
