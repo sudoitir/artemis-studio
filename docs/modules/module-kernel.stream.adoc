@@ -20,4 +20,5 @@ _Others_
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 |Events listened to
 |* `i.g.s.a.k.s.SessionEnded` 
+* `i.g.s.a.k.s.SessionIdChanged` 
 |===
