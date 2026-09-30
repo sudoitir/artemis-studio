@@ -16,10 +16,10 @@ public record Signer(String fingerprint, String subject, byte[] publicKey) {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof Signer that
-                && fingerprint.equals(that.fingerprint)
-                && subject.equals(that.subject)
-                && Arrays.equals(publicKey, that.publicKey);
+        return other instanceof Signer(String otherFingerprint, String otherSubject, byte[] otherKey)
+                && fingerprint.equals(otherFingerprint)
+                && subject.equals(otherSubject)
+                && Arrays.equals(publicKey, otherKey);
     }
 
     @Override
