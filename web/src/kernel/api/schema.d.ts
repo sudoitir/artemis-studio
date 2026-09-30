@@ -2836,7 +2836,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/plugins/keys/{fingerprint}": {
+    "/api/v1/auth/mfa/trusted-devices": {
         parameters: {
             query?: never;
             header?: never;
@@ -2846,7 +2846,23 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["removeKey"];
+        delete: operations["revokeTrustedDevices"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/trusted-devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeTrustedDevice"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2863,6 +2879,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revoke_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/keys/{fingerprint}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeKey"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4524,14 +4556,21 @@ export interface components {
             webauthn?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Trust this browser, so the next sign-in needs only the password. Honoured at sign-in when trusted devices are on (see trustDeviceDays); ignored for a step-up. */
+            trustDevice?: boolean | null;
         };
         AuthResult: {
             /** @enum {string} */
             status: "AUTHENTICATED" | "SECOND_FACTOR_REQUIRED";
             /** @description The signed-in user; set when the status is AUTHENTICATED. */
             me?: components["schemas"]["MeView"];
-            /** @description How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, RECOVERY_CODE one of the single-use codes. */
+            /** @description How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, WEBAUTHN a passkey, RECOVERY_CODE one of the single-use codes. */
             methods?: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[] | null;
+            /**
+             * Format: int32
+             * @description For a sign-in that needs a second factor: for how many days the user may trust this browser after giving it, so the next sign-in asks for the password only. 0 when trusted devices are off, and always 0 in any other case. Send trustDevice with the second factor to trust it.
+             */
+            trustDeviceDays: number;
         };
         GrantView: {
             scopeType: string;
@@ -6114,6 +6153,20 @@ export interface components {
             recoveryCodesRemaining: number;
             webauthn: components["schemas"]["WebAuthnAvailabilityView"];
             passkeys: components["schemas"]["PasskeyView"][];
+            trustedDevices: components["schemas"]["TrustedDeviceView"][];
+        };
+        TrustedDeviceView: {
+            /** Format: uuid */
+            id: string;
+            client?: string | null;
+            address?: string | null;
+            /** Format: date-time */
+            created: string;
+            /** Format: date-time */
+            lastUsed: string;
+            /** Format: date-time */
+            expires: string;
+            current: boolean;
         };
         WebAuthnAvailabilityView: {
             available: boolean;
@@ -11171,12 +11224,30 @@ export interface operations {
             };
         };
     };
-    removeKey: {
+    revokeTrustedDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeTrustedDevice: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                fingerprint: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -11197,6 +11268,26 @@ export interface operations {
             header?: never;
             path: {
                 tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removeKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fingerprint: string;
             };
             cookie?: never;
         };

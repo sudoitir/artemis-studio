@@ -6902,16 +6902,28 @@
         }
       }
     },
-    "/api/v1/admin/plugins/keys/{fingerprint}" : {
+    "/api/v1/auth/mfa/trusted-devices" : {
       "delete" : {
-        "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "removeKey",
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "revokeTrustedDevices",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/trusted-devices/{id}" : {
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "revokeTrustedDevice",
         "parameters" : [ {
-          "name" : "fingerprint",
+          "name" : "id",
           "in" : "path",
           "required" : true,
           "schema" : {
-            "type" : "string"
+            "type" : "string",
+            "format" : "uuid"
           }
         } ],
         "responses" : {
@@ -6932,6 +6944,25 @@
           "schema" : {
             "type" : "string",
             "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/keys/{fingerprint}" : {
+      "delete" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "removeKey",
+        "parameters" : [ {
+          "name" : "fingerprint",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {
@@ -11115,6 +11146,10 @@
             "type" : [ "object", "null" ],
             "additionalProperties" : { },
             "description" : "The credential a passkey returned for the options from POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it."
+          },
+          "trustDevice" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Trust this browser, so the next sign-in needs only the password. Honoured at sign-in when trusted devices are on (see trustDeviceDays); ignored for a step-up."
           }
         }
       },
@@ -11132,14 +11167,19 @@
           },
           "methods" : {
             "type" : [ "array", "null" ],
-            "description" : "How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, RECOVERY_CODE one of the single-use codes.",
+            "description" : "How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, WEBAUTHN a passkey, RECOVERY_CODE one of the single-use codes.",
             "items" : {
               "type" : "string",
               "enum" : [ "TOTP", "WEBAUTHN", "RECOVERY_CODE", "TRUSTED_DEVICE" ]
             }
+          },
+          "trustDeviceDays" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "For a sign-in that needs a second factor: for how many days the user may trust this browser after giving it, so the next sign-in asks for the password only. 0 when trusted devices are off, and always 0 in any other case. Send trustDevice with the second factor to trust it."
           }
         },
-        "required" : [ "status" ]
+        "required" : [ "status", "trustDeviceDays" ]
       },
       "GrantView" : {
         "type" : "object",
@@ -15120,6 +15160,9 @@
       "MfaStatusView" : {
         "type" : "object",
         "properties" : {
+          "local" : {
+            "type" : "boolean"
+          },
           "required" : {
             "type" : "boolean"
           },
@@ -15141,9 +15184,46 @@
             "items" : {
               "$ref" : "#/components/schemas/PasskeyView"
             }
+          },
+          "trustedDevices" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TrustedDeviceView"
+            }
           }
         },
-        "required" : [ "enrolled", "passkeys", "recoveryCodesRemaining", "required", "totpEnrolled", "webauthn" ]
+        "required" : [ "enrolled", "local", "passkeys", "recoveryCodesRemaining", "required", "totpEnrolled", "trustedDevices", "webauthn" ]
+      },
+      "TrustedDeviceView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "client" : {
+            "type" : [ "string", "null" ]
+          },
+          "address" : {
+            "type" : [ "string", "null" ]
+          },
+          "created" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastUsed" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expires" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "current" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "created", "current", "expires", "id", "lastUsed" ]
       },
       "WebAuthnAvailabilityView" : {
         "type" : "object",
