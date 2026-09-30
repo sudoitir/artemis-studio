@@ -7,7 +7,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * This Studio's identity, as it appears in the names of the broker objects it owns
@@ -36,7 +35,6 @@ public class StudioInstance {
     private volatile String id;
 
     @PostConstruct
-    @Transactional
     public void resolve() {
         id = settings.findById(SETTING_KEY)
                 .map(StudioSettingEntity::getValue)
