@@ -43,7 +43,7 @@ public class EventsSettings implements SettingsContribution {
                         "Event reaper schedule",
                         "When the broker_event trim runs. Six-field cron.",
                         Kind.CRON,
-                        () -> defaults.reaperCron(),
+                        defaults::reaperCron,
                         null),
                 new SettingDef(
                         BUFFER_SIZE,
