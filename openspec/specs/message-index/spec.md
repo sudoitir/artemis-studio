@@ -177,7 +177,9 @@ require the message read permission to query the index, scoped to the caller's
 clusters exactly as a live query is.
 
 The index SHALL store each message in the form the content policy produces:
-sensitive values masked, credentials dropped, uninspectable content withheld. Word,
+sensitive values masked, credentials dropped, uninspectable content withheld. A bytes message whose
+body is read as text SHALL be stored as that text and SHALL be searchable by word, phrase, pattern and
+JSON path like any text body; only a binary body is excluded from word and phrase search. Word,
 phrase and pattern search SHALL operate only over that stored form. Originals of
 masked values other than credentials SHALL be stored sealed with the row and
 revealed only to a caller holding clear access for the row's cluster. Each row
@@ -201,6 +203,12 @@ sensitive values are stored masked.
 
 - **WHEN** a message whose property holds a valid card number is indexed
 - **THEN** the stored property holds the masked form and the stored row carries a sealed original and its policy version
+
+#### Scenario: Text sent as bytes is searchable
+
+- **WHEN** a bytes message carrying UTF-8 JSON with `"status": "FAILED"` is indexed and an operator
+  queries the index by the JSON path `status` equal to `FAILED`, or by the word `FAILED`
+- **THEN** the message is returned, with its body shown as JSON
 
 #### Scenario: A predicate on a masked field warns about the stored form
 
