@@ -40,5 +40,5 @@
 - [x] 8.1 Demo seed enrols TOTP; `signIn` computes the code from `ADMIN_TOTP_SECRET`
 
 ## 9. Finish
-- [ ] 9.1 Reviewer on the full diff; findings fixed
+- [x] 9.1 Reviewer on the full diff; findings fixed
 - [ ] 9.2 `just verify` green; UI screenshots light and dark; PR merged on green CI; change archived
