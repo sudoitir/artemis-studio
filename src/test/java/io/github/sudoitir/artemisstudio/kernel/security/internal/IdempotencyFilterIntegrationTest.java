@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +27,9 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     IdempotencyFilter filter;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     private final AtomicInteger applied = new AtomicInteger();
     private final UUID alice = UUID.randomUUID();
@@ -263,5 +267,80 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
         post(alice, UUID.randomUUID().toString(), null, "{\"a\":1}", echo);
 
         assertThat(seen).hasToString("{\"a\":1}");
+    }
+
+    private void row(UUID user, String key, String state, String age) {
+        jdbc.update(
+                "INSERT INTO idempotency_record (user_id, idem_key, fingerprint, state, status, body, created_at)"
+                        + " VALUES (?, ?, 'old', ?, 201, '{\"n\":99}'::bytea, now() - ?::interval)",
+                user,
+                key,
+                state,
+                age);
+    }
+
+    @Test
+    void aClaimAbandonedPastTheLeaseIsTakenOver() throws Exception {
+        String key = UUID.randomUUID().toString();
+        row(alice, key, "PENDING", "11 minutes");
+
+        MockHttpServletResponse response = post(alice, key, null, "{}", create());
+
+        assertThat(response.getStatus()).isEqualTo(201);
+        assertThat(applied).hasValue(1);
+        assertThat(post(alice, key, null, "{}", create()).getHeader("Idempotent-Replayed"))
+                .isEqualTo("true");
+    }
+
+    @Test
+    void aKeyOlderThanADayIsForgotten() throws Exception {
+        String key = UUID.randomUUID().toString();
+        row(alice, key, "DONE", "25 hours");
+
+        MockHttpServletResponse response = post(alice, key, null, "{}", create());
+
+        assertThat(response.getStatus()).isEqualTo(201);
+        assertThat(response.getContentAsString()).isEqualTo("{\"n\":1}");
+        assertThat(response.getHeader("Idempotent-Replayed")).isNull();
+        assertThat(post(alice, key, null, "{}", create()).getHeader("Idempotent-Replayed"))
+                .isEqualTo("true");
+        assertThat(applied).hasValue(1);
+    }
+
+    @Test
+    void aReplayCarriesLocationAndETagButNeverACookie() throws Exception {
+        String key = UUID.randomUUID().toString();
+        FilterChain creating = (req, res) -> {
+            var response = (jakarta.servlet.http.HttpServletResponse) res;
+            response.setStatus(201);
+            response.setHeader("Location", "/api/v1/things/7");
+            response.setHeader("ETag", "\"v1\"");
+            response.setHeader("Set-Cookie", "SESSION=secret");
+        };
+        post(alice, key, null, "{}", creating);
+
+        MockHttpServletResponse replay = post(alice, key, null, "{}", create());
+
+        assertThat(replay.getHeader("Idempotent-Replayed")).isEqualTo("true");
+        assertThat(replay.getHeader("Location")).isEqualTo("/api/v1/things/7");
+        assertThat(replay.getHeader("ETag")).isEqualTo("\"v1\"");
+        assertThat(replay.getHeader("Set-Cookie")).isNull();
+    }
+
+    @Test
+    void anAnswerOverEightMiBIsNotRecordedSoTheRetryRuns() throws Exception {
+        String key = UUID.randomUUID().toString();
+        FilterChain huge = (req, res) -> {
+            applied.incrementAndGet();
+            ((jakarta.servlet.http.HttpServletResponse) res).setStatus(200);
+            res.getWriter().write("x".repeat(9 * 1024 * 1024));
+        };
+
+        MockHttpServletResponse first = post(alice, key, null, "{}", huge);
+        MockHttpServletResponse retry = post(alice, key, null, "{}", huge);
+
+        assertThat(first.getContentLength()).isPositive();
+        assertThat(retry.getHeader("Idempotent-Replayed")).isNull();
+        assertThat(applied).hasValue(2);
     }
 }

@@ -18,10 +18,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -55,6 +57,8 @@ class IdempotencyFilter extends OncePerRequestFilter {
     private static final AntPathMatcher PATHS = new AntPathMatcher();
     /** Bulk bodies are capped well below this (ADR-0022); a larger one is not worth buffering. */
     private static final int MAX_BODY = 8 * 1024 * 1024;
+    /** The only response headers a replay carries; never a cookie or anything credential-like. */
+    private static final List<String> REPLAYED_HEADERS = List.of("Location", "ETag");
 
     private final IdempotencyRecords records;
     private final JsonMapper json;
@@ -136,10 +140,11 @@ class IdempotencyFilter extends OncePerRequestFilter {
         try {
             chain.doFilter(request, wrapped);
             int status = wrapped.getStatus();
-            // A server error, and a refusal that says nothing about the request (authorization, the rate
-            // limit), are not results: the retry runs.
-            if (status < 500 && status != 401 && status != 403 && status != 429) {
-                records.complete(user, key, status, wrapped.getContentType(), wrapped.getContentAsByteArray());
+            byte[] body = wrapped.getContentAsByteArray();
+            // A server error, a refusal that says nothing about the request (authorization, the rate limit)
+            // and an answer too large to keep are not results: the retry runs.
+            if (status < 500 && status != 401 && status != 403 && status != 429 && body.length <= MAX_BODY) {
+                records.complete(user, key, status, wrapped.getContentType(), headersOf(wrapped), body);
                 recorded = true;
             }
         } finally {
@@ -148,6 +153,13 @@ class IdempotencyFilter extends OncePerRequestFilter {
             }
         }
         wrapped.copyBodyToResponse();
+    }
+
+    private static String headersOf(HttpServletResponse response) {
+        return REPLAYED_HEADERS.stream()
+                .filter(name -> response.getHeader(name) != null)
+                .map(name -> name + ": " + response.getHeader(name))
+                .collect(Collectors.joining("\n"));
     }
 
     private void answerRepeat(IdempotencyRecords.Stored stored, String fingerprint, HttpServletResponse response)
@@ -170,6 +182,12 @@ class IdempotencyFilter extends OncePerRequestFilter {
         } else {
             response.setStatus(stored.status());
             response.setHeader(REPLAYED_HEADER, "true");
+            if (stored.headers() != null && !stored.headers().isEmpty()) {
+                for (String line : stored.headers().split("\n")) {
+                    int colon = line.indexOf(": ");
+                    response.setHeader(line.substring(0, colon), line.substring(colon + 2));
+                }
+            }
             if (stored.contentType() != null) {
                 response.setContentType(stored.contentType());
             }

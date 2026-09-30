@@ -2,7 +2,8 @@
 
 -- Idempotency keys (ADR-0148): one row per (user, key), claimed PENDING before a mutating request runs
 -- and completed with its status and body, so a repeat within 24 hours replays the first result. The
--- data lifecycle purges it (kernel/lifecycle IdempotencyStore). Never edit this file once released.
+-- `headers` holds the replayed response headers (Location, ETag), one `Name: value` per line. The data lifecycle
+-- purges it (kernel/lifecycle IdempotencyStore). Never edit this file once released.
 
 --changeset artemis-studio:kernel-security-0009-idempotency-record
 CREATE TABLE idempotency_record (
@@ -12,6 +13,7 @@ CREATE TABLE idempotency_record (
     fingerprint text NOT NULL,
     state text NOT NULL,
     content_type text,
+    headers text,
     body bytea,
     user_id uuid NOT NULL,
     CONSTRAINT ck_idempotency_record_state CHECK (state IN ('PENDING', 'DONE'))
