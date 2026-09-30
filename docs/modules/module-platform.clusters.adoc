@@ -37,6 +37,7 @@ _Others_
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.SettingsService` (in Settings)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
 * `i.g.s.a.k.s.SecretVault` (in Security)
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
@@ -50,6 +51,7 @@ _Others_
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 |Events listened to
 |* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.BusResumed` 
 * `i.g.s.a.k.r.ReplicaSignal` 
 * `i.g.s.a.k.r.DrainStarted` 
 * `i.g.s.a.p.c.ClusterRegistered` 
