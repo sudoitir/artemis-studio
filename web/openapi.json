@@ -13646,6 +13646,84 @@
         }
       }
     },
+    "/api/v1/system/health" : {
+      "get" : {
+        "tags" : [ "studio-health-controller" ],
+        "operationId" : "studioHealth",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StudioHealth"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stream" : {
       "get" : {
         "tags" : [ "stream-controller" ],
@@ -26953,6 +27031,130 @@
           }
         },
         "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
+      "JobHealth" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "feature" : {
+            "type" : "string",
+            "description" : "The module that owns the job."
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "NEVER_RUN", "FAILING", "OK" ]
+          },
+          "lastEnd" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lagSeconds" : {
+            "type" : [ "number", "null" ],
+            "format" : "double",
+            "description" : "Seconds past the job's interval since it last completed; null until its interval is known."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "No run has finished within three of the job's intervals."
+          }
+        },
+        "required" : [ "degraded", "feature", "name", "status" ]
+      },
+      "NodeHealth" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "node" : {
+            "type" : [ "string", "null" ],
+            "description" : "The node's host:port; null while Studio has no management address for it."
+          },
+          "lastSuccess" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastFailure" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ],
+            "description" : "The most recent failure's message, redacted."
+          },
+          "managementP95Millis" : {
+            "type" : [ "number", "null" ],
+            "format" : "double",
+            "description" : "95th percentile of recent management call latency; null when none was measured."
+          },
+          "rateLimitWaitMillis" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "How long the latest request waited for this node's rate ceiling."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "The latest management call to the node failed."
+          }
+        },
+        "required" : [ "clusterId", "degraded", "name" ]
+      },
+      "PoolHealth" : {
+        "type" : "object",
+        "properties" : {
+          "active" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "idle" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "max" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "pending" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          }
+        }
+      },
+      "StudioHealth" : {
+        "type" : "object",
+        "properties" : {
+          "jobs" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobHealth"
+            }
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeHealth"
+            }
+          },
+          "dbPool" : {
+            "$ref" : "#/components/schemas/PoolHealth"
+          },
+          "streamClients" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "Event stream clients connected to this instance."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "Any job or node is degraded."
+          }
+        },
+        "required" : [ "dbPool", "degraded", "jobs", "nodes" ]
       },
       "SseEmitter" : {
         "type" : "object",
