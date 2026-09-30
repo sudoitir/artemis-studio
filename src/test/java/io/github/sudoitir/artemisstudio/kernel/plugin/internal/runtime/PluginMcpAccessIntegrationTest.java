@@ -185,21 +185,21 @@ class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aReadToolThatIsNotReadOnlyIsRefused() throws Exception {
+    void aReadToolThatIsNotReadOnlyIsRefused() {
         String id = newId();
         PluginJarBuilder jar = accessJar(id, "read", "false", "String clusterId");
         assertThatThrownBy(() -> activate(jar)).hasStackTraceContaining("readOnlyHint");
     }
 
     @Test
-    void aClusterToolWithoutAClusterIdIsRefused() throws Exception {
+    void aClusterToolWithoutAClusterIdIsRefused() {
         String id = newId();
         PluginJarBuilder jar = accessJar(id, "read", "true", "String queue");
         assertThatThrownBy(() -> activate(jar)).hasStackTraceContaining("clusterId");
     }
 
     @Test
-    void anUndeclaredToolIsRefused() throws Exception {
+    void anUndeclaredToolIsRefused() {
         String id = newId();
         PluginJarBuilder jar = accessJar(id).descriptorField("mcpTools", List.of(clusterTool(id, "read")));
         assertThatThrownBy(() -> activate(jar)).hasStackTraceContaining("declares");

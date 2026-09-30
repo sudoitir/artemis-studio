@@ -219,8 +219,8 @@ class ClusterScopeAuthorizationTest extends PostgresIntegrationTest {
                 // read's control call is not a 404 for absence.
                 .replace("{nodeId}", nodeId.toString())
                 // The numeric path variables; they must parse as a number or binding
-                // fails before the guard runs. Not derivable from the name — {flowId}
-                // is a UUID — so they are listed rather than pattern-matched.
+                // fails before the guard runs. Not derivable from the name (the flow id
+                // is a UUID), so they are listed rather than pattern-matched.
                 .replace("{messageId}", "1")
                 .replace("{number}", "1")
                 .replace("{seq}", "1")

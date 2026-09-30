@@ -46,7 +46,9 @@ class PasswordPolicyTest {
 
     @Test
     void refusesMoreThan72Bytes() {
-        assertThatThrownBy(() -> policy.check("operator", "a".repeat(73)))
+        String tooLong = "a".repeat(73);
+
+        assertThatThrownBy(() -> policy.check("operator", tooLong))
                 .isInstanceOf(PasswordPolicyException.class)
                 .hasMessageContaining("72 bytes");
     }

@@ -211,6 +211,15 @@ class RequestReplySpikeIntegrationTest extends ArtemisIntegrationTest {
                         .contains("EXPIRED"));
         log.info("[spike] MESSAGE_EXPIRED notification observed = {}", sawExpired);
 
+        try (Connection consumerConn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
+            consumerConn.start();
+            Session session = consumerConn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            MessageConsumer consumer = session.createConsumer(session.createQueue(requestAddress));
+            assertThat(consumer.receive(1_000))
+                    .as("the request expired instead of waiting")
+                    .isNull();
+        }
+
         factory.close();
     }
 
@@ -270,7 +279,7 @@ class RequestReplySpikeIntegrationTest extends ArtemisIntegrationTest {
     private static <T> T quietlyGet(ThrowingSupplier<T> supplier) {
         try {
             return supplier.get();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

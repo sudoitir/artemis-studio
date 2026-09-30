@@ -463,7 +463,8 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         Path jar = builder.build();
         PluginDescriptor descriptor = descriptorOf(jar);
 
-        assertThatThrownBy(() -> runtimeFactory.activate(descriptor, jar, webContext.getServletContext()))
+        var servletContext = webContext.getServletContext();
+        assertThatThrownBy(() -> runtimeFactory.activate(descriptor, jar, servletContext))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("boom");
 

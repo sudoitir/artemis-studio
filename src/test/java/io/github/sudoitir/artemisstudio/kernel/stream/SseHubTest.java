@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -49,8 +50,11 @@ class SseHubTest {
 
     @Test
     void publishToAClusterWithNoSubscribersIsANoOp() {
-        hub.publish(UUID.randomUUID(), "queues");
-        // no exception
+        UUID clusterId = UUID.randomUUID();
+
+        assertThatCode(() -> hub.publish(clusterId, "queues")).doesNotThrowAnyException();
+
+        assertThat(hub.subscriberCount(clusterId)).isZero();
     }
 
     /**

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.identitylocal.mfa;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
@@ -218,7 +219,7 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
                         "/api/v1/auth/mfa/webauthn", "{\"label\":\"Laptop\",\"credential\":%s}".formatted(creation))));
                 try {
                     responses.get(1).get(3, TimeUnit.SECONDS);
-                } catch (TimeoutException e) {
+                } catch (TimeoutException _) {
                     // it waits for the confirmation, which is what it should do
                 } catch (Exception e) {
                     throw new IllegalStateException(e);
@@ -244,21 +245,13 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
     }
 
     private void awaitALockWait() {
-        for (int i = 0; i < 100; i++) {
-            if (jdbc.sql("SELECT count(*) FROM pg_locks WHERE NOT granted")
-                            .query(Long.class)
-                            .single()
-                    > 0) {
-                return;
-            }
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException(e);
-            }
-        }
-        throw new AssertionError("nothing is waiting for a lock");
+        await("something waits for a lock")
+                .atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> jdbc.sql("SELECT count(*) FROM pg_locks WHERE NOT granted")
+                                .query(Long.class)
+                                .single()
+                        > 0);
     }
 
     @Test

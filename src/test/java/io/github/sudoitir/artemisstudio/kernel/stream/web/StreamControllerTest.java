@@ -120,7 +120,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
     @Test
     void aLastEventIdReplaysTheMissedEventsBeforeLiveDelivery() throws Exception {
         UUID clusterId = UUID.randomUUID();
-        when(events.since(eq(clusterId), eq(10L), eq(500))).thenReturn(List.of(view(11L), view(12L)));
+        when(events.since(clusterId, 10L, 500)).thenReturn(List.of(view(11L), view(12L)));
 
         mvc.perform(get("/api/v1/stream")
                         .param("clusterId", clusterId.toString())

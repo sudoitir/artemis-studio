@@ -342,7 +342,7 @@ class AccountLockoutIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void unlockingNeedsUserAdministration() throws Exception {
+    void unlockingNeedsUserAdministration() {
         UUID id = newUser("lock-unlock-denied");
         signInAs(Set.of(Permissions.CLUSTER_READ));
         try {

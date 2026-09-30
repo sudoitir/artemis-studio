@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -126,7 +127,7 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
             return CompletableFuture.runAsync(() -> {
                 try (var in = response.body()) {
                     in.transferTo(OutputStream.nullOutputStream());
-                } catch (IOException e) {
+                } catch (IOException _) {
                     // the server closed it
                 }
             });
@@ -154,11 +155,11 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
         }
     }
 
-    private void awaitSubscribed(UUID clusterId, int count) throws InterruptedException {
-        for (int i = 0; i < 100 && hub.subscriberCount(clusterId) != count; i++) {
-            Thread.sleep(50);
-        }
-        assertThat(hub.subscriberCount(clusterId)).isEqualTo(count);
+    private void awaitSubscribed(UUID clusterId, int count) {
+        await("subscribers of the cluster")
+                .atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> assertThat(hub.subscriberCount(clusterId)).isEqualTo(count));
     }
 
     private static void assertEndsWithin(CompletableFuture<Void> stream, Duration within) throws Exception {

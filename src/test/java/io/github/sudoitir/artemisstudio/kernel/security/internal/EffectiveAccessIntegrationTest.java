@@ -99,7 +99,9 @@ class EffectiveAccessIntegrationTest extends PostgresIntegrationTest {
         UUID existing = newUser().getId();
         signInWith(Permissions.CLUSTER_READ);
 
+        UUID unknown = UUID.randomUUID();
+
         assertThatThrownBy(() -> effective.of(existing)).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> effective.of(UUID.randomUUID())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> effective.of(unknown)).isInstanceOf(AccessDeniedException.class);
     }
 }

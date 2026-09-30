@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime;
 import static io.github.sudoitir.artemisstudio.support.SignedInSession.authentication;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
@@ -17,6 +18,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -25,6 +27,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarFile;
+import org.awaitility.core.ConditionTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -270,7 +273,7 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
                     if (!"1.0.0".equals(body) && !"2.0.0".equals(body)) {
                         failed.set(true);
                     }
-                } catch (Exception e) {
+                } catch (Exception _) {
                     failed.set(true);
                 }
             }));
@@ -292,16 +295,27 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
         activeRuntime = v2;
     }
 
+    /** Whether the loader is garbage collected within four seconds of collecting garbage. */
+    private static boolean awaitCollected(WeakReference<ClassLoader> loaderRef) {
+        try {
+            await("the plugin classloader is collected")
+                    .atMost(Duration.ofSeconds(4))
+                    .pollInterval(Duration.ofMillis(200))
+                    .until(() -> {
+                        System.gc();
+                        return loaderRef.get() == null;
+                    });
+            return true;
+        } catch (ConditionTimeoutException _) {
+            return false;
+        }
+    }
+
     @Test
     void unloadCollectsTheClassloader() throws Exception {
         WeakReference<ClassLoader> loaderRef = activateAndCloseReturningWeakRef();
 
-        boolean collected = false;
-        for (int i = 0; i < 20 && !collected; i++) {
-            System.gc();
-            Thread.sleep(200);
-            collected = loaderRef.get() == null;
-        }
+        boolean collected = awaitCollected(loaderRef);
         if (!collected) {
             ClassLoader stillThere = loaderRef.get();
             boolean pinnedByThread = false;
@@ -339,12 +353,7 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
     @Test
     void anExercisedPluginIsCollectedAfterUnload() throws Exception {
         WeakReference<ClassLoader> loaderRef = activateExerciseAndClose();
-        boolean collected = false;
-        for (int i = 0; i < 20 && !collected; i++) {
-            System.gc();
-            Thread.sleep(200);
-            collected = loaderRef.get() == null;
-        }
+        boolean collected = awaitCollected(loaderRef);
         if (!collected) {
             String path = "target/plugin-leak-exercised.hprof";
             new java.io.File(path).delete();

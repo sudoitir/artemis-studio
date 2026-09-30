@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.flow;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -23,6 +24,7 @@ import jakarta.jms.Connection;
 import jakarta.jms.MessageConsumer;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Session;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
@@ -114,22 +116,29 @@ class FlowSamplerIntegrationTest extends PostgresIntegrationTest {
             MessageConsumer consumer = session.createConsumer(session.createQueue(queue));
 
             sampler.sweep(clusterId);
-            for (int i = 0; i < 50; i++) {
-                producer.send(session.createTextMessage("m" + i));
-                assertThat(consumer.receive(2_000)).isNotNull();
-            }
-            Thread.sleep(1_100);
-            sampler.sweep(clusterId);
+            // A rate is a delta over the time between two sweeps, so each attempt sends, sweeps again and looks.
+            await("both edges of the queue are rated")
+                    .atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(100))
+                    .untilAsserted(() -> {
+                        for (int i = 0; i < 50; i++) {
+                            producer.send(session.createTextMessage("m" + i));
+                            assertThat(consumer.receive(2_000)).isNotNull();
+                        }
+                        sampler.sweep(clusterId);
 
-            List<StoredEdge> edges = store.edges(clusterId).stream()
-                    .filter(e -> queue.equals(e.edge().address()))
-                    .toList();
-            assertThat(edges).extracting(e -> e.edge().kind()).containsExactlyInAnyOrder(Kind.PRODUCE, Kind.CONSUME);
-            assertThat(edges).allSatisfy(e -> {
-                assertThat(e.edge().clientId()).isEqualTo("flow-it-app");
-                assertThat(e.edge().rate()).isNotNull().isPositive();
-                assertThat(e.edge().memberCount()).isEqualTo(1);
-            });
+                        List<StoredEdge> edges = store.edges(clusterId).stream()
+                                .filter(e -> queue.equals(e.edge().address()))
+                                .toList();
+                        assertThat(edges)
+                                .extracting(e -> e.edge().kind())
+                                .containsExactlyInAnyOrder(Kind.PRODUCE, Kind.CONSUME);
+                        assertThat(edges).allSatisfy(e -> {
+                            assertThat(e.edge().clientId()).isEqualTo("flow-it-app");
+                            assertThat(e.edge().rate()).isNotNull().isPositive();
+                            assertThat(e.edge().memberCount()).isEqualTo(1);
+                        });
+                    });
             assertThat(store.nodeSamples(clusterId))
                     .singleElement()
                     .satisfies(s -> assertThat(s.errorKind()).isNull());

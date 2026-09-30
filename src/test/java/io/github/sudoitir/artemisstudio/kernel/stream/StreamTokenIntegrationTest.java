@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.support.AccountIntegrationTest;
@@ -47,16 +48,16 @@ class StreamTokenIntegrationTest extends AccountIntegrationTest {
                 .header("Authorization", "Bearer " + token)
                 .build();
         var pending = http.sendAsync(request, BodyHandlers.ofInputStream());
-        for (int i = 0; i < 100 && hub.subscriberCount(clusterId) != 1; i++) {
-            Thread.sleep(50);
-        }
-        assertThat(hub.subscriberCount(clusterId)).isEqualTo(1);
+        await("the stream subscribes")
+                .atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(50))
+                .untilAsserted(() -> assertThat(hub.subscriberCount(clusterId)).isEqualTo(1));
         var response = pending.get(10, TimeUnit.SECONDS);
         assertThat(response.statusCode()).isEqualTo(200);
         return CompletableFuture.runAsync(() -> {
             try (var in = response.body()) {
                 in.transferTo(OutputStream.nullOutputStream());
-            } catch (IOException e) {
+            } catch (IOException _) {
                 // the server closed it
             }
         });
@@ -101,9 +102,12 @@ class StreamTokenIntegrationTest extends AccountIntegrationTest {
         var stream = openStream(token, cluster);
 
         // Two checks of the periodic job pass without it ending.
-        Thread.sleep(Duration.ofSeconds(22));
+        await("the stream outlives the checks")
+                .during(Duration.ofSeconds(22))
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> !stream.isDone());
 
-        assertThat(stream.isDone()).isFalse();
         assertThat(hub.subscriberCount(cluster)).isEqualTo(1);
         hub.closeAll();
     }

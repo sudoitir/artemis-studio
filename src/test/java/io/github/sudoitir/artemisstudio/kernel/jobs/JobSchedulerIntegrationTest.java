@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -53,7 +54,7 @@ class JobSchedulerIntegrationTest extends PostgresIntegrationTest {
             inside.countDown();
             try {
                 release.await(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         };
@@ -108,8 +109,13 @@ class JobSchedulerIntegrationTest extends PostgresIntegrationTest {
         otherProcess().executeWithLock((Runnable) ran::incrementAndGet, config);
         assertThat(ran).hasValue(0);
 
-        Thread.sleep(2_500);
-        otherProcess().executeWithLock((Runnable) ran::incrementAndGet, config);
+        await("the crashed holder's lock lapses")
+                .atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(100))
+                .until(() -> {
+                    otherProcess().executeWithLock((Runnable) ran::incrementAndGet, config);
+                    return ran.get() > 0;
+                });
         assertThat(ran).hasValue(1);
     }
 }

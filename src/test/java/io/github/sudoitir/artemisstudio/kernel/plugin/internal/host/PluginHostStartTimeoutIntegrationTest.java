@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
@@ -13,7 +14,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -125,13 +126,12 @@ class PluginHostStartTimeoutIntegrationTest extends PostgresIntegrationTest {
         jdbc.update("DELETE FROM studio_boot");
         host.runStartupSequence();
 
-        Instant deadline = Instant.now().plusSeconds(15);
-        while (Instant.now().isBefore(deadline)
-                && host.status(id)
-                        .map(s -> s.status() != PluginInstallStatus.NEEDS_RESTART)
-                        .orElse(true)) {
-            Thread.sleep(50);
-        }
+        await("the plugin is left needing a restart")
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> host.status(id)
+                        .map(s -> s.status() == PluginInstallStatus.NEEDS_RESTART)
+                        .orElse(false));
 
         assertThat(host.status(id)).get().satisfies(s -> {
             assertThat(s.status()).isEqualTo(PluginInstallStatus.NEEDS_RESTART);

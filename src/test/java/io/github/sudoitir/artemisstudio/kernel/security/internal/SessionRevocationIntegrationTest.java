@@ -178,11 +178,10 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
             assertThat(changed.requiresMfa()).isTrue();
             assertThat(changed.permissions()).containsExactlyInAnyOrderElementsOf(viewer.permissions());
 
-            assertThatThrownBy(() ->
-                            roleService.update(viewer.id(), new RoleRequest("RENAMED", viewer.permissions(), true)))
-                    .isInstanceOf(ConflictException.class);
-            assertThatThrownBy(
-                            () -> roleService.update(viewer.id(), new RoleRequest(viewer.name(), List.of("*"), true)))
+            var renamed = new RoleRequest("RENAMED", viewer.permissions(), true);
+            var everything = new RoleRequest(viewer.name(), List.of("*"), true);
+            assertThatThrownBy(() -> roleService.update(viewer.id(), renamed)).isInstanceOf(ConflictException.class);
+            assertThatThrownBy(() -> roleService.update(viewer.id(), everything))
                     .isInstanceOf(ConflictException.class);
         } finally {
             roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), false));

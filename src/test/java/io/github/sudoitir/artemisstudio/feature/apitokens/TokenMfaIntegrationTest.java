@@ -119,15 +119,16 @@ class TokenMfaIntegrationTest extends AccountIntegrationTest {
     }
 
     @Test
-    void mintingChecksTheSecondFactorItselfToo() throws Exception {
+    void mintingChecksTheSecondFactorItselfToo() {
         UUID id = newUser("tk-direct");
         requireMfa(id);
         Grant grant = new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"));
+        var expiry = inAnHour();
+        var grants = List.of(grant);
 
-        assertThatThrownBy(() -> tokens.mint(id, "sneaky", inAnHour(), List.of(grant), List.of(), false))
+        assertThatThrownBy(() -> tokens.mint(id, "sneaky", expiry, grants, List.of(), false))
                 .isInstanceOf(SecondFactorRequiredException.class);
-        assertThat(tokens.mint(id, "verified", inAnHour(), List.of(grant), List.of(), true)
-                        .plaintext())
+        assertThat(tokens.mint(id, "verified", expiry, grants, List.of(), true).plaintext())
                 .isNotBlank();
     }
 
