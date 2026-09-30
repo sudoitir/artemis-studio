@@ -15,6 +15,7 @@ import org.springframework.http.client.observation.ClientRequestObservationConve
 final class ManagementObservationConvention implements ClientRequestObservationConvention {
 
     static final String NAME = "studio.broker.management";
+    private static final String ERROR = "ERROR";
 
     @Override
     public String getName() {
@@ -36,13 +37,13 @@ final class ManagementObservationConvention implements ClientRequestObservationC
 
     private static String outcome(ClientRequestObservationContext context) {
         if (context.getError() != null || context.getResponse() == null) {
-            return "ERROR";
+            return ERROR;
         }
         try {
             HttpStatusCode status = context.getResponse().getStatusCode();
-            return status.is2xxSuccessful() ? "SUCCESS" : "ERROR";
+            return status.is2xxSuccessful() ? "SUCCESS" : ERROR;
         } catch (IOException _) {
-            return "ERROR";
+            return ERROR;
         }
     }
 }

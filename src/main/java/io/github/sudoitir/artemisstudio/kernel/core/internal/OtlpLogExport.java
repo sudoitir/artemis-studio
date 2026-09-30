@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.kernel.core.internal;
 
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender;
@@ -30,7 +29,7 @@ class OtlpLogExport {
     static final class Appender implements InitializingBean, DisposableBean {
 
         private final OpenTelemetry openTelemetry;
-        private final OpenTelemetryAppender appender = new OpenTelemetryAppender();
+        private final OpenTelemetryAppender otlpAppender = new OpenTelemetryAppender();
 
         Appender(OpenTelemetry openTelemetry) {
             this.openTelemetry = openTelemetry;
@@ -39,19 +38,19 @@ class OtlpLogExport {
         @Override
         public void afterPropertiesSet() {
             LoggerContext logs = (LoggerContext) LoggerFactory.getILoggerFactory();
-            appender.setContext(logs);
-            appender.setName("OTLP");
-            appender.start();
-            logs.getLogger(Logger.ROOT_LOGGER_NAME).addAppender(appender);
+            otlpAppender.setContext(logs);
+            otlpAppender.setName("OTLP");
+            otlpAppender.start();
+            logs.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).addAppender(otlpAppender);
             OpenTelemetryAppender.install(openTelemetry);
         }
 
         @Override
         public void destroy() {
             ((LoggerContext) LoggerFactory.getILoggerFactory())
-                    .getLogger(Logger.ROOT_LOGGER_NAME)
-                    .detachAppender(appender);
-            appender.stop();
+                    .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+                    .detachAppender(otlpAppender);
+            otlpAppender.stop();
         }
     }
 }

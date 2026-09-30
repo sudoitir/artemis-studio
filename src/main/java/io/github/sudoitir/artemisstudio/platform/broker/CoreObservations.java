@@ -5,6 +5,7 @@ import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,8 +29,7 @@ public class CoreObservations {
 
     private final ObservationRegistry registry;
     private final Supplier<Map<String, String>> nodeByCore;
-    private volatile Map<String, String> known = Map.of();
-    private volatile long readAt = Long.MIN_VALUE;
+    private final AtomicReference<Snapshot> snapshot = new AtomicReference<>(new Snapshot(Map.of(), Long.MIN_VALUE));
 
     @Autowired
     public CoreObservations(ObservationRegistry registry, ObjectProvider<NodeDirectory> directory) {
@@ -81,14 +81,19 @@ public class CoreObservations {
             return core;
         }
         long now = System.nanoTime();
-        if (readAt == Long.MIN_VALUE || now - readAt > REFRESH.toNanos()) {
-            readAt = now;
+        Snapshot current = snapshot.get();
+        if (current.readAt() == Long.MIN_VALUE || now - current.readAt() > REFRESH.toNanos()) {
             try {
-                known = nodeByCore.get();
+                current = new Snapshot(nodeByCore.get(), now);
             } catch (RuntimeException _) {
                 // Telemetry never fails an operation: keep the last map and look again in REFRESH.
+                current = new Snapshot(current.byCore(), now);
             }
+            snapshot.set(current);
         }
-        return known.getOrDefault(core, core);
+        return current.byCore().getOrDefault(core, core);
     }
+
+    /** The Core-to-Jolokia address map and when it was read. */
+    private record Snapshot(Map<String, String> byCore, long readAt) {}
 }

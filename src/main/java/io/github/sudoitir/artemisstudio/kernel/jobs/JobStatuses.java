@@ -30,6 +30,8 @@ import org.springframework.stereotype.Component;
 @PluginApi
 public class JobStatuses {
 
+    private static final String JOB_ID = "job.id";
+
     /** A floor under every lock's lifetime; ShedLock's keep-alive extends it while a run lasts. */
     private static final Duration LOCK_AT_MOST = Duration.ofSeconds(60);
 
@@ -59,13 +61,13 @@ public class JobStatuses {
             throw new IllegalStateException("Job id '" + job.id() + "' is registered twice");
         }
         Gauge.builder("studio.job.lag", () -> lagSeconds(job.id()))
-                .tag("job.id", job.id())
+                .tag(JOB_ID, job.id())
                 .baseUnit("seconds")
                 .description(
                         "Seconds a job is past its interval since it last completed; NaN until its interval is known")
                 .register(meters);
         Gauge.builder("studio.job.degraded", () -> degraded(job.id()))
-                .tag("job.id", job.id())
+                .tag(JOB_ID, job.id())
                 .description("1 while no run has finished within three of the job's intervals, else 0")
                 .register(meters);
         return () -> {
@@ -116,7 +118,7 @@ public class JobStatuses {
     private Observation observation(ScheduledJob job) {
         return Observation.createNotStarted("studio.job", observations)
                 .contextualName("job " + job.id())
-                .lowCardinalityKeyValue("job.id", job.id())
+                .lowCardinalityKeyValue(JOB_ID, job.id())
                 .lowCardinalityKeyValue("feature", job.featureId());
     }
 
@@ -192,8 +194,8 @@ public class JobStatuses {
      */
     public void deregister(String jobId) {
         byId.remove(jobId);
-        meters.find("studio.job.lag").tag("job.id", jobId).meters().forEach(meters::remove);
-        meters.find("studio.job.degraded").tag("job.id", jobId).meters().forEach(meters::remove);
+        meters.find("studio.job.lag").tag(JOB_ID, jobId).meters().forEach(meters::remove);
+        meters.find("studio.job.degraded").tag(JOB_ID, jobId).meters().forEach(meters::remove);
     }
 
     /** Every registered job, ordered by id. */

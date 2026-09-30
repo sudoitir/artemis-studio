@@ -14,6 +14,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class RedactingExporters {
 
+    private RedactingExporters() {}
+
     @Bean
     static BeanPostProcessor exporterRedaction() {
         return new BeanPostProcessor() {

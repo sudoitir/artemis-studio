@@ -69,8 +69,12 @@ public class StudioHealthController {
 
         static JobHealth of(JobStatus s, Instant now) {
             Duration lag = s.lag(now);
-            JobState state =
-                    s.lastError() != null ? JobState.FAILING : s.lastEnd() == null ? JobState.NEVER_RUN : JobState.OK;
+            JobState state = JobState.OK;
+            if (s.lastError() != null) {
+                state = JobState.FAILING;
+            } else if (s.lastEnd() == null) {
+                state = JobState.NEVER_RUN;
+            }
             return new JobHealth(
                     s.id(),
                     s.featureId(),
