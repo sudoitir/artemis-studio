@@ -67,6 +67,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - A trusted-device sign-in sets `mfaVerifiedAt` with method `TRUSTED_DEVICE`. It sets `authenticatedAt` so that **step-up is still needed**.
 - Only two things set `authenticatedAt = now`: password plus factor, or password alone for an account with no factor.
 - `POST /auth/login` first clears any existing `SecurityContext` and all `PENDING_*` attributes.
+- `establish` also clears all `PENDING_*` attributes, because the single sign-on success handler never goes through `POST /auth/login`.
 
 ### A. Password policy (`feature/identitylocal`)
 - `PasswordPolicy` runs *before* the encoder. It checks:

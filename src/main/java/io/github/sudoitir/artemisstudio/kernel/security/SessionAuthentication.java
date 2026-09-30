@@ -186,6 +186,8 @@ public class SessionAuthentication {
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         securityContextRepository.saveContext(context, request, response);
+        // Whoever signs in here owes nothing of an earlier half-finished sign-in, step-up or passkey challenge.
+        clearPending(request);
         HttpSession session = request.getSession();
         session.setAttribute(FACTS, facts);
         // Establishing a session is itself activity. The session's sign-in time is not: a re-established

@@ -214,7 +214,6 @@ public class LoginService {
         SecondFactors.Proof proof = proof(submission, account.id(), request);
         SessionFacts.Method method = verified(factors, account.id(), account.username(), proof, request)
                 .orElseThrow(() -> invalid(proof));
-        sessions.clearPending(request);
         StudioPrincipal principal = new StudioPrincipal(
                 account.id(), account.username(), grants.loadFor(account.id()), account.mustChangePassword());
         sessions.establish(principal, SessionFacts.signedInWithSecondFactor(request, method), request, response);
