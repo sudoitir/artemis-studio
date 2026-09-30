@@ -1,4 +1,4 @@
-package io.github.sudoitir.artemisstudio.kernel.security.internal;
+package io.github.sudoitir.artemisstudio.kernel.security;
 
 import java.time.Instant;
 import java.util.Map;

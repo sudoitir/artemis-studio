@@ -4,6 +4,8 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
+import io.github.sudoitir.artemisstudio.kernel.security.LoginAttemptLimiter;
+import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
@@ -27,6 +29,8 @@ public class AuthService {
     private final SessionAuthentication sessions;
     private final AuditService auditService;
     private final ActorResolver actorResolver;
+    private final PasswordPolicy passwordPolicy;
+    private final LoginAttemptLimiter limiter;
 
     @Transactional
     public void changePassword(
@@ -35,11 +39,18 @@ public class AuthService {
             String newPassword,
             HttpServletRequest request,
             HttpServletResponse response) {
+        String sourceIp = request.getRemoteAddr();
+        if (limiter.isLocked(principal.getUsername(), sourceIp)) {
+            throw new LoginThrottledException();
+        }
         Account user =
                 accounts.byId(principal.userId()).orElseThrow(() -> new NotFoundException("user", principal.userId()));
         if (user.passwordHash() == null || !passwordEncoder.matches(currentPassword, user.passwordHash())) {
+            limiter.recordFailure(principal.getUsername(), sourceIp);
             throw new BadCredentialsException("Current password is incorrect");
         }
+        limiter.recordSuccess(principal.getUsername(), sourceIp);
+        passwordPolicy.check(user.username(), newPassword);
         accounts.changePassword(user.id(), passwordEncoder.encode(newPassword));
         auditService.succeed(
                 auditService.begin(
@@ -47,8 +58,8 @@ public class AuthService {
                 1);
         // The session's principal still carries the old mustChangePassword=true —
         // re-establish it with a fresh one so the must-change-password gate unlocks
-        // immediately, without forcing a separate login.
-        sessions.establish(
+        // immediately, without forcing a separate login. The user's other sessions end with it.
+        sessions.reestablishEndingOthers(
                 new StudioPrincipal(user.id(), user.username(), grantLoader.loadFor(user.id()), false),
                 request,
                 response);

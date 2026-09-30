@@ -62,7 +62,7 @@ class LastAdminGuardTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserService(users, roles, userRoles, passwordEncoder, audit, sessions);
+        service = new UserService(users, roles, userRoles, passwordEncoder, audit, sessions, Optional.empty());
         adminRole = role(adminRoleId, "ADMIN");
     }
 

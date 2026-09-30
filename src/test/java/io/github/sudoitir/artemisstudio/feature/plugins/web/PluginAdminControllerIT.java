@@ -20,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -206,8 +207,10 @@ class PluginAdminControllerIT extends PostgresIntegrationTest {
         String sha = json.readTree(body).get("sha256").asString();
 
         // A sign-in more than five minutes old must be confirmed first.
+        var facts = (SessionFacts) session.getAttribute(SessionAuthentication.FACTS);
         session.setAttribute(
-                SessionAuthentication.AUTHENTICATED_AT, Instant.now().minusSeconds(600));
+                SessionAuthentication.FACTS,
+                facts.withAuthenticatedAt(Instant.now().minusSeconds(600)));
         mvc.perform(post("/api/v1/admin/plugins/uploads/{sha}/activate", sha)
                         .session(session)
                         .with(csrf()))
@@ -409,8 +412,10 @@ class PluginAdminControllerIT extends PostgresIntegrationTest {
         MockMvc mvc = mvc();
         UUID[] userId = new UUID[1];
         MockHttpSession session = installerSession(mvc, userId);
+        var facts = (SessionFacts) session.getAttribute(SessionAuthentication.FACTS);
         session.setAttribute(
-                SessionAuthentication.AUTHENTICATED_AT, Instant.now().minusSeconds(600));
+                SessionAuthentication.FACTS,
+                facts.withAuthenticatedAt(Instant.now().minusSeconds(600)));
 
         // Listing needs the installer tier only.
         mvc.perform(get("/api/v1/admin/plugins/keys").session(session)).andExpect(status().isOk());

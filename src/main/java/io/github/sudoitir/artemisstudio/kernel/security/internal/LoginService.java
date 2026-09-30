@@ -3,9 +3,11 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
+import io.github.sudoitir.artemisstudio.kernel.security.LoginAttemptLimiter;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationFailedException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,6 +47,7 @@ public class LoginService {
             String password,
             HttpServletRequest request,
             HttpServletResponse response) {
+        sessions.clearForLogin(request, response);
         String sourceIp = request.getRemoteAddr();
         if (limiter.isLocked(username, sourceIp)) {
             throw new LoginThrottledException();
@@ -64,7 +67,7 @@ public class LoginService {
             throw new BadCredentialsException("Invalid username or password");
         }
         limiter.recordSuccess(username, sourceIp);
-        sessions.establish(principal.get(), request, response);
+        sessions.establish(principal.get(), SessionFacts.signedIn(request), request, response);
         attempt.succeeded();
         return principal.get();
     }

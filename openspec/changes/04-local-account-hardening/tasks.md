@@ -3,12 +3,12 @@
 - [x] 1.2 ADR-0142 second factors, ADR-0143 password policy and sign-in limits, ADR-0144 session lifetimes
 
 ## 2. Session state core
-- [ ] 2.1 `SessionAuthentication.establish(principal, SessionFacts)`: explicit authenticatedAt, mfaVerifiedAt + method, signedInAt, client address, user agent; password change carries facts over; login clears context and `PENDING_*` first
+- [x] 2.1 `SessionAuthentication.establish(principal, SessionFacts)`: explicit authenticatedAt, mfaVerifiedAt + method, signedInAt, client address, user agent; password change carries facts over; login clears context and `PENDING_*` first
 
 ## 3. Password policy (A)
-- [ ] 3.1 `PasswordPolicy` (min length setting, 72-byte max, not username, offline top-100k list) applied to password change and admin create-user; 400 `password-policy`
-- [ ] 3.2 Optional HIBP k-anonymity lookup behind `artemis-studio.identity-local.breach-lookup.enabled` (off), 2 s timeout, fail open
-- [ ] 3.3 Password change ends other sessions (`endSessionsOfExcept`) and is throttled
+- [x] 3.1 `PasswordPolicy` (min length setting, 72-byte max, not username, offline top-100k list) applied to password change and admin create-user; 400 `password-policy`
+- [x] 3.2 Optional HIBP k-anonymity lookup behind the runtime BOOLEAN setting `identity-local.password.breach-lookup` (off), 2 s timeout, fail open
+- [x] 3.3 Password change ends other sessions (`endSessionsOfExcept`) and is throttled
 
 ## 4. Lockout and limits (B)
 - [ ] 4.1 Trusted proxies: `forward-headers-strategy: native` + `internal-proxies`; forged-header test

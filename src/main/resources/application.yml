@@ -235,6 +235,9 @@ artemis-studio:
     # issue without an explicit override.
     drift-interval: 5m
     apply-step-cap: 100
+  identity-local:
+    # Local sign-in (ADR-0143). The minimum length is overridable at runtime in Settings.
+    password-min-length: 12
   security:
     # Governance (Phase 8, ADR-0037, ADR-0040).
     oidc-claim: groups            # the token/userinfo claim holding the user's groups; mappings are set per provider in Administration

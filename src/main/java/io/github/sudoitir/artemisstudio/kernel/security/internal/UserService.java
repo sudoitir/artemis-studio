@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
+import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
@@ -17,6 +18,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantSumma
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -43,6 +45,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AdministrationAudit audit;
     private final SessionTerminator sessions;
+    private final Optional<PasswordRules> passwordRules;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -57,6 +60,7 @@ public class UserService {
             throw new ConflictException(
                     "duplicate-username", "A user named '" + request.username() + "' already exists.");
         }
+        passwordRules.ifPresent(rules -> rules.check(request.username(), request.password()));
         AppUserEntity user =
                 AppUserEntity.local(request.username(), request.email(), passwordEncoder.encode(request.password()));
         user.setMustChangePassword(true);

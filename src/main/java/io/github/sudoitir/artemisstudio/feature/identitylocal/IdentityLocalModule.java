@@ -9,6 +9,8 @@ public final class IdentityLocalModule {
             .id("identity-local")
             .title("Password login")
             .kind(FeatureDescriptor.Kind.IDENTITY_PROVIDER)
+            .settingKey(IdentityLocalSettings.PASSWORD_MIN_LENGTH)
+            .settingKey(IdentityLocalSettings.BREACH_LOOKUP)
             .build();
 
     private IdentityLocalModule() {}

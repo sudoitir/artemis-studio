@@ -40,6 +40,9 @@ class SessionRevocationIT extends PostgresIntegrationTest {
     AppUserRepository users;
 
     @Autowired
+    SessionTerminator terminator;
+
+    @Autowired
     FindByIndexNameSessionRepository<? extends Session> sessions;
 
     @BeforeEach
@@ -99,6 +102,18 @@ class SessionRevocationIT extends PostgresIntegrationTest {
 
         assertThat(sessions.findByPrincipalName(first.getUsername())).isEmpty();
         assertThat(sessions.findByPrincipalName(second.getUsername())).isEmpty();
+    }
+
+    @Test
+    void endingAllButOneSessionKeepsThatSession() {
+        String keep = openSession("revoke-except");
+        openSession("revoke-except");
+        String bystander = openSession("revoke-except-bystander");
+
+        terminator.endSessionsOfExcept("revoke-except", Set.of(keep));
+
+        assertThat(sessions.findByPrincipalName("revoke-except")).containsOnlyKeys(keep);
+        assertThat(sessions.findById(bystander)).isNotNull();
     }
 
     @Test

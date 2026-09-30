@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.kernel.security.MustChangePasswordException;
+import io.github.sudoitir.artemisstudio.kernel.security.PasswordPolicyException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationFailedException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,11 @@ class SessionProblemAdvice {
     @ExceptionHandler(LoginThrottledException.class)
     ProblemDetail onLoginThrottled(LoginThrottledException e) {
         return Problems.of(HttpStatus.TOO_MANY_REQUESTS, "login-throttled", "Too many attempts", e.getMessage());
+    }
+
+    @ExceptionHandler(PasswordPolicyException.class)
+    ProblemDetail onPasswordPolicy(PasswordPolicyException e) {
+        return Problems.of(HttpStatus.BAD_REQUEST, "password-policy", "Password not accepted", e.getMessage());
     }
 
     @ExceptionHandler(ReauthenticationRequiredException.class)
