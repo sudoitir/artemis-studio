@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -237,13 +238,15 @@ class MessagePredicateTest {
 
     @Test
     void likeToRegexQuotesMetacharactersAndHonoursEscape() {
-        assertThat("a.b").matches(MessagePredicate.likeToRegex("a.b", null));
-        assertThat("axb").doesNotMatch(MessagePredicate.likeToRegex("a.b", null));
-        assertThat("50%").matches(MessagePredicate.likeToRegex("50!%", '!'));
-        assertThat("50x").doesNotMatch(MessagePredicate.likeToRegex("50!%", '!'));
-        assertThat("a_").matches(MessagePredicate.likeToRegex("a!_", '!'));
+        assertThat(like("a.b", null)).accepts("a.b").rejects("axb");
+        assertThat(like("50!%", '!')).accepts("50%").rejects("50x");
+        assertThat(like("a!_", '!')).accepts("a_");
         // a trailing escape is a literal, not dropped
-        assertThat("a!").matches(MessagePredicate.likeToRegex("a!", '!'));
+        assertThat(like("a!", '!')).accepts("a!");
+    }
+
+    private static java.util.function.Predicate<String> like(String pattern, Character escape) {
+        return Pattern.compile(MessagePredicate.likeToRegex(pattern, escape)).asMatchPredicate();
     }
 
     @Test
