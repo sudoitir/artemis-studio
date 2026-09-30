@@ -7,12 +7,16 @@ Every released container image and jar SHALL be signed with an identity tied to 
 - **WHEN** a user verifies a released image with the documented command
 - **THEN** verification succeeds and names this project's release workflow as signer
 
+#### Scenario: The release checks its own signatures
+- **WHEN** the release workflow has published an image and a jar
+- **THEN** it verifies both with the documented commands and fails the release if either check fails
+
 #### Scenario: Tampered artifact
 - **WHEN** an artifact was altered after release
 - **THEN** verification fails
 
 ### Requirement: Every release ships an SBOM
-Each release SHALL attach a CycloneDX SBOM to the container image and to the release page.
+Each release SHALL attach a CycloneDX SBOM to the container image, as a signed attestation stored with the image in the registry, and SBOMs of the image and the jar to the release page.
 
 #### Scenario: SBOM present
 - **WHEN** a release is published
