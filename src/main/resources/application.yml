@@ -103,7 +103,18 @@ springdoc:
 
 server:
   port: ${ARTEMIS_STUDIO_PORT:8080}
-  forward-headers-strategy: framework
+  # Tomcat's RemoteIpValve, not Spring's ForwardedHeaderFilter: only a peer matching
+  # internal-proxies may set the client address (X-Forwarded-For) and scheme; the sign-in
+  # throttle, the audit trail and session facts all use the resolved address, so a client
+  # that is not a trusted proxy cannot forge its way past the throttle (ADR-0143).
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Java regex matched against the peer's address. The default trusts loopback and the
+      # private ranges 10/8, 172.16/12, 192.168/16 and fc00::/7. Behind a proxy outside them,
+      # override with SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES (a regex covering only your
+      # proxies); never leave it empty, which trusts every peer.
+      internal-proxies: '127\.\d{1,3}\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1|::1|f[cd][0-9a-f]{2}(:[0-9a-f]{1,4}){7}'
   servlet:
     session:
       timeout: 8h

@@ -15,6 +15,7 @@ description: The environment variables Artemis Studio reads, which are required,
 | `ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE` | for capture | The broker role Studio's own broker user holds. Capture queues are restricted to it, and message capture is refused until it is set. Use a dedicated role, not the default `amq` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values stored in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
 | `ARTEMIS_STUDIO_PUBLIC_URL` | no | The address operators reach Studio at, e.g. `https://studio.example.com`. Alert notifications link back to the cluster's alerts when it is set; see [Alert delivery](./alert-delivery) |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | behind a proxy outside the private ranges | A regular expression matching the addresses of your reverse proxies. Only these may set the client address through `X-Forwarded-For`; the sign-in limits and the audit trail use it. The default trusts loopback, `10/8`, `172.16/12`, `192.168/16` and `fc00::/7`. Never leave it empty: that trusts every client |
 | `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=50` |
 
 ## Secrets and key rotation

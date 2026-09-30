@@ -11,7 +11,7 @@
 - [x] 3.3 Password change ends other sessions (`endSessionsOfExcept`) and is throttled
 
 ## 4. Lockout and limits (B)
-- [ ] 4.1 Trusted proxies: `forward-headers-strategy: native` + `internal-proxies`; forged-header test
+- [x] 4.1 Trusted proxies: `forward-headers-strategy: native` + `internal-proxies`; forged-header test
 - [ ] 4.2 `LoginAttemptLimiter` on Caffeine with per-username+source and per-IP keys
 - [ ] 4.3 DB account lock (`REQUIRES_NEW`, atomic SQL), success only after the full sign-in, identical responses, dummy-hash timing, throttled attempts audited, `ACCOUNT_LOCK`
 - [ ] 4.4 Admin unlock endpoint + `ACCOUNT_UNLOCK`
