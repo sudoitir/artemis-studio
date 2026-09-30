@@ -23,13 +23,13 @@ final class RetryAfter {
         String value = values.get(0).trim();
         try {
             return Duration.ofSeconds(Math.max(0, Long.parseLong(value)));
-        } catch (NumberFormatException notSeconds) {
+        } catch (NumberFormatException _) {
             try {
                 Instant at = ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)
                         .toInstant();
                 Duration wait = Duration.between(Instant.now(), at);
                 return wait.isNegative() ? Duration.ZERO : wait;
-            } catch (RuntimeException notADate) {
+            } catch (RuntimeException _) {
                 return null;
             }
         }

@@ -51,10 +51,9 @@ public class GaugeCondition implements AlertCondition {
         Set<String> universe = new HashSet<>();
         Map<String, Double> subjectValues = new HashMap<>();
         for (QueueSnapshot row : snapshots.forCluster(clusterId)) {
-            if (!scope.matchesAddress(row.address()) || !scope.matchesQueue(row.queueName())) {
-                continue;
-            }
-            if (nodeScoped && !scope.node().equals(row.nodeId().toString())) {
+            if (!scope.matchesAddress(row.address())
+                    || !scope.matchesQueue(row.queueName())
+                    || (nodeScoped && !scope.node().equals(row.nodeId().toString()))) {
                 continue;
             }
             String key = nodeScoped ? "node:" + row.nodeId() + "/queue:" + row.queueName() : "queue:" + row.queueName();

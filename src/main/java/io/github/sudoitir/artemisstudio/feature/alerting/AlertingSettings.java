@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AlertingSettings implements SettingsContribution {
 
+    private static final String CATEGORY = "Alerting";
     public static final String DISPATCH_INTERVAL = "alerting.dispatch-interval";
     public static final String MAX_ATTEMPTS = "alerting.max-attempts";
     public static final String INITIAL_BACKOFF = "alerting.initial-backoff";
@@ -30,7 +31,7 @@ public class AlertingSettings implements SettingsContribution {
         return List.of(
                 new SettingDef(
                         DISPATCH_INTERVAL,
-                        "Alerting",
+                        CATEGORY,
                         "Dispatch interval",
                         "How often queued notification deliveries are claimed and attempted.",
                         Kind.DURATION,
@@ -38,7 +39,7 @@ public class AlertingSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         MAX_ATTEMPTS,
-                        "Alerting",
+                        CATEGORY,
                         "Max delivery attempts",
                         "A delivery is marked dead after this many failures.",
                         Kind.INT,
@@ -46,7 +47,7 @@ public class AlertingSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         INITIAL_BACKOFF,
-                        "Alerting",
+                        CATEGORY,
                         "Initial retry backoff",
                         "Delay before the first retry. Doubles with jitter up to the ceiling.",
                         Kind.DURATION,
@@ -54,7 +55,7 @@ public class AlertingSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         MAX_BACKOFF,
-                        "Alerting",
+                        CATEGORY,
                         "Max retry backoff",
                         "Ceiling on the exponential retry delay.",
                         Kind.DURATION,
@@ -62,7 +63,7 @@ public class AlertingSettings implements SettingsContribution {
                         null),
                 new SettingDef(
                         EMAIL_TIMEOUT,
-                        "Alerting",
+                        CATEGORY,
                         "Email delivery timeout",
                         "Connect, read and write timeout of one SMTP delivery. A slower server is retried.",
                         Kind.DURATION,

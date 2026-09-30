@@ -17,6 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class ChannelConfigValidator {
 
+    private static final String SECRET = "secret";
     public static final Set<String> KINDS = Set.of("WEBHOOK", "SLACK", "EMAIL", "TEAMS", "PAGERDUTY");
 
     private static final Set<String> SECURITY =
@@ -36,51 +37,57 @@ public class ChannelConfigValidator {
         if (kind == null || !KINDS.contains(kind)) {
             throw new IllegalArgumentException("unknown channel kind: " + kind);
         }
+        JsonNode config = parseConfig(configJson);
+        boolean hasSecret = secret != null && !secret.isBlank();
+        switch (kind) {
+            case "WEBHOOK" -> validateWebhook(config, secret, hasSecret, secretStored);
+            case "SLACK" -> validateWebhookUrlSecret(secret, hasSecret, secretStored, "the Slack webhook URL");
+            case "TEAMS" -> validateWebhookUrlSecret(secret, hasSecret, secretStored, "the Teams webhook URL");
+            case "PAGERDUTY" -> validatePagerDuty(config, secret, hasSecret, secretStored);
+            case "EMAIL" -> validateEmail(EmailChannelConfig.parse(configJson, mapper));
+            default -> throw new IllegalArgumentException("unknown channel kind: " + kind);
+        }
+    }
+
+    private JsonNode parseConfig(String configJson) {
         JsonNode config;
         try {
             config = mapper.readTree(configJson == null || configJson.isBlank() ? "{}" : configJson);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             throw new IllegalArgumentException("config: not valid JSON");
         }
         if (!config.isObject()) {
             throw new IllegalArgumentException("config: must be a JSON object");
         }
-        boolean hasSecret = secret != null && !secret.isBlank();
-        switch (kind) {
-            case "WEBHOOK" -> {
-                requireUrl("url", text(config, "url"));
-                requireSecret("secret", hasSecret, secretStored, "a signing secret");
-                if (hasSecret) {
-                    requireBase64Secret(secret.trim());
-                }
-            }
-            case "SLACK" -> {
-                requireSecret("secret", hasSecret, secretStored, "the Slack webhook URL");
-                if (hasSecret) {
-                    requireUrl("secret", secret.trim());
-                }
-            }
-            case "TEAMS" -> {
-                requireSecret("secret", hasSecret, secretStored, "the Teams webhook URL");
-                if (hasSecret) {
-                    requireUrl("secret", secret.trim());
-                }
-            }
-            case "PAGERDUTY" -> {
-                String url = text(config, "url");
-                if (url != null) {
-                    requireUrl("url", url);
-                }
-                requireSecret("secret", hasSecret, secretStored, "the routing key");
-                if (hasSecret
-                        && (url == null || url.equals(PagerDutySender.DEFAULT_URL))
-                        && secret.trim().length() != 32) {
-                    throw new IllegalArgumentException(
-                            "secret: a PagerDuty routing key is 32 characters (an Events API v2 integration key)");
-                }
-            }
-            case "EMAIL" -> validateEmail(EmailChannelConfig.parse(configJson, mapper));
-            default -> throw new IllegalArgumentException("unknown channel kind: " + kind);
+        return config;
+    }
+
+    private static void validateWebhook(JsonNode config, String secret, boolean hasSecret, boolean secretStored) {
+        requireUrl("url", text(config, "url"));
+        requireSecret(SECRET, hasSecret, secretStored, "a signing secret");
+        if (hasSecret) {
+            requireBase64Secret(secret.trim());
+        }
+    }
+
+    private static void validateWebhookUrlSecret(String secret, boolean hasSecret, boolean secretStored, String what) {
+        requireSecret(SECRET, hasSecret, secretStored, what);
+        if (hasSecret) {
+            requireUrl(SECRET, secret.trim());
+        }
+    }
+
+    private static void validatePagerDuty(JsonNode config, String secret, boolean hasSecret, boolean secretStored) {
+        String url = text(config, "url");
+        if (url != null) {
+            requireUrl("url", url);
+        }
+        requireSecret(SECRET, hasSecret, secretStored, "the routing key");
+        if (hasSecret
+                && (url == null || url.equals(PagerDutySender.DEFAULT_URL))
+                && secret.trim().length() != 32) {
+            throw new IllegalArgumentException(
+                    "secret: a PagerDuty routing key is 32 characters (an Events API v2 integration key)");
         }
     }
 
@@ -113,7 +120,7 @@ public class ChannelConfigValidator {
         try {
             InternetAddress parsed = new InternetAddress(address, true);
             parsed.validate();
-        } catch (AddressException e) {
+        } catch (AddressException _) {
             throw new IllegalArgumentException(field + ": \"" + address + "\" is not a valid email address");
         }
     }
@@ -125,7 +132,7 @@ public class ChannelConfigValidator {
         URI uri;
         try {
             uri = URI.create(value.trim());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new IllegalArgumentException(field + ": not a valid URL");
         }
         String scheme = uri.getScheme();
