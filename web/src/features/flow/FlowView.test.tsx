@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -381,5 +381,224 @@ describe('FlowView', () => {
     expect(within(menu).getByRole('menuitem', { name: /Open its connections/ })).toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: /Delete|Purge|Close/ })).not.toBeInTheDocument();
     expect(within(menu).getByText(/This view never changes the broker/)).toBeInTheDocument();
+  });
+});
+
+/** What the last navigate() call does to the address it starts from. */
+function nextSearch(prev: Record<string, unknown> = {}) {
+  const call = routerState.navigate.mock.lastCall![0] as { search: (p: Record<string, unknown>) => unknown };
+  return call.search(prev);
+}
+
+/** Mantine names both the input and its option list by the label; the input is the control. */
+function selectInput(label: string) {
+  return screen.getAllByLabelText(label).find((el) => el.tagName === 'INPUT') as HTMLInputElement;
+}
+
+describe('FlowView controls', () => {
+  beforeEach(() => {
+    routerState.search = {};
+    routerState.navigate.mockReset();
+  });
+
+  it('puts a chosen ranking, grouping and bound in the address, and leaves a default out of it', async () => {
+    serve(graph());
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    await screen.findByRole('region', { name: 'Totals across every path' });
+    await user.click(selectInput('Rank paths by'));
+    await user.click(await screen.findByRole('option', { name: 'messages out', hidden: true }));
+    expect(nextSearch({ tab: 'table' })).toEqual({ tab: 'table', rank: 'OUT' });
+
+    await user.click(selectInput('Group clients by'));
+    await user.click(await screen.findByRole('option', { name: 'User', hidden: true }));
+    expect(nextSearch()).toEqual({ groupBy: 'USER' });
+
+    await user.click(selectInput('Show'));
+    await user.click(await screen.findByRole('option', { name: '100 busiest paths', hidden: true }));
+    expect(nextSearch()).toEqual({ limit: 100 });
+  });
+
+  it('takes a choice back to its default out of the address rather than writing the default', async () => {
+    routerState.search = { rank: 'OUT', groupBy: 'USER', limit: 100 };
+    serve(graph());
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    await screen.findByRole('region', { name: 'Totals across every path' });
+    await user.click(selectInput('Rank paths by'));
+    await user.click(await screen.findByRole('option', { name: 'messages in', hidden: true }));
+    expect(nextSearch()).toEqual({ rank: undefined });
+
+    await user.click(selectInput('Group clients by'));
+    await user.click(await screen.findByRole('option', { name: 'Client ID', hidden: true }));
+    expect(nextSearch()).toEqual({ groupBy: undefined });
+
+    await user.click(selectInput('Show'));
+    await user.click(await screen.findByRole('option', { name: '40 busiest paths', hidden: true }));
+    expect(nextSearch()).toEqual({ limit: undefined });
+  });
+
+  it('states the focus, widens its reach by hops, and steps back to the neighbours', async () => {
+    routerState.search = { focus: 'queue:orders', hops: 2 };
+    serve(graph({ focus: { kind: 'queue', name: 'orders', hops: 2, matched: true } }));
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('Focused on queue orders')).toBeInTheDocument();
+    // A focused view has reached everything it can, so it does not suggest raising the limit.
+    expect(screen.queryByText(/Raise the limit, or focus/)).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '+1 hop' })).toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: '+2 hops' }));
+    expect(nextSearch({ focus: 'queue:orders' })).toEqual({ focus: 'queue:orders', hops: 3 });
+    await user.click(screen.getByRole('radio', { name: 'Neighbours' }));
+    expect(nextSearch({ focus: 'queue:orders' })).toEqual({ focus: 'queue:orders', hops: undefined });
+  });
+
+  it('states why the flow could not be read and asks again on request', async () => {
+    let asked = 0;
+    server.use(
+      http.get('*/api/v1/clusters/c1/flow', () => {
+        asked++;
+        return HttpResponse.json({ title: 'Flow unavailable', detail: 'No node answered.' }, { status: 502 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('Flow unavailable')).toBeInTheDocument();
+    expect(screen.getByText('No node answered.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(asked).toBe(2));
+  });
+
+  it('marks the view busy while the flow loads', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/flow', async () => {
+        await new Promise(() => {});
+      }),
+    );
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByLabelText('Loading flow')).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('states the bound, the server cap and when clients were last sampled', async () => {
+    serve(
+      graph({
+        measuring: false,
+        sampledAt: new Date(Date.now() - 30_000).toISOString(),
+        totals: { paths: 1, shown: 1, limit: 200, clamped: true },
+        assumptions: ['Rates are averaged over the last minute.'],
+      }),
+    );
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('Showing 1 of 1 path, ranked by messages in.')).toBeInTheDocument();
+    expect(screen.getByText('The server draws at most 200 paths.')).toBeInTheDocument();
+    expect(screen.getByText(/Clients sampled .* ago\./)).toBeInTheDocument();
+    expect(screen.getByText('Rates are averaged over the last minute.')).toBeInTheDocument();
+    expect(screen.queryByText(/Raise the limit, or focus/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Measuring client rates/)).not.toBeInTheDocument();
+  });
+
+  it('pauses and resumes the motion on the graph', async () => {
+    serve(graph());
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    const pause = await screen.findByRole('button', { name: 'Pause motion' });
+    expect(pause).toHaveAttribute('aria-pressed', 'false');
+    await user.click(pause);
+    expect(screen.getByRole('button', { name: 'Resume motion' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Resume motion' }));
+    expect(screen.getByRole('button', { name: 'Pause motion' })).toBeInTheDocument();
+  });
+
+  it('offers no motion control on the table, which has nothing that moves', async () => {
+    routerState.search = { tab: 'table' };
+    serve(graph());
+    renderWithProviders(<FlowView />);
+
+    await screen.findAllByRole('columnheader');
+    expect(screen.queryByRole('button', { name: /motion/ })).not.toBeInTheDocument();
+  });
+
+  it('focuses the view on a client, address or queue chosen from the find box', async () => {
+    serve(graph());
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    await screen.findByRole('region', { name: 'Totals across every path' });
+    await user.click(selectInput('Find in this view'));
+    await user.click(await screen.findByRole('option', { name: 'order-svc', hidden: true }));
+
+    expect(nextSearch({ node: 'queue:ORDERS.inbound', hops: 3 })).toEqual({
+      node: undefined,
+      hops: undefined,
+      focus: 'client:order-svc',
+    });
+  });
+
+  it('sorts the table from a column and focuses on a path endpoint from its menu', async () => {
+    routerState.search = { tab: 'table' };
+    serve(graph());
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    await user.click(within(await screen.findByRole('columnheader', { name: /From/ })).getByRole('button'));
+    expect(nextSearch({ focus: 'x' })).toEqual({ focus: 'x', sort: 'from' });
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for order-svc' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Focus the view on this/ }));
+    // The menu is the resource's own action: it navigates to the flow of the cluster, focused.
+    expect(routerState.navigate.mock.lastCall![0]).toEqual({
+      to: '/clusters/c1/flow',
+      search: { focus: 'client:order-svc' },
+    });
+  });
+
+  it('focuses from the inspector, and closes it back to no selection', async () => {
+    routerState.search = { node: 'queue:ORDERS.inbound' };
+    serve(graph());
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    const inspector = await screen.findByRole('complementary', { name: 'Details of Queue orders' });
+    await user.click(within(inspector).getByRole('button', { name: /^Focus/ }));
+    expect(nextSearch({ node: 'queue:ORDERS.inbound' })).toEqual({
+      focus: 'queue:orders',
+      hops: undefined,
+      node: undefined,
+    });
+
+    await user.click(within(inspector).getByRole('button', { name: 'Close details' }));
+    expect(nextSearch({ node: 'queue:ORDERS.inbound' })).toEqual({ node: undefined });
+  });
+
+  it('changes the window of the monitoring pane, leaving the default out of the address', async () => {
+    routerState.search = { tab: 'split', node: 'queue:ORDERS.inbound' };
+    serve(splitGraph());
+    serveHistory();
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
+    await user.click(await within(pane).findByRole('radio', { name: '6h' }));
+    expect(nextSearch({ tab: 'split' })).toEqual({ tab: 'split', range: '6h' });
+  });
+
+  it('drops the range from the address when the pane goes back to an hour', async () => {
+    routerState.search = { tab: 'split', node: 'queue:ORDERS.inbound', range: '6h' };
+    serve(splitGraph());
+    serveHistory();
+    const user = userEvent.setup();
+    renderWithProviders(<FlowView />);
+
+    const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
+    await user.click(await within(pane).findByRole('radio', { name: '1h' }));
+    expect(nextSearch({ range: '6h' })).toEqual({ range: undefined });
   });
 });
