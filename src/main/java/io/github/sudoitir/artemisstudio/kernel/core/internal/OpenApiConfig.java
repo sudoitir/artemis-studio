@@ -153,7 +153,7 @@ class OpenApiConfig {
 
     /**
      * Every {@code POST}, {@code PUT}, {@code PATCH} and {@code DELETE} accepts an optional
-     * {@code Idempotency-Key} (ADR-0148). The refusals it adds are problems, covered by {@code 4XX}.
+     * {@code Idempotency-Key} (ADR-0149). The refusals it adds are problems, covered by {@code 4XX}.
      */
     @Bean
     OpenApiCustomizer idempotencyKey() {

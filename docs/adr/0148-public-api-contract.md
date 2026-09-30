@@ -1,4 +1,4 @@
-# ADR-0147: The public API is one contract: a marked break, one list shape, problem+json errors, stated limits
+# ADR-0148: The public API is one contract: a marked break, one list shape, problem+json errors, stated limits
 
 - **Status**: accepted
 - **Date**: 2026-09-30

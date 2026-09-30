@@ -90,7 +90,7 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "local_(totp|recovery_code|recovery_key|trusted_device)",
                     "user_(entities|credentials)",
                     "CREATE TABLE role ",
-                    // Idempotency keys (ADR-0148, changeset kernel-security 0009).
+                    // Idempotency keys (ADR-0149, changeset kernel-security 0009).
                     "idempotency_record",
                     // Usernames are unique ignoring case (kernel-security 0008).
                     "uq_app_user_username_lower",

@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-/** The {@code idempotency_record} rows behind {@link IdempotencyFilter} (ADR-0148): claim, complete, release, find. */
+/** The {@code idempotency_record} rows behind {@link IdempotencyFilter} (ADR-0149): claim, complete, release, find. */
 @Component
 @RequiredArgsConstructor
 class IdempotencyRecords {
@@ -14,7 +14,7 @@ class IdempotencyRecords {
     /** A claim not completed within this long was abandoned (a crash, a lost connection) and can be claimed again. */
     static final int LEASE_SECONDS = 600;
 
-    /** A key is forgotten after this long, whatever the data lifecycle still holds (ADR-0148). */
+    /** A key is forgotten after this long, whatever the data lifecycle still holds (ADR-0149). */
     static final int TTL_SECONDS = 24 * 3600;
 
     /** {@code status}, {@code contentType}, {@code headers} and {@code body} are null until the request is done. */
