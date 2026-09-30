@@ -1,10 +1,13 @@
 package io.github.sudoitir.artemisstudio.kernel.core.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Unversioned;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.server.PathContainer;
+import org.springframework.web.accept.InvalidApiVersionException;
 import org.springframework.web.accept.StandardApiVersionDeprecationHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.config.annotation.ApiVersionConfigurer;
@@ -22,6 +25,10 @@ import org.springframework.web.util.pattern.PathPatternParser;
 class ApiVersioningConfig implements WebMvcConfigurer {
 
     private static final String BASE_PACKAGE = "io.github.sudoitir.artemisstudio";
+
+    /** The one spelling of a version segment. {@code /api/1/} or {@code /api/V1/} would reach v1 handlers
+     * past every filter that matches the literal {@code /api/v1/} prefix, so they are refused instead. */
+    private static final Pattern VERSION_SEGMENT = Pattern.compile("v[1-9][0-9]*");
 
     private final ObjectProvider<ApiDeprecation> deprecations;
 
@@ -55,11 +62,24 @@ class ApiVersioningConfig implements WebMvcConfigurer {
             }
         });
         configurer
-                // Segment 0 is "api". Everything outside /api resolves no version, and needs none.
-                .usePathSegment(1, path -> path.value().startsWith("/api/"))
+                .useVersionResolver(ApiVersioningConfig::resolveVersion)
                 .setVersionRequired(false)
                 .detectSupportedVersions(false)
                 .addSupportedVersions("1")
                 .setDeprecationHandler(handler);
+    }
+
+    /** Segment 1 of an {@code /api/...} path; everything outside {@code /api} resolves no version, and needs none. */
+    static String resolveVersion(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (!path.startsWith("/api/")) {
+            return null;
+        }
+        int end = path.indexOf('/', 5);
+        String segment = end < 0 ? path.substring(5) : path.substring(5, end);
+        if (!VERSION_SEGMENT.matcher(segment).matches()) {
+            throw new InvalidApiVersionException(segment);
+        }
+        return segment;
     }
 }

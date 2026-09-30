@@ -106,7 +106,7 @@ class ApiErrorsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void anUnsupportedApiVersionIs400InvalidApiVersion() throws Exception {
-        for (String version : new String[] {"v2", "zzz"}) {
+        for (String version : new String[] {"v2", "zzz", "1", "V1", "1.0", "v01"}) {
             mvc.perform(get("/api/" + version + "/clusters").with(user("nobody")))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentTypeCompatibleWith(PROBLEM))
