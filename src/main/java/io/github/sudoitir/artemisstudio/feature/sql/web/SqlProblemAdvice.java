@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class SqlProblemAdvice {
 
+    private static final int RETRY_AFTER_SECONDS = 5;
+
     /**
      * A query that is not in the dialect (ADR-0058 D2). The offending token and the
      * near match travel as properties so the editor can put the caret on the word.
@@ -68,9 +70,12 @@ public class SqlProblemAdvice {
         ProblemDetail problem = Problems.of(
                 HttpStatus.TOO_MANY_REQUESTS, "too-many-queries", "Too many queries at once", e.getMessage());
         problem.setProperty("cap", e.cap());
+        // The console's SSE stream reports this as a "failed" frame inside a 200, which has no headers to carry
+        // Retry-After, so the wait is also in the body.
+        problem.setProperty("retryAfter", RETRY_AFTER_SECONDS);
         // ponytail: fixed hint, a running query has no known end; add an estimate if clients need one
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header(HttpHeaders.RETRY_AFTER, "5")
+                .header(HttpHeaders.RETRY_AFTER, Integer.toString(RETRY_AFTER_SECONDS))
                 .body(problem);
     }
 }
