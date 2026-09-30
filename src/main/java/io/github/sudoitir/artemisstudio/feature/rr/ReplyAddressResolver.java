@@ -67,36 +67,41 @@ public class ReplyAddressResolver {
         Set<String> known = null;
 
         for (String entry : declared) {
-            if (!isPattern(entry)) {
+            if (isPattern(entry)) {
+                if (known == null) {
+                    known = knownAddresses(clusterId);
+                }
+                capped = addMatching(found, known, patternFor(entry));
+            } else {
                 // A literal needs no snapshot: it is browsable whether or not the
                 // last scrape happened to see it. This is what keeps an expectation
                 // working on a cluster whose scrape has not run yet.
-                if (found.size() >= MAX_RESOLVED) {
-                    capped = true;
-                    break;
-                }
-                found.add(entry);
-                continue;
-            }
-            if (known == null) {
-                known = knownAddresses(clusterId);
-            }
-            Pattern p = patternFor(entry);
-            for (String address : known) {
-                if (!p.matcher(address).matches()) {
-                    continue;
-                }
-                if (found.size() >= MAX_RESOLVED) {
-                    capped = true;
-                    break;
-                }
-                found.add(address);
+                capped = addCapped(found, entry);
             }
             if (capped) {
                 break;
             }
         }
         return new Resolution(List.copyOf(found), capped, singleLiteral);
+    }
+
+    /** True when {@link #MAX_RESOLVED} stopped a match from being added. */
+    private static boolean addMatching(Set<String> found, Set<String> known, Pattern pattern) {
+        for (String address : known) {
+            if (pattern.matcher(address).matches() && addCapped(found, address)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Adds {@code address} unless the resolution is full; true when it was full. */
+    private static boolean addCapped(Set<String> found, String address) {
+        if (found.size() >= MAX_RESOLVED) {
+            return true;
+        }
+        found.add(address);
+        return false;
     }
 
     /**

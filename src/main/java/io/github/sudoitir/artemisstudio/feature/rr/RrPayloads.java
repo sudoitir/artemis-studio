@@ -112,7 +112,7 @@ class RrPayloads {
                     aad(flowId, kind, at),
                     Base64.getDecoder().decode(sealed),
                     Base64.getDecoder().decode(nonce));
-        } catch (IllegalArgumentException notBase64) {
+        } catch (IllegalArgumentException _) {
             return Map.of();
         }
     }
