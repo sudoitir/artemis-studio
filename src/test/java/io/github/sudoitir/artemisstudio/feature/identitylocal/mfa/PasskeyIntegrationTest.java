@@ -157,6 +157,28 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
     // ---- enrolment ---------------------------------------------------------------------------
 
     @Test
+    void deletingAUserDeletesTheirPasskeysToo() throws Exception {
+        newUserWithAPasskey("pk-deleted");
+        assertThat(jdbc.sql("SELECT count(*) FROM user_credentials")
+                        .query(Long.class)
+                        .single())
+                .isPositive();
+
+        jdbc.sql("DELETE FROM app_user WHERE username = ?").param("pk-deleted").update();
+
+        assertThat(jdbc.sql("SELECT count(*) FROM user_entities WHERE display_name = ?")
+                        .param("pk-deleted")
+                        .query(Long.class)
+                        .single())
+                .isZero();
+        assertThat(jdbc.sql("SELECT count(*) FROM user_credentials WHERE label = 'Laptop'"
+                                + " AND user_entity_user_id NOT IN (SELECT id FROM user_entities)")
+                        .query(Long.class)
+                        .single())
+                .isZero();
+    }
+
+    @Test
     void aPasskeyIsRegisteredListedAndGivesTheFirstFactorItsRecoveryCodes() throws Exception {
         newUser("pk-enrol");
         Browser browser = signedIn("pk-enrol");

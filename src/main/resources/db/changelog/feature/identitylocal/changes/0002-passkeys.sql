@@ -10,12 +10,16 @@
 --changeset artemis-studio:feature-identitylocal-0002-passkeys
 -- One row per user with a passkey. name is the user's id as text (not the username, which an
 -- account could one day change); display_name is the username. id is the WebAuthn user handle.
+-- Spring's repository binds name as text, so it cannot be a uuid; user_id is that same id as a uuid,
+-- computed by the database, so the row (and through it the user's passkeys) goes when the user does.
 CREATE TABLE user_entities (
     id text NOT NULL,
     name text NOT NULL,
     display_name text,
+    user_id uuid GENERATED ALWAYS AS (name::uuid) STORED NOT NULL,
     CONSTRAINT pk_user_entities PRIMARY KEY (id),
-    CONSTRAINT uq_user_entities_name UNIQUE (name)
+    CONSTRAINT uq_user_entities_name UNIQUE (name),
+    CONSTRAINT fk_user_entities_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
 );
 
 -- One row per passkey. credential_id and user_entity_user_id are base64url.
