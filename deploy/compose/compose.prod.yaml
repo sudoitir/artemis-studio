@@ -108,7 +108,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/readyz || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
