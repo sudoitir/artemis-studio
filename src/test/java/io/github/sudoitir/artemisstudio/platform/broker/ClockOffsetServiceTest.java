@@ -31,7 +31,7 @@ class ClockOffsetServiceTest {
     }
 
     private static NodeDirectory.KnownNode node(String name, String url) {
-        return new NodeDirectory.KnownNode(UUID.randomUUID(), CLUSTER, name, url);
+        return new NodeDirectory.KnownNode(UUID.randomUUID(), CLUSTER, name, url, null);
     }
 
     private void reading(String url, long offsetMs) {

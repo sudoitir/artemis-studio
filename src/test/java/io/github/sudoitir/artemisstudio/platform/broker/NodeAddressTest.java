@@ -17,6 +17,14 @@ class NodeAddressTest {
     }
 
     @Test
+    void userinfoIsStrippedBeforeAnythingElseIsCut() {
+        assertThat(NodeAddress.hostPort("http://admin:1234,x@broker:8161/console/jolokia"))
+                .isEqualTo("broker:8161");
+        assertThat(NodeAddress.hostPort("http://admin:p)w?d@broker:8161/console/jolokia"))
+                .isEqualTo("broker:8161");
+    }
+
+    @Test
     void anAddressThatIsNotOneIsUnknown() {
         assertThat(NodeAddress.hostPort(null)).isEqualTo("unknown");
         assertThat(NodeAddress.hostPort(" ")).isEqualTo("unknown");

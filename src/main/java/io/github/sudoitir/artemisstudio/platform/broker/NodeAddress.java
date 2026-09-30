@@ -25,7 +25,9 @@ public final class NodeAddress {
             return UNKNOWN;
         }
         try {
-            URI uri = new URI(dialable.replaceFirst("[,)?].*$", "").replace("(", ""));
+            // Strip the userinfo first: a password may hold the characters the failover cut looks for.
+            String bare = dialable.replaceFirst("(?i)^([a-z][a-z0-9+.-]*://)?\\(?[^@/]*@", "$1");
+            URI uri = new URI(bare.replaceFirst("[,)?].*$", "").replace("(", ""));
             if (uri.getHost() == null) {
                 return UNKNOWN;
             }

@@ -17,6 +17,6 @@ public interface NodeDirectory {
     /** Persist the latest clock reading for each node that has one (ADR-0053). */
     void recordClockOffsets(Map<UUID, ClockOffset> byNode);
 
-    /** One registered node. {@code jolokiaUrl} is {@code null} for a node Studio cannot manage yet. */
-    record KnownNode(UUID id, UUID clusterId, String name, String jolokiaUrl) {}
+    /** One registered node. {@code jolokiaUrl} is {@code null} for a node Studio cannot manage yet, {@code coreUrl} for one it has no Core address for. */
+    record KnownNode(UUID id, UUID clusterId, String name, String jolokiaUrl, String coreUrl) {}
 }

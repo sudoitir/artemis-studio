@@ -155,10 +155,7 @@ function NodesTable({ nodes, now }: Readonly<{ nodes: NodeHealth[]; now: number 
               ) : null}
             </Table.Td>
             <Table.Td ta="end">
-              <Figure
-                value={n.managementP95Millis === null ? null : Math.round(n.managementP95Millis ?? 0)}
-                unit="ms"
-              />
+              <Figure value={n.managementP95Millis == null ? null : Math.round(n.managementP95Millis)} unit="ms" />
             </Table.Td>
             <Table.Td ta="end">
               <Figure value={n.rateLimitWaitMillis} unit="ms" />
