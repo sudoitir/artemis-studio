@@ -15,4 +15,4 @@
 - [x] 4.3 `docs/dockerhub.md` link; `.claude/rules/10-release.md` lists the new release outputs
 
 ## 5. Finish
-- [ ] 5.1 `just verify` green; PR merged; release verified with the documented commands; change archived
+- [x] 5.1 `just verify` green; PR merged; release verified with the documented commands; change archived
