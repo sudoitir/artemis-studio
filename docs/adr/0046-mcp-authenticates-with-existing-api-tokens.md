@@ -1,6 +1,6 @@
 # ADR-0046: MCP authenticates with the existing personal API tokens
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0137](0137-one-gate-on-the-mcp-transport.md))
 - **Date**: 2026-09-06
 - **Deciders**: Mahdi Amirabdollahi
 

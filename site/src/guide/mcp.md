@@ -17,8 +17,29 @@ the tools are shaped like the questions instead
 
 ## Get a key
 
-Sign in → avatar menu → **Account** → **API keys** → **New key** → choose the
-scope and permissions it carries → copy the value. It is shown once.
+Sign in → avatar menu → **Account** → **API keys** → **New key** → choose when
+it expires, the scope and permissions it carries, and optionally the **MCP tools**
+it may call → copy the value. It is shown once.
+
+- **Expiry.** Every key expires, at most the installation's maximum lifetime
+  after it was minted (90 days by default, *Operational configuration → API token
+  lifetime*). Lowering the maximum shortens existing keys at once.
+- **Tools.** A key restricted to named tools is offered only those, plus
+  `studio_help`. The other tools are not listed or described to it, and calling
+  one answers exactly as a tool that does not exist.
+- **Rotation.** **Rotate** issues a new secret and keeps the old one working
+  for the rotation overlap (24 hours by default), so an assistant's
+  configuration can be updated without an outage. The key keeps its permissions
+  and its expiry.
+- **Limits.** A key may make 600 requests a minute with 8 in flight, and one
+  user 1,200 a minute across all their keys. Every response carries
+  `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`, and an excess
+  request gets `429` with `Retry-After`.
+- **Usage** shows each key's requests per day, with how many were denied,
+  limited or failed. Administrators with *See and revoke every user's API
+  tokens* see every key under **Admin → API keys**, where unused keys are
+  flagged and any key can be revoked
+  ([ADR-0136](/reference/adr/0136-token-rotation-lifetime-cap-limits-and-usage)).
 
 ## Connect
 
@@ -91,8 +112,14 @@ boring and explicit. This one is:
   echo; the real run needs `confirm` to equal the cluster's name and
   `expectedPlanHash` to equal the hash it previewed, goes canary first and halts
   at the first failure. See [Broker configuration](/guide/broker-configuration).
-- **Everything is audited** under the owner with the key's name attached
-  (`ada [token: laptop-agent]`), dry runs included.
+- **Every call is audited**, reads included, as `MCP_TOOL_CALL` under the owner
+  with the key's name attached (`ada [token: laptop-agent]`), naming the tool,
+  the cluster and the outcome. The rows a mutation writes, dry runs included,
+  hang under it ([ADR-0137](/reference/adr/0137-one-gate-on-the-mcp-transport)).
+- **The installation can be made read-only.** *Operational configuration →
+  Agent surface → Read-only* hides every mutating tool and refuses it for every
+  key, whatever its `confirm`. A single read-only key is simply a key granted
+  only read permissions.
 - **A cluster the key holds no grant on** comes back as *"no such cluster, or
   this key has no grant on it"* — naming no permission and confirming no id.
 

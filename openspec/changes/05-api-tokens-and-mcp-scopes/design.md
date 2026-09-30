@@ -26,7 +26,6 @@ rendered automatically in Operational configuration (ADR-0047).
 
 **Non-Goals**
 - Multi-instance limit or usage state (single instance, ADR-0037).
-- Retention for usage counters (about 24 rows per token per day).
 - An installation-wide audit view; MCP rows for cluster-less tools are stored but not browsable.
 - Filtering runbook prompts in read-only mode (prompts never act).
 
@@ -68,7 +67,8 @@ upgrade path if Studio runs clustered.
 `api_token_usage(token_id, hour, requests, denied, limited, errors)` is filled from an in-memory
 buffer the limit filter increments after the chain (denied = 401/403, limited = 429, errors =
 5xx), flushed with `last_used_at` by the existing minute job (`INSERT … ON CONFLICT DO UPDATE`).
-`GET …/usage?days=1|7|30` returns totals and daily rows. One audit row per REST request would
+`GET …/usage?days=1|7|30` returns totals and daily rows. The table is a data-lifecycle store,
+"API token usage" (default 90 days, at least 30, the longest summary period). One audit row per REST request would
 flood `audit_event`; the spec asks for a summary, which counters give exactly.
 
 ### D5: Admin inventory on its own controller

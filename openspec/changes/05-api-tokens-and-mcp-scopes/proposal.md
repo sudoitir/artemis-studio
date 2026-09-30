@@ -28,6 +28,7 @@ API tokens already have scopes, expiry, revocation and last-used tracking (ADR-0
 - `api-tokens`: rotation, lifetime policy, rate limits and usage summary
 - `mcp-server`: tool allow-lists, read-only mode and per-action audit
 - `identity-and-sessions`: the administration surface gains a metadata-only inventory of every user's keys with revoke
+- `data-lifecycle`: API token usage is a store with its own retention
 
 ## Out of scope
 - OAuth flows for tokens.

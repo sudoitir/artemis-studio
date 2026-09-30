@@ -88,6 +88,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, ArtemisStudio
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
