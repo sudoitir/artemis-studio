@@ -82,6 +82,9 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class BrokerConfigApplyEngineTest {
 
+    // Generated, so no credential-shaped literal sits in the source.
+    private static final String BRIDGE_SECRET = java.util.UUID.randomUUID().toString();
+
     private static final UUID CLUSTER = UUID.randomUUID();
     private static final UUID NODE_A = UUID.fromString("00000000-0000-0000-0000-00000000000a");
     private static final UUID NODE_B = UUID.fromString("00000000-0000-0000-0000-00000000000b");
@@ -452,7 +455,7 @@ class BrokerConfigApplyEngineTest {
     void aBridgeIsCreatedWithItsCredentialResolvedFromTheVaultAtTheLastMoment() {
         document = withBridge(bridge("dc2"));
         when(secrets.resolve(CLUSTER, "dc2"))
-                .thenReturn(Optional.of(new ClusterSecrets.Credential("dc2", "bridge-user", "s3cret")));
+                .thenReturn(Optional.of(new ClusterSecrets.Credential("dc2", "bridge-user", BRIDGE_SECRET)));
 
         BrokerConfigApplyOutcome outcome = applyConfirmed();
 
@@ -460,9 +463,9 @@ class BrokerConfigApplyEngineTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> config = ArgumentCaptor.forClass(Map.class);
         verify(ops, org.mockito.Mockito.times(2)).createBridge(eq(client), eq(BROKER), config.capture());
-        assertThat(config.getValue()).containsEntry("user", "bridge-user").containsEntry("password", "s3cret");
+        assertThat(config.getValue()).containsEntry("user", "bridge-user").containsEntry("password", BRIDGE_SECRET);
         // The credential is on the wire only: the plan and the stored apply row never carry it.
-        assertThat(mapper.writeValueAsString(outcome.plan())).doesNotContain("s3cret");
+        assertThat(mapper.writeValueAsString(outcome.plan())).doesNotContain(BRIDGE_SECRET);
     }
 
     @Test
