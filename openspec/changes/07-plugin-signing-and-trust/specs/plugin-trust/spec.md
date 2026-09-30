@@ -30,9 +30,36 @@ Studio SHALL verify a plugin's signature against the trusted keys before storing
 - **WHEN** a file inside a signed jar, such as a UI asset, is replaced or added after signing
 - **THEN** the jar is refused
 
+#### Scenario: File removed from a signed jar
+- **WHEN** a file the signature covers is missing from the jar
+- **THEN** the jar is refused
+
+#### Scenario: Several signers
+- **WHEN** entries in the jar are signed by different keys, or some are unsigned
+- **THEN** the jar is refused
+
 #### Scenario: Unknown signer
 - **WHEN** the signer's key is not trusted
-- **THEN** it is refused and the review screen names the fingerprint
+- **THEN** activation is refused and the review screen names the fingerprint and the certificate subject
+
+#### Scenario: Trust the key from the review
+- **WHEN** an installer with fresh authentication trusts the named key from the review screen, confirming they compared the fingerprint
+- **THEN** the key taken from the uploaded jar is added and audited, and the review re-plans as trusted
+
+#### Scenario: Key removed between review and activation
+- **WHEN** the signer's key is removed after the review and before activation
+- **THEN** activation is refused
+
+#### Scenario: Rollback to an unverified version
+- **WHEN** an installer rolls back to a previous version whose signer is not trusted and the allowance is off
+- **THEN** the rollback is refused
+
+### Requirement: Unverified plugins are visible in operational health
+Studio SHALL report operational health as degraded while any installed plugin is unverified, naming those plugins.
+
+#### Scenario: A key is removed
+- **WHEN** an installed plugin's signing key is removed
+- **THEN** the `studio` health group reports degraded and names the plugin
 
 ### Requirement: Unverified plugins need an explicit, audited allowance
 An administrator MAY allow unverified plugins through a setting that is off by default; while it is on, an unverified plugin SHALL install, be marked with a visible "unverified" badge, and each such install SHALL be audited.
@@ -56,9 +83,21 @@ Before activation the review screen SHALL show the publisher, the key fingerprin
 - **WHEN** an update requests a new permission
 - **THEN** the diff highlights it and activation needs explicit confirmation
 
+#### Scenario: Update signed by another trusted key
+- **WHEN** an update is signed by a trusted key other than the installed version's
+- **THEN** the review shows the old and new fingerprints and activation needs explicit confirmation
+
+#### Scenario: Confirmation skipped
+- **WHEN** a client activates a plan that needs confirmation without confirming it
+- **THEN** the server refuses the activation
+
 ### Requirement: Plugin authors can sign from the kit
 The plugin template and SDK tooling SHALL provide a documented way to sign a plugin build.
 
 #### Scenario: Signed build
 - **WHEN** an author runs the documented signing step
 - **THEN** the resulting jar verifies against the author's published key
+
+#### Scenario: Verify against the published key
+- **WHEN** an author runs the plugin verifier with their published certificate on a jar signed by another key, or on an unsigned jar
+- **THEN** the verifier fails
