@@ -1,44 +1,74 @@
 ## ADDED Requirements
 
 ### Requirement: OTLP export is configurable and off by default
-Studio SHALL export metrics, traces and logs over OTLP only when configured, and SHALL send nothing by default.
+
+The system SHALL export metrics, traces and logs over OTLP only when export is switched on. One
+switch and one endpoint SHALL enable all three signals. By default, the system SHALL send nothing.
 
 #### Scenario: Default
-- **WHEN** no endpoint is configured
+
+- **WHEN** export is not switched on
 - **THEN** no telemetry leaves Studio
 
 #### Scenario: Configured
-- **WHEN** an endpoint is configured
-- **THEN** all three signals arrive there
+
+- **WHEN** export is switched on with an endpoint
+- **THEN** metrics, traces and logs all arrive at that endpoint
 
 ### Requirement: A trace follows a request across boundaries
-A trace SHALL connect an incoming HTTP request with the management and core calls it causes and with its database queries.
+
+A trace SHALL connect three things: an incoming HTTP request or a background job run, the
+management and message-transport calls it causes, and its database queries. Each of those calls
+SHALL be its own span, naming the node it went to.
 
 #### Scenario: Slow request
+
 - **WHEN** a request is slow
-- **THEN** its trace shows the time spent in each hop
+- **THEN** its trace shows the time spent in the HTTP handler, each management or transport call, and each database query
 
 ### Requirement: Exported telemetry carries no secrets or message content
-Exported logs, spans and attributes SHALL follow the redaction rules and SHALL never include message payloads.
+
+Exported logs, spans and attributes SHALL follow the same redaction rules as Studio's console
+logs. They SHALL never include message payloads, message headers, management call arguments or
+database parameter values.
 
 #### Scenario: Sensitive attribute
+
 - **WHEN** a span would include a credential or payload
 - **THEN** it is omitted or redacted
 
+#### Scenario: Credential in an exported log
+
+- **WHEN** a log line or exception message containing a credential is exported over OTLP
+- **THEN** the exported record carries it redacted
+
 ### Requirement: Dashboards and alert rules ship with each release
-The repository and each release SHALL include Grafana dashboards and Prometheus alert rules that work against Studio's metrics, checked in CI against the metric names.
+
+The repository and each release SHALL include Grafana dashboards and Prometheus alert rules. They
+SHALL work against Studio's metrics, and CI SHALL check them against the metric names Studio
+actually exposes and check that the rules are valid.
 
 #### Scenario: Renamed metric
-- **WHEN** a metric used by a dashboard is renamed
+
+- **WHEN** a metric used by a dashboard or rule is renamed
 - **THEN** CI fails
 
+#### Scenario: Release asset
+
+- **WHEN** a release is published
+- **THEN** it carries an archive of the dashboards and rules
+
 ### Requirement: Logs can be written as structured JSON with trace identifiers
-Studio SHALL be able to write its logs as one JSON object per line, carrying the trace and span identifiers of the request that produced them, chosen by configuration.
+
+The system SHALL be able to write its logs as one JSON object per line, chosen by configuration.
+Each line SHALL carry the trace and span identifiers of the request that produced it.
 
 #### Scenario: A log line joins its trace
+
 - **WHEN** JSON logging is on and a traced request logs an error
 - **THEN** the line is valid JSON and carries the trace identifier that the exported trace has
 
 #### Scenario: Redaction holds in JSON
+
 - **WHEN** a log line would carry a credential
 - **THEN** the JSON line is redacted like the plain one
