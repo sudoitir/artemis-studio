@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.web;
 
 import io.github.sudoitir.artemisstudio.feature.plugins.PluginAdministration;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.AddKeyRequest;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.GrantInstallerRequest;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginBudgetView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginChangesetView;
@@ -14,6 +15,7 @@ import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.Plu
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginProblemReasonView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginPurgePlanView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginTableEstimateView;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginTrustView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginUpdateView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginUploadView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginVendorView;
@@ -21,6 +23,9 @@ import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.Plu
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginViolationView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginsView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.StudioRestartView;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustPolicyRequest;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustedKeyView;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustedKeysView;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
@@ -31,6 +36,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginRefuse
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginSummary;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PurgePlan;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.StudioRestart;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -158,20 +164,29 @@ public class PluginAdminController {
 
     @PostMapping("/uploads/{sha256}/activate")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public PluginPlanView activate(HttpServletRequest request, @PathVariable String sha256) {
-        return plan(administration.activate(request, sha256));
+    public PluginPlanView activate(
+            HttpServletRequest request,
+            @PathVariable String sha256,
+            @RequestParam(defaultValue = "false") boolean acknowledge) {
+        return plan(administration.activate(request, sha256, acknowledge));
     }
 
     @PostMapping("/{id}/enable")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public PluginPlanView enable(HttpServletRequest request, @PathVariable String id) {
-        return plan(administration.enable(request, id));
+    public PluginPlanView enable(
+            HttpServletRequest request,
+            @PathVariable String id,
+            @RequestParam(defaultValue = "false") boolean acknowledge) {
+        return plan(administration.enable(request, id, acknowledge));
     }
 
     @PostMapping("/{id}/rollback")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public PluginPlanView rollback(HttpServletRequest request, @PathVariable String id) {
-        return plan(administration.rollback(request, id));
+    public PluginPlanView rollback(
+            HttpServletRequest request,
+            @PathVariable String id,
+            @RequestParam(defaultValue = "false") boolean acknowledge) {
+        return plan(administration.rollback(request, id, acknowledge));
     }
 
     /** Refused while other active plugins require it, unless {@code cascade} disables them too. */
@@ -262,6 +277,33 @@ public class PluginAdminController {
         administration.revokeInstaller(request, userId);
     }
 
+    @GetMapping("/keys")
+    public TrustedKeysView keys() {
+        var keys = administration.keys();
+        return new TrustedKeysView(
+                keys.keys().stream().map(PluginAdminController::key).toList(),
+                keys.allowUnverified(),
+                keys.signedPlugins());
+    }
+
+    @PostMapping("/keys")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TrustedKeyView addKey(HttpServletRequest request, @Valid @RequestBody AddKeyRequest body) {
+        return key(administration.addKey(request, body.name(), body.upload(), body.pem()));
+    }
+
+    @DeleteMapping("/keys/{fingerprint}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeKey(HttpServletRequest request, @PathVariable String fingerprint) {
+        administration.removeKey(request, fingerprint);
+    }
+
+    @PutMapping("/trust-policy")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void trustPolicy(HttpServletRequest request, @RequestBody TrustPolicyRequest body) {
+        administration.setAllowUnverified(request, body.allowUnverified());
+    }
+
     // ---- mapping ------------------------------------------------------------------------------
 
     private PluginView view(PluginSummary s) {
@@ -284,6 +326,9 @@ public class PluginAdminController {
                                 .formatted(s.id(), s.sha256().substring(0, 8))
                         : null,
                 active ? host.dependantsOf(s.id()) : List.of(),
+                s.signerFingerprint(),
+                s.signerSubject(),
+                s.verified(),
                 info(s.descriptor(), s.id(), s.vendor()));
     }
 
@@ -328,8 +373,13 @@ public class PluginAdminController {
                                 .toList()));
     }
 
+    private static TrustedKeyView key(PluginTrust.TrustedKey k) {
+        return new TrustedKeyView(k.fingerprint(), k.name(), k.subject(), k.addedAt(), k.addedBy());
+    }
+
     private static PluginPlanView plan(ActivationPlan p) {
         var d = p.diff();
+        var t = p.trust();
         return new PluginPlanView(
                 p.pluginId(),
                 p.fromVersion(),
@@ -353,6 +403,15 @@ public class PluginAdminController {
                 p.compatible(),
                 p.missingRequires(),
                 p.restart().name(),
+                new PluginTrustView(
+                        t.status().name(),
+                        t.fingerprint(),
+                        t.subject(),
+                        t.keyName(),
+                        t.previousFingerprint(),
+                        t.signerChanged(),
+                        t.allowed()),
+                p.acknowledgements(),
                 info(p.descriptor(), p.pluginId(), p.descriptor().vendor().name()));
     }
 

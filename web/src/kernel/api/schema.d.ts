@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins/trust-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["trustPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -1246,6 +1262,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["restart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["keys"];
+        put?: never;
+        post: operations["addKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2580,6 +2612,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins/keys/{fingerprint}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plugins/installers/{userId}": {
         parameters: {
             query?: never;
@@ -3073,7 +3121,19 @@ export interface components {
              * @enum {string}
              */
             restart: "NONE" | "AUTOMATIC" | "MANUAL";
+            trust: components["schemas"]["PluginTrustView"];
+            acknowledgements: string[];
             info: components["schemas"]["PluginInfoView"];
+        };
+        PluginTrustView: {
+            /** @enum {string} */
+            status: "TRUSTED" | "UNTRUSTED" | "UNSIGNED";
+            fingerprint?: string | null;
+            subject?: string | null;
+            keyName?: string | null;
+            previousFingerprint?: string | null;
+            signerChanged: boolean;
+            allowed: boolean;
         };
         PluginUploadView: {
             sha256: string;
@@ -3091,6 +3151,9 @@ export interface components {
             fix: string;
             /** @enum {string} */
             severity: "ERROR" | "WARNING";
+        };
+        TrustPolicyRequest: {
+            allowUnverified: boolean;
         };
         CreateUserRequest: {
             username: string;
@@ -4232,6 +4295,19 @@ export interface components {
             estimatedRows: number;
             /** Format: int64 */
             bytes: number;
+        };
+        AddKeyRequest: {
+            name: string;
+            upload?: string | null;
+            pem?: string | null;
+        };
+        TrustedKeyView: {
+            fingerprint: string;
+            name: string;
+            subject: string;
+            /** Format: date-time */
+            addedAt: string;
+            addedBy: string;
         };
         GrantInstallerRequest: {
             username: string;
@@ -5731,6 +5807,9 @@ export interface components {
             stuck: boolean;
             iconUrl?: string | null;
             dependants: string[];
+            signerFingerprint?: string | null;
+            signerSubject?: string | null;
+            verified: boolean;
             info: components["schemas"]["PluginInfoView"];
         };
         PluginsView: {
@@ -5751,6 +5830,13 @@ export interface components {
             allowedAt?: string | null;
             command: string;
             unreleased: string[];
+        };
+        TrustedKeysView: {
+            keys: components["schemas"]["TrustedKeyView"][];
+            allowUnverified: boolean;
+            signedPlugins: {
+                [key: string]: string[];
+            };
         };
         PluginInstallerView: {
             /** Format: uuid */
@@ -6333,6 +6419,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["PluginUploadView"];
                 };
+            };
+        };
+    };
+    trustPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrustPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -8117,7 +8225,9 @@ export interface operations {
     };
     rollback: {
         parameters: {
-            query?: never;
+            query?: {
+                acknowledge?: boolean;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8163,7 +8273,9 @@ export interface operations {
     };
     enable: {
         parameters: {
-            query?: never;
+            query?: {
+                acknowledge?: boolean;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8229,7 +8341,9 @@ export interface operations {
     };
     activate: {
         parameters: {
-            query?: never;
+            query?: {
+                acknowledge?: boolean;
+            };
             header?: never;
             path: {
                 sha256: string;
@@ -8264,6 +8378,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    keys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TrustedKeysView"];
+                };
+            };
+        };
+    };
+    addKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TrustedKeyView"];
+                };
             };
         };
     };
@@ -10279,6 +10437,26 @@ export interface operations {
             header?: never;
             path: {
                 tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removeKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fingerprint: string;
             };
             cookie?: never;
         };

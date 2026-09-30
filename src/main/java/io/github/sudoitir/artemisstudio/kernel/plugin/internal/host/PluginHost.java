@@ -655,6 +655,37 @@ public class PluginHost implements SmartLifecycle {
         return plan(sha256);
     }
 
+    /**
+     * Who signed a pending upload, read from the stored jar so a key added from the review is the
+     * one that jar carries and never one the client names.
+     *
+     * @throws PluginRefusedException {@code plugin-unsigned} when the jar carries no signature
+     */
+    public Signer uploadSigner(String sha256) {
+        requirePendingUpload(sha256);
+        Path jar;
+        try {
+            jar = store.materialize(sha256);
+        } catch (IOException e) {
+            throw new PluginRefusedException(List.of(new Violation(
+                    "artifact-unreadable",
+                    "The stored artifact for %s could not be materialized: %s".formatted(sha256, e.getMessage()),
+                    "Re-upload the jar.")));
+        }
+        ValidationReport report =
+                validator.validate(jar, otherBasePackages(peekId(jar).orElse(null)));
+        if (!report.valid()) {
+            throw new PluginRefusedException(report.errors());
+        }
+        if (report.signer() == null) {
+            throw new PluginRefusedException(List.of(new Violation(
+                    "plugin-unsigned",
+                    "This jar is not signed, so there is no key to trust.",
+                    "Sign the plugin with jarsigner.")));
+        }
+        return report.signer();
+    }
+
     /** Activates a pending upload: an install, or an update of the plugin it names. */
     public ActivationPlan activateUpload(String sha256, String actor, boolean acknowledged) {
         requirePendingUpload(sha256);

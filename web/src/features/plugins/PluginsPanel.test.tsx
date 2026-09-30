@@ -102,6 +102,16 @@ const PLAN: PluginPlanView = {
   compatible: true,
   missingRequires: [],
   restart: 'NONE',
+  trust: {
+    status: 'TRUSTED',
+    fingerprint: 'AB:CD',
+    subject: 'CN=Acme',
+    keyName: 'Acme',
+    previousFingerprint: null,
+    signerChanged: false,
+    allowed: true,
+  },
+  acknowledgements: [],
   info: INFO,
 } as PluginPlanView;
 

@@ -17,7 +17,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(assignableTypes = PluginAdminController.class)
 class PluginAdminProblemAdvice {
 
-    private static final Set<String> CONFLICTS = Set.of("lifecycle-busy", "already-active");
+    private static final Set<String> CONFLICTS =
+            Set.of("lifecycle-busy", "already-active", "key-exists", "acknowledgement-required");
 
     private static HttpStatus statusOf(String firstViolationCode) {
         if ("not-found".equals(firstViolationCode)) {

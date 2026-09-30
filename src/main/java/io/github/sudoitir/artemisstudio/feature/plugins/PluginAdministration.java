@@ -2,13 +2,19 @@ package io.github.sudoitir.artemisstudio.feature.plugins;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.ActivationPlan;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginRefusedException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginSummary;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PurgePlan;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.StudioRestart;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PublisherKeys;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.TrustDecision;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Signer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -19,11 +25,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -50,6 +59,7 @@ public class PluginAdministration {
     private final UploadRateLimit uploads;
     private final UpdateChecker updates;
     private final StudioRestart restart;
+    private final PluginTrust trust;
 
     /** Why the caller cannot install right now, or empty when they can. */
     public Optional<PluginAccessDeniedException> installBlocker() {
@@ -102,7 +112,7 @@ public class PluginAdministration {
     public PluginHost.Inspection downloadUpdate(String id) {
         requireInstaller();
         requireUploadEnabled();
-        var summary = host.status(id).orElseThrow(() -> notFound(id));
+        var summary = host.status(id).orElseThrow(() -> notFound("No installed plugin '" + id + "'."));
         return audited("PLUGIN_DOWNLOAD", id, Map.of(), () -> {
             Path jar = updates.download(summary);
             try {
@@ -137,25 +147,35 @@ public class PluginAdministration {
     // ---- lifecycle ----------------------------------------------------------------------------------
 
     /** Installs or updates from a pending upload; the outcome arrives on the plugin's status. */
-    public ActivationPlan activate(HttpServletRequest request, String sha256) {
+    public ActivationPlan activate(HttpServletRequest request, String sha256, boolean acknowledge) {
         requireStepUp(request);
         requireUploadEnabled();
         String pluginId = host.uploadPluginId(sha256).orElse(sha256);
         return activation(
                 "PLUGIN_ACTIVATE",
                 pluginId,
-                Map.of("sha256", sha256),
-                () -> host.activateUpload(sha256, actor().username(), false));
+                withTrust(Map.of("sha256", sha256), sha256),
+                () -> host.activateUpload(sha256, actor().username(), acknowledge));
     }
 
-    public ActivationPlan enable(HttpServletRequest request, String id) {
+    public ActivationPlan enable(HttpServletRequest request, String id, boolean acknowledge) {
         requireStepUp(request);
-        return activation("PLUGIN_ENABLE", id, Map.of(), () -> host.enable(id, actor().username(), false));
+        String sha256 = host.status(id).map(PluginSummary::sha256).orElse(null);
+        return activation(
+                "PLUGIN_ENABLE",
+                id,
+                withTrust(Map.of(), sha256),
+                () -> host.enable(id, actor().username(), acknowledge));
     }
 
-    public ActivationPlan rollback(HttpServletRequest request, String id) {
+    public ActivationPlan rollback(HttpServletRequest request, String id, boolean acknowledge) {
         requireStepUp(request);
-        return activation("PLUGIN_ROLLBACK", id, Map.of(), () -> host.rollback(id, actor().username(), false));
+        String sha256 = host.status(id).map(PluginSummary::previousSha256).orElse(null);
+        return activation(
+                "PLUGIN_ROLLBACK",
+                id,
+                withTrust(Map.of(), sha256),
+                () -> host.rollback(id, actor().username(), acknowledge));
     }
 
     public void disable(HttpServletRequest request, String id, boolean cascade) {
@@ -245,6 +265,58 @@ public class PluginAdministration {
         });
     }
 
+    // ---- trusted keys and the allowance (design.md §6) --------------------------------------------------
+
+    /** Every trusted key, the allowance, and the installed plugins each key signed. */
+    public record TrustedKeys(
+            List<PluginTrust.TrustedKey> keys, boolean allowUnverified, Map<String, List<String>> signedPlugins) {}
+
+    public TrustedKeys keys() {
+        requireInstaller();
+        Map<String, List<String>> signed = host.list().stream()
+                .filter(p -> p.status() != PluginInstallStatus.UNINSTALLED && p.signerFingerprint() != null)
+                .collect(Collectors.groupingBy(
+                        PluginSummary::signerFingerprint,
+                        TreeMap::new,
+                        Collectors.mapping(PluginSummary::id, Collectors.toList())));
+        return new TrustedKeys(trust.keys(), trust.allowUnverified(), signed);
+    }
+
+    /**
+     * Trusts a publisher key given as exactly one of a pending upload, whose own signer is taken
+     * from the stored jar, or a PEM. The audit row opens first, so a refusal is recorded too.
+     */
+    public PluginTrust.TrustedKey addKey(HttpServletRequest request, String name, String uploadSha256, String pem) {
+        Map<String, Object> params = new HashMap<>();
+        params.put(uploadSha256 != null ? "upload" : "pem", uploadSha256 != null ? uploadSha256 : pem);
+        return audited("PLUGIN_KEY_ADD", name.strip(), params, () -> {
+            requireStepUp(request);
+            if ((uploadSha256 == null) == (pem == null)) {
+                throw new IllegalArgumentException("Give exactly one of upload and pem.");
+            }
+            Signer signer = uploadSha256 != null ? host.uploadSigner(uploadSha256) : PublisherKeys.parse(pem);
+            return trust.add(name.strip(), signer, actor().username());
+        });
+    }
+
+    public void removeKey(HttpServletRequest request, String fingerprint) {
+        audited("PLUGIN_KEY_REMOVE", fingerprint, Map.of(), () -> {
+            requireStepUp(request);
+            if (!trust.remove(fingerprint)) {
+                throw notFound("No trusted key " + fingerprint + ".");
+            }
+            return null;
+        });
+    }
+
+    public void setAllowUnverified(HttpServletRequest request, boolean allow) {
+        audited("PLUGIN_TRUST_POLICY", "allow-unverified", Map.of("allowUnverified", allow), () -> {
+            requireStepUp(request);
+            trust.setAllowUnverified(allow, actor().username());
+            return null;
+        });
+    }
+
     // ---- checks and audit ------------------------------------------------------------------------------
 
     private void requireInstaller() {
@@ -272,8 +344,29 @@ public class PluginAdministration {
         }
     }
 
-    private static PluginRefusedException notFound(String id) {
-        return new PluginRefusedException(List.of(new Violation("not-found", "No installed plugin '" + id + "'.", "")));
+    private static PluginRefusedException notFound(String message) {
+        return new PluginRefusedException(List.of(new Violation("not-found", message, "")));
+    }
+
+    /**
+     * An activation of a jar that is not signed by a trusted key records that and the signer, since
+     * the row is begun before the host reports the plan (design.md §6). Unreadable jars add nothing:
+     * the host refuses them, and that refusal is what gets audited.
+     */
+    private Map<String, Object> withTrust(Map<String, Object> params, String sha256) {
+        Map<String, Object> written = new HashMap<>(params);
+        try {
+            var decision = sha256 == null ? null : host.plan(sha256).trust();
+            if (decision != null && decision.status() != TrustDecision.Status.TRUSTED) {
+                written.put("trust", "unverified");
+                if (decision.fingerprint() != null) {
+                    written.put("fingerprint", decision.fingerprint());
+                }
+            }
+        } catch (RuntimeException unreadable) {
+            // Nothing to record; the activation itself refuses and is audited as failed.
+        }
+        return written;
     }
 
     /** Audits a synchronous action: the row is committed before it runs and finished with its outcome. */

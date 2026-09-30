@@ -177,16 +177,16 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
   - `acknowledgement-required` maps to 409 wherever `PluginRefusedException` codes are mapped.
 - Test: `src/test/java/.../feature/plugins/web/PluginAdminControllerIT.java` (extend)
 
-- [ ] 4.1 Extend the IT:
+- [x] 4.1 Extend the IT:
   - a non-installer adding a key → 403, and a `PLUGIN_KEY_ADD` audit row with outcome failed;
   - an installer without fresh auth → reauthentication required;
   - `POST /keys {upload}` for an OTHER-signed upload stores OTHER's fingerprint, even when the client also sends a `pem`, which is a 400 (exactly one);
   - `PUT /trust-policy` audited;
   - activate without `acknowledge` when required → 409 `acknowledgement-required`;
   - `GET /keys` lists `signedPlugins` per fingerprint.
-- [ ] 4.2 Run it. Expect FAIL. Implement. Run `./mvnw -q test -Dtest=PluginAdminControllerIT`. Expect PASS.
-- [ ] 4.3 Regenerate the web schema: `./mvnw -q test -Dtest=OpenApiExportTest` (or whatever writes `web/openapi.json`; grep for it), then `cd web && npm run gen:api`.
-- [ ] 4.4 Commit `feat(plugins): trusted-key and trust-policy admin API with acknowledged activation`.
+- [x] 4.2 Run it. Expect FAIL. Implement. Run `./mvnw -q test -Dtest=PluginAdminControllerIT`. Expect PASS.
+- [x] 4.3 Regenerate the web schema: `./mvnw -q test -Dtest=OpenApiExportTest` (or whatever writes `web/openapi.json`; grep for it), then `cd web && npm run gen:api`.
+- [x] 4.4 Commit `feat(plugins): trusted-key and trust-policy admin API with acknowledged activation`.
 
 ### Task 5: Author kit, docs and ADR (needs tasks 1–2)
 
