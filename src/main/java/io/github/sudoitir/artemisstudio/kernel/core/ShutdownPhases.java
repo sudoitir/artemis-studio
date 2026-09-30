@@ -12,7 +12,8 @@ package io.github.sudoitir.artemisstudio.kernel.core;
  *   <li>{@link #BUFFERS} — write records still buffered in memory, while the database and broker are up;
  *   <li>{@link #BROKER_CALLS} — stop scraping; no new management call starts;
  *   <li>{@link #SUBSCRIPTIONS} — close notification subscriptions and message consumers;
- *   <li>{@link #CORE_POOL} — close message-transport connections.
+ *   <li>{@link #CORE_POOL} — close message-transport connections;
+ *   <li>{@link #REPLICA} — record that this replica stopped.
  * </ol>
  *
  * <p>Management clients are shared beans and are shut down with the context, after these.
@@ -26,6 +27,7 @@ public final class ShutdownPhases {
     public static final int BROKER_CALLS = STREAM - 1000;
     public static final int SUBSCRIPTIONS = BROKER_CALLS - 1000;
     public static final int CORE_POOL = SUBSCRIPTIONS - 1000;
+    public static final int REPLICA = CORE_POOL - 1000;
 
     private ShutdownPhases() {}
 }
