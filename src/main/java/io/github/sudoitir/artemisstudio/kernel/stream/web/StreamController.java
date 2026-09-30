@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.stream.EventReplay;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.Set;
@@ -50,6 +51,7 @@ public class StreamController {
             @RequestParam UUID clusterId,
             @RequestParam(defaultValue = "topology,health,queues") String topics,
             @RequestHeader(name = "Last-Event-ID", required = false) Long lastEventId,
+            HttpServletRequest request,
             HttpServletResponse response) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         response.setHeader("X-Accel-Buffering", "no");
@@ -61,7 +63,8 @@ public class StreamController {
                 .collect(Collectors.toUnmodifiableSet());
 
         SseEmitter emitter = new SseEmitter(0L);
-        Subscriber subscriber = new Subscriber(emitter, wanted.isEmpty() ? this.topics.defaultTopics() : wanted);
+        Subscriber subscriber =
+                Subscriber.of(emitter, wanted.isEmpty() ? this.topics.defaultTopics() : wanted, request);
         hub.register(clusterId, subscriber);
 
         emitter.onCompletion(() -> hub.remove(clusterId, subscriber));

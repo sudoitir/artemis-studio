@@ -3,16 +3,21 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.stream`
 |Spring components
-|_Configuration properties_
+|_Event listeners_
+
+* `i.g.s.a.k.s.SseHub`
+
+_Configuration properties_
 
 * `i.g.s.a.k.s.SseProperties`
 
 _Others_
 
-* `i.g.s.a.k.s.SseHub`
 * `i.g.s.a.k.s.StreamSettings`
 * `i.g.s.a.k.s.StreamTopicRegistry`
 |Bean references
 |* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+|Events listened to
+|* `i.g.s.a.k.s.SessionEnded` 
 |===

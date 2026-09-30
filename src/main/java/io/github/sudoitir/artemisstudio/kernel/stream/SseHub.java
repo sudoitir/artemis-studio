@@ -1,13 +1,17 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -133,6 +137,33 @@ public class SseHub {
         } catch (RuntimeException _) {
             // already closed
         }
+    }
+
+    /** A session ended on this instance: complete the streams it opened, so a signed-out user gets no more events. */
+    @EventListener
+    void onSessionEnded(SessionEnded ended) {
+        complete(s -> ended.sessionId().equals(s.sessionId()));
+    }
+
+    /**
+     * Complete the streams whose session {@code isLive} no longer accepts, which finds what
+     * {@link #onSessionEnded} cannot see: a session that timed out, or ended on another instance.
+     * Asks once per session however many streams it holds.
+     */
+    public void closeEndedSessions(Predicate<String> isLive) {
+        Map<String, Boolean> live = new HashMap<>();
+        complete(s -> s.sessionId() != null && !live.computeIfAbsent(s.sessionId(), isLive::test));
+    }
+
+    private void complete(Predicate<Subscriber> ended) {
+        byCluster.forEach((clusterId, set) -> set.stream().filter(ended).forEach(s -> {
+            remove(clusterId, s);
+            try {
+                s.emitter().complete();
+            } catch (RuntimeException ignored) {
+                // already closed
+            }
+        }));
     }
 
     /** End every open stream and forget its subscribers. Clients reconnect to the next instance. */

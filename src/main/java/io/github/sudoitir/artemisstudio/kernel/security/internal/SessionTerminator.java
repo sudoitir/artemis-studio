@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
+import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
@@ -20,6 +22,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class SessionTerminator {
 
     private final FindByIndexNameSessionRepository<? extends Session> sessions;
+    private final ApplicationEventPublisher events;
 
     void endSessionsOf(Collection<String> usernames) {
         if (usernames.isEmpty()) {
@@ -27,7 +30,7 @@ public class SessionTerminator {
         }
         afterCommit(() -> {
             for (String username : usernames) {
-                sessions.findByPrincipalName(username).keySet().forEach(sessions::deleteById);
+                sessions.findByPrincipalName(username).keySet().forEach(this::delete);
             }
         });
     }
@@ -36,7 +39,13 @@ public class SessionTerminator {
     public void endSessionsOfExcept(String username, Collection<String> keepSessionIds) {
         afterCommit(() -> sessions.findByPrincipalName(username).keySet().stream()
                 .filter(id -> !keepSessionIds.contains(id))
-                .forEach(sessions::deleteById));
+                .forEach(this::delete));
+    }
+
+    /** Deletes one session and tells this instance's open streams of it to stop. */
+    void delete(String sessionId) {
+        sessions.deleteById(sessionId);
+        events.publishEvent(new SessionEnded(sessionId));
     }
 
     private static void afterCommit(Runnable action) {

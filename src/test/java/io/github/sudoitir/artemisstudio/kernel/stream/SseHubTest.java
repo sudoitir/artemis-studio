@@ -24,8 +24,8 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter queuesEmitter = mock(SseEmitter.class);
         SseEmitter topologyEmitter = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(queuesEmitter, Set.of("queues")));
-        hub.register(clusterId, new Subscriber(topologyEmitter, Set.of("topology")));
+        hub.register(clusterId, new Subscriber(queuesEmitter, Set.of("queues"), null));
+        hub.register(clusterId, new Subscriber(topologyEmitter, Set.of("topology"), null));
 
         hub.publish(clusterId, "queues");
 
@@ -38,7 +38,7 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter dead = mock(SseEmitter.class);
         doThrow(new IOException("client gone")).when(dead).send(any(SseEmitter.SseEventBuilder.class));
-        hub.register(clusterId, new Subscriber(dead, Set.of("queues")));
+        hub.register(clusterId, new Subscriber(dead, Set.of("queues"), null));
         assertThat(hub.subscriberCount(clusterId)).isEqualTo(1);
 
         hub.publish(clusterId, "queues");
@@ -62,7 +62,7 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
         // Subscribed to nothing: the keep-alive is not a topic.
-        hub.register(clusterId, new Subscriber(emitter, Set.of()));
+        hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
 
         hub.heartbeat();
 
@@ -76,7 +76,7 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter dead = mock(SseEmitter.class);
         doThrow(new IOException("client gone")).when(dead).send(any(SseEmitter.SseEventBuilder.class));
-        hub.register(clusterId, new Subscriber(dead, Set.of("queues")));
+        hub.register(clusterId, new Subscriber(dead, Set.of("queues"), null));
 
         hub.heartbeat();
 
@@ -94,7 +94,7 @@ class SseHubTest {
     @Test
     void removeDeregistersOneSubscriber() {
         UUID clusterId = UUID.randomUUID();
-        Subscriber s = new Subscriber(mock(SseEmitter.class), Set.of("topology"));
+        Subscriber s = new Subscriber(mock(SseEmitter.class), Set.of("topology"), null);
         hub.register(clusterId, s);
         hub.remove(clusterId, s);
         assertThat(hub.subscriberCount(clusterId)).isZero();

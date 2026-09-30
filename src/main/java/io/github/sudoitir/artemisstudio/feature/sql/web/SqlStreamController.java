@@ -23,6 +23,7 @@ import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
@@ -102,6 +103,7 @@ public class SqlStreamController {
             // framework before the permission check runs, which would answer 400 for a
             // cluster the caller cannot see and confirm that it exists.
             @RequestParam(defaultValue = "") String queryId,
+            HttpServletRequest request,
             HttpServletResponse response) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         response.setHeader("X-Accel-Buffering", "no");
@@ -109,7 +111,7 @@ public class SqlStreamController {
         SseEmitter emitter = new SseEmitter(0L);
         // Registered with no topics: it wants nothing the cluster broadcasts, only the
         // heartbeat and the drop-on-write-failure behaviour every stream shares.
-        Subscriber subscriber = new Subscriber(emitter, Set.of());
+        Subscriber subscriber = Subscriber.of(emitter, Set.of(), request);
         hub.register(clusterId, subscriber);
 
         // Clear access and the actor are resolved here, on the request thread: tail rows arrive on threads with

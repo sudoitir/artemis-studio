@@ -1,15 +1,12 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
-import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
-import io.github.sudoitir.artemisstudio.kernel.security.SessionLifetimes;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Set;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,11 +31,9 @@ public class SessionLifetimeFilter extends OncePerRequestFilter {
     private static final Set<String> READ_ONLY_METHODS = Set.of("GET", "HEAD", "OPTIONS");
 
     private final SessionAuthentication sessions;
-    private final SessionLifetimes lifetimes;
 
-    public SessionLifetimeFilter(SessionAuthentication sessions, SessionLifetimes lifetimes) {
+    public SessionLifetimeFilter(SessionAuthentication sessions) {
         this.sessions = sessions;
-        this.lifetimes = lifetimes;
     }
 
     @Override
@@ -47,7 +42,10 @@ public class SessionLifetimeFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof StudioPrincipal) {
             var facts = sessions.facts(request);
-            if (facts.isEmpty() || expired(facts.get(), request)) {
+            if (facts.isEmpty()
+                    || sessions.expired(
+                            facts.get(),
+                            sessions.lastActivityAt(request).orElse(facts.get().signedInAt()))) {
                 sessions.end(request, response);
             } else {
                 if (countsAsActivity(request)) {
@@ -57,13 +55,6 @@ public class SessionLifetimeFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
-    }
-
-    private boolean expired(SessionFacts facts, HttpServletRequest request) {
-        Instant now = Instant.now();
-        Instant lastActivity = sessions.lastActivityAt(request).orElse(facts.signedInAt());
-        return now.isAfter(facts.signedInAt().plus(lifetimes.absoluteLifetime()))
-                || now.isAfter(lastActivity.plus(lifetimes.idleTimeout()));
     }
 
     private static boolean countsAsActivity(HttpServletRequest request) {

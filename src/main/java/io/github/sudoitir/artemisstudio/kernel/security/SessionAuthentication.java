@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
@@ -18,6 +19,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,6 +55,8 @@ public class SessionAuthentication {
     private final InitialInstallers initialInstallers;
     private final SessionTerminator terminator;
     private final SessionLifetimes lifetimes;
+    private final FindByIndexNameSessionRepository<? extends Session> store;
+    private final ApplicationEventPublisher events;
 
     /**
      * Start of a password login: forget any earlier signed-in context, its facts and every pending
@@ -139,6 +144,28 @@ public class SessionAuthentication {
         return last != null ? Optional.of(last) : facts(request).map(SessionFacts::signedInAt);
     }
 
+    /** Whether a session with these facts and last activity is past its absolute lifetime or idle timeout. */
+    public boolean expired(SessionFacts facts, Instant lastActivityAt) {
+        Instant now = Instant.now();
+        return now.isAfter(facts.signedInAt().plus(lifetimes.absoluteLifetime()))
+                || now.isAfter(lastActivityAt.plus(lifetimes.idleTimeout()));
+    }
+
+    /**
+     * Whether the stored session still counts as signed in: it exists, has facts and is within both
+     * lifetimes. Reads the store, so it sees a session ended on another instance and one that timed
+     * out, and it never counts as activity.
+     */
+    public boolean isLive(String sessionId) {
+        Session stored = store.findById(sessionId);
+        SessionFacts facts = stored == null ? null : stored.getAttribute(FACTS);
+        if (facts == null) {
+            return false;
+        }
+        Instant last = stored.getAttribute(LAST_ACTIVITY_AT);
+        return !expired(facts, last != null ? last : facts.signedInAt());
+    }
+
     /** Record that the user did something now. */
     public void recordActivity(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
@@ -180,7 +207,9 @@ public class SessionAuthentication {
         securityContextRepository.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
         var session = request.getSession(false);
         if (session != null) {
+            String id = session.getId();
             session.invalidate();
+            events.publishEvent(new SessionEnded(id));
         }
         reissueCsrfToken(request, response);
     }

@@ -41,6 +41,7 @@ public class SessionService {
 
     private final FindByIndexNameSessionRepository<? extends Session> store;
     private final SessionAuthentication sessions;
+    private final SessionTerminator terminator;
     private final LoginService logins;
     private final AppUserRepository users;
     private final AdministrationAudit audit;
@@ -129,7 +130,7 @@ public class SessionService {
                 .filter(candidate -> handle(candidate).equals(handle))
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("session", handle));
-        store.deleteById(id);
+        terminator.delete(id);
         audit.changed("SESSION_END", "user", username, Map.of("handle", handle));
     }
 
@@ -139,7 +140,7 @@ public class SessionService {
                 .filter(id -> !id.equals(currentId))
                 .toList();
         for (String id : ids) {
-            store.deleteById(id);
+            terminator.delete(id);
             audit.changed("SESSION_END", "user", username, Map.of("handle", handle(id)));
         }
         return new EndedSessionsView(ids.size());
