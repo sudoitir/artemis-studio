@@ -5,7 +5,9 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.LoginService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
@@ -228,6 +230,7 @@ public class AuthSessionController {
     @GetMapping("/sessions")
     public List<AccountSessionView> ownSessions(
             @AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        requireSession(principal);
         return sessionService.listOwn(principal.getUsername(), req);
     }
 
@@ -235,6 +238,7 @@ public class AuthSessionController {
     @DeleteMapping("/sessions")
     public EndedSessionsView endOtherOwnSessions(
             @AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        requireSession(principal);
         return sessionService.endOtherOwn(principal.getUsername(), req);
     }
 
@@ -246,7 +250,16 @@ public class AuthSessionController {
             @PathVariable String handle,
             HttpServletRequest req,
             HttpServletResponse resp) {
+        requireSession(principal);
         sessionService.endOwn(principal.getUsername(), handle, req, resp);
+    }
+
+    /** An API key acts within its narrowed grants, so it cannot see or end its owner's sessions. */
+    private static void requireSession(StudioPrincipal principal) {
+        if (principal instanceof TokenPrincipal) {
+            throw new SessionRequiredException(
+                    "Sign in to Studio in your browser to manage sessions; a key cannot manage sessions.");
+        }
     }
 
     @GetMapping("/me")

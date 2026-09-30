@@ -128,6 +128,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - **Endpoints**, all using `FindByIndexNameSessionRepository.findByPrincipalName`:
   - `GET /api/v1/auth/sessions`: start, last activity, address, client, `current`
   - `DELETE /api/v1/auth/sessions/{handle}`
+  - The caller's own three endpoints answer a bearer token `403 session-required`, like the key endpoints: a key acts within its narrowed grants and must not sign its owner out or read where they are signed in.
   - admin: `GET` and `DELETE /api/v1/users/{id}/sessions[/{handle}]` (`user:admin`)
 - **Audit:** `SESSION_END` (actor, target).
 - **UI:** a "Sessions" section on the account page, and a Sessions drawer from each `UsersPanel` row.
