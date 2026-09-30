@@ -1,4 +1,4 @@
-import { ActionIcon, CopyButton, Group, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, CopyButton, Group, Input, Stack, Text, TextInput } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconCopy } from '@tabler/icons-react';
 
@@ -49,9 +49,7 @@ export function McpConnectionPanel() {
       </Group>
 
       <div>
-        <Text size="sm" fw={500} mb={4}>
-          Client configuration
-        </Text>
+        <Input.Label mb={4}>Client configuration</Input.Label>
         <CodeHighlight code={config} language="json" />
       </div>
 

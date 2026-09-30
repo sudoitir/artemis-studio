@@ -121,7 +121,8 @@ export function SessionsManager({ userId }: { userId?: string }) {
               action={
                 <Button
                   size="xs"
-                  variant="default"
+                  variant="subtle"
+                  color="red"
                   aria-label={
                     s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
                   }
@@ -140,7 +141,7 @@ export function SessionsManager({ userId }: { userId?: string }) {
       <Group gap="sm">
         <Button
           size="xs"
-          variant="light"
+          variant="default"
           loading={endOthers.isPending}
           disabled={busy || others.length === 0}
           onClick={endAllOthers}

@@ -308,15 +308,12 @@ function TwoStep({ status }: { status: MfaStatusView }) {
                         This device
                       </Badge>
                     ) : null}
-                    <Text size="xs" c="dimmed">
-                      {d.address ?? 'Address unknown'}
-                    </Text>
                   </Group>
                 }
                 facts={
                   <>
-                    Trusted <Ago at={d.created} now={now} /> · last used <Ago at={d.lastUsed} now={now} /> · expires{' '}
-                    <Ago at={d.expires} now={now} future />
+                    {d.address ?? 'Address unknown'} · trusted <Ago at={d.created} now={now} /> · last used{' '}
+                    <Ago at={d.lastUsed} now={now} /> · expires <Ago at={d.expires} now={now} future />
                   </>
                 }
                 action={

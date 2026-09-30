@@ -162,7 +162,7 @@ describe('TwoStepSection', () => {
     const devices = within(await screen.findByRole('list', { name: 'Trusted devices' }));
     const here = devices.getAllByRole('listitem').find((r) => within(r).queryByText('This device'))!;
     expect(within(here).getByText('Firefox on Linux')).toBeInTheDocument();
-    expect(within(here).getByText('203.0.113.7')).toBeInTheDocument();
+    expect(here).toHaveTextContent('203.0.113.7 · trusted');
     expect(within(here).getByText('in 11d')).toBeInTheDocument();
     expect(within(here).getAllByText(/^\(\d{4}-\d{2}-\d{2} /)).toHaveLength(3);
 
