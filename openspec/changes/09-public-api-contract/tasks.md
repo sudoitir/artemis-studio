@@ -31,9 +31,9 @@
 - [x] 5.3 Docs-site page: versioning, break marker, deprecation policy, pagination, problem types, rate-limit headers, idempotency
 
 ## 6. Contract tests (D6)
-- [ ] 6.1 Pick the OpenAPI 3.1 validator (ctx7); test-scope `MockMvcBuilderCustomizer` validates every `/api/v1` JSON response against `web/openapi.json` with undocumented properties rejected
+- [x] 6.1 Pick the OpenAPI 3.1 validator (ctx7); test-scope `MockMvcBuilderCustomizer` validates every `/api/v1` JSON response against `web/openapi.json` with undocumented properties rejected
 - [ ] 6.2 Fix every drift it surfaces (document or remove the field)
-- [ ] 6.3 Negative test: an extra field fails validation
+- [x] 6.3 Negative test: an extra field fails validation
 
 ## 7. Break detection (D1)
 - [x] 7.1 `api-compat` PR job in `ci.yml`: pinned oasdiff against `<latest CalVer tag>:web/openapi.json`, passes on break only with a `!`/`BREAKING CHANGE:` commit in the PR; joins `ci-ok`

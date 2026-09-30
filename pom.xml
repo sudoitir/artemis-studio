@@ -63,6 +63,7 @@
         <maven-gpg.version>3.2.8</maven-gpg.version>
         <maven-source.version>3.4.0</maven-source.version>
         <maven-javadoc.version>3.12.0</maven-javadoc.version>
+        <json-schema-validator.version>3.0.8</json-schema-validator.version>
         <japicmp.version>0.26.2</japicmp.version>
         <palantir-java-format.version>2.97.0</palantir-java-format.version>
 
@@ -345,6 +346,14 @@
             <groupId>com.webauthn4j</groupId>
             <artifactId>webauthn4j-test</artifactId>
             <version>${webauthn4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Contract tests: every API response is validated against web/openapi.json (JSON Schema
+                 2020-12, so unevaluatedProperties can reject an undocumented field). -->
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${json-schema-validator.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
