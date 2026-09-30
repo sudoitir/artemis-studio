@@ -38,7 +38,11 @@ const FIELDS: { key: string; of: (row: SqlRowView) => unknown }[] = [
 /** RFC 4180: quote everything, double the quotes inside. Bodies contain commas and newlines. */
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
-  return `"${String(value).replaceAll('"', '""')}"`;
+  const text =
+    typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+      ? String(value)
+      : JSON.stringify(value);
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 export function toCsv(rows: SqlRowView[]): string {

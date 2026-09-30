@@ -76,8 +76,9 @@ export function useMessageDetail(
       if (node) sp.set('node', node);
       if (filter) sp.set('filter', filter);
       const qs = sp.toString();
+      const query = qs ? `?${qs}` : '';
       return request<MessageDetailView>(
-        `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages/${messageId}${qs ? `?${qs}` : ''}`,
+        `/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages/${messageId}${query}`,
       );
     },
     enabled: messageId !== null,

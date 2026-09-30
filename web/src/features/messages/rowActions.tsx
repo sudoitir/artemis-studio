@@ -87,14 +87,34 @@ export function CopyMessage({ clusterId, target, host }: Readonly<ActionProps<Me
 
 type OneAction = 'move' | 'retry' | 'delete';
 
-const ONE: Record<OneAction, { verb: string; permission: string; label: string; what: string }> = {
-  move: { verb: 'Move', permission: 'message:move', label: 'Move or retry messages', what: 'moving this message' },
-  retry: { verb: 'Retry', permission: 'message:move', label: 'Move or retry messages', what: 'retrying this message' },
+const ONE: Record<
+  OneAction,
+  { verb: string; permission: string; label: string; what: string; done: string; intro: (queueName: string) => string }
+> = {
+  move: {
+    verb: 'Move',
+    permission: 'message:move',
+    label: 'Move or retry messages',
+    what: 'moving this message',
+    done: 'moved',
+    intro: (queueName) =>
+      `Moves this one message from ${queueName} to the queue you name, on the node it was read from.`,
+  },
+  retry: {
+    verb: 'Retry',
+    permission: 'message:move',
+    label: 'Move or retry messages',
+    what: 'retrying this message',
+    done: 'retried',
+    intro: () => 'Sends this dead-lettered message back to the queue it originally came from.',
+  },
   delete: {
     verb: 'Delete',
     permission: 'message:delete',
     label: 'Delete or expire messages',
     what: 'deleting this message',
+    done: 'deleted',
+    intro: (queueName) => `Removes this one message from ${queueName}. It cannot be brought back.`,
   },
 };
 
@@ -106,6 +126,68 @@ function useMessageGate(clusterId: string, action: OneAction): GateVerdict {
     ONE[action].label,
     cluster.data?.capabilities.managementWrite,
     loading || cluster.isPending,
+  );
+}
+
+/** The outcome of the one message: done in words, or that it was not found. */
+function ActionOutcome({ changed, done }: Readonly<{ changed: boolean; done: string }>) {
+  if (changed) return <Text size="sm">Done: the message was {done}.</Text>;
+  return (
+    <Alert color="yellow" variant="light" title="Nothing was changed">
+      The message was not found on the node. It may have been consumed, expired or moved since this page was read.
+    </Alert>
+  );
+}
+
+/** Close once done; a delete is armed by typing the id; a move or retry has plain Cancel and Confirm. */
+function DialogActions({
+  action,
+  done,
+  running,
+  moveWithoutTarget,
+  verb,
+  confirmToken,
+  onClose,
+  onSubmit,
+}: Readonly<{
+  action: OneAction;
+  done: boolean;
+  running: boolean;
+  moveWithoutTarget: boolean;
+  verb: string;
+  confirmToken: string;
+  onClose: () => void;
+  onSubmit: () => void;
+}>) {
+  if (done) {
+    return (
+      <Group justify="flex-end">
+        <Button size="xs" onClick={onClose}>
+          Close
+        </Button>
+      </Group>
+    );
+  }
+  if (action === 'delete') {
+    return (
+      <ConfirmByTyping
+        token={confirmToken}
+        confirmLabel="Delete this message"
+        loading={running}
+        disabled={running}
+        onConfirm={onSubmit}
+      />
+    );
+  }
+  return (
+    <Group justify="flex-end">
+      <Button size="xs" variant="default" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button size="xs" loading={running} disabled={moveWithoutTarget} onClick={onSubmit}>
+        {verb} message
+      </Button>
+    </Group>
   );
 }
 
@@ -139,13 +221,7 @@ function OneMessageDialog({
   return (
     <Modal opened={opened} onClose={onClose} title={`${one.verb} message ${target.messageId}`}>
       <Stack gap="sm">
-        <Text size="sm">
-          {action === 'move'
-            ? `Moves this one message from ${target.queueName} to the queue you name, on the node it was read from.`
-            : action === 'retry'
-              ? 'Sends this dead-lettered message back to the queue it originally came from.'
-              : `Removes this one message from ${target.queueName}. It cannot be brought back.`}
-        </Text>
+        <Text size="sm">{one.intro(target.queueName)}</Text>
         {action === 'move' && !result ? (
           <TextInput
             label="Target queue"
@@ -165,48 +241,18 @@ function OneMessageDialog({
               {run.error.message} Nothing was changed; check the node in Topology and try again.
             </Alert>
           ) : null}
-          {result ? (
-            affected === 1 ? (
-              <Text size="sm">
-                Done: the message was {action === 'delete' ? 'deleted' : action === 'move' ? 'moved' : 'retried'}.
-              </Text>
-            ) : (
-              <Alert color="yellow" variant="light" title="Nothing was changed">
-                The message was not found on the node. It may have been consumed, expired or moved since this page was
-                read.
-              </Alert>
-            )
-          ) : null}
+          {result ? <ActionOutcome changed={affected === 1} done={one.done} /> : null}
         </div>
-        {result ? (
-          <Group justify="flex-end">
-            <Button size="xs" onClick={onClose}>
-              Close
-            </Button>
-          </Group>
-        ) : action === 'delete' ? (
-          <ConfirmByTyping
-            token={String(target.messageId)}
-            confirmLabel="Delete this message"
-            loading={run.isPending}
-            disabled={run.isPending}
-            onConfirm={submit}
-          />
-        ) : (
-          <Group justify="flex-end">
-            <Button size="xs" variant="default" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              size="xs"
-              loading={run.isPending}
-              disabled={action === 'move' && !destination.trim()}
-              onClick={submit}
-            >
-              {one.verb} message
-            </Button>
-          </Group>
-        )}
+        <DialogActions
+          action={action}
+          done={result !== null}
+          running={run.isPending}
+          moveWithoutTarget={action === 'move' && !destination.trim()}
+          verb={one.verb}
+          confirmToken={String(target.messageId)}
+          onClose={onClose}
+          onSubmit={submit}
+        />
         {action === 'move' && !destination.trim() && !result ? (
           <Text size="xs" c="dimmed">
             Name the target queue to move the message.

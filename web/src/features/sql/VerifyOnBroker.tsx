@@ -2,6 +2,12 @@ import { Button, Text, Tooltip } from '@mantine/core';
 
 import { useVerifyOnBroker, type SqlRowView } from './api.ts';
 
+const PRESENCE: Record<string, { words: string; tone?: string }> = {
+  PRESENT: { words: 'still there' },
+  GONE: { words: 'gone', tone: 'var(--as-warning)' },
+  UNKNOWN: { words: 'unknown', tone: 'var(--as-text-dimmed)' },
+};
+
 /**
  * "Is this indexed message still on its queue?" — asked of the broker, which is
  * the only thing that can answer it.
@@ -32,13 +38,7 @@ export function VerifyOnBroker({ clusterId, row }: Readonly<{ clusterId: string;
 
   if (verdict) {
     // Colour is redundant emphasis here; the word carries the meaning.
-    const tone =
-      verdict.presence === 'GONE'
-        ? 'var(--as-warning)'
-        : verdict.presence === 'UNKNOWN'
-          ? 'var(--as-text-dimmed)'
-          : undefined;
-    const words = verdict.presence === 'PRESENT' ? 'still there' : verdict.presence === 'GONE' ? 'gone' : 'unknown';
+    const { words, tone } = PRESENCE[verdict.presence ?? ''] ?? { words: 'unknown' };
     return (
       <Text size="xs" c={tone} title={verdict.detail ?? undefined}>
         {words}

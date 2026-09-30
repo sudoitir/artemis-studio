@@ -19,7 +19,7 @@ export function HexDump({ bytes, max = 512 }: Readonly<{ bytes: Uint8Array; max?
       .join(' ')
       .padEnd(BYTES_PER_ROW * 3 - 1, ' ');
     const ascii = Array.from(row)
-      .map((b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '.'))
+      .map((b) => (b >= 0x20 && b < 0x7f ? String.fromCodePoint(b) : '.'))
       .join('');
     rows.push(`${offset.toString(16).padStart(8, '0')}  ${hex}  |${ascii}|`);
   }

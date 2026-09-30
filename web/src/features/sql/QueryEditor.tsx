@@ -115,7 +115,7 @@ const errorField = StateField.define<DecorationSet>({
 
 /** The token after `FROM `, so the completion replaces it rather than appending to it. */
 function wordAfterFrom(text: string): string {
-  return /from\s+(.*)$/i.exec(text)?.[1] ?? '';
+  return /from\s+(\S.*)?$/i.exec(text)?.[1] ?? '';
 }
 
 /**

@@ -15,6 +15,12 @@ export interface CurrentView {
 
 const CLUSTER_PATH = /^\/clusters\/([^/]+)(?:\/(.*))?$/;
 
+function trimTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path[end - 1] === '/') end -= 1;
+  return path.slice(0, end);
+}
+
 /**
  * Which cluster view an address is under (ADR-0109): the navigation entry whose path is the longest
  * prefix of the path after `/clusters/<id>/`, so a queue's message browser is under Queues and a
@@ -24,7 +30,7 @@ export function matchView(pathname: string, features: StudioFeature[]): CurrentV
   const match = CLUSTER_PATH.exec(pathname);
   if (!match) return null;
   const clusterId = decodeURIComponent(match[1]);
-  const rest = (match[2] ?? '').replace(/\/+$/, '');
+  const rest = trimTrailingSlashes(match[2] ?? '');
   const item = features
     .flatMap((f) => f.nav ?? [])
     .filter((n) => rest === n.path || rest.startsWith(`${n.path}/`))

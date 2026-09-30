@@ -27,6 +27,21 @@ function syntaxDetail(error: ApiError): {
   };
 }
 
+/** A labelled run of predicates, or nothing when there are none. */
+function Predicates({ label, items }: Readonly<{ label: string; items: string[] }>) {
+  if (items.length === 0) return null;
+  return (
+    <span>
+      {label}:{' '}
+      {items.map((p) => (
+        <span key={p} className={classes.predicate}>
+          {p}{' '}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /**
  * What the query will do, worked out without contacting a broker — shown while
  * the operator is still typing, which is the only moment at which the cost of a
@@ -98,26 +113,8 @@ export function ExplainStrip({
 
         {pushedDown.length > 0 || scanned.length > 0 ? (
           <div className={classes.predicates}>
-            {pushedDown.length > 0 ? (
-              <span>
-                Pushed down:{' '}
-                {pushedDown.map((p) => (
-                  <span key={p} className={classes.predicate}>
-                    {p}{' '}
-                  </span>
-                ))}
-              </span>
-            ) : null}
-            {scanned.length > 0 ? (
-              <span>
-                Scanned by Studio:{' '}
-                {scanned.map((p) => (
-                  <span key={p} className={classes.predicate}>
-                    {p}{' '}
-                  </span>
-                ))}
-              </span>
-            ) : null}
+            <Predicates label="Pushed down" items={pushedDown} />
+            <Predicates label="Scanned by Studio" items={scanned} />
           </div>
         ) : null}
       </div>
