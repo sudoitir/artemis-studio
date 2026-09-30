@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -34,6 +35,8 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     static final String AUTHENTICATED = BearerAuthenticationFilter.class.getName() + ".AUTHENTICATED";
 
     private final List<IdentityProviders> contributions;
+    private final RequestAttributeSecurityContextRepository requestContexts =
+            new RequestAttributeSecurityContextRepository();
 
     BearerAuthenticationFilter(List<IdentityProviders> contributions) {
         this.contributions = contributions;
@@ -60,6 +63,9 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
+        // Recorded on the request, so SessionManagementFilter sees the authentication as already saved
+        // and does not save it into a session: a token call has no session, and must not create one.
+        requestContexts.saveContext(context, request, response);
         request.setAttribute(AUTHENTICATED, Boolean.TRUE);
         chain.doFilter(request, response);
     }
