@@ -18,6 +18,8 @@ const alice: UserView = {
   disabled: false,
   mustChangePassword: false,
   lockedUntil: null,
+  secondFactors: [],
+  secondFactorRequired: false,
   grants: [],
 };
 

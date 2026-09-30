@@ -203,6 +203,72 @@ public class MfaEnrolment {
         return new RecoveryCodesView(codes);
     }
 
+    /** Remove the caller's authenticator app. */
+    @Transactional
+    public void removeTotp(StudioPrincipal principal, HttpServletRequest request) {
+        UUID userId = principal.userId();
+        int remaining = passkeys.count(userId);
+        guardRemoval(
+                principal,
+                request,
+                totp.hasActive(userId),
+                "no-totp",
+                "You have no authenticator app to remove.",
+                remaining);
+        totp.remove(userId);
+        removed(principal, Method.TOTP, remaining == 0);
+    }
+
+    /** Remove one of the caller's passkeys, by the id {@code GET /auth/mfa} lists it under. */
+    @Transactional
+    public void removePasskey(StudioPrincipal principal, String credentialId, HttpServletRequest request) {
+        requireLocalSession(principal);
+        UUID userId = principal.userId();
+        boolean theirs = passkeys.of(userId).stream()
+                .anyMatch(p -> p.getCredentialId().toBase64UrlString().equals(credentialId));
+        if (!theirs) {
+            throw new NotFoundException("passkey", credentialId);
+        }
+        int remaining = (totp.hasActive(userId) ? 1 : 0) + passkeys.count(userId) - 1;
+        guardRemoval(principal, request, true, null, null, remaining);
+        passkeys.remove(userId, credentialId);
+        removed(principal, Method.WEBAUTHN, remaining == 0);
+    }
+
+    /**
+     * Removing a factor needs a step-up, and a user who must hold one keeps at least one.
+     *
+     * @param present whether the factor to remove is there; when it is not, the conflict {@code missingSlug}
+     * @param remaining how many factors the user has left once it is removed
+     */
+    private void guardRemoval(
+            StudioPrincipal principal,
+            HttpServletRequest request,
+            boolean present,
+            String missingSlug,
+            String missingMessage,
+            int remaining) {
+        requireLocalSession(principal);
+        if (!sessions.recentlyAuthenticated(request)) {
+            throw new ReauthenticationRequiredException();
+        }
+        if (!present) {
+            throw new ConflictException(missingSlug, missingMessage);
+        }
+        if (remaining == 0 && factors.required(principal.userId())) {
+            throw new ConflictException("last-factor-required", "Add another way to sign in first.");
+        }
+    }
+
+    /** The factor is gone: audit it, and when it was the last one, the recovery codes and trusted devices go with it. */
+    private void removed(StudioPrincipal principal, Method method, boolean wasLast) {
+        if (wasLast) {
+            recoveryCodes.removeAll(principal.userId());
+            trustedDevices.revokeAll(principal.userId(), "last factor removed");
+        }
+        audited(principal, "MFA_REMOVE", Map.of("method", method.name(), "lastFactor", wasLast));
+    }
+
     /** A password-only account of this provider, in a browser session: tokens and other providers do not enrol here. */
     private void requireLocalSession(StudioPrincipal principal) {
         if (principal.tokenName() != null) {

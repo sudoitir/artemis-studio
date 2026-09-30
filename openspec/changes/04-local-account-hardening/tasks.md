@@ -28,7 +28,7 @@
 - [x] 6.5 Login second step, `RestrictedSessionFilter`, step-up with factor
 - [x] 6.6 Trusted devices (cookie, hashed rows, lifetime setting, lock bypass, revocations)
 - [x] 6.7 Tokens: `minted_with_mfa`, session-only minting, rejection when required
-- [ ] 6.8 Factor management (step-up for add/replace/remove, last-factor guard), admin reset, break-glass recovery; audit events
+- [x] 6.8 Factor management (step-up for add/replace/remove, last-factor guard), admin reset, break-glass recovery; audit events
 
 ## 7. Frontend (E)
 - [ ] 7.1 Move step-up to `kernel/auth`; `SecondFactorForm`; `LoginView` second step; activity header in `request.ts`

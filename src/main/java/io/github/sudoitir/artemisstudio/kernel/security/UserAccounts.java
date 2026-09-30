@@ -70,6 +70,14 @@ public class UserAccounts {
         users.save(user);
     }
 
+    /** The user must change their password at their next sign-in. */
+    @Transactional
+    public void requirePasswordChange(UUID userId) {
+        AppUserEntity user = users.findById(userId).orElseThrow(() -> new NotFoundException("user", userId));
+        user.setMustChangePassword(true);
+        users.save(user);
+    }
+
     /**
      * Create a global administrator who must change the password at first sign-in, but only while
      * no account exists at all.

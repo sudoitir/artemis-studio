@@ -65,6 +65,26 @@ class SecondFactorService implements SecondFactors {
     }
 
     @Override
+    public List<Method> enrolledMethods(UUID userId) {
+        List<Method> methods = new ArrayList<>();
+        if (totp.hasActive(userId)) {
+            methods.add(Method.TOTP);
+        }
+        if (passkeys.count(userId) > 0) {
+            methods.add(Method.WEBAUTHN);
+        }
+        return methods;
+    }
+
+    @Override
+    public void reset(UUID userId) {
+        totp.remove(userId);
+        passkeys.removeAll(userId);
+        recoveryCodes.removeAll(userId);
+        trustedDevices.revokeAll(userId, "second factors reset");
+    }
+
+    @Override
     public Duration trustedDeviceLifetime() {
         return trustedDevices.lifetime();
     }

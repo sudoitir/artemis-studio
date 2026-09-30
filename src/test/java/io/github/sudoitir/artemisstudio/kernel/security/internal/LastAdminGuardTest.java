@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -59,6 +60,9 @@ class LastAdminGuardTest {
     @Mock
     SessionTerminator sessions;
 
+    @Mock
+    SessionAuthentication sessionState;
+
     UserService service;
 
     UUID adminRoleId = UUID.randomUUID();
@@ -67,7 +71,17 @@ class LastAdminGuardTest {
     @BeforeEach
     void setUp() {
         service = new UserService(
-                users, roles, userRoles, passwordEncoder, audit, lockout, sessions, Optional.empty(), Optional.empty());
+                users,
+                roles,
+                userRoles,
+                passwordEncoder,
+                audit,
+                lockout,
+                sessions,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                sessionState);
         adminRole = role(adminRoleId, "ADMIN");
     }
 

@@ -10,7 +10,10 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *
  * @param trustedDeviceLifetime how long a browser stays trusted after a second factor; {@code 0} turns
  *     trusted devices off (ADR-0142)
+ * @param recover break-glass: the username of a local account to recover at startup, or blank (ADR-0142, D10)
  */
 @ConfigurationProperties(prefix = "artemis-studio.identity-local")
 public record IdentityLocalProperties(
-        @DefaultValue("12") int passwordMinLength, @DefaultValue("30d") Duration trustedDeviceLifetime) {}
+        @DefaultValue("12") int passwordMinLength,
+        @DefaultValue("30d") Duration trustedDeviceLifetime,
+        @DefaultValue("") String recover) {}

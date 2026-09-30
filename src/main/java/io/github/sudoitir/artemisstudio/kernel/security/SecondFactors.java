@@ -26,6 +26,15 @@ public interface SecondFactors {
     /** The ways the user can prove a second factor now, best first. Empty when they are not enrolled. */
     List<SessionFacts.Method> methods(UUID userId);
 
+    /** The factors the user has set up, for an administrator to see: TOTP and WEBAUTHN, never the recovery codes. */
+    List<SessionFacts.Method> enrolledMethods(UUID userId);
+
+    /**
+     * Remove everything the user signs in with beyond the password: authenticator app, passkeys, recovery
+     * codes and trusted devices. It audits nothing about the factors themselves: the caller records why.
+     */
+    void reset(UUID userId);
+
     /** How long a browser stays trusted after a second factor; zero when trusted devices are switched off (ADR-0142). */
     Duration trustedDeviceLifetime();
 

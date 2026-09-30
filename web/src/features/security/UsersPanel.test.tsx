@@ -18,6 +18,8 @@ const user = (username: string, lockedUntil: string | null): UserView => ({
   disabled: false,
   mustChangePassword: false,
   lockedUntil,
+  secondFactors: [],
+  secondFactorRequired: false,
   grants: [],
 });
 

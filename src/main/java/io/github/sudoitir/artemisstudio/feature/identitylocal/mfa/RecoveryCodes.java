@@ -73,6 +73,12 @@ class RecoveryCodes {
                                 """).param("id", userId).param("hash", hash(code)).update() == 1;
     }
 
+    void removeAll(UUID userId) {
+        jdbc.sql("DELETE FROM local_recovery_code WHERE user_id = :id")
+                .param("id", userId)
+                .update();
+    }
+
     int remaining(UUID userId) {
         return jdbc.sql("SELECT count(*) FROM local_recovery_code WHERE user_id = :id AND used_at IS NULL")
                 .param("id", userId)

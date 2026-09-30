@@ -82,6 +82,16 @@ public class UsersController {
         return users.unlock(userId);
     }
 
+    /**
+     * Remove the user's second factors, recovery codes, trusted devices and API tokens, and end their
+     * sessions. Needs {@code user:admin} and a recent step-up; refused for oneself ({@code 409 self-reset})
+     * and, when the user must hold a factor, unless this session verified one ({@code 403 mfa-required}).
+     */
+    @DeleteMapping("/{userId}/second-factors")
+    public UserView resetSecondFactors(@PathVariable UUID userId, HttpServletRequest req) {
+        return users.resetSecondFactors(userId, req);
+    }
+
     @PostMapping("/{userId}/grants")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addGrant(@PathVariable UUID userId, @Valid @RequestBody GrantRequest request) {

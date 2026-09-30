@@ -401,4 +401,103 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(problem(response)).endsWith("/reauthentication-failed");
     }
+
+    // ---- removal -----------------------------------------------------------------------------
+
+    private String passkeyId(Browser browser, String label) throws Exception {
+        return JsonPath.<List<String>>read(
+                        browser.send("GET", "/api/v1/auth/mfa", null).body(),
+                        "$.passkeys[?(@.label == '" + label + "')].id")
+                .getFirst();
+    }
+
+    @Test
+    void aPasskeyIsRemovedWithAStepUpAndRemovingTheLastOneTakesTheRecoveryCodesWithIt() throws Exception {
+        PasskeyDevice device = newUserWithAPasskey("pk-remove");
+        Browser browser = browser();
+        login(browser, "pk-remove");
+        answer(browser, device);
+        String id = passkeyId(browser, "Laptop");
+        makeStale(browser);
+        var refused = browser.send("DELETE", "/api/v1/auth/mfa/webauthn/" + id, null);
+        assertThat(refused.statusCode()).isEqualTo(403);
+        assertThat(problem(refused)).endsWith("/reauthentication-required");
+        browser.post("/api/v1/auth/reauthenticate", "{\"password\":\"%s\"}".formatted(PASSWORD));
+        assertThat(answer(browser, device).statusCode()).isEqualTo(200);
+
+        var removed = browser.send("DELETE", "/api/v1/auth/mfa/webauthn/" + id, null);
+
+        assertThat(removed.statusCode()).isEqualTo(204);
+        var status = browser.send("GET", "/api/v1/auth/mfa", null).body();
+        assertThat((List<Object>) JsonPath.read(status, "$.passkeys")).isEmpty();
+        assertThat((Boolean) JsonPath.read(status, "$.enrolled")).isFalse();
+        assertThat((Integer) JsonPath.read(status, "$.recoveryCodesRemaining")).isZero();
+        assertThat(audited("MFA_REMOVE", "pk-remove")).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT count(*) FROM user_entities WHERE display_name = 'pk-remove'")
+                        .query(Long.class)
+                        .single())
+                .as("the passkey is gone from the credential store")
+                .isEqualTo(1);
+        assertThat(jdbc.sql(
+                                "SELECT count(*) FROM user_credentials c JOIN user_entities e ON c.user_entity_user_id = e.id"
+                                        + " WHERE e.display_name = 'pk-remove'")
+                        .query(Long.class)
+                        .single())
+                .isZero();
+    }
+
+    @Test
+    void aUserWhoseRoleRequiresAFactorCannotRemoveTheirLastPasskeyButCanOnceTheyHaveAnother() throws Exception {
+        UUID id = newUser("pk-required-remove");
+        requireMfa(id);
+        PasskeyDevice first = new PasskeyDevice(ORIGIN);
+        Browser enrolling = signedIn("pk-required-remove");
+        assertThat(register(enrolling, first, "First").statusCode()).isEqualTo(200);
+        Browser browser = browser();
+        login(browser, "pk-required-remove");
+        assertThat(answer(browser, first).statusCode()).isEqualTo(200);
+        String firstId = passkeyId(browser, "First");
+
+        var last = browser.send("DELETE", "/api/v1/auth/mfa/webauthn/" + firstId, null);
+
+        assertThat(last.statusCode()).isEqualTo(409);
+        assertThat(problem(last)).endsWith("/last-factor-required");
+        assertThat((String) JsonPath.read(last.body(), "$.detail")).isEqualTo("Add another way to sign in first.");
+        assertThat(register(browser, new PasskeyDevice(ORIGIN), "Second").statusCode())
+                .isEqualTo(200);
+        assertThat(browser.send("DELETE", "/api/v1/auth/mfa/webauthn/" + firstId, null)
+                        .statusCode())
+                .isEqualTo(204);
+        assertThat((List<String>) JsonPath.read(
+                        browser.send("GET", "/api/v1/auth/mfa", null).body(), "$.passkeys[*].label"))
+                .containsExactly("Second");
+    }
+
+    @Test
+    void anotherUsersPasskeyCannotBeRemovedAndAnUnknownIdIsNotFound() throws Exception {
+        newUserWithAPasskey("pk-owner");
+        PasskeyDevice mine = newUserWithAPasskey("pk-not-owner");
+        Browser owner = browser();
+        login(owner, "pk-owner");
+        // Everything the owner has is in one place: sign the owner in with their own device to read their id.
+        Browser other = browser();
+        login(other, "pk-not-owner");
+        answer(other, mine);
+        String ownersId = jdbc.sql("SELECT credential_id FROM user_credentials c JOIN user_entities e"
+                        + " ON c.user_entity_user_id = e.id WHERE e.display_name = 'pk-owner'")
+                .query(String.class)
+                .single();
+
+        var response = other.send("DELETE", "/api/v1/auth/mfa/webauthn/" + ownersId, null);
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(other.send("DELETE", "/api/v1/auth/mfa/webauthn/nonsense", null)
+                        .statusCode())
+                .isEqualTo(404);
+        assertThat(jdbc.sql("SELECT count(*) FROM user_credentials WHERE credential_id = ?")
+                        .param(ownersId)
+                        .query(Long.class)
+                        .single())
+                .isEqualTo(1);
+    }
 }

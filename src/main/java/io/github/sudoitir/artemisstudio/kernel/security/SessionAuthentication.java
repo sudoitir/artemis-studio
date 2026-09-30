@@ -191,6 +191,11 @@ public class SessionAuthentication {
         initialInstallers.grantIfNoneYet(principal.userId());
     }
 
+    /** End every session of the user once the surrounding transaction commits (a factor reset, an account recovery). */
+    public void endSessionsOf(String username) {
+        terminator.endSessionsOfExcept(username, Set.of());
+    }
+
     /**
      * The user changed their password: a new session id and principal, with the session's facts
      * carried over unchanged (a password change is not a step-up), and every other session of the

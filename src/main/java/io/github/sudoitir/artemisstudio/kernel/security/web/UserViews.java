@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -44,6 +45,17 @@ public final class UserViews {
                     description =
                             "When repeated failed sign-ins stop blocking this account; null when it is not locked.")
             Instant lockedUntil,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The second factors the user has set up: TOTP for an authenticator app and "
+                            + "WEBAUTHN for passkeys. Empty when they have none.")
+            List<SessionFacts.Method> secondFactors,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The user must hold a second factor: a local account with a role that requires one.")
+            boolean secondFactorRequired,
 
             @Schema(requiredMode = REQUIRED) List<GrantSummary> grants) {}
 

@@ -77,6 +77,21 @@ public class MfaController {
         return enrolment.registerPasskey(principal, request.label(), request.credential(), req, resp);
     }
 
+    /** Remove the authenticator app. Needs a step-up; {@code 409 last-factor-required} for a user who must hold one and has no other. */
+    @DeleteMapping("/totp")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeTotp(@AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        enrolment.removeTotp(principal, req);
+    }
+
+    /** Remove one passkey, by the id {@code GET /auth/mfa} lists it under. Same rules as the authenticator app. */
+    @DeleteMapping("/webauthn/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removePasskey(
+            @AuthenticationPrincipal StudioPrincipal principal, @PathVariable String id, HttpServletRequest req) {
+        enrolment.removePasskey(principal, id, req);
+    }
+
     /** Stop trusting one browser. Ending the trust of the one making the request also clears its cookie. */
     @DeleteMapping("/trusted-devices/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
