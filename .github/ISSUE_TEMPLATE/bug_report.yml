@@ -41,7 +41,7 @@ body:
     id: broker
     attributes:
       label: Artemis broker version and HA setup
-      placeholder: 2.44.0, replication pair
+      placeholder: 2.57.0, replication pair
     validations:
       required: true
   - type: dropdown

@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaRequest;
@@ -195,8 +196,8 @@ public class ClientSampler {
             JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
             String mbean = client.resolveBrokerObjectName();
             List<JolokiaResponse> entries = client.batch(List.of(
-                    JolokiaRequest.exec(mbean, LIST_PRODUCERS, "", 1, cap),
-                    JolokiaRequest.exec(mbean, LIST_CONSUMERS, "", 1, cap),
+                    JolokiaRequest.exec(mbean, LIST_PRODUCERS, BrokerListOps.ALL, 1, cap),
+                    JolokiaRequest.exec(mbean, LIST_CONSUMERS, BrokerListOps.ALL, 1, cap),
                     JolokiaRequest.readAll(BrokerMBeans.divertsPattern(mbean)),
                     JolokiaRequest.readAll(BrokerMBeans.bridgesPattern(mbean)),
                     JolokiaRequest.exec(mbean, LIST_QUEUES, STORE_AND_FORWARD_QUEUES, 1, cap),
@@ -205,6 +206,14 @@ public class ClientSampler {
                     JolokiaRequest.exec(mbean, ADDRESS_SETTINGS, "#")));
             if (entries.size() != 8) {
                 return failed(clusterId, node, at, BAD_RESPONSE, "The broker returned an incomplete response.");
+            }
+            if (lacksNotEquals(entries.get(6))) {
+                // An older broker has no NOT_EQUALS filter (ADR-0142): read the queues unfiltered and keep
+                // the filtered ones here, as the route parse below already does.
+                // ponytail: the cap now counts every queue, so a node with more queues than the cap can
+                // miss filtered ones; page through them if a broker that old runs that many.
+                entries = new ArrayList<>(entries);
+                entries.set(6, client.single(JolokiaRequest.exec(mbean, LIST_QUEUES, BrokerListOps.ALL, 1, cap)));
             }
 
             Listing producers = listing(client, entries.get(0));
@@ -253,6 +262,14 @@ public class ClientSampler {
         } catch (RuntimeException e) {
             return failed(clusterId, node, at, BAD_RESPONSE, e.getMessage());
         }
+    }
+
+    /** Artemis before NOT_EQUALS rejects the filter by name; nothing else answers this way. */
+    static boolean lacksNotEquals(JolokiaResponse res) {
+        return !res.ok()
+                && res.error() != null
+                && res.error().contains("No enum constant")
+                && res.error().contains("NOT_EQUALS");
     }
 
     private static String errorKind(

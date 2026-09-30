@@ -19,7 +19,9 @@ public class BrokerConnectionException extends RuntimeException {
         /** The TLS handshake to an HTTPS broker failed. */
         TLS_FAILED("The TLS connection to the broker could not be established."),
         /** The broker answered but the response was not valid Jolokia JSON. */
-        BAD_RESPONSE("The broker answered, but not with a Jolokia response.");
+        BAD_RESPONSE("The broker answered, but not with a Jolokia response."),
+        /** The broker runs an Artemis release older than the supported minimum (ADR-0142). */
+        UNSUPPORTED_VERSION("This Artemis release is older than Studio supports.");
 
         private final String defaultMessage;
 

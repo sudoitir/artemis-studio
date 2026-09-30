@@ -1,9 +1,13 @@
 package io.github.sudoitir.artemisstudio.support;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
+import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import java.time.Duration;
+import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Base for tests that need a real Apache ActiveMQ Artemis broker — the Core
@@ -26,7 +30,11 @@ import org.testcontainers.utility.MountableFile;
  */
 public abstract class ArtemisIntegrationTest {
 
-    public static final String IMAGE = "apache/activemq-artemis:2.44.0";
+    /** The broker under test; CI sets {@code artemis.image} once per supported-range end. */
+    public static final String IMAGE = System.getProperty(
+            "artemis.image",
+            "apache/artemis:" + io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion.LATEST_TESTED);
+
     public static final String BROKER_USER = "artemis";
     public static final String BROKER_PASSWORD = "artemis";
 
@@ -64,5 +72,27 @@ public abstract class ArtemisIntegrationTest {
      */
     public static String jolokiaUrl() {
         return "http://%s:%d/console/jolokia".formatted(ARTEMIS.getHost(), ARTEMIS.getMappedPort(8161));
+    }
+
+    /** A Jolokia client of the test's own for the shared broker, outside Studio's rate limiter. */
+    public static JolokiaBrokerClient jolokiaClient() {
+        return jolokiaClient(jolokiaUrl());
+    }
+
+    /**
+     * A Jolokia client for any test broker, with the converters Studio's own clients use:
+     * an older broker's agent labels its JSON {@code text/plain}.
+     */
+    public static JolokiaBrokerClient jolokiaClient(String url) {
+        JsonMapper mapper = JsonMapper.builder().build();
+        RestClient rest = RestClient.builder()
+                .configureMessageConverters(b ->
+                        b.configureMessageConvertersList(c -> BrokerClientFactory.applyJolokiaConverters(c, mapper)))
+                .requestInterceptor((request, body, execution) -> {
+                    request.getHeaders().setBasicAuth(BROKER_USER, BROKER_PASSWORD);
+                    return execution.execute(request, body);
+                })
+                .build();
+        return new JolokiaBrokerClient(rest, url, mapper);
     }
 }

@@ -78,6 +78,7 @@ function mockCluster(over: { permissions?: string[]; messageIo?: object; queues?
           },
           messageIo: over.messageIo ?? AVAILABLE,
           slowConsumerDetection: AVAILABLE,
+          versionGates: [],
         },
         health: {
           clusterId: 'c1',

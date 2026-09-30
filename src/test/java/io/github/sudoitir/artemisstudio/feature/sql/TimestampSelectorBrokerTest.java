@@ -11,8 +11,6 @@ import jakarta.jms.Session;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The timestamp selector against a real broker's management browse, the path every Jolokia query and every index
@@ -37,14 +35,7 @@ class TimestampSelectorBrokerTest extends ArtemisIntegrationTest {
         } finally {
             factory.close();
         }
-        RestClient rest = RestClient.builder()
-                .requestInterceptor((request, body, execution) -> {
-                    request.getHeaders().setBasicAuth(BROKER_USER, BROKER_PASSWORD);
-                    return execution.execute(request, body);
-                })
-                .build();
-        client =
-                new JolokiaBrokerClient(rest, jolokiaUrl(), JsonMapper.builder().build());
+        client = jolokiaClient();
     }
 
     private long browseCount(String selector) {

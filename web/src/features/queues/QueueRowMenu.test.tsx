@@ -71,6 +71,7 @@ function handlers(permissions: string[], rows = [queue('orders'), queue('payment
           notifications: AVAILABLE,
           messageIo: AVAILABLE,
           slowConsumerDetection: AVAILABLE,
+          versionGates: [],
         },
       }),
     ),

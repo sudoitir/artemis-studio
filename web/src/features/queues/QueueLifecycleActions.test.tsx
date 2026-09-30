@@ -17,6 +17,7 @@ function capabilities(managementWrite: CapabilityView) {
     notifications: AVAILABLE,
     messageIo: AVAILABLE,
     slowConsumerDetection: AVAILABLE,
+    versionGates: [],
   };
 }
 

@@ -17,6 +17,7 @@ function endpoint(over: Partial<NodeEndpointView>): NodeEndpointView {
     active: over.active ?? false,
     replicaSync: over.replicaSync ?? null,
     version: over.version ?? '2.44.0',
+    versionSupport: over.versionSupport ?? 'SUPPORTED',
     lastError: over.lastError ?? null,
     lastSeenAt: over.lastSeenAt ?? new Date().toISOString(),
     discovered: false,
@@ -250,6 +251,41 @@ describe('topology layout', () => {
     );
 
     expect(model.summary).toContain('Replication is not caught up');
+  });
+
+  it('a node outside the supported range says so in words, to sighted and screen-reader users alike', () => {
+    const model = layout(
+      topo(
+        {
+          artemisNodeId: 'A',
+          splitBrain: 'NONE',
+          replicationBehind: false,
+          endpoints: [
+            endpoint({ id: 'old', name: 'old', active: true, version: '2.31.2', versionSupport: 'BELOW_MINIMUM' }),
+          ],
+        },
+        {
+          artemisNodeId: 'B',
+          splitBrain: 'NONE',
+          replicationBehind: false,
+          endpoints: [
+            endpoint({ id: 'new', name: 'new', active: true, version: '2.60.0', versionSupport: 'NEWER_THAN_TESTED' }),
+          ],
+        },
+        {
+          artemisNodeId: 'C',
+          splitBrain: 'NONE',
+          replicationBehind: false,
+          endpoints: [endpoint({ id: 'ok', name: 'ok', active: true })],
+        },
+      ),
+      health(),
+    );
+
+    expect(box(model, 'old').data.versionNote).toBe('unsupported release: older than Studio supports');
+    expect(box(model, 'old').data.srSentence).toContain('Artemis 2.31.2, unsupported release');
+    expect(box(model, 'new').data.versionNote).toBe('newer release than Studio has tested');
+    expect(box(model, 'ok').data.versionNote).toBeNull();
   });
 
   it('an empty topology lays out nothing', () => {

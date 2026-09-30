@@ -121,7 +121,7 @@ public class BrokerClientFactory implements DisposableBean {
      * reported unreachable for a header. Claim {@code text/plain} too, first in
      * the list so it wins over the String converter.
      */
-    static void applyJolokiaConverters(List<HttpMessageConverter<?>> converters, ObjectMapper mapper) {
+    public static void applyJolokiaConverters(List<HttpMessageConverter<?>> converters, ObjectMapper mapper) {
         JacksonJsonHttpMessageConverter converter = mapper instanceof JsonMapper jsonMapper
                 ? new JacksonJsonHttpMessageConverter(jsonMapper)
                 : new JacksonJsonHttpMessageConverter();

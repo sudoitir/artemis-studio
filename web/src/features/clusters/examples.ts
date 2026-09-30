@@ -21,6 +21,7 @@ function endpoint(over: Partial<NodeEndpointView>): NodeEndpointView {
     active: true,
     replicaSync: null,
     version: null,
+    versionSupport: 'UNKNOWN',
     lastError: null,
     lastSeenAt: null,
     discovered: false,

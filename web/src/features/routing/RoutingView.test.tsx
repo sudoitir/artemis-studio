@@ -87,6 +87,7 @@ function serve({
           notifications: AVAILABLE,
           messageIo: AVAILABLE,
           slowConsumerDetection: AVAILABLE,
+          versionGates: [],
         },
         health: { level: 'OK', reasons: [] },
         environmentId: null,

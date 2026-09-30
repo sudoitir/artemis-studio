@@ -70,6 +70,7 @@ export default defineConfig({
               { text: 'What Artemis Studio is', link: '/guide/' },
               { text: 'Quickstart', link: '/guide/quickstart' },
               { text: 'Configuration', link: '/guide/configuration' },
+              { text: 'Supported broker versions', link: '/guide/supported-versions' },
               { text: 'SQL Console', link: '/guide/sql-console' },
               { text: 'Flow', link: '/guide/flow' },
               { text: 'Keyboard shortcuts', link: '/guide/keyboard' },

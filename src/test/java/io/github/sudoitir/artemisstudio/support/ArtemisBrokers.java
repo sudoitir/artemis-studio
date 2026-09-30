@@ -21,13 +21,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
-import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The brokers a cross-broker transfer is tested between (cross-broker-message-transfer 5.1), and
@@ -62,14 +60,7 @@ public final class ArtemisBrokers {
 
         /** A Jolokia client of the test's own, outside Studio's rate limiter. */
         public JolokiaBrokerClient jolokia() {
-            RestClient rest = RestClient.builder()
-                    .requestInterceptor((request, body, execution) -> {
-                        request.getHeaders().setBasicAuth(BROKER_USER, BROKER_PASSWORD);
-                        return execution.execute(request, body);
-                    })
-                    .build();
-            return new JolokiaBrokerClient(
-                    rest, jolokiaUrl(), JsonMapper.builder().build());
+            return ArtemisIntegrationTest.jolokiaClient(jolokiaUrl());
         }
 
         /** An anycast queue on its own address, with an optional filter; kept if it exists. */

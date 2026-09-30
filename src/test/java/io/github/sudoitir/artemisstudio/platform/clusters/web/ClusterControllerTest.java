@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditE
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
@@ -32,6 +33,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -114,6 +117,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
     private static String[] registerSequence() {
         return new String[] {
             "search-broker.json", // connectAll -> resolveBrokerObjectName
+            "capability-version-read.json", // connectAll -> Version, for the range check (ADR-0142)
             "ha-read-primary.json", // discover -> readBrokerAttributes
             "topology.json", // discover -> listNetworkTopology
             "capability-version-read.json", // probe -> MANAGEMENT_READ
@@ -168,6 +172,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .thenReturn(client(
                         SEED,
                         "search-broker.json",
+                        "capability-version-read.json",
                         "ha-read-primary.json",
                         "topology.json",
                         "capability-version-read.json",
@@ -190,6 +195,30 @@ class ClusterControllerTest extends PostgresIntegrationTest {
             assertThat(e.getAction()).isEqualTo("REGISTER_CLUSTER");
             assertThat(e.getOutcome()).isEqualTo("SUCCESS");
             assertThat(e.isDryRun()).isTrue();
+        });
+    }
+
+    /** Below the supported minimum: refused naming it, the check and the registration alike (ADR-0142). */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void aBrokerOlderThanTheMinimumIsRefusedAndNothingIsStored(boolean dryRun) throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED)))
+                .thenReturn(client(SEED, "search-broker.json", "version-read-too-old.json"));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", String.valueOf(dryRun))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.brokerErrorKind").value("UNSUPPORTED_VERSION"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("2.31.2")))
+                .andExpect(jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.containsString(BrokerVersion.MINIMUM + " and later")));
+
+        assertThat(clusters.count()).isZero();
+        assertThat(audits.findAll()).singleElement().satisfies(e -> {
+            assertThat(e.getAction()).isEqualTo("REGISTER_CLUSTER");
+            assertThat(e.getOutcome()).isEqualTo("FAILURE");
         });
     }
 

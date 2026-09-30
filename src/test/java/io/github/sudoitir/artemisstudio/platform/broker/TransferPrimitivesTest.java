@@ -26,8 +26,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ssl.SslBundles;
-import org.springframework.web.client.RestClient;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The platform primitives a cross-broker transfer is built from (ADR-0097), against a real broker:
@@ -49,14 +47,7 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        RestClient rest = RestClient.builder()
-                .requestInterceptor((request, body, execution) -> {
-                    request.getHeaders().setBasicAuth(BROKER_USER, BROKER_PASSWORD);
-                    return execution.execute(request, body);
-                })
-                .build();
-        client =
-                new JolokiaBrokerClient(rest, jolokiaUrl(), JsonMapper.builder().build());
+        client = jolokiaClient();
         relay = new CoreRelay(new CoreConnectionFactory(
                 new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000),
                 org.mockito.Mockito.mock(SslBundles.class)));

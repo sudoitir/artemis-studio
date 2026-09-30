@@ -8310,9 +8310,16 @@
           },
           "slowConsumerDetection" : {
             "$ref" : "#/components/schemas/CapabilityView"
+          },
+          "versionGates" : {
+            "type" : "array",
+            "description" : "Operations that need a newer Artemis release than some node runs",
+            "items" : {
+              "$ref" : "#/components/schemas/VersionGateView"
+            }
           }
         },
-        "required" : [ "managementRead", "managementWrite", "messageIo", "notifications", "slowConsumerDetection" ]
+        "required" : [ "managementRead", "managementWrite", "messageIo", "notifications", "slowConsumerDetection", "versionGates" ]
       },
       "CapabilityView" : {
         "type" : "object",
@@ -8384,6 +8391,11 @@
           "version" : {
             "type" : [ "string", "null" ]
           },
+          "versionSupport" : {
+            "type" : "string",
+            "description" : "Where version sits against the supported Artemis range",
+            "enum" : [ "SUPPORTED", "BELOW_MINIMUM", "NEWER_THAN_TESTED", "UNKNOWN" ]
+          },
           "lastError" : {
             "type" : [ "string", "null" ]
           },
@@ -8401,7 +8413,26 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "active", "discovered", "haRole", "id", "manageable", "manualOverride", "name", "state" ]
+        "required" : [ "active", "discovered", "haRole", "id", "manageable", "manualOverride", "name", "state", "versionSupport" ]
+      },
+      "NodeVersionView" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : [ "string", "null" ]
+          },
+          "supported" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "nodeId", "nodeName", "supported" ]
       },
       "RegisterPreview" : {
         "type" : "object",
@@ -8443,6 +8474,36 @@
           }
         },
         "required" : [ "clusterId", "nodes" ]
+      },
+      "VersionGateView" : {
+        "type" : "object",
+        "properties" : {
+          "feature" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "requiredVersion" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "brokerXmlSnippet" : {
+            "type" : [ "string", "null" ]
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeVersionView"
+            }
+          }
+        },
+        "required" : [ "feature", "label", "nodes", "reason", "requiredVersion", "status" ]
       },
       "ClusterDetail" : {
         "type" : "object",
@@ -9562,8 +9623,8 @@
           },
           "status" : {
             "type" : "string",
-            "description" : "WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was already in the requested state; SKIPPED_NOT_LIVE when the node was not live and never received the command; FAILED when it refused.",
-            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "FAILED" ]
+            "description" : "WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was already in the requested state; SKIPPED_NOT_LIVE when the node was not live and never received the command; UNSUPPORTED_VERSION when its Artemis release lacks the operation and it was not called; FAILED when it refused.",
+            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "UNSUPPORTED_VERSION", "FAILED" ]
           },
           "affected" : {
             "type" : [ "integer", "null" ],
@@ -10512,7 +10573,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "FAILED" ]
+            "enum" : [ "WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "UNSUPPORTED_VERSION", "FAILED" ]
           },
           "affected" : {
             "type" : "integer",

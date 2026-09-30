@@ -50,6 +50,7 @@ function endpoint(id: string, name: string) {
     active: name === 'primary',
     replicaSync: null,
     version: '2.44.0',
+    versionSupport: 'SUPPORTED',
     lastError: null,
     lastSeenAt: null,
     discovered: false,

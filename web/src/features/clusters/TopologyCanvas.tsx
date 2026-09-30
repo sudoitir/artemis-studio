@@ -95,6 +95,7 @@ function BrokerNode({ data }: NodeProps) {
         <span className={styles.mark} data-kind={d.kind} aria-hidden="true" />
         <span className={styles.word}>{d.statusWord}</span>
       </div>
+      {d.versionNote ? <span className={styles.versionNote}>{d.versionNote}</span> : null}
       {d.address ? <span className={styles.addr}>{d.address}</span> : null}
       {d.lastError ? (
         <span className={styles.addr} title={d.lastError}>

@@ -38,7 +38,8 @@ import tools.jackson.databind.ObjectMapper;
  * <p>Mutations use the single-String JSON {@code DivertConfiguration} overloads.
  * The positional {@code createDivert} arms take a nullable filter and transformer,
  * and {@code JolokiaRequest.exec} cannot carry a null argument; the JSON arm takes
- * one argument, omits what is unset, and is the current surface besides.
+ * one argument, omits what is unset, and is the current surface besides. A broker
+ * older than 2.38 lacks the JSON create, and only then is the positional arm used.
  */
 @Component
 public class DivertOperations {
@@ -109,7 +110,52 @@ public class DivertOperations {
     public void createDivert(JolokiaBrokerClient client, String brokerMbean, Map<String, Object> config) {
         JolokiaResponse res = client.single(
                 JolokiaRequest.exec(brokerMbean, "createDivert(java.lang.String)", mapper.writeValueAsString(config)));
+        if (lacksJsonCreate(res)) {
+            res = client.single(positionalCreate(brokerMbean, config));
+        }
         require(res, "createDivert");
+    }
+
+    /**
+     * Artemis before 2.38 has no JSON {@code createDivert(String)} and says so with this
+     * error; everything else Studio sends it works from the supported minimum (ADR-0142).
+     */
+    static boolean lacksJsonCreate(JolokiaResponse res) {
+        return !res.ok() && res.error() != null && res.error().contains("No operation createDivert(java.lang.String)");
+    }
+
+    /**
+     * The positional arm older brokers do have, carrying the same fields the JSON
+     * document does, the nested {@code transformer-configuration} included (the JSON
+     * arm ignores a flat transformer key, and so does this). Jolokia cannot send a null
+     * argument, so an absent filter and transformer class go as empty strings, which the
+     * broker reads as none. The properties go as a map: the overload taking them as a JSON
+     * string keeps each value's quotes on 2.33 ({@code "v"} is stored as {@code "\"v\""}).
+     * An absent routing type is the broker's own default,
+     * {@code STRIP}.
+     */
+    JolokiaRequest positionalCreate(String brokerMbean, Map<String, Object> config) {
+        String transformerClass = "";
+        Object transformerProperties = Map.of();
+        if (config.get("transformer-configuration") instanceof Map<?, ?> transformer) {
+            transformerClass = String.valueOf(transformer.get("class-name"));
+            if (transformer.get("properties") != null) {
+                transformerProperties = transformer.get("properties");
+            }
+        }
+        return JolokiaRequest.exec(
+                brokerMbean,
+                "createDivert(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,"
+                        + "java.lang.String,java.lang.String,java.util.Map,java.lang.String)",
+                config.get("name"),
+                config.getOrDefault("routing-name", config.get("name")),
+                config.get("address"),
+                config.get("forwarding-address"),
+                Boolean.TRUE.equals(config.get("exclusive")),
+                config.getOrDefault("filter-string", ""),
+                transformerClass,
+                transformerProperties,
+                config.getOrDefault("routing-type", "STRIP"));
     }
 
     /**

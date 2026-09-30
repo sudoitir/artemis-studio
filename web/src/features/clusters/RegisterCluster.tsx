@@ -20,7 +20,13 @@ import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
-import { useCheckConnection, useClusters, useRegisterCluster, type RegisterClusterRequest } from './api.ts';
+import {
+  useCheckConnection,
+  useClusters,
+  useRegisterCluster,
+  type RegisterClusterRequest,
+  type TopologyView,
+} from './api.ts';
 import { useSlot } from '../../kernel/slots.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import { normaliseSeeds } from './normaliseSeeds.ts';
@@ -69,7 +75,8 @@ function blockedReason(
 ): string | null {
   if (check.isPending) return 'Checking the connection…';
   if (checkPassed) return null;
-  if (stale || check.isError) return 'Check the connection again — the details changed since the last check.';
+  if (stale) return 'Check the connection again — the details changed since the last check.';
+  if (check.isError) return 'The check failed. Fix what it reports above, then check again.';
   return 'Check the connection first.';
 }
 
@@ -89,6 +96,7 @@ function CheckOutcome({
           }. Nothing saved yet.`}
         </Text>
       ) : null}
+      {check.isSuccess ? <UntestedVersions topology={check.data.topology} /> : null}
       {check.isError ? (
         <Alert color="red" variant="light" title={check.error.title}>
           {check.error.message}
@@ -367,5 +375,19 @@ export function RegisterClusterButton({ collapsed }: Readonly<{ collapsed?: bool
         </Stack>
       </Modal>
     </>
+  );
+}
+
+/**
+ * Nodes on a release newer than Studio has been tested against (ADR-0142). Registration
+ * goes ahead; the operator is told before they rely on it rather than after.
+ */
+function UntestedVersions({ topology }: Readonly<{ topology: TopologyView }>) {
+  const untested = topology.nodes.flatMap((n) => n.endpoints).filter((e) => e.versionSupport === 'NEWER_THAN_TESTED');
+  if (untested.length === 0) return null;
+  return (
+    <Alert color="yellow" variant="light" title="Newer Artemis than Studio has tested" mt="xs">
+      {`${untested.map((e) => `${e.name} runs Artemis ${e.version}`).join('; ')}. Registration will go ahead, but this release is outside the range Studio's tests cover, so a management call may behave differently. The supported versions page lists the tested range.`}
+    </Alert>
   );
 }

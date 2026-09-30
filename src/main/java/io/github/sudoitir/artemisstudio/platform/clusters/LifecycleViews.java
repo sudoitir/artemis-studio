@@ -32,8 +32,16 @@ public final class LifecycleViews {
                     requiredMode = REQUIRED,
                     description = "WOULD_APPLY on a preview; APPLIED when the node was changed; ALREADY when it was"
                             + " already in the requested state; SKIPPED_NOT_LIVE when the node was not"
-                            + " live and never received the command; FAILED when it refused.",
-                    allowableValues = {"WOULD_APPLY", "APPLIED", "ALREADY", "SKIPPED_NOT_LIVE", "FAILED"})
+                            + " live and never received the command; UNSUPPORTED_VERSION when its Artemis"
+                            + " release lacks the operation and it was not called; FAILED when it refused.",
+                    allowableValues = {
+                        "WOULD_APPLY",
+                        "APPLIED",
+                        "ALREADY",
+                        "SKIPPED_NOT_LIVE",
+                        "UNSUPPORTED_VERSION",
+                        "FAILED"
+                    })
             String status,
 
             @Schema(nullable = true, description = "Messages destroyed, or that would be destroyed, on this node.")
@@ -80,7 +88,9 @@ public final class LifecycleViews {
             boolean anySettled = outcome.nodes().stream()
                     .anyMatch(n -> n.status() == NodeStatus.APPLIED || n.status() == NodeStatus.ALREADY);
             boolean anyNot = outcome.nodes().stream()
-                    .anyMatch(n -> n.status() == NodeStatus.FAILED || n.status() == NodeStatus.SKIPPED_NOT_LIVE);
+                    .anyMatch(n -> n.status() == NodeStatus.FAILED
+                            || n.status() == NodeStatus.SKIPPED_NOT_LIVE
+                            || n.status() == NodeStatus.UNSUPPORTED_VERSION);
             return new LifecycleOutcomeView(
                     outcome.dryRun(),
                     outcome.cap(),

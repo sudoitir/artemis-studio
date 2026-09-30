@@ -186,6 +186,12 @@
   border-color: var(--as-node-unmanaged);
 }
 
+.versionNote {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--as-warning);
+}
+
 .addr {
   font-size: 11px;
   line-height: 1.35;

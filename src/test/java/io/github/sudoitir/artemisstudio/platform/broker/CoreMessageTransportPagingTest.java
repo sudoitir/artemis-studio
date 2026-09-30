@@ -16,8 +16,6 @@ import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ssl.SslBundles;
-import org.springframework.web.client.RestClient;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * A queue whose address is paging, against a real broker. The JMS browser ends its
@@ -40,14 +38,7 @@ class CoreMessageTransportPagingTest extends ArtemisIntegrationTest {
         clusterId = UUID.randomUUID();
         queueName = "core.paging.it." + System.nanoTime();
 
-        RestClient rest = RestClient.builder()
-                .requestInterceptor((request, body, execution) -> {
-                    request.getHeaders().setBasicAuth(BROKER_USER, BROKER_PASSWORD);
-                    return execution.execute(request, body);
-                })
-                .build();
-        client =
-                new JolokiaBrokerClient(rest, jolokiaUrl(), JsonMapper.builder().build());
+        client = jolokiaClient();
 
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))

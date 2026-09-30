@@ -15,6 +15,14 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class BrokerListOps {
 
+    /**
+     * The filter that matches every row. An empty string means the same on current brokers,
+     * but older ones (2.33.0 among them) parse the options as JSON and fail on it with
+     * "Nothing to read"; a filter with an empty field is accepted across the supported
+     * range (ADR-0142). {@code BrokerListOpsBrokerTest} lists with it against both ends in CI.
+     */
+    public static final String ALL = "{\"field\":\"\",\"operation\":\"\",\"value\":\"\"}";
+
     /** One page of one op on one node. {@code page}/{@code size} of {@code -1} disables paging. */
     public record ListPage(JsonNode data, long count) {}
 

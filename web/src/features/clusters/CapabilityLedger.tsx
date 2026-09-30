@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Anchor, Collapse, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Link } from '@tanstack/react-router';
-import type { CapabilitiesView, CapabilityView } from './api.ts';
+import type { CapabilitiesView, CapabilityView, VersionGateView } from './api.ts';
 import styles from './CapabilityLedger.module.css';
 
-type Key = keyof CapabilitiesView;
+type Key = Exclude<keyof CapabilitiesView, 'versionGates'>;
 
 const LABELS: Record<Key, string> = {
   managementRead: 'Read management data',
@@ -35,6 +35,14 @@ const DECLARABLE: Partial<Record<Key, string>> = {
 
 const ORDER: Key[] = ['managementRead', 'managementWrite', 'notifications', 'messageIo', 'slowConsumerDetection'];
 
+interface Row {
+  key: string;
+  label: string;
+  cap: CapabilityView;
+  word: { text: string; tone?: 'warning' | 'danger' };
+  declarable?: string;
+}
+
 /**
  * "What this connection can do", as a hanging ledger. Every row shows a status
  * word on one right-aligned column; only rows that are not plainly available
@@ -49,13 +57,26 @@ export function CapabilityLedger({
   /** When the cluster is registered, snippets that are declarable link into its configuration. */
   clusterId?: string;
 }>) {
-  const [open, setOpen] = useState<Key | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const rows: Row[] = [
+    ...ORDER.map((key) => ({
+      key,
+      label: LABELS[key],
+      cap: capabilities[key],
+      word: statusWord(key, capabilities[key]),
+      declarable: DECLARABLE[key],
+    })),
+    ...capabilities.versionGates.map((gate) => ({
+      key: gate.feature,
+      label: gate.label,
+      cap: gate,
+      word: gateWord(gate),
+    })),
+  ];
 
   return (
     <div className={styles.ledger}>
-      {ORDER.map((key) => {
-        const cap = capabilities[key];
-        const word = statusWord(key, cap);
+      {rows.map(({ key, label, cap, word, declarable }) => {
         const expandable = word.text !== 'Available';
         const isOpen = open === key;
         const chevron = isOpen ? ' ⌃' : ' ⌄';
@@ -70,7 +91,7 @@ export function CapabilityLedger({
               disabled={!expandable}
               onClick={() => expandable && setOpen(isOpen ? null : key)}
             >
-              <span className={styles.label}>{LABELS[key]}</span>
+              <span className={styles.label}>{label}</span>
               <span className={styles.status} data-tone={word.tone}>
                 {word.text}
                 {expandable ? chevron : ''}
@@ -84,9 +105,9 @@ export function CapabilityLedger({
                   {cap.brokerXmlSnippet ? (
                     <CodeHighlight className={styles.snippet} code={cap.brokerXmlSnippet.trimEnd()} language="xml" />
                   ) : null}
-                  {cap.brokerXmlSnippet && clusterId && DECLARABLE[key] ? (
+                  {cap.brokerXmlSnippet && clusterId && declarable ? (
                     <Text size="xs" mt="xs">
-                      {DECLARABLE[key]}{' '}
+                      {declarable}{' '}
                       <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=recommended`} size="xs">
                         Declare &amp; apply it
                       </Anchor>
@@ -113,4 +134,15 @@ function statusWord(key: Key, cap: CapabilityView): { text: string; tone?: 'warn
     return { text: 'Needs setup', tone: 'warning' };
   }
   return { text: 'Unavailable', tone: 'danger' };
+}
+
+/** A version gate in the ledger's words: the release it needs is the status, not a bare "Unavailable". */
+function gateWord(gate: VersionGateView): Row['word'] {
+  if (gate.status === 'UNAVAILABLE') {
+    return { text: `Needs Artemis ${gate.requiredVersion}`, tone: 'danger' };
+  }
+  if (gate.status === 'UNKNOWN') {
+    return { text: 'Version unknown', tone: 'warning' };
+  }
+  return gate.nodes.every((n) => n.supported) ? { text: 'Available' } : { text: 'On some nodes', tone: 'warning' };
 }
