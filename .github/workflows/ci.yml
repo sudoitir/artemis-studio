@@ -89,7 +89,7 @@ jobs:
             release:
               - *build
               - 'clients/**'
-            # The generated Java client, built from web/openapi.json (ADR-0148).
+            # The generated Java client, built from web/openapi.json (ADR-0149).
             clients:
               - *ci
               - 'clients/**'
@@ -191,7 +191,7 @@ jobs:
       - run: npm run build
       - name: Fail on a stale generated API schema
         run: git diff --exit-code src/kernel/api/schema.d.ts
-      # The published TypeScript client compiles against the schema just generated (ADR-0148).
+      # The published TypeScript client compiles against the schema just generated (ADR-0149).
       - name: Build the TypeScript client
         run: node packages/client/build.mjs 2026.01.0
       - run: npm run format:check
@@ -215,7 +215,7 @@ jobs:
           path: web/coverage
           retention-days: 14
 
-  # A break of the public API is refused unless a commit of the PR marks it (ADR-0146): oasdiff
+  # A break of the public API is refused unless a commit of the PR marks it (ADR-0147): oasdiff
   # compares web/openapi.json with the latest release's. `just api-diff` runs the same script.
   api-compat:
     needs: changes
@@ -231,7 +231,7 @@ jobs:
       - run: scripts/api-compat.sh origin/main
 
   # The Java client is generated from web/openapi.json, so a generator failure shows up here, not at
-  # release (ADR-0148).
+  # release (ADR-0149).
   client-java:
     needs: changes
     if: >-
@@ -669,7 +669,7 @@ jobs:
           # The Grafana dashboard and Prometheus rules, as their own asset (ADR-0147).
           tar -czf "artemis-studio-observability-$V.tar.gz" deploy/observability
           sha256sum "artemis-studio-observability-$V.tar.gz" > "artemis-studio-observability-$V.tar.gz.sha256"
-          # The API document of this release, with the release as its version (ADR-0148).
+          # The API document of this release, with the release as its version (ADR-0149).
           jq --arg v "$V" '.info.version = $v' web/openapi.json > "artemis-studio-$V.openapi.json"
           sha256sum "artemis-studio-$V.openapi.json" > "artemis-studio-$V.openapi.json.sha256"
 
@@ -994,7 +994,7 @@ jobs:
           npx -y semver@7 -r '>=11.5.1' "$(npm -v)" >/dev/null || { echo "npm $(npm -v) is too old to publish"; exit 1; }
           npm publish --access public --provenance
 
-  # The TypeScript client on npm (ADR-0148), versioned like Studio (2026.09.0 is npm 2026.9.0) and
+  # The TypeScript client on npm (ADR-0149), versioned like Studio (2026.09.0 is npm 2026.9.0) and
   # built from the release's own OpenAPI document, so every release publishes one. Trusted
   # publishing through GitHub's OIDC, as for the SDK; the package's trusted publisher is set up once
   # on npmjs.com (workflow ci.yml, no environment).
@@ -1026,7 +1026,7 @@ jobs:
           npx -y semver@7 -r '>=11.5.1' "$(npm -v)" >/dev/null || { echo "npm $(npm -v) is too old to publish"; exit 1; }
           npm publish --access public --provenance
 
-  # The Java client on Maven Central (ADR-0148): generated from the release's OpenAPI document, so
+  # The Java client on Maven Central (ADR-0149): generated from the release's OpenAPI document, so
   # every release publishes one, signed and attested like the plugin API.
   publish-client-java:
     needs: release

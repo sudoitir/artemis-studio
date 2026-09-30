@@ -36,7 +36,7 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * {@code Idempotency-Key} on every mutating {@code /api/v1} request (ADR-0147). A request with the header
+ * {@code Idempotency-Key} on every mutating {@code /api/v1} request (ADR-0148). A request with the header
  * is claimed for the calling user; a repeat with the same request replays the first result, and any other
  * repeat is refused. Registered at the default order, so it runs after the security chain (CSRF and
  * authentication have already decided) and sees the principal. Requests without the header, unauthenticated

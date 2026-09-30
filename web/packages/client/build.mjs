@@ -1,5 +1,5 @@
 // Builds the publishable package into dist/: the API types generated from web/openapi.json, the
-// client compiled from src/, and a package.json stamped with the release version (ADR-0148).
+// client compiled from src/, and a package.json stamped with the release version (ADR-0149).
 //   node packages/client/build.mjs <YYYY.MM.PATCH>
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

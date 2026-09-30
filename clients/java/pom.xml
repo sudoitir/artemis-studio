@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The Java client of the Artemis Studio API (ADR-0148): generated from ../../web/openapi.json, the
+  The Java client of the Artemis Studio API (ADR-0149): generated from ../../web/openapi.json, the
   document the contract tests check, so it cannot drift from the API. A standalone pom, because the
   Studio pom has no modules. CI builds it on every pull request and publishes it on every release
   (`versions:set` writes the release version, as for the plugin API); run `../../mvnw verify` here.

@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Idempotency keys (ADR-0147): one row per (user, key), claimed PENDING before a mutating request runs
+-- Idempotency keys (ADR-0148): one row per (user, key), claimed PENDING before a mutating request runs
 -- and completed with its status and body, so a repeat within 24 hours replays the first result. The
 -- data lifecycle purges it (kernel/lifecycle IdempotencyStore). Never edit this file once released.
 

@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-/** The {@code idempotency_record} rows behind {@link IdempotencyFilter} (ADR-0147): claim, complete, release, find. */
+/** The {@code idempotency_record} rows behind {@link IdempotencyFilter} (ADR-0148): claim, complete, release, find. */
 @Component
 @RequiredArgsConstructor
 class IdempotencyRecords {

@@ -1,6 +1,6 @@
 ## 1. Design
 - [x] 1.1 Brainstorm and investigate; `/opsx:update` adds design.md, sharpens specs, replaces these tasks
-- [x] 1.2 ADRs: 0146 public API contract (versioning, `!` flag, deprecation, pagination/error/limit convention), 0147 idempotency keys, 0148 published generated clients (revisits ADR-0019 in part); 0143 to 0145 were taken by the account-security changes
+- [x] 1.2 ADRs: 0147 public API contract (versioning, `!` flag, deprecation, pagination/error/limit convention), 0148 idempotency keys, 0149 published generated clients (revisits ADR-0019 in part); 0143 to 0146 were taken by the account-security and diagnostics changes
 
 ## 2. Errors and limits (D4)
 - [x] 2.1 Problem+json `AuthenticationEntryPoint` (401 `unauthenticated`) and `AccessDeniedHandler` (403 `forbidden`, `csrf`) wired in `SecurityConfig`; `BearerAuthenticationFilter` delegates to the entry point

@@ -19,7 +19,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/** Idempotency keys (api-contract spec, ADR-0147) against a real Postgres, driving the filter directly. */
+/** Idempotency keys (api-contract spec, ADR-0148) against a real Postgres, driving the filter directly. */
 class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
 
     private static final String PATH = "/api/v1/test/things";

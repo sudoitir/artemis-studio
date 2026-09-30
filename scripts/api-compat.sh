@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Breaking-change gate for the public API (ADR-0146): compares web/openapi.json with the one at the
+# Breaking-change gate for the public API (ADR-0147): compares web/openapi.json with the one at the
 # latest CalVer tag. A break passes only when a commit in BASE..HEAD is marked as one, the same
 # marker that puts it under "### Breaking" in the release notes (ADR-0051).
 #

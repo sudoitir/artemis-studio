@@ -19,7 +19,7 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * The API document as a test oracle (api-contract spec, ADR-0146): checks a response body against the schema
+ * The API document as a test oracle (api-contract spec, ADR-0147): checks a response body against the schema
  * the document gives its operation and status. Every object schema is closed with
  * {@code unevaluatedProperties: false}, so a field the document does not describe is a violation, as is a
  * missing required field or a wrong type. {@link ApiContractConfig} feeds it every MockMvc response.
