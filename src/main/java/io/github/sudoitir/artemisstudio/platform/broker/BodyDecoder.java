@@ -13,7 +13,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
 /**
- * Reads a bytes message's body as text when it is text (ADR-0147). Decided once, where Studio reads the
+ * Reads a bytes message's body as text when it is text (ADR-0148). Decided once, where Studio reads the
  * body, so every view of the message agrees: the message view, the index, governance, SQL, request-reply.
  *
  * <p>Text means strict UTF-8 with no control characters but tab, line feed and carriage return. A gzip or

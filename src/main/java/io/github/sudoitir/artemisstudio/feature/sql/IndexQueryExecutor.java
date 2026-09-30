@@ -226,7 +226,7 @@ public class IndexQueryExecutor {
      * the index's own predicate, repeated so Postgres can use it. The index covers
      * text bodies only, because {@code to_tsvector} over base64 produces garbage
      * tokens and bloats the index for no retrieval value. A bytes message whose body
-     * is text is stored as text (ADR-0147) and is searchable like any other.
+     * is text is stored as text (ADR-0148) and is searchable like any other.
      *
      * <p>{@code websearch_to_tsquery} rather than {@code to_tsquery}: it accepts what
      * an operator types into a search box — quoted phrases, {@code -exclusion},

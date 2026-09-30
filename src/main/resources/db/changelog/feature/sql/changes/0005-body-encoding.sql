@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- A bytes message whose body is text is stored as that text (ADR-0147), so "binary" is a property of the
+-- A bytes message whose body is text is stored as that text (ADR-0148), so "binary" is a property of the
 -- stored body, not of the message type. body_base64 marks a genuinely binary body (withheld when stored,
 -- its original sealed), body_compression the gzip or deflate a text body was unwrapped from. Every type-4
 -- row stored before this change was base64, so it is marked so and the remasker keeps it withheld. The

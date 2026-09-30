@@ -31,7 +31,7 @@
 
 ## 6. Decision record and verification
 
-- [x] 6.1 ADR 0147 "Bytes bodies are decoded once, at the read boundary"
+- [x] 6.1 ADR 0148 "Bytes bodies are decoded once, at the read boundary"
 - [x] 6.2 `just fmt`, then `just verify` once
 - [x] 6.3 Run Studio on its own compose project: send bytes-JSON, gzip-JSON and binary over Core; check queue → Messages (body column, drawer Formatted/Tree/Raw), SQL console search, Settings → Remove cluster; light and dark screenshots; stop the stack and delete its volumes
 - [x] 6.4 Browse timing for 200 × 64 KiB bytes-JSON messages before and after, noted in the PR

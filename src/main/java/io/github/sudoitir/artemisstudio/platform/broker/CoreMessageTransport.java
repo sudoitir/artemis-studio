@@ -256,7 +256,7 @@ public class CoreMessageTransport implements MessageTransport {
                 byte[] raw = new byte[(int) Math.min(len, Integer.MAX_VALUE)];
                 bytes.readBytes(raw);
                 size = raw.length;
-                // Text carried as bytes reads as text everywhere (ADR-0147); only binary stays base64.
+                // Text carried as bytes reads as text everywhere (ADR-0148); only binary stays base64.
                 BodyDecoder.Decoded decoded = BodyDecoder.decode(raw);
                 if (decoded.isBinary()) {
                     body = Base64.getEncoder().encodeToString(raw);

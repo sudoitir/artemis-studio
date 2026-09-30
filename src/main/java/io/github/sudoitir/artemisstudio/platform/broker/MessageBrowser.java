@@ -187,7 +187,7 @@ public class MessageBrowser {
         boolean truncated = isTruncated(body);
         Integer observedLimit = truncated ? observedLimit(body) : null;
 
-        // A bytes message has no text, only its leading bytes: read them as text when they are (ADR-0147).
+        // A bytes message has no text, only its leading bytes: read them as text when they are (ADR-0148).
         JsonNode preview = row.get("BodyPreview");
         if (body == null && preview != null && preview.isArray()) {
             byte[] raw = new byte[preview.size()];
