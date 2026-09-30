@@ -41,4 +41,4 @@
 
 ## 9. Finish
 - [x] 9.1 Reviewer on the full diff; findings fixed
-- [ ] 9.2 `just verify` green; UI screenshots light and dark; PR merged on green CI; change archived
+- [x] 9.2 `just verify` green; UI screenshots light and dark; PR merged on green CI; change archived
