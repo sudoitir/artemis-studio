@@ -27,9 +27,13 @@ public final class DynamicTriggers {
      */
     public static Trigger fixedDelay(Supplier<Duration> interval) {
         return context -> {
-            Instant last = context.lastCompletion() != null
-                    ? context.lastCompletion()
-                    : context.lastActualExecution() != null ? context.lastActualExecution() : Instant.now();
+            Instant last = context.lastCompletion();
+            if (last == null) {
+                last = context.lastActualExecution();
+            }
+            if (last == null) {
+                last = Instant.now();
+            }
             return last.plus(interval.get());
         };
     }

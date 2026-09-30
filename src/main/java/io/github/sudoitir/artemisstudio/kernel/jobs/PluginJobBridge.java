@@ -39,8 +39,8 @@ class PluginJobBridge implements PluginBridge {
 
     PluginJobBridge(JobStatuses statuses) {
         this.statuses = statuses;
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(4);
+        ThreadPoolTaskScheduler pool = new ThreadPoolTaskScheduler();
+        pool.setPoolSize(4);
         // A new worker thread inherits the calling thread's TCCL at the moment it is spawned
         // (java.lang.Thread's own constructor), and PluginRuntimeFactory holds the calling thread's
         // TCCL switched to the plugin's own classloader for the whole activation — including the
@@ -51,16 +51,15 @@ class PluginJobBridge implements PluginBridge {
         // starting every worker thread on this bridge's own (host) classloader instead means a
         // plugin classloader is only ever reachable from here for the duration of one run() —
         // {@link #runOnThePlugin} switches to it and back out again around each task.
-        scheduler.setThreadFactory(
-                new org.springframework.scheduling.concurrent.CustomizableThreadFactory("plugin-job-") {
-                    @Override
-                    public Thread newThread(Runnable runnable) {
-                        Thread thread = super.newThread(runnable);
-                        thread.setContextClassLoader(PluginJobBridge.class.getClassLoader());
-                        return thread;
-                    }
-                });
-        scheduler.initialize();
+        pool.setThreadFactory(new org.springframework.scheduling.concurrent.CustomizableThreadFactory("plugin-job-") {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                Thread thread = super.newThread(runnable);
+                thread.setContextClassLoader(PluginJobBridge.class.getClassLoader());
+                return thread;
+            }
+        });
+        pool.initialize();
         // ScheduledThreadPoolExecutor's default removeOnCancelPolicy is false: a cancelled-but-
         // not-yet-due task (exactly what detach()'s future.cancel(false) leaves behind) stays
         // sitting in the executor's internal delay queue, still strongly referencing the plugin's
@@ -68,8 +67,8 @@ class PluginJobBridge implements PluginBridge {
         // would have arrived (minutes away, for most jobs). Enabling the policy here makes a
         // cancel purge the task from that queue immediately, which is what actually lets an
         // unloaded plugin's classloader become collectible promptly rather than minutes late.
-        scheduler.getScheduledThreadPoolExecutor().setRemoveOnCancelPolicy(true);
-        this.scheduler = scheduler;
+        pool.getScheduledThreadPoolExecutor().setRemoveOnCancelPolicy(true);
+        this.scheduler = pool;
     }
 
     @Override
@@ -138,7 +137,7 @@ class PluginJobBridge implements PluginBridge {
                     instrumented.run();
                     return null;
                 });
-            } catch (RuntimeException | Error e) {
+            } catch (RuntimeException e) {
                 throw e;
             } catch (Exception e) {
                 throw new IllegalStateException(e);

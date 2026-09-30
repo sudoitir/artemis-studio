@@ -61,25 +61,25 @@ public class PluginGateway implements HttpRequestHandler {
                     response,
                     HttpStatus.NOT_FOUND,
                     "feature-disabled",
-                    "Plugin '" + pluginId + "' is not installed, or is disabled on this installation.");
+                    pluginMessage(pluginId, "is not installed, or is disabled on this installation."));
             return;
         }
         switch (slot.get()) {
-            case Active active -> forward(active.runtime(), request, response);
-            case Updating updating -> {
-                response.setHeader("Retry-After", String.valueOf(updating.retryAfterSeconds()));
+            case Active(var runtime) -> forward(runtime, request, response);
+            case Updating(var retryAfterSeconds) -> {
+                response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
                 writeProblem(
                         response,
                         HttpStatus.SERVICE_UNAVAILABLE,
                         "plugin-updating",
-                        "Plugin '" + pluginId + "' is updating; retry in " + updating.retryAfterSeconds() + "s.");
+                        pluginMessage(pluginId, "is updating; retry in " + retryAfterSeconds + "s."));
             }
-            case Failed failed ->
+            case Failed(var reason) ->
                 writeProblem(
                         response,
                         HttpStatus.SERVICE_UNAVAILABLE,
                         "plugin-failed",
-                        "Plugin '" + pluginId + "' failed to activate: " + failed.reason());
+                        pluginMessage(pluginId, "failed to activate: " + reason));
         }
     }
 
@@ -94,7 +94,7 @@ public class PluginGateway implements HttpRequestHandler {
                     response,
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "plugin-updating",
-                    "Plugin '" + runtime.id() + "' is updating; retry.");
+                    pluginMessage(runtime.id(), "is updating; retry."));
             return;
         }
         ClassLoader previous = Thread.currentThread().getContextClassLoader();
@@ -129,6 +129,10 @@ public class PluginGateway implements HttpRequestHandler {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         json.writeValue(response.getOutputStream(), problem);
+    }
+
+    private static String pluginMessage(String pluginId, String what) {
+        return "Plugin '" + pluginId + "' " + what;
     }
 
     private static String pluginIdOf(String requestUri) {

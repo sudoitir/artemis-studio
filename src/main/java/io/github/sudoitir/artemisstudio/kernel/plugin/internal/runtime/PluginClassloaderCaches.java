@@ -65,6 +65,9 @@ import org.springframework.util.ReflectionUtils;
 @Slf4j
 final class PluginClassloaderCaches {
 
+    /** The name of the cache field several Spring classes keep their JVM-wide state in. */
+    private static final String CACHE = "cache";
+
     private PluginClassloaderCaches() {}
 
     static void clear(ClassLoader loader) {
@@ -73,10 +76,10 @@ final class PluginClassloaderCaches {
         ReflectionUtils.clearCache();
         AnnotationUtils.clearCache();
         ResolvableType.clearCache();
-        clearStaticMapField(BridgeMethodResolver.class, "cache");
+        clearStaticMapField(BridgeMethodResolver.class, CACHE);
         clearStaticMapField(GenericTypeResolver.class, "typeVariableCache");
         clearStaticMapField("org.springframework.core.convert.Property", "annotationCache");
-        removeFromStaticMapField("org.springframework.core.io.support.SpringFactoriesLoader", "cache", loader);
+        removeFromStaticMapField("org.springframework.core.io.support.SpringFactoriesLoader", CACHE, loader);
         clearObjenesisCacheForLoader(loader);
         evictSecurityAnnotationScanners(loader);
         // Spring AI's static default mapper serializes MCP tool results; its type and serializer
@@ -212,7 +215,7 @@ final class PluginClassloaderCaches {
             if (objenesis == null) {
                 return;
             }
-            Field cacheField = objenesis.getClass().getDeclaredField("cache");
+            Field cacheField = objenesis.getClass().getDeclaredField(CACHE);
             cacheField.setAccessible(true);
             if (cacheField.get(objenesis) instanceof Map<?, ?> cache) {
                 cache.keySet()

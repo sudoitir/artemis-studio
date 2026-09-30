@@ -87,7 +87,7 @@ public class PluginMigrations {
                 String tag = "pre-" + version;
                 Set<String> publicBefore = publicRelations(connection);
 
-                withResourceAccessor(jarPath, pluginId, accessor -> {
+                withResourceAccessor(jarPath, accessor -> {
                     releaseLocks(database);
                     CommandScope tagCmd = new CommandScope(TagCommandStep.COMMAND_NAME);
                     tagCmd.addArgumentValue(TagCommandStep.TAG_ARG, tag);
@@ -139,7 +139,7 @@ public class PluginMigrations {
     }
 
     private void rollbackToTag(Database database, String tag, Path jarPath, String pluginId) throws Exception {
-        withResourceAccessor(jarPath, pluginId, accessor -> {
+        withResourceAccessor(jarPath, accessor -> {
             CommandScope rollback = new CommandScope(RollbackCommandStep.COMMAND_NAME);
             rollback.addArgumentValue(DatabaseChangelogCommandStep.CHANGELOG_FILE_ARG, changelogPath(pluginId));
             rollback.addArgumentValue(RollbackCommandStep.TAG_ARG, tag);
@@ -157,7 +157,7 @@ public class PluginMigrations {
         }
         try (Connection connection = pluginPool.getConnection()) {
             Database database = openDatabase(connection, schema);
-            return withResourceAccessor(jarPath, pluginId, accessor -> {
+            return withResourceAccessor(jarPath, accessor -> {
                 DatabaseChangeLog changeLog = parseChangeLog(pluginId, accessor);
                 List<ChangeSet> unrun = new ArrayList<>();
                 for (ChangeSet cs : changeLog.getChangeSets()) {
@@ -177,7 +177,7 @@ public class PluginMigrations {
         }
         try (Connection connection = pluginPool.getConnection()) {
             Database database = openDatabase(connection, schema);
-            return withResourceAccessor(jarPath, pluginId, accessor -> {
+            return withResourceAccessor(jarPath, accessor -> {
                 java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
                 CommandScope updateSql = new CommandScope(UpdateSqlCommandStep.COMMAND_NAME);
                 updateSql.addArgumentValue(UpdateSqlCommandStep.CHANGELOG_FILE_ARG, changelogPath(pluginId));
@@ -223,9 +223,7 @@ public class PluginMigrations {
             return List.of();
         }
         return withResourceAccessor(
-                jarPath,
-                pluginId,
-                accessor -> toInfos(parseChangeLog(pluginId, accessor).getChangeSets()));
+                jarPath, accessor -> toInfos(parseChangeLog(pluginId, accessor).getChangeSets()));
     }
 
     private List<ChangesetInfo> toInfos(List<ChangeSet> changeSets) {
@@ -252,7 +250,7 @@ public class PluginMigrations {
         T run(ZipResourceAccessor accessor) throws Exception;
     }
 
-    private <T> T withResourceAccessor(Path jarPath, String pluginId, ScopedWork<T> work) throws Exception {
+    private <T> T withResourceAccessor(Path jarPath, ScopedWork<T> work) throws Exception {
         try (ZipResourceAccessor accessor = new ZipResourceAccessor(jarPath.toFile())) {
             return Scope.child(Map.of(Scope.Attr.resourceAccessor.name(), accessor), () -> work.run(accessor));
         }
