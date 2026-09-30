@@ -54,8 +54,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "setup_(review|finding|finding_acceptance)",
                     // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0006).
                     "plugin_(artifact|install|installer|upload)",
-                    "studio_boot",
-                    // Replicas (ADR-0148, changeset kernel-replica 0001).
+                    // Replicas replace the boot log behind the crash-loop guard (ADR-0148, changesets
+                    // kernel-replica 0001 and kernel-plugin 0009).
                     "studio_replica",
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).

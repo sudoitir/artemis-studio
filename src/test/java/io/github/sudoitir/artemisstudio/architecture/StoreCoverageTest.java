@@ -42,7 +42,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("plugin_installer", "configuration"),
             Map.entry("plugin_trusted_key", "configuration: one row per trusted publisher key"),
             Map.entry("plugin_trust_policy", "configuration: a single row"),
-            Map.entry("studio_boot", "trimmed to a day at every start"),
+            Map.entry("studio_boot", "dropped by kernel-plugin 0009; the changeset that created it stays"),
             Map.entry("plugin_upload", "trimmed to a day on every upload"),
             Map.entry("studio_config_property", "configuration"),
             Map.entry("studio_setting", "configuration: one row per overridden setting"),

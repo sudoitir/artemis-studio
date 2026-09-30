@@ -27,6 +27,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Plugin
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Signer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ValidationReport;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import jakarta.servlet.ServletContext;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -88,8 +89,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Slf4j
 public class PluginHost implements SmartLifecycle {
 
-    /** design.md §2: "the previous 3 boots within 15 minutes have no stopped_at" trips safe mode. */
-    private static final int CRASH_LOOP_BOOT_COUNT = 3;
+    /** Three crashes of any replica within 15 minutes trip safe mode (ADR-0148, after design.md §2). */
+    private static final int CRASH_LOOP_CRASH_COUNT = 3;
 
     private static final Duration CRASH_LOOP_WINDOW = Duration.ofMinutes(15);
 
@@ -118,6 +119,7 @@ public class PluginHost implements SmartLifecycle {
     private final PluginProperties properties;
     private final StudioRestart restart;
     private final PluginTrust trust;
+    private final ReplicaRegistry replicas;
 
     /**
      * One lifecycle operation at a time, Studio-wide (design.md §7: "at most one activation in
@@ -128,7 +130,6 @@ public class PluginHost implements SmartLifecycle {
     private final Semaphore busy = new Semaphore(1);
 
     private volatile boolean running;
-    private volatile Long currentBootId;
     private volatile boolean safeMode;
     private volatile String safeModeReason;
 
@@ -151,7 +152,8 @@ public class PluginHost implements SmartLifecycle {
             PlatformTransactionManager transactionManager,
             PluginProperties properties,
             StudioRestart restart,
-            PluginTrust trust) {
+            PluginTrust trust,
+            ReplicaRegistry replicas) {
         this.store = store;
         this.validator = validator;
         this.migrations = migrations;
@@ -171,6 +173,7 @@ public class PluginHost implements SmartLifecycle {
         this.properties = properties;
         this.restart = restart;
         this.trust = trust;
+        this.replicas = replicas;
     }
 
     // ---- SmartLifecycle: boot, shutdown, safe mode (design.md §2, task 6.8) -----------------------
@@ -201,8 +204,9 @@ public class PluginHost implements SmartLifecycle {
 
     /**
      * The boot sequence itself, public so a test can trigger it directly instead of waiting for a
-     * real {@code ApplicationReadyEvent} (this session's tests seed {@code studio_boot} rows first
-     * and then call this to prove the crash-loop and safe-mode decisions).
+     * real {@code ApplicationReadyEvent} (this session's tests seed {@code studio_replica} rows first
+     * and then call this to prove the crash-loop and safe-mode decisions). However it ends, this
+     * replica is ready afterwards: the boot sequence is part of what readiness waits for.
      */
     public void runStartupSequence() {
         busy.acquireUninterruptibly();
@@ -210,24 +214,20 @@ public class PluginHost implements SmartLifecycle {
             startup();
         } finally {
             busy.release();
+            replicas.markReady();
         }
     }
 
     private void startup() {
-        jdbc.update("DELETE FROM studio_boot WHERE started_at < now() - interval '1 day'");
-        long bootId =
-                jdbc.queryForObject("INSERT INTO studio_boot (started_at) VALUES (now()) RETURNING id", Long.class);
-        currentBootId = bootId;
-
         boolean forced = properties.safeMode();
-        boolean crashLoop = !forced && isCrashLoop(bootId);
+        boolean crashLoop = !forced && replicas.crashesSince(CRASH_LOOP_WINDOW) >= CRASH_LOOP_CRASH_COUNT;
         if (forced || crashLoop) {
             safeMode = true;
             safeModeReason = forced
                     ? "Safe mode is forced by artemis-studio.plugins.safe-mode=true."
                     : "Studio stopped uncleanly %d times in the last %d minutes; no plugin was started."
-                            .formatted(CRASH_LOOP_BOOT_COUNT, CRASH_LOOP_WINDOW.toMinutes());
-            log.warn("plugin-boot id={} safeMode=true reason=\"{}\"", bootId, safeModeReason);
+                            .formatted(CRASH_LOOP_CRASH_COUNT, CRASH_LOOP_WINDOW.toMinutes());
+            log.warn("plugin-boot replica={} safeMode=true reason=\"{}\"", replicas.id(), safeModeReason);
             return;
         }
         safeMode = false;
@@ -236,20 +236,6 @@ public class PluginHost implements SmartLifecycle {
         failStaleActivatingRows();
         checkCompatibility();
         startActiveRowsAtBoot();
-    }
-
-    private boolean isCrashLoop(long bootId) {
-        List<java.sql.Timestamp> stoppedAts = jdbc.query(
-                """
-                SELECT stopped_at FROM studio_boot
-                WHERE id <> ? AND started_at > now() - ?::interval
-                ORDER BY started_at DESC LIMIT ?
-                """,
-                (rs, rowNum) -> rs.getTimestamp("stopped_at"),
-                bootId,
-                CRASH_LOOP_WINDOW.toMinutes() + " minutes",
-                CRASH_LOOP_BOOT_COUNT);
-        return stoppedAts.size() == CRASH_LOOP_BOOT_COUNT && stoppedAts.stream().allMatch(java.util.Objects::isNull);
     }
 
     /** design.md §4: an {@code activating} row survives only if something else still holds its
@@ -494,10 +480,6 @@ public class PluginHost implements SmartLifecycle {
                 }
                 registry.remove(id);
             });
-        }
-        Long bootId = currentBootId;
-        if (bootId != null) {
-            jdbc.update("UPDATE studio_boot SET stopped_at = now() WHERE id = ?", bootId);
         }
     }
 

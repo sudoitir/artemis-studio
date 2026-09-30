@@ -718,11 +718,12 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
 
     // ---- boot / shutdown / safe mode (task 6.8's SmartLifecycle half) ---------------------------
 
-    /** A clean slate for {@code studio_boot} so a test's own boot history is the only history
+    /** A clean slate for crashes so a test's own crash history is the only history
      * {@link PluginHost#runStartupSequence()} sees — a stray row from another test would otherwise
-     * make the crash-loop decision non-deterministic. */
+     * make the crash-loop decision non-deterministic. Replicas that still heartbeat are not crashes. */
     private void resetBootHistory() {
-        jdbc.update("DELETE FROM studio_boot");
+        jdbc.update(
+                "DELETE FROM studio_replica WHERE stopped_at IS NULL AND heartbeat_at < now() - interval '15 seconds'");
     }
 
     @Test
@@ -744,7 +745,7 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void crashLoopAfterThreeUncleanBootsTripsSafeModeAndStartsNoPlugin() throws Exception {
+    void threeCrashesTripSafeModeAndStartNoPlugin() throws Exception {
         String id = uniqueId("acme-crashloop");
         String sha = store.put(("not-a-real-jar-" + id).getBytes());
         uploadedShas.add(sha);
@@ -755,7 +756,10 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
 
         resetBootHistory();
         for (int i = 0; i < 3; i++) {
-            jdbc.update("INSERT INTO studio_boot (started_at) VALUES (now() - interval '1 minute')");
+            jdbc.update("""
+                    INSERT INTO studio_replica (started_at, heartbeat_at, host, version, state, id)
+                    VALUES (now() - interval '2 minutes', now() - interval '1 minute', 'crashed', 'test', 'ready', gen_random_uuid())
+                    """);
         }
 
         host.runStartupSequence();
@@ -778,7 +782,7 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void stopClosesRunningPluginsAndRecordsACleanStopAndSurvivesStartAfterwards() throws Exception {
+    void stopClosesRunningPluginsAndSurvivesStartAfterwards() throws Exception {
         String id = uniqueId("acme-stopstart");
         String sha = upload(emptyPlugin(id));
         host.activate(sha, "tester", false);
@@ -795,9 +799,6 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         try {
             assertThat(host.isRunning()).isFalse();
             assertThat(registry.get(id)).isEmpty();
-            Long stoppedCount =
-                    jdbc.queryForObject("SELECT count(*) FROM studio_boot WHERE stopped_at IS NOT NULL", Long.class);
-            assertThat(stoppedCount).isEqualTo(1L);
         } finally {
             host.start();
             assertThat(host.isRunning()).isTrue();
