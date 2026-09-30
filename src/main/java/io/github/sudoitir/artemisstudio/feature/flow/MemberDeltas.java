@@ -34,8 +34,8 @@ final class MemberDeltas {
     private Map<String, Previous> previous = new HashMap<>();
 
     Map<String, MemberRate> apply(Instant at, List<Reading> readings) {
-        Map<String, Previous> next = new HashMap<>(readings.size() * 2);
-        Map<String, MemberRate> out = new HashMap<>(readings.size() * 2);
+        Map<String, Previous> next = HashMap.newHashMap(readings.size());
+        Map<String, MemberRate> out = HashMap.newHashMap(readings.size());
         for (Reading r : readings) {
             Previous before = previous.get(r.memberId());
             Double rate = null;

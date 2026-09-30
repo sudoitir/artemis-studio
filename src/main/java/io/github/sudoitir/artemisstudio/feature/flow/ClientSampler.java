@@ -75,6 +75,8 @@ public class ClientSampler {
             "{\"field\":\"temporary\",\"operation\":\"EQUALS\",\"value\":\"true\"}";
     private static final String FILTERED_QUEUES = "{\"field\":\"filter\",\"operation\":\"NOT_EQUALS\",\"value\":\"\"}";
 
+    private static final String ADDRESS = "address";
+    private static final String BAD_RESPONSE = "BAD_RESPONSE";
     private static final String ROUTING_UNAVAILABLE = "ROUTING_UNAVAILABLE";
     private static final String COUNTER_UNAVAILABLE = "COUNTER_UNAVAILABLE";
 
@@ -202,7 +204,7 @@ public class ClientSampler {
                     JolokiaRequest.exec(mbean, LIST_QUEUES, FILTERED_QUEUES, 1, cap),
                     JolokiaRequest.exec(mbean, ADDRESS_SETTINGS, "#")));
             if (entries.size() != 8) {
-                return failed(clusterId, node, at, "BAD_RESPONSE", "The broker returned an incomplete response.");
+                return failed(clusterId, node, at, BAD_RESPONSE, "The broker returned an incomplete response.");
             }
 
             Listing producers = listing(client, entries.get(0));
@@ -214,30 +216,20 @@ public class ClientSampler {
             for (JsonNode row : producers.rows()) {
                 counterMissing |= !row.has("msgSent");
                 producerReadings.add(new Reading(memberId(row), num(row, "msgSent"), 0));
-                members.add(member(Kind.PRODUCE, row, str(row, "address"), null));
+                members.add(member(Kind.PRODUCE, row, str(row, ADDRESS), null));
             }
             for (JsonNode row : consumers.rows()) {
                 counterMissing |= !row.has("messagesAcknowledged");
                 consumerReadings.add(
                         new Reading(memberId(row), num(row, "messagesAcknowledged"), num(row, "messagesInTransit")));
-                members.add(member(Kind.CONSUME, row, str(row, "address"), str(row, "queue")));
+                members.add(member(Kind.CONSUME, row, str(row, ADDRESS), str(row, "queue")));
             }
 
             List<String> routingErrors = new ArrayList<>();
             List<Route> routes = routes(client, node, entries, routingErrors);
 
-            String errorKind = producers.error() != null
-                    ? producers.errorKind()
-                    : consumers.error() != null
-                            ? consumers.errorKind()
-                            : counterMissing
-                                    ? COUNTER_UNAVAILABLE
-                                    : routingErrors.isEmpty() ? null : ROUTING_UNAVAILABLE;
-            String error = producers.error() != null
-                    ? producers.error()
-                    : consumers.error() != null
-                            ? consumers.error()
-                            : routingErrors.isEmpty() ? null : routingErrors.getFirst();
+            String errorKind = errorKind(producers, consumers, counterMissing, routingErrors);
+            String error = error(producers, consumers, routingErrors);
             NodeSample sample = new NodeSample(
                     node.getId(),
                     clusterId,
@@ -259,8 +251,32 @@ public class ClientSampler {
         } catch (BrokerConnectionException e) {
             return failed(clusterId, node, at, e.kind().name(), e.getMessage());
         } catch (RuntimeException e) {
-            return failed(clusterId, node, at, "BAD_RESPONSE", e.getMessage());
+            return failed(clusterId, node, at, BAD_RESPONSE, e.getMessage());
         }
+    }
+
+    private static String errorKind(
+            Listing producers, Listing consumers, boolean counterMissing, List<String> routingErrors) {
+        if (producers.error() != null) {
+            return producers.errorKind();
+        }
+        if (consumers.error() != null) {
+            return consumers.errorKind();
+        }
+        if (counterMissing) {
+            return COUNTER_UNAVAILABLE;
+        }
+        return routingErrors.isEmpty() ? null : ROUTING_UNAVAILABLE;
+    }
+
+    private static String error(Listing producers, Listing consumers, List<String> routingErrors) {
+        if (producers.error() != null) {
+            return producers.error();
+        }
+        if (consumers.error() != null) {
+            return consumers.error();
+        }
+        return routingErrors.isEmpty() ? null : routingErrors.getFirst();
     }
 
     /** The routing entries of a node's POST, each read on its own: one failing entry loses only itself. */
@@ -301,7 +317,7 @@ public class ClientSampler {
                 routes.add(new Route(
                         RouteKind.STORE_AND_FORWARD,
                         name,
-                        str(row, "address"),
+                        str(row, ADDRESS),
                         receivingNodeId(name),
                         null,
                         null,
@@ -311,26 +327,26 @@ public class ClientSampler {
                         null));
             }
         }
-        for (JsonNode row : queueRows(client, entries.get(5), errors)) {
-            routes.add(new Route(
-                    RouteKind.TEMPORARY_QUEUE,
-                    str(row, "name"),
-                    str(row, "address"),
-                    str(row, "name"),
-                    null,
-                    null,
-                    false,
-                    true,
-                    0,
-                    null));
-        }
+        queueRows(client, entries.get(5), errors).stream()
+                .map(row -> new Route(
+                        RouteKind.TEMPORARY_QUEUE,
+                        str(row, "name"),
+                        str(row, ADDRESS),
+                        str(row, "name"),
+                        null,
+                        null,
+                        false,
+                        true,
+                        0,
+                        null))
+                .forEach(routes::add);
         for (JsonNode row : queueRows(client, entries.get(6), errors)) {
             String filter = str(row, "filter");
             if (filter != null && !filter.isBlank()) {
                 routes.add(new Route(
                         RouteKind.QUEUE_FILTER,
                         str(row, "name"),
-                        str(row, "address"),
+                        str(row, ADDRESS),
                         str(row, "name"),
                         filter,
                         null,
@@ -485,7 +501,7 @@ public class ClientSampler {
             String lower = error.toLowerCase(Locale.ROOT);
             String kind = entry.status() == 403 || lower.contains("permission") || lower.contains("security")
                     ? "PERMISSION_DENIED"
-                    : "BAD_RESPONSE";
+                    : BAD_RESPONSE;
             return new Listing(List.of(), 0, error, kind);
         }
         JsonNode env = client.parsed(entry);
