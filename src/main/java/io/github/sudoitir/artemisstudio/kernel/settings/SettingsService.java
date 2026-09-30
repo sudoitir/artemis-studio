@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
@@ -63,7 +64,7 @@ public class SettingsService {
     /**
      * Insertion-ordered: this is also the order the settings screen renders. Immutable at rest,
      * copy-on-write (design.md, task 6.4): the built-in keys never change after the constructor
-     * runs, and {@link #addPluginSettings} / {@link #removePluginSettings} swap in a whole new map
+     * runs, and {@link #addSettings} / {@link #removeSettings} swap in a whole new map
      * so a concurrent read never sees a partially-updated registry.
      */
     private volatile Map<String, SettingDef> registry = new LinkedHashMap<>();
@@ -74,6 +75,13 @@ public class SettingsService {
      * are the only thing that can invalidate this, all through {@link #applyRuntime()}.
      */
     private volatile Map<String, String> overrides = Map.of();
+
+    /**
+     * The write permission of every key registered through {@link #addSettings} with one other than
+     * {@code settings:write}. Such a key belongs to another screen (the Data page's retention
+     * policies, ADR-0132), so {@link #effective()} does not list it.
+     */
+    private volatile Map<String, String> writePermissions = Map.of();
 
     public SettingsService(
             StudioSettingRepository repo,
@@ -111,8 +119,10 @@ public class SettingsService {
     }
 
     /**
-     * Activates a plugin's own {@link SettingDef}s (design.md, task 6.4): every key must be
-     * namespaced under {@code <pluginId>.} and must not already be registered, or the whole call
+     * Activates settings registered at runtime rather than by a module descriptor: a plugin's own
+     * {@link SettingDef}s (design.md, task 6.4, with {@code namespace} its plugin id) and the
+     * retention policies of the data lifecycle (ADR-0132). Every key must be namespaced under
+     * {@code <namespace>.} and must not already be registered, or the whole call
      * fails without registering any of them. Once registered, each definition with an {@code apply}
      * is pushed once with its current effective value (the packaged default, since a freshly
      * installed plugin has no stored override yet) so a pushed-style consumer's cache is warm
@@ -120,27 +130,36 @@ public class SettingsService {
      * and the exception rethrown, so this plugin's activation fails alone and the registry is left
      * exactly as it was.
      *
-     * <p>A second call for the same {@code pluginId} supersedes the first rather than colliding
+     * <p>{@code writePermission} is what {@link #put} and {@link #reset} demand for these keys.
+     *
+     * <p>A second call for the same {@code namespace} supersedes the first rather than colliding
      * with it: the Instant activation class (design.md §5) attaches a new version's bridges before
-     * the old version's detach runs, so both briefly hold the same id. {@code pluginId}'s own
+     * the old version's detach runs, so both briefly hold the same id. {@code namespace}'s own
      * currently-registered keys are dropped from the collision check before the incoming ones are
      * added, the same way {@link io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry
      * FeatureRegistry#addPlugin} excludes its own immediately-prior version.
      */
-    public synchronized void addPluginSettings(String pluginId, List<SettingDef> defs) {
+    public synchronized void addSettings(String namespace, List<SettingDef> defs, String writePermission) {
         Map<String, SettingDef> previous = registry;
+        Map<String, String> previousPermissions = writePermissions;
         Map<String, SettingDef> next = new LinkedHashMap<>(previous);
-        next.keySet().removeIf(key -> key.startsWith(pluginId + "."));
+        Map<String, String> nextPermissions = new LinkedHashMap<>(previousPermissions);
+        next.keySet().removeIf(key -> key.startsWith(namespace + "."));
+        nextPermissions.keySet().removeIf(key -> key.startsWith(namespace + "."));
         for (SettingDef def : defs) {
-            if (!def.key().startsWith(pluginId + ".")) {
+            if (!def.key().startsWith(namespace + ".")) {
                 throw new IllegalArgumentException(
-                        "Setting '" + def.key() + "' is not namespaced under '" + pluginId + ".'");
+                        "Setting '" + def.key() + "' is not namespaced under '" + namespace + ".'");
             }
             if (next.putIfAbsent(def.key(), def) != null) {
                 throw new IllegalStateException("Setting '" + def.key() + "' is already registered");
             }
+            if (!SettingsPermissions.SETTINGS_WRITE.equals(writePermission)) {
+                nextPermissions.put(def.key(), writePermission);
+            }
         }
         registry = java.util.Collections.unmodifiableMap(next);
+        writePermissions = Map.copyOf(nextPermissions);
         try {
             for (SettingDef def : defs) {
                 if (def.apply() != null) {
@@ -149,20 +168,29 @@ public class SettingsService {
             }
         } catch (RuntimeException e) {
             registry = previous;
+            writePermissions = previousPermissions;
             throw e;
         }
     }
 
     /**
-     * Deactivates every setting {@code pluginId} registered, dropping its {@code apply} lambdas
+     * Deactivates every setting registered under {@code namespace}, dropping its {@code apply} lambdas
      * with it so they stop pinning the plugin's classloader. The stored override rows, if any, are
      * left in place — the same "an absent module's stored value is kept" contract the constructor
      * already gives a disabled built-in module.
      */
-    public synchronized void removePluginSettings(String pluginId) {
+    public synchronized void removeSettings(String namespace) {
         Map<String, SettingDef> next = new LinkedHashMap<>(registry);
-        next.keySet().removeIf(key -> key.startsWith(pluginId + "."));
+        next.keySet().removeIf(key -> key.startsWith(namespace + "."));
+        Map<String, String> nextPermissions = new LinkedHashMap<>(writePermissions);
+        nextPermissions.keySet().removeIf(key -> key.startsWith(namespace + "."));
         registry = java.util.Collections.unmodifiableMap(next);
+        writePermissions = Map.copyOf(nextPermissions);
+    }
+
+    /** The permission {@link #put} and {@link #reset} demand for {@code key}. */
+    public String writePermission(String key) {
+        return writePermissions.getOrDefault(key, SettingsPermissions.SETTINGS_WRITE);
     }
 
     // ---- typed reads ------------------------------------------------------
@@ -183,12 +211,18 @@ public class SettingsService {
 
     // ---- read / write -----------------------------------------------------
 
-    /** Every operator-tunable key of the enabled modules: its effective value, its default, and how to render it. */
+    /**
+     * Every operator-tunable key of the Settings screen: its effective value, its default, and how
+     * to render it. Keys another screen owns (a different write permission) are left out.
+     */
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
     public Map<String, SettingValue> effective() {
         Map<String, String> stored = overrides;
         Map<String, SettingValue> out = new LinkedHashMap<>();
         registry.forEach((key, spec) -> {
+            if (writePermissions.containsKey(key)) {
+                return;
+            }
             String defaultValue = spec.defaultValue().get();
             String override = stored.get(key);
             out.put(
@@ -213,7 +247,7 @@ public class SettingsService {
      * value never becomes a transaction, so a {@code begin}/{@code fail} pair around it
      * would roll back with everything else and record nothing.
      */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_WRITE)")
+    @PreAuthorize("@perm.can(@settingsService.writePermission(#key))")
     @Transactional
     public void put(String key, String rawValue) {
         SettingDef spec = requireKnown(key);
@@ -238,7 +272,7 @@ public class SettingsService {
     }
 
     /** Clears the override so the packaged default takes over again. Audited like {@link #put}. */
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_WRITE)")
+    @PreAuthorize("@perm.can(@settingsService.writePermission(#key))")
     @Transactional
     public void reset(String key) {
         SettingDef spec = requireKnown(key);
@@ -298,22 +332,50 @@ public class SettingsService {
         throw new IllegalArgumentException("Unknown setting key: " + key);
     }
 
-    private static void validate(SettingDef spec, String value) {
+    /** Rejects {@code value} for {@code key} exactly as {@link #put} would, without writing it. */
+    public void check(String key, String value) {
+        validate(requireKnown(key), unquote(value));
+    }
+
+    /** Rejects a value outside its kind's syntax or its bounds, naming the allowed range. */
+    static void validate(SettingDef spec, String value) {
         switch (spec.kind()) {
             case DURATION -> {
+                boolean foreverAllowed = SettingDef.FOREVER.equals(spec.max());
+                if (SettingDef.FOREVER.equalsIgnoreCase(value.trim())) {
+                    if (!foreverAllowed) {
+                        throw outOfRange(spec);
+                    }
+                    return;
+                }
                 Duration d = Duration.parse(toIso(value));
                 if (d.isZero() || d.isNegative()) {
                     throw new IllegalArgumentException(spec.key() + " must be a positive duration");
                 }
+                if (spec.min() != null && d.compareTo(Duration.parse(toIso(spec.min()))) < 0
+                        || spec.max() != null
+                                && !foreverAllowed
+                                && d.compareTo(Duration.parse(toIso(spec.max()))) > 0) {
+                    throw outOfRange(spec);
+                }
             }
             case INT -> {
                 int n = Integer.parseInt(value.trim());
-                if (n < 1) {
-                    throw new IllegalArgumentException(spec.key() + " must be at least 1");
+                int min = spec.min() == null ? 1 : Integer.parseInt(spec.min());
+                if (n < min || spec.max() != null && n > Integer.parseInt(spec.max())) {
+                    throw spec.min() == null && spec.max() == null
+                            ? new IllegalArgumentException(spec.key() + " must be at least 1")
+                            : outOfRange(spec);
                 }
             }
             case CRON -> validateCron(spec.key(), value.trim());
         }
+    }
+
+    private static IllegalArgumentException outOfRange(SettingDef spec) {
+        String min = spec.min() != null ? spec.min() : spec.kind() == SettingDef.Kind.INT ? "1" : "more than 0";
+        String max = spec.max() != null ? spec.max() : "no limit";
+        return new IllegalArgumentException(spec.key() + " must be between " + min + " and " + max);
     }
 
     /**
@@ -335,7 +397,7 @@ public class SettingsService {
     }
 
     /** Accept both {@code "5s"} (Spring style) and {@code "PT5S"} (ISO-8601) duration strings. */
-    private static String toIso(String value) {
+    public static String toIso(String value) {
         String v = value.trim();
         if (v.startsWith("P") || v.startsWith("p")) {
             return v.toUpperCase();

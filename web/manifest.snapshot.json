@@ -48,6 +48,10 @@
     "kind" : "IDENTITY_PROVIDER",
     "required" : false
   }, {
+    "id" : "lifecycle",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
     "id" : "mcp",
     "kind" : "PLATFORM",
     "required" : false
