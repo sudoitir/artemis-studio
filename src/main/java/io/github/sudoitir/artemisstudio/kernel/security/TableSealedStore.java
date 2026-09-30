@@ -1,0 +1,88 @@
+package io.github.sudoitir.artemisstudio.kernel.security;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.UnaryOperator;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+/** A {@link SealedStore} for a table with a {@code sealed bytea} column and a primary key. */
+public class TableSealedStore implements SealedStore {
+
+    private static final String VERSION = SealedStore.versionOf("sealed");
+
+    private final JdbcTemplate jdbc;
+    private final String table;
+    private final List<String> key;
+    private final String select;
+    private final String update;
+
+    public TableSealedStore(JdbcTemplate jdbc, String table, String... keyColumns) {
+        this.jdbc = jdbc;
+        this.table = table;
+        this.key = List.of(keyColumns);
+        this.select = "SELECT " + String.join(", ", key) + ", sealed FROM " + table + " WHERE sealed IS NOT NULL AND "
+                + VERSION + " < ? LIMIT ?";
+        this.update = "UPDATE " + table + " SET sealed = ? WHERE "
+                + String.join(" AND ", key.stream().map(c -> c + " = ?").toList()) + " AND sealed = ?";
+    }
+
+    @Override
+    public String name() {
+        return table;
+    }
+
+    @Override
+    public long countBelow(int version) {
+        Long count = jdbc.queryForObject(
+                "SELECT count(*) FROM " + table + " WHERE sealed IS NOT NULL AND " + VERSION + " < ?",
+                Long.class,
+                version);
+        return count == null ? 0 : count;
+    }
+
+    @Override
+    public int rewrapBatch(int belowVersion, int targetVersion, int limit, UnaryOperator<byte[]> rewrap) {
+        int updated = 0;
+        for (Row row : jdbc.query(
+                select,
+                (rs, i) -> {
+                    Object[] values = new Object[key.size()];
+                    for (int c = 0; c < values.length; c++) {
+                        values[c] = rs.getObject(c + 1);
+                    }
+                    return new Row(values, rs.getBytes(values.length + 1));
+                },
+                belowVersion,
+                limit)) {
+            byte[] rewrapped;
+            try {
+                rewrapped = rewrap.apply(row.sealed());
+            } catch (RuntimeException e) {
+                throw new RewrapException(table, Arrays.toString(row.key()), e);
+            }
+            List<Object> args = new ArrayList<>();
+            args.add(rewrapped);
+            args.addAll(Arrays.asList(row.key()));
+            args.add(row.sealed());
+            updated += jdbc.update(update, args.toArray());
+        }
+        return updated;
+    }
+
+    @Override
+    public Map<Integer, Long> countByVersion() {
+        Map<Integer, Long> counts = new TreeMap<>();
+        jdbc.query(
+                "SELECT " + VERSION + " AS version, count(*) AS n FROM " + table
+                        + " WHERE sealed IS NOT NULL GROUP BY 1",
+                rs -> {
+                    counts.put(rs.getInt("version"), rs.getLong("n"));
+                });
+        return counts;
+    }
+
+    private record Row(Object[] key, byte[] sealed) {}
+}

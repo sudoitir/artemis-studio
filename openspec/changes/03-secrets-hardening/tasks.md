@@ -14,9 +14,9 @@
 - [ ] 3.3 OIDC client secret resolved from the provider; a configured secret alongside a non-env provider fails startup
 
 ## 4. Rotation (C)
-- [ ] 4.1 `secret_rotation` changeset; `SealedStore` per store (count below version, rewrap batch guarded by old bytes)
-- [ ] 4.2 `SecretRotationService` start (settings:write, fresh auth, audited incl. refusals, 409 when no newer key or already running) and the INSTALLATION-scope sweep job; resume after restart; stale-writer sweep
-- [ ] 4.3 `GET /api/v1/settings/secrets` status and `POST /api/v1/settings/secrets/rotations`; tests for permission, step-up, progress, resume, failure
+- [x] 4.1 `secret_rotation` changeset; `SealedStore` per store (count below version, rewrap batch guarded by old bytes)
+- [x] 4.2 `SecretRotationService` start (settings:write, fresh auth, audited incl. refusals, 409 when no newer key or already running) and the INSTALLATION-scope sweep job; resume after restart; stale-writer sweep
+- [x] 4.3 `GET /api/v1/settings/secrets` status and `POST /api/v1/settings/secrets/rotations`; tests for permission, step-up, progress, resume, failure
 
 ## 5. Redaction (D)
 - [x] 5.1 `SecretRedactor` with pattern tests

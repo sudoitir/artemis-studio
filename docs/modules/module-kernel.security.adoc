@@ -21,6 +21,7 @@ _Others_
 * `i.g.s.a.k.s.OperatorHandoff`
 * `i.g.s.a.k.s.PermissionResolver`
 * `i.g.s.a.k.s.ScopedGrants`
+* `i.g.s.a.k.s.SecretRotations`
 * `i.g.s.a.k.s.SecretVault`
 * `i.g.s.a.k.s.SessionAuthentication`
 * `i.g.s.a.k.s.UserAccounts`

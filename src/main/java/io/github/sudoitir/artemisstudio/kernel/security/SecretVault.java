@@ -79,6 +79,16 @@ public class SecretVault implements SmartInitializingSingleton {
         return version;
     }
 
+    /** The value of {@code artemis-studio.secrets.provider} that supplies the keys. */
+    public String providerName() {
+        return provider.name();
+    }
+
+    /** The keys as last loaded; {@link #reloadKeyring()} asks the provider again. */
+    public Keyring keyring() {
+        return keyring;
+    }
+
     /** Asks the provider for its keys again (a new version may have been added) and returns them. */
     public Keyring reloadKeyring() {
         keyring = provider.load();
