@@ -12,12 +12,16 @@ Each release SHALL publish, among its GitHub release assets, the OpenAPI documen
 - **THEN** `info.version` names the Studio version that serves it
 
 ### Requirement: Versioning and deprecation follow a documented policy
-The documentation SHALL state how the API is versioned, how breaking changes are flagged and how endpoints are deprecated. A deprecated operation SHALL be marked `deprecated` in the document, and every response from it SHALL carry a `Deprecation` header (RFC 9745), a `Sunset` header (RFC 8594) and a `Link` header with `rel="deprecation"` pointing at its documentation.
+The API version SHALL be the path segment after `/api/` and SHALL be resolved by the server, which refuses unsupported versions. The documentation SHALL state how the API is versioned, how breaking changes are flagged and how endpoints are deprecated. A deprecated operation SHALL be marked `deprecated` in the document, and every response from it SHALL carry a `Deprecation` header (RFC 9745), a `Sunset` header (RFC 8594) and a `Link` header with `rel="deprecation"` pointing at its documentation.
 
 #### Scenario: Deprecated endpoint
 - **WHEN** a deprecated endpoint is called
 - **THEN** the response carries the `Deprecation`, `Sunset` and `Link rel="deprecation"` headers
 - **AND** the operation is marked deprecated in the document
+
+#### Scenario: Unsupported version
+- **WHEN** a request names an API version the server does not support, such as `/api/v9/clusters`
+- **THEN** it is refused with 400 problem+json of type `invalid-api-version`
 
 #### Scenario: Pre-stable break
 - **WHEN** a breaking change lands before the stable release

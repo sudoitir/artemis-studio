@@ -18,7 +18,7 @@ See proposal.md for why. Current state that shapes the approach:
 - Clients that are generated from the same document the tests check, so they cannot drift.
 
 **Non-Goals:**
-- A `/api/v2` path or content-negotiated versions. `/api/v1` stays until a stable-era break needs more.
+- Shipping a version 2. Only version `1` exists; the versioning machinery is in place for when a break needs one.
 - Rate-limiting browser sessions (ADR-0136 stands).
 - Moving the web UI to the generated client. It keeps `schema.d.ts` + `request.ts`.
 - MCP. It is its own surface (ADR-0045) and keeps its own errors and limits.
@@ -32,12 +32,20 @@ The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show 
 - oasdiff over openapi-diff: it is maintained, supports OpenAPI 3.1 (GA since 1.15.0), and has stable exit codes. It runs pinned by version. `just api-diff` runs the same comparison locally.
 - Alternatives: an `ApiContract.VERSION` integer like `Contract.VERSION`. It was rejected because it is a second version number beside CalVer that says nothing in the release notes.
 
-### D2. Versioning and deprecation
+### D2. Versioning and deprecation use Spring Framework 7 API versioning
+- The API version is a first-class Spring MVC concept (Framework 7 `ApiVersionConfigurer`, Boot 4.1 `spring.mvc.apiversion.*`):
+  - It is resolved from the path segment, so URLs stay `/api/v1/...`.
+  - Controllers drop the literal `/api/v1` from their mappings. One `PathMatchConfigurer.addPathPrefix("/api/{version}", …)` for Studio's REST controllers supplies it.
+  - The supported version is `1`. Any other version gets 400 problem+json (`InvalidApiVersionException` → `invalid-api-version`).
+  - A future incompatible endpoint ships as `@GetMapping(version = "2")` beside the v1 mapping instead of replacing it.
+  - Unversioned mappings match every supported version.
+- Deprecation uses the built-in `StandardApiVersionDeprecationHandler`:
+  - It sends `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and `Link rel="deprecation"`/`rel="sunset"` headers.
+  - Declarations live in one place, `ApiDeprecations`: version, optional request predicate for a single endpoint, dates and links. The same declarations feed an `OpenApiCustomizer` that marks matching operations `deprecated: true` and appends the sunset to the description.
+  - Nothing is deprecated today. A test configuration proves the headers and the document flag.
+- Spring's mechanism is used instead of a hand-written `@ApiDeprecation` interceptor, because the framework already implements the RFC headers and version routing. We keep only the declaration list and the document flag.
+- The generated document keeps concrete `/api/v1/...` paths, with no `{version}` template parameter, so clients and `schema.d.ts` are unchanged. If springdoc renders the prefix as a template, the `OpenApiCustomizer` resolves it to `v1`.
 - `info.version` is the running Studio version from `BuildProperties`, so a client can read what it talks to from `/v3/api-docs`. The snapshot test pins it to a placeholder so the committed file stays stable. The release job stamps the real version into the published asset.
-- `@ApiDeprecation(since = "YYYY-MM-DD", sunset = "YYYY-MM-DD", link = "...")` on a handler method:
-  - A `HandlerInterceptor` adds `Deprecation: @<epoch-of-since>` (RFC 9745), `Sunset: <HTTP-date>` (RFC 8594) and `Link: <link>; rel="deprecation"`.
-  - An `OperationCustomizer` sets `deprecated: true` and appends the sunset to the description.
-  - One annotation feeds both the headers and the document.
 - The policy is a docs-site page:
   - Before stable, breaks are allowed and must carry the marker.
   - From `36-stable-release`, a removal needs a deprecation that has been announced for a period that change sets.

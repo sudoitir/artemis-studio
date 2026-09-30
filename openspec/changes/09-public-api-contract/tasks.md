@@ -26,7 +26,8 @@
 
 ## 5. Versioning and deprecation (D2)
 - [ ] 5.1 `info.version` from `BuildProperties`; snapshot test normalises it
-- [ ] 5.2 `@ApiDeprecation` + interceptor (`Deprecation`, `Sunset`, `Link rel=deprecation`) + `OperationCustomizer` marking `deprecated`; test-only controller proves both
+- [ ] 5.2 Spring API versioning: path-segment version via an `/api/{version}` path prefix for Studio's REST controllers (drop the literal `/api/v1` from their mappings), supported `1`, unsupported → 400 `invalid-api-version`; document keeps concrete `/api/v1` paths
+- [ ] 5.4 `StandardApiVersionDeprecationHandler` fed by `ApiDeprecations` declarations, which also mark operations `deprecated` in the document; test proves headers and flag
 - [ ] 5.3 Docs-site page: versioning, break marker, deprecation policy, pagination, problem types, rate-limit headers, idempotency
 
 ## 6. Contract tests (D6)
