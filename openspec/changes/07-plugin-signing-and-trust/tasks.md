@@ -199,9 +199,9 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
 - Create: `docs/adr/0140-plugin-jars-are-signed-and-verified-against-pinned-keys.md` (Nygard). It records design decisions 1–7 and amends ADR-0099/0103 by link. Add it to `docs/adr/README.md`.
 - Test: `src/test/java/.../kernel/plugin/PluginVerifierTest.java` (extend or create): signed + matching cert → 0; other cert → 1; unsigned + cert → 1; unsigned without cert → 0 with a warning.
 
-- [ ] 5.1 Write the verifier tests. Run them: FAIL. Implement. Run: PASS.
-- [ ] 5.2 Template: `cd examples/plugin-template && ./mvnw -q -Dplugin.signing.keystore=… verify` (or `mvn`), with a throwaway key, passes.
-- [ ] 5.3 Commit `feat(plugin-sdk): sign plugins from the template and check them against the publisher's key`, plus `docs: ADR-0140 and the plugin signing guide`.
+- [x] 5.1 Write the verifier tests. Run them: FAIL. Implement. Run: PASS.
+- [x] 5.2 Template: `cd examples/plugin-template && ./mvnw -q -Dplugin.signing.keystore=… verify` (or `mvn`), with a throwaway key, passes.
+- [x] 5.3 Commit `feat(plugin-sdk): sign plugins from the template and check them against the publisher's key`, plus `docs: ADR-0140 and the plugin signing guide`.
 
 ### Task 6: Web — review, keys, badges
 
@@ -228,8 +228,8 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
   - Activate is disabled until the acknowledgement is ticked;
   - "Trust this key…" appears only for untrusted.
 
-- [ ] 6.1 Write the tests. Run `cd web && npx vitest run src/features/plugins`: FAIL. Implement. Run: PASS. Then run `npm run lint && npm run format:check && npx tsc -b`.
-- [ ] 6.2 Commit `feat(plugins): show publisher and trust in the review, manage trusted keys, badge unverified plugins`.
+- [x] 6.1 Write the tests. Run `cd web && npx vitest run src/features/plugins`: FAIL. Implement. Run: PASS. Then run `npm run lint && npm run format:check && npx tsc -b`.
+- [x] 6.2 Commit `feat(plugins): show publisher and trust in the review, manage trusted keys, badge unverified plugins`.
 
 ### Task 7: Finish
 
