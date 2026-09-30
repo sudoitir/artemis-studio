@@ -3,9 +3,10 @@ import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { needsReauthentication, violationsOf } from './api.ts';
-import { useFreshSignIn } from './freshSignIn.ts';
-import { StepUp } from './StepUp.tsx';
+import { violationsOf } from './api.ts';
+import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
+import { needsReauthentication } from '../../kernel/auth/api.ts';
+import { StepUp } from '../../kernel/auth/StepUp.tsx';
 
 /**
  * One plugin lifecycle action, confirmed (non-negotiable #2, ADR-0103): what it affects first,

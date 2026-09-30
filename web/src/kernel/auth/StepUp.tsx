@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Group, PasswordInput, Stack, Text } from '@mantine/core';
 
-import { useMe } from '../../kernel/auth/api.ts';
-import { useReauthenticate } from './api.ts';
+import { useMe, useReauthenticate } from './api.ts';
 import { useFreshSignIn } from './freshSignIn.ts';
 
 /**

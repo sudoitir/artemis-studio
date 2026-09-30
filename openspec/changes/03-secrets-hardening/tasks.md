@@ -23,8 +23,8 @@
 - [x] 5.2 Logback conversion rule for message and throwable; `AuditService` applies every `AuditParamsFilter`; `CredentialAuditParamsFilter`; `Problems` masks detail and title; broker.xml export backstop
 
 ## 6. UI (E)
-- [ ] 6.1 Move `StepUp`, `isReauthRequired`, `useReauthenticate` into the kernel; plugins feature uses them
-- [ ] 6.2 Security settings section: provider, versions, rows per version, last rotation, Rotate with step-up, polling while running, empty and error states; tests
+- [x] 6.1 Move `StepUp`, `isReauthRequired`, `useReauthenticate` into the kernel; plugins feature uses them
+- [x] 6.2 Security settings section: provider, versions, rows per version, last rotation, Rotate with step-up, polling while running, empty and error states; tests
 
 ## 7. Proof and docs (F)
 - [ ] 7.1 `SecretLeakTest`: plant known secrets across clusters, bridges, channels, plugin vault; assert absence from logs, audit rows, error bodies, export

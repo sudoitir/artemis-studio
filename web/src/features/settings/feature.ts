@@ -4,7 +4,7 @@ import { createRoute } from '@tanstack/react-router';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
 import { SettingsView } from '../../kernel/shell/SettingsView.tsx';
-import { DisplaySection, OperationalSection } from './sections.tsx';
+import { DisplaySection, OperationalSection, SecuritySection } from './sections.tsx';
 
 const settingsRoute = createRoute({
   getParentRoute: () => clusterRoute,
@@ -40,6 +40,7 @@ export const settingsFeature = defineFeature({
         title: 'Operational configuration',
         Component: OperationalSection,
       },
+      { id: 'settings-security', order: 30, group: 'studio', title: 'Security', Component: SecuritySection },
     ],
   },
 });

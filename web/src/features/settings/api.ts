@@ -5,8 +5,11 @@ import type { components } from '../../kernel/api/schema.d.ts';
 type Schemas = components['schemas'];
 
 export type SettingsResponse = Schemas['SettingsResponse'];
+export type SecretsStatus = Schemas['SecretsStatus'];
+export type RotationView = Schemas['RotationView'];
 
 const SETTINGS_KEY = ['settings'] as const;
+const SECRETS_KEY = ['settings', 'secrets'] as const;
 
 export function useSettings(): UseQueryResult<SettingsResponse, ApiError> {
   return useQuery({
@@ -32,5 +35,23 @@ export function useResetSetting() {
   return useMutation<void, ApiError, string>({
     mutationFn: (key) => request(`/settings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
+  });
+}
+
+/** Key provider, key versions and the last rotation; polled every 2 s while a rotation runs. */
+export function useSecretsStatus(): UseQueryResult<SecretsStatus, ApiError> {
+  return useQuery({
+    queryKey: SECRETS_KEY,
+    queryFn: () => request<SecretsStatus>('/settings/secrets'),
+    refetchInterval: (query) => (query.state.data?.lastRotation?.status === 'RUNNING' ? 2_000 : false),
+  });
+}
+
+/** Starts a key rotation (202); the status query then reports its progress. */
+export function useStartRotation() {
+  const qc = useQueryClient();
+  return useMutation<RotationView, ApiError, void>({
+    mutationFn: () => request<RotationView>('/settings/secrets/rotations', { method: 'POST' }),
+    onSettled: () => qc.invalidateQueries({ queryKey: SECRETS_KEY }),
   });
 }

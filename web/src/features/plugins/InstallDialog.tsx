@@ -6,7 +6,6 @@ import { request } from '../../kernel/api/request.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import {
   keys,
-  needsReauthentication,
   useActivateUpload,
   useDiscardUpload,
   useDownloadUpdate,
@@ -18,8 +17,9 @@ import {
 } from './api.ts';
 import { ActivationProgress, type Outcome } from './ActivationProgress.tsx';
 import { PlanReview } from './PlanReview.tsx';
-import { useFreshSignIn } from './freshSignIn.ts';
-import { StepUp } from './StepUp.tsx';
+import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
+import { needsReauthentication } from '../../kernel/auth/api.ts';
+import { StepUp } from '../../kernel/auth/StepUp.tsx';
 import { actionLabel } from './words.ts';
 
 /** Where the jar comes from: a file the operator chose, a plugin's update URL, or an upload already inspected. */
