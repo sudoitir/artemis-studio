@@ -302,6 +302,7 @@ jobs:
       # fixed or not; the second fails on a fixable high or critical and names the fixed version.
       - name: Scan the image
         run: |
+          mkdir -p "$RUNNER_TEMP/grype"
           grype() {
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$RUNNER_TEMP/grype:/grype" -e GRYPE_DB_CACHE_DIR=/grype \
