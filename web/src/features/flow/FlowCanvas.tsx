@@ -59,7 +59,7 @@ const MINIMAP_KEY = 'artemis-studio.flow.minimap';
 function FlowMiniMap() {
   const [open, setOpen] = useState(() => {
     try {
-      return window.localStorage.getItem(MINIMAP_KEY) !== 'off';
+      return globalThis.localStorage.getItem(MINIMAP_KEY) !== 'off';
     } catch {
       return true;
     }
@@ -69,7 +69,7 @@ function FlowMiniMap() {
     setOpen((was) => {
       const next = !was;
       try {
-        window.localStorage.setItem(MINIMAP_KEY, next ? 'on' : 'off');
+        globalThis.localStorage.setItem(MINIMAP_KEY, next ? 'on' : 'off');
       } catch {
         /* a preference that cannot be stored is still honoured for this session */
       }

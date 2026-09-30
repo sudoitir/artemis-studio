@@ -424,8 +424,8 @@ function RevealPanel({
         aria-label="Full value"
         style={{
           insetInlineStart: rtl
-            ? Math.min(window.innerWidth - reveal.rect.right, window.innerWidth - 360)
-            : Math.min(reveal.rect.left, window.innerWidth - 360),
+            ? Math.min(globalThis.innerWidth - reveal.rect.right, globalThis.innerWidth - 360)
+            : Math.min(reveal.rect.left, globalThis.innerWidth - 360),
           insetBlockStart: reveal.rect.bottom + 4,
         }}
         onPointerLeave={onHide}
@@ -797,7 +797,7 @@ export function VirtualTable<T>({
 
   const copyKey = (e: React.KeyboardEvent, { cell }: KeyTarget): boolean => {
     if (!isCopyKey(e)) return false;
-    if (!window.getSelection()?.toString() && copyCell(cell)) e.preventDefault();
+    if (!globalThis.getSelection()?.toString() && copyCell(cell)) e.preventDefault();
     return true;
   };
 
@@ -889,7 +889,7 @@ export function VirtualTable<T>({
     if (
       e.shiftKey ||
       target.closest('a[href], input, textarea, select, [contenteditable]') ||
-      window.getSelection()?.toString()
+      globalThis.getSelection()?.toString()
     ) {
       return;
     }

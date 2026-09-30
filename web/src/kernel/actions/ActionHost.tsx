@@ -57,19 +57,19 @@ export function ActionHostProvider({ children }: Readonly<{ children: ReactNode 
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
   // Exit timers still pending when the provider unmounts are cleared, so none updates state after it.
-  const timers = useRef(new Set<number>());
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   useEffect(() => {
     const pending = timers.current;
-    return () => pending.forEach((t) => window.clearTimeout(t));
+    return () => pending.forEach((t) => globalThis.clearTimeout(t));
   }, []);
 
   const close = useCallback((id: number) => {
     setEntries((all) => all.map((e) => (e.id === id ? { ...e, opened: false } : e)));
-    const timer = window.setTimeout(() => {
+    const timer = globalThis.setTimeout(() => {
       timers.current.delete(timer);
       const entry = entriesRef.current.find((e) => e.id === id);
       setEntries((all) => all.filter((e) => e.id !== id));
-      if (entry?.restoreFocus && window.location.href === entry.href) entry.restoreFocus();
+      if (entry?.restoreFocus && globalThis.location.href === entry.href) entry.restoreFocus();
     }, EXIT_MS);
     timers.current.add(timer);
   }, []);
@@ -90,7 +90,7 @@ export function ActionHostProvider({ children }: Readonly<{ children: ReactNode 
           props,
           opened: false,
           restoreFocus: options?.restoreFocus,
-          href: window.location.href,
+          href: globalThis.location.href,
         },
       ]);
       requestAnimationFrame(() => markOpened(id));

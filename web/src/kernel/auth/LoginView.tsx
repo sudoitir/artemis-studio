@@ -50,7 +50,7 @@ export function LoginView() {
           // A page that started signed out loaded no plugins (it could not read the manifest), so it
           // starts again, signed in; one that already has them just moves on.
           if (bootState().manifest === undefined) {
-            window.location.replace(to);
+            globalThis.location.replace(to);
           } else {
             void navigate({ to });
           }

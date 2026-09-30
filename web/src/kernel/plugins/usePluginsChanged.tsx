@@ -33,11 +33,11 @@ export function usePluginsChanged(onChange: () => void = showReloadNotice): void
       }
     };
     const onFocus = () => void check();
-    window.addEventListener('focus', onFocus);
-    const timer = window.setInterval(() => void check(), CHECK_EVERY_MS);
+    globalThis.addEventListener('focus', onFocus);
+    const timer = globalThis.setInterval(() => void check(), CHECK_EVERY_MS);
     return () => {
-      window.removeEventListener('focus', onFocus);
-      window.clearInterval(timer);
+      globalThis.removeEventListener('focus', onFocus);
+      globalThis.clearInterval(timer);
     };
   }, [onChange]);
 }
@@ -49,7 +49,7 @@ function showReloadNotice() {
     message: (
       <Stack gap="xs" align="flex-start">
         <Text size="sm">A plugin was installed, updated or removed. Reload to see the change.</Text>
-        <Button size="xs" variant="default" onClick={() => window.location.reload()}>
+        <Button size="xs" variant="default" onClick={() => globalThis.location.reload()}>
           Reload
         </Button>
       </Stack>

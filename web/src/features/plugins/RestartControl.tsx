@@ -74,7 +74,7 @@ export function RestartControl({
               Studio started moments ago; a restart is allowed from {allowedAt.toLocaleTimeString()}.
             </Text>
           ) : null}
-          <StepUp returnTo={`${window.location.pathname}?tab=plugins`} />
+          <StepUp returnTo={`${globalThis.location.pathname}?tab=plugins`} />
           {refusal ? (
             <Alert color="red" variant="light" role="alert">
               {refusal}

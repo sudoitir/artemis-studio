@@ -43,11 +43,11 @@ export function installPauseSeam(): void {
   // installing again (a test harness does) never stacks listeners.
   focusManager.setEventListener((setFocused) => {
     const update = () => setFocused(!paused && document.visibilityState !== 'hidden');
-    window.addEventListener('visibilitychange', update, false);
+    globalThis.addEventListener('visibilitychange', update, false);
     const unsubscribe = subscribe(update);
     update();
     return () => {
-      window.removeEventListener('visibilitychange', update);
+      globalThis.removeEventListener('visibilitychange', update);
       unsubscribe();
     };
   });

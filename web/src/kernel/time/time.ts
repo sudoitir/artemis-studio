@@ -189,7 +189,7 @@ export function startServerTimeSync(): () => void {
   let wall = Date.now();
   let mono = performance.now();
 
-  const step = window.setInterval(() => {
+  const step = globalThis.setInterval(() => {
     const nextWall = Date.now();
     const nextMono = performance.now();
     const drift = nextWall - wall - (nextMono - mono);
@@ -201,7 +201,7 @@ export function startServerTimeSync(): () => void {
     }
   }, STEP_CHECK_MS);
 
-  const resync = window.setInterval(() => void syncServerTime(), RESYNC_MS);
+  const resync = globalThis.setInterval(() => void syncServerTime(), RESYNC_MS);
 
   const onVisible = () => {
     if (document.visibilityState === 'visible') void syncServerTime();
@@ -209,8 +209,8 @@ export function startServerTimeSync(): () => void {
   document.addEventListener('visibilitychange', onVisible);
 
   return () => {
-    window.clearInterval(step);
-    window.clearInterval(resync);
+    globalThis.clearInterval(step);
+    globalThis.clearInterval(resync);
     document.removeEventListener('visibilitychange', onVisible);
   };
 }

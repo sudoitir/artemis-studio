@@ -67,7 +67,7 @@ export function PluginUnavailable() {
         </Anchor>
       ) : null}
       {entry?.status === 'active' && loadFailure ? (
-        <Button variant="default" w="fit-content" onClick={() => window.location.reload()}>
+        <Button variant="default" w="fit-content" onClick={() => globalThis.location.reload()}>
           Reload the page
         </Button>
       ) : null}

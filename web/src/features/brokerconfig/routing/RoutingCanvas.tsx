@@ -65,7 +65,8 @@ const CanvasToolbar = forwardRef<
   { onEnter: () => void; canEnter: boolean; leading?: ReactNode; actions?: ReactNode }
 >(function CanvasToolbar({ onEnter, canEnter, leading, actions }, entry) {
   const flow = useReactFlow();
-  const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reduced =
+    typeof globalThis.window !== 'undefined' && globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const zoom = reduced ? { duration: 0 } : ZOOM;
   const view = (label: string, icon: ReactNode, onClick: () => void) => (
     <Tooltip label={label} withArrow openDelay={300}>
@@ -241,8 +242,8 @@ export function RoutingCanvas({
       el.style.setProperty('--as-routing-top', `${Math.round(top)}px`);
     };
     measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    globalThis.addEventListener('resize', measure);
+    return () => globalThis.removeEventListener('resize', measure);
   }, []);
 
   const [focusedId, setFocusedId] = useState<string | null>(null);

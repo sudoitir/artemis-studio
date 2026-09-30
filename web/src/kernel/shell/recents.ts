@@ -17,7 +17,7 @@ const key = (clusterId: string) => `as:recents:${clusterId}`;
 
 export function readRecents(clusterId: string): Recent[] {
   try {
-    const raw = window.localStorage.getItem(key(clusterId));
+    const raw = globalThis.localStorage.getItem(key(clusterId));
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed)
       ? parsed.filter((r): r is Recent => typeof r?.label === 'string' && typeof r?.to === 'string').slice(0, MAX)
@@ -31,7 +31,7 @@ export function readRecents(clusterId: string): Recent[] {
 export function recordRecent(clusterId: string, recent: Recent) {
   try {
     const next = [recent, ...readRecents(clusterId).filter((r) => r.label !== recent.label)].slice(0, MAX);
-    window.localStorage.setItem(key(clusterId), JSON.stringify(next));
+    globalThis.localStorage.setItem(key(clusterId), JSON.stringify(next));
   } catch {
     // Storage refused (private window, quota): recents are a convenience, and silently absent.
   }

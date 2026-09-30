@@ -58,7 +58,7 @@ function isUsable(zone: string): boolean {
  */
 function load(): string {
   try {
-    const stored = window.localStorage.getItem(KEY);
+    const stored = globalThis.localStorage.getItem(KEY);
     if (stored) return stored;
   } catch {
     // Storage can be unavailable outright (private mode, blocked site data).
@@ -90,7 +90,7 @@ export function setDisplayZone(next: string): void {
   if (next !== AUTO && !isUsable(next)) return;
   preference = next;
   try {
-    window.localStorage.setItem(KEY, next);
+    globalThis.localStorage.setItem(KEY, next);
   } catch {
     // An unpersisted preference still applies for this session, which is better
     // than refusing to change it at all.

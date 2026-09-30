@@ -112,7 +112,7 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
         clusterName={data.name}
         opened={removing}
         onClose={() => setRemoving(false)}
-        onRemoved={() => window.history.back()}
+        onRemoved={() => globalThis.history.back()}
       />
     </>
   );
