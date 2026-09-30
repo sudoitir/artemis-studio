@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -90,10 +91,13 @@ class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {
         McpFixture.Key owner = key(Set.of(Permissions.CLUSTER_READ));
         List<Grant> grants = List.of(new Grant(Grant.ScopeType.GLOBAL, null, Set.of(Permissions.CLUSTER_READ)));
 
-        assertThatThrownBy(() -> tokens.mint(owner.userId(), "none", null, grants, List.of()))
+        UUID ownerId = owner.userId();
+        List<String> noTools = List.of();
+        Instant beyondCap = Instant.now().plus(Duration.ofDays(91));
+
+        assertThatThrownBy(() -> tokens.mint(ownerId, "none", null, grants, noTools))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() ->
-                        tokens.mint(owner.userId(), "long", Instant.now().plus(Duration.ofDays(91)), grants, List.of()))
+        assertThatThrownBy(() -> tokens.mint(ownerId, "long", beyondCap, grants, noTools))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("latest allowed");
     }
@@ -137,9 +141,11 @@ class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {
     void aRevokedTokenCannotBeRotated() {
         McpFixture.Key key = key(Set.of(Permissions.CLUSTER_READ));
         var token = tokens.listFor(key.userId()).getFirst();
-        tokens.revoke(key.userId(), token.getId());
+        UUID userId = key.userId();
+        UUID tokenId = token.getId();
+        tokens.revoke(userId, tokenId);
 
-        assertThatThrownBy(() -> tokens.rotate(key.userId(), token.getId())).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> tokens.rotate(userId, tokenId)).isInstanceOf(ConflictException.class);
     }
 
     @Test

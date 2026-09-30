@@ -57,8 +57,9 @@ class OidcClientSecretSourceTest {
     @Test
     void aSecretAlsoConfiguredInSpringPropertiesFailsWhenTheProviderIsNotEnv() {
         var source = new OidcClientSecretSource(() -> provider("kubernetes", "from-k8s"));
+        var configured = repository("configured");
 
-        assertThatThrownBy(() -> source.postProcessAfterInitialization(repository("configured"), "repo"))
+        assertThatThrownBy(() -> source.postProcessAfterInitialization(configured, "repo"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("exactly one source")
                 .hasMessageContaining("kubernetes")
@@ -77,8 +78,9 @@ class OidcClientSecretSourceTest {
     @Test
     void aConfiguredSecretFailsWhenTheProviderIsNotEnvEvenIfItHoldsNoOidcSecret() {
         var source = new OidcClientSecretSource(() -> provider("file", null));
+        var configured = repository("configured");
 
-        assertThatThrownBy(() -> source.postProcessAfterInitialization(repository("configured"), "repo"))
+        assertThatThrownBy(() -> source.postProcessAfterInitialization(configured, "repo"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("exactly one source")
                 .hasMessageNotContaining("configured");

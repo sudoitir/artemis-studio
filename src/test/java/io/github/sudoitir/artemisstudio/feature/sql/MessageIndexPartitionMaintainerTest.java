@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,8 +15,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * dropping a range is {@link MessageIndexStoreTest}.
  */
 class MessageIndexPartitionMaintainerTest extends PostgresIntegrationTest {
-
-    private static final UUID CLUSTER = UUID.randomUUID();
 
     @Autowired
     private MessageIndexPartitionMaintainer maintainer;
@@ -36,10 +33,10 @@ class MessageIndexPartitionMaintainerTest extends PostgresIntegrationTest {
                  WHERE p.relname = 'message_index' AND c.relname ~ '^message_index_[0-9]{8}$'
                 """, String.class);
 
+        // Created ahead, so a missed run never turns into a failed insert.
         assertThat(partitions)
                 .contains("message_index_"
-                        + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")));
-        // Created ahead, so a missed run never turns into a failed insert.
-        assertThat(partitions).hasSizeGreaterThanOrEqualTo(4);
+                        + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")))
+                .hasSizeGreaterThanOrEqualTo(4);
     }
 }

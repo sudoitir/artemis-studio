@@ -227,36 +227,14 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
             assertThat(edited.clusterId()).isNull();
             assertThat(edited.severity()).isEqualTo("CRITICAL");
 
-            assertThatThrownBy(() -> ruleService.update(
-                            clusterId,
-                            quota.getId(),
-                            new AlertRuleRequest(
-                                    quota.getName(),
-                                    "STATE",
-                                    null,
-                                    null,
-                                    null,
-                                    "NODE_DOWN",
-                                    0,
-                                    "WARNING",
-                                    null,
-                                    true,
-                                    List.of())))
+            UUID quotaId = quota.getId();
+            AlertRuleRequest nodeDown = new AlertRuleRequest(
+                    quota.getName(), "STATE", null, null, null, "NODE_DOWN", 0, "WARNING", null, true, List.of());
+            assertThatThrownBy(() -> ruleService.update(clusterId, quotaId, nodeDown))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> ruleService.create(
-                            clusterId,
-                            new AlertRuleRequest(
-                                    "Mine",
-                                    "STATE",
-                                    null,
-                                    null,
-                                    null,
-                                    "STORAGE_HEALTH",
-                                    0,
-                                    "WARNING",
-                                    null,
-                                    true,
-                                    List.of())))
+            AlertRuleRequest health = new AlertRuleRequest(
+                    "Mine", "STATE", null, null, null, "STORAGE_HEALTH", 0, "WARNING", null, true, List.of());
+            assertThatThrownBy(() -> ruleService.create(clusterId, health))
                     .isInstanceOf(IllegalArgumentException.class);
 
             ruleService.update(

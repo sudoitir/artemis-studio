@@ -90,7 +90,9 @@ class VaultKeyProviderTest {
 
     @Test
     void aMissingPathFailsNamingVaultAndThePath() {
-        assertThatThrownBy(() -> provider("nothing/here").load())
+        var provider = provider("nothing/here");
+
+        assertThatThrownBy(provider::load)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("'vault'")
                 .hasMessageContaining("nothing/here")

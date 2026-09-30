@@ -247,9 +247,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
         assertThat(vault.open("rr|" + flowId, blobs().get(4))).isEqualTo("rr-original");
         assertThat(secretsOf(plugin).get("token")).contains("plugin-secret");
         stores.forEach(s -> assertThat(s.countBelow(2)).isZero());
-        assertThat(startAudits())
-                .singleElement()
-                .satisfies(a -> assertThat(a.get("outcome")).isEqualTo("SUCCESS"));
+        assertThat(startAudits()).singleElement().satisfies(a -> assertThat(a).containsEntry("outcome", "SUCCESS"));
     }
 
     @Test
@@ -326,14 +324,16 @@ class SecretRotationTest extends PostgresIntegrationTest {
     @Test
     void aRotationIsRefusedWhenNoNewerKeyExistsOrOneIsRunning() {
         service.start(freshSession());
-        assertThatThrownBy(() -> service.start(freshSession()))
+        MockHttpServletRequest running = freshSession();
+        assertThatThrownBy(() -> service.start(running))
                 .isInstanceOf(ConflictException.class)
                 .extracting(e -> ((ConflictException) e).slug())
                 .isEqualTo("rotation-running");
 
         settleAndSweep();
 
-        assertThatThrownBy(() -> service.start(freshSession()))
+        MockHttpServletRequest settled = freshSession();
+        assertThatThrownBy(() -> service.start(settled))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("newer key version")
                 .extracting(e -> ((ConflictException) e).slug())
@@ -387,13 +387,14 @@ class SecretRotationTest extends PostgresIntegrationTest {
 
     @Test
     void aStaleAuthenticationIsRefusedAndAudited() {
-        assertThatThrownBy(() -> service.start(new MockHttpServletRequest()))
-                .isInstanceOf(ReauthenticationRequiredException.class);
+        MockHttpServletRequest stale = new MockHttpServletRequest();
+
+        assertThatThrownBy(() -> service.start(stale)).isInstanceOf(ReauthenticationRequiredException.class);
 
         assertThat(rotations.running()).isEmpty();
         assertThat(vault.currentKekVersion()).isEqualTo(1);
         assertThat(startAudits()).singleElement().satisfies(a -> {
-            assertThat(a.get("outcome")).isEqualTo("FAILURE");
+            assertThat(a).containsEntry("outcome", "FAILURE");
             assertThat(a.get("params").toString()).contains("currentVersion");
         });
     }
@@ -409,12 +410,12 @@ class SecretRotationTest extends PostgresIntegrationTest {
                 .setAuthentication(
                         UsernamePasswordAuthenticationToken.authenticated(reader, null, reader.getAuthorities()));
 
-        assertThatThrownBy(() -> service.start(freshSession())).isInstanceOf(AccessDeniedException.class);
+        MockHttpServletRequest session = freshSession();
+
+        assertThatThrownBy(() -> service.start(session)).isInstanceOf(AccessDeniedException.class);
 
         assertThat(rotations.running()).isEmpty();
-        assertThat(startAudits())
-                .singleElement()
-                .satisfies(a -> assertThat(a.get("outcome")).isEqualTo("FAILURE"));
+        assertThat(startAudits()).singleElement().satisfies(a -> assertThat(a).containsEntry("outcome", "FAILURE"));
     }
 
     @Test
