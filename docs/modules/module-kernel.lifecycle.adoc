@@ -1,0 +1,19 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.lifecycle`
+|Spring components
+|_Services_
+
+* `i.g.s.a.k.l.LifecycleService`
+
+_Others_
+
+* `i.g.s.a.k.l.Housekeeper`
+* `i.g.s.a.k.l.LifecycleRegistry`
+* `i.g.s.a.k.l.LifecycleSettings`
+* `i.g.s.a.k.l.PurgeStatus`
+|Bean references
+|* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+|===
