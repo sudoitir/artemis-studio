@@ -145,7 +145,7 @@ describe('FreshnessBar', () => {
       // Resuming refetches the screen at once, not one interval later.
       act(() => setPollingPaused(false));
       await vi.advanceTimersByTimeAsync(0);
-      expect(fetcher.mock.calls.length).toBe(paused + 1);
+      expect(fetcher.mock.calls).toHaveLength(paused + 1);
 
       // And the interval runs again.
       await vi.advanceTimersByTimeAsync(3_000);
