@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -164,6 +165,24 @@ class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {
                         .filter(e -> "TOKEN_REVOKE".equals(e.getAction()))
                         .anyMatch(e -> e.getParams().contains(victim.username())))
                 .isTrue();
+    }
+
+    @Test
+    void aKeyCannotMintRotateOrListKeys() throws Exception {
+        McpFixture.Key key = key(Set.of(Permissions.CLUSTER_READ));
+        var own = tokens.listFor(key.userId()).getFirst();
+
+        mvc.perform(post("/api/v1/tokens")
+                        .header("Authorization", key.bearer())
+                        .contentType("application/json")
+                        .content("{\"name\":\"escape\",\"expiresAt\":\""
+                                + Instant.now().plusSeconds(3600)
+                                + "\",\"grants\":[{\"action\":\"cluster:read\",\"scopeType\":\"GLOBAL\"}]}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/tokens/" + own.getId() + "/rotate").header("Authorization", key.bearer()))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/tokens").header("Authorization", key.bearer())).andExpect(status().isForbidden());
+        assertThat(tokens.listFor(key.userId())).hasSize(1);
     }
 
     @Test

@@ -44,12 +44,16 @@ class TokenRequestLimitFilter extends OncePerRequestFilter {
         long now = System.currentTimeMillis();
         RequestLimiter.Decision perToken = tokenWindows.acquire(
                 token.tokenId(), settings.intValue(ApiTokensSettings.TOKEN_REQUESTS_PER_MINUTE), now);
-        RequestLimiter.Decision decision = perToken.allowed()
-                ? tighter(
-                        perToken,
-                        userWindows.acquire(
-                                token.userId(), settings.intValue(ApiTokensSettings.USER_REQUESTS_PER_MINUTE), now))
-                : perToken;
+        RequestLimiter.Decision decision = perToken;
+        if (perToken.allowed()) {
+            RequestLimiter.Decision perUser = userWindows.acquire(
+                    token.userId(), settings.intValue(ApiTokensSettings.USER_REQUESTS_PER_MINUTE), now);
+            if (!perUser.allowed()) {
+                // Refused by the owner's limit: the token's own allowance is not spent on it.
+                tokenWindows.refund(token.tokenId(), now);
+            }
+            decision = tighter(perToken, perUser);
+        }
         response.setHeader("RateLimit-Limit", Integer.toString(decision.limit()));
         response.setHeader("RateLimit-Remaining", Integer.toString(decision.remaining()));
         response.setHeader("RateLimit-Reset", Long.toString(decision.resetSeconds()));

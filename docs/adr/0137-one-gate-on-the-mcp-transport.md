@@ -54,6 +54,12 @@ attribution.
 - One place, built-in and plugin tools alike, and nothing for a plugin author to do.
 - Every read through MCP writes an audit row. That is what the spec asks for, and it is small next
   to the broker work a call does.
+- Read-only works per tool, from its posture. A MUTATE tool that also has a read operation
+  (`studio_setting` with `op=get`, `alert_rule` listing) is hidden as a whole, and those reads are
+  unavailable through MCP while read-only is on. The REST API and the console still serve them.
+- Only identifying arguments (cluster, queue, address, operation and the like) are written by
+  value. Every other argument, including message content, broker XML and setting values, is
+  recorded by name only.
 - The gate depends on the SDK's handler interface. `McpGateIntegrationTest` lists and calls tools
   through the real endpoint, so an SDK change that bypasses the gate fails the build.
 

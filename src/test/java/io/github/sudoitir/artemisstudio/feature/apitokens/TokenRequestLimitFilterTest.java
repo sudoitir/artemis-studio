@@ -67,7 +67,14 @@ class TokenRequestLimitFilterTest {
 
         assertThat(send(other).getStatus()).isEqualTo(200);
         // Three requests of the owner's have now passed: the user limit refuses the fourth.
-        assertThat(send(other).getStatus()).isEqualTo(429);
+        MockHttpServletResponse refused = send(other);
+        assertThat(refused.getStatus()).isEqualTo(429);
+        // The owner's limit refused it, so the other token's own allowance was not spent.
+        assertThat(send(other).getHeader("RateLimit-Remaining")).isEqualTo("0");
+        when(settings.intValue(ApiTokensSettings.USER_REQUESTS_PER_MINUTE)).thenReturn(100);
+        MockHttpServletResponse afterRaise = send(other);
+        assertThat(afterRaise.getStatus()).isEqualTo(200);
+        assertThat(afterRaise.getHeader("RateLimit-Remaining")).isEqualTo("0");
     }
 
     @Test

@@ -34,6 +34,13 @@ final class RequestLimiter {
         return new Decision(granted[0], limit, Math.max(0, limit - w.count()), reset);
     }
 
+    /** Gives back one request counted in {@code key}'s current minute, when another limit refused it. */
+    void refund(UUID key, long nowMillis) {
+        long minute = nowMillis / 60_000;
+        windows.computeIfPresent(
+                key, (k, w) -> w.minute() == minute && w.count() > 0 ? new Window(minute, w.count() - 1) : w);
+    }
+
     /** Takes an in-flight slot for {@code key}; false when {@code limit} are already taken. */
     boolean enter(UUID key, int limit) {
         AtomicInteger n = inFlight.computeIfAbsent(key, k -> new AtomicInteger());

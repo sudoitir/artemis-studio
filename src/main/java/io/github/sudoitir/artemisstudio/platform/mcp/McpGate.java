@@ -11,10 +11,12 @@ import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.JSONRPCRequest;
 import io.modelcontextprotocol.spec.McpSchema.JSONRPCResponse;
 import io.modelcontextprotocol.spec.McpSchema.JSONRPCResponse.JSONRPCError;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
@@ -46,9 +48,31 @@ class McpGate {
 
     static final String AUDIT_ACTION = "MCP_TOOL_CALL";
 
-    /** Argument names whose values are message content or secrets, never written to the trail. */
-    private static final Pattern WITHHELD =
-            Pattern.compile("(?i).*(body|content|payload|text|header|propert|confirm|secret|password).*");
+    /**
+     * Arguments whose values identify what a call acted on. Anything else (message content, broker
+     * XML, settings values, confirmations) is recorded by name only, never by value.
+     */
+    private static final Set<String> AUDITED = Set.of(
+            "clusterId",
+            "nodeId",
+            "queue",
+            "address",
+            "name",
+            "op",
+            "action",
+            "kind",
+            "topic",
+            "dryRun",
+            "override",
+            "limit",
+            "id",
+            "ruleId",
+            "connectionId",
+            "messageIds",
+            "metric",
+            "window",
+            "from",
+            "to");
 
     private static final int MAX_AUDITED_VALUE = 200;
 
@@ -188,17 +212,22 @@ class McpGate {
         }
     }
 
-    /** Scalar arguments only, never message content or a confirmation, each cut to a short length. */
+    /** Identifying scalar arguments by value, cut to a short length; every other argument by name only. */
     private static Map<String, Object> audited(Map<?, ?> arguments) {
         Map<String, Object> out = new LinkedHashMap<>();
+        List<String> others = new ArrayList<>();
         arguments.forEach((k, v) -> {
             String key = String.valueOf(k);
-            if (WITHHELD.matcher(key).matches() || v instanceof Map || v instanceof Iterable) {
+            if (!AUDITED.contains(key) || v instanceof Map || v instanceof Iterable) {
+                others.add(key);
                 return;
             }
             String value = String.valueOf(v);
             out.put(key, value.length() > MAX_AUDITED_VALUE ? value.substring(0, MAX_AUDITED_VALUE) + "…" : v);
         });
+        if (!others.isEmpty()) {
+            out.put("otherArguments", others.stream().sorted().toList());
+        }
         return out;
     }
 
