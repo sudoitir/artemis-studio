@@ -21,6 +21,7 @@ import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { GovernedValue, RedactionMarks, WithheldNotice } from '../../ui/RedactedValue.tsx';
 import { redactionsAt } from '../../ui/redactions.ts';
+import { download } from '../../ui/download.ts';
 
 type Redactions = MessageDetailView['redactions'];
 
@@ -109,15 +110,7 @@ function MessageBody({
   const shown = view === 'formatted' && detected.formatted !== null ? detected.formatted : raw;
   const note = unavailableMessage(detected);
 
-  const download = () => {
-    const blob = new Blob([raw], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `message-${messageId}.${FILE_EXTENSION[detected.format] ?? 'txt'}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const downloadBody = () => download(`message-${messageId}.${FILE_EXTENSION[detected.format] ?? 'txt'}`, raw);
 
   return (
     <Stack gap={4}>
@@ -154,7 +147,7 @@ function MessageBody({
               </Button>
             )}
           </CopyButton>
-          <Button size="compact-xs" variant="default" onClick={download}>
+          <Button size="compact-xs" variant="default" onClick={downloadBody}>
             Download
           </Button>
         </Group>

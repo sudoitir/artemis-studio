@@ -72,7 +72,7 @@ let confirmedSignedIn = false;
 export const SESSION_ENDED_REASON = 'ended';
 
 /** Reads the `XSRF-TOKEN` cookie Spring Security's `CookieCsrfTokenRepository` sets (identity-and-sessions spec). */
-function csrfToken(): string | undefined {
+export function csrfToken(): string | undefined {
   return document.cookie
     .split('; ')
     .find((row) => row.startsWith('XSRF-TOKEN='))

@@ -20,7 +20,8 @@ import { ResultMetaBar } from './ResultMetaBar.tsx';
 import { SyntaxHelp } from './SyntaxHelp.tsx';
 import { LiveTailBanner } from './LiveTailBanner.tsx';
 import { useSqlTail } from './useSqlTail.ts';
-import { download, toCsv, toJson } from './exportRows.ts';
+import { download } from '../../ui/download.ts';
+import { toCsv, toJson } from './exportRows.ts';
 import { clearHistory, entryFor, readHistory, recordHistory, type HistoryEntry } from './queryHistory.ts';
 import classes from './SqlConsoleView.module.css';
 

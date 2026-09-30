@@ -1,0 +1,100 @@
+/* Administration → Diagnostics. Semantic tokens only (non-negotiable #6), logical properties (#8). */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  gap: var(--mantine-spacing-lg);
+  align-items: start;
+}
+
+.sections {
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+}
+
+.section {
+  display: flex;
+  gap: var(--mantine-spacing-sm);
+  align-items: flex-start;
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-md);
+  border-block-end: 1px solid var(--as-border);
+  border-inline-start: 3px solid transparent;
+}
+
+.section:last-child {
+  border-block-end: 0;
+}
+
+.section:hover {
+  background: var(--as-grid-row-hover);
+}
+
+.section[data-selected] {
+  background: var(--as-surface-raised);
+  border-inline-start-color: var(--mantine-primary-color-filled);
+}
+
+.section[data-excluded] .sectionText {
+  opacity: 0.55;
+}
+
+.sectionText {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.sectionButton {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  color: var(--as-text);
+}
+
+.sectionButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.preview {
+  min-inline-size: 0;
+}
+
+.content {
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-canvas-sunken);
+}
+
+.text {
+  margin: 0;
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.55;
+  white-space: pre;
+  color: var(--as-text);
+}
+
+.mask {
+  background: color-mix(in srgb, var(--as-warning) 22%, transparent);
+  color: var(--as-text);
+  border-radius: 2px;
+  padding-inline: 2px;
+  font-weight: 600;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  position: sticky;
+  inset-block-end: 0;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface);
+  box-shadow: var(--as-elevation-1);
+}

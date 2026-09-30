@@ -3,6 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 
 import { useLogout, type MeView } from '../auth/api.ts';
 import { Can } from '../auth/Can.tsx';
+import { useSlot } from '../slots.ts';
 
 export interface UserMenuProps {
   me: MeView | undefined;
@@ -12,11 +13,12 @@ export interface UserMenuProps {
 export function UserMenu({ me }: Readonly<UserMenuProps>) {
   const logout = useLogout();
   const navigate = useNavigate();
+  const items = useSlot('shell.userMenu');
 
   if (!me) return null;
 
   return (
-    <Menu position="bottom-end" withArrow>
+    <Menu position="bottom-end" withArrow keepMounted>
       <Menu.Target>
         <UnstyledButton aria-label="User menu">
           <Avatar radius="xl" size="sm" color="pine">
@@ -40,6 +42,9 @@ export function UserMenu({ me }: Readonly<UserMenuProps>) {
         <Menu.Item component={Link} to="/account">
           Account
         </Menu.Item>
+        {items.map(({ id, Component }) => (
+          <Component key={id} />
+        ))}
         <Menu.Divider />
         <Menu.Item
           color="red"
