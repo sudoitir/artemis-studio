@@ -123,12 +123,14 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void doesNotVisitAClusterThisReplicaDoesNotOwn() {
+    void doesNotVisitAClusterThisReplicaDoesNotOwn() throws Exception {
         when(ownership.owns(CLUSTER)).thenReturn(false);
 
         reconciler.reconcile();
 
-        verifyNoInteractions(tap, consumers);
+        verifyNoInteractions(tap);
+        verify(consumers).stopCluster(CLUSTER);
+        verify(consumers, never()).start(any());
     }
 
     @Test

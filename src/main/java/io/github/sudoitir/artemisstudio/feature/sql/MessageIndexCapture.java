@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyReleased;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import java.time.Duration;
 import java.time.Instant;
@@ -85,7 +86,7 @@ public class MessageIndexCapture {
      * cluster tails it, so a subscription of a cluster this replica does not own is not wanted here and
      * its tail is stopped.
      */
-    public void reconcileSampling() {
+    public synchronized void reconcileSampling() {
         // A CAPTURE subscription is drained by the capture consumer, not polled here.
         // Running both would double the broker load and write the same message twice,
         // once as SAMPLED and once as CAPTURED (ADR-0062).
@@ -123,6 +124,12 @@ public class MessageIndexCapture {
                 }
             }
         }
+    }
+
+    /** A cluster this replica no longer owns: its tails stop now, not at the next pass. */
+    @org.springframework.context.event.EventListener
+    void onDutyReleased(ClusterDutyReleased released) {
+        Thread.startVirtualThread(this::reconcileSampling);
     }
 
     /** Stop every capture — used when a subscription's rows are being destroyed. */

@@ -9,7 +9,10 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyAcquired;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyReleased;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
@@ -25,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
@@ -117,6 +121,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     private final io.github.sudoitir.artemisstudio.kernel.settings.SettingsService settings;
     private final ClusterDirectory clusters;
+    private final ClusterOwnership ownership;
     private final ClusterService clusterService;
     private final BrokerConnections connections;
     private final ScrapeCycle scrapeCycle;
@@ -165,22 +170,58 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     public void tierA() {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (RegisteredCluster cluster : clusters.owned()) {
-                UUID clusterId = cluster.getId();
-                long cycle = scrapeCycle.next(clusterId);
-                fanOut(pool, manageableNodes(clusterId), node -> scrapeTierA(clusterId, node, cycle));
-                try {
-                    List<NodeEndpoint> endpoints = persist.endpoints(clusterId);
-                    scrapeCycle.corroborate(clusterId, endpoints);
-                    streamSignals.afterTierA(clusterId, endpoints);
-                    // Follow failover: reconcile Core notification subscriptions against
-                    // who is live now. Never in a transaction, on this virtual-thread pool.
-                    coreSubscriptions.reconcile(clusterId, endpoints);
-                } catch (RuntimeException e) {
-                    log.warn("Split-brain corroboration failed for cluster {}: {}", clusterId, e.toString());
-                }
-                eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.A));
+                tierA(pool, cluster.getId());
             }
         }
+    }
+
+    private void tierA(ExecutorService pool, UUID clusterId) {
+        long cycle = scrapeCycle.next(clusterId);
+        fanOut(pool, manageableNodes(clusterId), node -> scrapeTierA(clusterId, node, cycle));
+        try {
+            List<NodeEndpoint> endpoints = persist.endpoints(clusterId);
+            scrapeCycle.corroborate(clusterId, endpoints);
+            streamSignals.afterTierA(clusterId, endpoints);
+            // Follow failover: reconcile Core notification subscriptions against
+            // who is live now. Never in a transaction, on this virtual-thread pool.
+            coreSubscriptions.reconcile(clusterId, endpoints);
+            if (!ownership.owns(clusterId)) {
+                // Ownership moved while this pass ran, after the release had already dropped its state.
+                coreSubscriptions.forget(clusterId);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Split-brain corroboration failed for cluster {}: {}", clusterId, e.toString());
+        }
+        eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.A));
+    }
+
+    /** A cluster just became this replica's: scrape it now, so its state and subscriptions do not wait a tick. */
+    @EventListener
+    void onDutyAcquired(ClusterDutyAcquired acquired) {
+        Thread.startVirtualThread(() -> {
+            try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
+                tierA(pool, acquired.clusterId());
+            } catch (RuntimeException e) {
+                log.warn(
+                        "First scrape of cluster {} after taking it over failed: {}",
+                        acquired.clusterId(),
+                        e.toString());
+            }
+        });
+    }
+
+    /**
+     * A cluster stopped being this replica's: drop what it holds for it, namely Core notification
+     * subscriptions (the new owner subscribes, and two would insert every event twice), the scrape
+     * cycle and its corroboration ratchet, and the stream signatures. It costs the new owner one
+     * extra cycle, the same as a restart.
+     */
+    @EventListener
+    void onDutyReleased(ClusterDutyReleased released) {
+        UUID clusterId = released.clusterId();
+        scrapeCycle.forget(clusterId);
+        streamSignals.forget(clusterId);
+        Thread.startVirtualThread(() -> coreSubscriptions.forget(clusterId));
     }
 
     public void tierB() {

@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyReleased;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
@@ -78,11 +79,24 @@ public class PluginMessagingReconciler {
         reconcile();
     }
 
+    /** A cluster this replica no longer owns: stop delivering from it, so the new owner's drains can start. */
+    @EventListener
+    void onDutyReleased(ClusterDutyReleased released) {
+        Thread.startVirtualThread(() -> drains.stopCluster(released.clusterId()));
+    }
+
     /** The scheduled pass, over the clusters this replica owns. */
     public void reconcile() {
         Set<UUID> clusters = new LinkedHashSet<>(installedOn);
         registrations.findAll().forEach(r -> clusters.add(r.getClusterId()));
-        clusters.stream().filter(ownership::owns).forEach(this::reconcileNow);
+        for (UUID clusterId : clusters) {
+            if (ownership.owns(clusterId)) {
+                reconcileNow(clusterId);
+            } else {
+                // A pass that raced the release may have started a drain after it.
+                drains.stopCluster(clusterId);
+            }
+        }
     }
 
     /** One pass over one cluster, if this instance holds its lock. */
