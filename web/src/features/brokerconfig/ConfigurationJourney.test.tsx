@@ -7,6 +7,7 @@ import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { ConfigApplyOutcomeView } from './api.ts';
 import { baseHandlers, declaration, halted, NODE_A, NODE_B, plan } from './fixtures.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 /**
  * The Configuration screen as an operator walks it (ADR-0087): one address, one
@@ -20,9 +21,11 @@ const capability = { status: 'AVAILABLE', reason: null, brokerXmlSnippet: null }
 /** What the shell itself reads on any cluster screen. */
 function shell() {
   return [
-    http.get('*/api/v1/clusters', () => HttpResponse.json([{ id: 'c1', name: 'prod', health: 'OK', nodeCount: 2 }])),
-    http.get('*/api/v1/environments', () => HttpResponse.json([])),
-    http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+    http.get('*/api/v1/clusters', () =>
+      HttpResponse.json(paged([{ id: 'c1', name: 'prod', health: 'OK', nodeCount: 2 }])),
+    ),
+    http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
     http.get('*/api/v1/clusters/c1/dlq', () => HttpResponse.json({ settingsAvailable: true, addresses: [] })),
     http.get('*/api/v1/clusters/c1', () =>

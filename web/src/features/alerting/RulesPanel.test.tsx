@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { RulesPanel } from './RulesPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 function rule(over: Record<string, unknown> = {}) {
   return {
@@ -31,23 +32,25 @@ function rule(over: Record<string, unknown> = {}) {
 
 describe('RulesPanel', () => {
   beforeEach(() => {
-    server.use(http.get('*/api/v1/clusters/c1/alerts/plugin-metrics', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/alerts/plugin-metrics', () => HttpResponse.json(paged([]))));
   });
 
   it('offers the metrics running plugins publish and describes the chosen one', async () => {
     server.use(
-      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json([])),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
       http.get('*/api/v1/clusters/c1/alerts/plugin-metrics', () =>
-        HttpResponse.json([
-          {
-            metric: 'acme-notes:edits',
-            plugin: 'acme-notes',
-            description: 'Edits per note.',
-            unit: 'count',
-            subject: 'note',
-          },
-        ]),
+        HttpResponse.json(
+          paged([
+            {
+              metric: 'acme-notes:edits',
+              plugin: 'acme-notes',
+              description: 'Edits per note.',
+              unit: 'count',
+              subject: 'note',
+            },
+          ]),
+        ),
       ),
     );
     const user = userEvent.setup();
@@ -63,9 +66,9 @@ describe('RulesPanel', () => {
   it('says when a rule watches a metric whose plugin is not running', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/alerts/rules', () =>
-        HttpResponse.json([rule({ metric: 'acme-notes:edits', sourceAvailable: false })]),
+        HttpResponse.json(paged([rule({ metric: 'acme-notes:edits', sourceAvailable: false })])),
       ),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
     );
     renderWithProviders(<RulesPanel clusterId="c1" />);
 
@@ -74,8 +77,8 @@ describe('RulesPanel', () => {
 
   it('lists existing rules and shows the threshold condition', async () => {
     server.use(
-      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json([rule()])),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json(paged([rule()]))),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
     );
     renderWithProviders(<RulesPanel clusterId="c1" />);
 
@@ -85,8 +88,8 @@ describe('RulesPanel', () => {
 
   it('shows an empty state with no rules', async () => {
     server.use(
-      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json([])),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
     );
     renderWithProviders(<RulesPanel clusterId="c1" />);
 
@@ -95,8 +98,8 @@ describe('RulesPanel', () => {
 
   it('switching the rule kind to state hides the metric fields and shows the state-condition select', async () => {
     server.use(
-      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json([])),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/alerts/rules', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
     );
     const user = userEvent.setup();
     renderWithProviders(<RulesPanel clusterId="c1" />);
@@ -115,9 +118,9 @@ describe('RulesPanel', () => {
     let created = false;
     server.use(
       http.get('*/api/v1/clusters/c1/alerts/rules', () =>
-        HttpResponse.json(created ? [rule({ name: 'Deep queue' })] : []),
+        HttpResponse.json(paged(created ? [rule({ name: 'Deep queue' })] : [])),
       ),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
       http.post('*/api/v1/clusters/c1/alerts/rules', () => {
         created = true;
         return HttpResponse.json(rule(), { status: 201 });
@@ -140,21 +143,23 @@ describe('RulesPanel', () => {
   it('marks an installation rule and keeps a cluster rule unmarked', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/alerts/rules', () =>
-        HttpResponse.json([
-          rule(),
-          rule({
-            id: 'r2',
-            clusterId: null,
-            name: 'Quota watch',
-            kind: 'STATE',
-            metric: null,
-            comparator: null,
-            threshold: null,
-            stateCondition: 'STORAGE_QUOTA',
-          }),
-        ]),
+        HttpResponse.json(
+          paged([
+            rule(),
+            rule({
+              id: 'r2',
+              clusterId: null,
+              name: 'Quota watch',
+              kind: 'STATE',
+              metric: null,
+              comparator: null,
+              threshold: null,
+              stateCondition: 'STORAGE_QUOTA',
+            }),
+          ]),
+        ),
       ),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
     );
     renderWithProviders(<RulesPanel clusterId="c1" />);
 
@@ -165,20 +170,22 @@ describe('RulesPanel', () => {
   it('edits an installation rule on the storage conditions only', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/alerts/rules', () =>
-        HttpResponse.json([
-          rule({
-            id: 'r2',
-            clusterId: null,
-            name: 'Quota watch',
-            kind: 'STATE',
-            metric: null,
-            comparator: null,
-            threshold: null,
-            stateCondition: 'STORAGE_QUOTA',
-          }),
-        ]),
+        HttpResponse.json(
+          paged([
+            rule({
+              id: 'r2',
+              clusterId: null,
+              name: 'Quota watch',
+              kind: 'STATE',
+              metric: null,
+              comparator: null,
+              threshold: null,
+              stateCondition: 'STORAGE_QUOTA',
+            }),
+          ]),
+        ),
       ),
-      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+      http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))),
     );
     const user = userEvent.setup();
     renderWithProviders(<RulesPanel clusterId="c1" />);

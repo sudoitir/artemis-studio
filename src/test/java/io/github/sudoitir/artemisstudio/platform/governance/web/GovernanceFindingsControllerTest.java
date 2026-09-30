@@ -82,11 +82,11 @@ class GovernanceFindingsControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/governance/findings"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.address == '" + ADDRESS + "')].fieldPath")
+                .andExpect(jsonPath("$.data[?(@.address == '" + ADDRESS + "')].fieldPath")
                         .value("contact"))
-                .andExpect(jsonPath("$[?(@.address == '" + ADDRESS + "')].dataClassLabel")
+                .andExpect(jsonPath("$.data[?(@.address == '" + ADDRESS + "')].dataClassLabel")
                         .value("email"))
-                .andExpect(jsonPath("$[?(@.address == '" + ADDRESS + "')].hitCount")
+                .andExpect(jsonPath("$.data[?(@.address == '" + ADDRESS + "')].hitCount")
                         .value(12));
     }
 

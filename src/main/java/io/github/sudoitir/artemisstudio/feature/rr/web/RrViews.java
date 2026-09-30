@@ -94,12 +94,6 @@ public final class RrViews {
             @Schema(nullable = true) Long replySkewMs,
             @Schema(nullable = true) List<RrEventView> events) {}
 
-    public record FlowPageView(
-            @Schema(requiredMode = REQUIRED) List<FlowView> data,
-            @Schema(requiredMode = REQUIRED) long count,
-            @Schema(requiredMode = REQUIRED) int page,
-            @Schema(requiredMode = REQUIRED) int pageSize) {}
-
     public record AddressStatsView(
             @Schema(requiredMode = REQUIRED) String address,
             @Schema(requiredMode = REQUIRED) long inFlight,

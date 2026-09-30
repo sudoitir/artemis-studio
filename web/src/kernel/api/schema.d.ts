@@ -1444,38 +1444,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/diagnostics/bundles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["prepare"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/diagnostics/bundles/{id}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["download"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/clusters/{clusterId}/sql/index/{id}": {
         parameters: {
             query?: never;
@@ -1636,22 +1604,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/system/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["studioHealth"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/stream": {
         parameters: {
             query?: never;
@@ -1772,22 +1724,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["findings"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/diagnostics/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3151,7 +3087,7 @@ export interface components {
             queueName: string;
             forwardingAddress: string;
             filter?: string | null;
-            transformer?: components["schemas"]["ConfigTransformerView"];
+            transformer?: components["schemas"]["ConfigTransformerView"] | null;
             staticConnectors: string[];
             discoveryGroupName?: string | null;
             ha?: boolean | null;
@@ -3402,7 +3338,7 @@ export interface components {
             hasSecret: boolean;
             /** Format: int64 */
             boundRuleCount: number;
-            health?: components["schemas"]["ChannelHealthView"];
+            health?: components["schemas"]["ChannelHealthView"] | null;
         };
         PluginChangesetView: {
             id: string;
@@ -3880,7 +3816,7 @@ export interface components {
             /** @description The queue-and-node pairs the query will read. */
             targets?: components["schemas"]["TargetView"][];
             /** @description The JMS selector the broker will evaluate, if any. */
-            selector?: string;
+            selector?: string | null;
             /** @description Whether any predicate forces messages to be read and examined. */
             requiresScan: boolean;
             /** @description The predicates the broker evaluates. These cost nothing. */
@@ -4073,7 +4009,7 @@ export interface components {
             /** Format: date-time */
             lastSeenAt: string;
             stale: boolean;
-            acceptance?: components["schemas"]["AcceptanceView"];
+            acceptance?: components["schemas"]["AcceptanceView"] | null;
         };
         SetupReviewView: {
             /** Format: uuid */
@@ -4626,8 +4562,7 @@ export interface components {
         AuthResult: {
             /** @enum {string} */
             status: "AUTHENTICATED" | "SECOND_FACTOR_REQUIRED";
-            /** @description The signed-in user; set when the status is AUTHENTICATED. */
-            me?: components["schemas"]["MeView"];
+            me?: components["schemas"]["MeView"] | null;
             /** @description How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, WEBAUTHN a passkey, RECOVERY_CODE one of the single-use codes. */
             methods?: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[] | null;
             /**
@@ -4751,29 +4686,6 @@ export interface components {
             changeNotes?: string | null;
             error?: string | null;
         };
-        BundleView: {
-            /** Format: uuid */
-            id: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            expiresAt: string;
-            sections: components["schemas"]["SectionView"][];
-        };
-        SectionView: {
-            key: string;
-            title: string;
-            fileName: string;
-            content: string;
-            /** Format: int64 */
-            bytes: number;
-            /** Format: int32 */
-            redactions: number;
-        };
-        DownloadRequest: {
-            sections: string[];
-        };
-        StreamingResponseBody: unknown;
         UpdateQueueRequest: {
             /** @description A JMS selector limiting what the queue accepts. */
             filter?: string | null;
@@ -4796,6 +4708,19 @@ export interface components {
             reportUndeclared: boolean;
             undeclaredExclusions: string[];
         };
+        PagedViewUserView: {
+            data: components["schemas"]["UserView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         AccountSessionView: {
             handle: string;
             /** Format: date-time */
@@ -4805,6 +4730,19 @@ export interface components {
             clientAddress?: string | null;
             userAgent?: string | null;
             current: boolean;
+        };
+        PagedViewAccountSessionView: {
+            data: components["schemas"]["AccountSessionView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         EffectivePermissionView: {
             action: string;
@@ -4818,6 +4756,32 @@ export interface components {
             via: string;
             effective: boolean;
             reason?: string | null;
+        };
+        PagedViewEffectivePermissionView: {
+            data: components["schemas"]["EffectivePermissionView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewTokenView: {
+            data: components["schemas"]["TokenView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         UsageDayView: {
             /** Format: date */
@@ -4888,68 +4852,18 @@ export interface components {
             /** @description Whether no run has finished, here or elsewhere, within three of the job's intervals. */
             degraded: boolean;
         };
-        JobHealth: {
-            name: string;
-            /** @description The module that owns the job. */
-            feature: string;
-            /** @enum {string} */
-            status: "NEVER_RUN" | "FAILING" | "OK";
-            /** Format: date-time */
-            lastEnd?: string | null;
-            /**
-             * Format: double
-             * @description Seconds past the job's interval since it last completed; null until its interval is known.
-             */
-            lagSeconds?: number | null;
-            /** @description No run has finished within three of the job's intervals. */
-            degraded: boolean;
-        };
-        NodeHealth: {
-            name: string;
-            /** Format: uuid */
-            clusterId: string;
-            /** @description The node's host:port; null while Studio has no management address for it. */
-            node?: string | null;
-            /** Format: date-time */
-            lastSuccess?: string | null;
-            /** Format: date-time */
-            lastFailure?: string | null;
-            /** @description The most recent failure's message, redacted. */
-            lastError?: string | null;
-            /**
-             * Format: double
-             * @description 95th percentile of recent management call latency; null when none was measured.
-             */
-            managementP95Millis?: number | null;
+        PagedViewJobStatusView: {
+            data: components["schemas"]["JobStatusView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
             /**
              * Format: int64
-             * @description How long the latest request waited for this node's rate ceiling.
+             * @description The total across all pages; null when it is not known.
              */
-            rateLimitWaitMillis?: number | null;
-            /** @description The latest management call to the node failed. */
-            degraded: boolean;
-        };
-        PoolHealth: {
-            /** Format: int32 */
-            active?: number | null;
-            /** Format: int32 */
-            idle?: number | null;
-            /** Format: int32 */
-            max?: number | null;
-            /** Format: int32 */
-            pending?: number | null;
-        };
-        StudioHealth: {
-            jobs: components["schemas"]["JobHealth"][];
-            nodes: components["schemas"]["NodeHealth"][];
-            dbPool: components["schemas"]["PoolHealth"];
-            /**
-             * Format: int32
-             * @description Event stream clients connected to this instance.
-             */
-            streamClients?: number | null;
-            /** @description Any job or node is degraded. */
-            degraded: boolean;
+            count?: number | null;
+            hasNext: boolean;
         };
         SseEmitter: {
             /** Format: int64 */
@@ -4980,6 +4894,32 @@ export interface components {
             };
             lastRotation?: components["schemas"]["RotationView"];
         };
+        PagedViewRoleView: {
+            data: components["schemas"]["RoleView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewPermissionView: {
+            data: components["schemas"]["PermissionView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         PermissionView: {
             action: string;
             label: string;
@@ -4993,6 +4933,19 @@ export interface components {
             posture: "READ" | "MUTATE";
             summary: string;
         };
+        PagedViewMcpToolView: {
+            data: components["schemas"]["McpToolView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         ManifestFeatureView: {
             id: string;
             title: string;
@@ -5005,7 +4958,7 @@ export interface components {
             version?: string | null;
             vendor?: string | null;
             status?: string | null;
-            ui?: components["schemas"]["ManifestPluginUiView"];
+            ui?: components["schemas"]["ManifestPluginUiView"] | null;
         };
         ManifestIdentityProviderView: {
             id: string;
@@ -5030,6 +4983,19 @@ export interface components {
             permissionCatalogue: components["schemas"]["ManifestPermissionView"][];
             identityProviders: components["schemas"]["ManifestIdentityProviderView"][];
         };
+        PagedViewRuleView: {
+            data: components["schemas"]["RuleView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         PolicyView: {
             /** Format: int32 */
             version: number;
@@ -5038,13 +5004,31 @@ export interface components {
             /** @description The count reached its cap; there are at least this many. */
             capped: boolean;
         };
-        SummaryView: {
-            studioVersion: string;
+        PagedViewFindingView: {
+            data: components["schemas"]["FindingView"][];
             /** Format: int32 */
-            contractVersion: number;
-            java: string;
-            os: string;
-            database: string;
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewEnvironmentView: {
+            data: components["schemas"]["EnvironmentView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         StoreView: {
             id: string;
@@ -5113,6 +5097,32 @@ export interface components {
             /** Format: uuid */
             environmentId?: string | null;
         };
+        PagedViewClusterSummary: {
+            data: components["schemas"]["ClusterSummary"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewTransferRunView: {
+            data: components["schemas"]["TransferRunView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         OrphanView: {
             /** Format: uuid */
             nodeId: string;
@@ -5120,6 +5130,19 @@ export interface components {
             stagingQueue: string;
             /** Format: int64 */
             depth?: number | null;
+        };
+        PagedViewOrphanView: {
+            data: components["schemas"]["OrphanView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         /** @description A limit the query ran into, which is why it stopped. */
         BoundView: {
@@ -5136,9 +5159,33 @@ export interface components {
             detail?: string;
             /** Format: uri */
             instance?: string;
-            properties?: {
-                [key: string]: Record<string, never>;
-            };
+            /** @description Quote it when reporting a server error. */
+            requestId?: string;
+            /** @description Invalid request fields. */
+            errors?: {
+                field?: string;
+                message?: string;
+            }[];
+            brokerErrorKind?: string;
+            refusalKind?: string;
+            /** Format: int64 */
+            affectedCount?: number;
+            /** Format: int64 */
+            cap?: number;
+            missing?: string[];
+            offending?: string;
+            suggestion?: string;
+            estimate?: number;
+            ceiling?: number;
+            hint?: string;
+            field?: string;
+            /**
+             * Format: int32
+             * @description Seconds to wait.
+             */
+            retryAfter?: number;
+            featureId?: string;
+            property?: string;
         };
         RedactionView: {
             location: string;
@@ -5258,22 +5305,39 @@ export interface components {
             reason: string;
             settingKey?: string | null;
         };
-        ResourceQuery: {
-            q?: string;
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            size: number;
-            sort?: string;
-        };
-        PagedViewSessionView: {
-            data: components["schemas"]["SessionView"][];
-            /** Format: int64 */
-            count: number;
+        PagedViewIndexSubscriptionView: {
+            data: components["schemas"]["IndexSubscriptionView"][];
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        ResourceQuery: {
+            q?: string;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            sort?: string;
+        };
+        PagedViewSessionView: {
+            data: components["schemas"]["SessionView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         SessionView: {
             /** Format: uuid */
@@ -5316,15 +5380,6 @@ export interface components {
         };
         StatsResponse: {
             addresses: components["schemas"]["AddressStatsView"][];
-        };
-        FlowPageView: {
-            data: components["schemas"]["FlowView"][];
-            /** Format: int64 */
-            count: number;
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            pageSize: number;
         };
         FlowView: {
             /** Format: uuid */
@@ -5369,6 +5424,19 @@ export interface components {
             replySkewMs?: number | null;
             events?: components["schemas"]["RrEventView"][] | null;
         };
+        PagedViewFlowView: {
+            data: components["schemas"]["FlowView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         RrEventView: {
             /** Format: int64 */
             seq: number;
@@ -5380,6 +5448,19 @@ export interface components {
             detail?: {
                 [key: string]: unknown;
             } | null;
+        };
+        PagedViewExpectationView: {
+            data: components["schemas"]["ExpectationView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         ClockDiagnosticsView: {
             /** @description UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Studio's own host */
@@ -5442,12 +5523,16 @@ export interface components {
         };
         PagedViewQueueView: {
             data: components["schemas"]["QueueView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         QueueNodeCell: {
             /** Format: uuid */
@@ -5489,17 +5574,19 @@ export interface components {
         };
         MessagePageView: {
             data: components["schemas"]["MessageSummaryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
             /**
              * Format: int64
              * @description The broker's own message count; null when it could not be obtained, never a guess — see countUnavailable.
              */
             count?: number | null;
+            /** @description Whether another page follows; when count is null, a full page counts as one. */
+            hasNext: boolean;
             /** @description Why count is null. Null whenever count is present. */
             countUnavailable?: string | null;
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            pageSize: number;
             /** Format: uuid */
             node: string;
             transport: string;
@@ -5589,12 +5676,16 @@ export interface components {
         };
         PagedViewProducerView: {
             data: components["schemas"]["ProducerView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         ProducerView: {
             /** Format: uuid */
@@ -5673,9 +5764,9 @@ export interface components {
             name?: string;
             /** @enum {string} */
             state?: "OK" | "UNREACHABLE" | "PERMISSION_DENIED" | "COUNTER_UNAVAILABLE" | "ROUTING_UNAVAILABLE" | "FAILED";
-            message?: string;
+            message?: string | null;
             /** Format: date-time */
-            sampledAt?: string;
+            sampledAt?: string | null;
             /** Format: int32 */
             producersSeen: number;
             /** Format: int32 */
@@ -5685,7 +5776,7 @@ export interface components {
             /** Format: int32 */
             consumersTotal: number;
             truncated: boolean;
-            brokerXmlSnippet?: string;
+            brokerXmlSnippet?: string | null;
             /** Format: int64 */
             backlog?: number | null;
             /** Format: int64 */
@@ -5702,26 +5793,26 @@ export interface components {
             source?: string;
             target?: string;
             /** Format: double */
-            rate?: number;
+            rate?: number | null;
             /** @enum {string} */
             rateSource?: "SAMPLER" | "QUEUE_METRIC" | "NONE";
             /** Format: date-time */
-            asOf?: string;
+            asOf?: string | null;
             /** Format: int64 */
-            averagedOverSeconds?: number;
+            averagedOverSeconds?: number | null;
             stale: boolean;
-            /** @enum {string} */
-            delivery?: "COPY" | "SHARED";
+            /** @enum {string|null} */
+            delivery?: "COPY" | "SHARED" | null;
             /** Format: int32 */
-            members?: number;
-            exclusive?: boolean;
-            filter?: string;
-            transformer?: string;
+            members?: number | null;
+            exclusive?: boolean | null;
+            filter?: string | null;
+            transformer?: string | null;
             bypassed: boolean;
             /** Format: int32 */
-            presentOn?: number;
+            presentOn?: number | null;
             /** Format: int32 */
-            presentOf?: number;
+            presentOf?: number | null;
             studio: boolean;
             faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
             byNode?: components["schemas"]["FlowNodeRate"][] | null;
@@ -5738,9 +5829,9 @@ export interface components {
             edges?: components["schemas"]["FlowEdgeView"][];
             kpis?: components["schemas"]["FlowKpis"];
             totals?: components["schemas"]["FlowTotals"];
-            focus?: components["schemas"]["FlowFocusView"];
+            focus?: components["schemas"]["FlowFocusView"] | null;
             /** Format: date-time */
-            sampledAt?: string;
+            sampledAt?: string | null;
             measuring: boolean;
             /** Format: int64 */
             sampleIntervalSeconds: number;
@@ -5750,9 +5841,9 @@ export interface components {
         };
         FlowKpis: {
             /** Format: double */
-            inRate?: number;
+            inRate?: number | null;
             /** Format: double */
-            outRate?: number;
+            outRate?: number | null;
             /** Format: int64 */
             backlog: number;
             /** Format: int32 */
@@ -5786,15 +5877,15 @@ export interface components {
             id?: string;
             /** @enum {string} */
             kind?: "PRODUCER" | "ADDRESS" | "QUEUE" | "CONSUMER" | "REMOTE";
-            /** @enum {string} */
-            role?: "STORE_AND_FORWARD" | "TEMPORARY" | "ANONYMOUS" | "CAPTURE" | "DEAD_LETTER" | "EXPIRY" | "CLUSTER_NODE" | "BRIDGE_TARGET";
+            /** @enum {string|null} */
+            role?: "STORE_AND_FORWARD" | "TEMPORARY" | "ANONYMOUS" | "CAPTURE" | "DEAD_LETTER" | "EXPIRY" | "CLUSTER_NODE" | "BRIDGE_TARGET" | null;
             label?: string;
             /** Format: int32 */
-            members?: number;
+            members?: number | null;
             /** Format: int64 */
-            messageCount?: number;
+            messageCount?: number | null;
             /** Format: int64 */
-            consumerCount?: number;
+            consumerCount?: number | null;
             routingTypes?: string[];
             protocols?: string[];
             hosts?: string[];
@@ -5814,12 +5905,13 @@ export interface components {
         };
         BrokerEventPageView: {
             data: components["schemas"]["BrokerEventView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /** Format: int64 */
+            count: number;
+            hasNext: boolean;
             /** Format: int64 */
             dropped: number;
             /** Format: date-time */
@@ -5902,12 +5994,16 @@ export interface components {
         };
         PagedViewDivertView: {
             data: components["schemas"]["DivertView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         ConsumerView: {
             /** Format: uuid */
@@ -5926,12 +6022,16 @@ export interface components {
         };
         PagedViewConsumerView: {
             data: components["schemas"]["ConsumerView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         ConsumerHealthView: {
             address: string;
@@ -5993,12 +6093,16 @@ export interface components {
         };
         PagedViewConsumerHealthView: {
             data: components["schemas"]["ConsumerHealthView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         ConnectionView: {
             /** Format: uuid */
@@ -6014,12 +6118,16 @@ export interface components {
         };
         PagedViewConnectionView: {
             data: components["schemas"]["ConnectionView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         /** @description One saved revision */
         ConfigRevisionView: {
@@ -6031,6 +6139,19 @@ export interface components {
             source: string;
             note?: string | null;
             document: components["schemas"]["ConfigDocumentView"];
+        };
+        PagedViewConfigRevisionView: {
+            data: components["schemas"]["ConfigRevisionView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         /** @description One capability gap and what would close it */
         ConfigRecommendationView: {
@@ -6069,6 +6190,19 @@ export interface components {
             known: boolean;
             reason?: string | null;
         };
+        PagedViewConfigNodeConnectorsView: {
+            data: components["schemas"]["ConfigNodeConnectorsView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         /** @description One address-setting key: its two names, type, allowed values and hazard class */
         ConfigAddressSettingKeyView: {
             jsonName: string;
@@ -6091,6 +6225,19 @@ export interface components {
             ref: string;
             username?: string | null;
         };
+        PagedViewConfigBridgeCredentialView: {
+            data: components["schemas"]["ConfigBridgeCredentialView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         /** @description One past apply */
         ConfigApplyHistoryView: {
             /** Format: int64 */
@@ -6110,6 +6257,19 @@ export interface components {
             dryRun: boolean;
             /** Format: int64 */
             auditEventId?: number | null;
+        };
+        PagedViewConfigApplyHistoryView: {
+            data: components["schemas"]["ConfigApplyHistoryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         /** @description One past apply with the plan that was shown and the per-node outcome */
         ConfigApplyDetailView: {
@@ -6161,6 +6321,19 @@ export interface components {
             reducedSurface: boolean;
             unavailableReason?: string | null;
         };
+        PagedViewBulkRunView: {
+            data: components["schemas"]["BulkRunView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         BridgeNodeCell: {
             /** Format: uuid */
             nodeId: string;
@@ -6198,12 +6371,16 @@ export interface components {
         };
         PagedViewBridgeView: {
             data: components["schemas"]["BridgeView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         AuditEventView: {
             /** Format: int64 */
@@ -6228,14 +6405,44 @@ export interface components {
             /** Format: uuid */
             nodeId?: string | null;
         };
-        AuditPageView: {
+        PagedViewAuditEventView: {
             data: components["schemas"]["AuditEventView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewAlertRuleView: {
+            data: components["schemas"]["AlertRuleView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewPluginMetricView: {
+            data: components["schemas"]["PluginMetricView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         PluginMetricView: {
             metric: string;
@@ -6243,15 +6450,6 @@ export interface components {
             description: string;
             unit: string;
             subject: string;
-        };
-        AlertFiringPageView: {
-            items: components["schemas"]["AlertFiringView"][];
-            /** Format: int64 */
-            totalElements: number;
-            /** Format: int32 */
-            page: number;
-            /** Format: int32 */
-            size: number;
         };
         AlertFiringView: {
             /** Format: int64 */
@@ -6273,6 +6471,19 @@ export interface components {
             /** Format: date-time */
             resolvedAt?: string | null;
         };
+        PagedViewAlertFiringView: {
+            data: components["schemas"]["AlertFiringView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         AddressView: {
             /** Format: uuid */
             nodeId: string;
@@ -6286,12 +6497,42 @@ export interface components {
         };
         PagedViewAddressView: {
             data: components["schemas"]["AddressView"][];
-            /** Format: int64 */
-            count: number;
             /** Format: int32 */
             page: number;
             /** Format: int32 */
             pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewNotificationChannelView: {
+            data: components["schemas"]["NotificationChannelView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        PagedViewAlertDeliveryView: {
+            data: components["schemas"]["AlertDeliveryView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         IdentityProviderView: {
             id: string;
@@ -6303,6 +6544,19 @@ export interface components {
             label: string;
             /** @description Where a redirect provider's sign-in begins. */
             startPath?: string | null;
+        };
+        PagedViewIdentityProviderView: {
+            data: components["schemas"]["IdentityProviderView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         MfaStatusView: {
             local: boolean;
@@ -6340,6 +6594,19 @@ export interface components {
             clusterId?: string | null;
             /** Format: int64 */
             firing: number;
+        };
+        PagedViewClusterFiringCountView: {
+            data: components["schemas"]["ClusterFiringCountView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         PluginBudgetView: {
             /** Format: int32 */
@@ -6380,7 +6647,7 @@ export interface components {
         };
         PluginsView: {
             canInstall: boolean;
-            cannotInstall?: components["schemas"]["PluginProblemReasonView"];
+            cannotInstall?: components["schemas"]["PluginProblemReasonView"] | null;
             uploadEnabled: boolean;
             safeMode: boolean;
             safeModeReason?: string | null;
@@ -6403,6 +6670,19 @@ export interface components {
             signedPlugins: {
                 [key: string]: string[];
             };
+        };
+        PagedViewPluginInstallerView: {
+            data: components["schemas"]["PluginInstallerView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         PluginInstallerView: {
             /** Format: uuid */
@@ -6433,7 +6713,10 @@ export interface operations {
     unlock: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
             };
@@ -6490,7 +6773,10 @@ export interface operations {
     setDisabled: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
             };
@@ -6551,7 +6837,10 @@ export interface operations {
     put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 key: string;
             };
@@ -6610,7 +6899,10 @@ export interface operations {
     reset: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 key: string;
             };
@@ -6665,7 +6957,10 @@ export interface operations {
     update: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 roleId: string;
             };
@@ -6726,7 +7021,10 @@ export interface operations {
     delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 roleId: string;
             };
@@ -6781,7 +7079,10 @@ export interface operations {
     setDefaultRole: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 providerId: string;
             };
@@ -6842,7 +7143,10 @@ export interface operations {
     update_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 ruleId: string;
             };
@@ -6903,7 +7207,10 @@ export interface operations {
     delete_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 ruleId: string;
             };
@@ -6958,7 +7265,10 @@ export interface operations {
     update_2: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 environmentId: string;
             };
@@ -7019,7 +7329,10 @@ export interface operations {
     delete_2: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 environmentId: string;
             };
@@ -7074,7 +7387,10 @@ export interface operations {
     update_3: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -7133,7 +7449,10 @@ export interface operations {
     updateExpectation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 expectationId: string;
@@ -7195,7 +7514,10 @@ export interface operations {
     deleteExpectation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 expectationId: string;
@@ -7251,7 +7573,10 @@ export interface operations {
     assign: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -7310,7 +7635,10 @@ export interface operations {
     rotateCredentials: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -7426,7 +7754,10 @@ export interface operations {
     save: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -7487,7 +7818,10 @@ export interface operations {
     setBridgeCredential: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 ref: string;
@@ -7547,7 +7881,10 @@ export interface operations {
     forgetBridgeCredential: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 ref: string;
@@ -7603,7 +7940,10 @@ export interface operations {
     updateRule: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 ruleId: string;
@@ -7665,7 +8005,10 @@ export interface operations {
     deleteRule: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 ruleId: string;
@@ -7721,7 +8064,10 @@ export interface operations {
     update_4: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 channelId: string;
             };
@@ -7782,7 +8128,10 @@ export interface operations {
     delete_3: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 channelId: string;
             };
@@ -7837,7 +8186,10 @@ export interface operations {
     upload: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -7892,7 +8244,10 @@ export interface operations {
     trustPolicy: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -7948,7 +8303,10 @@ export interface operations {
     };
     list: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7961,7 +8319,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["UserView"][];
+                    "*/*": components["schemas"]["PagedViewUserView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8004,7 +8362,10 @@ export interface operations {
     create: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -8063,7 +8424,10 @@ export interface operations {
     addGrant: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
             };
@@ -8121,7 +8485,10 @@ export interface operations {
     };
     list_1: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8134,7 +8501,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TokenView"][];
+                    "*/*": components["schemas"]["PagedViewTokenView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8177,7 +8544,10 @@ export interface operations {
     create_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -8236,7 +8606,10 @@ export interface operations {
     rotate: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 tokenId: string;
             };
@@ -8293,7 +8666,10 @@ export interface operations {
     rotate_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -8347,7 +8723,10 @@ export interface operations {
     };
     list_2: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8360,7 +8739,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["RoleView"][];
+                    "*/*": components["schemas"]["PagedViewRoleView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8403,7 +8782,10 @@ export interface operations {
     create_2: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -8519,7 +8901,10 @@ export interface operations {
     create_3: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 providerId: string;
             };
@@ -8579,7 +8964,10 @@ export interface operations {
     };
     rules: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8592,7 +8980,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["RuleView"][];
+                    "*/*": components["schemas"]["PagedViewRuleView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8635,7 +9023,10 @@ export interface operations {
     create_4: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -8694,7 +9085,10 @@ export interface operations {
     dismiss: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 findingId: string;
             };
@@ -8751,7 +9145,10 @@ export interface operations {
     confirm: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 findingId: string;
             };
@@ -8807,7 +9204,10 @@ export interface operations {
     };
     list_4: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8820,7 +9220,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["EnvironmentView"][];
+                    "*/*": components["schemas"]["PagedViewEnvironmentView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8863,7 +9263,10 @@ export interface operations {
     create_5: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -8922,7 +9325,10 @@ export interface operations {
     preview: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -8982,7 +9388,10 @@ export interface operations {
     };
     list_5: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8995,7 +9404,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ClusterSummary"][];
+                    "*/*": components["schemas"]["PagedViewClusterSummary"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -9040,7 +9449,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9108,7 +9520,10 @@ export interface operations {
     stop: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 runId: string;
@@ -9166,7 +9581,10 @@ export interface operations {
     returnToSource: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 runId: string;
@@ -9224,7 +9642,10 @@ export interface operations {
     resume: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 runId: string;
@@ -9282,7 +9703,10 @@ export interface operations {
     execute: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 runId: string;
@@ -9344,7 +9768,10 @@ export interface operations {
     preview_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9405,7 +9832,10 @@ export interface operations {
     returnOrphan: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9466,7 +9896,10 @@ export interface operations {
     verify: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9527,7 +9960,10 @@ export interface operations {
     query: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9588,7 +10024,10 @@ export interface operations {
     plan: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9648,7 +10087,10 @@ export interface operations {
     };
     list_6: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -9663,7 +10105,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IndexSubscriptionView"][];
+                    "*/*": components["schemas"]["PagedViewIndexSubscriptionView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -9706,7 +10148,10 @@ export interface operations {
     create_6: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9767,7 +10212,10 @@ export interface operations {
     runSetupReview: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9824,7 +10272,10 @@ export interface operations {
     acceptSetupRisk: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9888,7 +10339,10 @@ export interface operations {
                 code: string;
                 subject: string;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -9944,7 +10398,10 @@ export interface operations {
     };
     listExpectations: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -9959,7 +10416,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ExpectationView"][];
+                    "*/*": components["schemas"]["PagedViewExpectationView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -10002,7 +10459,10 @@ export interface operations {
     createExpectation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -10124,7 +10584,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -10187,7 +10650,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -10247,7 +10713,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -10307,7 +10776,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -10431,7 +10903,10 @@ export interface operations {
                 node?: string;
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -10497,7 +10972,10 @@ export interface operations {
                 dryRun?: boolean;
                 override?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -10559,7 +11037,10 @@ export interface operations {
                 dryRun?: boolean;
                 override?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -10624,7 +11105,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 nodeId: string;
@@ -10685,7 +11169,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 nodeId: string;
@@ -10746,7 +11233,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 nodeId: string;
@@ -10866,7 +11356,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -10927,7 +11420,10 @@ export interface operations {
     declareRecommended: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -10988,7 +11484,10 @@ export interface operations {
     importXml: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11050,7 +11549,10 @@ export interface operations {
     evaluate: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11110,7 +11612,10 @@ export interface operations {
                 dryRun?: boolean;
                 override?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11171,7 +11676,10 @@ export interface operations {
     adopt: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11228,7 +11736,10 @@ export interface operations {
     stop_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 runId: string;
@@ -11286,7 +11797,10 @@ export interface operations {
     execute_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 runId: string;
@@ -11348,7 +11862,10 @@ export interface operations {
     preview_2: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11408,7 +11925,10 @@ export interface operations {
     };
     rules_1: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -11423,7 +11943,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AlertRuleView"][];
+                    "*/*": components["schemas"]["PagedViewAlertRuleView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -11466,7 +11986,10 @@ export interface operations {
     createRule: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11588,7 +12111,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -11652,7 +12178,10 @@ export interface operations {
                 dryRun?: boolean;
                 override?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 address: string;
@@ -11709,7 +12238,10 @@ export interface operations {
     };
     list_7: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11722,7 +12254,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["NotificationChannelView"][];
+                    "*/*": components["schemas"]["PagedViewNotificationChannelView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -11765,7 +12297,10 @@ export interface operations {
     create_7: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11824,7 +12359,10 @@ export interface operations {
     test: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 channelId: string;
             };
@@ -11881,7 +12419,10 @@ export interface operations {
     retry: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 channelId: string;
                 seq: number;
@@ -11939,7 +12480,10 @@ export interface operations {
     testConfiguration: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11998,7 +12542,10 @@ export interface operations {
     secondFactor: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12057,7 +12604,10 @@ export interface operations {
     secondFactorOptions: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12114,7 +12664,10 @@ export interface operations {
     reauthenticate: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12173,7 +12726,10 @@ export interface operations {
     changePassword: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12230,7 +12786,10 @@ export interface operations {
     registerPasskey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12289,7 +12848,10 @@ export interface operations {
     passkeyOptions: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12346,7 +12908,10 @@ export interface operations {
     startTotp: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12401,7 +12966,10 @@ export interface operations {
     removeTotp: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12454,7 +13022,10 @@ export interface operations {
     confirmTotp: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12513,7 +13084,10 @@ export interface operations {
     regenerateRecoveryCodes: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12568,7 +13142,10 @@ export interface operations {
     logout: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12621,7 +13198,10 @@ export interface operations {
     login: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12682,7 +13262,10 @@ export interface operations {
             query?: {
                 cascade?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -12739,7 +13322,10 @@ export interface operations {
             query?: {
                 acknowledge?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -12798,7 +13384,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -12857,7 +13446,10 @@ export interface operations {
             query?: {
                 acknowledge?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -12914,7 +13506,10 @@ export interface operations {
     downloadUpdate: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -12973,7 +13568,10 @@ export interface operations {
             query?: {
                 cascade?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -13030,7 +13628,10 @@ export interface operations {
             query?: {
                 acknowledge?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 sha256: string;
             };
@@ -13087,7 +13688,10 @@ export interface operations {
     restart: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13195,7 +13799,10 @@ export interface operations {
     addKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13253,7 +13860,10 @@ export interface operations {
     };
     installers: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13266,7 +13876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PluginInstallerView"][];
+                    "*/*": components["schemas"]["PagedViewPluginInstallerView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -13309,7 +13919,10 @@ export interface operations {
     grantInstaller: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13366,7 +13979,10 @@ export interface operations {
     checkUpdates: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13418,56 +14034,13 @@ export interface operations {
             };
         };
     };
-    prepare: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["BundleView"];
-                };
-            };
-        };
-    };
-    download: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DownloadRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/zip": components["schemas"]["StreamingResponseBody"];
-                };
-            };
-        };
-    };
     delete_4: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 id: string;
@@ -13525,7 +14098,10 @@ export interface operations {
     update_5: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 id: string;
@@ -13591,7 +14167,10 @@ export interface operations {
                 override?: boolean;
                 disconnectConsumers?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -13651,7 +14230,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 queueName: string;
@@ -13713,7 +14295,10 @@ export interface operations {
     overrideNode: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 nodeId: string;
@@ -13775,7 +14360,10 @@ export interface operations {
     configure: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -13835,7 +14423,10 @@ export interface operations {
     };
     sessionsOf: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 userId: string;
@@ -13850,7 +14441,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AccountSessionView"][];
+                    "*/*": components["schemas"]["PagedViewAccountSessionView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -13893,7 +14484,10 @@ export interface operations {
     endSessionsOf: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
             };
@@ -13949,7 +14543,10 @@ export interface operations {
     };
     effectivePermissions: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 userId: string;
@@ -13964,7 +14561,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["EffectivePermissionView"][];
+                    "*/*": components["schemas"]["PagedViewEffectivePermissionView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -14175,7 +14772,10 @@ export interface operations {
     };
     jobs: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14188,7 +14788,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["JobStatusView"][];
+                    "*/*": components["schemas"]["PagedViewJobStatusView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -14224,26 +14824,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    studioHealth: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["StudioHealth"];
                 };
             };
         };
@@ -14420,7 +15000,10 @@ export interface operations {
     };
     permissions: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14433,7 +15016,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PermissionView"][];
+                    "*/*": components["schemas"]["PagedViewPermissionView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -14475,7 +15058,10 @@ export interface operations {
     };
     list_9: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -14488,7 +15074,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["McpToolView"][];
+                    "*/*": components["schemas"]["PagedViewMcpToolView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -14642,6 +15228,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path?: never;
@@ -14655,7 +15243,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["FindingView"][];
+                    "*/*": components["schemas"]["PagedViewFindingView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -14691,26 +15279,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    summary: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["SummaryView"];
                 };
             };
         };
@@ -14885,7 +15453,10 @@ export interface operations {
     delete_5: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
             };
@@ -14939,7 +15510,10 @@ export interface operations {
     };
     history: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -14954,7 +15528,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TransferRunView"][];
+                    "*/*": components["schemas"]["PagedViewTransferRunView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -15054,7 +15628,10 @@ export interface operations {
     };
     orphans: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -15069,7 +15646,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["OrphanView"][];
+                    "*/*": components["schemas"]["PagedViewOrphanView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -15425,7 +16002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["FlowPageView"];
+                    "*/*": components["schemas"]["PagedViewFlowView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16430,7 +17007,10 @@ export interface operations {
     };
     revisions: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -16445,7 +17025,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ConfigRevisionView"][];
+                    "*/*": components["schemas"]["PagedViewConfigRevisionView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16718,7 +17298,10 @@ export interface operations {
     };
     connectors: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -16733,7 +17316,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ConfigNodeConnectorsView"][];
+                    "*/*": components["schemas"]["PagedViewConfigNodeConnectorsView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16832,7 +17415,10 @@ export interface operations {
     };
     bridgeCredentials: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -16847,7 +17433,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ConfigBridgeCredentialView"][];
+                    "*/*": components["schemas"]["PagedViewConfigBridgeCredentialView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16890,7 +17476,8 @@ export interface operations {
     applies: {
         parameters: {
             query?: {
-                limit?: number;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path: {
@@ -16906,7 +17493,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ConfigApplyHistoryView"][];
+                    "*/*": components["schemas"]["PagedViewConfigApplyHistoryView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17123,7 +17710,10 @@ export interface operations {
     };
     history_1: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -17138,7 +17728,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["BulkRunView"][];
+                    "*/*": components["schemas"]["PagedViewBulkRunView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17321,7 +17911,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AuditPageView"];
+                    "*/*": components["schemas"]["PagedViewAuditEventView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17421,7 +18011,10 @@ export interface operations {
     };
     pluginMetrics: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -17436,7 +18029,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PluginMetricView"][];
+                    "*/*": components["schemas"]["PagedViewPluginMetricView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17496,7 +18089,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AlertFiringPageView"];
+                    "*/*": components["schemas"]["PagedViewAlertFiringView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17538,7 +18131,10 @@ export interface operations {
     };
     firing: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 clusterId: string;
@@ -17553,7 +18149,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AlertFiringView"][];
+                    "*/*": components["schemas"]["PagedViewAlertFiringView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17596,7 +18192,8 @@ export interface operations {
     deliveries: {
         parameters: {
             query?: {
-                limit?: number;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path: {
@@ -17612,7 +18209,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AlertDeliveryView"][];
+                    "*/*": components["schemas"]["PagedViewAlertDeliveryView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17654,7 +18251,10 @@ export interface operations {
     };
     ownSessions: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17667,7 +18267,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AccountSessionView"][];
+                    "*/*": components["schemas"]["PagedViewAccountSessionView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17710,7 +18310,10 @@ export interface operations {
     endOtherOwnSessions: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17764,7 +18367,10 @@ export interface operations {
     };
     providers: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17777,7 +18383,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IdentityProviderView"][];
+                    "*/*": components["schemas"]["PagedViewIdentityProviderView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17929,7 +18535,10 @@ export interface operations {
     };
     firing_1: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17942,7 +18551,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ClusterFiringCountView"][];
+                    "*/*": components["schemas"]["PagedViewClusterFiringCountView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17984,7 +18593,10 @@ export interface operations {
     };
     list_12: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17997,7 +18609,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TokenView"][];
+                    "*/*": components["schemas"]["PagedViewTokenView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -18210,7 +18822,10 @@ export interface operations {
     };
     history_3: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                size?: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -18225,7 +18840,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AuditEventView"][];
+                    "*/*": components["schemas"]["PagedViewAuditEventView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -18325,7 +18940,10 @@ export interface operations {
     discard: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 sha256: string;
             };
@@ -18380,7 +18998,10 @@ export interface operations {
     endSessionOf: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
                 handle: string;
@@ -18436,7 +19057,10 @@ export interface operations {
     resetSecondFactors: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
             };
@@ -18496,7 +19120,10 @@ export interface operations {
                 scopeType: string;
                 scopeId?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
                 roleId: string;
@@ -18552,7 +19179,10 @@ export interface operations {
     revoke: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 tokenId: string;
             };
@@ -18607,7 +19237,10 @@ export interface operations {
     delete_6: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 providerId: string;
                 mappingId: string;
@@ -18665,7 +19298,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 name: string;
@@ -18725,7 +19361,10 @@ export interface operations {
             query?: {
                 dryRun?: boolean;
             };
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 clusterId: string;
                 address: string;
@@ -18783,7 +19422,10 @@ export interface operations {
     endOwnSession: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 handle: string;
             };
@@ -18838,7 +19480,10 @@ export interface operations {
     removePasskey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -18893,7 +19538,10 @@ export interface operations {
     revokeTrustedDevices: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -18946,7 +19594,10 @@ export interface operations {
     revokeTrustedDevice: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -19001,7 +19652,10 @@ export interface operations {
     revoke_1: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 tokenId: string;
             };
@@ -19056,7 +19710,10 @@ export interface operations {
     removeKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 fingerprint: string;
             };
@@ -19111,7 +19768,10 @@ export interface operations {
     revokeInstaller: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 userId: string;
             };

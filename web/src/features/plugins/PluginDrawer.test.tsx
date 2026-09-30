@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { PluginView } from './api.ts';
 import { PluginDrawer } from './PluginDrawer.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const NOW = new Date().toISOString();
 
@@ -59,7 +60,7 @@ function me() {
 }
 
 function history(rows: unknown[] = []) {
-  return http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json(rows));
+  return http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json(paged(rows)));
 }
 
 function purgePlan(body: unknown, status = 200) {

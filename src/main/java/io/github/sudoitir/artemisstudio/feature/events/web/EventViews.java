@@ -30,9 +30,10 @@ public final class EventViews {
 
     public record BrokerEventPageView(
             @Schema(requiredMode = REQUIRED) List<BrokerEventView> data,
-            @Schema(requiredMode = REQUIRED) long count,
             @Schema(requiredMode = REQUIRED) int page,
             @Schema(requiredMode = REQUIRED) int pageSize,
+            @Schema(requiredMode = REQUIRED) long count,
+            @Schema(requiredMode = REQUIRED) boolean hasNext,
             @Schema(requiredMode = REQUIRED) long dropped,
             @Schema(nullable = true) Instant oldestRetained) {}
 }

@@ -159,8 +159,10 @@ class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/admin/tokens").header("Authorization", admin.bearer()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == '%s')].stale", leaked.getId()).value(true))
-                .andExpect(jsonPath("$[?(@.id == '%s')].owner", leaked.getId()).value(victim.username()));
+                .andExpect(jsonPath("$.data[?(@.id == '%s')].stale", leaked.getId())
+                        .value(true))
+                .andExpect(jsonPath("$.data[?(@.id == '%s')].owner", leaked.getId())
+                        .value(victim.username()));
 
         mvc.perform(delete("/api/v1/admin/tokens/" + leaked.getId()).header("Authorization", admin.bearer()))
                 .andExpect(status().isNoContent());

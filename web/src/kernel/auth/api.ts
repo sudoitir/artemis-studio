@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../api/paging.ts';
 import { ApiError, request } from '../api/request.ts';
 import { clearDismissedNotices } from '../useDismissedNotice.ts';
 import type { components } from '../api/schema.d.ts';
@@ -39,7 +40,7 @@ export function useMe(): UseQueryResult<MeView, ApiError> {
 export function useAuthProviders(): UseQueryResult<IdentityProviderView[], ApiError> {
   return useQuery({
     queryKey: keys.authProviders,
-    queryFn: () => request<IdentityProviderView[]>('/auth/providers'),
+    queryFn: () => requestAll<IdentityProviderView>('/auth/providers'),
     retry: false,
   });
 }

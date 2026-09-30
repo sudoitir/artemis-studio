@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { manifestHandler } from '../../test/manifest.ts';
 import { server } from '../../test/setup.ts';
+import { paged } from '../api/paging.ts';
 
 const navigate = vi.fn();
 
@@ -40,9 +41,9 @@ const { RootLayout } = await import('./RootLayout.tsx');
 function mockEmptyQueues() {
   server.use(
     http.get(/\/api\/v1\/clusters\/.*\/queues/, () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
-    http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+    http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
     // ClusterRailNav groups clusters by environment (authorization spec).
-    http.get('*/api/v1/environments', () => HttpResponse.json([])),
+    http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
     // The command palette lists the views of the installation's enabled features.
     manifestHandler(),
   );
@@ -68,7 +69,7 @@ describe('RootLayout sidebar collapse', () => {
   it('persists the collapse toggle to localStorage and restores it on remount without a flash', async () => {
     mockAuthenticated();
     mockEmptyQueues();
-    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))));
     const user = userEvent.setup();
     localStorage.removeItem('as:nav:collapsed');
 
@@ -88,7 +89,7 @@ describe('RootLayout sidebar collapse', () => {
     mockEmptyQueues();
     server.use(
       http.get('*/api/v1/clusters', () =>
-        HttpResponse.json([{ id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 3 }]),
+        HttpResponse.json(paged([{ id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 3 }])),
       ),
     );
     localStorage.setItem('as:nav:collapsed', 'true');
@@ -105,7 +106,7 @@ describe('RootLayout user menu', () => {
     mockAuthenticated();
     mockEmptyQueues();
     server.use(
-      http.get('*/api/v1/clusters', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
       http.post('*/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 })),
     );
     const user = userEvent.setup();
@@ -132,7 +133,7 @@ describe('RootLayout user menu', () => {
       ),
     );
     mockEmptyQueues();
-    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))));
     const user = userEvent.setup();
     renderWithProviders(<RootLayout />);
 

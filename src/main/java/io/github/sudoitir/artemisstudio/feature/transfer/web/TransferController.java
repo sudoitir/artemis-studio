@@ -7,8 +7,9 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Orpha
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferExecuteRequest;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferPreviewRequest;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferRunView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,8 +65,11 @@ public class TransferController {
     }
 
     @GetMapping("/runs")
-    public List<TransferRunView> history(@PathVariable UUID clusterId) {
-        return transfers.history(clusterId);
+    public PagedView<TransferRunView> history(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(transfers.history(clusterId), null);
     }
 
     @GetMapping("/runs/{runId}")
@@ -73,8 +78,11 @@ public class TransferController {
     }
 
     @GetMapping("/orphans")
-    public List<OrphanView> orphans(@PathVariable UUID clusterId) {
-        return transfers.orphans(clusterId);
+    public PagedView<OrphanView> orphans(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(transfers.orphans(clusterId), null);
     }
 
     @PostMapping("/orphans/return")

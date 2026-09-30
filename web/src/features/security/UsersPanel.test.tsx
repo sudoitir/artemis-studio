@@ -7,6 +7,7 @@ import { server } from '../../test/setup.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import type { UserView } from './api.ts';
 import { UsersPanel } from './UsersPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const LOCK_LIFTS_AT = new Date(Date.now() + 10 * 60_000).toISOString();
 
@@ -25,8 +26,8 @@ const user = (username: string, lockedUntil: string | null): UserView => ({
 
 function serveUsers(state: { users: UserView[] }) {
   server.use(
-    http.get('*/api/v1/users', () => HttpResponse.json(state.users)),
-    http.get('*/api/v1/roles', () => HttpResponse.json([])),
+    http.get('*/api/v1/users', () => HttpResponse.json(paged(state.users))),
+    http.get('*/api/v1/roles', () => HttpResponse.json(paged([]))),
   );
 }
 

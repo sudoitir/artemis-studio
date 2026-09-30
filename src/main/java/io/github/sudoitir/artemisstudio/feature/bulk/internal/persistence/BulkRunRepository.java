@@ -4,7 +4,8 @@ import io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,8 +22,8 @@ public interface BulkRunRepository extends JpaRepository<BulkRunEntity, UUID> {
     List<BulkRunEntity> findByStatus(BulkRunStatus status);
 
     /** Executed runs, newest first: the history. */
-    List<BulkRunEntity> findByClusterIdAndStatusNotOrderByCreatedAtDesc(
-            UUID clusterId, BulkRunStatus status, Limit limit);
+    Page<BulkRunEntity> findByClusterIdAndStatusNotOrderByCreatedAtDesc(
+            UUID clusterId, BulkRunStatus status, Pageable page);
 
     /**
      * Move a preview to executing, once: zero when it was not a preview any more. Fails on the partial

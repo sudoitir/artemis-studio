@@ -8,6 +8,7 @@ import { server } from '../../test/setup.ts';
 import type { MessageSelection } from '../../kernel/slots.ts';
 import type { OrphanView, TransferRunView } from './api.ts';
 import { clusterHandlers, finding, meHandler, previewHandler, problem, run } from './fixtures.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -388,8 +389,8 @@ describe('TransfersView', () => {
     server.use(
       meHandler(),
       ...clusterHandlers(),
-      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json([])),
-      http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json(paged([]))),
     );
     renderWithProviders(<TransfersView />);
 
@@ -403,8 +404,8 @@ describe('TransfersView', () => {
     server.use(
       meHandler(),
       ...clusterHandlers(),
-      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json([run({ state: 'SUCCEEDED' })])),
-      http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json([orphan])),
+      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json(paged([run({ state: 'SUCCEEDED' })]))),
+      http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json(paged([orphan]))),
       http.post('*/api/v1/clusters/c1/transfers/orphans/return', async ({ request }) => {
         bodies.push(await request.json());
         return HttpResponse.json({ stagingQueue: 'studio.transfer.r9', returned: 42, remaining: 0, removed: true });

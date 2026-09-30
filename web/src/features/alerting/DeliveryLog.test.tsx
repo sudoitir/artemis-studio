@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { AlertDeliveryView, NotificationChannelView } from './api.ts';
 import { DeliveryLog } from './DeliveryLog.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const CHANNEL: NotificationChannelView = {
   id: 'ch-1',
@@ -34,7 +35,9 @@ const delivery = (seq: number, over: Partial<AlertDeliveryView> = {}): AlertDeli
 
 function serve(rows: AlertDeliveryView[] | Response) {
   server.use(
-    http.get('*/api/v1/channels/ch-1/deliveries', () => (rows instanceof Response ? rows : HttpResponse.json(rows))),
+    http.get('*/api/v1/channels/ch-1/deliveries', () =>
+      rows instanceof Response ? rows : HttpResponse.json(paged(rows)),
+    ),
   );
 }
 

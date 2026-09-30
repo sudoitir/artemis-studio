@@ -11,6 +11,7 @@ import type { ConfigBridgeView, ConfigDeclarationView, ConfigDivertView, ConfigD
 import { declaration, NODE_A } from '../fixtures.ts';
 import type { Section } from '../words.ts';
 import { RoutingTab } from './RoutingTab.tsx';
+import { paged } from '../../../kernel/api/paging.ts';
 
 /**
  * The routing builder, queried the way an operator reaches it: by role and
@@ -288,11 +289,11 @@ describe('RoutingTab', () => {
     const d = routed();
     server.use(
       http.get('*/api/v1/clusters/c1/config/connectors', () =>
-        HttpResponse.json([
-          { nodeId: 'n-a', nodeName: 'broker-1', names: ['dr-connector'], known: true, reason: null },
-        ]),
+        HttpResponse.json(
+          paged([{ nodeId: 'n-a', nodeName: 'broker-1', names: ['dr-connector'], known: true, reason: null }]),
+        ),
       ),
-      http.get('*/api/v1/clusters/c1/config/bridge-credentials', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/config/bridge-credentials', () => HttpResponse.json(paged([]))),
       http.put('*/api/v1/clusters/c1/config', async ({ request }) => {
         saved = (await request.json()) as typeof saved;
         return HttpResponse.json(d);

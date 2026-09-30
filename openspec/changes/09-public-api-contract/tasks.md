@@ -10,12 +10,12 @@
 - [x] 2.5 Tests: 401 no credentials, 401 bad token, 403, CSRF 403, 400 unreadable body, 405, unknown route 404, 500 hides detail
 
 ## 3. Pagination (D3)
-- [ ] 3.1 `PagedView` becomes `{data, page, pageSize, count, hasNext}`; `ResourceQuery` refuses out-of-range `page`/`size` with `invalid-value`
-- [ ] 3.2 Fold the bespoke page views (messages, audit, events, rr flows, alert history) into `PagedView`
-- [ ] 3.3 Replace `limit` with `page`/`size` on channel deliveries and config applies
-- [ ] 3.4 Wrap and paginate every bare-list `/api/v1` GET (SQL paging for table-backed lists)
-- [ ] 3.5 `OpenApiSnapshotTest` asserts no `/api/v1` operation returns a top-level array
-- [ ] 3.6 Frontend: regenerate `schema.d.ts`, update every caller and its tests for the new shapes
+- [x] 3.1 `PagedView` becomes `{data, page, pageSize, count, hasNext}`; `ResourceQuery` refuses out-of-range `page`/`size` with `invalid-value`
+- [x] 3.2 Fold the bespoke page views (messages, audit, events, rr flows, alert history) into `PagedView`
+- [x] 3.3 Replace `limit` with `page`/`size` on channel deliveries and config applies
+- [x] 3.4 Wrap and paginate every bare-list `/api/v1` GET (SQL paging for table-backed lists)
+- [x] 3.5 `OpenApiSnapshotTest` asserts no `/api/v1` operation returns a top-level array
+- [x] 3.6 Frontend: regenerate `schema.d.ts`, update every caller and its tests for the new shapes
 
 ## 4. Idempotency keys (D5)
 - [x] 4.1 Liquibase changeset for `idempotency_record`; `IdempotencyRecords` (JdbcClient) claim/complete/release/find

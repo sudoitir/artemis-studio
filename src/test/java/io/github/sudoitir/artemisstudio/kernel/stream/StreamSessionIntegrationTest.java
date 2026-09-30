@@ -135,7 +135,7 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
 
         String currentHandle() throws Exception {
             java.util.List<String> current =
-                    JsonPath.read(send("GET", "/api/v1/auth/sessions").body(), "$[?(@.current == true)].handle");
+                    JsonPath.read(send("GET", "/api/v1/auth/sessions").body(), "$.data[?(@.current == true)].handle");
             return current.getFirst();
         }
     }

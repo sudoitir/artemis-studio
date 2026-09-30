@@ -2,13 +2,13 @@ package io.github.sudoitir.artemisstudio.feature.alerting.web;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertRuleService;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertService;
-import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringPageView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.PluginMetricView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,26 +33,35 @@ public class AlertsController {
     private final AlertRuleService ruleService;
 
     @GetMapping("/firing")
-    public List<AlertFiringView> firing(@PathVariable UUID clusterId) {
-        return alerts.firingNow(clusterId);
+    public PagedView<AlertFiringView> firing(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(alerts.firingNow(clusterId), null);
     }
 
     @GetMapping("/history")
-    public AlertFiringPageView history(
+    public PagedView<AlertFiringView> history(
             @PathVariable UUID clusterId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return alerts.history(clusterId, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return alerts.history(clusterId, ResourceQuery.ofPage(page, size));
     }
 
     @GetMapping("/rules")
-    public List<AlertRuleView> rules(@PathVariable UUID clusterId) {
-        return ruleService.list(clusterId);
+    public PagedView<AlertRuleView> rules(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(ruleService.list(clusterId), null);
     }
 
     @GetMapping("/plugin-metrics")
-    public List<PluginMetricView> pluginMetrics(@PathVariable UUID clusterId) {
-        return ruleService.pluginMetrics(clusterId);
+    public PagedView<PluginMetricView> pluginMetrics(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(ruleService.pluginMetrics(clusterId), null);
     }
 
     @PostMapping("/rules")

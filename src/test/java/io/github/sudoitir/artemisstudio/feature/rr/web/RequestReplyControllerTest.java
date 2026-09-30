@@ -64,14 +64,14 @@ class RequestReplyControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/clusters/{id}/rr/expectations", clusterId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].requestAddress").value("rr.request"));
+                .andExpect(jsonPath("$.data[0].requestAddress").value("rr.request"));
 
         mvc.perform(delete("/api/v1/clusters/{id}/rr/expectations/{eid}", clusterId, id))
                 .andExpect(status().isNoContent());
 
         mvc.perform(get("/api/v1/clusters/{id}/rr/expectations", clusterId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test

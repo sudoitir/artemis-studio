@@ -7,6 +7,7 @@ import { server } from '../../test/setup.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import type { AccountSessionView } from './api.ts';
 import { SessionsManager } from './SessionsManager.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0';
 const CHROME =
@@ -29,7 +30,7 @@ const PHONE = session('b'.repeat(32), { userAgent: CHROME, clientAddress: '198.5
 const TABLET = session('c'.repeat(32), { userAgent: 'curl/8.5.0', clientAddress: '198.51.100.10' });
 
 function serve(state: { sessions: AccountSessionView[] }, path = '*/api/v1/auth/sessions') {
-  server.use(http.get(path, () => HttpResponse.json(state.sessions)));
+  server.use(http.get(path, () => HttpResponse.json(paged(state.sessions))));
 }
 
 describe('SessionsManager, own sessions', () => {
@@ -176,7 +177,7 @@ describe('SessionsManager, own sessions', () => {
         calls += 1;
         return calls === 1
           ? HttpResponse.json({ title: 'Error', detail: 'The database is down.' }, { status: 500 })
-          : HttpResponse.json([HERE]);
+          : HttpResponse.json(paged([HERE]));
       }),
     );
     const person = userEvent.setup();

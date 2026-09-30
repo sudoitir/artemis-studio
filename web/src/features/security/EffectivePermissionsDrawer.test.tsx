@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { EffectivePermissionView } from './api.ts';
 import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const USER = { id: 'u-1', username: 'alice' };
 const CLUSTER_ID = 'c1c1c1c1-0000-0000-0000-000000000000';
@@ -43,7 +44,7 @@ const PERMISSIONS: EffectivePermissionView[] = [
 function serve(body: EffectivePermissionView[] | Response) {
   server.use(
     http.get('*/api/v1/users/u-1/effective-permissions', () =>
-      body instanceof Response ? body : HttpResponse.json(body),
+      body instanceof Response ? body : HttpResponse.json(paged(body)),
     ),
   );
 }

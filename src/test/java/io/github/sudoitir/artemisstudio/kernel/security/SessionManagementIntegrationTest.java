@@ -127,12 +127,12 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         }
 
         List<String> handles() throws Exception {
-            return JsonPath.read(send("GET", "/api/v1/auth/sessions", null).body(), "$[*].handle");
+            return JsonPath.read(send("GET", "/api/v1/auth/sessions", null).body(), "$.data[*].handle");
         }
 
         String currentHandle() throws Exception {
-            List<String> current =
-                    JsonPath.read(send("GET", "/api/v1/auth/sessions", null).body(), "$[?(@.current == true)].handle");
+            List<String> current = JsonPath.read(
+                    send("GET", "/api/v1/auth/sessions", null).body(), "$.data[?(@.current == true)].handle");
             assertThat(current).hasSize(1);
             return current.getFirst();
         }
@@ -192,7 +192,7 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         Browser browser = new Browser("curl/8.5.0", "[::1]").signIn("loopback-v6");
 
         var addresses = JsonPath.<List<String>>read(
-                browser.send("GET", "/api/v1/auth/sessions", null).body(), "$[*].clientAddress");
+                browser.send("GET", "/api/v1/auth/sessions", null).body(), "$.data[*].clientAddress");
 
         assertThat(addresses).containsExactly("::1");
     }
@@ -353,16 +353,18 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
 
         var body = laptop.send("GET", "/api/v1/auth/sessions", null).body();
 
-        assertThat((List<?>) JsonPath.read(body, "$")).hasSize(2);
-        assertThat((List<?>) JsonPath.read(body, "$[?(@.current == true)]")).hasSize(1);
-        assertThat((List<String>) JsonPath.read(body, "$[?(@.current == true)].userAgent"))
+        assertThat((List<?>) JsonPath.read(body, "$.data")).hasSize(2);
+        assertThat((List<?>) JsonPath.read(body, "$.data[?(@.current == true)]"))
+                .hasSize(1);
+        assertThat((List<String>) JsonPath.read(body, "$.data[?(@.current == true)].userAgent"))
                 .singleElement()
                 .asString()
                 .contains("Firefox");
-        assertThat((List<String>) JsonPath.read(body, "$[?(@.current == false)].userAgent"))
+        assertThat((List<String>) JsonPath.read(body, "$.data[?(@.current == false)].userAgent"))
                 .containsExactly("curl/8.5.0");
-        assertThat((List<String>) JsonPath.read(body, "$[*].handle")).allMatch(h -> h.matches("[0-9a-f]{32}"));
-        assertThat((List<String>) JsonPath.read(body, "$[*].clientAddress")).doesNotContainNull();
+        assertThat((List<String>) JsonPath.read(body, "$.data[*].handle")).allMatch(h -> h.matches("[0-9a-f]{32}"));
+        assertThat((List<String>) JsonPath.read(body, "$.data[*].clientAddress"))
+                .doesNotContainNull();
         store.findByPrincipalName("own-list")
                 .keySet()
                 .forEach(id -> assertThat(body).doesNotContain(id));
@@ -442,8 +444,8 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
 
         var listed = admin.send("GET", "/api/v1/users/" + targetId + "/sessions", null);
         assertThat(listed.statusCode()).isEqualTo(200);
-        assertThat((List<?>) JsonPath.read(listed.body(), "$")).hasSize(2);
-        assertThat((List<?>) JsonPath.read(listed.body(), "$[?(@.current == true)]"))
+        assertThat((List<?>) JsonPath.read(listed.body(), "$.data")).hasSize(2);
+        assertThat((List<?>) JsonPath.read(listed.body(), "$.data[?(@.current == true)]"))
                 .isEmpty();
 
         assertThat(admin.status("DELETE", "/api/v1/users/" + targetId + "/sessions/" + targetHandle))

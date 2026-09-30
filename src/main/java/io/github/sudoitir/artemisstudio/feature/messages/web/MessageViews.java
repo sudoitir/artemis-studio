@@ -76,13 +76,15 @@ public final class MessageViews {
             @Schema(requiredMode = REQUIRED) List<WithheldView> withheld) {}
 
     /**
-     * A page of messages. {@code node} echoes the endpoint the page was read
+     * A page of messages: the shared list envelope plus where it was read. {@code node} echoes the endpoint the page was read
      * from; {@code transport} is {@code CORE} or {@code JOLOKIA} — the channel
      * that actually served this page (a Core browse falls back to Jolokia on a
      * deep page).
      */
     public record MessagePageView(
             @Schema(requiredMode = REQUIRED) List<MessageSummaryView> data,
+            @Schema(requiredMode = REQUIRED) int page,
+            @Schema(requiredMode = REQUIRED) int pageSize,
 
             @Schema(
                     nullable = true,
@@ -90,11 +92,14 @@ public final class MessageViews {
                             + " a guess — see countUnavailable.")
             Long count,
 
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether another page follows; when count is null, a full page counts as one.")
+            boolean hasNext,
+
             @Schema(nullable = true, description = "Why count is null. Null whenever count is present.")
             String countUnavailable,
 
-            @Schema(requiredMode = REQUIRED) int page,
-            @Schema(requiredMode = REQUIRED) int pageSize,
             @Schema(requiredMode = REQUIRED) UUID node,
             @Schema(requiredMode = REQUIRED) String transport) {}
 

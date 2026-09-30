@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 let search: Record<string, unknown> = {};
 const navigate = vi.fn();
@@ -277,10 +278,12 @@ describe('AuditView filters', () => {
     server.use(
       grants(['user:admin']),
       http.get('*/api/v1/users', () =>
-        HttpResponse.json([
-          { id: 'u1', username: 'ann' },
-          { id: 'u2', username: 'bob' },
-        ]),
+        HttpResponse.json(
+          paged([
+            { id: 'u1', username: 'ann' },
+            { id: 'u2', username: 'bob' },
+          ]),
+        ),
       ),
       page([row()]),
     );

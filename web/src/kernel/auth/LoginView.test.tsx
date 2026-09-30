@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { credential, dismissedPrompt, stubPasskeys, unstubPasskeys } from '../../test/passkeys.ts';
 import { server } from '../../test/setup.ts';
+import { paged } from '../api/paging.ts';
 
 const navigate = vi.fn();
 
@@ -30,7 +31,7 @@ function signedIn(username: string, mustChangePassword: boolean) {
 
 describe('LoginView', () => {
   beforeEach(() => {
-    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([LOCAL])));
+    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json(paged([LOCAL]))));
     setBootState(BOOTED);
   });
   afterEach(() => {
@@ -102,10 +103,9 @@ describe('LoginView', () => {
   it('shows a sign-in action per redirect provider beside the form', async () => {
     server.use(
       http.get('*/api/v1/auth/providers', () =>
-        HttpResponse.json([
-          LOCAL,
-          { id: 'okta', kind: 'REDIRECT', label: 'Okta', startPath: '/oauth2/authorization/okta' },
-        ]),
+        HttpResponse.json(
+          paged([LOCAL, { id: 'okta', kind: 'REDIRECT', label: 'Okta', startPath: '/oauth2/authorization/okta' }]),
+        ),
       ),
     );
     renderWithProviders(<LoginView />);
@@ -119,7 +119,7 @@ describe('LoginView', () => {
     let body: unknown;
     server.use(
       http.get('*/api/v1/auth/providers', () =>
-        HttpResponse.json([LOCAL, { id: 'directory', kind: 'CREDENTIAL', label: 'Directory', startPath: null }]),
+        HttpResponse.json(paged([LOCAL, { id: 'directory', kind: 'CREDENTIAL', label: 'Directory', startPath: null }])),
       ),
       http.post('*/api/v1/auth/login', async ({ request }) => {
         body = await request.json();
@@ -174,7 +174,7 @@ async function passwordStep(user: ReturnType<typeof userEvent.setup>) {
 
 describe('LoginView second step', () => {
   beforeEach(() => {
-    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json([LOCAL])));
+    server.use(http.get('*/api/v1/auth/providers', () => HttpResponse.json(paged([LOCAL]))));
     setBootState(BOOTED);
   });
   afterEach(() => {

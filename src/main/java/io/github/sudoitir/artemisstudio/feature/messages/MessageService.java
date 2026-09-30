@@ -125,12 +125,16 @@ public class MessageService {
             rows.add(toSummary(messages.get(i), governed.get(i)));
         }
         clearViews.recordClear(context, "QUEUE", queueName, governed);
+        Long total = result.page().total();
+        // ponytail: with no broker count, a full page is taken to have a successor; the last page can be a false yes
+        boolean hasNext = total != null ? (long) page * size < total : rows.size() == size;
         return new MessagePageView(
                 rows,
-                result.page().total(),
-                result.page().totalUnavailable(),
                 page,
                 size,
+                total,
+                hasNext,
+                result.page().totalUnavailable(),
                 resolved.node().getId(),
                 result.servedBy().name());
     }

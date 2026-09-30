@@ -138,8 +138,8 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
     void theProvidersAreListedForTheLoginScreen() throws Exception {
         mvc.perform(get("/api/v1/auth/providers"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", hasItem("dir-a")))
-                .andExpect(jsonPath("$[*].id", hasItem("dir-b")));
+                .andExpect(jsonPath("$.data[*].id", hasItem("dir-a")))
+                .andExpect(jsonPath("$.data[*].id", hasItem("dir-b")));
     }
 
     @Test

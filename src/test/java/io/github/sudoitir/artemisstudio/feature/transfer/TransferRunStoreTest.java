@@ -307,7 +307,7 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
             for (UUID cluster : List.of(source, target)) {
                 mvc.perform(get("/api/v1/clusters/{c}/transfers/runs", cluster))
                         .andExpect(status().isOk())
-                        .andExpect(jsonPath("$[?(@.id == '%s')].state".formatted(run.getId()))
+                        .andExpect(jsonPath("$.data[?(@.id == '%s')].state".formatted(run.getId()))
                                 .value("STOPPED"));
             }
             mvc.perform(get("/api/v1/clusters/{c}/transfers/runs/{r}", target, run.getId()))

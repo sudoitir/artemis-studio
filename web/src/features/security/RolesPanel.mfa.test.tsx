@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { RoleView } from './api.ts';
 import { RolesPanel } from './RolesPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const ADMIN: RoleView = { id: 'r-admin', name: 'ADMIN', builtin: true, permissions: ['*'], requiresMfa: true };
 const VIEWER: RoleView = {
@@ -26,17 +27,19 @@ const AUDITOR: RoleView = {
 
 function serve(roles: RoleView[]) {
   server.use(
-    http.get('*/api/v1/roles', () => HttpResponse.json(roles)),
+    http.get('*/api/v1/roles', () => HttpResponse.json(paged(roles))),
     http.get('*/api/v1/permissions', () =>
-      HttpResponse.json([
-        {
-          action: 'audit:read',
-          label: 'Read the audit trail',
-          featureId: 'audit',
-          featureTitle: 'Audit',
-          globalOnly: false,
-        },
-      ]),
+      HttpResponse.json(
+        paged([
+          {
+            action: 'audit:read',
+            label: 'Read the audit trail',
+            featureId: 'audit',
+            featureTitle: 'Audit',
+            globalOnly: false,
+          },
+        ]),
+      ),
     ),
   );
 }

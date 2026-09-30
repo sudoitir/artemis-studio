@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { type PagedView, requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -7,8 +8,8 @@ type Schemas = components['schemas'];
 export type CreateExpectationRequest = Schemas['CreateExpectationRequest'];
 export type ExpectationDiagnosticsView = Schemas['ExpectationDiagnosticsView'];
 export type ExpectationView = Schemas['ExpectationView'];
-export type FlowPageView = Schemas['FlowPageView'];
 export type FlowView = Schemas['FlowView'];
+export type FlowPageView = PagedView<FlowView>;
 export type RrDiagnosticsView = Schemas['RrDiagnosticsView'];
 export type StatsResponse = Schemas['StatsResponse'];
 export type UpdateExpectationRequest = Schemas['UpdateExpectationRequest'];
@@ -16,7 +17,7 @@ export type UpdateExpectationRequest = Schemas['UpdateExpectationRequest'];
 export function useRrExpectations(clusterId: string): UseQueryResult<ExpectationView[], ApiError> {
   return useQuery({
     queryKey: ['clusters', clusterId, 'rr', 'expectations'],
-    queryFn: () => request<ExpectationView[]>(`/clusters/${clusterId}/rr/expectations`),
+    queryFn: () => requestAll<ExpectationView>(`/clusters/${clusterId}/rr/expectations`),
   });
 }
 

@@ -11,6 +11,8 @@ import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorInvalidExcep
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SignInExpiredException;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -20,7 +22,11 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Sign-in failures as problem details. */
+/**
+ * Sign-in failures as problem details. First in line, so a sign-in failure keeps its own type rather than
+ * the general {@code unauthenticated} that {@code ApiExceptionHandler} gives any authentication failure.
+ */
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 class SessionProblemAdvice {
 

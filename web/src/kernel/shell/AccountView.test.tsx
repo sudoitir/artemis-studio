@@ -5,6 +5,7 @@ import { screen } from '@testing-library/react';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { paged } from '../api/paging.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -45,20 +46,24 @@ function mockAccountApis() {
       }),
     ),
     http.get('*/api/v1/auth/sessions', () =>
-      HttpResponse.json([
-        {
-          handle: 'a'.repeat(32),
-          signedInAt: new Date().toISOString(),
-          lastActivityAt: new Date().toISOString(),
-          clientAddress: '203.0.113.7',
-          userAgent: null,
-          current: true,
-        },
-      ]),
+      HttpResponse.json(
+        paged([
+          {
+            handle: 'a'.repeat(32),
+            signedInAt: new Date().toISOString(),
+            lastActivityAt: new Date().toISOString(),
+            clientAddress: '203.0.113.7',
+            userAgent: null,
+            current: true,
+          },
+        ]),
+      ),
     ),
-    http.get('*/api/v1/tokens', () => HttpResponse.json([])),
-    http.get('*/api/v1/permissions', () => HttpResponse.json([{ action: 'cluster:read', label: 'Read clusters' }])),
-    http.get('*/api/v1/clusters', () => HttpResponse.json([])),
+    http.get('*/api/v1/tokens', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/permissions', () =>
+      HttpResponse.json(paged([{ action: 'cluster:read', label: 'Read clusters' }])),
+    ),
+    http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
   );
 }
 

@@ -21,7 +21,8 @@ export const QueuePalette: PaletteSource = ({ clusterId, query, opened, report }
       report([]);
       return;
     }
-    const { data, count } = queues.data;
+    const { data, hasNext } = queues.data;
+    const count = queues.data.count ?? data.length;
     report([
       {
         group: 'Queues',
@@ -37,7 +38,7 @@ export const QueuePalette: PaletteSource = ({ clusterId, query, opened, report }
               onClick: () => navigate({ to: `/clusters/${clusterId}/queues`, search: { queue: q.queueName } }),
             };
           }),
-          ...(count > data.length
+          ...(hasNext
             ? [
                 {
                   id: 'queues-all',

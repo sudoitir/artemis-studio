@@ -27,10 +27,11 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigVie
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.RecommendationsView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.RevisionView;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -101,8 +102,16 @@ public class BrokerConfigController {
     }
 
     @GetMapping("/revisions")
-    public List<RevisionView> revisions(@PathVariable UUID clusterId) {
-        return config.revisions(clusterId).stream().map(RevisionView::of).toList();
+    public PagedView<RevisionView> revisions(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size)
+                .paginate(
+                        config.revisions(clusterId).stream()
+                                .map(RevisionView::of)
+                                .toList(),
+                        null);
     }
 
     @GetMapping("/revisions/{number}")
@@ -206,16 +215,30 @@ public class BrokerConfigController {
      * failure this read prevents.
      */
     @GetMapping("/connectors")
-    public List<NodeConnectorsView> connectors(@PathVariable UUID clusterId) {
-        return config.connectors(clusterId).stream().map(NodeConnectorsView::of).toList();
+    public PagedView<NodeConnectorsView> connectors(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size)
+                .paginate(
+                        config.connectors(clusterId).stream()
+                                .map(NodeConnectorsView::of)
+                                .toList(),
+                        null);
     }
 
     /** The credentials a bridge can reference, with their usernames and never a password (ADR-0092). */
     @GetMapping("/bridge-credentials")
-    public List<BridgeCredentialView> bridgeCredentials(@PathVariable UUID clusterId) {
-        return config.bridgeCredentials(clusterId).stream()
-                .map(BridgeCredentialView::of)
-                .toList();
+    public PagedView<BridgeCredentialView> bridgeCredentials(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size)
+                .paginate(
+                        config.bridgeCredentials(clusterId).stream()
+                                .map(BridgeCredentialView::of)
+                                .toList(),
+                        null);
     }
 
     /** Store or replace one. The declaration carries only {@code ref}; the secret goes into the vault. */
@@ -235,10 +258,11 @@ public class BrokerConfigController {
     }
 
     @GetMapping("/applies")
-    public List<ApplyHistoryView> applies(@PathVariable UUID clusterId, @RequestParam(defaultValue = "50") int limit) {
-        return apply.history(clusterId, limit).stream()
-                .map(ApplyHistoryView::of)
-                .toList();
+    public PagedView<ApplyHistoryView> applies(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return PagedView.of(apply.history(clusterId, ResourceQuery.ofPage(page, size)), ApplyHistoryView::of);
     }
 
     @GetMapping("/applies/{id}")

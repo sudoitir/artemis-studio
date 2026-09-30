@@ -40,6 +40,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistenc
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -866,21 +867,22 @@ class BrokerConfigApplyEngineTest {
     }
 
     @Test
-    void historyIsClampedAndFilteredToTheCluster() {
+    void historyIsPagedAndFilteredToTheCluster() {
         BrokerConfigApplyEntity mine = new BrokerConfigApplyEntity(CLUSTER, 1L, "{}", "alice", null, false);
         BrokerConfigApplyEntity other = new BrokerConfigApplyEntity(UUID.randomUUID(), 1L, "{}", "alice", null, false);
         ReflectionTestUtils.setField(mine, "id", 5L);
         ReflectionTestUtils.setField(other, "id", 6L);
-        when(applies.findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), any())).thenReturn(List.of(mine));
+        when(applies.findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(mine)));
         when(applies.findById(5L)).thenReturn(Optional.of(mine));
         when(applies.findById(6L)).thenReturn(Optional.of(other));
 
-        assertThat(service.history(CLUSTER, 10_000)).containsExactly(mine);
-        assertThat(service.history(CLUSTER, 0)).containsExactly(mine);
+        assertThat(service.history(CLUSTER, ResourceQuery.ofPage(3, 20))).containsExactly(mine);
         ArgumentCaptor<PageRequest> page = ArgumentCaptor.forClass(PageRequest.class);
-        verify(applies, times(2)).findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), page.capture());
-        assertThat(page.getAllValues()).extracting(PageRequest::getPageSize).containsExactly(200, 1);
-        verify(access, org.mockito.Mockito.atLeast(2)).requireCluster(CLUSTER, Permissions.CLUSTER_READ);
+        verify(applies).findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), page.capture());
+        assertThat(page.getValue().getPageNumber()).isEqualTo(2);
+        assertThat(page.getValue().getPageSize()).isEqualTo(20);
+        verify(access, org.mockito.Mockito.atLeast(1)).requireCluster(CLUSTER, Permissions.CLUSTER_READ);
 
         assertThat(service.one(CLUSTER, 5L)).contains(mine);
         // Another cluster's apply is not readable through this one.

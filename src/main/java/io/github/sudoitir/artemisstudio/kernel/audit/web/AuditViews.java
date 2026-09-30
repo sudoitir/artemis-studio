@@ -4,7 +4,6 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 /** The audit-log API (non-negotiable #3). Nothing secret appears here — credentials are never audited. */
@@ -30,10 +29,4 @@ public final class AuditViews {
             @Schema(nullable = true) String error,
             @Schema(nullable = true) String clusterName,
             @Schema(nullable = true) UUID nodeId) {}
-
-    public record AuditPageView(
-            @Schema(requiredMode = REQUIRED) List<AuditEventView> data,
-            @Schema(requiredMode = REQUIRED) long count,
-            @Schema(requiredMode = REQUIRED) int page,
-            @Schema(requiredMode = REQUIRED) int pageSize) {}
 }

@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -24,7 +25,7 @@ public interface AlertDeliveryRepository extends JpaRepository<AlertDeliveryEnti
     List<AlertDeliveryEntity> claimDue(@Param("limit") int limit);
 
     /** A channel's delivery log, newest first. Served by {@code ix_alert_delivery_channel_seq}. */
-    List<AlertDeliveryEntity> findByChannelIdOrderBySeqDesc(UUID channelId, Pageable page);
+    Page<AlertDeliveryEntity> findByChannelIdOrderBySeqDesc(UUID channelId, Pageable page);
 
     /** Each channel's newest delivery, one index probe per channel rather than a scan of the ledger. */
     @Query(

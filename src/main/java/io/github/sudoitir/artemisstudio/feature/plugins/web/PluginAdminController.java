@@ -28,6 +28,8 @@ import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.Tru
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustedKeysView;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.ActivationPlan;
@@ -226,8 +228,11 @@ public class PluginAdminController {
 
     /** Everything recorded about the plugin, newest first: who uploaded, activated, changed or removed it. */
     @GetMapping("/{id}/history")
-    public List<AuditEventView> history(@PathVariable String id) {
-        return audit.forTarget("plugin", id, 100);
+    public PagedView<AuditEventView> history(
+            @PathVariable String id,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return audit.forTarget("plugin", id, ResourceQuery.ofPage(page, size));
     }
 
     /** Restarts Studio for its plugins, when a supervisor will start it again (ADR-0104). */
@@ -259,10 +264,15 @@ public class PluginAdminController {
     }
 
     @GetMapping("/installers")
-    public List<PluginInstallerView> installers() {
-        return administration.installers().stream()
-                .map(i -> new PluginInstallerView(i.userId(), i.username(), i.grantedAt(), i.grantedBy()))
-                .toList();
+    public PagedView<PluginInstallerView> installers(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size)
+                .paginate(
+                        administration.installers().stream()
+                                .map(i ->
+                                        new PluginInstallerView(i.userId(), i.username(), i.grantedAt(), i.grantedBy()))
+                                .toList(),
+                        null);
     }
 
     @PostMapping("/installers")

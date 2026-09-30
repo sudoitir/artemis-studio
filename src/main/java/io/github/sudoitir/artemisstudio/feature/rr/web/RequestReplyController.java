@@ -5,14 +5,14 @@ import io.github.sudoitir.artemisstudio.feature.rr.RequestReplyService;
 import io.github.sudoitir.artemisstudio.feature.rr.RrMetrics;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.CreateExpectationRequest;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.ExpectationView;
-import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.FlowPageView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.FlowView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrDiagnosticsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.StatsResponse;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.UpdateExpectationRequest;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import jakarta.validation.Valid;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -44,8 +44,11 @@ public class RequestReplyController {
     private final RrMetrics metrics;
 
     @GetMapping("/expectations")
-    public List<ExpectationView> listExpectations(@PathVariable UUID clusterId) {
-        return requestReply.list(clusterId);
+    public PagedView<ExpectationView> listExpectations(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(requestReply.list(clusterId), null);
     }
 
     @PostMapping("/expectations")
@@ -70,16 +73,18 @@ public class RequestReplyController {
     }
 
     @GetMapping("/flows")
-    public FlowPageView flows(
+    public PagedView<FlowView> flows(
             @PathVariable UUID clusterId,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String address,
             @RequestParam(required = false) String correlationId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return requestReply.flowPage(clusterId, new FlowQuery(state, address, correlationId, from, to, page, size));
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        ResourceQuery paging = ResourceQuery.ofPage(page, size);
+        return requestReply.flowPage(
+                clusterId, new FlowQuery(state, address, correlationId, from, to, paging.page(), paging.size()));
     }
 
     @GetMapping("/flows/{flowId}")

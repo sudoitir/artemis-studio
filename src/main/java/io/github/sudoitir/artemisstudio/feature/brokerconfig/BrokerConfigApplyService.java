@@ -26,6 +26,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.internal.persistenc
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -52,6 +53,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -162,9 +164,9 @@ public class BrokerConfigApplyService {
     }
 
     @Transactional(readOnly = true)
-    public List<BrokerConfigApplyEntity> history(UUID clusterId, int limit) {
+    public Page<BrokerConfigApplyEntity> history(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return applies.findByClusterIdOrderByStartedAtDesc(clusterId, PageRequest.of(0, Math.clamp(limit, 1, 200)));
+        return applies.findByClusterIdOrderByStartedAtDesc(clusterId, PageRequest.of(query.page() - 1, query.size()));
     }
 
     @Transactional(readOnly = true)

@@ -1,10 +1,11 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.EnvironmentViews.EnvironmentRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.EnvironmentViews.EnvironmentView;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,8 +27,9 @@ public class EnvironmentsController {
     private final EnvironmentService environments;
 
     @GetMapping("/environments")
-    public List<EnvironmentView> list() {
-        return environments.list();
+    public PagedView<EnvironmentView> list(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(environments.list(), null);
     }
 
     @PostMapping("/environments")

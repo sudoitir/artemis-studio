@@ -3,7 +3,8 @@ package io.github.sudoitir.artemisstudio.kernel.audit.web;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQuery;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
-import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditPageView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class AuditController {
     private final AuditQueryService audit;
 
     @GetMapping
-    public AuditPageView list(
+    public PagedView<AuditEventView> list(
             @PathVariable UUID clusterId,
             @RequestParam(required = false) String user,
             @RequestParam(required = false) String action,
@@ -35,9 +36,11 @@ public class AuditController {
             @RequestParam(required = false) Long parentId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return audit.page(clusterId, new AuditQuery(user, action, outcome, parentId, from, to, page, size));
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        ResourceQuery paging = ResourceQuery.ofPage(page, size);
+        return audit.page(
+                clusterId, new AuditQuery(user, action, outcome, parentId, from, to, paging.page(), paging.size()));
     }
 
     /** One audit event by id, for a shared link. */
