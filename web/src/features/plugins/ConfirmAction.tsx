@@ -51,7 +51,7 @@ export function ConfirmAction({
     <Modal opened={opened} onClose={onClose} title={title}>
       <Stack gap="md">
         {children}
-        <StepUp returnTo={returnTo ?? `${window.location.pathname}${window.location.search}`} />
+        <StepUp returnTo={returnTo ?? `${globalThis.location.pathname}${globalThis.location.search}`} />
         {refusal ? (
           <Alert color="red" variant="light" role="alert" title="Not done">
             {refusal}

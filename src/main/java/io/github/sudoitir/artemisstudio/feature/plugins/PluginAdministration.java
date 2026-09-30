@@ -48,6 +48,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PluginAdministration {
 
+    private static final String UPLOAD = "upload";
+
     private final PluginHost host;
     private final PluginInstallers installers;
     private final PluginProperties properties;
@@ -92,7 +94,7 @@ public class PluginAdministration {
                     "plugin-upload-rate-limited",
                     "At most %d uploads an hour; try again later.".formatted(UploadRateLimit.LIMIT));
         }
-        return audited("PLUGIN_UPLOAD", "upload", Map.of("bytes", bytes), () -> {
+        return audited("PLUGIN_UPLOAD", UPLOAD, Map.of("bytes", bytes), () -> {
             try {
                 return host.inspect(jar, actor().username());
             } catch (IOException e) {
@@ -289,9 +291,9 @@ public class PluginAdministration {
     public PluginTrust.TrustedKey addKey(HttpServletRequest request, String name, String uploadSha256, String pem) {
         Map<String, Object> params = new HashMap<>();
         // The PEM itself is not recorded: it can be 8 KB of whatever the client sent.
-        params.put("source", uploadSha256 != null ? "upload" : "pem");
+        params.put("source", uploadSha256 != null ? UPLOAD : "pem");
         if (uploadSha256 != null) {
-            params.put("upload", uploadSha256);
+            params.put(UPLOAD, uploadSha256);
         }
         return audited("PLUGIN_KEY_ADD", name.strip(), params, () -> {
             requireStepUp(request);
@@ -367,7 +369,7 @@ public class PluginAdministration {
                     written.put("fingerprint", decision.fingerprint());
                 }
             }
-        } catch (RuntimeException unreadable) {
+        } catch (RuntimeException _) {
             // Nothing to record; the activation itself refuses and is audited as failed.
         }
         return written;

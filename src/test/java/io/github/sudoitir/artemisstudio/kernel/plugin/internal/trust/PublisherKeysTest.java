@@ -31,10 +31,12 @@ class PublisherKeysTest {
     void garbageIsRejectedWithAReadableMessage() {
         assertThatThrownBy(() -> PublisherKeys.parse("not a key")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PublisherKeys.parse(null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> PublisherKeys.parse(pem("CERTIFICATE", new byte[] {1, 2, 3})))
+        String badCertificate = pem("CERTIFICATE", new byte[] {1, 2, 3});
+        String badKey = pem("PUBLIC KEY", new byte[] {1, 2, 3});
+        assertThatThrownBy(() -> PublisherKeys.parse(badCertificate))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("certificate");
-        assertThatThrownBy(() -> PublisherKeys.parse(pem("PUBLIC KEY", new byte[] {1, 2, 3})))
+        assertThatThrownBy(() -> PublisherKeys.parse(badKey))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("public key");
     }

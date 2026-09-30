@@ -27,6 +27,8 @@ final class JarSignature {
     static final Pattern METADATA = Pattern.compile("META-INF/[^/]+\\.(SF|RSA|EC|DSA)");
 
     private static final String MANIFEST = "META-INF/MANIFEST.MF";
+    private static final String REBUILD_ADDED =
+            "Rebuild and sign the jar again; do not add or replace files after signing.";
 
     private JarSignature() {}
 
@@ -37,21 +39,9 @@ final class JarSignature {
      */
     static Signer check(JarFile jar, List<String> entryNames, List<Violation> violations) throws IOException {
         List<JarEntry> entries = Collections.list(jar.entries());
-        try {
-            // Reading an entry to its end is what makes JarFile verify its digest.
-            for (JarEntry entry : entries) {
-                try (InputStream in = jar.getInputStream(entry)) {
-                    in.transferTo(OutputStream.nullOutputStream());
-                }
-            }
-        } catch (SecurityException e) {
-            violations.add(new Violation(
-                    "jar-signature-invalid",
-                    "The jar's signature does not match its contents: " + e.getMessage(),
-                    "Rebuild and sign the jar again; do not change it after signing."));
+        if (!digestsMatch(jar, entries, violations)) {
             return null;
         }
-
         long signatureFiles = entryNames.stream()
                 .filter(n -> n.matches("META-INF/[^/]+\\.SF"))
                 .count();
@@ -59,58 +49,93 @@ final class JarSignature {
             violations.add(mixed("The jar carries more than one signature."));
             return null;
         }
-        boolean anySigned = entries.stream().anyMatch(e -> e.getCodeSigners() != null);
-        if (signatureFiles == 0 && !anySigned) {
+        if (signatureFiles == 0 && entries.stream().allMatch(e -> e.getCodeSigners() == null)) {
             return null;
         }
-
-        Certificate signer = null;
+        Certificate[] signer = new Certificate[1];
         for (JarEntry entry : entries) {
-            String name = entry.getName();
-            if (entry.isDirectory() && entry.getSize() > 0) {
-                // No loader reads it, but nothing should ever serve bytes the signature does not cover.
-                violations.add(new Violation(
-                        "jar-entry-unsigned",
-                        "\"%s\" is a directory entry with content.".formatted(name),
-                        "Rebuild and sign the jar again; do not add or replace files after signing."));
+            if (!entryCovered(entry, signer, violations)) {
                 return null;
             }
-            if (entry.isDirectory()
-                    || name.equals(MANIFEST)
-                    || METADATA.matcher(name).matches()) {
-                continue;
-            }
-            CodeSigner[] signers = entry.getCodeSigners();
-            if (signers == null || signers.length == 0) {
-                violations.add(new Violation(
-                        "jar-entry-unsigned",
-                        "\"%s\" is not covered by the jar's signature.".formatted(name),
-                        "Rebuild and sign the jar again; do not add or replace files after signing."));
-                return null;
-            }
-            Certificate certificate =
-                    signers[0].getSignerCertPath().getCertificates().get(0);
-            if (signers.length != 1 || (signer != null && !signer.equals(certificate))) {
-                violations.add(mixed("\"%s\" is signed by a different key than the rest of the jar.".formatted(name)));
-                return null;
-            }
-            signer = certificate;
         }
+        if (!manifestListsOnlyPresent(jar, entryNames, violations)) {
+            return null;
+        }
+        return signer[0] == null ? null : Signer.of((X509Certificate) signer[0]);
+    }
 
-        Manifest manifest = jar.getManifest();
-        Set<String> names = new HashSet<>(entryNames);
-        if (manifest != null) {
-            for (String listed : manifest.getEntries().keySet()) {
-                if (!names.contains(listed)) {
-                    violations.add(new Violation(
-                            "jar-entry-missing",
-                            "\"%s\" is listed in the signed manifest but is not in the jar.".formatted(listed),
-                            "Rebuild and sign the jar again; do not remove files after signing."));
-                    return null;
+    /** Reading an entry to its end is what makes JarFile verify its digest. */
+    private static boolean digestsMatch(JarFile jar, List<JarEntry> entries, List<Violation> violations)
+            throws IOException {
+        try {
+            for (JarEntry entry : entries) {
+                try (InputStream in = jar.getInputStream(entry)) {
+                    in.transferTo(OutputStream.nullOutputStream());
                 }
             }
+            return true;
+        } catch (SecurityException e) {
+            violations.add(new Violation(
+                    "jar-signature-invalid",
+                    "The jar's signature does not match its contents: " + e.getMessage(),
+                    "Rebuild and sign the jar again; do not change it after signing."));
+            return false;
         }
-        return signer == null ? null : Signer.of((X509Certificate) signer);
+    }
+
+    /**
+     * Checks one entry against the signature and records its signer in {@code signer[0]}.
+     *
+     * @return false after a violation was recorded
+     */
+    private static boolean entryCovered(JarEntry entry, Certificate[] signer, List<Violation> violations) {
+        String name = entry.getName();
+        if (entry.isDirectory() && entry.getSize() > 0) {
+            // No loader reads it, but nothing should ever serve bytes the signature does not cover.
+            violations.add(new Violation(
+                    "jar-entry-unsigned", "\"%s\" is a directory entry with content.".formatted(name), REBUILD_ADDED));
+            return false;
+        }
+        if (entry.isDirectory()
+                || name.equals(MANIFEST)
+                || METADATA.matcher(name).matches()) {
+            return true;
+        }
+        CodeSigner[] signers = entry.getCodeSigners();
+        if (signers == null || signers.length == 0) {
+            violations.add(new Violation(
+                    "jar-entry-unsigned",
+                    "\"%s\" is not covered by the jar's signature.".formatted(name),
+                    REBUILD_ADDED));
+            return false;
+        }
+        Certificate certificate =
+                signers[0].getSignerCertPath().getCertificates().get(0);
+        if (signers.length != 1 || (signer[0] != null && !signer[0].equals(certificate))) {
+            violations.add(mixed("\"%s\" is signed by a different key than the rest of the jar.".formatted(name)));
+            return false;
+        }
+        signer[0] = certificate;
+        return true;
+    }
+
+    private static boolean manifestListsOnlyPresent(JarFile jar, List<String> entryNames, List<Violation> violations)
+            throws IOException {
+        Manifest manifest = jar.getManifest();
+        if (manifest == null) {
+            return true;
+        }
+        Set<String> names = new HashSet<>(entryNames);
+        for (String listed : manifest.getEntries().keySet()) {
+            if (!names.contains(listed)) {
+                violations.add(new Violation(
+                        "jar-entry-missing",
+                        "\"%s\" is listed in the signed manifest but is not in the jar.".formatted(listed),
+                        "Rebuild and sign the jar again; do not remove files after signing."));
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Violation mixed(String message) {

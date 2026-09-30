@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -30,6 +31,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Use
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -44,7 +46,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -640,21 +641,18 @@ class PluginAdminControllerIT extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.verified").value(false));
     }
 
-    private void awaitStatus(MockMvc mvc, MockHttpSession session, String id, String want) throws Exception {
-        Instant deadline = Instant.now().plusSeconds(30);
-        String last = null;
-        while (Instant.now().isBefore(deadline)) {
-            JsonNode plugin = json.readTree(
-                    mvc.perform(get("/api/v1/admin/plugins/{id}", id).session(session))
-                            .andReturn()
-                            .getResponse()
-                            .getContentAsString());
-            last = plugin.path("status").asString();
-            if (want.equals(last)) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError(id + " never reached " + want + "; last " + last);
+    private void awaitStatus(MockMvc mvc, MockHttpSession session, String id, String want) {
+        await(id + " reaches " + want)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> json.readTree(mvc.perform(get("/api/v1/admin/plugins/{id}", id)
+                                                .session(session))
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsString())
+                                .path("status")
+                                .asString(),
+                        want::equals);
     }
 }

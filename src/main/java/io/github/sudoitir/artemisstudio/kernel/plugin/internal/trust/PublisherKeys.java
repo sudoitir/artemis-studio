@@ -61,7 +61,7 @@ public final class PublisherKeys {
             try {
                 KeyFactory.getInstance(algorithm).generatePublic(new X509EncodedKeySpec(der));
                 return new Signer(Signer.fingerprint(der), "", der);
-            } catch (java.security.GeneralSecurityException ignored) {
+            } catch (java.security.GeneralSecurityException _) {
                 // try the next algorithm
             }
         }

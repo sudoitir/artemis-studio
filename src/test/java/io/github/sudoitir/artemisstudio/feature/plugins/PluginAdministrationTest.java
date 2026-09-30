@@ -54,7 +54,10 @@ class PluginAdministrationTest {
         when(installers.isInstaller(userId)).thenReturn(true);
         when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
 
-        assertThatThrownBy(() -> administration(false).upload(Path.of("unused.jar"), 1))
+        var disabled = administration(false);
+        Path jar = Path.of("unused.jar");
+
+        assertThatThrownBy(() -> disabled.upload(jar, 1))
                 .isInstanceOf(PluginAccessDeniedException.class)
                 .extracting(e -> ((PluginAccessDeniedException) e).slug())
                 .isEqualTo("plugin-upload-disabled");

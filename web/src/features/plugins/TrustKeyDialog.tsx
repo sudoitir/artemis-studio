@@ -17,14 +17,14 @@ export function TrustKeyDialog({
   trust,
   returnTo,
   onTrusted,
-}: {
+}: Readonly<{
   opened: boolean;
   onClose: () => void;
   sha256: string;
   trust: PluginTrustView;
   returnTo: string;
   onTrusted: () => void;
-}) {
+}>) {
   const add = useAddKey();
   const [name, setName] = useState('');
   const [compared, setCompared] = useState(false);

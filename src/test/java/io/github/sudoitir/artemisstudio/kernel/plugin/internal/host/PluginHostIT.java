@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
@@ -21,10 +22,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -155,22 +157,23 @@ class PluginHostIT extends PostgresIntegrationTest {
         }
     }
 
-    private PluginSummary awaitStatus(String id, PluginInstallStatus want) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var summary = host.status(id);
-            if (summary.isPresent() && summary.get().status() == want) {
-                return summary.get();
-            }
-            if (summary.isPresent()
-                    && summary.get().status() == PluginInstallStatus.FAILED
-                    && want != PluginInstallStatus.FAILED) {
-                throw new AssertionError("Plugin '" + id + "' failed while waiting for " + want + ": "
-                        + summary.get().failure());
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Plugin '" + id + "' never reached " + want + "; last status: " + host.status(id));
+    private PluginSummary awaitStatus(String id, PluginInstallStatus want) {
+        return await("plugin '" + id + "' reaches " + want)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> {
+                            var summary = host.status(id);
+                            if (summary.isPresent()
+                                    && summary.get().status() == PluginInstallStatus.FAILED
+                                    && want != PluginInstallStatus.FAILED) {
+                                throw new AssertionError("Plugin '" + id + "' failed while waiting for " + want + ": "
+                                        + summary.get().failure());
+                            }
+                            return summary.filter(x -> x.status() == want);
+                        },
+                        Optional::isPresent)
+                .orElseThrow();
     }
 
     @Test
@@ -439,7 +442,7 @@ class PluginHostIT extends PostgresIntegrationTest {
                     started.countDown();
                     try {
                         release.await();
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException _) {
                         Thread.currentThread().interrupt();
                     }
                 }));
@@ -695,23 +698,22 @@ class PluginHostIT extends PostgresIntegrationTest {
 
     /** Like {@link #awaitStatus(String, PluginInstallStatus)}, but for rollback, which stays ACTIVE
      * throughout — waits for the version to change instead. */
-    private PluginSummary awaitStatus2(String id, String wantVersion) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var summary = host.status(id);
-            if (summary.isPresent()
-                    && summary.get().status() == PluginInstallStatus.ACTIVE
-                    && wantVersion.equals(summary.get().version())) {
-                return summary.get();
-            }
-            if (summary.isPresent() && summary.get().status() == PluginInstallStatus.FAILED) {
-                throw new AssertionError("Plugin '" + id + "' failed while waiting for version " + wantVersion + ": "
-                        + summary.get().failure());
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError(
-                "Plugin '" + id + "' never reached version " + wantVersion + "; last status: " + host.status(id));
+    private PluginSummary awaitStatus2(String id, String wantVersion) {
+        return await("plugin '" + id + "' reaches version " + wantVersion)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> {
+                            var summary = host.status(id);
+                            if (summary.isPresent() && summary.get().status() == PluginInstallStatus.FAILED) {
+                                throw new AssertionError("Plugin '" + id + "' failed while waiting for version "
+                                        + wantVersion + ": " + summary.get().failure());
+                            }
+                            return summary.filter(
+                                    x -> x.status() == PluginInstallStatus.ACTIVE && wantVersion.equals(x.version()));
+                        },
+                        Optional::isPresent)
+                .orElseThrow();
     }
 
     // ---- boot / shutdown / safe mode (task 6.8's SmartLifecycle half) ---------------------------
@@ -724,7 +726,7 @@ class PluginHostIT extends PostgresIntegrationTest {
     }
 
     @Test
-    void staleActivatingRowIsFailedAtBootBecauseNothingHoldsItsAdvisoryLock() throws Exception {
+    void staleActivatingRowIsFailedAtBootBecauseNothingHoldsItsAdvisoryLock() {
         String id = uniqueId("acme-stale");
         String sha = store.put(("not-a-real-jar-" + id).getBytes());
         uploadedShas.add(sha);

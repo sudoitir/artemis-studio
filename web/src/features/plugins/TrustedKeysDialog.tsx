@@ -24,7 +24,7 @@ import { StepUp } from '../../kernel/auth/StepUp.tsx';
  * Whose signatures Studio accepts on plugins (ADR-0140), and the one switch that lets unverified
  * plugins in anyway. Only an installer with a fresh sign-in changes either; the server enforces it.
  */
-export function TrustedKeysDialog({ opened, onClose }: { opened: boolean; onClose: () => void }) {
+export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolean; onClose: () => void }>) {
   const trusted = useTrustedKeys(opened);
   const add = useAddKey();
   const remove = useRemoveKey();
@@ -79,14 +79,14 @@ export function TrustedKeysDialog({ opened, onClose }: { opened: boolean; onClos
           A plugin is verified when it is signed by one of these keys. Removing a key marks every plugin it signed as
           unverified at once, and blocks their updates unless a trusted key signs them.
         </Text>
-        <StepUp returnTo={`${window.location.pathname}?tab=plugins`} />
+        <StepUp returnTo={`${globalThis.location.pathname}?tab=plugins`} />
         {trusted.isPending ? <Loader size="sm" /> : null}
         {trusted.isError ? (
           <Alert color="red" variant="light" role="alert" title="Trusted keys could not be listed">
             {trusted.error.message}
           </Alert>
         ) : null}
-        {data && data.keys.length === 0 ? (
+        {data?.keys.length === 0 ? (
           <Text size="sm">
             No key is trusted yet, so only unverified plugins can be installed, and only while they are allowed below.
             Trust a publisher's key from a plugin's review, or paste one here.

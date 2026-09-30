@@ -294,7 +294,7 @@ export function InstallDialog({
   };
 
   const uploadQuery = inspected ? `&upload=${inspected.sha256}` : '';
-  const returnTo = `${window.location.pathname}?tab=plugins${uploadQuery}`;
+  const returnTo = `${globalThis.location.pathname}?tab=plugins${uploadQuery}`;
 
   return (
     <Modal

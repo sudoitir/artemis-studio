@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,8 +12,6 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
-import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
-import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorParser;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginArtifactRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
@@ -31,11 +30,11 @@ import io.github.sudoitir.artemisstudio.support.McpFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,9 +77,6 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
 
     @Autowired
     PluginArtifactRepository artifacts;
-
-    @Autowired
-    PluginDescriptorParser descriptorParser;
 
     @Autowired
     FeatureRegistry featureRegistry;
@@ -165,60 +161,48 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         return sha;
     }
 
-    private PluginDescriptor descriptorOf(String sha256) throws Exception {
-        try (JarFile jarFile = new JarFile(store.materialize(sha256).toFile())) {
-            byte[] bytes = jarFile.getInputStream(jarFile.getEntry("META-INF/artemis-studio/plugin.json"))
-                    .readAllBytes();
-            return descriptorParser.parse(bytes);
-        }
+    private PluginSummary awaitStatus(String id, PluginInstallStatus want) {
+        return await("plugin '" + id + "' reaches " + want)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> {
+                            var summary = host.status(id);
+                            if (summary.isPresent()
+                                    && summary.get().status() == PluginInstallStatus.FAILED
+                                    && want != PluginInstallStatus.FAILED) {
+                                throw new AssertionError("Plugin '" + id + "' failed while waiting for " + want + ": "
+                                        + summary.get().failure());
+                            }
+                            return summary.filter(x -> x.status() == want);
+                        },
+                        Optional::isPresent)
+                .orElseThrow();
     }
 
-    private PluginSummary awaitStatus(String id, PluginInstallStatus want) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var summary = host.status(id);
-            if (summary.isPresent() && summary.get().status() == want) {
-                return summary.get();
-            }
-            if (summary.isPresent()
-                    && summary.get().status() == PluginInstallStatus.FAILED
-                    && want != PluginInstallStatus.FAILED) {
-                throw new AssertionError("Plugin '" + id + "' failed while waiting for " + want + ": "
-                        + summary.get().failure());
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Plugin '" + id + "' never reached " + want + "; last status: " + host.status(id));
+    private PluginSummary awaitVersion(String id, String wantVersion) {
+        return await("plugin '" + id + "' reaches version " + wantVersion)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(
+                        () -> {
+                            var summary = host.status(id);
+                            if (summary.isPresent() && summary.get().status() == PluginInstallStatus.FAILED) {
+                                throw new AssertionError("Plugin '" + id + "' failed while waiting for version "
+                                        + wantVersion + ": " + summary.get().failure());
+                            }
+                            return summary.filter(
+                                    x -> x.status() == PluginInstallStatus.ACTIVE && wantVersion.equals(x.version()));
+                        },
+                        Optional::isPresent)
+                .orElseThrow();
     }
 
-    private PluginSummary awaitVersion(String id, String wantVersion) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var summary = host.status(id);
-            if (summary.isPresent()
-                    && summary.get().status() == PluginInstallStatus.ACTIVE
-                    && wantVersion.equals(summary.get().version())) {
-                return summary.get();
-            }
-            if (summary.isPresent() && summary.get().status() == PluginInstallStatus.FAILED) {
-                throw new AssertionError("Plugin '" + id + "' failed while waiting for version " + wantVersion + ": "
-                        + summary.get().failure());
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError(
-                "Plugin '" + id + "' never reached version " + wantVersion + "; last status: " + host.status(id));
-    }
-
-    private void awaitRegistryActive(String id) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(15);
-        while (Instant.now().isBefore(deadline)) {
-            if (registry.get(id).filter(Active.class::isInstance).isPresent()) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Plugin '" + id + "' never resumed an Active runtime; last slot: " + registry.get(id));
+    private void awaitRegistryActive(String id) {
+        await("plugin '" + id + "' resumes an Active runtime")
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> registry.get(id).filter(Active.class::isInstance).isPresent());
     }
 
     // ---- the full-lifecycle fixture: entity, reversible changelog, @PreAuthorize controller, ----
@@ -370,7 +354,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
     void fullLifecycleThroughPluginHost() throws Exception {
         String id = uniqueId("acme-life");
         String snake = id.replace('-', '_');
-        MockMvc mvc = mvc();
+        MockMvc http = mvc();
         var key = McpFixture.mintKey(
                 users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
         String toolName = snake + "_ping";
@@ -378,7 +362,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         // ---- install (v1.0.0) then an Instant update (v2.0.0) -------------------------------------
         // Classloader collection after a plugin did real work is PluginUnloadIT's; this test is
         // about the lifecycle itself.
-        installThenInstantUpdate(id, mvc, key, toolName);
+        installThenInstantUpdate(id, http, key, toolName);
 
         // ---- Brief-maintenance update (v3.0.0: first changeset) ----------------------------------
         String shaV3 = upload(lifeJar(id, "3.0.0", true));
@@ -389,9 +373,9 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         host.activate(shaV3, "tester", false);
         // During the window the plugin alone answers 503; poll briefly, tolerating that the window
         // may already have closed by the time this test thread gets scheduled.
-        pollFor503IfStillUpdating(mvc, id);
+        pollFor503IfStillUpdating(http, id);
         awaitVersion(id, "3.0.0");
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
                 .andExpect(content().string("3.0.0"));
         assertThat(store.find(id))
@@ -415,7 +399,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         assertThat(rollbackPlan.activationClass()).isEqualTo(ActivationClass.INSTANT);
         assertThat(rollbackPlan.toVersion()).isEqualTo("3.0.0");
         awaitVersion(id, "3.0.0");
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
                 .andExpect(content().string("3.0.0"));
 
@@ -425,10 +409,10 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         assertThat(host.status(id))
                 .hasValueSatisfying(s -> assertThat(s.status()).isEqualTo(PluginInstallStatus.DISABLED));
         assertThat(featureRegistry.manifestVersion()).isNotEqualTo(manifestBeforeDisable);
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("feature-disabled")));
-        assertThat(McpFixture.rpc(mvc, key, "tools/list", null)
+        assertThat(McpFixture.rpc(http, key, "tools/list", null)
                         .path("result")
                         .path("tools")
                         .toString())
@@ -437,10 +421,10 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         // ---- enable --------------------------------------------------------------------------------
         host.enable(id, "tester", false);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
                 .andExpect(content().string("3.0.0"));
-        assertThat(McpFixture.rpc(mvc, key, "tools/list", null)
+        assertThat(McpFixture.rpc(http, key, "tools/list", null)
                         .path("result")
                         .path("tools")
                         .toString())
@@ -450,7 +434,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         host.uninstall(id, false, "tester");
         assertThat(host.status(id))
                 .hasValueSatisfying(s -> assertThat(s.status()).isEqualTo(PluginInstallStatus.UNINSTALLED));
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isNotFound());
         assertThat(countTables(schema, "life_note")).isEqualTo(1);
 
@@ -462,8 +446,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         uploadedShas.removeAll(List.of(shaV3, shaV4));
     }
 
-    private void assertManifestListsPlugin(MockMvc mvc, McpFixture.Key key, String id, String version, String status)
-            throws Exception {
+    private void assertManifestListsPlugin(MockMvc mvc, String id, String version, String status) throws Exception {
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/manifest").with(authentication(callerWith())))
                 .andExpect(status().isOk())
                 .andExpect(
@@ -502,7 +485,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         awaitStatus(id, PluginInstallStatus.ACTIVE);
 
         assertThat(featureRegistry.manifestVersion()).isNotEqualTo(manifestBeforeInstall);
-        assertManifestListsPlugin(mvc, key, id, "1.0.0", "active");
+        assertManifestListsPlugin(mvc, id, "1.0.0", "active");
 
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
@@ -596,7 +579,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
     @Test
     void linkageErrorOnInstantStartKeepsTheOldVersionServing() throws Exception {
         String id = uniqueId("acme-broken");
-        MockMvc mvc = mvc();
+        MockMvc http = mvc();
         String shaV1 = upload(lifeJar(id, "1.0.0", false));
         host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
@@ -609,7 +592,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         var failed = awaitStatus(id, PluginInstallStatus.FAILED);
         assertThat(failed.failure()).contains("BrokenComponent");
         assertThat(registry.get(id)).containsInstanceOf(Active.class);
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
                 .andExpect(content().string("1.0.0"));
     }
@@ -661,7 +644,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
     @Test
     void migrationFailureResumesThePreviousVersion() throws Exception {
         String id = uniqueId("acme-badsql");
-        MockMvc mvc = mvc();
+        MockMvc http = mvc();
         String shaV1 = upload(lifeJar(id, "1.0.0", false));
         host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
@@ -679,7 +662,7 @@ class PluginLifecycleIT extends PostgresIntegrationTest {
         // The old (v1.0.0) version must be resumed and serving — status flips to failed (design.md
         // §5: "shown as failed with the cause") before the resume itself finishes, so poll briefly.
         awaitRegistryActive(id);
-        mvc.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
+        http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isOk())
                 .andExpect(content().string("1.0.0"));
     }

@@ -3,7 +3,9 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.Objects;
 
 /**
  * Who signed a plugin jar. The fingerprint is the SHA-256 of the signer certificate's public key
@@ -11,6 +13,25 @@ import java.util.HexFormat;
  * re-issuing the certificate for the same key.
  */
 public record Signer(String fingerprint, String subject, byte[] publicKey) {
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof Signer that
+                && fingerprint.equals(that.fingerprint)
+                && subject.equals(that.subject)
+                && Arrays.equals(publicKey, that.publicKey);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(fingerprint, subject, Arrays.hashCode(publicKey));
+    }
+
+    @Override
+    public String toString() {
+        return "Signer[fingerprint=" + fingerprint + ", subject=" + subject + ", publicKey="
+                + Arrays.toString(publicKey) + "]";
+    }
 
     public static Signer of(X509Certificate certificate) {
         byte[] spki = certificate.getPublicKey().getEncoded();

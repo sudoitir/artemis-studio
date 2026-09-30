@@ -56,14 +56,13 @@ function VendorLink({ url }: { url: string | null | undefined }) {
 /** Who signed the jar, and with which key; a key nobody trusts is said to be so. */
 function SignerRows({ plugin }: Readonly<{ plugin: PluginView }>) {
   const fingerprint = plugin.signerFingerprint;
+  const trustNote = plugin.verified ? '' : ' (not a trusted key)';
   return (
     <>
       <Table.Tr>
         <Table.Th>Signed by</Table.Th>
         <Table.Td>
-          {fingerprint
-            ? `${plugin.signerSubject ?? 'An unnamed certificate'}${plugin.verified ? '' : ' (not a trusted key)'}`
-            : 'Not signed'}
+          {fingerprint ? `${plugin.signerSubject ?? 'An unnamed certificate'}${trustNote}` : 'Not signed'}
         </Table.Td>
       </Table.Tr>
       {fingerprint ? (

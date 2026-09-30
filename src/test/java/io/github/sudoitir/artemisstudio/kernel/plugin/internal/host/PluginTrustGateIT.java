@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.kernel.core.StudioHealth;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
@@ -18,7 +19,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.support.TestSigningKeys;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.nio.file.Files;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -112,26 +113,20 @@ class PluginTrustGateIT extends PostgresIntegrationTest {
         return sha;
     }
 
-    private String inspect(PluginJarBuilder builder) throws Exception {
-        return host.inspect(builder.build(), "tester").sha256();
-    }
-
-    private void awaitActive(String id, String sha) throws InterruptedException {
-        Instant deadline = Instant.now().plusSeconds(30);
-        while (Instant.now().isBefore(deadline)) {
-            var entity = installs.findById(id);
-            if (entity.isPresent() && entity.get().status() == PluginInstallStatus.FAILED) {
-                throw new AssertionError(
-                        "Plugin '" + id + "' failed: " + entity.get().getFailure());
-            }
-            if (entity.isPresent()
-                    && entity.get().status() == PluginInstallStatus.ACTIVE
-                    && entity.get().getSha256().equals(sha)) {
-                return;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Plugin '" + id + "' never became active on " + sha);
+    private void awaitActive(String id, String sha) {
+        await("plugin '" + id + "' becomes active on " + sha)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> {
+                    var entity = installs.findById(id);
+                    if (entity.isPresent() && entity.get().status() == PluginInstallStatus.FAILED) {
+                        throw new AssertionError(
+                                "Plugin '" + id + "' failed: " + entity.get().getFailure());
+                    }
+                    return entity.isPresent()
+                            && entity.get().status() == PluginInstallStatus.ACTIVE
+                            && entity.get().getSha256().equals(sha);
+                });
     }
 
     private static void assertRefused(Runnable action, String code) {
