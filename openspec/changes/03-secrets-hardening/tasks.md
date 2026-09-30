@@ -32,6 +32,6 @@
 - [x] 7.3 Docs: configuration guide (en, zh, fa) with providers, rotation and provider-switch procedure; dockerhub; compose files; module docs regenerated
 
 ## 8. Finish
-- [ ] 8.1 Reviewer pass on the full diff; findings fixed
+- [x] 8.1 Reviewer pass on the full diff; findings fixed
 - [ ] 8.2 `just verify` green; Security tab screenshots (light, dark, empty, running, error)
 - [ ] 8.3 PR merged on green CI; change archived; roadmap ticked
