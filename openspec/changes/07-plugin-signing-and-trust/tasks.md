@@ -112,11 +112,11 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
 - Produces: `PublisherKeys.parse(String pem) → Signer`. It accepts `-----BEGIN CERTIFICATE-----` (subject from the certificate) or `-----BEGIN PUBLIC KEY-----` (subject `""`), and throws `IllegalArgumentException` with a readable message otherwise.
 - Produces: `PluginInstallEntity.getSignerFingerprint()` and `getSignerSubject()`.
 
-- [ ] 2.1 Write `PublisherKeysTest`: a certificate PEM exported from `publisher.p12` and its public-key PEM give the same fingerprint as `TestSigningKeys.PUBLISHER`; garbage is rejected. Write `PluginTrustIT`: add, then decide → TRUSTED; remove, then decide → UNTRUSTED; `null` → UNSIGNED; allowance defaults false and round-trips; adding the same fingerprint twice is refused.
-- [ ] 2.2 Run them. Expect FAIL.
-- [ ] 2.3 Implement. `TrustedKeyEntity` maps `plugin_trusted_key` (Lombok, `ddl-auto=validate`). The policy is read and written with `JdbcTemplate` (one row). `PluginTrust.add` refuses a duplicate with `PluginRefusedException(new Violation("key-exists", …))`.
-- [ ] 2.4 Run `./mvnw -q test -Dtest='PublisherKeysTest,PluginTrustIT'`. Expect PASS.
-- [ ] 2.5 Commit `feat(plugins): trusted publisher keys and the unverified allowance`.
+- [x] 2.1 Write `PublisherKeysTest`: a certificate PEM exported from `publisher.p12` and its public-key PEM give the same fingerprint as `TestSigningKeys.PUBLISHER`; garbage is rejected. Write `PluginTrustIT`: add, then decide → TRUSTED; remove, then decide → UNTRUSTED; `null` → UNSIGNED; allowance defaults false and round-trips; adding the same fingerprint twice is refused.
+- [x] 2.2 Run them. Expect FAIL.
+- [x] 2.3 Implement. `TrustedKeyEntity` maps `plugin_trusted_key` (Lombok, `ddl-auto=validate`). The policy is read and written with `JdbcTemplate` (one row). `PluginTrust.add` refuses a duplicate with `PluginRefusedException(new Violation("key-exists", …))`.
+- [x] 2.4 Run `./mvnw -q test -Dtest='PublisherKeysTest,PluginTrustIT'`. Expect PASS.
+- [x] 2.5 Commit `feat(plugins): trusted publisher keys and the unverified allowance`.
 
 ### Task 3: Plan reports trust, activation enforces it
 
