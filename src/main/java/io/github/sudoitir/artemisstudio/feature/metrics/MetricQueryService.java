@@ -73,34 +73,17 @@ public class MetricQueryService {
         this.directory = directory;
     }
 
-    /** A query without a split: the totals only. */
-    public MetricSeriesResponse query(
-            java.util.UUID clusterId,
-            List<String> metrics,
-            String subjectType,
-            String subject,
-            Instant from,
-            Instant to,
-            Duration requestedStep) {
-        return query(clusterId, metrics, subjectType, subject, from, to, requestedStep, null);
-    }
-
-    public MetricSeriesResponse query(
-            java.util.UUID clusterId,
-            List<String> metrics,
-            String subjectType,
-            String subject,
-            Instant from,
-            Instant to,
-            Duration requestedStep,
-            String splitBy) {
+    public MetricSeriesResponse query(UUID clusterId, MetricQuery query) {
+        List<String> metrics = query.metrics();
+        Instant to = query.to();
+        String splitBy = query.splitBy();
         // Before input validation, so a caller with no grant cannot use the
         // difference between a 400 and a 404 to probe which clusters exist.
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        requireValid(metrics, subjectType, subject, splitBy);
-        String subjectName = "QUEUE".equals(subjectType) ? subject : null;
+        requireValid(metrics, query.subjectType(), query.subject(), splitBy);
+        String subjectName = "QUEUE".equals(query.subjectType()) ? query.subject() : null;
 
-        Window requested = window(from, to, requestedStep);
+        Window requested = window(query.from(), to, query.requestedStep());
         List<ClusterNode> nodes = splitBy == null ? List.of() : directory.nodes(clusterId);
         Window window = splitBy == null ? requested : splitWindow(requested, to, nodes.size());
 

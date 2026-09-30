@@ -46,18 +46,17 @@ public class BrokerEventService {
     private final ContentPolicy contentPolicy;
 
     @Transactional(readOnly = true)
-    public BrokerEventPageView page(
-            UUID clusterId, String type, UUID nodeId, String address, Instant from, Instant to, int page, int size) {
+    public BrokerEventPageView page(UUID clusterId, BrokerEventQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        int p = Math.max(page, 1);
-        int s = Math.clamp(size, 1, 500);
+        int p = Math.max(query.page(), 1);
+        int s = Math.clamp(query.size(), 1, 500);
         Page<BrokerEventEntity> result = events.findPage(
                 clusterId,
-                blankToNull(type),
-                nodeId,
-                blankToNull(address),
-                from != null ? from : Instant.EPOCH,
-                to != null ? to : Instant.parse("9999-12-31T23:59:59Z"),
+                blankToNull(query.type()),
+                query.nodeId(),
+                blankToNull(query.address()),
+                query.from() != null ? query.from() : Instant.EPOCH,
+                query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
                 PageRequest.of(p - 1, s));
         return new BrokerEventPageView(
                 result.getContent().stream().map(this::toView).toList(),

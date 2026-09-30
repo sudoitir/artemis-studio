@@ -209,25 +209,17 @@ public class RequestReplyService {
     // ---- flows (read side) ---------------------------------------------
 
     @Transactional(readOnly = true)
-    public FlowPageView flowPage(
-            UUID clusterId,
-            String state,
-            String address,
-            String correlationId,
-            Instant from,
-            Instant to,
-            int page,
-            int size) {
+    public FlowPageView flowPage(UUID clusterId, FlowQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        int p = Math.max(page, 1);
-        int s = Math.clamp(size, 1, 500);
+        int p = Math.max(query.page(), 1);
+        int s = Math.clamp(query.size(), 1, 500);
         Page<RrFlowEntity> result = flows.findPage(
                 clusterId,
-                blankToNull(state),
-                blankToNull(address),
-                blankToNull(correlationId),
-                from != null ? from : Instant.EPOCH,
-                to != null ? to : Instant.parse("9999-12-31T23:59:59Z"),
+                blankToNull(query.state()),
+                blankToNull(query.address()),
+                blankToNull(query.correlationId()),
+                query.from() != null ? query.from() : Instant.EPOCH,
+                query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
                 PageRequest.of(p - 1, s));
         return new FlowPageView(
                 result.getContent().stream().map(f -> toFlowView(f, false)).toList(), result.getTotalElements(), p, s);
