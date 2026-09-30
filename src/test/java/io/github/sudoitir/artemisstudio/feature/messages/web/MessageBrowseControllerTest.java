@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -174,12 +175,14 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
     void withNoNodeAskedForTheBrowseOpensTheLiveNodeHoldingTheMessages() throws Exception {
         String urlB = "http://b:8161/console/jolokia";
         BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
-        a.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        a.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         nodes.save(a);
         BrokerNodeEntity b = BrokerNodeEntity.fromSeed(
                 clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
         b.attachManagementUrl(urlB);
-        b.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        b.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         UUID nodeBId = nodes.save(b).getId();
         upsert.upsertBatch(List.of(
                 new QueueRow(clusterId, nodeAId, "SPLIT", "SPLIT", "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false),
@@ -207,7 +210,8 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
     @Test
     void aQueueTheScrapeHasNotReachedIsFoundOnTheLiveNodeAndBrowsed() throws Exception {
         BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
-        a.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, java.time.Instant.now());
+        a.applyHaState(
+                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         nodes.save(a);
         String located = "{\"status\":200,\"value\":{"
                 + "\"org.apache.activemq.artemis:address=\\\"FRESH.ADDR\\\",broker=\\\"primary\\\",component=addresses,"

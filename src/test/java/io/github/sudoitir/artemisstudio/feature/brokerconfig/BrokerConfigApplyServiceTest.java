@@ -34,6 +34,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -168,7 +169,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         n.attachManagementUrl("http://" + name + ":8161/console/jolokia");
-        n.applyHaState(active, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, Instant.now());
+        n.applyHaState(new HaObservation(active, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }
 

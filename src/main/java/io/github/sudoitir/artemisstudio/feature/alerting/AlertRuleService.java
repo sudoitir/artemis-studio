@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleChannelRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
+import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity.Condition;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
@@ -177,7 +178,12 @@ public class AlertRuleService {
             throw new IllegalArgumentException("a threshold rule must not set stateCondition");
         }
         return AlertRuleEntity.threshold(
-                null, r.name(), r.metric(), r.comparator(), r.threshold(), r.forSeconds(), r.severity(), r.scope());
+                null,
+                r.name(),
+                new Condition(r.metric(), r.comparator(), r.threshold()),
+                r.forSeconds(),
+                r.severity(),
+                r.scope());
     }
 
     private AlertRuleEntity validatedState(AlertRuleRequest r) {

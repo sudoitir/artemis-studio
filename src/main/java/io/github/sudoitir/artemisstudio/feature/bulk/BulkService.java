@@ -123,13 +123,14 @@ public class BulkService {
                 clusterId,
                 operation,
                 handoff.capture().actor().displayName(),
-                planHash(operation, options, names),
-                json.writeValueAsString(new BulkSelection(request.names() == null ? null : names, request.q())),
-                json.writeValueAsString(options),
-                names.size(),
-                (int) plan.stream().filter(p -> p.refusal() != null).count(),
-                estimate,
-                complete,
+                new BulkRunEntity.Preview(
+                        planHash(operation, options, names),
+                        json.writeValueAsString(new BulkSelection(request.names() == null ? null : names, request.q())),
+                        json.writeValueAsString(options),
+                        names.size(),
+                        (int) plan.stream().filter(p -> p.refusal() != null).count(),
+                        estimate,
+                        complete),
                 now,
                 now.plus(PREVIEW_LIFETIME)));
         List<BulkRunItemEntity> rows = new ArrayList<>();

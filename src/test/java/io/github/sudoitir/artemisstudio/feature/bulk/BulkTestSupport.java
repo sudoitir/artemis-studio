@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -88,7 +89,7 @@ abstract class BulkTestSupport extends PostgresIntegrationTest {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         n.attachManagementUrl("http://" + name + ":8161/console/jolokia");
-        n.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, Instant.now());
+        n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }
 

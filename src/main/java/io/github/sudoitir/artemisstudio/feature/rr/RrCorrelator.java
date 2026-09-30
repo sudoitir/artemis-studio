@@ -143,17 +143,16 @@ public class RrCorrelator implements RrObservationSink {
         }
         Instant deadline = deadlineAt(r, expectation);
 
-        RrFlowEntity flow = new RrFlowEntity(
+        RrFlowEntity flow = new RrFlowEntity(new RrFlowEntity.Awaiting(
                 r.clusterId(),
                 r.nodeId(),
                 r.requestAddress(),
                 destination,
                 replyKind,
-                RrState.AWAITING_REPLY.name(),
                 r.correlationId(),
                 r.messageId(),
                 r.at(),
-                deadline);
+                deadline));
         flow.setResponderConsumer(currentResponder.get(r.clusterId() + "|" + r.requestAddress()));
         flow.setRequestEnqueuedAt(r.enqueuedAt());
         Long skew = forwardSkew(r.enqueuedAt(), r.at());

@@ -26,6 +26,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -105,7 +106,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
         node.attachManagementUrl("http://a:8161/console/jolokia");
-        node.applyHaState(true, "STARTED", "PRIMARY", null, 1L, "2.44.0", null, Instant.now());
+        node.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         UUID nodeId = nodes.save(node).getId();
         upsert.upsertBatch(
                 List.of(new QueueRow(clusterId, nodeId, QUEUE, QUEUE, "ANYCAST", true, 9, 0, 0, 0, 0, 0, 0, false)));
