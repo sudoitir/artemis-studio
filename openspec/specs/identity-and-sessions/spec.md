@@ -119,11 +119,12 @@ password does not match.
 The system SHALL provide every authenticated user, regardless of role, a self-service
 account surface reachable from the application's user menu. It SHALL show who the user is
 signed in as, the source of that identity, and a summary of the grants they hold; and it
-SHALL be the single place a user manages their own password and their own API keys.
+SHALL be the single place a user manages their own password and mints, rotates and revokes
+their own API keys.
 
-Personal API keys SHALL NOT also be manageable from the administration surface. Managing
-one's own credentials is not an administrative act, and two surfaces for one thing is one
-too many.
+The administration surface SHALL NOT mint or rotate API keys. It SHALL offer holders of the
+token administration permission an inventory of every user's keys, showing metadata only,
+with revocation and stale flags, so a leaked key can be stopped without its owner.
 
 #### Scenario: Every user reaches their account
 
@@ -137,8 +138,8 @@ too many.
 
 #### Scenario: Keys are managed only from the account surface
 
-- **WHEN** a user with administrative permission opens the administration surface
-- **THEN** personal API key management is not offered there
+- **WHEN** a user with the token administration permission opens the key inventory on the administration surface
+- **THEN** every user's keys are listed with revoke, and no mint or rotate action is offered
 
 ### Requirement: The account surface explains how to connect an agent
 

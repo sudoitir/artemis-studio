@@ -8,7 +8,7 @@ Every store that grows with use, core or plugin, has one bounded retention polic
 ### Requirement: Every store has one retention policy in one place
 Studio SHALL expose a retention policy for every store that grows with use: metrics, message index,
 captured payloads, broker events, request-reply flows, audit, bulk runs, transfer runs, alert history,
-broker configuration history, setup reviews, classification findings, expired sessions and storage
+broker configuration history, setup reviews, classification findings, expired sessions, API token usage and storage
 samples. Each policy SHALL have a default and an enforced minimum and maximum, and SHALL be editable on
 the Data page by a user holding `data:write`. A change SHALL be audited and SHALL apply at the next
 purge, without a restart. These policies SHALL NOT also be listed on the Settings page.
