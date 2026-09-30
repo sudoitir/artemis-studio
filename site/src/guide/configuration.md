@@ -173,30 +173,9 @@ them costs you history, never truth.
 
 ## Monitoring
 
-`/actuator/prometheus` exports what an operator needs to tell whether Studio itself is
-healthy and whether it is loading a broker:
-
-| Metric | Meaning |
-|---|---|
-| `jvm_threads_live_threads` | Live threads in Studio. Steady in normal operation. |
-| `studio_broker_requests_total{node}` | Management requests Studio issued to one node. |
-| `studio_broker_permit_wait_seconds{node}` | Time requests waited for that node's rate ceiling. |
-| `studio_broker_permit_timeouts_total{node}` | Requests refused because the ceiling stayed full for 5 seconds. |
-| `studio_job_lag_seconds{job}` | Seconds a background job is past its interval since it last completed; zero on schedule. |
-| `studio_stream_clients` | Event stream clients connected to this instance. |
-
-`node` is the broker's `host:port`, never its URL. The request-reply latency metric is `studio_rr_latency_seconds`.
-
-Recommended alerts:
-
-- **Thread growth** — `jvm_threads_live_threads` above a few hundred, or rising steadily
-  for an hour. Studio's threads are bounded by configuration, not by time.
-- **Studio at the broker ceiling** — the rate of `studio_broker_requests_total` for a node
-  close to `ARTEMIS_STUDIO_RATE_LIMIT_MANAGEMENT_CALLS_PER_SECOND`, or permit wait time
-  rising. Studio is calling that node as fast as it is allowed to; the ceiling is doing its
-  job, but views of that node will lag.
-- **Permit timeouts** — any increase of `studio_broker_permit_timeouts_total`. A request
-  was refused rather than queued without end; check what is holding that node's ceiling.
+`/actuator/prometheus` exports Studio's own health and its load on each broker, and OTLP export
+is switched on with the standard `OTEL_*` variables. The metrics, the Grafana dashboard and the
+alert rules are in [Observability](/guide/observability).
 
 ## Broker connections
 

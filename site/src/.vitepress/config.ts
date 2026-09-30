@@ -83,6 +83,7 @@ export default defineConfig({
               { text: 'MCP server', link: '/guide/mcp' },
               { text: 'Plugins', link: '/guide/plugins' },
               { text: 'Diagnostics and bug reports', link: '/guide/diagnostics' },
+              { text: 'Observability', link: '/guide/observability' },
               { text: 'Verify a release', link: '/guide/verify-releases' },
             ],
           },
