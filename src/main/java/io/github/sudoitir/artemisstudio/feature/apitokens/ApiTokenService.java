@@ -72,7 +72,15 @@ public class ApiTokenService {
 
     public record Minted(ApiTokenEntity entity, String plaintext) {}
 
-    private record Secret(String prefix, byte[] hash, String plaintext) {}
+    private record Secret(String prefix, String secret) {
+        String plaintext() {
+            return prefix + "_" + secret;
+        }
+
+        byte[] hash() {
+            return sha256(secret);
+        }
+    }
 
     /** The maximum lifetime currently in force. */
     public Duration maxLifetime() {
@@ -294,7 +302,7 @@ public class ApiTokenService {
     private Secret newSecret() {
         String prefix = PREFIX_TAG + randomToken(PREFIX_BYTES);
         String secret = randomToken(SECRET_BYTES);
-        return new Secret(prefix, sha256(secret), prefix + "_" + secret);
+        return new Secret(prefix, secret);
     }
 
     private Set<Grant> intersect(Set<Grant> tokenGrants, Set<Grant> ownerGrants) {
