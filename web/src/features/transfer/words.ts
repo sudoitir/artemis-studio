@@ -55,5 +55,6 @@ export const ACTIVE = new Set<TransferState>(['RUNNING', 'WAITING_FOR_CAPACITY',
 /** Whether this run parks messages in a staging queue: a move between two nodes. */
 export const stages = (run: TransferRunView) => run.mode === 'MOVE' && !run.sameNode;
 
-export const toneColor = (tone: Tone) =>
-  tone === 'danger' ? 'var(--as-danger)' : tone === 'warning' ? 'var(--as-warning)' : undefined;
+const TONE_COLOR = { danger: 'var(--as-danger)', warning: 'var(--as-warning)' } as const;
+
+export const toneColor = (tone: Tone) => (tone ? TONE_COLOR[tone] : undefined);

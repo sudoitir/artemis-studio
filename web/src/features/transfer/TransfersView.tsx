@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Anchor, Button, Group, Modal, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
@@ -125,18 +125,14 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   );
 }
 
-/** Transfers where this cluster is the source or the target, newest first, and any stranded staging. */
-export function TransfersView() {
-  useDisplayZone();
-  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const query = useTransferRuns(clusterId);
-  const clusters = useClusters();
-  const clusterName = (id: string) => clusters.data?.find((c) => c.id === id)?.name ?? 'another cluster';
+function transferColumns(clusterId: string, clusterName: (id: string) => string): GridColumn<TransferRunView>[] {
+  const end = (run: TransferRunView, which: 'source' | 'target') => {
+    const { queue, nodeName, clusterId: endCluster } = run[which];
+    const where = endCluster === clusterId ? '' : ` (${clusterName(endCluster)})`;
+    return `${queue} on ${nodeName}${where}`;
+  };
 
-  const end = (run: TransferRunView, which: 'source' | 'target') =>
-    `${run[which].queue} on ${run[which].nodeName}${run[which].clusterId === clusterId ? '' : ` (${clusterName(run[which].clusterId)})`}`;
-
-  const columns: GridColumn<TransferRunView>[] = [
+  return [
     {
       id: 'when',
       header: 'When',
@@ -168,23 +164,38 @@ export function TransfersView() {
     },
     { id: 'user', header: 'Run by', accessor: (r) => r.username, width: 160 },
   ];
+}
+
+/** What stands in for the table while runs load or fail to load. */
+function runsNotice(query: ReturnType<typeof useTransferRuns>): ReactNode {
+  if (query.isError) {
+    return (
+      <Alert color="red" variant="light" title={query.error.title}>
+        {query.error.message}
+      </Alert>
+    );
+  }
+  return query.data ? null : <Skeleton height={160} />;
+}
+
+/** Transfers where this cluster is the source or the target, newest first, and any stranded staging. */
+export function TransfersView() {
+  useDisplayZone();
+  const { clusterId } = useParams({ strict: false }) as { clusterId: string };
+  const query = useTransferRuns(clusterId);
+  const clusters = useClusters();
+  const clusterName = (id: string) => clusters.data?.find((c) => c.id === id)?.name ?? 'another cluster';
 
   return (
     <Stack gap="sm">
       <Title order={3}>Message transfers</Title>
       <Orphans clusterId={clusterId} />
-      {query.isError ? (
-        <Alert color="red" variant="light" title={query.error.title}>
-          {query.error.message}
-        </Alert>
-      ) : !query.data ? (
-        <Skeleton height={160} />
-      ) : (
+      {runsNotice(query) ?? (
         <VirtualTable
           label="Transfers"
           storageKey="transfers"
-          columns={columns}
-          data={query.data}
+          columns={transferColumns(clusterId, clusterName)}
+          data={query.data ?? []}
           rowKey={(r) => r.id}
           emptyLabel={
             <Stack gap={4} align="flex-start">

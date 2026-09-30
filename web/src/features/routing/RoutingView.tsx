@@ -62,6 +62,27 @@ function Direction({ from, to }: Readonly<{ from: string; to: string }>) {
   );
 }
 
+/** Who created the divert: message capture, an operator through Studio, or nobody Studio knows of. */
+function OwnerCell({ divert: r }: Readonly<{ divert: DivertView }>) {
+  if (r.owner === 'MESSAGE_CAPTURE') {
+    return (
+      <Badge size="xs" variant="light" color="gray" title="Serves a message capture subscription">
+        message capture
+      </Badge>
+    );
+  }
+  if (r.owner === 'OPERATOR') return <StudioOwned divert={r} />;
+  return (
+    <Text
+      size="xs"
+      c="dimmed"
+      title="Studio has no record of creating this divert. That is not a claim about where it came from."
+    >
+      not recorded
+    </Text>
+  );
+}
+
 /**
  * The columns of the divert view.
  *
@@ -99,22 +120,7 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
       header: 'Created by',
       accessor: (r) => r.owner ?? '',
       width: 170,
-      cell: (r) =>
-        r.owner === 'MESSAGE_CAPTURE' ? (
-          <Badge size="xs" variant="light" color="gray" title="Serves a message capture subscription">
-            message capture
-          </Badge>
-        ) : r.owner === 'OPERATOR' ? (
-          <StudioOwned divert={r} />
-        ) : (
-          <Text
-            size="xs"
-            c="dimmed"
-            title="Studio has no record of creating this divert. That is not a claim about where it came from."
-          >
-            not recorded
-          </Text>
-        ),
+      cell: (r) => <OwnerCell divert={r} />,
     },
     {
       id: 'nodes',
@@ -138,6 +144,21 @@ function divertColumns(clusterId: string): GridColumn<DivertView>[] {
   ];
 }
 
+/** A bridge's state as a sort key and in words: started and connected are different facts. */
+function bridgeState(r: BridgeView): { accessor: string; words: string } {
+  if (r.connected) return { accessor: 'connected', words: 'running and connected' };
+  if (r.started) return { accessor: 'started', words: 'started, not connected to its target' };
+  return { accessor: 'stopped', words: 'not started' };
+}
+
+/** What an empty bridge list says: the filter, or where a bridge comes from. */
+function noBridgesWords(q: string | undefined, hasBuilder: boolean): string {
+  if (q) return 'No bridge matches this filter. Clear it to see every bridge on the cluster.';
+  return hasBuilder
+    ? 'No bridges. A bridge forwards a queue to an address on another broker. Declare one on the Builder tab and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'
+    : 'No bridges. A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Studio.';
+}
+
 /**
  * What the live view of a bridge reports. Declaring, changing and removing one is
  * the declaration's job (ADR-0091), reached on the Builder tab — this
@@ -156,14 +177,14 @@ const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
   {
     id: 'state',
     header: 'State',
-    accessor: (r) => (r.connected ? 'connected' : r.started ? 'started' : 'stopped'),
+    accessor: (r) => bridgeState(r).accessor,
     width: 220,
     // Started and connected are different facts. A bridge that is started and
     // cannot reach its target is the state "is this bridge running" is asking
     // about, and collapsing the two would answer the wrong question.
     cell: (r) => (
       <Text size="xs" c={r.started && !r.connected ? undefined : 'dimmed'}>
-        {r.connected ? 'running and connected' : r.started ? 'started, not connected to its target' : 'not started'}
+        {bridgeState(r).words}
       </Text>
     ),
   },
@@ -202,7 +223,7 @@ export function RoutingView() {
   const navigate = useNavigate();
   const contributed = useSlot('routing.tabs');
   const slot = contributed.find((c) => c.id === search.tab);
-  const tab: string = slot ? slot.id : search.tab === 'bridges' ? 'bridges' : 'diverts';
+  const tab: string = slot?.id ?? (search.tab === 'bridges' ? 'bridges' : 'diverts');
 
   // Switching tab drops whatever the previous tab kept in the URL, so a filter or an open editor
   // never follows the operator onto a view it does not belong to.
@@ -238,6 +259,67 @@ export function RoutingView() {
         />
       )}
     </Stack>
+  );
+}
+
+/** The diverts or the bridges as a table, each with its own empty state. */
+function ListingTable({
+  tab,
+  clusterId,
+  rows,
+  search,
+  hasBuilder,
+  onSort,
+}: Readonly<{
+  tab: Tab;
+  clusterId: string;
+  rows: (DivertView | BridgeView)[];
+  search: RoutingSearch;
+  hasBuilder: boolean;
+  onSort: (sort: string | undefined) => void;
+}>) {
+  if (tab === 'diverts') {
+    return (
+      <VirtualTable
+        label="Diverts"
+        storageKey="routing.diverts"
+        columns={divertColumns(clusterId)}
+        data={rows as DivertView[]}
+        sort={search.sort}
+        onSortChange={onSort}
+        rowKey={(r) => `${r.name}:${r.address}:${r.forwardingAddress}`}
+        rowMenu={{
+          label: (r) => r.name,
+          render: (r, menu) => (
+            <ResourceActions
+              kind="divert"
+              clusterId={clusterId}
+              target={{ name: r.name, snapshot: r }}
+              restoreFocus={menu.restoreFocus}
+            />
+          ),
+        }}
+        emptyLabel={
+          <Text size="sm">
+            {search.q
+              ? 'No divert matches this filter. Clear it to see every divert on the cluster.'
+              : 'No diverts. A divert copies — or, when exclusive, redirects — the messages arriving at one address to another, without the producers knowing.'}
+          </Text>
+        }
+      />
+    );
+  }
+  return (
+    <VirtualTable
+      label="Bridges"
+      storageKey="routing.bridges"
+      columns={BRIDGE_COLUMNS}
+      data={rows as BridgeView[]}
+      sort={search.sort}
+      onSortChange={onSort}
+      rowKey={(r) => r.name}
+      emptyLabel={<Text size="sm">{noBridgesWords(search.q, hasBuilder)}</Text>}
+    />
   );
 }
 
@@ -305,52 +387,14 @@ function RoutingListing({
             <Skeleton key={i} height={30} />
           ))}
         </Stack>
-      ) : tab === 'diverts' ? (
-        <VirtualTable
-          label="Diverts"
-          storageKey="routing.diverts"
-          columns={divertColumns(clusterId)}
-          data={rows as DivertView[]}
-          sort={search.sort}
-          onSortChange={(sort) => setSearch({ sort, page: undefined })}
-          rowKey={(r) => `${r.name}:${r.address}:${r.forwardingAddress}`}
-          rowMenu={{
-            label: (r) => r.name,
-            render: (r, menu) => (
-              <ResourceActions
-                kind="divert"
-                clusterId={clusterId}
-                target={{ name: r.name, snapshot: r }}
-                restoreFocus={menu.restoreFocus}
-              />
-            ),
-          }}
-          emptyLabel={
-            <Text size="sm">
-              {search.q
-                ? 'No divert matches this filter. Clear it to see every divert on the cluster.'
-                : 'No diverts. A divert copies — or, when exclusive, redirects — the messages arriving at one address to another, without the producers knowing.'}
-            </Text>
-          }
-        />
       ) : (
-        <VirtualTable
-          label="Bridges"
-          storageKey="routing.bridges"
-          columns={BRIDGE_COLUMNS}
-          data={rows as BridgeView[]}
-          sort={search.sort}
-          onSortChange={(sort) => setSearch({ sort, page: undefined })}
-          rowKey={(r) => r.name}
-          emptyLabel={
-            <Text size="sm">
-              {search.q
-                ? 'No bridge matches this filter. Clear it to see every bridge on the cluster.'
-                : hasBuilder
-                  ? 'No bridges. A bridge forwards a queue to an address on another broker. Declare one on the Builder tab and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'
-                  : 'No bridges. A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Studio.'}
-            </Text>
-          }
+        <ListingTable
+          tab={tab}
+          clusterId={clusterId}
+          rows={rows}
+          search={search}
+          hasBuilder={hasBuilder}
+          onSort={(sort) => setSearch({ sort, page: undefined })}
         />
       )}
 

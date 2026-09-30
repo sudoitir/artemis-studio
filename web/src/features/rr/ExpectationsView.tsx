@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActionIcon, Button, Checkbox, NumberInput, Stack, Switch, Table, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
@@ -17,6 +17,11 @@ import {
   type ExpectationView,
 } from './api.ts';
 import { ExpectationStatus } from './TracingDiagnostics.tsx';
+
+function resolutionWords(capped: boolean, resolved: number): string {
+  if (capped) return `too broad — only the first ${resolved} addresses are traced`;
+  return resolved === 0 ? 'no matching queue yet' : `${resolved} matching now`;
+}
 
 /**
  * One expectation's declared reply addresses, and what they resolve to right now.
@@ -44,16 +49,31 @@ function ReplyAddressesCell({ expectation: e }: Readonly<{ expectation: Expectat
         {e.replyAddresses.join(', ')}
       </Text>
       {patterns.length > 0 || e.replyAddressesCapped ? (
-        <Text size="xs" c={e.replyAddressesCapped ? 'orange' : resolved.length === 0 ? 'orange' : 'dimmed'}>
-          {e.replyAddressesCapped
-            ? `too broad — only the first ${resolved.length} addresses are traced`
-            : resolved.length === 0
-              ? 'no matching queue yet'
-              : `${resolved.length} matching now`}
+        <Text size="xs" c={e.replyAddressesCapped || resolved.length === 0 ? 'orange' : 'dimmed'}>
+          {resolutionWords(e.replyAddressesCapped, resolved.length)}
         </Text>
       ) : null}
     </Stack>
   );
+}
+
+/** What stands in for the table while expectations load, or when none is declared. */
+function expectationsNotice(expectations: ReturnType<typeof useRrExpectations>): ReactNode {
+  if (expectations.isPending) {
+    return (
+      <Text size="sm" c="dimmed">
+        Loading…
+      </Text>
+    );
+  }
+  if ((expectations.data ?? []).length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        No addresses declared yet — traffic on this cluster is not being traced.
+      </Text>
+    );
+  }
+  return null;
 }
 
 /** Which request addresses are traced, and how (request-reply-tracing spec). */
@@ -176,15 +196,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
           .flatMap((e) => [e.requestAddress, ...e.resolvedReplyAddresses])}
       />
 
-      {expectations.isPending ? (
-        <Text size="sm" c="dimmed">
-          Loading…
-        </Text>
-      ) : (expectations.data ?? []).length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No addresses declared yet — traffic on this cluster is not being traced.
-        </Text>
-      ) : (
+      {expectationsNotice(expectations) ?? (
         <Table.ScrollContainer minWidth={860} type="native">
           <Table highlightOnHover>
             <Table.Thead>

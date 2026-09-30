@@ -62,32 +62,136 @@ type DivertField = 'name' | 'address' | 'forwardingAddress' | 'filter';
 
 const FIELD_ORDER: DivertField[] = ['name', 'address', 'forwardingAddress', 'filter'];
 
+const tooLong = (value: string, max: number) => (value.length > max ? `At most ${max} characters.` : null);
+
+const VALIDATORS: Record<DivertField, (value: string, values: Record<DivertField, string>) => string | null> = {
+  name: (value) => {
+    if (!value) return 'A divert needs a name.';
+    if (value.length > 200) return 'At most 200 characters.';
+    if (/[\s,=:*?"\\]/.test(value)) return 'A divert name cannot contain whitespace or any of , = : * ? " \\';
+    if (value.startsWith('artemis-studio.capture.')) return 'This namespace belongs to message capture.';
+    return null;
+  },
+  address: (value) => (value ? tooLong(value, 200) : 'A divert needs the address it reads from.'),
+  forwardingAddress: (value, values) => {
+    if (!value) return 'A divert needs the address it forwards to.';
+    if (value.length > 200) return 'At most 200 characters.';
+    return value === values.address.trim() ? 'A divert cannot forward to the address it reads from.' : null;
+  },
+  filter: (value) => tooLong(value, 4000),
+};
+
 /** The server's rules (LifecycleRequests.CreateDivertRequest), checked on blur so the message sits beside its field. */
 function divertError(field: DivertField, values: Record<DivertField, string>): string | null {
-  const value = values[field].trim();
-  switch (field) {
-    case 'name':
-      if (!value) return 'A divert needs a name.';
-      if (value.length > 200) return 'At most 200 characters.';
-      if (/[\s,=:*?"\\]/.test(value)) return 'A divert name cannot contain whitespace or any of , = : * ? " \\';
-      if (value.startsWith('artemis-studio.capture.')) return 'This namespace belongs to message capture.';
-      return null;
-    case 'address':
-      if (!value) return 'A divert needs the address it reads from.';
-      return value.length > 200 ? 'At most 200 characters.' : null;
-    case 'forwardingAddress':
-      if (!value) return 'A divert needs the address it forwards to.';
-      if (value.length > 200) return 'At most 200 characters.';
-      return value === values.address.trim() ? 'A divert cannot forward to the address it reads from.' : null;
-    case 'filter':
-      return value.length > 4000 ? 'At most 4000 characters.' : null;
-  }
+  return VALIDATORS[field](values[field].trim(), values);
 }
 
 /** A server field error, on the field the operator can correct. */
 function serverFieldFor(field: string): DivertField | null {
   if (field === 'forwardingAddressDistinct') return 'forwardingAddress';
   return (FIELD_ORDER as string[]).includes(field) ? (field as DivertField) : null;
+}
+
+/** Done once created; Edit and Create once previewed; otherwise Preview. */
+function CreateFooter({
+  result,
+  preview,
+  refused,
+  pending,
+  onDone,
+  onEdit,
+  onCreate,
+  onPreview,
+}: Readonly<{
+  result: boolean;
+  preview: DivertMutationView | null;
+  refused: number;
+  pending: boolean;
+  onDone: () => void;
+  onEdit: () => void;
+  onCreate: () => void;
+  onPreview: () => void;
+}>) {
+  if (result) {
+    return (
+      <Group justify="flex-end">
+        <Button size="xs" onClick={onDone}>
+          Done
+        </Button>
+      </Group>
+    );
+  }
+  if (!preview) {
+    return (
+      <Group justify="flex-end">
+        <Button size="xs" loading={pending} onClick={onPreview}>
+          Preview
+        </Button>
+      </Group>
+    );
+  }
+  return (
+    <Group justify="flex-end">
+      <Button size="xs" variant="subtle" disabled={pending} onClick={onEdit}>
+        Edit
+      </Button>
+      {refused === preview.outcome.nodes.length ? null : (
+        <Button size="xs" loading={pending} onClick={onCreate}>
+          Create on every live node
+        </Button>
+      )}
+    </Group>
+  );
+}
+
+/** The server's field errors, each on the field the operator can correct. */
+function serverErrorsFor(fieldErrors: { field: string; message: string }[]): Partial<Record<DivertField, string>> {
+  const mapped: Partial<Record<DivertField, string>> = {};
+  for (const fe of fieldErrors) {
+    const field = serverFieldFor(fe.field);
+    if (field) mapped[field] = fe.message;
+  }
+  return mapped;
+}
+
+/** What the create shows: the result once made, or the preview with why it would be refused, and the remedy. */
+function CreateOutcome({
+  result,
+  preview,
+  refused,
+}: Readonly<{ result: DivertMutationView | null; preview: DivertMutationView | null; refused: number }>) {
+  if (result) {
+    return (
+      <Stack gap="sm">
+        <NodeOutcomeSummary outcome={result.outcome} />
+        <Alert variant="light" color="yellow" title="Your broker configuration does not know about this">
+          <Stack gap="sm">
+            <Text size="xs">{DRIFT_SENTENCE}</Text>
+            <BrokerXmlRemedy xml={result.brokerXml} />
+          </Stack>
+        </Alert>
+      </Stack>
+    );
+  }
+  if (!preview) return null;
+  return (
+    <Stack gap="sm">
+      <NodeOutcomeSummary outcome={preview.outcome} />
+      {refused > 0 ? (
+        <Alert color="red" variant="light" title="This divert would be refused">
+          {refused === preview.outcome.nodes.length
+            ? 'Every node refuses it, for the reason under each node above. Edit it and preview again.'
+            : 'Some nodes refuse it, for the reason under each node above. Creating it anyway applies it only where it is not refused.'}
+        </Alert>
+      ) : null}
+      <Alert variant="light" color="yellow" title="Before you create this">
+        <Stack gap="sm">
+          <Text size="xs">{DRIFT_SENTENCE}</Text>
+          <BrokerXmlRemedy xml={preview.brokerXml} />
+        </Stack>
+      </Alert>
+    </Stack>
+  );
 }
 
 /**
@@ -152,11 +256,7 @@ export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }
       {
         onSuccess: setPreview,
         onError: (error) => {
-          const mapped: Partial<Record<DivertField, string>> = {};
-          for (const fe of error.fieldErrors) {
-            const field = serverFieldFor(fe.field);
-            if (field) mapped[field] = fe.message;
-          }
+          const mapped = serverErrorsFor(error.fieldErrors);
           setErrors(mapped);
           focusFirst(mapped);
         },
@@ -235,61 +335,18 @@ export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }
             </Alert>
           ) : null}
 
-          {result ? (
-            <Stack gap="sm">
-              <NodeOutcomeSummary outcome={result.outcome} />
-              <Alert variant="light" color="yellow" title="Your broker configuration does not know about this">
-                <Stack gap="sm">
-                  <Text size="xs">{DRIFT_SENTENCE}</Text>
-                  <BrokerXmlRemedy xml={result.brokerXml} />
-                </Stack>
-              </Alert>
-            </Stack>
-          ) : preview ? (
-            <Stack gap="sm">
-              <NodeOutcomeSummary outcome={preview.outcome} />
-              {refused.length > 0 ? (
-                <Alert color="red" variant="light" title="This divert would be refused">
-                  {refused.length === preview.outcome.nodes.length
-                    ? 'Every node refuses it, for the reason under each node above. Edit it and preview again.'
-                    : 'Some nodes refuse it, for the reason under each node above. Creating it anyway applies it only where it is not refused.'}
-                </Alert>
-              ) : null}
-              <Alert variant="light" color="yellow" title="Before you create this">
-                <Stack gap="sm">
-                  <Text size="xs">{DRIFT_SENTENCE}</Text>
-                  <BrokerXmlRemedy xml={preview.brokerXml} />
-                </Stack>
-              </Alert>
-            </Stack>
-          ) : null}
+          <CreateOutcome result={result} preview={preview} refused={refused.length} />
 
-          <Group justify="flex-end">
-            {result ? (
-              <Button size="xs" onClick={close}>
-                Done
-              </Button>
-            ) : preview ? (
-              <>
-                <Button size="xs" variant="subtle" disabled={create.isPending} onClick={() => setPreview(null)}>
-                  Edit
-                </Button>
-                {refused.length === preview.outcome.nodes.length ? null : (
-                  <Button
-                    size="xs"
-                    loading={create.isPending}
-                    onClick={() => create.mutate({ body, dryRun: false }, { onSuccess: setResult })}
-                  >
-                    Create on every live node
-                  </Button>
-                )}
-              </>
-            ) : (
-              <Button size="xs" loading={create.isPending} onClick={requestPreview}>
-                Preview
-              </Button>
-            )}
-          </Group>
+          <CreateFooter
+            result={result !== null}
+            preview={preview}
+            refused={refused.length}
+            pending={create.isPending}
+            onDone={close}
+            onEdit={() => setPreview(null)}
+            onCreate={() => create.mutate({ body, dryRun: false }, { onSuccess: setResult })}
+            onPreview={requestPreview}
+          />
         </Stack>
       </Modal>
     </>
@@ -395,7 +452,7 @@ export function DeleteDivertDialog({
               {remove.error.message}
             </Alert>
           ) : null}
-          {result ? <NodeOutcomeSummary outcome={result} /> : preview ? <NodeOutcomeSummary outcome={preview} /> : null}
+          {result || preview ? <NodeOutcomeSummary outcome={(result ?? preview)!} /> : null}
         </div>
 
         {preview && !result ? (

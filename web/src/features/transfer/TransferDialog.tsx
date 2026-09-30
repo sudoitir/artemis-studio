@@ -47,6 +47,41 @@ function selectionWords(selection: MessageSelection, queueName: string, total: n
   }
 }
 
+type Gate = ReturnType<typeof gateFor>;
+
+/** The first gate that blocks, in order: the source's, then the target's. */
+function firstBlocked(source: Gate, target: Gate): Gate | null {
+  if (source.kind === 'blocked') return source;
+  return target.kind === 'blocked' ? target : null;
+}
+
+const isUncertain = (gate: Gate) => gate.kind === 'allowed' && gate.uncertain;
+
+/** What is missing from a destination field, or undefined when it is filled. */
+function fieldProblem(field: 'node' | 'queue', value: string | null): string | undefined {
+  if (value?.trim()) return undefined;
+  return field === 'node' ? 'Choose the node the messages go to.' : 'Name the queue the messages go to.';
+}
+
+/** The selection as the API takes it: ids, a filter, or the whole queue. */
+function selectionRequest(selection: MessageSelection) {
+  if (selection.kind === 'ids') return { kind: 'IDS' as const, ids: selection.ids, filter: null };
+  if (selection.kind === 'filter') return { kind: 'FILTER' as const, ids: null, filter: selection.filter };
+  return { kind: 'ALL' as const, ids: null, filter: null };
+}
+
+/** The action the confirm button names: the verb and how many messages it covers. */
+function confirmWords(run: TransferRunView): string {
+  return `${MODE[run.mode].verb} ${run.estimate == null ? 'messages' : plural(run.estimate, 'message')}`;
+}
+
+/** Whether the target can accept the transfer, in one sentence. */
+function acceptanceWords(refused: boolean, warnings: number): string {
+  if (refused) return 'The target cannot accept this transfer. The reasons are below; nothing will run.';
+  if (warnings > 0) return `The target can accept it, with ${plural(warnings, 'warning')} to acknowledge.`;
+  return 'The target can accept it.';
+}
+
 /** What the run would do, as one sentence an operator can check before arming it. */
 function blastRadius(run: TransferRunView, clusterName: (id: string) => string): string {
   const { source, target } = run;
@@ -77,6 +112,273 @@ function Snippet({ snippet }: Readonly<{ snippet?: string | null }>) {
       </Text>
       <Code block>{snippet}</Code>
     </>
+  );
+}
+
+/** The first step: where the messages go — mode, target cluster, node and queue — before anything is previewed. */
+function DestinationForm({
+  queueName,
+  redistribute,
+  mode,
+  onMode,
+  targetClusterId,
+  clusterOptions,
+  onTargetCluster,
+  targetPending,
+  targetNodes,
+  chosenNode,
+  onNode,
+  targetQueue,
+  onQueue,
+  errors,
+  onValidate,
+  nodeRef,
+  queueRef,
+  noSourceNode,
+  uncertain,
+  blocked,
+  canPreview,
+  previewing,
+  onCancel,
+  onPreview,
+}: Readonly<{
+  queueName: string;
+  redistribute: boolean;
+  mode: TransferMode;
+  onMode: (mode: TransferMode) => void;
+  targetClusterId: string;
+  clusterOptions: { value: string; label: string; disabled: boolean }[];
+  onTargetCluster: (id: string) => void;
+  targetPending: boolean;
+  targetNodes: ReturnType<typeof nodeOptions>;
+  chosenNode: string | null;
+  onNode: (id: string | null) => void;
+  targetQueue: string;
+  onQueue: (queue: string) => void;
+  errors: { node?: string; queue?: string };
+  onValidate: (field: 'node' | 'queue') => void;
+  nodeRef: React.RefObject<HTMLInputElement | null>;
+  queueRef: React.RefObject<HTMLInputElement | null>;
+  noSourceNode: boolean;
+  uncertain: boolean;
+  blocked: Gate | null;
+  canPreview: boolean;
+  previewing: boolean;
+  onCancel: () => void;
+  onPreview: () => void;
+}>) {
+  return (
+    <Stack gap="sm">
+      {noSourceNode ? (
+        <Alert color="yellow" variant="light" title="No source node to read from" role="alert">
+          No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait for a
+          node to come back, then open this again.
+        </Alert>
+      ) : null}
+      {redistribute ? (
+        <Text size="sm">
+          The messages move to {queueName} on the node you choose, and land on that node&rsquo;s own queue.
+        </Text>
+      ) : (
+        <>
+          <Stack gap={4}>
+            <Text size="sm" fw={500} id="transfer-mode">
+              Mode
+            </Text>
+            <SegmentedControl
+              aria-labelledby="transfer-mode"
+              value={mode}
+              onChange={(v) => onMode(v as TransferMode)}
+              data={[
+                { value: 'MOVE', label: 'Move: the messages leave the source' },
+                { value: 'COPY', label: 'Copy: the source is unchanged' },
+              ]}
+            />
+          </Stack>
+          <Select
+            label="Target cluster"
+            description="A cluster you may not send to is listed, and says so."
+            data={clusterOptions}
+            value={targetClusterId}
+            allowDeselect={false}
+            onChange={(v) => {
+              if (v) onTargetCluster(v);
+            }}
+          />
+        </>
+      )}
+      <Select
+        ref={nodeRef}
+        label="Target node"
+        description="Every node is listed; one that cannot take messages says why."
+        placeholder={targetPending ? 'Reading the cluster’s nodes…' : 'Choose a node'}
+        data={targetNodes}
+        value={chosenNode}
+        onChange={onNode}
+        onBlur={() => onValidate('node')}
+        error={errors.node}
+        nothingFoundMessage="This cluster has no nodes Studio knows of."
+      />
+      {redistribute ? null : (
+        <AddressPicker
+          clusterId={targetClusterId}
+          label="Target queue"
+          description="The queue on the target node. A queue that does not exist is checked in the preview."
+          value={targetQueue}
+          onChange={onQueue}
+          onBlur={() => onValidate('queue')}
+          error={errors.queue}
+          inputRef={queueRef}
+          unknownHint="No queue by that name on this cluster yet. The preview says whether the broker would create it."
+        />
+      )}
+      {uncertain && !blocked ? (
+        <Text size="sm">
+          Whether these brokers allow Studio&rsquo;s management operations has not been established yet. The preview is
+          offered anyway, and states what it could not check.
+        </Text>
+      ) : null}
+      <Group justify="flex-end">
+        <Button variant="default" size="xs" onClick={onCancel}>
+          Cancel
+        </Button>
+        <CapabilityGate verdict={blocked ?? { kind: 'allowed', uncertain: false }} what="previewing this transfer">
+          <Button size="xs" loading={previewing} disabled={blocked !== null || !canPreview} onClick={onPreview}>
+            Preview
+          </Button>
+        </CapabilityGate>
+      </Group>
+    </Stack>
+  );
+}
+
+/** The run's estimate against the safety cap, in words. */
+function overCapWords(run: TransferRunView): string {
+  if (run.estimate == null) {
+    return `How many messages this selects is not known, so it cannot be held to the safety cap of ${run.cap.toLocaleString()}.`;
+  }
+  return `This selects ${run.estimate.toLocaleString()} messages, over the safety cap of ${run.cap.toLocaleString()}.`;
+}
+
+/** What the acceptance checks found, what must be acknowledged, and the control that arms the transfer. */
+function FindingsPanel({
+  data,
+  findings,
+  refused,
+  unacked,
+  typed,
+  confirmLabel,
+  acked,
+  onAck,
+  execute,
+  onPreviewAgain,
+  onStart,
+  onChangeDestination,
+}: Readonly<{
+  data: TransferRunView;
+  findings: Finding[];
+  refused: boolean;
+  unacked: number;
+  typed: boolean;
+  confirmLabel: string;
+  acked: Set<string>;
+  onAck: (code: string, on: boolean) => void;
+  execute: ReturnType<typeof useTransferExecute>;
+  onPreviewAgain: () => void;
+  onStart: () => void;
+  onChangeDestination: () => void;
+}>) {
+  return (
+    <Stack gap="md">
+      {GROUPS.map((group) => {
+        const rows = findings.filter((f) => f.kind === group.kind);
+        if (rows.length === 0) return null;
+        return (
+          <Stack key={group.kind} gap="xs">
+            <Title order={5} style={{ color: group.tone }}>
+              {group.title}
+            </Title>
+            {rows.map((f) => (
+              <Stack key={f.code} gap={4}>
+                {f.kind === 'WARN' ? (
+                  <Checkbox
+                    label={f.words}
+                    checked={acked.has(f.code)}
+                    onChange={(e) => onAck(f.code, e.currentTarget.checked)}
+                  />
+                ) : (
+                  <Text size="sm">{f.words}</Text>
+                )}
+                <Snippet snippet={f.snippet} />
+              </Stack>
+            ))}
+          </Stack>
+        );
+      })}
+
+      {data.notes.length > 0 ? (
+        <Stack gap={4}>
+          <Title order={5}>Good to know</Title>
+          {data.notes.map((n) => (
+            <Text key={n} size="sm">
+              {n}
+            </Text>
+          ))}
+        </Stack>
+      ) : null}
+
+      {!refused && data.overCap ? (
+        <Alert color="yellow" variant="light" title="Over the safety cap">
+          {overCapWords(data)} Typing the queue name below overrides the cap for this run, and the override is recorded
+          in the audit log.
+        </Alert>
+      ) : null}
+
+      {execute.isError ? (
+        <Alert color="red" variant="light" title={execute.error.title} role="alert">
+          <Stack gap="xs" align="flex-start">
+            <Text size="sm">{execute.error.message}</Text>
+            <Text size="sm">Nothing was run. Preview again to confirm the transfer as it is now.</Text>
+            <Button size="xs" variant="light" onClick={onPreviewAgain}>
+              Preview again
+            </Button>
+          </Stack>
+        </Alert>
+      ) : null}
+
+      {refused ? null : (
+        <Stack gap="xs">
+          {unacked > 0 ? (
+            <Text size="sm">
+              Acknowledge {unacked === 1 ? 'the warning' : `the ${unacked} warnings`} above to run this.
+            </Text>
+          ) : null}
+          {typed ? (
+            <ConfirmByTyping
+              token={data.source.queue}
+              label={`Type the source queue's name, "${data.source.queue}", to confirm`}
+              confirmLabel={confirmLabel}
+              color={data.mode === 'MOVE' ? 'red' : 'pine'}
+              loading={execute.isPending}
+              disabled={unacked > 0 || execute.isPending}
+              onConfirm={onStart}
+            />
+          ) : (
+            <Group>
+              <Button size="xs" loading={execute.isPending} disabled={unacked > 0} onClick={onStart}>
+                {confirmLabel}
+              </Button>
+            </Group>
+          )}
+        </Stack>
+      )}
+
+      <Group>
+        <Button size="xs" variant="subtle" onClick={onChangeDestination}>
+          Change the destination
+        </Button>
+      </Group>
+    </Stack>
   );
 }
 
@@ -155,9 +457,8 @@ export function TransferDialog({
     target.data?.capabilities.managementRead,
     loading || target.isPending,
   );
-  const blocked = sourceGate.kind === 'blocked' ? sourceGate : targetGate.kind === 'blocked' ? targetGate : null;
-  const uncertain =
-    (sourceGate.kind === 'allowed' && sourceGate.uncertain) || (targetGate.kind === 'allowed' && targetGate.uncertain);
+  const blocked = firstBlocked(sourceGate, targetGate);
+  const uncertain = isUncertain(sourceGate) || isUncertain(targetGate);
 
   const targetNodes = nodeOptions(
     endpointsOf(target.data?.topology),
@@ -168,14 +469,7 @@ export function TransferDialog({
   const chosenNode = targetNodeId ?? (redistribute && choosable.length === 1 ? choosable[0].value : null);
 
   const validate = (field: 'node' | 'queue') => {
-    const message =
-      field === 'node'
-        ? chosenNode
-          ? undefined
-          : 'Choose the node the messages go to.'
-        : targetQueue.trim()
-          ? undefined
-          : 'Name the queue the messages go to.';
+    const message = fieldProblem(field, field === 'node' ? chosenNode : targetQueue);
     setErrors((e) => ({ ...e, [field]: message }));
     return message === undefined;
   };
@@ -192,12 +486,7 @@ export function TransferDialog({
       mode: effectiveMode,
       sourceQueue: queueName,
       sourceNodeId: sourceNode.id,
-      selection:
-        selection.kind === 'ids'
-          ? { kind: 'IDS', ids: selection.ids, filter: null }
-          : selection.kind === 'filter'
-            ? { kind: 'FILTER', ids: null, filter: selection.filter }
-            : { kind: 'ALL', ids: null, filter: null },
+      selection: selectionRequest(selection),
       targetClusterId: redistribute ? clusterId : targetClusterId,
       targetNodeId: chosenNode,
       targetQueue: redistribute ? queueName : targetQueue.trim(),
@@ -211,9 +500,7 @@ export function TransferDialog({
   const warnings = findings.filter((f) => f.kind === 'WARN');
   const unacked = warnings.filter((f) => !acked.has(f.code)).length;
   const typed = data ? data.mode === 'MOVE' || data.overCap : false;
-  const confirmLabel = data
-    ? `${MODE[data.mode].verb} ${data.estimate == null ? 'messages' : plural(data.estimate, 'message')}`
-    : '';
+  const confirmLabel = data ? confirmWords(data) : '';
 
   const start = () => {
     if (!data) return;
@@ -258,103 +545,41 @@ export function TransferDialog({
         </Text>
 
         {!data ? (
-          <Stack gap="sm">
-            {!sourceNode && source.data ? (
-              <Alert color="yellow" variant="light" title="No source node to read from" role="alert">
-                No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait
-                for a node to come back, then open this again.
-              </Alert>
-            ) : null}
-            {redistribute ? (
-              <Text size="sm">
-                The messages move to {queueName} on the node you choose, and land on that node&rsquo;s own queue.
-              </Text>
-            ) : (
-              <>
-                <Stack gap={4}>
-                  <Text size="sm" fw={500} id="transfer-mode">
-                    Mode
-                  </Text>
-                  <SegmentedControl
-                    aria-labelledby="transfer-mode"
-                    value={mode}
-                    onChange={(v) => setMode(v as TransferMode)}
-                    data={[
-                      { value: 'MOVE', label: 'Move: the messages leave the source' },
-                      { value: 'COPY', label: 'Copy: the source is unchanged' },
-                    ]}
-                  />
-                </Stack>
-                <Select
-                  label="Target cluster"
-                  description="A cluster you may not send to is listed, and says so."
-                  data={clusterOptions}
-                  value={targetClusterId}
-                  allowDeselect={false}
-                  onChange={(v) => {
-                    if (!v) return;
-                    setTargetClusterId(v);
-                    setTargetNodeId(null);
-                  }}
-                />
-              </>
-            )}
-            <Select
-              ref={nodeRef}
-              label="Target node"
-              description="Every node is listed; one that cannot take messages says why."
-              placeholder={target.isPending ? 'Reading the cluster’s nodes…' : 'Choose a node'}
-              data={targetNodes}
-              value={chosenNode}
-              onChange={(v) => {
-                setTargetNodeId(v);
-                if (v) setErrors((e) => ({ ...e, node: undefined }));
-              }}
-              onBlur={() => validate('node')}
-              error={errors.node}
-              nothingFoundMessage="This cluster has no nodes Studio knows of."
-            />
-            {redistribute ? null : (
-              <AddressPicker
-                clusterId={targetClusterId}
-                label="Target queue"
-                description="The queue on the target node. A queue that does not exist is checked in the preview."
-                value={targetQueue}
-                onChange={(v) => {
-                  setTargetQueue(v);
-                  if (v.trim()) setErrors((e) => ({ ...e, queue: undefined }));
-                }}
-                onBlur={() => validate('queue')}
-                error={errors.queue}
-                inputRef={queueRef}
-                unknownHint="No queue by that name on this cluster yet. The preview says whether the broker would create it."
-              />
-            )}
-            {uncertain && !blocked ? (
-              <Text size="sm">
-                Whether these brokers allow Studio&rsquo;s management operations has not been established yet. The
-                preview is offered anyway, and states what it could not check.
-              </Text>
-            ) : null}
-            <Group justify="flex-end">
-              <Button variant="default" size="xs" onClick={close}>
-                Cancel
-              </Button>
-              <CapabilityGate
-                verdict={blocked ?? { kind: 'allowed', uncertain: false }}
-                what="previewing this transfer"
-              >
-                <Button
-                  size="xs"
-                  loading={preview.isPending}
-                  disabled={blocked !== null || !sourceNode}
-                  onClick={takePreview}
-                >
-                  Preview
-                </Button>
-              </CapabilityGate>
-            </Group>
-          </Stack>
+          <DestinationForm
+            queueName={queueName}
+            redistribute={redistribute}
+            mode={mode}
+            onMode={setMode}
+            targetClusterId={targetClusterId}
+            clusterOptions={clusterOptions}
+            onTargetCluster={(id) => {
+              setTargetClusterId(id);
+              setTargetNodeId(null);
+            }}
+            targetPending={target.isPending}
+            targetNodes={targetNodes}
+            chosenNode={chosenNode}
+            onNode={(v) => {
+              setTargetNodeId(v);
+              if (v) setErrors((e) => ({ ...e, node: undefined }));
+            }}
+            targetQueue={targetQueue}
+            onQueue={(v) => {
+              setTargetQueue(v);
+              if (v.trim()) setErrors((e) => ({ ...e, queue: undefined }));
+            }}
+            errors={errors}
+            onValidate={validate}
+            nodeRef={nodeRef}
+            queueRef={queueRef}
+            noSourceNode={!sourceNode && Boolean(source.data)}
+            uncertain={uncertain}
+            blocked={blocked}
+            canPreview={sourceNode !== undefined}
+            previewing={preview.isPending}
+            onCancel={close}
+            onPreview={takePreview}
+          />
         ) : null}
 
         <div aria-live="polite">
@@ -376,126 +601,36 @@ export function TransferDialog({
               <Text size="sm" fw={600}>
                 {blastRadius(data, clusterName)}
               </Text>
-              <Text size="sm">
-                {refused
-                  ? 'The target cannot accept this transfer. The reasons are below; nothing will run.'
-                  : warnings.length > 0
-                    ? `The target can accept it, with ${plural(warnings.length, 'warning')} to acknowledge.`
-                    : 'The target can accept it.'}
-              </Text>
+              <Text size="sm">{acceptanceWords(refused, warnings.length)}</Text>
             </Stack>
           ) : null}
         </div>
 
         {data ? (
-          <Stack gap="md">
-            {GROUPS.map((group) => {
-              const rows = findings.filter((f) => f.kind === group.kind);
-              if (rows.length === 0) return null;
-              return (
-                <Stack key={group.kind} gap="xs">
-                  <Title order={5} style={{ color: group.tone }}>
-                    {group.title}
-                  </Title>
-                  {rows.map((f) => (
-                    <Stack key={f.code} gap={4}>
-                      {f.kind === 'WARN' ? (
-                        <Checkbox
-                          label={f.words}
-                          checked={acked.has(f.code)}
-                          onChange={(e) => {
-                            const on = e.currentTarget.checked;
-                            setAcked((prev) => {
-                              const next = new Set(prev);
-                              if (on) next.add(f.code);
-                              else next.delete(f.code);
-                              return next;
-                            });
-                          }}
-                        />
-                      ) : (
-                        <Text size="sm">{f.words}</Text>
-                      )}
-                      <Snippet snippet={f.snippet} />
-                    </Stack>
-                  ))}
-                </Stack>
-              );
-            })}
-
-            {data.notes.length > 0 ? (
-              <Stack gap={4}>
-                <Title order={5}>Good to know</Title>
-                {data.notes.map((n) => (
-                  <Text key={n} size="sm">
-                    {n}
-                  </Text>
-                ))}
-              </Stack>
-            ) : null}
-
-            {!refused && data.overCap ? (
-              <Alert color="yellow" variant="light" title="Over the safety cap">
-                {data.estimate == null
-                  ? `How many messages this selects is not known, so it cannot be held to the safety cap of ${data.cap.toLocaleString()}.`
-                  : `This selects ${data.estimate.toLocaleString()} messages, over the safety cap of ${data.cap.toLocaleString()}.`}{' '}
-                Typing the queue name below overrides the cap for this run, and the override is recorded in the audit
-                log.
-              </Alert>
-            ) : null}
-
-            {execute.isError ? (
-              <Alert color="red" variant="light" title={execute.error.title} role="alert">
-                <Stack gap="xs" align="flex-start">
-                  <Text size="sm">{execute.error.message}</Text>
-                  <Text size="sm">Nothing was run. Preview again to confirm the transfer as it is now.</Text>
-                  <Button size="xs" variant="light" onClick={takePreview}>
-                    Preview again
-                  </Button>
-                </Stack>
-              </Alert>
-            ) : null}
-
-            {refused ? null : (
-              <Stack gap="xs">
-                {unacked > 0 ? (
-                  <Text size="sm">
-                    Acknowledge {unacked === 1 ? 'the warning' : `the ${unacked} warnings`} above to run this.
-                  </Text>
-                ) : null}
-                {typed ? (
-                  <ConfirmByTyping
-                    token={data.source.queue}
-                    label={`Type the source queue's name, "${data.source.queue}", to confirm`}
-                    confirmLabel={confirmLabel}
-                    color={data.mode === 'MOVE' ? 'red' : 'pine'}
-                    loading={execute.isPending}
-                    disabled={unacked > 0 || execute.isPending}
-                    onConfirm={start}
-                  />
-                ) : (
-                  <Group>
-                    <Button size="xs" loading={execute.isPending} disabled={unacked > 0} onClick={start}>
-                      {confirmLabel}
-                    </Button>
-                  </Group>
-                )}
-              </Stack>
-            )}
-
-            <Group>
-              <Button
-                size="xs"
-                variant="subtle"
-                onClick={() => {
-                  preview.reset();
-                  execute.reset();
-                }}
-              >
-                Change the destination
-              </Button>
-            </Group>
-          </Stack>
+          <FindingsPanel
+            data={data}
+            findings={findings}
+            refused={refused}
+            unacked={unacked}
+            typed={typed}
+            confirmLabel={confirmLabel}
+            acked={acked}
+            onAck={(code, on) =>
+              setAcked((prev) => {
+                const next = new Set(prev);
+                if (on) next.add(code);
+                else next.delete(code);
+                return next;
+              })
+            }
+            execute={execute}
+            onPreviewAgain={takePreview}
+            onStart={start}
+            onChangeDestination={() => {
+              preview.reset();
+              execute.reset();
+            }}
+          />
         ) : null}
       </Stack>
     </Modal>

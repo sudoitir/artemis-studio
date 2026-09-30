@@ -51,6 +51,13 @@ export function ReplyAddressesInput({
   );
 }
 
+/** What the patterns resolve to right now, or that they match nothing yet. */
+function resolvedWords(count: number, preview: string, overflow: number): string {
+  if (count === 0) return 'Matches nothing on this cluster yet — tracing begins when a matching queue appears.';
+  const more = overflow > 0 ? ` and ${overflow} more` : '';
+  return `Resolves to ${count} address${count === 1 ? '' : 'es'}: ${preview}${more}`;
+}
+
 /** What an empty set means, what a glob covers, and what it resolves to right now. */
 export function ReplyAddressesHelp({ clusterId, value }: Readonly<{ clusterId: string; value: string[] }>) {
   const { resolved, unmatched, isError, retry } = useReplyAddressResolution(clusterId, value);
@@ -77,11 +84,7 @@ export function ReplyAddressesHelp({ clusterId, value }: Readonly<{ clusterId: s
       </Text>
       {value.length > 0 && !isError ? (
         <Text size="xs" c={resolved.length === 0 ? 'orange' : 'dimmed'}>
-          {resolved.length === 0
-            ? 'Matches nothing on this cluster yet — tracing begins when a matching queue appears.'
-            : `Resolves to ${resolved.length} address${resolved.length === 1 ? '' : 'es'}: ${preview}${
-                overflow > 0 ? ` and ${overflow} more` : ''
-              }`}
+          {resolvedWords(resolved.length, preview, overflow)}
         </Text>
       ) : null}
       {unmatched.length > 0 && resolved.length > 0 ? (

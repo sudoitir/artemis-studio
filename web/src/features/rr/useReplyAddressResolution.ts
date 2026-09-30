@@ -17,7 +17,7 @@ function isPattern(entry: string): boolean {
  * browsed for another has been told a lie about what is traced.
  */
 function globToRegExp(glob: string): RegExp {
-  const parts = glob.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
+  const parts = glob.split('*').map((part) => part.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`));
   return new RegExp(`^${parts.join('.*')}$`, 's');
 }
 
