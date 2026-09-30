@@ -84,9 +84,8 @@ public class ConnectionControlController {
 
     private static ConnectionCloseView respond(Attempt<CloseResult> attempt) {
         return switch (attempt) {
-            case Attempt.Ok<CloseResult> ok -> ConnectionCloseView.of(ok.value());
-            case Attempt.Failed<CloseResult> failed ->
-                throw new BrokerConnectionException(failed.kind(), failed.detail());
+            case Attempt.Ok<CloseResult>(var value) -> ConnectionCloseView.of(value);
+            case Attempt.Failed<CloseResult>(var kind, var detail) -> throw new BrokerConnectionException(kind, detail);
         };
     }
 }

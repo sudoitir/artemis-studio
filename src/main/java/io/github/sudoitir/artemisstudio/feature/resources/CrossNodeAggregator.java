@@ -41,7 +41,7 @@ public class CrossNodeAggregator {
 
     @Transactional(readOnly = true)
     public PagedView<QueueView> queues(UUID clusterId, ResourceQuery query) {
-        List<QueueView> rows = allQueues(clusterId).stream()
+        List<QueueView> rows = accessibleQueues(clusterId).stream()
                 .filter(v -> query.matches(v.queueName()) || query.matches(v.address()))
                 .toList();
         return query.paginate(rows, comparatorFor(query.sortField()));
@@ -58,8 +58,12 @@ public class CrossNodeAggregator {
      */
     @Transactional(readOnly = true)
     public List<QueueView> allQueues(UUID clusterId) {
+        return accessibleQueues(clusterId);
+    }
+
+    private List<QueueView> accessibleQueues(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return rollUp(clusterId);
+        return rolledUp(clusterId);
     }
 
     /**
@@ -76,6 +80,10 @@ public class CrossNodeAggregator {
      */
     @Transactional(readOnly = true)
     public List<QueueView> rollUp(UUID clusterId) {
+        return rolledUp(clusterId);
+    }
+
+    private List<QueueView> rolledUp(UUID clusterId) {
         List<ClusterNode> nodeRows = nodes.nodes(clusterId);
         Map<UUID, String> nodeNames =
                 nodeRows.stream().collect(Collectors.toMap(ClusterNode::getId, ClusterNode::getName));
