@@ -234,7 +234,7 @@ Liquibase SQL changesets, React 19 + Mantine 9, `maven-jarsigner-plugin` in the 
 ### Task 7: Finish
 
 - [x] 7.1 `just verify` green (via `verifier`).
-- [ ] 7.2 Run Studio on its own ports and compose project, then screenshot, light and dark: the review (trusted, untrusted, unverified-allowed), the trusted-keys dialog (empty and with keys), the plugin list with the badge. Stop the stack afterwards.
+- [x] 7.2 Run Studio on its own ports and compose project, then screenshot, light and dark: the review (trusted, untrusted, unverified-allowed), the trusted-keys dialog (empty and with keys), the plugin list with the badge. Stop the stack afterwards.
 - [x] 7.3 One `reviewer` pass over the branch diff (security-critical). Fix the findings.
 - [ ] 7.4 Rebase on `origin/main`, push, open the PR, fix CI and Sonar until green, merge.
 - [ ] 7.5 `/opsx:archive` via its own PR. Tick 07 in the workspace `ROADMAP.md` via a workspace PR. Remove the worktree and branches.
