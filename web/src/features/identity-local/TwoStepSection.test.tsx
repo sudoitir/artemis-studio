@@ -223,7 +223,7 @@ describe('TwoStepSection', () => {
 
     const codes = await screen.findByRole('dialog', { name: 'Save your recovery codes' });
     expect(within(codes).getByText('ABCDE-FGHJK')).toBeInTheDocument();
-    expect(await screen.findByText(/Recovery codes regenerated/, {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByText(/Recovery codes regenerated/)).toBeInTheDocument();
   });
 
   it('asks for a fresh sign-in inside the confirmation when the server says so, then removes the passkey', async () => {

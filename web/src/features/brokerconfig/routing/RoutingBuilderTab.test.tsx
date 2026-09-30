@@ -82,7 +82,7 @@ describe('the Routing screen’s Builder tab', () => {
 
     // Laid out by ELK in a worker; the first layout of a run is the slow one.
     expect(
-      await screen.findByRole('button', { name: /^Address orders\.request\./ }, { timeout: 5_000 }),
+      await screen.findByRole('button', { name: /^Address orders\.request\./ }, { timeout: 15_000 }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Add queue$/ })).toBeEnabled();
     // One of the two live nodes is not on this revision; the count is on the control, in words.

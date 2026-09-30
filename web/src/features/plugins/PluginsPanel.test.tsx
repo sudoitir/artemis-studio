@@ -297,7 +297,7 @@ describe('Administration → Plugins', () => {
 
     expect(await screen.findByText(/You can close this; it carries on/)).toBeInTheDocument();
     status = 'active';
-    expect(await screen.findByText('Notes 1.0.0 is active', {}, { timeout: 5_000 })).toBeInTheDocument();
+    expect(await screen.findByText('Notes 1.0.0 is active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload Studio' })).toBeInTheDocument();
   });
 
