@@ -58,6 +58,8 @@ class SecretLeakTest extends PostgresIntegrationTest {
     private static final String LOG_SECRET = planted("logline-leak");
     private static final String EXCEPTION_SECRET = planted("exception-leak");
     private static final String WEBHOOK_PATH_SECRET = planted("webhook-leak");
+    private static final String TOTP_CODE = planted("totp-leak");
+    private static final String RECOVERY_CODE = planted("recovery-leak");
 
     private static final List<String> ALL = List.of(
             CLUSTER_PASSWORD,
@@ -68,7 +70,9 @@ class SecretLeakTest extends PostgresIntegrationTest {
             BODY_SECRET,
             LOG_SECRET,
             EXCEPTION_SECRET,
-            WEBHOOK_PATH_SECRET);
+            WEBHOOK_PATH_SECRET,
+            TOTP_CODE,
+            RECOVERY_CODE);
 
     @MockitoBean
     BrokerConnections connections;
@@ -141,6 +145,14 @@ class SecretLeakTest extends PostgresIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"seedUrls\":[\"http://admin:" + URL_SECRET + "@127.0.0.1:1/console/jolokia\"]}"));
 
+        // A second-factor proof that is refused or does not parse (ADR-0142).
+        send(post("/api/v1/auth/second-factor")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"totpCode\":\"" + TOTP_CODE + "\",\"recoveryCode\":\"" + RECOVERY_CODE + "\"}"));
+        send(post("/api/v1/auth/second-factor")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"recoveryCode\":\"" + RECOVERY_CODE));
+
         assertThat(String.join("\n", seen)).doesNotContain(ALL);
     }
 
@@ -158,13 +170,16 @@ class SecretLeakTest extends PostgresIntegrationTest {
     @Test
     void noSecretIsInTheLogsAndALoggedOneIsMasked(CapturedOutput output) throws Exception {
         LOG.warn("login failed password={}", LOG_SECRET);
+        LOG.warn("second factor refused totpCode={} recoveryCode={}", TOTP_CODE, RECOVERY_CODE);
         LOG.error(
                 "connect failed", new IllegalStateException("cannot reach tcp://bob:" + EXCEPTION_SECRET + "@broker"));
         send(post("/api/v1/clusters?dryRun=true")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"seedUrls\":[\"http://admin:" + URL_SECRET + "@127.0.0.1:1/console/jolokia\"]}"));
 
-        assertThat(output.getAll()).contains("password=[redacted]").doesNotContain(ALL);
+        assertThat(output.getAll())
+                .contains("password=[redacted]", "totpCode=[redacted]", "recoveryCode=[redacted]")
+                .doesNotContain(ALL);
     }
 
     @Test

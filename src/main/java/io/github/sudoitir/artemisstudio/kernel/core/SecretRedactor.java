@@ -18,7 +18,8 @@ public final class SecretRedactor {
     public static final String MASK = "[redacted]";
 
     private static final String TERMS =
-            "password|passwd|pwd|secret|token|api[-_]?key|authorization|credential|private[-_]?key";
+            "password|passwd|pwd|secret|token|api[-_]?key|authorization|credential|private[-_]?key"
+                    + "|totp|recovery[-_]?code|trusted[-_]?device|webauthn";
 
     private static final Pattern KEY = Pattern.compile("(?i)" + TERMS);
 
