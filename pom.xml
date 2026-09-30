@@ -177,6 +177,11 @@
             <artifactId>spring-boot-starter-session-jdbc</artifactId>
         </dependency>
         <dependency>
+            <!-- HashiCorp Vault key provider (KV v2); the version comes from the Spring Cloud BOM. -->
+            <groupId>org.springframework.vault</groupId>
+            <artifactId>spring-vault-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
@@ -298,6 +303,11 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-vault</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

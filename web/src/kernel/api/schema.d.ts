@@ -276,6 +276,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/secrets/rotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -1356,6 +1372,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["list_8"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2916,6 +2948,25 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        RotationView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            fromVersion: number;
+            /** Format: int32 */
+            toVersion: number;
+            status: string;
+            startedBy: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: int64 */
+            rewrapped: number;
+            /** Format: int64 */
+            remaining: number;
+            error?: string;
+        };
         GroupMappingRequest: {
             groupName: string;
             /** Format: uuid */
@@ -4071,6 +4122,17 @@ export interface components {
             settings: {
                 [key: string]: components["schemas"]["SettingValue"];
             };
+        };
+        SecretsStatus: {
+            provider: string;
+            /** Format: int32 */
+            currentVersion: number;
+            availableVersions: number[];
+            missingVersions: number[];
+            countsByVersion: {
+                [key: string]: number;
+            };
+            lastRotation?: components["schemas"]["RotationView"];
         };
         PermissionView: {
             action: string;
@@ -6049,6 +6111,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CreatedTokenView"];
+                };
+            };
+        };
+    };
+    rotate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RotationView"];
                 };
             };
         };
@@ -8128,6 +8210,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SettingsResponse"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SecretsStatus"];
                 };
             };
         };

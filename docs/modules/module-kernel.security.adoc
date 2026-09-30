@@ -9,7 +9,7 @@
 
 _Configuration properties_
 
-* `i.g.s.a.k.s.SecretKeyProperties`
+* `i.g.s.a.k.s.SecretProviderProperties`
 
 _Others_
 
@@ -17,9 +17,12 @@ _Others_
 * `i.g.s.a.k.s.ClusterAccessGuard`
 * `i.g.s.a.k.s.GrantLoader`
 * `i.g.s.a.k.s.IdentityProvisioner`
+* `i.g.s.a.k.s.KeyProvider`
 * `i.g.s.a.k.s.OperatorHandoff`
 * `i.g.s.a.k.s.PermissionResolver`
 * `i.g.s.a.k.s.ScopedGrants`
+* `i.g.s.a.k.s.SecretKeyState`
+* `i.g.s.a.k.s.SecretRotations`
 * `i.g.s.a.k.s.SecretVault`
 * `i.g.s.a.k.s.SessionAuthentication`
 * `i.g.s.a.k.s.UserAccounts`

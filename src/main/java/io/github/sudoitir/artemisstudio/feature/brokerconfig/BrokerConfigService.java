@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -453,7 +454,8 @@ public class BrokerConfigService {
         BrokerConfigDocument doc = revisionNumber == null
                 ? get(clusterId).document()
                 : revision(clusterId, revisionNumber).document();
-        return BrokerXmlCodec.write(doc);
+        // A backstop to ADR-0092: the document holds a credential reference, never a value.
+        return SecretRedactor.redact(BrokerXmlCodec.write(doc));
     }
 
     // ---- adopt -----------------------------------------------------------

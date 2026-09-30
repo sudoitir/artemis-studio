@@ -150,7 +150,7 @@ class MessageIndexGovernanceTest extends PostgresIntegrationTest {
 
     private Map<String, Object> storedRow(long messageId) {
         return jdbc.queryForMap(
-                "SELECT body, props::text AS props, sealed, sealed_nonce, policy_version FROM message_index"
+                "SELECT body, props::text AS props, sealed, policy_version FROM message_index"
                         + " WHERE cluster_id = ? AND message_id = ?",
                 CLUSTER,
                 messageId);
@@ -169,9 +169,8 @@ class MessageIndexGovernanceTest extends PostgresIntegrationTest {
         assertThat(stored.get("sealed")).isNotNull();
         assertThat(stored.get("policy_version")).isEqualTo(policy.version());
 
-        Map<String, String> originals = sealer.unseal(
-                MessageIndexWriter.aad(CLUSTER, NODE, "ORDER.IN", 1), (byte[]) stored.get("sealed"), (byte[])
-                        stored.get("sealed_nonce"));
+        Map<String, String> originals =
+                sealer.unseal(MessageIndexWriter.aad(CLUSTER, NODE, "ORDER.IN", 1), (byte[]) stored.get("sealed"));
         assertThat(originals).containsEntry("PROPERTY:contact", "jane.doe@example.com");
         assertThat(originals.toString()).doesNotContain("dXNlcjpwYXNzd29yZA");
     }

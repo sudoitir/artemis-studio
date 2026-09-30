@@ -45,8 +45,7 @@ class MessageIndexRemasker implements StoredContentRemasker {
             Map<String, String> headers,
             String body,
             String props,
-            byte[] sealed,
-            byte[] nonce) {}
+            byte[] sealed) {}
 
     @Override
     public String name() {
@@ -69,7 +68,7 @@ class MessageIndexRemasker implements StoredContentRemasker {
         List<Stale> rows = jdbc.query(
                 """
                 SELECT observed_at, cluster_id, node_id, queue_name, message_id, address, message_type,
-                       correlation_id, group_id, user_id, reply_to, body, props, sealed, sealed_nonce
+                       correlation_id, group_id, user_id, reply_to, body, props, sealed
                   FROM message_index
                  WHERE policy_version < ?
                  LIMIT ?
@@ -92,8 +91,7 @@ class MessageIndexRemasker implements StoredContentRemasker {
                             headers,
                             rs.getString("body"),
                             rs.getString("props"),
-                            rs.getBytes("sealed"),
-                            rs.getBytes("sealed_nonce"));
+                            rs.getBytes("sealed"));
                 },
                 version,
                 limit);
@@ -103,7 +101,7 @@ class MessageIndexRemasker implements StoredContentRemasker {
         jdbc.batchUpdate("""
                 UPDATE message_index
                    SET correlation_id = ?, group_id = ?, user_id = ?, reply_to = ?, body = ?, props = ?::jsonb,
-                       policy_version = ?, sealed = ?, sealed_nonce = ?
+                       policy_version = ?, sealed = ?
                  WHERE cluster_id = ? AND node_id = ? AND queue_name = ? AND message_id = ? AND observed_at = ?
                 """, rows, rows.size(), (statement, row) -> {
             String aad = MessageIndexWriter.aad(row.clusterId(), row.nodeId(), row.queueName(), row.messageId());
@@ -113,9 +111,9 @@ class MessageIndexRemasker implements StoredContentRemasker {
                     row.body(),
                     row.messageType() == SqlGovernance.BYTES_MESSAGE,
                     null);
-            MessageContent restored = ContentSealer.restore(stored, sealer.unseal(aad, row.sealed(), row.nonce()));
+            MessageContent restored = ContentSealer.restore(stored, sealer.unseal(aad, row.sealed()));
             GovernedMessage governed = governance.forStorage(row.clusterId(), row.address(), restored);
-            ContentSealer.SealedOriginals sealed = sealer.seal(aad, governed.sealable());
+            byte[] sealed = sealer.seal(aad, governed.sealable());
             int i = 0;
             statement.setString(++i, governed.headers().get("correlationId"));
             statement.setString(++i, governed.headers().get("groupId"));
@@ -124,8 +122,7 @@ class MessageIndexRemasker implements StoredContentRemasker {
             statement.setString(++i, governed.body());
             statement.setString(++i, json.writeValueAsString(governed.properties()));
             statement.setInt(++i, governed.policyVersion());
-            statement.setObject(++i, sealed == null ? null : sealed.ciphertext(), Types.BINARY);
-            statement.setObject(++i, sealed == null ? null : sealed.nonce(), Types.BINARY);
+            statement.setObject(++i, sealed, Types.BINARY);
             statement.setObject(++i, row.clusterId());
             statement.setObject(++i, row.nodeId());
             statement.setString(++i, row.queueName());

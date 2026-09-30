@@ -13,8 +13,9 @@ import org.springframework.stereotype.Component;
 /**
  * Creates a single administrator account on first boot, when no user account
  * exists yet (identity-and-sessions spec). The generated password is disclosed
- * exactly once, in the startup log, and the account is forced to change it
- * before doing anything else.
+ * exactly once, on standard output, and the account is forced to change it
+ * before doing anything else. It is printed rather than logged on purpose: the
+ * log redacts every credential (ADR-0133), and this one disclosure is the point.
  */
 @Component
 @RequiredArgsConstructor
@@ -37,16 +38,20 @@ public class AdminBootstrap {
         if (!accounts.createFirstAdministrator(ADMIN_USERNAME, passwordEncoder.encode(password))) {
             return;
         }
-        log.warn("""
+        // The one deliberate disclosure, so it bypasses the redacting log (ADR-0133).
+        System.out.printf("""
 
                 ================================================================
                  Artemis Studio: no user accounts found. Created administrator:
 
-                   username: {}
-                   password: {}
+                   username: %s
+                   password: %s
 
                  This password is shown ONLY ONCE. Log in and change it now.
-                ================================================================""", ADMIN_USERNAME, password);
+                ================================================================
+                %n""", ADMIN_USERNAME, password);
+        System.out.flush();
+        log.warn("No user accounts found; created the initial administrator (its one-time password is printed above)");
     }
 
     private String generatePassword() {

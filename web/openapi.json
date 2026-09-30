@@ -817,6 +817,24 @@
         }
       }
     },
+    "/api/v1/settings/secrets/rotations" : {
+      "post" : {
+        "tags" : [ "secrets-controller" ],
+        "operationId" : "rotate",
+        "responses" : {
+          "202" : {
+            "description" : "Accepted",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RotationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles" : {
       "get" : {
         "tags" : [ "roles-controller" ],
@@ -3787,6 +3805,24 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/secrets" : {
+      "get" : {
+        "tags" : [ "secrets-controller" ],
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SecretsStatus"
                 }
               }
             }
@@ -7583,6 +7619,49 @@
         },
         "required" : [ "createdAt", "id", "name", "prefix" ]
       },
+      "RotationView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fromVersion" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "toVersion" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "startedBy" : {
+            "type" : "string"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "rewrapped" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "remaining" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "error" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "fromVersion", "id", "remaining", "rewrapped", "startedAt", "startedBy", "status", "toVersion" ]
+      },
       "GroupMappingRequest" : {
         "type" : "object",
         "properties" : {
@@ -10399,6 +10478,43 @@
           }
         },
         "required" : [ "settings" ]
+      },
+      "SecretsStatus" : {
+        "type" : "object",
+        "properties" : {
+          "provider" : {
+            "type" : "string"
+          },
+          "currentVersion" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "availableVersions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "missingVersions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "countsByVersion" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "lastRotation" : {
+            "$ref" : "#/components/schemas/RotationView"
+          }
+        },
+        "required" : [ "availableVersions", "countsByVersion", "currentVersion", "missingVersions", "provider" ]
       },
       "PermissionView" : {
         "type" : "object",

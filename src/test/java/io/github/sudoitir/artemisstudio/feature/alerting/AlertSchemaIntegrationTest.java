@@ -55,8 +55,8 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
     }
 
     private NotificationChannelEntity channel(String namePrefix, String kind) {
-        NotificationChannelEntity c = channels.save(
-                new NotificationChannelEntity(namePrefix + "-" + UUID.randomUUID(), kind, "{}", null, null));
+        NotificationChannelEntity c =
+                channels.save(new NotificationChannelEntity(namePrefix + "-" + UUID.randomUUID(), kind, "{}", null));
         createdChannels.add(c.getId());
         return c;
     }
@@ -117,9 +117,9 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
     @Test
     void notificationChannelNameIsUnique() {
         String name = "ops-" + UUID.randomUUID();
-        NotificationChannelEntity first = channels.save(new NotificationChannelEntity(name, "SLACK", "{}", null, null));
+        NotificationChannelEntity first = channels.save(new NotificationChannelEntity(name, "SLACK", "{}", null));
         createdChannels.add(first.getId());
-        assertThatThrownBy(() -> channels.save(new NotificationChannelEntity(name, "WEBHOOK", "{}", null, null)))
+        assertThatThrownBy(() -> channels.save(new NotificationChannelEntity(name, "WEBHOOK", "{}", null)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Settings",
-        allowedDependencies = {"kernel.audit", "kernel.core", "kernel.plugin", "kernel.security"})
+        allowedDependencies = {"kernel.audit", "kernel.core", "kernel.jobs", "kernel.plugin", "kernel.security"})
 package io.github.sudoitir.artemisstudio.kernel.settings;
 
 import org.springframework.modulith.ApplicationModule;

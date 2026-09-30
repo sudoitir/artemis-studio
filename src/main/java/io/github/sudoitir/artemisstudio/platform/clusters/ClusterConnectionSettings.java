@@ -37,11 +37,8 @@ class ClusterConnectionSettings implements ConnectionSettingsSource {
         var credential = credentials.findByClusterIdAndKind(clusterId, JOLOKIA_BASIC);
         if (credential.isPresent()) {
             username = credential.get().getUsername();
-            password = vault.decrypt(
-                    clusterId,
-                    JOLOKIA_BASIC,
-                    credential.get().getSecretCt(),
-                    credential.get().getSecretNonce());
+            password = vault.open(
+                    SecretVault.aad(clusterId, JOLOKIA_BASIC), credential.get().getSealed());
         }
 
         BrokerTlsEntity tls = tlsRepository.findByClusterId(clusterId).orElse(null);
@@ -66,8 +63,7 @@ class ClusterConnectionSettings implements ConnectionSettingsSource {
         if (credential == null) {
             return new CoreConnectionSettings(clusterId, null, null, bundle, verifyHostname);
         }
-        String password =
-                vault.decrypt(clusterId, credential.getKind(), credential.getSecretCt(), credential.getSecretNonce());
+        String password = vault.open(SecretVault.aad(clusterId, credential.getKind()), credential.getSealed());
         return new CoreConnectionSettings(clusterId, credential.getUsername(), password, bundle, verifyHostname);
     }
 }

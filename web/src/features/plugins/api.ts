@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
-import { keys as authKeys } from '../../kernel/auth/api.ts';
 
 type Schemas = components['schemas'];
 
@@ -34,11 +33,6 @@ export function violationsOf(error: unknown): PluginViolationView[] {
   if (!(error instanceof ApiError)) return [];
   const listed = error.problem.violations;
   return Array.isArray(listed) ? (listed as PluginViolationView[]) : [];
-}
-
-/** The server wants a fresh sign-in before it acts (ADR-0103). */
-export function needsReauthentication(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && error.type.endsWith('/reauthentication-required');
 }
 
 /** Something is changing right now: watch it closely. */
@@ -156,17 +150,4 @@ export function useGrantInstaller() {
 
 export function useRevokeInstaller() {
   return useInvalidating((userId: string) => request<void>(`${BASE}/installers/${userId}`, { method: 'DELETE' }));
-}
-
-/** Step-up with a password (ADR-0103); refreshes `/auth/me`, which carries when this session last signed in. */
-export function useReauthenticate() {
-  const qc = useQueryClient();
-  return useMutation<Schemas['ReauthenticationView'], ApiError, string>({
-    mutationFn: (password) =>
-      request<Schemas['ReauthenticationView']>('/auth/reauthenticate', {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: authKeys.me }),
-  });
 }

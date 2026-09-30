@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Alert, Button, Code, Group, Modal, Stack, Text } from '@mantine/core';
 
-import { needsReauthentication, useRestartStudio, violationsOf, type StudioRestartView } from './api.ts';
-import { useFreshSignIn } from './freshSignIn.ts';
-import { StepUp } from './StepUp.tsx';
+import { useRestartStudio, violationsOf, type StudioRestartView } from './api.ts';
+import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
+import { needsReauthentication } from '../../kernel/auth/api.ts';
+import { StepUp } from '../../kernel/auth/StepUp.tsx';
 
 /**
  * Restarting Studio for its plugins (ADR-0104): a button, with the same confirmation as any
