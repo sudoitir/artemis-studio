@@ -35,6 +35,6 @@
 ## 7. Finish
 
 - [x] 7.1 Contract 6 (japicmp flags `Command.requires`); plugin template follows
-- [ ] 7.2 Full backend suite at both ends in CI (the local 2.57.0 run was stopped for memory after 166 classes, all green but the snapshot it rewrote); web build, lint, format and tests green
+- [x] 7.2 Full backend suite at both ends in CI (PR #135: every shard at 2.33.0 and 2.57.0 green); web build, lint, format and tests green
 - [x] 7.3 Studio screenshots (light and dark): refused registration, mixed-version check and topology
-- [ ] 7.4 PR, merge on green CI and Sonar, `/opsx:archive`
+- [x] 7.4 PR #135 merged on green CI and SonarCloud; `/opsx:archive`
