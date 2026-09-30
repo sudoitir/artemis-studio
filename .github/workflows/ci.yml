@@ -216,7 +216,8 @@ jobs:
           retention-days: 14
 
   # A break of the public API is refused unless a commit of the PR marks it (ADR-0147): oasdiff
-  # compares web/openapi.json with the latest release's. `just api-diff` runs the same script.
+  # compares web/openapi.json with the one where the branch left main, so only its own breaks count.
+  # `just api-diff` runs the same script.
   api-compat:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.web == 'true'

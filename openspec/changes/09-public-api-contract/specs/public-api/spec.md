@@ -28,7 +28,7 @@ The API version SHALL be the path segment after `/api/` and SHALL be resolved by
 - **THEN** its commit carries the breaking marker (`!` or `BREAKING CHANGE:`), and the change is listed under Breaking in the release notes
 
 ### Requirement: Breaking API changes are detected in CI
-CI SHALL compare the pull request's API document with the document of the latest release. It SHALL fail on a breaking change unless a commit in the pull request carries the breaking marker, and the failure SHALL name each breaking change. The same comparison SHALL be runnable locally.
+CI SHALL compare the pull request's API document with the document of main, which each release publishes. It SHALL fail on a breaking change the pull request introduces unless a commit in the pull request carries the breaking marker, and the failure SHALL name each breaking change. The same comparison SHALL be runnable locally.
 
 #### Scenario: Unflagged break
 - **WHEN** a pull request removes a response field and no commit carries the breaking marker

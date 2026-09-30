@@ -178,7 +178,7 @@ fmt:
 
 # ── api ──────────────────────────────────────────────────────────────────────
 
-# The API-break gate CI runs: web/openapi.json against the latest release tag. Needs Docker.
+# The API-break gate CI runs: web/openapi.json against where the branch left origin/main. Needs Docker.
 [group('quality')]
 api-diff:
     scripts/api-compat.sh
