@@ -73,7 +73,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Installation-wide job locks (ADR-0125, changeset kernel-jobs 0001).
                     "shedlock",
                     // The data lifecycle's purge record (ADR-0132, changeset kernel-lifecycle 0001).
-                    "lifecycle_purge")
+                    "lifecycle_purge",
+                    "storage_sample")
             .map(Pattern::compile)
             .toList();
 

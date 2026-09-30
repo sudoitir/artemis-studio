@@ -4,6 +4,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleService.StoreState;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.StorageHealthService;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,6 +13,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 /** The Data page's API. Durations are in the settings' own syntax ({@code 7d}, {@code 72h}, {@code forever}). */
@@ -103,4 +105,43 @@ public final class DataViews {
             return new PreviewResponse(estimate.rows(), estimate.bytes());
         }
     }
+
+    /**
+     * One table's health, its partitions folded in. Row counts are Postgres' estimates.
+     *
+     * @param growthBytes size now minus a week ago; {@code null} until a week of samples exists
+     * @param missingPartitions coming days with no daily partition
+     * @param problems why it is unhealthy; empty when healthy
+     */
+    public record TableView(
+            @Schema(requiredMode = REQUIRED) String schema,
+            @Schema(requiredMode = REQUIRED) String name,
+            @Schema(requiredMode = REQUIRED) long rows,
+            @Schema(requiredMode = REQUIRED) long deadRows,
+            @Schema(requiredMode = REQUIRED) int deadPercent,
+            Instant lastVacuum,
+            @Schema(requiredMode = REQUIRED) long bytes,
+            Long growthBytes,
+            @Schema(requiredMode = REQUIRED) boolean partitioned,
+            @Schema(requiredMode = REQUIRED) List<LocalDate> missingPartitions,
+            @Schema(requiredMode = REQUIRED) List<String> problems) {
+
+        static TableView of(StorageHealthService.TableHealth t) {
+            return new TableView(
+                    t.schema(),
+                    t.name(),
+                    t.rows(),
+                    t.deadRows(),
+                    t.deadPercent(),
+                    t.lastVacuum(),
+                    t.bytes(),
+                    t.growthBytes(),
+                    t.partitioned(),
+                    t.missingPartitions(),
+                    t.problems());
+        }
+    }
+
+    public record HealthResponse(
+            @Schema(requiredMode = REQUIRED) List<TableView> tables) {}
 }

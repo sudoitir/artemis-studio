@@ -1,10 +1,13 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle.web;
 
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleService;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.StorageHealthService;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.HealthResponse;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.PreviewRequest;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.PreviewResponse;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.StoreView;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.StoresResponse;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.TableView;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.UpdatePolicyRequest;
 import jakarta.validation.Valid;
 import java.util.NoSuchElementException;
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DataController {
 
     private final LifecycleService lifecycle;
+    private final StorageHealthService health;
 
     @GetMapping("/stores")
     public StoresResponse stores() {
@@ -46,6 +50,11 @@ public class DataController {
     @PostMapping("/stores/{id}/preview")
     public PreviewResponse preview(@PathVariable String id, @Valid @RequestBody PreviewRequest request) {
         return PreviewResponse.of(lifecycle.preview(id, request.retention()));
+    }
+
+    @GetMapping("/health")
+    public HealthResponse health() {
+        return new HealthResponse(health.tables().stream().map(TableView::of).toList());
     }
 
     @ExceptionHandler(NoSuchElementException.class)

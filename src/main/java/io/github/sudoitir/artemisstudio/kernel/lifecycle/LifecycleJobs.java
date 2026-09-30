@@ -17,4 +17,14 @@ class LifecycleJobs {
                 () -> settings.value(LifecycleSettings.HOUSEKEEPING_CRON),
                 housekeeper::purgeAll);
     }
+
+    @Bean
+    ScheduledJob storageSampleJob(StorageHealthService health, SettingsService settings) {
+        return ScheduledJob.cron(
+                "storage-sample",
+                LifecycleModule.ID,
+                ScheduledJob.Scope.INSTALLATION,
+                () -> settings.value(LifecycleSettings.STORAGE_SAMPLE_CRON),
+                health::sample);
+    }
 }
