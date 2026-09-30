@@ -30,6 +30,7 @@ _Others_
 * `i.g.s.a.f.s.MessageIndexCapture`
 * `i.g.s.a.f.s.MessageIndexCoverage`
 * `i.g.s.a.f.s.MessageIndexPartitionMaintainer`
+* `i.g.s.a.f.s.MessageIndexStore`
 * `i.g.s.a.f.s.MessageIndexWriter`
 * `i.g.s.a.f.s.MessagePredicate`
 * `i.g.s.a.f.s.MessageVerifier`
@@ -51,6 +52,7 @@ _Others_
 * `i.g.s.a.f.q.DivertOperations` (in Queues)
 * `i.g.s.a.f.q.QueueLifecycleOperations` (in Queues)
 * `i.g.s.a.p.g.ContentSealer` (in Data governance)
+* `i.g.s.a.k.l.LifecycleRegistry` (in Data lifecycle)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.p.s.QueueLocator` (in Scraping)

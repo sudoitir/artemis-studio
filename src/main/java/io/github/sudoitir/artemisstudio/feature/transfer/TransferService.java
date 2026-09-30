@@ -643,11 +643,6 @@ public class TransferService {
                 .toList();
     }
 
-    /** Previews nobody executed; runs are kept. Run daily by {@code TransferJobs}. */
-    public void deleteExpiredPreviews() {
-        runs.deleteExpired(TransferState.PREVIEWED, Instant.now());
-    }
-
     // ---- orphaned staging ------------------------------------------------------
 
     /** Staging queues on this cluster's live nodes that no run knows: left by a run whose record is gone. */

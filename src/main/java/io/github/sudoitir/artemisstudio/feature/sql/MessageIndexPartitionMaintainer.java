@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
@@ -18,29 +19,22 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Daily partition lifecycle for {@code message_index} (ADR-0059). The same problem
+ * Daily partition maintenance for {@code message_index} (ADR-0059). The same problem
  * and the same maneuver as {@link MetricPartitionMaintainer}: create tomorrow's
- * partition before rows need it, and reclaim expired payload by dropping whole
- * ranges rather than deleting rows one at a time.
+ * partition before rows need it. Reclaiming what has outlived the store's retention,
+ * which caps every subscription's, is {@link MessageIndexStore}'s purge (ADR-0132).
  *
- * <p>Retention differs from metrics in one way that matters. Each subscription
- * carries its own retention, and a partition holds rows from every subscription, so
- * a partition can only be dropped once it is older than the <em>longest</em>
- * retention in the estate. A subscription with a shorter window would otherwise keep
- * its payload for someone else's retention, so rows that outlive their own
- * subscription are removed by a bulk range delete first — still set-based, still one
- * statement per subscription, and it is the only way a per-subscription promise can
- * be kept on a shared partition.
- *
- * <p>When there is no subscription at all the index is dead weight: every partition
- * is expired and the whole thing drains away without an operator asking.
+ * <p>Each subscription may carry a shorter retention than the store, and a partition
+ * holds rows from every subscription, so the store cannot honour that by dropping a
+ * partition. Rows that outlive their own subscription are removed here by a bulk range
+ * delete — still set-based, still one statement per retention — which is the only way a
+ * per-subscription promise can be kept on a shared partition.
  */
 @Component
 @Slf4j
 public class MessageIndexPartitionMaintainer {
 
     private static final int CREATE_AHEAD_DAYS = 3;
-    private static final int NO_SUBSCRIPTION_RETENTION_DAYS = 1;
     private static final java.time.format.DateTimeFormatter SUFFIX =
             java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -48,6 +42,7 @@ public class MessageIndexPartitionMaintainer {
     private final MessageIndexSubscriptionRepository subscriptions;
     private final QueueSnapshots snapshots;
     private final CaptureAddresses captureAddresses;
+    private final LifecycleRegistry lifecycle;
     private final org.springframework.transaction.support.TransactionTemplate transactions;
 
     public MessageIndexPartitionMaintainer(
@@ -55,11 +50,13 @@ public class MessageIndexPartitionMaintainer {
             MessageIndexSubscriptionRepository subscriptions,
             QueueSnapshots snapshots,
             CaptureAddresses captureAddresses,
+            LifecycleRegistry lifecycle,
             org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.jdbc = jdbc;
         this.subscriptions = subscriptions;
         this.snapshots = snapshots;
         this.captureAddresses = captureAddresses;
+        this.lifecycle = lifecycle;
         this.transactions = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     }
 
@@ -67,7 +64,6 @@ public class MessageIndexPartitionMaintainer {
     public void maintain() {
         createAhead();
         expirePerSubscription();
-        dropExpired();
     }
 
     /**
@@ -128,24 +124,25 @@ public class MessageIndexPartitionMaintainer {
 
     /**
      * Remove what has outlived its own subscription while its partition is still
-     * needed by a longer-retention one.
+     * needed by a longer-retention one, or by the store's own retention.
      *
      * <p>Retention belongs to a queue, not to a subscription: two subscriptions can
      * match the same queue, and the longer of them is the promise that queue is kept
      * under. So the queues are resolved in Java — the pattern is an Artemis wildcard,
      * not a SQL {@code LIKE} — grouped by the longest retention that claims them, and
-     * deleted one range at a time. A queue held for the estate's longest window is
-     * skipped entirely; {@link #dropExpired()} reclaims it by dropping the partition.
+     * deleted one range at a time. A queue held for the store's whole retention is
+     * skipped entirely; {@link MessageIndexStore} reclaims it by dropping the partition.
      */
     private void expirePerSubscription() {
-        int longest = longestRetentionDays();
+        int storeDays =
+                (int) lifecycle.retention(MessageIndexStore.ID).orElseThrow().toDays();
         for (UUID clusterId : subscriptions.findAll().stream()
                 .map(MessageIndexSubscriptionEntity::getClusterId)
                 .distinct()
                 .toList()) {
             Map<Integer, List<String>> byRetention = queuesByRetention(clusterId);
             byRetention.forEach((retentionDays, queues) -> {
-                if (retentionDays >= longest || queues.isEmpty()) {
+                if (retentionDays >= storeDays || queues.isEmpty()) {
                     return;
                 }
                 Instant cutoff = Instant.now().minus(Duration.ofDays(retentionDays));
@@ -194,40 +191,5 @@ public class MessageIndexPartitionMaintainer {
         longest.forEach((name, retention) ->
                 byRetention.computeIfAbsent(retention, k -> new ArrayList<>()).add(name));
         return byRetention;
-    }
-
-    private int longestRetentionDays() {
-        return subscriptions.findAll().stream()
-                .mapToInt(MessageIndexSubscriptionEntity::getRetentionDays)
-                .max()
-                .orElse(NO_SUBSCRIPTION_RETENTION_DAYS);
-    }
-
-    private void dropExpired() {
-        LocalDate cutoff = LocalDate.now().minusDays(longestRetentionDays());
-        // The default partition is never dropped, so expired rows that landed there
-        // — everything written before this ever ran, and anything stamped further
-        // ahead than partitions exist for — are deleted rather than kept forever.
-        jdbc.getJdbcTemplate()
-                .update("DELETE FROM message_index_default WHERE observed_at < ?", java.sql.Date.valueOf(cutoff));
-        List<String> partitions = jdbc.getJdbcTemplate().queryForList("""
-                        SELECT c.relname FROM pg_inherits i
-                          JOIN pg_class c ON c.oid = i.inhrelid
-                          JOIN pg_class p ON p.oid = i.inhparent
-                         WHERE p.relname = 'message_index'
-                           AND c.relname ~ '^message_index_[0-9]{8}$'
-                        """, String.class);
-        for (String name : partitions) {
-            LocalDate day = LocalDate.parse(name.substring("message_index_".length()), SUFFIX);
-            if (!day.plusDays(1).isAfter(cutoff)) {
-                // Plain DETACH, not CONCURRENTLY: Postgres refuses a concurrent detach
-                // on a partitioned table that keeps a DEFAULT partition, and this one
-                // does. The catalog update takes ACCESS EXCLUSIVE for milliseconds and
-                // scans no rows.
-                jdbc.getJdbcTemplate().execute("ALTER TABLE message_index DETACH PARTITION %s".formatted(name));
-                jdbc.getJdbcTemplate().execute("DROP TABLE %s".formatted(name));
-                log.info("Dropped expired message_index partition {}", name);
-            }
-        }
     }
 }

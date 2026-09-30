@@ -2,7 +2,10 @@ package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -11,11 +14,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-/** {@link BrokerEventReaper} against a real Postgres: rows past the window go, recent rows stay. */
-class BrokerEventReaperTest extends PostgresIntegrationTest {
+/** {@link BrokerEventStore} against a real Postgres: only rows past the cutoff go, in bounded batches. */
+class BrokerEventStoreTest extends PostgresIntegrationTest {
 
     @Autowired
-    BrokerEventReaper reaper;
+    BrokerEventStore store;
 
     @Autowired
     NamedParameterJdbcTemplate jdbc;
@@ -26,7 +29,7 @@ class BrokerEventReaperTest extends PostgresIntegrationTest {
     void seedCluster() {
         jdbc.update(
                 "INSERT INTO cluster (id, name) VALUES (:id, :name)",
-                Map.of("id", clusterId, "name", "reaper-" + clusterId));
+                Map.of("id", clusterId, "name", "events-store-" + clusterId));
     }
 
     @AfterEach
@@ -47,15 +50,37 @@ class BrokerEventReaperTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void reapDeletesRowsPastTheWindowAndKeepsRecentOnes() {
+    void previewCountsOldRowsAndDeletesNothing() {
         event(80);
-        event(72);
+        event(75);
         event(1);
+        Instant cutoff = Instant.now().minus(72, ChronoUnit.HOURS);
+
+        PurgeEstimate estimate = store.preview(cutoff);
+
+        assertThat(estimate.rows()).isGreaterThanOrEqualTo(2);
         assertThat(remaining()).isEqualTo(3);
+    }
 
-        reaper.setRetentionHours(71);
-        reaper.reap();
+    @Test
+    void purgeBatchRemovesOnlyRowsPastTheCutoffAndEndsAtZero() {
+        for (int i = 0; i < 5; i++) {
+            event(80 + i);
+        }
+        event(71);
+        event(1);
+        Instant cutoff = Instant.now().minus(72, ChronoUnit.HOURS);
 
-        assertThat(remaining()).isEqualTo(1);
+        long total = 0;
+        long batch;
+        do {
+            batch = store.purgeBatch(cutoff, 2);
+            assertThat(batch).isLessThanOrEqualTo(2);
+            total += batch;
+        } while (batch > 0);
+
+        assertThat(total).isGreaterThanOrEqualTo(5);
+        assertThat(remaining()).isEqualTo(2);
+        assertThat(store.purgeBatch(cutoff, 2)).isZero();
     }
 }

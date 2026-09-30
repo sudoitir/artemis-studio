@@ -20,7 +20,6 @@ _Others_
 * `i.g.s.a.f.r.ReplyAddressResolver`
 * `i.g.s.a.f.r.RrDeadlineSweep`
 * `i.g.s.a.f.r.RrFeature`
-* `i.g.s.a.f.r.RrFlowReaper`
 * `i.g.s.a.f.r.RrNotificationObserver`
 * `i.g.s.a.f.r.RrSampler`
 * `i.g.s.a.f.r.RrSamplerHealth`

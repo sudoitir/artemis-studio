@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,9 @@ class RrPayloads {
     private static final String TRUNCATED = "truncated";
     private static final String POLICY_VERSION = "policyVersion";
     private static final String SEALED = "sealed";
+
+    /** Every {@code rr_event.detail} key that belongs to a captured payload; the data lifecycle strips them together. */
+    static final List<String> KEYS = List.of(BODY_PREVIEW, TRUNCATED, POLICY_VERSION, SEALED, NONCE);
 
     private final ContentPolicy policy;
     private final ContentSealer sealer;

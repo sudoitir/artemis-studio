@@ -4,11 +4,12 @@ import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricNo
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricPoint;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeries;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
+import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleStore;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.NodeBucket;
@@ -52,20 +53,20 @@ public class MetricQueryService {
     public static final String SPLIT_BY_NODE = "NODE";
 
     private final MetricSamples repository;
-    private final MetricSampleReaper reaper;
+    private final LifecycleRegistry lifecycle;
     private final ClusterAccessGuard clusterAccess;
     private final ClusterDirectory directory;
     private final PluginMetrics pluginMetrics;
 
     public MetricQueryService(
             MetricSamples repository,
-            MetricSampleReaper reaper,
+            LifecycleRegistry lifecycle,
             ClusterAccessGuard clusterAccess,
             ClusterDirectory directory,
             PluginMetrics pluginMetrics) {
         this.pluginMetrics = pluginMetrics;
         this.repository = repository;
-        this.reaper = reaper;
+        this.lifecycle = lifecycle;
         this.clusterAccess = clusterAccess;
         this.directory = directory;
     }
@@ -186,7 +187,8 @@ public class MetricQueryService {
     /** The window clamped to retention, and the step clamped to the fastest tier and the point cap. */
     private Window window(Instant from, Instant to, Duration requestedStep) {
         boolean truncated = false;
-        Instant retentionFloor = Instant.now().minus(Duration.ofDays(reaper.retentionDays()));
+        Instant retentionFloor =
+                Instant.now().minus(lifecycle.retention(MetricSampleStore.ID).orElseThrow());
         Instant effectiveFrom = from;
         if (effectiveFrom.isBefore(retentionFloor)) {
             effectiveFrom = retentionFloor;

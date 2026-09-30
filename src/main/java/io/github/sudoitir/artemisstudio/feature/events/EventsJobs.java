@@ -28,14 +28,4 @@ class EventsJobs {
     ShutdownStep brokerEventsShutdown(BrokerEventWriter writer) {
         return new ShutdownStep("broker-events", ShutdownPhases.BUFFERS, writer::drain);
     }
-
-    @Bean
-    ScheduledJob eventsReaperJob(BrokerEventReaper reaper, SettingsService settings) {
-        return ScheduledJob.cron(
-                "events-reaper",
-                "events",
-                ScheduledJob.Scope.INSTALLATION,
-                () -> settings.value(EventsSettings.REAPER_CRON),
-                reaper::reap);
-    }
 }

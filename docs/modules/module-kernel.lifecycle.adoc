@@ -6,13 +6,17 @@
 |_Services_
 
 * `i.g.s.a.k.l.LifecycleService`
+* `i.g.s.a.k.l.StorageHealthService`
 
 _Others_
 
+* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.AuditStore`)
+* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ExpiredSessionStore`)
 * `i.g.s.a.k.l.Housekeeper`
 * `i.g.s.a.k.l.LifecycleRegistry`
 * `i.g.s.a.k.l.LifecycleSettings`
 * `i.g.s.a.k.l.PurgeStatus`
+* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.StorageSampleStore`)
 |Bean references
 |* `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.k.s.SettingsService` (in Settings)

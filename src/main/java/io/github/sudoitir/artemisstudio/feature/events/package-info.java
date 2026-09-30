@@ -5,6 +5,7 @@
         displayName = "Broker events",
         allowedDependencies = {
             "kernel.jobs",
+            "kernel.lifecycle",
             "kernel.plugin",
             "kernel.security",
             "kernel.settings",

@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
@@ -55,6 +56,7 @@ public class MessageIndexService {
     private final CaptureTap tap;
     private final CaptureProperties captureProperties;
     private final io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance instance;
+    private final LifecycleRegistry lifecycle;
 
     /** What creating a capture subscription would do on the broker, resolved without changing anything. */
     public record Preview(
@@ -195,7 +197,10 @@ public class MessageIndexService {
         entity.setClusterId(clusterId);
         entity.setQueuePattern(pattern);
         entity.setIntervalMs(spec.intervalMs() == null ? 5000L : validInterval(spec.intervalMs()));
-        entity.setRetentionDays(spec.retentionDays() == null ? 7 : validRetention(spec.retentionDays()));
+        entity.setRetentionDays(
+                spec.retentionDays() == null
+                        ? Math.min(7, storeRetentionDays())
+                        : validRetention(spec.retentionDays()));
         entity.setCaptureFrom(Instant.now());
         entity.setCreatedAt(Instant.now());
         entity.setCreatedBy(actorName());
@@ -385,8 +390,18 @@ public class MessageIndexService {
         return inRange("intervalMs", intervalMs, 1000, 3_600_000);
     }
 
-    private static int validRetention(int retentionDays) {
-        return (int) inRange("retentionDays", retentionDays, 1, 90);
+    /** The message-index store's retention in whole days: the most any subscription may keep (ADR-0132). */
+    private int storeRetentionDays() {
+        return (int) lifecycle.retention(MessageIndexStore.ID).orElseThrow().toDays();
+    }
+
+    private int validRetention(int retentionDays) {
+        int max = storeRetentionDays();
+        if (retentionDays < 1 || retentionDays > max) {
+            throw new IllegalArgumentException("retentionDays must be between 1 and " + max
+                    + ", the message index's retention; got " + retentionDays + ".");
+        }
+        return retentionDays;
     }
 
     private static long inRange(String field, long value, long min, long max) {

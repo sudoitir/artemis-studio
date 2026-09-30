@@ -1,24 +1,20 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import java.time.LocalDate;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Daily partition lifecycle for {@code metric_sample} (ADR-0006, ADR-0033). Creates
+ * Daily partition creation for {@code metric_sample} (ADR-0006, ADR-0033). Creates
  * today's partition plus a few days ahead so a missed run never causes an insert to
- * fail, and drops partitions once their entire date range is older than the
- * retention window.
+ * fail. Dropping expired partitions is the {@code metrics} store's purge
+ * ({@link MetricSampleStore}, ADR-0132).
  *
  * <p>Mirrors changeset {@code 012-metric-partitions.sql}'s bootstrap DO block —
  * that changeset only covers the moment migrations finish; this is the ongoing
- * schedule. Drops go through {@code DETACH CONCURRENTLY} then {@code DROP TABLE}
- * rather than {@code DROP TABLE} directly on an attached partition, which would
- * take an {@code ACCESS EXCLUSIVE} lock on the parent and stall concurrent scrape
- * inserts (design.md, Decision 4).
+ * schedule.
  */
 @Component
 @Slf4j
@@ -29,23 +25,16 @@ public class MetricPartitionMaintainer {
             java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final MetricSampleReaper reaper;
     private final TransactionTemplate transactions;
 
-    public MetricPartitionMaintainer(
-            NamedParameterJdbcTemplate jdbc, MetricSampleReaper reaper, TransactionTemplate transactions) {
+    public MetricPartitionMaintainer(NamedParameterJdbcTemplate jdbc, TransactionTemplate transactions) {
         this.jdbc = jdbc;
-        this.reaper = reaper;
         this.transactions = transactions;
     }
 
-    /**
-     * Runs once shortly after the reaper, at a quiet hour. Both are idempotent, and
-     * both are scheduled by {@code JobScheduler} on a settings-driven cron.
-     */
+    /** Scheduled by {@code JobScheduler} on a settings-driven cron, at a quiet hour. Idempotent. */
     public void maintain() {
         createAhead();
-        dropExpired();
     }
 
     /**
@@ -112,32 +101,7 @@ public class MetricPartitionMaintainer {
         return Boolean.TRUE.equals(exists);
     }
 
-    private void dropExpired() {
-        LocalDate cutoff = LocalDate.now().minusDays(reaper.retentionDays());
-        List<String> partitions = jdbc.getJdbcTemplate().queryForList("""
-                        SELECT c.relname FROM pg_inherits i
-                          JOIN pg_class c ON c.oid = i.inhrelid
-                          JOIN pg_class p ON p.oid = i.inhparent
-                         WHERE p.relname = 'metric_sample'
-                           AND c.relname ~ '^metric_sample_[0-9]{8}$'
-                        """, String.class);
-        for (String name : partitions) {
-            LocalDate day = LocalDate.parse(name.substring("metric_sample_".length()), SUFFIX);
-            if (!day.plusDays(1).isAfter(cutoff)) {
-                // CONCURRENTLY is not an option here: Postgres refuses a concurrent
-                // detach on a partitioned table that carries a DEFAULT partition
-                // (kept permanently, see MetricSampleReaper), so this is a plain
-                // synchronous DETACH. It still briefly takes ACCESS EXCLUSIVE on the
-                // parent, but only for a catalog update — no row scan — so the hold
-                // is on the order of milliseconds regardless of partition size.
-                jdbc.getJdbcTemplate().execute("ALTER TABLE metric_sample DETACH PARTITION %s".formatted(name));
-                jdbc.getJdbcTemplate().execute("DROP TABLE %s".formatted(name));
-                log.info("Dropped expired metric_sample partition {}", name);
-            }
-        }
-    }
-
-    /** Test/ops hook — the settings-driven retention window can change without a restart. */
+    /** Test/ops hook. */
     public void maintainNow() {
         maintain();
     }

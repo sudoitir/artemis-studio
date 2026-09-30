@@ -330,11 +330,6 @@ public class BulkService {
                 .toList();
     }
 
-    /** Previews nobody executed; finished runs are kept. Run daily by {@code BulkJobs}. */
-    public void deleteExpiredPreviews() {
-        runs.deleteExpired(BulkRunStatus.PREVIEWED, Instant.now());
-    }
-
     private BulkRunEntity load(UUID clusterId, UUID runId) {
         return runs.findByIdAndClusterId(runId, clusterId).orElseThrow(() -> new NotFoundException("bulk run", runId));
     }

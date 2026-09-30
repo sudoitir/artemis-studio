@@ -23,6 +23,9 @@ spring:
       # initializer (ADR-0011).
       initialize-schema: never
       table-name: spring_session
+      # The data lifecycle purges expired sessions once per installation (expired-sessions
+      # store, ADR-0132); "-" turns off Spring Session's own cleanup, which every instance ran.
+      cleanup-cron: "-"
 
   # OIDC/SSO (ADR-0040) is opt-in: with no `spring.security.oauth2.client.registration.*`
   # entry configured, Spring Boot's OAuth2 client auto-configuration backs off
@@ -161,11 +164,8 @@ artemis-studio:
     read-timeout: 10s
     clock-skew-tolerance-ms: 2000  # a broker clock further off than this is called skew (ADR-0053)
   metric:
-    # Raw metric_sample retention in days (ADR-0006). MetricSampleReaper trims
-    # older rows nightly.
-    retention-days: 7
-    reaper-cron: "0 30 3 * * *"               # MetricSampleReaper
-    partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer, just before it
+    # Raw metric_sample retention is the "metrics" store's policy (ADR-0132).
+    partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer: creates the days ahead
   mcp:
     # Result caps for the MCP surface (ADR-0045); tighter than REST's on purpose.
     # A mutation ceiling is NOT set here — that inherits safety.bulk-cap below.
@@ -190,10 +190,8 @@ artemis-studio:
   events:
     # Broker-event history (ADR-0028). coalesce-window-millis is the only
     # compile-time value here — TopicCoalescer reads it once at construction.
-    retention: 72h            # BrokerEventReaper trims older rows hourly
     buffer-size: 10000        # bounded write buffer; overflow is dropped and counted
     flush: 1s                 # BrokerEventWriter batch-insert interval
-    reaper-cron: "0 15 * * * *"   # BrokerEventReaper
     coalesce-window-millis: 1000  # derived resource-view SSE signal coalescing (slice 3)
   rr:
     # Request-reply tracing (Phase 5). percentile-window is the only compile-time
@@ -204,8 +202,6 @@ artemis-studio:
     sample-interval: 5s            # RrSampler cadence
     percentile-window: 15m         # Micrometer Timer distributionStatisticExpiry
     payload-capture-bytes: 4096    # captured request/reply body cap when an expectation enables capture
-    retention: 7d                  # RrFlowReaper trims older rr_flow/rr_event rows
-    reaper-cron: "0 20 3 * * *"    # RrFlowReaper
   flow:
     # Client-activity sampling for the flow view (ADR-0081). Runs only while a cluster's
     # flow is observed; one listProducers + listConsumers POST per serving node per sweep.

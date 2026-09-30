@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.feature.transfer.TransferState;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -35,9 +34,4 @@ public interface TransferRunRepository extends JpaRepository<TransferRunEntity, 
     @Transactional
     @Query("update TransferRunEntity r set r.state = :to where r.id = :id and r.state in :from")
     int transition(@Param("id") UUID id, @Param("from") Collection<TransferState> from, @Param("to") TransferState to);
-
-    @Modifying
-    @Transactional
-    @Query("delete from TransferRunEntity r where r.state = :state and r.expiresAt < :now")
-    int deleteExpired(@Param("state") TransferState state, @Param("now") Instant now);
 }
