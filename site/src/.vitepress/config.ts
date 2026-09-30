@@ -81,6 +81,7 @@ export default defineConfig({
               { text: 'Alert delivery', link: '/guide/alert-delivery' },
               { text: 'MCP server', link: '/guide/mcp' },
               { text: 'Plugins', link: '/guide/plugins' },
+              { text: 'Verify a release', link: '/guide/verify-releases' },
             ],
           },
           reference({
