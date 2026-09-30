@@ -846,10 +846,37 @@
         }
       }
     },
+    "/api/v1/tokens/{tokenId}/rotate" : {
+      "post" : {
+        "tags" : [ "tokens-controller" ],
+        "operationId" : "rotate",
+        "parameters" : [ {
+          "name" : "tokenId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedTokenView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/secrets/rotations" : {
       "post" : {
         "tags" : [ "secrets-controller" ],
-        "operationId" : "rotate",
+        "operationId" : "rotate_1",
         "responses" : {
           "202" : {
             "description" : "Accepted",
@@ -3777,6 +3804,60 @@
         }
       }
     },
+    "/api/v1/tokens/{tokenId}/usage" : {
+      "get" : {
+        "tags" : [ "tokens-controller" ],
+        "operationId" : "usage",
+        "parameters" : [ {
+          "name" : "tokenId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "days",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 7
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tokens/policy" : {
+      "get" : {
+        "tags" : [ "tokens-controller" ],
+        "operationId" : "policy",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenPolicyView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/time" : {
       "get" : {
         "tags" : [ "time-controller" ],
@@ -3908,6 +3989,27 @@
                   "type" : "array",
                   "items" : {
                     "$ref" : "#/components/schemas/PermissionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/tools" : {
+      "get" : {
+        "tags" : [ "mcp-tools-controller" ],
+        "operationId" : "list_9",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/McpToolView"
                   }
                 }
               }
@@ -4881,7 +4983,7 @@
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -5642,7 +5744,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_10",
+        "operationId" : "list_11",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -5968,10 +6070,67 @@
         }
       }
     },
+    "/api/v1/admin/tokens" : {
+      "get" : {
+        "tags" : [ "admin-tokens-controller" ],
+        "operationId" : "list_12",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TokenView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tokens/{tokenId}/usage" : {
+      "get" : {
+        "tags" : [ "admin-tokens-controller" ],
+        "operationId" : "usage_1",
+        "parameters" : [ {
+          "name" : "tokenId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "days",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 7
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsageView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/plugins" : {
       "get" : {
         "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "list_11",
+        "operationId" : "list_13",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -6254,6 +6413,26 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tokens/{tokenId}" : {
+      "delete" : {
+        "tags" : [ "admin-tokens-controller" ],
+        "operationId" : "revoke_1",
+        "parameters" : [ {
+          "name" : "tokenId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         }
       }
@@ -7667,7 +7846,7 @@
             "minLength" : 1
           },
           "expiresAt" : {
-            "type" : [ "string", "null" ],
+            "type" : "string",
             "format" : "date-time"
           },
           "grants" : {
@@ -7676,9 +7855,17 @@
               "$ref" : "#/components/schemas/TokenGrantRequest"
             },
             "minItems" : 1
+          },
+          "mcpTools" : {
+            "type" : [ "array", "null" ],
+            "description" : "MCP tools the token may call; empty or absent means every tool",
+            "items" : {
+              "type" : "string",
+              "minLength" : 1
+            }
           }
         },
-        "required" : [ "grants", "name" ]
+        "required" : [ "expiresAt", "grants", "name" ]
       },
       "TokenGrantRequest" : {
         "type" : "object",
@@ -7710,6 +7897,22 @@
         },
         "required" : [ "token", "value" ]
       },
+      "TokenGrantView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "scopeType" : {
+            "type" : "string"
+          },
+          "scopeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "action", "scopeId", "scopeType" ]
+      },
       "TokenView" : {
         "type" : "object",
         "properties" : {
@@ -7720,11 +7923,14 @@
           "name" : {
             "type" : "string"
           },
+          "owner" : {
+            "type" : "string"
+          },
           "prefix" : {
             "type" : "string"
           },
           "expiresAt" : {
-            "type" : [ "string", "null" ],
+            "type" : "string",
             "format" : "date-time"
           },
           "lastUsedAt" : {
@@ -7738,9 +7944,28 @@
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "previousValidUntil" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "grants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TokenGrantView"
+            }
+          },
+          "mcpTools" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "stale" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "createdAt", "id", "name", "prefix" ]
+        "required" : [ "createdAt", "expiresAt", "grants", "id", "mcpTools", "name", "owner", "prefix", "stale" ]
       },
       "RotationView" : {
         "type" : "object",
@@ -10516,6 +10741,82 @@
         },
         "required" : [ "action", "effective", "roleId", "roleName", "scopeType", "via" ]
       },
+      "UsageDayView" : {
+        "type" : "object",
+        "properties" : {
+          "day" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "requests" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "denied" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "limited" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "errors" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "day", "denied", "errors", "limited", "requests" ]
+      },
+      "UsageView" : {
+        "type" : "object",
+        "properties" : {
+          "days" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requests" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "denied" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "limited" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "errors" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "perDay" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UsageDayView"
+            }
+          }
+        },
+        "required" : [ "days", "denied", "errors", "limited", "perDay", "requests" ]
+      },
+      "TokenPolicyView" : {
+        "type" : "object",
+        "properties" : {
+          "maxLifetime" : {
+            "type" : "string",
+            "description" : "ISO-8601 duration"
+          },
+          "latestExpiry" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "rotationOverlap" : {
+            "type" : "string",
+            "description" : "ISO-8601 duration"
+          }
+        },
+        "required" : [ "latestExpiry", "maxLifetime", "rotationOverlap" ]
+      },
       "TimeView" : {
         "type" : "object",
         "properties" : {
@@ -10683,6 +10984,22 @@
           }
         },
         "required" : [ "action", "featureId", "featureTitle", "globalOnly", "label" ]
+      },
+      "McpToolView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "posture" : {
+            "type" : "string",
+            "enum" : [ "READ", "MUTATE" ]
+          },
+          "summary" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "posture", "summary" ]
       },
       "ManifestFeatureView" : {
         "type" : "object",

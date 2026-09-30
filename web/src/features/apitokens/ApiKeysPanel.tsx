@@ -1,81 +1,42 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActionIcon,
   Alert,
-  Badge,
   Button,
-  Checkbox,
-  CopyButton,
+  Drawer,
   Group,
   Modal,
-  ScrollArea,
-  Select,
   Stack,
   Table,
   Text,
-  TextInput,
+  Tooltip,
+  VisuallyHidden,
 } from '@mantine/core';
-import { IconCopy, IconTrash } from '@tabler/icons-react';
+import { IconChartBar, IconRefresh, IconTrash } from '@tabler/icons-react';
 
-import { useClusters } from '../clusters/index.ts';
-import { useCreateToken, useRevokeToken, useTokens, type TokenGrantRequest } from './api.ts';
-import { usePermissionsCatalogue } from '../security/index.ts';
+import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { serverNow } from '../../kernel/time/time.ts';
-import { useCan } from '../../kernel/auth/useCan.ts';
-
-const GLOBAL = 'GLOBAL';
+import { useRevokeToken, useRotateToken, useTokens, type CreatedTokenView, type TokenView } from './api.ts';
+import { MintKeyForm } from './MintKeyForm.tsx';
+import { formatInstant } from './format.ts';
+import { OneTimeSecret, TokenStatus, TokenUsagePanel } from './TokenParts.tsx';
 
 /**
- * Personal API keys (ADR-0039), and the only place a key is minted. A key is the
- * credential the MCP surface authenticates with (ADR-0046), which is why the
- * permission picker matters: a key created with no grants can sign in and do
- * nothing, and a model given one reports "no cluster visible" rather than
- * anything a user can act on.
- *
- * <p>The picker offers only permissions the signed-in user actually holds. The
- * server intersects the requested grants with the owner's live grants anyway, so
- * this cannot escalate — offering more would just mint keys that silently lose
- * half of what was ticked.
+ * Personal API keys (ADR-0039), and the only place a key is minted or rotated (ADR-0134). A key is
+ * the credential the MCP surface authenticates with (ADR-0046), which is why minting asks for its
+ * grants: a key created with no grants can sign in and do nothing.
  */
 export function ApiKeysPanel() {
   const tokens = useTokens();
-  const create = useCreateToken();
-  const revoke = useRevokeToken();
-  const catalogue = usePermissionsCatalogue();
-  const clusters = useClusters();
-  const { can } = useCan();
-
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
-  const [scope, setScope] = useState<string>(GLOBAL);
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [mintedValue, setMintedValue] = useState<string | null>(null);
+  const [minted, setMinted] = useState<CreatedTokenView | null>(null);
+  const [rotating, setRotating] = useState<TokenView | null>(null);
+  const [revoking, setRevoking] = useState<TokenView | null>(null);
+  const [usageOf, setUsageOf] = useState<TokenView | null>(null);
 
-  const clusterId = scope === GLOBAL ? undefined : scope;
-
-  // What the user can actually delegate at the selected scope. A wildcard grant
-  // makes every catalogued permission available; `can` resolves that.
-  const available = useMemo(
-    () => (catalogue.data ?? []).filter((p) => can(p.action, clusterId)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [catalogue.data, clusterId],
-  );
-
-  const close = () => {
+  const closeCreate = () => {
     setCreating(false);
-    setMintedValue(null);
-    setName('');
-    setChosen([]);
-    setScope(GLOBAL);
-  };
-
-  const submit = () => {
-    const grants: TokenGrantRequest[] = chosen.map((action) => ({
-      action,
-      scopeType: scope === GLOBAL ? GLOBAL : 'CLUSTER',
-      scopeId: scope === GLOBAL ? null : scope,
-    }));
-    create.mutate({ name, expiresAt: undefined, grants }, { onSuccess: (created) => setMintedValue(created.value) });
+    setMinted(null);
   };
 
   return (
@@ -89,120 +50,187 @@ export function ApiKeysPanel() {
         </Button>
       </Group>
 
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Name</Table.Th>
-            <Table.Th>Prefix</Table.Th>
-            <Table.Th>Status</Table.Th>
-            <Table.Th>Last used</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {(tokens.data ?? []).map((t) => (
-            <Table.Tr key={t.id}>
-              <Table.Td>
-                <Text size="sm">{t.name}</Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="xs" ff="monospace" c="dimmed">
-                  {t.prefix}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                {t.revokedAt ? (
-                  <Badge size="xs" color="red" variant="light">
-                    revoked
-                  </Badge>
-                ) : t.expiresAt && Date.parse(t.expiresAt) < serverNow() ? (
-                  <Badge size="xs" color="orange" variant="light">
-                    expired
-                  </Badge>
-                ) : (
-                  <Badge size="xs" color="green" variant="light">
-                    active
-                  </Badge>
-                )}
-              </Table.Td>
-              <Table.Td>
-                <Text size="xs" c="dimmed">
-                  {t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : 'never'}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                {!t.revokedAt ? (
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    onClick={() => revoke.mutate(t.id)}
-                    aria-label={`Revoke ${t.name}`}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                ) : null}
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
+      {tokens.isError ? (
+        <Alert color="red" title="Your keys could not be loaded">
+          {tokens.error.message} Reload the page to try again.
+        </Alert>
+      ) : tokens.data?.length === 0 ? (
+        <Text size="sm" c="dimmed">
+          You have no keys. A key lets a script or an assistant act as you, with the permissions you choose, until it
+          expires or you revoke it.
+        </Text>
+      ) : (
+        <KeysTable tokens={tokens.data ?? []} onRotate={setRotating} onRevoke={setRevoking} onUsage={setUsageOf} />
+      )}
 
-      <Modal opened={creating} onClose={close} title="New API key">
-        {mintedValue ? (
-          <Stack gap="sm">
-            <Alert color="yellow">This value is shown once. Copy it now — it cannot be retrieved again.</Alert>
-            <Group>
-              <TextInput value={mintedValue} readOnly style={{ flex: 1 }} ff="monospace" aria-label="API key" />
-              <CopyButton value={mintedValue}>
-                {({ copy }) => (
-                  <ActionIcon onClick={copy} aria-label="Copy key">
-                    <IconCopy size={16} />
-                  </ActionIcon>
-                )}
-              </CopyButton>
-            </Group>
-          </Stack>
-        ) : (
-          <Stack gap="sm">
-            <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
-            <Select
-              label="Scope"
-              description="Where the key's permissions apply."
-              value={scope}
-              onChange={(v) => {
-                setScope(v ?? GLOBAL);
-                setChosen([]);
-              }}
-              data={[
-                { value: GLOBAL, label: 'Global — every cluster' },
-                ...(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-              ]}
-            />
-            <Checkbox.Group
-              label="Permissions"
-              description="Only what you hold at this scope is offered."
-              value={chosen}
-              onChange={setChosen}
-            >
-              <ScrollArea.Autosize mah={220} mt="xs">
-                <Stack gap="xs">
-                  {available.map((p) => (
-                    <Checkbox key={p.action} value={p.action} label={p.label} />
-                  ))}
-                  {available.length === 0 ? (
-                    <Text size="xs" c="dimmed">
-                      You hold nothing at this scope, so a key made here could do nothing.
-                    </Text>
-                  ) : null}
-                </Stack>
-              </ScrollArea.Autosize>
-            </Checkbox.Group>
-            <Button loading={create.isPending} disabled={!name || chosen.length === 0} onClick={submit}>
-              Create
-            </Button>
-          </Stack>
-        )}
+      <Modal opened={creating} onClose={closeCreate} title="New API key" size="lg">
+        {minted ? <OneTimeSecret value={minted.value} /> : <MintKeyForm onMinted={setMinted} />}
       </Modal>
+
+      <RotateModal token={rotating} onClose={() => setRotating(null)} />
+      <RevokeModal token={revoking} onClose={() => setRevoking(null)} />
+
+      <Drawer
+        opened={usageOf !== null}
+        onClose={() => setUsageOf(null)}
+        position="right"
+        title={usageOf ? `Usage of ${usageOf.name}` : ''}
+      >
+        {usageOf ? <TokenUsagePanel scope="own" tokenId={usageOf.id} /> : null}
+      </Drawer>
     </Stack>
+  );
+}
+
+function KeysTable({
+  tokens,
+  onRotate,
+  onRevoke,
+  onUsage,
+}: {
+  tokens: TokenView[];
+  onRotate: (t: TokenView) => void;
+  onRevoke: (t: TokenView) => void;
+  onUsage: (t: TokenView) => void;
+}) {
+  return (
+    <Table>
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Name</Table.Th>
+          <Table.Th>Prefix</Table.Th>
+          <Table.Th>Status</Table.Th>
+          <Table.Th>Expires</Table.Th>
+          <Table.Th>Last used</Table.Th>
+          <Table.Th>MCP tools</Table.Th>
+          <Table.Th>
+            <VisuallyHidden>Actions</VisuallyHidden>
+          </Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {tokens.map((t) => (
+          <Table.Tr key={t.id}>
+            <Table.Td>
+              <Text size="sm">{t.name}</Text>
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs" ff="monospace" c="dimmed">
+                {t.prefix}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <TokenStatus token={t} />
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs">{formatInstant(t.expiresAt)}</Text>
+              {t.previousValidUntil && Date.parse(t.previousValidUntil) > serverNow() ? (
+                <Text size="xs" c="dimmed">
+                  Old secret works until {formatInstant(t.previousValidUntil)}
+                </Text>
+              ) : null}
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs" c="dimmed">
+                {formatInstant(t.lastUsedAt)}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs" c="dimmed">
+                {t.mcpTools.length === 0 ? 'Every tool' : t.mcpTools.join(', ')}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <Group gap={4} wrap="nowrap">
+                <Tooltip label="Usage">
+                  <ActionIcon variant="subtle" onClick={() => onUsage(t)} aria-label={`Usage of ${t.name}`}>
+                    <IconChartBar size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                {!t.revokedAt && Date.parse(t.expiresAt) > serverNow() ? (
+                  <>
+                    <Tooltip label="Rotate">
+                      <ActionIcon variant="subtle" onClick={() => onRotate(t)} aria-label={`Rotate ${t.name}`}>
+                        <IconRefresh size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Revoke">
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        onClick={() => onRevoke(t)}
+                        aria-label={`Revoke ${t.name}`}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </>
+                ) : null}
+              </Group>
+            </Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+function RotateModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+  const rotate = useRotateToken();
+  const close = () => {
+    rotate.reset();
+    onClose();
+  };
+  const rotated = rotate.data;
+  return (
+    <Modal opened={token !== null} onClose={close} title={token ? `Rotate ${token.name}` : ''}>
+      {rotated ? (
+        <OneTimeSecret
+          value={rotated.value}
+          note={`The old secret keeps working until ${formatInstant(rotated.token.previousValidUntil)}. Replace it everywhere before then.`}
+        />
+      ) : (
+        <Stack gap="sm">
+          <Text size="sm">
+            A new secret replaces this key&apos;s current one. The current secret keeps working for the rotation
+            overlap, so you can update whatever uses it. The key keeps its permissions and its expiry.
+          </Text>
+          {rotate.isError ? (
+            <Alert color="red" title="The key was not rotated">
+              {rotate.error.message}
+            </Alert>
+          ) : null}
+          <Button loading={rotate.isPending} onClick={() => token && rotate.mutate(token.id)}>
+            Rotate
+          </Button>
+        </Stack>
+      )}
+    </Modal>
+  );
+}
+
+function RevokeModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+  const revoke = useRevokeToken();
+  return (
+    <Modal opened={token !== null} onClose={onClose} title={token ? `Revoke ${token.name}` : ''}>
+      {token ? (
+        <Stack gap="sm">
+          <Text size="sm">
+            Every script or assistant using this key stops working with its next request. This cannot be undone.
+          </Text>
+          {revoke.isError ? (
+            <Alert color="red" title="The key was not revoked">
+              {revoke.error.message}
+            </Alert>
+          ) : null}
+          <ConfirmByTyping
+            token={token.name}
+            confirmLabel="Revoke key"
+            loading={revoke.isPending}
+            onConfirm={() => revoke.mutate(token.id, { onSuccess: onClose })}
+          />
+        </Stack>
+      ) : null}
+    </Modal>
   );
 }
