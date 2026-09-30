@@ -85,6 +85,7 @@ export default defineConfig({
               { text: 'Diagnostics and bug reports', link: '/guide/diagnostics' },
               { text: 'Observability', link: '/guide/observability' },
               { text: 'REST API', link: '/guide/api' },
+              { text: 'High availability', link: '/guide/high-availability' },
               { text: 'Verify a release', link: '/guide/verify-releases' },
             ],
           },

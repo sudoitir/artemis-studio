@@ -1,11 +1,13 @@
 # ADR-0104: Studio restarts itself for a plugin, but only when something will start it again
 
-- **Status**: accepted
+- **Status**: accepted; partly superseded by [ADR-0152](0152-replicas-coordinate-through-postgres.md)
 - **Date**: 2026-09-23
 - **Deciders**: Mahdi Amirabdollahi
 - **Change**: `openspec/changes/plugins`
 - **Amends**: [ADR-0099](0099-runtime-plugins-are-child-contexts-installed-from-the-ui.md) — its "Studio states the command and never restarts itself"
 - **Builds on**: [ADR-0103](0103-plugin-installer-tier-and-step-up-reauthentication.md)
+
+> **Partly superseded.** [ADR-0152](0152-replicas-coordinate-through-postgres.md) replaces `studio_boot`: the crash-loop guard counts crashes in the replica registry.
 
 ## Context
 

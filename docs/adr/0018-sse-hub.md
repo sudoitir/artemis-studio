@@ -1,8 +1,10 @@
 # ADR-0018: The SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals
 
-- **Status**: accepted (extended by [ADR-0027](0027-sse-events-topic-carries-data.md))
+- **Status**: accepted (extended by [ADR-0027](0027-sse-events-topic-carries-data.md)); partly superseded by [ADR-0152](0152-replicas-coordinate-through-postgres.md)
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
+
+> **Partly superseded.** [ADR-0152](0152-replicas-coordinate-through-postgres.md) replaces the per-instance registry: events now reach every replica through the Postgres bus.
 
 > **Extended (Phase 4).** [ADR-0027](0027-sse-events-topic-carries-data.md) adds
 > one data-bearing topic, `events`, which carries the `BrokerEvent` payload and

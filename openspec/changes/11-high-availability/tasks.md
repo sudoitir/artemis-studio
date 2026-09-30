@@ -41,7 +41,7 @@
 - [ ] 10.1 `compose.ha.yaml`, `compose.ha.test.yaml`, `ha/haproxy.cfg`; dev/prod healthchecks on `/readyz`
 - [ ] 10.2 `HaReplicasIT` (two contexts)
 - [ ] 10.3 `web/scripts/ha-failover.ts` and the `image` job steps in CI
-- [ ] 10.4 ADR-0148 (supersedes parts of ADR-0018 and ADR-0093); `site/src/guide/high-availability.md` and nav
+- [ ] 10.4 ADR-0152 (supersedes parts of ADR-0018 and ADR-0093); `site/src/guide/high-availability.md` and nav
 
 ## 11. Finish
 - [ ] 11.1 `just verify` green; self-health screenshots (light, dark, empty, error)

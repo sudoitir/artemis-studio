@@ -1,8 +1,10 @@
 # ADR-0093: Bulk operations are persisted runs over the single-queue commands
 
-- **Status**: accepted
+- **Status**: accepted; partly superseded by [ADR-0152](0152-replicas-coordinate-through-postgres.md)
 - **Date**: 2026-09-21
 - **Deciders**: Artemis Studio maintainers
+
+> **Partly superseded.** [ADR-0152](0152-replicas-coordinate-through-postgres.md) replaces in-process stops and startup recovery: stops reach the executing replica and recovery interrupts only runs of a gone replica.
 
 ## Context
 
