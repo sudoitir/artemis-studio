@@ -125,7 +125,7 @@ the cluster/kind overloads. The layout is:
   in the new provider.
 
 ### D6: Redaction at the choke points
-`SecretRedactor` in `kernel.security` masks two kinds of credential-like values:
+`SecretRedactor` in `kernel.core` (so `Problems` can use it) masks two kinds of credential-like values:
 - values of keys matching `password|passwd|pwd|secret|token|api[-_]?key|authorization|credential|private[-_]?key`,
   whether in `key=value`, `key: value` or JSON form;
 - whole values: `Bearer …`, user-info in URLs, PEM private keys, and Studio API tokens (by
