@@ -86,7 +86,8 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
                 "as_abcdefghijk",
                 new byte[32],
                 Instant.now().plusSeconds(60),
-                List.of()));
+                List.of(),
+                false));
         assertThat(tokens.findByPrefix("as_abcdefghijk")).isPresent();
         assertThat(token.isActive(Instant.now(), Duration.ofDays(90))).isTrue();
 

@@ -13,7 +13,10 @@ import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.PersonalTokens;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -27,6 +30,7 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,10 +45,14 @@ import org.springframework.transaction.annotation.Transactional;
  * up by an indexed plaintext prefix and compared in constant time, never through a
  * slow password KDF. A token's effective expiry is capped live by the installation's
  * maximum lifetime.
+ *
+ * <p>A token records whether the session it was minted from had verified a second factor
+ * (ADR-0142, D7), and stops authenticating once its owner is required to hold one and it was
+ * minted without.
  */
 @Service
 @RequiredArgsConstructor
-public class ApiTokenService {
+public class ApiTokenService implements PersonalTokens {
 
     private static final String RESOURCE = "token";
     private static final String PREFIX_TAG = "as_";
@@ -62,6 +70,9 @@ public class ApiTokenService {
     private final ScopeHierarchy environments;
     private final SettingsService settings;
     private final TokenUsage usage;
+    /** Absent when the module holding the factors is off, when nobody is required to hold one. */
+    private final Optional<SecondFactors> secondFactors;
+
     private final SecureRandom random = new SecureRandom();
 
     /** token id -> last use, batched at most once a minute (ADR-0039). */
@@ -101,9 +112,23 @@ public class ApiTokenService {
         return lastSeen.plus(staleAfter()).isBefore(Instant.now());
     }
 
+    /**
+     * @param mintedWithMfa whether the session minting it had verified a second factor
+     * @throws SecondFactorRequiredException when the owner must hold a second factor and this session
+     *     had not verified one: the token would not authenticate anyway
+     */
     @Transactional
     public Minted mint(
-            UUID userId, String name, Instant expiresAt, List<Grant> requestedGrants, List<String> mcpTools) {
+            UUID userId,
+            String name,
+            Instant expiresAt,
+            List<Grant> requestedGrants,
+            List<String> mcpTools,
+            boolean mintedWithMfa) {
+        if (!mintedWithMfa && requiresSecondFactor(userId)) {
+            throw new SecondFactorRequiredException(
+                    "Verify your second factor to create a token: sign in again with your authenticator or passkey.");
+        }
         Instant now = Instant.now();
         Instant latest = now.plus(maxLifetime());
         if (expiresAt == null) {
@@ -118,7 +143,13 @@ public class ApiTokenService {
         }
         Secret secret = newSecret();
         ApiTokenEntity entity = tokens.save(new ApiTokenEntity(
-                userId, name, secret.prefix(), secret.hash(), expiresAt, mcpTools == null ? List.of() : mcpTools));
+                userId,
+                name,
+                secret.prefix(),
+                secret.hash(),
+                expiresAt,
+                mcpTools == null ? List.of() : mcpTools,
+                mintedWithMfa));
         String plaintext = secret.plaintext();
         for (Grant g : requestedGrants) {
             for (String action : g.permissions()) {
@@ -243,7 +274,7 @@ public class ApiTokenService {
             return null;
         }
         var owner = accounts.byId(token.getUserId()).orElse(null);
-        if (owner == null || owner.disabled()) {
+        if (owner == null || rejectsOwner(token, owner)) {
             return null;
         }
         Set<Grant> ownerGrants = grantLoader.loadFor(owner.id());
@@ -259,6 +290,36 @@ public class ApiTokenService {
                 token.getId(),
                 token.getName(),
                 Set.copyOf(token.getMcpTools()));
+    }
+
+    /** A disabled owner, or one who must hold a second factor the token was minted without. */
+    private boolean rejectsOwner(ApiTokenEntity token, UserAccounts.Account owner) {
+        return owner.disabled() || (!token.isMintedWithMfa() && requiresSecondFactor(owner.id()));
+    }
+
+    private boolean requiresSecondFactor(UUID userId) {
+        return secondFactors.map(f -> f.required(userId)).orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isLive(UUID tokenId) {
+        return tokens.findById(tokenId)
+                .filter(t -> t.isActive(Instant.now(), maxLifetime()))
+                .flatMap(t -> accounts.byId(t.getUserId()).filter(owner -> !rejectsOwner(t, owner)))
+                .isPresent();
+    }
+
+    @Override
+    @Transactional
+    public int revokeAllOf(UUID userId) {
+        Instant now = Instant.now();
+        List<ApiTokenEntity> live = tokens.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(t -> t.getRevokedAt() == null)
+                .toList();
+        live.forEach(t -> t.setRevokedAt(now));
+        tokens.saveAll(live);
+        return live.size();
     }
 
     /**

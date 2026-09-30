@@ -8,6 +8,8 @@ import io.github.sudoitir.artemisstudio.kernel.security.PasswordPolicyException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationFailedException;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorInvalidException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SignInExpiredException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -29,6 +31,16 @@ class SessionProblemAdvice {
     ProblemDetail onMfaEnrolmentRequired(MfaEnrolmentRequiredException e) {
         return Problems.of(
                 HttpStatus.LOCKED, "mfa-enrolment-required", "Two-step verification required", e.getMessage());
+    }
+
+    @ExceptionHandler(SessionRequiredException.class)
+    ProblemDetail onSessionRequired(SessionRequiredException e) {
+        return Problems.of(HttpStatus.FORBIDDEN, "session-required", "Sign in to do this", e.getMessage());
+    }
+
+    @ExceptionHandler(SecondFactorRequiredException.class)
+    ProblemDetail onSecondFactorRequired(SecondFactorRequiredException e) {
+        return Problems.of(HttpStatus.FORBIDDEN, "mfa-required", "Two-step verification required", e.getMessage());
     }
 
     @ExceptionHandler(SecondFactorInvalidException.class)

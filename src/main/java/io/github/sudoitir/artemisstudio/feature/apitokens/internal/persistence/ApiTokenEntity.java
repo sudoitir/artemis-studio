@@ -78,9 +78,20 @@ public class ApiTokenEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Whether the session it was minted from had verified a second factor (ADR-0142, D7). */
+    @Column(name = "minted_with_mfa", nullable = false, updatable = false)
+    private boolean mintedWithMfa;
+
     public ApiTokenEntity(
-            UUID userId, String name, String prefix, byte[] tokenHash, Instant expiresAt, List<String> mcpTools) {
+            UUID userId,
+            String name,
+            String prefix,
+            byte[] tokenHash,
+            Instant expiresAt,
+            List<String> mcpTools,
+            boolean mintedWithMfa) {
         this.userId = userId;
+        this.mintedWithMfa = mintedWithMfa;
         this.name = name;
         this.prefix = prefix;
         this.tokenHash = tokenHash;

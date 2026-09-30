@@ -88,7 +88,8 @@ public final class McpFixture {
                 "mcp-test-key",
                 Instant.now().plus(Duration.ofDays(1)),
                 List.of(new Grant(scopeType, scope, Set.copyOf(permissions))),
-                mcpTools);
+                mcpTools,
+                false);
         return new Key(user.getId(), username, minted.plaintext());
     }
 

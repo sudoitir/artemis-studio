@@ -95,9 +95,9 @@ class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {
         List<String> noTools = List.of();
         Instant beyondCap = Instant.now().plus(Duration.ofDays(91));
 
-        assertThatThrownBy(() -> tokens.mint(ownerId, "none", null, grants, noTools))
+        assertThatThrownBy(() -> tokens.mint(ownerId, "none", null, grants, noTools, false))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> tokens.mint(ownerId, "long", beyondCap, grants, noTools))
+        assertThatThrownBy(() -> tokens.mint(ownerId, "long", beyondCap, grants, noTools, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("latest allowed");
     }
