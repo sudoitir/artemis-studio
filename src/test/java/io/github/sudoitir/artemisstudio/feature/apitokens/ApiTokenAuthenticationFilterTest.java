@@ -219,6 +219,11 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 org.springframework.security.web.context.HttpSessionSecurityContextRepository
                         .SPRING_SECURITY_CONTEXT_KEY,
                 context);
+        // A real sign-in records these facts; a session without them counts as signed out.
+        session.setAttribute(
+                io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication.FACTS,
+                io.github.sudoitir.artemisstudio.kernel.security.SessionFacts.signedIn(
+                        new org.springframework.mock.web.MockHttpServletRequest()));
 
         mvc().perform(get("/api/v1/clusters").session(session)).andExpect(status().isOk());
         for (String header : List.of("Basic eDp4", "Bearer not-a-real-token", "x")) {
