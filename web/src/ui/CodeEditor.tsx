@@ -46,6 +46,16 @@ export interface CodeEditorProps {
   lineWrapping?: boolean;
 }
 
+/** What a screen reader hears when the diagnostics change: the counts, then the first one. */
+function diagnosticsSummary(diagnostics: CodeDiagnostic[]): string {
+  if (diagnostics.length === 0) return '';
+  const errors = diagnostics.filter((d) => d.severity === 'error').length;
+  const warnings = diagnostics.length - errors;
+  const errorsLabel = errors === 1 ? 'error' : 'errors';
+  const warningsLabel = warnings === 1 ? 'warning' : 'warnings';
+  return `${errors} ${errorsLabel}, ${warnings} ${warningsLabel}. First, line ${diagnostics[0].line}: ${diagnostics[0].message}`;
+}
+
 /**
  * A document editor for YAML or JSON: CodeMirror with line numbers, folding, a
  * lint gutter, bracket matching and search, coloured from `theme.css` like the
@@ -165,9 +175,6 @@ export function CodeEditor({
     );
   }, [diagnostics, value]);
 
-  const errors = diagnostics.filter((d) => d.severity === 'error').length;
-  const warnings = diagnostics.length - errors;
-
   return (
     <div>
       <Text id={labelId} component="label" size="xs" fw={600} c="dimmed" display="block" mb={4}>
@@ -177,12 +184,7 @@ export function CodeEditor({
       <Text id={hintId} size="xs" c="dimmed" mt={4}>
         {editable ? 'Tab indents. Press Escape, then Tab, to leave the editor. Ctrl+F searches.' : 'Ctrl+F searches.'}
       </Text>
-      <VisuallyHidden aria-live="polite">
-        {diagnostics.length === 0
-          ? ''
-          : `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}. ` +
-            `First, line ${diagnostics[0].line}: ${diagnostics[0].message}`}
-      </VisuallyHidden>
+      <VisuallyHidden aria-live="polite">{diagnosticsSummary(diagnostics)}</VisuallyHidden>
     </div>
   );
 }

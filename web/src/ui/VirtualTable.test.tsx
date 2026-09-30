@@ -389,6 +389,11 @@ describe('VirtualTable', () => {
   });
 
   describe('column widths (ADR-0116)', () => {
+    afterEach(() => {
+      localStorage.clear();
+      vi.restoreAllMocks();
+    });
+
     it('widens a fixed column whose value needs more than its declared width', () => {
       vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
         return (this.textContent ?? '').length * 10;
@@ -403,11 +408,6 @@ describe('VirtualTable', () => {
 
     const colsOf = () => screen.getByRole('grid').style.getPropertyValue('--as-cols');
     const long = { name: 'X'.repeat(30), depth: 1 };
-
-    afterEach(() => {
-      localStorage.clear();
-      vi.restoreAllMocks();
-    });
 
     it('fits a free-text column to its widest value, within the cap', () => {
       // jsdom does no layout: a cell needs ten pixels per character.

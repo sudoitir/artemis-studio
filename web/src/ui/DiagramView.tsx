@@ -1,4 +1,15 @@
-import { createContext, Fragment, memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  Fragment,
+  memo,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import {
   Background,
   BackgroundVariant,
@@ -142,15 +153,87 @@ type CardData = {
   insertInto: string[];
 };
 
-const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
-  const { tabStop, register, focus, select, openActions, openInsert } = useContext(RovingContext);
-  const n = data.node;
-  const actions = data.actions && openActions ? openActions : null;
-  const insert = data.insertInto.length && openInsert ? openInsert : null;
+type OpenActions = NonNullable<Roving['openActions']>;
+type OpenInsert = NonNullable<Roving['openInsert']>;
+
+const STATE_WORD = { error: 'Invalid', warning: 'Warning' } as const;
+
+/** The small heading of a box: its kind, and the state it is in, said in words. */
+function NodeKind({ node }: Readonly<{ node: DiagramNode }>) {
+  if (!node.kind && !node.state) return null;
+  return (
+    <span className={classes.kind}>
+      {node.kind}
+      {node.state ? <span className={classes.state}>{STATE_WORD[node.state]}</span> : null}
+    </span>
+  );
+}
+
+function isActionsKey(event: KeyboardEvent): boolean {
+  return event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
+}
+
+function isInsertKey(event: KeyboardEvent): boolean {
+  return event.key === 'Insert' || event.key === '+';
+}
+
+/** The box itself: the diagram's one tab stop when it is the current one, and where its menus open. */
+function CardButton({
+  id,
+  data,
+  actions,
+  insert,
+}: Readonly<{ id: string; data: CardData; actions: OpenActions | null; insert: OpenInsert | null }>) {
+  const { tabStop, register, focus, select } = useContext(RovingContext);
   // Shift+F10 and the menu key are followed by the browser's own contextmenu event, which would
   // reopen the menu at the pointer and close the one the keyboard opened.
   const suppressContextMenuUntil = useRef(0);
   const keys = [actions ? 'Shift+F10' : null, insert ? 'Insert' : null].filter(Boolean).join(' ');
+  const onContextMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    if (!actions) return;
+    event.preventDefault();
+    if (performance.now() < suppressContextMenuUntil.current) return;
+    actions(id, clampToViewport({ x: event.clientX, y: event.clientY }), event.currentTarget);
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (actions && isActionsKey(event)) {
+      event.preventDefault();
+      suppressContextMenuUntil.current = performance.now() + 500;
+      actions(id, anchorBelow(event.currentTarget), event.currentTarget);
+    } else if (insert && isInsertKey(event)) {
+      event.preventDefault();
+      insert(data.insertInto, anchorBelow(event.currentTarget), event.currentTarget);
+    }
+  };
+  const n = data.node;
+  return (
+    <button
+      ref={(el) => register(id, el)}
+      type="button"
+      className={classes.node}
+      data-state={n.state}
+      data-selected={data.selected || undefined}
+      tabIndex={tabStop === id ? 0 : -1}
+      aria-label={data.name}
+      aria-pressed={data.selected}
+      aria-keyshortcuts={keys || undefined}
+      title={data.name}
+      onFocus={() => focus(id)}
+      onClick={() => select(id)}
+      onContextMenu={onContextMenu}
+      onKeyDown={onKeyDown}
+    >
+      <NodeKind node={n} />
+      <span className={classes.label}>{n.label}</span>
+      {n.detail ? <span className={classes.detail}>{n.detail}</span> : null}
+    </button>
+  );
+}
+
+const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
+  const { openActions, openInsert } = useContext(RovingContext);
+  const actions = data.actions && openActions ? openActions : null;
+  const insert = data.insertInto.length && openInsert ? openInsert : null;
   return (
     <div className={classes.card}>
       <Handle
@@ -159,48 +242,7 @@ const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
         className={classes.handle}
         isConnectable={false}
       />
-      <button
-        ref={(el) => register(id, el)}
-        type="button"
-        className={classes.node}
-        data-state={n.state}
-        data-selected={data.selected || undefined}
-        tabIndex={tabStop === id ? 0 : -1}
-        aria-label={data.name}
-        aria-pressed={data.selected}
-        aria-keyshortcuts={keys || undefined}
-        title={data.name}
-        onFocus={() => focus(id)}
-        onClick={() => select(id)}
-        onContextMenu={
-          actions
-            ? (event) => {
-                event.preventDefault();
-                if (performance.now() < suppressContextMenuUntil.current) return;
-                actions(id, clampToViewport({ x: event.clientX, y: event.clientY }), event.currentTarget);
-              }
-            : undefined
-        }
-        onKeyDown={(event) => {
-          if (actions && ((event.key === 'F10' && event.shiftKey) || event.key === 'ContextMenu')) {
-            event.preventDefault();
-            suppressContextMenuUntil.current = performance.now() + 500;
-            actions(id, anchorBelow(event.currentTarget), event.currentTarget);
-          } else if (insert && (event.key === 'Insert' || event.key === '+')) {
-            event.preventDefault();
-            insert(data.insertInto, anchorBelow(event.currentTarget), event.currentTarget);
-          }
-        }}
-      >
-        {n.kind || n.state ? (
-          <span className={classes.kind}>
-            {n.kind}
-            {n.state ? <span className={classes.state}>{n.state === 'error' ? 'Invalid' : 'Warning'}</span> : null}
-          </span>
-        ) : null}
-        <span className={classes.label}>{n.label}</span>
-        {n.detail ? <span className={classes.detail}>{n.detail}</span> : null}
-      </button>
+      <CardButton id={id} data={data} actions={actions} insert={insert} />
       {actions ? (
         // The keyboard opens the same menu with Shift+F10 on the box, so this stays out of the tab order.
         <ActionIcon
@@ -208,7 +250,7 @@ const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
           variant="subtle"
           size="sm"
           tabIndex={-1}
-          aria-label={`Actions for ${n.label}`}
+          aria-label={`Actions for ${data.node.label}`}
           aria-haspopup="menu"
           data-selected={data.selected || undefined}
           onClick={(event) => {
@@ -408,12 +450,7 @@ export function DiagramView({
     [nodes, layout.positions, vertical],
   );
   const [focused, setFocused] = useState<string | null>(null);
-  const tabStop =
-    focused && order.includes(focused)
-      ? focused
-      : selectedId && order.includes(selectedId)
-        ? selectedId
-        : (order[0] ?? null);
+  const tabStop = pickTabStop(order, focused, selectedId);
   const elements = useRef(new Map<string, HTMLButtonElement>());
   const frameRef = useRef<HTMLDivElement>(null);
   const [announce, setAnnounce] = useState('');
@@ -551,13 +588,7 @@ export function DiagramView({
       <AnchoredMenu
         opened={menu !== null}
         anchor={menu?.anchor ?? null}
-        label={
-          menuNode
-            ? `Actions for ${menuNode.label}`
-            : menuEdges.length === 1
-              ? insertName(menuEdges[0], nodes)
-              : 'Insert'
-        }
+        label={menuLabel(menuNode, menuEdges, nodes)}
         onClose={closeMenu}
       >
         {menuNode
@@ -594,6 +625,19 @@ export function DiagramView({
       </AnchoredMenu>
     </ReactFlowProvider>
   );
+}
+
+/** The box that takes the tab stop: the focused one, else the selected one, else the first. */
+function pickTabStop(order: string[], focused: string | null, selectedId: string | null): string | null {
+  if (focused && order.includes(focused)) return focused;
+  if (selectedId && order.includes(selectedId)) return selectedId;
+  return order[0] ?? null;
+}
+
+/** The name of the open menu: the box whose actions it lists, the one arrow it inserts on, or just "Insert". */
+function menuLabel(menuNode: DiagramNode | undefined, menuEdges: DiagramEdge[], nodes: DiagramNode[]): string {
+  if (menuNode) return `Actions for ${menuNode.label}`;
+  return menuEdges.length === 1 ? insertName(menuEdges[0], nodes) : 'Insert';
 }
 
 /** "Insert between reserve and charge": what an insert control does, in the boxes' own words. */
