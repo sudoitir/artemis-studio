@@ -101,7 +101,8 @@ class ScrapeSchedulerTest {
                 new JobStatuses(
                         new net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor(
                                 config -> java.util.Optional.of(() -> {})),
-                        io.micrometer.observation.ObservationRegistry.NOOP));
+                        io.micrometer.observation.ObservationRegistry.NOOP,
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
     }
 
     private JolokiaBrokerClient client(String... fixtures) {

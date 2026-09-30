@@ -131,4 +131,17 @@ public record JobStatus(
                 && !interval.isZero()
                 && now.isAfter(lastCompletedOrRegistered().plus(interval.multipliedBy(3)));
     }
+
+    /**
+     * How far past its interval the job is: the time since a run last completed, minus the interval, and zero
+     * while it keeps to schedule. {@code null} until the scheduler has computed an interval, so an unknown lag is
+     * never read as none.
+     */
+    public Duration lag(Instant now) {
+        if (interval == null) {
+            return null;
+        }
+        Duration late = Duration.between(lastCompletedOrRegistered(), now).minus(interval);
+        return late.isNegative() ? Duration.ZERO : late;
+    }
 }

@@ -16,11 +16,11 @@
 
 ## 2. Self-health (slice B)
 
-- [ ] 2.1 `NodeCallLimiter` tags `node` with host:port. Rename `artemisstudio.rr.latency` to `studio.rr.latency` (D5)
-- [ ] 2.2 Add the `studio.job.lag` gauge per job and the `studio.stream.clients` gauge
-- [ ] 2.3 Add `GET /api/v1/system/health` (settings-read) with nullable figures and an overall `degraded` flag (D6). Regenerate the OpenAPI snapshot and `schema.d.ts`
-- [ ] 2.4 Add a "Studio health" Settings section: polling, a degraded badge per row, "unavailable" for null, and empty and error states
-- [ ] 2.5 Tests: controller permission, null-as-unavailable, lag computation, and the web component states
+- [x] 2.1 `NodeCallLimiter` tags `node` with host:port. Rename `artemisstudio.rr.latency` to `studio.rr.latency` (D5)
+- [x] 2.2 Add the `studio.job.lag` gauge per job and the `studio.stream.clients` gauge
+- [x] 2.3 Add `GET /api/v1/system/health` (settings-read) with nullable figures and an overall `degraded` flag (D6). Regenerate the OpenAPI snapshot and `schema.d.ts`
+- [x] 2.4 Add a "Studio health" Settings section: polling, a degraded badge per row, "unavailable" for null, and empty and error states
+- [x] 2.5 Tests: controller permission, null-as-unavailable, lag computation, and the web component states
 
 ## 3. Dashboards, rules, release, docs (slice C)
 

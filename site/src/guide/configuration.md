@@ -182,6 +182,10 @@ healthy and whether it is loading a broker:
 | `studio_broker_requests_total{node}` | Management requests Studio issued to one node. |
 | `studio_broker_permit_wait_seconds{node}` | Time requests waited for that node's rate ceiling. |
 | `studio_broker_permit_timeouts_total{node}` | Requests refused because the ceiling stayed full for 5 seconds. |
+| `studio_job_lag_seconds{job}` | Seconds a background job is past its interval since it last completed; zero on schedule. |
+| `studio_stream_clients` | Event stream clients connected to this instance. |
+
+`node` is the broker's `host:port`, never its URL. The request-reply latency metric is `studio_rr_latency_seconds`.
 
 Recommended alerts:
 

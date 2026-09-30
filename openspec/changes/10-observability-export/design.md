@@ -131,6 +131,15 @@ Every figure is nullable. A figure the server can't read is `null`, and the UI r
 "Studio health" section in Settings polls it every 5 s. It shows tables with a degraded badge per
 row, plus the loading, empty and error states. The actuator `studio` health group is unchanged.
 
+**As built (slice B):**
+- `studio.job.lag` is a gauge per job registered by `JobStatuses` (which takes the `MeterRegistry` again, and drops the
+  gauge in `deregister`); it is NaN until the scheduler has computed the job's interval. `studio.stream.clients` is bound
+  by `StreamMetrics`.
+- The read lives in `platform/broker/web` (the module that may see jobs and nodes). It takes stream clients and the
+  pool from the `studio.stream.clients` and `hikaricp.connections.*` meters, so no module boundary changes. The p95 comes
+  from a 0.95 percentile published on `studio.broker.management` (`management.metrics.distribution.percentiles`).
+- A node's rate-limit wait is null until a management call to it has been recorded.
+
 ### D7. Dashboards and alert rules as checked files and a release asset
 - The files are `deploy/observability/grafana/studio-overview.json` and
   `deploy/observability/prometheus/studio-alerts.yml`.

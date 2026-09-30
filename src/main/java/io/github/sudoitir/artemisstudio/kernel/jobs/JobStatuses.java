@@ -1,6 +1,8 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
@@ -34,6 +36,7 @@ public class JobStatuses {
     private final Map<String, JobStatus> byId = new ConcurrentHashMap<>();
     private final LockingTaskExecutor locks;
     private final ObservationRegistry observations;
+    private final MeterRegistry meters;
 
     /** Guards {@link #paused} and {@link #inFlight}; runs and {@link #pause} wait on it. */
     private final Object gate = new Object();
@@ -41,9 +44,10 @@ public class JobStatuses {
     private boolean paused;
     private int inFlight;
 
-    public JobStatuses(LockingTaskExecutor locks, ObservationRegistry observations) {
+    public JobStatuses(LockingTaskExecutor locks, ObservationRegistry observations, MeterRegistry meters) {
         this.locks = locks;
         this.observations = observations;
+        this.meters = meters;
     }
 
     /**
@@ -54,6 +58,12 @@ public class JobStatuses {
         if (byId.putIfAbsent(job.id(), JobStatus.never(job, Instant.now())) != null) {
             throw new IllegalStateException("Job id '" + job.id() + "' is registered twice");
         }
+        Gauge.builder("studio.job.lag", () -> lagSeconds(job.id()))
+                .tag("job", job.id())
+                .baseUnit("seconds")
+                .description(
+                        "Seconds a job is past its interval since it last completed; NaN until its interval is known")
+                .register(meters);
         return () -> {
             synchronized (gate) {
                 if (paused) {
@@ -74,6 +84,12 @@ public class JobStatuses {
                 }
             }
         };
+    }
+
+    private double lagSeconds(String jobId) {
+        JobStatus status = byId.get(jobId);
+        Duration lag = status == null ? null : status.lag(Instant.now());
+        return lag == null ? Double.NaN : lag.toMillis() / 1000.0;
     }
 
     private void runRecorded(ScheduledJob job) {
@@ -167,6 +183,7 @@ public class JobStatuses {
      */
     public void deregister(String jobId) {
         byId.remove(jobId);
+        meters.find("studio.job.lag").tag("job", jobId).meters().forEach(meters::remove);
     }
 
     /** Every registered job, ordered by id. */

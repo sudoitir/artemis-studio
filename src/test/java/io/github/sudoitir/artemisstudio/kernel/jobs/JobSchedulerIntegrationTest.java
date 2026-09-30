@@ -32,7 +32,10 @@ class JobSchedulerIntegrationTest extends PostgresIntegrationTest {
     LockingTaskExecutor jobLockExecutor;
 
     private JobStatuses instance() {
-        return new JobStatuses(jobLockExecutor, io.micrometer.observation.ObservationRegistry.NOOP);
+        return new JobStatuses(
+                jobLockExecutor,
+                io.micrometer.observation.ObservationRegistry.NOOP,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     private LockingTaskExecutor otherProcess() {
