@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Group, Loader, Modal, Paper, Progress, Stack, Table, Text } from '@mantine/core';
+import { Alert, Button, Group, Modal, Paper, Progress, Skeleton, Stack, Table, Text } from '@mantine/core';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
@@ -49,6 +49,11 @@ export function SecuritySettings() {
     wasFresh.current = fresh;
   }, [fresh, rotate]);
 
+  // Closes on success from either the first attempt or the retry after a step-up.
+  useEffect(() => {
+    if (rotate.isSuccess) setOpen(false);
+  }, [rotate.isSuccess]);
+
   if (status.isError) {
     return (
       <Alert color="red" variant="light" title={status.error.title} role="alert">
@@ -61,13 +66,24 @@ export function SecuritySettings() {
       </Alert>
     );
   }
-  if (status.isPending) return <Loader size="sm" />;
+  if (status.isPending)
+    return (
+      <Stack gap="sm" maw={640} aria-busy="true" aria-label="Loading key status">
+        <Skeleton height={72} />
+        <Skeleton height={96} />
+      </Stack>
+    );
 
   const s = status.data;
   const last = s.lastRotation ?? null;
   const running = last?.status === 'RUNNING';
   const target = targetVersion(s);
   const rotatable = target !== null || straggling(s);
+  // What a rotation would re-wrap: every secret still under a version below the target.
+  const goal = target ?? s.currentVersion;
+  const toRewrap = Object.entries(s.countsByVersion)
+    .filter(([v]) => Number(v) < goal)
+    .reduce((sum, [, n]) => sum + n, 0);
   const stored = Object.values(s.countsByVersion).reduce((a, b) => a + b, 0);
   const verdict =
     !loading && !can('settings:write')
@@ -126,7 +142,7 @@ export function SecuritySettings() {
       </Table>
       {stored === 0 ? <Text size="sm">No secrets are stored yet.</Text> : null}
 
-      <Text size="sm">{guidance(s, target, running)}</Text>
+      <Text size="sm">{guidance(s, target, running, last?.status === 'SUCCEEDED')}</Text>
       <Group gap="sm">
         <CapabilityGate verdict={verdict} what="rotating the key">
           <Button disabled={verdict.kind === 'blocked'} loading={rotate.isPending} onClick={() => setOpen(true)}>
@@ -147,9 +163,10 @@ export function SecuritySettings() {
       <Modal opened={open} onClose={() => setOpen(false)} title="Rotate the key">
         <Stack gap="md">
           <Text size="sm">
-            This re-wraps {stored} stored {stored === 1 ? 'secret' : 'secrets'} from version {s.currentVersion} to
-            version {target ?? s.currentVersion}. Studio keeps serving meanwhile. Keep the old key in the provider until
-            this succeeds.
+            {target !== null
+              ? `This re-wraps ${toRewrap} stored ${toRewrap === 1 ? 'secret' : 'secrets'} from version ${s.currentVersion} to version ${target}.`
+              : `This finishes re-wrapping ${toRewrap} ${toRewrap === 1 ? 'secret' : 'secrets'} still under older versions.`}{' '}
+            Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
           </Text>
           {needsReauthentication(rotate.error) ? (
             <StepUp returnTo={`${window.location.pathname}?tab=settings-security`} />
@@ -163,10 +180,7 @@ export function SecuritySettings() {
             <Button variant="default" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              loading={rotate.isPending}
-              onClick={() => rotate.mutate(undefined, { onSuccess: () => setOpen(false) })}
-            >
+            <Button loading={rotate.isPending} onClick={() => rotate.mutate()}>
               Rotate key
             </Button>
           </Group>
@@ -186,11 +200,15 @@ function versionState(s: SecretsStatus, v: number): string {
 }
 
 /** What the operator does next, in the words of the state they are in. */
-function guidance(s: SecretsStatus, target: number | null, running: boolean): string {
+function guidance(s: SecretsStatus, target: number | null, running: boolean, succeeded: boolean): string {
   if (running)
     return 'A rotation is running. Studio keeps serving; keep the old key in the provider until it succeeds.';
   if (target !== null) return `Version ${target} is available. Rotate to re-wrap your stored secrets under it.`;
   if (straggling(s)) return 'Some secrets still use an older key. Rotate to finish moving them to the current version.';
+  const removable = s.availableVersions.filter((v) => v < s.currentVersion && !s.countsByVersion[String(v)]);
+  if (succeeded && removable.length > 0) {
+    return `Version ${removable.join(', ')} protects no secrets and can be removed from the provider.`;
+  }
   return 'Everything is on the current key. To rotate, first add a newer key version to the provider.';
 }
 

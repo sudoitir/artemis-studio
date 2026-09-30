@@ -124,6 +124,7 @@ describe('SecuritySettings', () => {
     await user.type(await screen.findByLabelText('Your password'), 'secret');
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(started).toBe(1));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('polls a running rotation and shows counting, then progress', async () => {
@@ -153,6 +154,30 @@ describe('SecuritySettings', () => {
       await screen.findByRole('progressbar', { name: 'Rotation progress' }, { timeout: 4_000 }),
     ).toBeInTheDocument();
     expect(await screen.findByText(/3 re-wrapped, 4 remaining/, undefined, { timeout: 4_000 })).toBeInTheDocument();
+  });
+
+  it('finishes a partial rotation and says when an old version can go', async () => {
+    server.use(
+      me(fresh()),
+      status({
+        availableVersions: [1, 2],
+        currentVersion: 2,
+        countsByVersion: { '1': 3, '2': 4 },
+        lastRotation: ROTATION,
+      }),
+    );
+    renderWithProviders(<SecuritySettings />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Rotate key' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent(
+      'finishes re-wrapping 3 secrets still under older versions',
+    );
+  });
+
+  it('says a lower version protects nothing after a successful rotation', async () => {
+    server.use(me(fresh()), status({ currentVersion: 2, countsByVersion: { '2': 7 }, lastRotation: ROTATION }));
+    renderWithProviders(<SecuritySettings />);
+    expect(await screen.findByText(/Version 1 protects no secrets and can be removed/)).toBeInTheDocument();
   });
 
   it('shows the cause of a failed rotation', async () => {
