@@ -148,13 +148,14 @@ public class StorageHealthService {
 
     /** Records every table's size for growth, then lets the installation alerts re-evaluate. */
     public void sample() {
-        Timestamp at = Timestamp.from(clock.instant());
+        Instant sampledAt = clock.instant();
+        Timestamp at = Timestamp.from(sampledAt);
         List<Object[]> batch = rows().stream()
                 .map(r -> new Object[] {at, r.bytes(), r.schema(), r.name()})
                 .toList();
         jdbc.batchUpdate(
                 "INSERT INTO storage_sample (sampled_at, bytes, schema_name, table_name) VALUES (?, ?, ?, ?)", batch);
-        events.publishEvent(new StorageSampled());
+        events.publishEvent(new StorageSampled(sampledAt));
     }
 
     private List<Row> rows() {

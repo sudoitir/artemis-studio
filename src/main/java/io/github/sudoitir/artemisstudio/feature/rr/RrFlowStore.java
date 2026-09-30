@@ -17,12 +17,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 class RrFlowStore implements ManagedStore {
 
+    private static final String TABLE = "rr_flow";
     private static final String OLD = "requested_at < ?";
 
     private static final StoreDef DEF = new StoreDef(
             "rr-flows",
             "Request-reply flows",
-            List.of("rr_flow", "rr_event"),
+            List.of(TABLE, "rr_event"),
             QuotaUnit.ROWS,
             Duration.ofDays(7),
             Duration.ofDays(1),
@@ -46,11 +47,11 @@ class RrFlowStore implements ManagedStore {
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        return LifecycleSql.estimate(jdbc, "rr_flow", OLD, cutoff);
+        return LifecycleSql.estimate(jdbc, TABLE, OLD, cutoff);
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        return LifecycleSql.deleteBatch(jdbc, "rr_flow", OLD, cutoff, limit);
+        return LifecycleSql.deleteBatch(jdbc, TABLE, OLD, cutoff, limit);
     }
 }

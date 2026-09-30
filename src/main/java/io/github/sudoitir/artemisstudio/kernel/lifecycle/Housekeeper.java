@@ -68,7 +68,7 @@ public class Housekeeper {
                 purged += batch;
             } while (batch > 0 && !Thread.currentThread().isInterrupted());
             audit.succeed(event, purged);
-            status.record(store.id(), now, purged, null);
+            status.recordRun(store.id(), now, purged, null);
             if (purged > 0) {
                 log.info("Purged {} rows from store {} older than {}", purged, store.id(), cutoff);
             }
@@ -76,7 +76,7 @@ public class Housekeeper {
             String error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             log.warn("Purge of store {} failed after {} rows", store.id(), purged, e);
             audit.failPartial(event, purged, error);
-            status.record(store.id(), now, purged, error);
+            status.recordRun(store.id(), now, purged, error);
         }
     }
 }

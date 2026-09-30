@@ -23,13 +23,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class AlertHistoryStore implements HousekeepingContributor, ManagedStore {
 
+    private static final String FIRING_TABLE = "alert_firing";
+    private static final String DELIVERY_TABLE = "alert_delivery";
     private static final String FIRINGS = "resolved_at < ?";
     private static final String DELIVERIES = "state <> 'PENDING' AND created_at < ?";
 
     private static final StoreDef DEF = new StoreDef(
             "alert-history",
             "Alert history",
-            List.of("alert_firing", "alert_delivery"),
+            List.of(FIRING_TABLE, DELIVERY_TABLE),
             StoreDef.QuotaUnit.ROWS,
             Duration.ofDays(90),
             Duration.ofDays(1),
@@ -54,14 +56,14 @@ class AlertHistoryStore implements HousekeepingContributor, ManagedStore {
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        PurgeEstimate firings = LifecycleSql.estimate(jdbc, "alert_firing", FIRINGS, cutoff);
-        PurgeEstimate deliveries = LifecycleSql.estimate(jdbc, "alert_delivery", DELIVERIES, cutoff);
+        PurgeEstimate firings = LifecycleSql.estimate(jdbc, FIRING_TABLE, FIRINGS, cutoff);
+        PurgeEstimate deliveries = LifecycleSql.estimate(jdbc, DELIVERY_TABLE, DELIVERIES, cutoff);
         return new PurgeEstimate(firings.rows() + deliveries.rows(), firings.bytes() + deliveries.bytes());
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        long firings = LifecycleSql.deleteBatch(jdbc, "alert_firing", FIRINGS, cutoff, limit);
-        return firings > 0 ? firings : LifecycleSql.deleteBatch(jdbc, "alert_delivery", DELIVERIES, cutoff, limit);
+        long firings = LifecycleSql.deleteBatch(jdbc, FIRING_TABLE, FIRINGS, cutoff, limit);
+        return firings > 0 ? firings : LifecycleSql.deleteBatch(jdbc, DELIVERY_TABLE, DELIVERIES, cutoff, limit);
     }
 }

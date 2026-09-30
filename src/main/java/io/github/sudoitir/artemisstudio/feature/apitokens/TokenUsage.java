@@ -41,7 +41,7 @@ public class TokenUsage {
     /** [requests, denied, limited, errors]; mutated only inside {@code compute}, removed whole by the flush. */
     private final Map<Key, long[]> pending = new ConcurrentHashMap<>();
 
-    public void record(UUID tokenId, Outcome outcome) {
+    public void recordRequest(UUID tokenId, Outcome outcome) {
         Key key = new Key(tokenId, Instant.now().truncatedTo(ChronoUnit.HOURS));
         pending.compute(key, (k, counts) -> {
             long[] c = counts != null ? counts : new long[4];
