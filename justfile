@@ -169,6 +169,20 @@ verify-web:
     {{npm}} run lint
     {{npm}} test
 
+# Kill, then drain, a replica of the HA reference stack under load (HA_IMAGE_BUILT=1 reuses artemis-studio:ci). Needs Docker, Node.
+[group('quality')]
+ha-failover:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Requests, event streams and scraping must carry on; web/scripts/ha-failover.ts says what is checked.
+    # Throwaway secrets for a stack that lives for one run.
+    export DB_PASSWORD="$(openssl rand -hex 16)" SECRET_KEY="$(openssl rand -base64 32)"
+    export COMPOSE="docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml"
+    [ -n "${HA_IMAGE_BUILT:-}" ] || docker build -t artemis-studio:ci .
+    trap 'status=$?; [ "$status" = 0 ] || $COMPOSE logs --tail 200 studio-1 studio-2 lb; $COMPOSE down -v' EXIT
+    $COMPOSE up -d --wait --wait-timeout 300
+    node --experimental-strip-types web/scripts/ha-failover.ts
+
 # Format Java (Palantir, via Spotless) and the web sources.
 [group('quality')]
 fmt:
