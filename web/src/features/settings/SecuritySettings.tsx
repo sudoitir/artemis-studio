@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Group, Loader, Modal, Stack, Table, Text } from '@mantine/core';
+import { Alert, Button, Group, Loader, Modal, Paper, Progress, Stack, Table, Text } from '@mantine/core';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
@@ -78,9 +78,9 @@ export function SecuritySettings() {
           ? ({ kind: 'blocked', reason: 'Add a newer key version to the provider first.' } as const)
           : ({ kind: 'allowed', uncertain: false } as const);
 
-  const versions = Object.entries(s.countsByVersion)
-    .map(([v, n]) => [Number(v), n] as const)
-    .sort(([a], [b]) => a - b);
+  const rows = [
+    ...new Set([...s.availableVersions, ...Object.keys(s.countsByVersion).map(Number), s.currentVersion]),
+  ].sort((x, y) => x - y);
   const conflict = rotate.error && !needsReauthentication(rotate.error) ? rotate.error : null;
   const outcome = rotate.isPending
     ? 'Starting the rotation.'
@@ -93,48 +93,40 @@ export function SecuritySettings() {
       <div role="status" aria-live="polite" style={{ position: 'absolute', insetInlineStart: -9999 }}>
         {outcome}
       </div>
-      <Table withRowBorders={false}>
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Th scope="row">Key provider</Table.Th>
-            <Table.Td>{PROVIDERS[s.provider] ?? s.provider}</Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Th scope="row">Current key version</Table.Th>
-            <Table.Td style={numeric}>{s.currentVersion}</Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Th scope="row">Available versions</Table.Th>
-            <Table.Td style={numeric}>{s.availableVersions.join(', ') || 'none'}</Table.Td>
-          </Table.Tr>
-        </Table.Tbody>
-      </Table>
+      <Paper withBorder p="md">
+        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          Key provider
+        </Text>
+        <Text fw={600}>{PROVIDERS[s.provider] ?? s.provider}</Text>
+        <Text size="sm" c="dimmed">
+          Studio reads its key versions from here; the keys themselves never reach Studio&rsquo;s database or this
+          screen.
+        </Text>
+      </Paper>
 
-      <Table aria-label="Stored secrets per key version">
+      <Table aria-label="Key versions">
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Key version</Table.Th>
+            <Table.Th>State</Table.Th>
             <Table.Th ta="end">Stored secrets</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {versions.length === 0 ? (
-            <Table.Tr>
-              <Table.Td colSpan={2}>No secrets are stored yet.</Table.Td>
+          {rows.map((v) => (
+            <Table.Tr key={v}>
+              <Table.Td style={numeric}>{v}</Table.Td>
+              <Table.Td>{versionState(s, v)}</Table.Td>
+              <Table.Td ta="end" style={numeric}>
+                {s.countsByVersion[String(v)] ?? 0}
+              </Table.Td>
             </Table.Tr>
-          ) : (
-            versions.map(([v, n]) => (
-              <Table.Tr key={v}>
-                <Table.Td style={numeric}>{v}</Table.Td>
-                <Table.Td ta="end" style={numeric}>
-                  {n}
-                </Table.Td>
-              </Table.Tr>
-            ))
-          )}
+          ))}
         </Table.Tbody>
       </Table>
+      {stored === 0 ? <Text size="sm">No secrets are stored yet.</Text> : null}
 
+      <Text size="sm">{guidance(s, target, running)}</Text>
       <Group gap="sm">
         <CapabilityGate verdict={verdict} what="rotating the key">
           <Button disabled={verdict.kind === 'blocked'} loading={rotate.isPending} onClick={() => setOpen(true)}>
@@ -184,6 +176,24 @@ export function SecuritySettings() {
   );
 }
 
+function versionState(s: SecretsStatus, v: number): string {
+  const n = s.countsByVersion[String(v)] ?? 0;
+  if (v === s.currentVersion) return 'Current';
+  if (v > s.currentVersion) return 'Newer, available to rotate to';
+  return n > 0
+    ? `Older, still wraps ${n} ${n === 1 ? 'secret' : 'secrets'}`
+    : 'Older, unused: safe to remove from the provider';
+}
+
+/** What the operator does next, in the words of the state they are in. */
+function guidance(s: SecretsStatus, target: number | null, running: boolean): string {
+  if (running)
+    return 'A rotation is running. Studio keeps serving; keep the old key in the provider until it succeeds.';
+  if (target !== null) return `Version ${target} is available. Rotate to re-wrap your stored secrets under it.`;
+  if (straggling(s)) return 'Some secrets still use an older key. Rotate to finish moving them to the current version.';
+  return 'Everything is on the current key. To rotate, first add a newer key version to the provider.';
+}
+
 function nextAction(type: string): string {
   if (type.endsWith('/no-newer-key')) return 'Add a newer key version to the provider, then try again.';
   if (type.endsWith('/rotation-running')) return 'Wait for the running rotation to finish.';
@@ -202,9 +212,18 @@ function RotationSummary({ rotation: r }: { rotation: RotationView }) {
         <Text size="sm" style={numeric}>
           Version {r.fromVersion} to version {r.toVersion}, started by {r.startedBy} at {when(r.startedAt)}.
         </Text>
+        {r.status === 'RUNNING' && !counting ? (
+          <Progress
+            aria-label="Rotation progress"
+            value={(100 * r.rewrapped) / (r.rewrapped + r.remaining)}
+            animated
+            my={4}
+          />
+        ) : null}
         <Text size="sm" style={numeric}>
           {counting ? 'Progress: counting…' : `Progress: ${r.rewrapped} re-wrapped, ${r.remaining} remaining.`}
         </Text>
+        {r.status === 'RUNNING' ? <Text size="sm">Running for {elapsed(r.startedAt)}.</Text> : null}
         {r.finishedAt ? <Text size="sm">Finished at {when(r.finishedAt)}.</Text> : null}
         {r.status === 'FAILED' ? (
           <Text size="sm" role="alert">
@@ -214,4 +233,9 @@ function RotationSummary({ rotation: r }: { rotation: RotationView }) {
       </Stack>
     </Alert>
   );
+}
+
+function elapsed(startedAt: string): string {
+  const secs = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000));
+  return secs < 60 ? `${secs} s` : `${Math.floor(secs / 60)} min ${secs % 60} s`;
 }

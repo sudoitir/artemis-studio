@@ -51,7 +51,8 @@ describe('SecuritySettings', () => {
     renderWithProviders(<SecuritySettings />);
 
     expect(await screen.findByText('HashiCorp Vault')).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'Stored secrets per key version' })).toHaveTextContent('7');
+    expect(screen.getByRole('table', { name: 'Key versions' })).toHaveTextContent('7');
+    expect(screen.getByText('Newer, available to rotate to')).toBeInTheDocument();
     expect(screen.getByText('Last rotation: Succeeded')).toBeInTheDocument();
     expect(screen.getByText(/7 re-wrapped, 0 remaining/)).toBeInTheDocument();
   });
@@ -148,6 +149,9 @@ describe('SecuritySettings', () => {
     renderWithProviders(<SecuritySettings />);
     expect(await screen.findByText('Progress: counting…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rotate key' })).toBeDisabled();
+    expect(
+      await screen.findByRole('progressbar', { name: 'Rotation progress' }, { timeout: 4_000 }),
+    ).toBeInTheDocument();
     expect(await screen.findByText(/3 re-wrapped, 4 remaining/, undefined, { timeout: 4_000 })).toBeInTheDocument();
   });
 
