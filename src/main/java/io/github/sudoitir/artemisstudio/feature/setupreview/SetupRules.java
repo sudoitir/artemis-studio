@@ -347,7 +347,7 @@ public final class SetupRules {
                     List.of(),
                     false));
         }
-        JsonNode disk = b.get("MaxDiskUsage");
+        JsonNode disk = attribute(b, "MaxDiskUsage");
         if (disk != null && disk.isNumber() && (disk.asInt() < 0 || disk.asInt() >= 100)) {
             ctx.findings.add(finding(
                     "DURABILITY_DISK_UNBOUNDED",
@@ -491,7 +491,7 @@ public final class SetupRules {
 
     private static void notClustered(Context ctx, NodeRead n, JsonNode b) {
         Boolean clustered = bool(b, CLUSTERED);
-        JsonNode names = b.get("ClusterConnectionNames");
+        JsonNode names = attribute(b, "ClusterConnectionNames");
         boolean noConnection = names != null && names.isArray() && names.isEmpty();
         if (Boolean.FALSE.equals(clustered) || noConnection) {
             ctx.findings.add(finding(
@@ -692,7 +692,7 @@ public final class SetupRules {
         if (!Boolean.TRUE.equals(bool(b, CLUSTERED))) {
             return;
         }
-        JsonNode connectors = ctx.embedded(b.get("ConnectorsAsJSON"));
+        JsonNode connectors = ctx.embedded(attribute(b, "ConnectorsAsJSON"));
         if (connectors == null || !connectors.isArray()) {
             return;
         }
@@ -729,7 +729,7 @@ public final class SetupRules {
     }
 
     private static void acceptors(Context ctx, NodeRead n, JsonNode b) {
-        JsonNode acceptors = ctx.embedded(b.get("AcceptorsAsJSON"));
+        JsonNode acceptors = ctx.embedded(attribute(b, "AcceptorsAsJSON"));
         if (acceptors == null || !acceptors.isArray()) {
             return;
         }
@@ -894,6 +894,11 @@ public final class SetupRules {
                 || h.equals("[::1]")
                 || h.equals("::")
                 || h.equals("[::]");
+    }
+
+    /** The attribute, or null when the node or the attribute is absent. */
+    static JsonNode attribute(JsonNode node, String field) {
+        return node == null ? null : node.get(field);
     }
 
     static String text(JsonNode node, String field) {
