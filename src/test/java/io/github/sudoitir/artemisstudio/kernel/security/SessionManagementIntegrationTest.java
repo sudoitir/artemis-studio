@@ -254,6 +254,34 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void changingThePasswordDoesNotMakeAnActiveSessionLookIdle() throws Exception {
+        newUser("idle-password");
+        Browser browser = signedIn("idle-password");
+        Instant now = Instant.now();
+        change(store, "idle-password", s -> {
+            SessionFacts facts = s.getAttribute(SessionAuthentication.FACTS);
+            s.setAttribute(
+                    SessionAuthentication.FACTS,
+                    new SessionFacts(
+                            facts.authenticatedAt(),
+                            null,
+                            null,
+                            now.minus(Duration.ofHours(2)),
+                            facts.clientAddress(),
+                            facts.userAgent()));
+            s.setAttribute(SessionAuthentication.LAST_ACTIVITY_AT, now);
+        });
+
+        var changed = browser.send(
+                "POST",
+                "/api/v1/auth/password",
+                "{\"currentPassword\":\"%s\",\"newPassword\":\"Tr0ub4dor&3-horse-staple\"}".formatted(PASSWORD));
+
+        assertThat(changed.statusCode()).isEqualTo(204);
+        assertThat(browser.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+    }
+
+    @Test
     void theStorageTimeoutIsTheIdleTimeoutAsABackstop() throws Exception {
         newUser("backstop");
         signedIn("backstop");

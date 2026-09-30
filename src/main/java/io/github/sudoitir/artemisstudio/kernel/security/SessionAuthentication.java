@@ -96,7 +96,9 @@ public class SessionAuthentication {
         securityContextRepository.saveContext(context, request, response);
         HttpSession session = request.getSession();
         session.setAttribute(FACTS, facts);
-        session.setAttribute(LAST_ACTIVITY_AT, facts.signedInAt());
+        // Establishing a session is itself activity. The session's sign-in time is not: a re-established
+        // session (a password change) can be hours old, and would look idle at its very next request.
+        session.setAttribute(LAST_ACTIVITY_AT, Instant.now());
         session.setMaxInactiveInterval(maxInactiveSeconds());
         reissueCsrfToken(request, response);
         initialInstallers.grantIfNoneYet(principal.userId());
