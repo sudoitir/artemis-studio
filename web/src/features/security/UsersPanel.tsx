@@ -327,7 +327,7 @@ export function UsersPanel() {
 
 const FACTOR_WORDS = { TOTP: 'Authenticator app', WEBAUTHN: 'Passkey' } as const;
 
-/** What a user's second step is, in words, with the way to reset it beside it. */
+/** What a user's second step is, in words, with the way to reset it beside it when there is something to reset. */
 function TwoStepStatus({ user, onReset }: { user: UserView; onReset: () => void }) {
   const factors = user.secondFactors.flatMap((f) =>
     f in FACTOR_WORDS ? [FACTOR_WORDS[f as keyof typeof FACTOR_WORDS]] : [],
@@ -354,16 +354,18 @@ function TwoStepStatus({ user, onReset }: { user: UserView; onReset: () => void 
           {factors.join(', ')}
         </Text>
       )}
-      <Anchor
-        component="button"
-        type="button"
-        size="xs"
-        aria-label={`Reset two-step verification of ${user.username}`}
-        aria-describedby={statusId}
-        onClick={onReset}
-      >
-        Reset two-step verification
-      </Anchor>
+      {nothing ? null : (
+        <Anchor
+          component="button"
+          type="button"
+          size="xs"
+          aria-label={`Reset two-step verification of ${user.username}`}
+          aria-describedby={statusId}
+          onClick={onReset}
+        >
+          Reset two-step verification
+        </Anchor>
+      )}
     </Stack>
   );
 }

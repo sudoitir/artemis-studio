@@ -121,9 +121,11 @@ describe('UsersPanel two-step verification', () => {
     expect(screen.getByText('Not set up')).toBeInTheDocument();
     expect(screen.getByText('Required, not set up')).toBeInTheDocument();
     expect(screen.getByText('Managed by their identity provider')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset two-step verification of carol' })).toHaveAccessibleDescription(
-      'Required, not set up',
+    expect(screen.getByRole('button', { name: 'Reset two-step verification of alice' })).toHaveAccessibleDescription(
+      'Authenticator app, Passkey',
     );
+    // Nothing to reset, nothing offered: the status already says why.
+    expect(screen.getAllByRole('button', { name: /^Reset two-step verification of / })).toHaveLength(1);
   });
 
   it('arms the reset only when the username is typed, states its reach, and announces the result', async () => {
