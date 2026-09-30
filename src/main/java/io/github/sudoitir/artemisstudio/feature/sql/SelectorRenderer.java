@@ -94,7 +94,7 @@ public class SelectorRenderer {
 
     private String compare(Predicate.Compare compare, Instant now) {
         if (isDurable(compare.term())) {
-            return durable(compare, now);
+            return durable(compare);
         }
         return identifier(compare.term()) + " " + compare.op().sql() + " " + literal(compare.value(), now);
     }
@@ -105,7 +105,7 @@ public class SelectorRenderer {
      * values, not an approximation — which is why it is allowed to be pushed down at
      * all. Any other operator on it would not be.
      */
-    private String durable(Predicate.Compare compare, Instant now) {
+    private String durable(Predicate.Compare compare) {
         if (!(compare.value() instanceof Literal.Bool(var flag))) {
             throw new UnrenderableSelectorException("durable compares against true or false");
         }

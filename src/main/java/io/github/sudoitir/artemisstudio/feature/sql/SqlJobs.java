@@ -46,7 +46,7 @@ class SqlJobs {
                 "sql",
                 ScheduledJob.Scope.INSTANCE,
                 () -> MessageIndexCapture.RECONCILE,
-                capture::reconcile);
+                capture::reconcileSampling);
     }
 
     /**

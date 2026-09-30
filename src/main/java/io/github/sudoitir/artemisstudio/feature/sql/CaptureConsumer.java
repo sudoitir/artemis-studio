@@ -456,7 +456,7 @@ public class CaptureConsumer {
             }
         }
 
-        private void waitUnlessClosed(long millis) {
+        private synchronized void waitUnlessClosed(long millis) {
             long deadline = System.nanoTime() + millis * 1_000_000L;
             try {
                 long remaining;

@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Term;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -143,10 +144,8 @@ public class SqlQueryParser {
                     "FROM must name a queue or a queue wildcard, in double quotes.",
                     select.getFromItem() == null ? "FROM" : select.getFromItem().toString());
         }
-        List<String> segments = new ArrayList<>();
-        for (String raw : table.getFullyQualifiedName().split("\\.")) {
-            segments.add(raw);
-        }
+        List<String> segments =
+                new ArrayList<>(Arrays.asList(table.getFullyQualifiedName().split("\\.")));
         Source source = Source.DEFAULT;
         String head = segments.getFirst();
         if (SOURCE_BROKER.equalsIgnoreCase(head) && segments.size() > 1) {
@@ -204,11 +203,9 @@ public class SqlQueryParser {
         if (elements == null || elements.isEmpty()) {
             return List.of();
         }
-        List<Order> out = new ArrayList<>();
-        for (OrderByElement e : elements) {
-            out.add(new Order(term(e.getExpression()), e.isAsc() ? Direction.ASC : Direction.DESC));
-        }
-        return List.copyOf(out);
+        return elements.stream()
+                .map(e -> new Order(term(e.getExpression()), e.isAsc() ? Direction.ASC : Direction.DESC))
+                .toList();
     }
 
     private Integer parseLimit(PlainSelect select) {
@@ -289,7 +286,7 @@ public class SqlQueryParser {
         if (list.size() != 1) {
             throw new SqlSyntaxException("A parenthesised group must hold one condition.", list.toString());
         }
-        return predicate((Expression) list.get(0));
+        return predicate(list.get(0));
     }
 
     private Predicate compare(ComparisonOperator cmp) {
@@ -339,8 +336,8 @@ public class SqlQueryParser {
         Expression right = in.getRightExpression();
         List<Literal> values = new ArrayList<>();
         if (right instanceof ExpressionList<?> list) {
-            for (Object item : list) {
-                values.add(literal((Expression) item));
+            for (Expression item : list) {
+                values.add(literal(item));
             }
         } else {
             throw new SqlSyntaxException("IN takes a parenthesised list of literals.", String.valueOf(right));
@@ -448,11 +445,7 @@ public class SqlQueryParser {
         if (params == null) {
             return List.of();
         }
-        List<Expression> out = new ArrayList<>();
-        for (Object p : params) {
-            out.add((Expression) p);
-        }
-        return out;
+        return new ArrayList<>(params);
     }
 
     private boolean isLiteral(Expression e) {
@@ -470,7 +463,7 @@ public class SqlQueryParser {
             // getValue() keeps SQL's doubled quotes; the AST holds the real string,
             // so the renderer escapes exactly once on the way back out.
             case StringValue s -> new Literal.Str(s.getNotExcapedValue());
-            case LongValue l -> new Literal.Num(l.getValue(), true);
+            case LongValue l -> new Literal.Num((double) l.getValue(), true);
             case DoubleValue d -> new Literal.Num(d.getValue(), false);
             case BooleanValue b -> new Literal.Bool(b.getValue());
             case SignedExpression signed -> signedLiteral(signed);

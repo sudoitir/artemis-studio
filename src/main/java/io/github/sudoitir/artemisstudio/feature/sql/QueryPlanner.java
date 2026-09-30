@@ -185,24 +185,20 @@ public class QueryPlanner {
         List<Target> targets = new ArrayList<>();
         for (QueueLocation location : matched) {
             ClusterNode node = nodesById.get(location.nodeId());
-            if (node == null) {
-                continue;
+            if (node != null && seen.add(logicalKey(node) + SEPARATOR + location.queueName())) {
+                Optional<ClockOffset> offset = clocks.offsetFor(node.getId());
+                Instant brokerNow = clock.instant()
+                        .plusMillis(offset.map(ClockOffset::offsetMs).orElse(0L));
+                targets.add(new Target(
+                        node.getId(),
+                        node.getName(),
+                        location.queueName(),
+                        location.address(),
+                        location.routingType(),
+                        location.messageCount(),
+                        brokerNow,
+                        offset.isPresent()));
             }
-            if (!seen.add(logicalKey(node) + SEPARATOR + location.queueName())) {
-                continue;
-            }
-            Optional<ClockOffset> offset = clocks.offsetFor(node.getId());
-            Instant brokerNow =
-                    clock.instant().plusMillis(offset.map(ClockOffset::offsetMs).orElse(0L));
-            targets.add(new Target(
-                    node.getId(),
-                    node.getName(),
-                    location.queueName(),
-                    location.address(),
-                    location.routingType(),
-                    location.messageCount(),
-                    brokerNow,
-                    offset.isPresent()));
         }
 
         List<Target> filtered = targets.stream()
@@ -301,14 +297,10 @@ public class QueryPlanner {
 
     private void collectTerm(Term term, List<String> into) {
         switch (term) {
-            case Term.ColumnTerm(var column) -> {
-                if (column.indexOnly()) {
-                    into.add(column.sqlName());
-                }
-            }
+            case Term.ColumnTerm(var column) when column.indexOnly() -> into.add(column.sqlName());
             case Term.CaseFold fold -> collectTerm(fold.inner(), into);
-            case Term.PropertyTerm _, Term.JsonTerm _ -> {
-                // Only the index has neither; the message store reads both.
+            case Term.ColumnTerm _, Term.PropertyTerm _, Term.JsonTerm _ -> {
+                // Readable from the broker as well, so they need no index.
             }
             case Term.MatchRank _ -> into.add("match_rank");
         }

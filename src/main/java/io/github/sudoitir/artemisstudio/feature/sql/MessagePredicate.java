@@ -159,11 +159,11 @@ public class MessagePredicate {
             case Term.MatchRank _ -> null;
             case Term.CaseFold(var operand, var upper) -> {
                 Object inner = resolve(operand, message, context);
-                yield inner == null
-                        ? null
-                        : upper
-                                ? String.valueOf(inner).toUpperCase(Locale.ROOT)
-                                : String.valueOf(inner).toLowerCase(Locale.ROOT);
+                if (inner == null) {
+                    yield null;
+                }
+                String text = String.valueOf(inner);
+                yield upper ? text.toUpperCase(Locale.ROOT) : text.toLowerCase(Locale.ROOT);
             }
         };
     }
@@ -254,7 +254,8 @@ public class MessagePredicate {
                 Double value = asNumber(left);
                 yield value == null
                         ? null
-                        : Double.compare(value, context.now().minus(before).toEpochMilli());
+                        : Double.compare(
+                                value, (double) context.now().minus(before).toEpochMilli());
             }
         };
     }
