@@ -47,11 +47,6 @@ public class SqlController {
     }
 
     /**
-     * Ask the broker whether one indexed message is still on its queue. The index can
-     * only say what it saw; this is the operation that asks the authority, and it
-     * answers UNKNOWN rather than GONE whenever the read could not settle it.
-     */
-    /**
      * Hand back a reference to a query, to be opened as a stream (ADR-0064).
      *
      * <p>The query is not run here and nothing is contacted: this exists so the text
@@ -69,6 +64,11 @@ public class SqlController {
                 id, java.time.Instant.now().plusSeconds(60).toString());
     }
 
+    /**
+     * Ask the broker whether one indexed message is still on its queue. The index can
+     * only say what it saw; this is the operation that asks the authority, and it
+     * answers UNKNOWN rather than GONE whenever the read could not settle it.
+     */
     @PostMapping("/verify")
     public VerifyView verify(@PathVariable UUID clusterId, @RequestBody VerifyRequest request) {
         MessageVerifier.Verdict verdict = verifier.verify(

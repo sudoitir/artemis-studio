@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -65,7 +66,8 @@ public class SqlTailPoller {
      * take seconds; the shared scheduler also drives the SSE heartbeat and the alert
      * dispatcher, and neither may be held up behind a tail.
      */
-    private volatile ExecutorService polls = Executors.newVirtualThreadPerTaskExecutor();
+    private final AtomicReference<ExecutorService> polls =
+            new AtomicReference<>(Executors.newVirtualThreadPerTaskExecutor());
 
     /**
      * Stop starting polls and wait, bounded, for the ones in flight — at shutdown, before the
@@ -73,13 +75,13 @@ public class SqlTailPoller {
      * cannot be restarted and a stopped context can be started again.
      */
     public void closePolls() {
-        ExecutorService closing = polls;
+        ExecutorService closing = polls.get();
         closing.shutdown();
         try {
             if (!closing.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
                 closing.shutdownNow();
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             closing.shutdownNow();
             Thread.currentThread().interrupt();
         }
@@ -87,8 +89,8 @@ public class SqlTailPoller {
 
     /** Accept polls again after a stopped context is started. */
     public void resumePolls() {
-        if (polls.isShutdown()) {
-            polls = Executors.newVirtualThreadPerTaskExecutor();
+        if (polls.get().isShutdown()) {
+            polls.set(Executors.newVirtualThreadPerTaskExecutor());
         }
     }
 
@@ -318,29 +320,32 @@ public class SqlTailPoller {
         return tail;
     }
 
+    /**
+     * One poll per tail at a time. A tail whose poll is still running has a slower broker than
+     * the interval assumes, and queueing more reads onto it is the wrong answer. Claims the
+     * tail's poll when it is due.
+     */
+    private static boolean due(Tail tail) {
+        return !Instant.now().isBefore(tail.nextDue) && tail.polling.compareAndSet(false, true);
+    }
+
     /** Registered with {@code JobScheduler} on the configured tail interval. */
     public void tick() {
         for (Tail tail : tails) {
             if (tail.cancelled()) {
                 tails.remove(tail);
-                continue;
+            } else if (due(tail)) {
+                polls.get().execute(() -> {
+                    try {
+                        poll(tail);
+                    } catch (RuntimeException e) {
+                        log.debug("SQL tail poll failed", e);
+                    } finally {
+                        tail.nextDue = Instant.now().plus(tail.minInterval);
+                        tail.polling.set(false);
+                    }
+                });
             }
-            // One poll per tail at a time. A tail whose poll is still running has a
-            // slower broker than the interval assumes, and queueing more reads onto it
-            // is the wrong answer.
-            if (Instant.now().isBefore(tail.nextDue) || !tail.polling.compareAndSet(false, true)) {
-                continue;
-            }
-            polls.execute(() -> {
-                try {
-                    poll(tail);
-                } catch (RuntimeException e) {
-                    log.debug("SQL tail poll failed", e);
-                } finally {
-                    tail.nextDue = Instant.now().plus(tail.minInterval);
-                    tail.polling.set(false);
-                }
-            });
         }
     }
 

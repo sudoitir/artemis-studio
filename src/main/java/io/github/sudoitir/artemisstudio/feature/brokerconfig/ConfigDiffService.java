@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,8 @@ import tools.jackson.databind.JsonNode;
 @Service
 @RequiredArgsConstructor
 public class ConfigDiffService {
+
+    private static final String MATCH = "match";
 
     private final ClusterDirectory brokerNodes;
     private final QueueSnapshots queueSnapshots;
@@ -110,8 +113,8 @@ public class ConfigDiffService {
                 right));
         sections.add(section(
                 ConfigDiff.SECTION_ADDRESS_SETTINGS,
-                ConfigDiff.flattenKeyed(leftRead.config().addressSettings(), "match"),
-                ConfigDiff.flattenKeyed(rightRead.config().addressSettings(), "match"),
+                ConfigDiff.flattenKeyed(leftRead.config().addressSettings(), MATCH),
+                ConfigDiff.flattenKeyed(rightRead.config().addressSettings(), MATCH),
                 left,
                 right));
         sections.add(section(
@@ -233,8 +236,7 @@ public class ConfigDiffService {
         List<NodeConfigSectionView> sections = List.of(
                 nodeSection(ConfigDiff.SECTION_BROKER, ConfigDiff.flatten(config.brokerAttributes())),
                 nodeSection(
-                        ConfigDiff.SECTION_ADDRESS_SETTINGS,
-                        ConfigDiff.flattenKeyed(config.addressSettings(), "match")),
+                        ConfigDiff.SECTION_ADDRESS_SETTINGS, ConfigDiff.flattenKeyed(config.addressSettings(), MATCH)),
                 nodeSection(
                         ConfigDiff.SECTION_SECURITY_SETTINGS,
                         ConfigDiff.flattenKeyed(config.securitySettings(), "name")),
@@ -269,11 +271,9 @@ public class ConfigDiffService {
     }
 
     private Set<String> addressesOf(UUID clusterId) {
-        Set<String> addresses = new LinkedHashSet<>();
-        for (QueueSnapshot row : queueSnapshots.forCluster(clusterId)) {
-            addresses.add(row.address());
-        }
-        return addresses;
+        return queueSnapshots.forCluster(clusterId).stream()
+                .map(QueueSnapshot::address)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private record Read(NodeConfig config, String failure) {}
@@ -312,7 +312,12 @@ public class ConfigDiffService {
      * exists to avoid, and the live check against the dev pair caught it.
      */
     private boolean isReducedSurface(NodeConfig left, NodeConfig right) {
-        NodeConfig passive = !right.active() ? right : (!left.active() ? left : null);
+        NodeConfig passive = null;
+        if (!right.active()) {
+            passive = right;
+        } else if (!left.active()) {
+            passive = left;
+        }
         if (passive == null) {
             return false;
         }

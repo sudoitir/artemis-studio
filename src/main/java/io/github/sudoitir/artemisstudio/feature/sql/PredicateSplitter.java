@@ -74,8 +74,8 @@ public class PredicateSplitter {
 
     /** Flattens nested top-level {@code AND}s so each conjunct is classified on its own. */
     private void flatten(Predicate predicate, List<Predicate> into) {
-        if (predicate instanceof Predicate.And and) {
-            and.parts().forEach(part -> flatten(part, into));
+        if (predicate instanceof Predicate.And(var parts)) {
+            parts.forEach(part -> flatten(part, into));
         } else {
             into.add(predicate);
         }
@@ -99,9 +99,9 @@ public class PredicateSplitter {
     public Evaluation classify(Predicate predicate) {
         Evaluation leaves =
                 switch (predicate) {
-                    case Predicate.And and -> worst(and.parts());
-                    case Predicate.Or or -> worst(or.parts());
-                    case Predicate.Not not -> classify(not.inner());
+                    case Predicate.And(var parts) -> worst(parts);
+                    case Predicate.Or(var parts) -> worst(parts);
+                    case Predicate.Not(var inner) -> classify(inner);
                     case Predicate.Compare compare -> classify(compare.term());
                     case Predicate.In in -> classify(in.term());
                     case Predicate.IsNull isNull -> classify(isNull.term());
@@ -113,7 +113,7 @@ public class PredicateSplitter {
                     // Postgres evaluates it from a GIN index, so it is not a scan of
                     // the broker's messages — but it is not pushdown either, because
                     // no broker can evaluate it at all.
-                    case Predicate.Match ignored -> Evaluation.SCAN;
+                    case Predicate.Match _ -> Evaluation.SCAN;
                 };
         // Eligible in principle is not the same as renderable in fact: a property
         // name a selector cannot spell, or an ordering comparison on the durability
@@ -127,11 +127,11 @@ public class PredicateSplitter {
 
     public Evaluation classify(Term term) {
         return switch (term) {
-            case Term.ColumnTerm column -> column.column().evaluation();
-            case Term.PropertyTerm ignored -> Evaluation.PUSHDOWN;
-            case Term.JsonTerm ignored -> Evaluation.SCAN;
-            case Term.CaseFold ignored -> Evaluation.SCAN;
-            case Term.MatchRank ignored -> Evaluation.SCAN;
+            case Term.ColumnTerm(var column) -> column.evaluation();
+            case Term.PropertyTerm _ -> Evaluation.PUSHDOWN;
+            case Term.JsonTerm _ -> Evaluation.SCAN;
+            case Term.CaseFold _ -> Evaluation.SCAN;
+            case Term.MatchRank _ -> Evaluation.SCAN;
         };
     }
 

@@ -55,6 +55,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class BrokerConfigService {
 
+    private static final String CLUSTER = "cluster";
     static final String AUDIT_EDIT = "EDIT_BROKER_CONFIG";
     static final String AUDIT_CONFIGURE = "CONFIGURE_BROKER_CONFIG";
     static final String AUDIT_CREDENTIAL = "SET_BRIDGE_CREDENTIAL";
@@ -154,7 +155,7 @@ public class BrokerConfigService {
     public Declaration get(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         RegisteredCluster cluster =
-                clusters.cluster(clusterId).orElseThrow(() -> new NotFoundException("cluster", clusterId));
+                clusters.cluster(clusterId).orElseThrow(() -> new NotFoundException(CLUSTER, clusterId));
         Optional<BrokerConfigDeclarationEntity> header = declarations.findById(clusterId);
         List<NodeState> nodes = nodeStates(clusterId);
         if (header.isEmpty()) {
@@ -304,7 +305,7 @@ public class BrokerConfigService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_EDIT,
-                "cluster",
+                CLUSTER,
                 clusterName(clusterId),
                 clusterId,
                 null,
@@ -347,7 +348,7 @@ public class BrokerConfigService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_CONFIGURE,
-                "cluster",
+                CLUSTER,
                 clusterName(clusterId),
                 clusterId,
                 null,
@@ -412,7 +413,7 @@ public class BrokerConfigService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_CREDENTIAL,
-                "cluster",
+                CLUSTER,
                 clusterName(clusterId),
                 clusterId,
                 null,
@@ -429,7 +430,7 @@ public class BrokerConfigService {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_CREDENTIAL,
-                "cluster",
+                CLUSTER,
                 clusterName(clusterId),
                 clusterId,
                 null,
@@ -475,17 +476,7 @@ public class BrokerConfigService {
                 + " configuration declares. Address settings and security settings are therefore keyed by"
                 + " '#' and by address; merge them into the patterns you know before applying.");
 
-        List<ObservedNodeConfig> observed = new ArrayList<>();
-        for (ClusterNode node : reads.targets(clusterId)) {
-            if (!Boolean.TRUE.equals(node.getActive())) {
-                continue;
-            }
-            try {
-                observed.add(ops.readForAdoption(reads.client(clusterId, node), node.getId(), node.getName()));
-            } catch (RuntimeException e) {
-                notes.add(node.getName() + " could not be read and contributed nothing: " + e.getMessage());
-            }
-        }
+        List<ObservedNodeConfig> observed = readLiveNodes(clusterId, notes);
         if (observed.isEmpty()) {
             throw new ConflictException("no-live-node", "No live node could be read, so there is nothing to adopt.");
         }
@@ -493,40 +484,13 @@ public class BrokerConfigService {
 
         // Addresses and queues: the union across nodes; queues from the snapshot cache.
         Map<String, Set<String>> addresses = new TreeMap<>();
-        for (ObservedNodeConfig n : observed) {
-            n.addresses()
-                    .forEach((a, types) -> addresses.merge(a, new TreeSet<>(types), (x, y) -> {
-                        x.addAll(y);
-                        return x;
-                    }));
-        }
+        observed.forEach(n -> n.addresses()
+                .forEach((a, types) -> addresses.merge(a, new TreeSet<>(types), (x, y) -> {
+                    x.addAll(y);
+                    return x;
+                })));
         Map<String, List<QueueDecl>> queuesByAddress = new TreeMap<>();
-        Map<String, QueueSnapshot> seen = new LinkedHashMap<>();
-        for (QueueSnapshot q : queueSnapshots.forCluster(clusterId)) {
-            if (q.address() == null
-                    || q.address().startsWith("activemq.")
-                    || q.address().startsWith("$sys.")) {
-                continue;
-            }
-            seen.putIfAbsent(q.queueName(), q);
-        }
-        for (QueueSnapshot q : seen.values()) {
-            addresses
-                    .computeIfAbsent(q.address(), k -> new TreeSet<>())
-                    .add(q.routingType().toUpperCase());
-            queuesByAddress
-                    .computeIfAbsent(q.address(), k -> new ArrayList<>())
-                    .add(new QueueDecl(
-                            q.queueName(),
-                            q.routingType().toUpperCase(),
-                            null,
-                            q.durable(),
-                            null,
-                            null,
-                            null,
-                            null,
-                            null));
-        }
+        addSnapshotQueues(clusterId, addresses, queuesByAddress);
         List<AddressDecl> addressDecls = new ArrayList<>();
         addresses.forEach((name, types) -> {
             if (types.isEmpty()) {
@@ -535,67 +499,9 @@ public class BrokerConfigService {
             addressDecls.add(new AddressDecl(name, types, queuesByAddress.getOrDefault(name, List.of())));
         });
 
-        // Address settings: '#' in full, then per-address differences.
-        List<AddressSettingDecl> settingDecls = new ArrayList<>();
-        Map<String, Object> base = first.addressSettings().getOrDefault("#", Map.of());
-        settingDecls.add(new AddressSettingDecl("#", base));
-        for (String address : addresses.keySet()) {
-            Map<String, Object> resolved = first.addressSettings().get(address);
-            if (resolved == null) {
-                continue;
-            }
-            Map<String, Object> diff = new TreeMap<>();
-            resolved.forEach((k, v) -> {
-                if (!sameValue(v, base.get(k))) {
-                    diff.put(k, v);
-                }
-            });
-            if (!diff.isEmpty()) {
-                settingDecls.add(new AddressSettingDecl(address, diff));
-            }
-            for (ObservedNodeConfig other : observed.subList(1, observed.size())) {
-                Map<String, Object> theirs = other.addressSettings().get(address);
-                if (theirs != null && !theirs.equals(resolved)) {
-                    disagreements.add("Address settings for " + address + " differ between " + first.nodeName()
-                            + " and " + other.nodeName() + "; " + first.nodeName() + "'s were kept.");
-                }
-            }
-        }
-
-        // Security settings: '#' and per-address role sets that differ from it.
-        List<SecuritySettingDecl> securityDecls = new ArrayList<>();
-        Map<PermissionType, Set<String>> baseRoles = first.securitySettings().getOrDefault("#", Map.of());
-        if (!baseRoles.isEmpty()) {
-            securityDecls.add(new SecuritySettingDecl("#", baseRoles));
-        }
-        for (String address : addresses.keySet()) {
-            Map<PermissionType, Set<String>> roles = first.securitySettings().get(address);
-            if (roles == null || roles.isEmpty() || sameRoles(roles, baseRoles)) {
-                continue;
-            }
-            if (!AddressMatch.isCatchAll(address)) {
-                securityDecls.add(new SecuritySettingDecl(address, new EnumMap<>(roles)));
-            }
-        }
-
-        // Diverts: union by name, first node's properties kept.
-        Map<String, DivertDecl> diverts = new TreeMap<>();
-        for (ObservedNodeConfig n : observed) {
-            n.diverts().forEach((name, d) -> {
-                DivertDecl kept = diverts.putIfAbsent(name, d);
-                if (kept != null && !kept.sameAs(d)) {
-                    disagreements.add("Divert " + name + " differs between " + first.nodeName() + " and " + n.nodeName()
-                            + "; " + first.nodeName() + "'s was kept.");
-                }
-            });
-        }
-        for (ObservedNodeConfig n : observed.subList(1, observed.size())) {
-            for (String name : diverts.keySet()) {
-                if (!n.diverts().containsKey(name)) {
-                    disagreements.add("Divert " + name + " is missing on " + n.nodeName() + ".");
-                }
-            }
-        }
+        List<AddressSettingDecl> settingDecls = adoptedAddressSettings(observed, addresses.keySet(), disagreements);
+        List<SecuritySettingDecl> securityDecls = adoptedSecuritySettings(first, addresses.keySet());
+        Map<String, DivertDecl> diverts = adoptedDiverts(observed, disagreements);
 
         BrokerConfigDocument doc = new BrokerConfigDocument(
                 BrokerConfigDocument.CURRENT_VERSION,
@@ -614,6 +520,124 @@ public class BrokerConfigService {
                     + " declaration instead if the cluster is what is wrong.");
         }
         return new Adoption(doc, notes, disagreements, closes);
+    }
+
+    /** What each live node runs; one that cannot be read is noted and contributes nothing. */
+    private List<ObservedNodeConfig> readLiveNodes(UUID clusterId, List<String> notes) {
+        List<ObservedNodeConfig> observed = new ArrayList<>();
+        reads.targets(clusterId).stream()
+                .filter(node -> Boolean.TRUE.equals(node.getActive()))
+                .forEach(node -> {
+                    try {
+                        observed.add(ops.readForAdoption(reads.client(clusterId, node), node.getId(), node.getName()));
+                    } catch (RuntimeException e) {
+                        notes.add(node.getName() + " could not be read and contributed nothing: " + e.getMessage());
+                    }
+                });
+        return observed;
+    }
+
+    /** The cluster's queues from the snapshot cache, added to their addresses (created when the nodes did not report them). */
+    private void addSnapshotQueues(
+            UUID clusterId, Map<String, Set<String>> addresses, Map<String, List<QueueDecl>> queuesByAddress) {
+        Map<String, QueueSnapshot> seen = new LinkedHashMap<>();
+        queueSnapshots.forCluster(clusterId).stream()
+                .filter(q -> q.address() != null
+                        && !q.address().startsWith("activemq.")
+                        && !q.address().startsWith("$sys."))
+                .forEach(q -> seen.putIfAbsent(q.queueName(), q));
+        for (QueueSnapshot q : seen.values()) {
+            addresses
+                    .computeIfAbsent(q.address(), k -> new TreeSet<>())
+                    .add(q.routingType().toUpperCase());
+            queuesByAddress
+                    .computeIfAbsent(q.address(), k -> new ArrayList<>())
+                    .add(new QueueDecl(
+                            q.queueName(),
+                            q.routingType().toUpperCase(),
+                            null,
+                            q.durable(),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null));
+        }
+    }
+
+    /** Address settings: '#' in full, then per-address differences. */
+    private static List<AddressSettingDecl> adoptedAddressSettings(
+            List<ObservedNodeConfig> observed, Set<String> addressNames, List<String> disagreements) {
+        ObservedNodeConfig first = observed.getFirst();
+        List<AddressSettingDecl> out = new ArrayList<>();
+        Map<String, Object> base = first.addressSettings().getOrDefault("#", Map.of());
+        out.add(new AddressSettingDecl("#", base));
+        for (String address : addressNames) {
+            Map<String, Object> resolved = first.addressSettings().get(address);
+            if (resolved == null) {
+                continue;
+            }
+            Map<String, Object> diff = new TreeMap<>();
+            resolved.forEach((k, v) -> {
+                if (!sameValue(v, base.get(k))) {
+                    diff.put(k, v);
+                }
+            });
+            if (!diff.isEmpty()) {
+                out.add(new AddressSettingDecl(address, diff));
+            }
+            observed.subList(1, observed.size()).stream()
+                    .filter(other -> {
+                        Map<String, Object> theirs = other.addressSettings().get(address);
+                        return theirs != null && !theirs.equals(resolved);
+                    })
+                    .forEach(other -> disagreements.add("Address settings for " + address + " differ between "
+                            + first.nodeName() + " and " + other.nodeName() + "; " + first.nodeName()
+                            + "'s were kept."));
+        }
+        return out;
+    }
+
+    /** Security settings: '#' and per-address role sets that differ from it. */
+    private static List<SecuritySettingDecl> adoptedSecuritySettings(
+            ObservedNodeConfig first, Set<String> addressNames) {
+        List<SecuritySettingDecl> out = new ArrayList<>();
+        Map<PermissionType, Set<String>> baseRoles = first.securitySettings().getOrDefault("#", Map.of());
+        if (!baseRoles.isEmpty()) {
+            out.add(new SecuritySettingDecl("#", baseRoles));
+        }
+        for (String address : addressNames) {
+            Map<PermissionType, Set<String>> roles = first.securitySettings().get(address);
+            if (roles != null
+                    && !roles.isEmpty()
+                    && !sameRoles(roles, baseRoles)
+                    && !AddressMatch.isCatchAll(address)) {
+                out.add(new SecuritySettingDecl(address, new EnumMap<>(roles)));
+            }
+        }
+        return out;
+    }
+
+    /** Diverts: union by name, first node's properties kept. */
+    private static Map<String, DivertDecl> adoptedDiverts(
+            List<ObservedNodeConfig> observed, List<String> disagreements) {
+        ObservedNodeConfig first = observed.getFirst();
+        Map<String, DivertDecl> diverts = new TreeMap<>();
+        for (ObservedNodeConfig n : observed) {
+            n.diverts().forEach((name, d) -> {
+                DivertDecl kept = diverts.putIfAbsent(name, d);
+                if (kept != null && !kept.sameAs(d)) {
+                    disagreements.add("Divert " + name + " differs between " + first.nodeName() + " and " + n.nodeName()
+                            + "; " + first.nodeName() + "'s was kept.");
+                }
+            });
+        }
+        for (ObservedNodeConfig n : observed.subList(1, observed.size())) {
+            diverts.keySet().stream()
+                    .filter(name -> !n.diverts().containsKey(name))
+                    .forEach(name -> disagreements.add("Divert " + name + " is missing on " + n.nodeName() + "."));
+        }
+        return diverts;
     }
 
     /** Every drift finding currently recorded against the cluster, node by node. */

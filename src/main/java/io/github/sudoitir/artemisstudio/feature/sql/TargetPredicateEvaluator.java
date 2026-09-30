@@ -18,26 +18,26 @@ final class TargetPredicateEvaluator {
 
     static boolean matches(Predicate predicate, Target target) {
         return switch (predicate) {
-            case Predicate.And and -> and.parts().stream().allMatch(p -> matches(p, target));
-            case Predicate.Or or -> or.parts().stream().anyMatch(p -> matches(p, target));
-            case Predicate.Not not -> !matches(not.inner(), target);
+            case Predicate.And(var parts) -> parts.stream().allMatch(p -> matches(p, target));
+            case Predicate.Or(var parts) -> parts.stream().anyMatch(p -> matches(p, target));
+            case Predicate.Not(var inner) -> !matches(inner, target);
             case Predicate.Compare compare -> compare(compare, target);
             case Predicate.In in -> in(in, target);
-            case Predicate.IsNull isNull -> (value(isNull.term(), target) == null) != isNull.negated();
+            case Predicate.IsNull(var term, var negated) -> (value(term, target) == null) != negated;
             case Predicate.Like like -> like(like, target);
-            case Predicate.Between ignored -> true;
+            case Predicate.Between _ -> true;
             // A target is a queue on a node; nothing about it can be full-text
             // searched, so this predicate excludes no target.
-            case Predicate.Match ignored -> true;
+            case Predicate.Match _ -> true;
         };
     }
 
     private static boolean compare(Predicate.Compare compare, Target target) {
         String left = value(compare.term(), target);
-        if (left == null || !(compare.value() instanceof Literal.Str right)) {
+        if (left == null || !(compare.value() instanceof Literal.Str(var right))) {
             return true;
         }
-        int order = left.compareTo(right.value());
+        int order = left.compareTo(right);
         return switch (compare.op()) {
             case EQ -> order == 0;
             case NE -> order != 0;
@@ -53,8 +53,7 @@ final class TargetPredicateEvaluator {
         if (left == null) {
             return true;
         }
-        boolean found = in.values().stream()
-                .anyMatch(v -> v instanceof Literal.Str str && str.value().equals(left));
+        boolean found = in.values().stream().anyMatch(v -> v instanceof Literal.Str(var text) && text.equals(left));
         return found != in.negated();
     }
 
@@ -72,10 +71,9 @@ final class TargetPredicateEvaluator {
     }
 
     private static String value(Term term, Target target) {
-        if (!(term instanceof Term.ColumnTerm column)) {
+        if (!(term instanceof Term.ColumnTerm(var c))) {
             return null;
         }
-        Column c = column.column();
         if (c == Column.QUEUE) {
             return target.queueName();
         }

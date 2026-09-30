@@ -88,7 +88,7 @@ public class BrokerConfigNodeStateEntity {
         this.nodeId = nodeId;
     }
 
-    public void record(
+    public void recordState(
             State state, String detail, Integer verifiedRevision, String findingsJson, Basis basis, Long basisRef) {
         this.state = state.name();
         this.detail = detail;

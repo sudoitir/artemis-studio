@@ -31,12 +31,17 @@ public class SqlGovernance {
     /** Artemis' BYTES message type; its body is binary and cannot be classified. */
     static final int BYTES_MESSAGE = 4;
 
+    private static final String HEADER_CORRELATION_ID = "correlationId";
+    private static final String HEADER_GROUP_ID = "groupId";
+    private static final String HEADER_USER_ID = "userId";
+    private static final String HEADER_REPLY_TO = "replyTo";
+
     /** The catalogue columns that are message headers, by the header name the policy knows them as. */
     private static final Map<Column, String> HEADER_COLUMNS = Map.of(
-            Column.CORRELATION_ID, "correlationId",
-            Column.GROUP_ID, "groupId",
-            Column.USER_ID, "userId",
-            Column.REPLY_TO, "replyTo");
+            Column.CORRELATION_ID, HEADER_CORRELATION_ID,
+            Column.GROUP_ID, HEADER_GROUP_ID,
+            Column.USER_ID, HEADER_USER_ID,
+            Column.REPLY_TO, HEADER_REPLY_TO);
 
     private final ContentPolicy policy;
 
@@ -74,10 +79,10 @@ public class SqlGovernance {
                 row.expiration(),
                 row.size(),
                 row.jmsType(),
-                content.headers().get("correlationId"),
-                content.headers().get("groupId"),
-                content.headers().get("userId"),
-                content.headers().get("replyTo"),
+                content.headers().get(HEADER_CORRELATION_ID),
+                content.headers().get(HEADER_GROUP_ID),
+                content.headers().get(HEADER_USER_ID),
+                content.headers().get(HEADER_REPLY_TO),
                 content.body(),
                 row.bodyTruncated(),
                 content.properties(),
@@ -90,10 +95,10 @@ public class SqlGovernance {
 
     static MessageContent content(Row row) {
         Map<String, String> headers = new HashMap<>();
-        headers.put("correlationId", row.correlationId());
-        headers.put("groupId", row.groupId());
-        headers.put("userId", row.userId());
-        headers.put("replyTo", row.replyTo());
+        headers.put(HEADER_CORRELATION_ID, row.correlationId());
+        headers.put(HEADER_GROUP_ID, row.groupId());
+        headers.put(HEADER_USER_ID, row.userId());
+        headers.put(HEADER_REPLY_TO, row.replyTo());
         return new MessageContent(headers, row.properties(), row.body(), row.messageType() == BYTES_MESSAGE, null);
     }
 
@@ -112,16 +117,12 @@ public class SqlGovernance {
             if (value == null) {
                 return;
             }
-            if (value instanceof Long l && m.intProperties().containsKey(name)) {
-                ints.put(name, l);
-            } else if (value instanceof Long l && m.longProperties().containsKey(name)) {
-                longs.put(name, l);
-            } else if (value instanceof Double d) {
-                doubles.put(name, d);
-            } else if (value instanceof Boolean b) {
-                booleans.put(name, b);
-            } else {
-                strings.put(name, String.valueOf(value));
+            switch (value) {
+                case Long l when m.intProperties().containsKey(name) -> ints.put(name, l);
+                case Long l when m.longProperties().containsKey(name) -> longs.put(name, l);
+                case Double d -> doubles.put(name, d);
+                case Boolean b -> booleans.put(name, b);
+                default -> strings.put(name, String.valueOf(value));
             }
         });
         return new BrowsedMessage(
@@ -132,10 +133,10 @@ public class SqlGovernance {
                 m.timestamp(),
                 m.expiration(),
                 m.size(),
-                g.headers().get("groupId"),
-                g.headers().get("correlationId"),
-                g.headers().get("replyTo"),
-                g.headers().get("userId"),
+                g.headers().get(HEADER_GROUP_ID),
+                g.headers().get(HEADER_CORRELATION_ID),
+                g.headers().get(HEADER_REPLY_TO),
+                g.headers().get(HEADER_USER_ID),
                 g.body(),
                 m.bodyEncoding(),
                 m.contentType(),
@@ -211,33 +212,30 @@ public class SqlGovernance {
             return;
         }
         switch (predicate) {
-            case Predicate.And and -> and.parts().forEach(p -> collect(p, out));
-            case Predicate.Or or -> or.parts().forEach(p -> collect(p, out));
-            case Predicate.Not not -> collect(not.inner(), out);
+            case Predicate.And(var parts) -> parts.forEach(p -> collect(p, out));
+            case Predicate.Or(var parts) -> parts.forEach(p -> collect(p, out));
+            case Predicate.Not(var inner) -> collect(inner, out);
             case Predicate.Compare compare -> out.add(compare.term());
             case Predicate.In in -> out.add(in.term());
             case Predicate.IsNull isNull -> out.add(isNull.term());
             case Predicate.Like like -> out.add(like.term());
             case Predicate.Between between -> out.add(between.term());
-            // Full-text search runs over the stored body, which holds only masked values.
-            case Predicate.Match ignored -> {}
+            case Predicate.Match _ -> {
+                // Full-text search runs over the stored body, which holds only masked values.
+            }
         }
     }
 
     private String classifiedField(Term term) {
         return switch (term) {
-            case Term.PropertyTerm property ->
-                policy.classifies(Location.PROPERTY, property.name()) ? "props." + property.name() : null;
-            case Term.JsonTerm json ->
-                policy.classifies(Location.BODY, json.path()) ? "body->>'" + json.path() + "'" : null;
-            case Term.ColumnTerm column -> {
-                String header = HEADER_COLUMNS.get(column.column());
-                yield header != null && policy.classifies(Location.HEADER, header)
-                        ? column.column().sqlName()
-                        : null;
+            case Term.PropertyTerm(var name) -> policy.classifies(Location.PROPERTY, name) ? "props." + name : null;
+            case Term.JsonTerm(var path) -> policy.classifies(Location.BODY, path) ? "body->>'" + path + "'" : null;
+            case Term.ColumnTerm(var column) -> {
+                String header = HEADER_COLUMNS.get(column);
+                yield header != null && policy.classifies(Location.HEADER, header) ? column.sqlName() : null;
             }
-            case Term.CaseFold fold -> classifiedField(fold.inner());
-            case Term.MatchRank ignored -> null;
+            case Term.CaseFold(var inner, var _) -> classifiedField(inner);
+            case Term.MatchRank _ -> null;
         };
     }
 }
