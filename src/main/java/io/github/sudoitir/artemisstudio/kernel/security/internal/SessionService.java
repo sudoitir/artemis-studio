@@ -91,9 +91,15 @@ public class SessionService {
 
     private List<AccountSessionView> list(String username, HttpServletRequest request) {
         String currentId = currentId(request);
-        return store.findByPrincipalName(username).entrySet().stream()
-                .map(entry ->
-                        view(entry.getKey(), entry.getValue(), entry.getKey().equals(currentId), request))
+        // Only the ids come from the per-user lookup. Its query joins sessions to their attributes with no ORDER BY
+        // and Spring Session's reader assumes one session's rows are adjacent, so on PostgreSQL a session whose
+        // rows interleave with another's comes back without some of its attributes (its facts) and would be
+        // dropped from the list. Reading each session by its own id has one session's rows only.
+        return store.findByPrincipalName(username).keySet().stream()
+                .map(id -> {
+                    Session stored = store.findById(id);
+                    return stored == null ? null : view(id, stored, id.equals(currentId), request);
+                })
                 .filter(java.util.Objects::nonNull)
                 .sorted(Comparator.comparing(AccountSessionView::current)
                         .reversed()
