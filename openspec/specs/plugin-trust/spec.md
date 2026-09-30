@@ -1,7 +1,7 @@
 # plugin-trust Specification
 
 ## Purpose
-TBD - created by archiving change 07-plugin-signing-and-trust. Update Purpose after archive.
+Who stands behind a runtime plugin: signed plugin jars, the publisher keys administrators trust, the audited allowance for unverified plugins, and how install, update, review and health use that trust decision (ADR-0141).
 
 ## Requirements
 
