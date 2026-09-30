@@ -305,6 +305,25 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aSessionWithoutFactsIsSignedOutNotAnError() throws Exception {
+        newUser("auth-no-facts", "correct-horse-battery");
+        MockMvc mvc = mvc();
+        MockHttpSession session = signIn(mvc, "auth-no-facts", "correct-horse-battery");
+        // What a session created before facts existed looks like.
+        session.removeAttribute(SessionAuthentication.FACTS);
+
+        mvc.perform(post("/api/v1/auth/reauthenticate")
+                        .session(session)
+                        .with(csrf())
+                        .contentType("application/json")
+                        .content("{\"password\":\"correct-horse-battery\"}"))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(session.isInvalid()).isTrue();
+        mvc.perform(get("/api/v1/auth/me").session(session)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void logoutInvalidatesTheSession() throws Exception {
         newUser("auth-logout", "correct-horse-battery");
         MockMvc mvc = mvc();
