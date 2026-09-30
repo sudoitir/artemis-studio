@@ -111,8 +111,7 @@ public class LoginService {
         }
         if (enrolled) {
             // The password alone opens nothing: no principal, and no success recorded, until the factor.
-            sessions.awaitSecondFactor(found.userId(), provider, request, response);
-            attempt.succeeded();
+            sessions.awaitSecondFactor(found.userId(), provider, attempt.awaitingSecondFactor(), request, response);
             return new Outcome.SecondFactorRequired(
                     secondFactors.get().methods(found.userId()), trustDeviceDays(secondFactors.get()));
         }
@@ -221,6 +220,7 @@ public class LoginService {
         sessions.establish(principal, SessionFacts.signedInWithSecondFactor(request, method), request, response);
         completed(principal, request);
         audit.secondFactorVerified(account.username(), method);
+        audit.loginCompleted(pending.auditId());
         if (submission.trustDevice()) {
             trustBrowser(factors, principal, request, response);
         }

@@ -80,7 +80,18 @@ class AuthenticationAuditRecorder implements AuthenticationAudit {
             public void succeeded() {
                 audit.succeed(event, 1);
             }
+
+            @Override
+            public long awaitingSecondFactor() {
+                audit.fail(event, "password accepted, second factor not given");
+                return event.getId();
+            }
         };
+    }
+
+    @Override
+    public void loginCompleted(long attemptId) {
+        audit.byId(attemptId).ifPresent(attempt -> audit.succeed(attempt, 1));
     }
 
     @Override

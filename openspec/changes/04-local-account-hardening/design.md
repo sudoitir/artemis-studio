@@ -104,6 +104,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - **Audit.**
   - `loginAttempted` moves before the throttle check.
   - A throttled attempt closes the audit row as `failed("throttled")`.
+  - A correct password with a second factor still owed closes the `LOGIN` row as `failed("password accepted, second factor not given")`, and the row becomes a success only when the factor completes the sign-in. A factor that is wrong, never given or expired leaves it failed.
   - `ACCOUNT_LOCK` is recorded when the lock trips.
 - **Admin unlock:** `PUT /api/v1/users/{id}/unlock` (`user:admin`).
   - Clears the DB lock and the limiter keys.

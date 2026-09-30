@@ -157,6 +157,15 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
                 .single();
     }
 
+    /** The outcome and error of the user's latest LOGIN audit row, as {@code OUTCOME: error}. */
+    private String latestLogin(String username) {
+        return jdbc.sql("SELECT outcome || ': ' || coalesce(error, '') FROM audit_event"
+                        + " WHERE action = 'LOGIN' AND target_name = ? ORDER BY id DESC LIMIT 1")
+                .param(username)
+                .query(String.class)
+                .single();
+    }
+
     private int failedLogins(String username) {
         return users.findByUsername(username).orElseThrow().getFailedLoginCount();
     }
@@ -200,6 +209,9 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
         assertThat(thief.sessionId()).isNotNull();
         assertThat((Object) store.findById(thief.sessionId()).getAttribute("SPRING_SECURITY_CONTEXT"))
                 .isNull();
+        assertThat(latestLogin("sf-password-only"))
+                .as("no sign-in succeeded")
+                .isEqualTo("FAILURE: password accepted, second factor not given");
     }
 
     @Test
@@ -225,6 +237,9 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
         assertThat(facts.mfaVerifiedAt()).isNotNull();
         assertThat(facts.authenticatedAt()).isAfter(Instant.now().minusSeconds(30));
         assertThat(audited("SECOND_FACTOR", "sf-totp-ok")).isEqualTo(1);
+        assertThat(latestLogin("sf-totp-ok"))
+                .as("the sign-in succeeded with the factor")
+                .isEqualTo("SUCCESS: ");
     }
 
     @Test
@@ -266,6 +281,7 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
         assertThat(failedLogins("sf-wrong")).isEqualTo(1);
         assertThat(audited("SECOND_FACTOR_FAILED", "sf-wrong")).isEqualTo(1);
         assertThat(browser.status("GET", ME)).isEqualTo(401);
+        assertThat(latestLogin("sf-wrong")).startsWith("FAILURE");
     }
 
     @Test
@@ -320,7 +336,8 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
                         new SessionAuthentication.PendingSecondFactor(
                                 users.findByUsername("sf-expiry").orElseThrow().getId(),
                                 "local",
-                                Instant.now().minus(Duration.ofMinutes(6)))));
+                                Instant.now().minus(Duration.ofMinutes(6)),
+                                0L)));
 
         var response = secondFactor(browser, "totpCode", freshCode("sf-expiry", enrolled.secret()));
 

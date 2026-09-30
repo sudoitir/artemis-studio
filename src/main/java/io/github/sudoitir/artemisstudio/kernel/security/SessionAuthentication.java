@@ -64,8 +64,12 @@ public class SessionAuthentication {
     /** How long a password stays good for the second factor that completes it. */
     public static final Duration PENDING_WINDOW = Duration.ofMinutes(5);
 
-    /** A sign-in awaiting its second factor: who gave the right password, through which provider, and when. */
-    public record PendingSecondFactor(UUID userId, String providerId, Instant at) implements Serializable {}
+    /**
+     * A sign-in awaiting its second factor: who gave the right password, through which provider, when,
+     * and the audit row of the login attempt, which the factor completes.
+     */
+    public record PendingSecondFactor(UUID userId, String providerId, Instant at, long auditId)
+            implements Serializable {}
 
     /** A step-up awaiting its second factor. */
     public record PendingStepUp(UUID userId, Instant at) implements Serializable {}
@@ -112,12 +116,13 @@ public class SessionAuthentication {
      * expires with {@link #PENDING_WINDOW}.
      */
     public void awaitSecondFactor(
-            UUID userId, String providerId, HttpServletRequest request, HttpServletResponse response) {
+            UUID userId, String providerId, long auditId, HttpServletRequest request, HttpServletResponse response) {
         if (request.getSession(false) != null) {
             request.changeSessionId();
         }
         HttpSession session = request.getSession();
-        session.setAttribute(PENDING_SECOND_FACTOR, new PendingSecondFactor(userId, providerId, Instant.now()));
+        session.setAttribute(
+                PENDING_SECOND_FACTOR, new PendingSecondFactor(userId, providerId, Instant.now(), auditId));
         session.setMaxInactiveInterval((int) PENDING_WINDOW.toSeconds());
         reissueCsrfToken(request, response);
     }

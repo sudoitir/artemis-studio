@@ -130,6 +130,7 @@ public class AuditEventEntity implements AuditEvent {
 
     public void markSuccess(long affectedCount) {
         this.outcome = "SUCCESS";
+        this.error = null;
         this.affectedCount = affectedCount;
     }
 
