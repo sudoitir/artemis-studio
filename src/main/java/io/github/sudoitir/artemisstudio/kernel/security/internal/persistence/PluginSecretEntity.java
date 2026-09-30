@@ -31,10 +31,7 @@ public class PluginSecretEntity {
     private String name;
 
     @Column(nullable = false)
-    private byte[] ciphertext;
-
-    @Column(nullable = false)
-    private byte[] nonce;
+    private byte[] sealed;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;

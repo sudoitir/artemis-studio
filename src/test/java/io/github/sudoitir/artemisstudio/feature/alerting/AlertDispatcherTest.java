@@ -55,9 +55,9 @@ class AlertDispatcherTest {
         when(settings.duration(AlertingSettings.INITIAL_BACKOFF)).thenReturn(Duration.ofSeconds(1));
         when(settings.duration(AlertingSettings.MAX_BACKOFF)).thenReturn(Duration.ofMinutes(1));
         dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, settings);
-        channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1}, new byte[] {2});
+        channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1});
         when(channels.findById(channelId)).thenReturn(java.util.Optional.of(channel));
-        when(vault.decrypt(any(), any(), any())).thenReturn("https://hooks.slack.com/services/x");
+        when(vault.open(any(), any())).thenReturn("https://hooks.slack.com/services/x");
     }
 
     private AlertDeliveryEntity pending() {

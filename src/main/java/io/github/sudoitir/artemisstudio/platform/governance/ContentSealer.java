@@ -18,33 +18,29 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class ContentSealer {
 
-    /** Ciphertext with its GCM tag, and the nonce it was produced with. */
-    public record SealedOriginals(byte[] ciphertext, byte[] nonce) {}
-
     private static final TypeReference<Map<String, String>> ORIGINALS = new TypeReference<>() {};
 
     private final SecretVault vault;
     private final ObjectMapper mapper;
 
     /** Null when there is nothing to seal. */
-    public SealedOriginals seal(String aad, Map<String, String> originals) {
+    public byte[] seal(String aad, Map<String, String> originals) {
         if (originals == null || originals.isEmpty()) {
             return null;
         }
-        SecretVault.Sealed sealed = vault.encrypt(aad, mapper.writeValueAsString(originals));
-        return new SealedOriginals(sealed.ciphertext(), sealed.nonce());
+        return vault.seal(aad, mapper.writeValueAsString(originals));
     }
 
     /**
      * The originals, or empty when none were sealed or the blob does not open under this AAD. Never throws: a row
      * whose originals cannot be recovered stays masked rather than failing the read.
      */
-    public Map<String, String> unseal(String aad, byte[] ciphertext, byte[] nonce) {
-        if (ciphertext == null || nonce == null) {
+    public Map<String, String> unseal(String aad, byte[] sealed) {
+        if (sealed == null) {
             return Map.of();
         }
         try {
-            return mapper.readValue(vault.decrypt(aad, ciphertext, nonce), ORIGINALS);
+            return mapper.readValue(vault.open(aad, sealed), ORIGINALS);
         } catch (RuntimeException e) {
             return Map.of();
         }

@@ -20,7 +20,7 @@ import org.hibernate.type.SqlTypes;
  * per-cluster (design.md decision 6) — routing is expressed by which rules bind
  * to a channel via {@link AlertRuleChannelEntity}. The secret (a Slack webhook
  * URL, or a webhook signing secret) is AES-GCM ciphertext in
- * {@code secretCt}/{@code secretNonce} (ADR-0009 via ADR-0036's opaque-AAD
+ * {@code sealed} (ADR-0009 via ADR-0036's opaque-AAD
  * overload); {@code config} holds only non-secret parts.
  */
 @Entity
@@ -47,26 +47,21 @@ public class NotificationChannelEntity {
     @Column(name = "config", nullable = false)
     private String config = "{}";
 
-    @Column(name = "secret_ct")
-    private byte[] secretCt;
-
-    @Column(name = "secret_nonce")
-    private byte[] secretNonce;
+    @Column(name = "sealed")
+    private byte[] sealed;
 
     @Column(name = "enabled", nullable = false)
     private boolean enabled = true;
 
-    public NotificationChannelEntity(String name, String kind, String config, byte[] secretCt, byte[] secretNonce) {
+    public NotificationChannelEntity(String name, String kind, String config, byte[] sealed) {
         this.name = name;
         this.kind = kind;
         this.config = config != null ? config : "{}";
-        this.secretCt = secretCt;
-        this.secretNonce = secretNonce;
+        this.sealed = sealed;
         this.enabled = true;
     }
 
-    public void replaceSecret(byte[] secretCt, byte[] secretNonce) {
-        this.secretCt = secretCt;
-        this.secretNonce = secretNonce;
+    public void replaceSecret(byte[] sealed) {
+        this.sealed = sealed;
     }
 }

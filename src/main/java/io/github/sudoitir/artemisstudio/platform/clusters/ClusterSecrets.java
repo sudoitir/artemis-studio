@@ -40,16 +40,15 @@ public class ClusterSecrets {
     @Transactional
     public void store(UUID clusterId, String ref, String username, String password) {
         String kind = PREFIX + ref;
-        SecretVault.Sealed sealed = vault.encrypt(clusterId, kind, password == null ? "" : password);
+        byte[] sealed = vault.seal(SecretVault.aad(clusterId, kind), password == null ? "" : password);
         credentials
                 .findByClusterIdAndKind(clusterId, kind)
                 .ifPresentOrElse(
                         e -> {
-                            e.replaceSecret(username, sealed.ciphertext(), sealed.nonce());
+                            e.replaceSecret(username, sealed);
                             credentials.save(e);
                         },
-                        () -> credentials.save(new BrokerCredentialEntity(
-                                clusterId, kind, username, sealed.ciphertext(), sealed.nonce())));
+                        () -> credentials.save(new BrokerCredentialEntity(clusterId, kind, username, sealed)));
     }
 
     /** The credential behind a reference, or empty when nothing is stored under it. */
@@ -58,9 +57,7 @@ public class ClusterSecrets {
         return credentials
                 .findByClusterIdAndKind(clusterId, PREFIX + ref)
                 .map(e -> new Credential(
-                        ref,
-                        e.getUsername(),
-                        vault.decrypt(clusterId, e.getKind(), e.getSecretCt(), e.getSecretNonce())));
+                        ref, e.getUsername(), vault.open(SecretVault.aad(clusterId, e.getKind()), e.getSealed())));
     }
 
     /** Which references this cluster holds, with their usernames and never a password. */

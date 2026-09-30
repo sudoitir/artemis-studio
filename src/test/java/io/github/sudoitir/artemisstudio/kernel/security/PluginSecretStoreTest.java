@@ -62,7 +62,7 @@ class PluginSecretStoreTest extends PostgresIntegrationTest {
 
         assertThat(secrets.get("token")).contains("second-value");
         PluginSecretEntity row = rows.findByPluginIdAndName(plugin, "token").orElseThrow();
-        assertThat(new String(row.getCiphertext(), java.nio.charset.StandardCharsets.ISO_8859_1))
+        assertThat(new String(row.getSealed(), java.nio.charset.StandardCharsets.ISO_8859_1))
                 .doesNotContain("second-value");
         assertThat(rows.findByPluginIdOrderByName(plugin)).hasSize(1);
     }
@@ -75,8 +75,7 @@ class PluginSecretStoreTest extends PostgresIntegrationTest {
         PluginSecretEntity original = rows.findByPluginIdAndName(owner, "token").orElseThrow();
 
         PluginSecretEntity copy = new PluginSecretEntity(thief, "token");
-        copy.setCiphertext(original.getCiphertext());
-        copy.setNonce(original.getNonce());
+        copy.setSealed(original.getSealed());
         copy.setUpdatedAt(Instant.now());
         rows.save(copy);
 

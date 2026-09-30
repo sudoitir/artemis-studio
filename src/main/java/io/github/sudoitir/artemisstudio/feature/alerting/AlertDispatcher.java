@@ -58,10 +58,9 @@ public class AlertDispatcher {
 
         String secret;
         try {
-            secret = channel.getSecretCt() == null
+            secret = channel.getSealed() == null
                     ? ""
-                    : vault.decrypt(
-                            channel.getId() + "|" + channel.getKind(), channel.getSecretCt(), channel.getSecretNonce());
+                    : vault.open(channel.getId() + "|" + channel.getKind(), channel.getSealed());
         } catch (RuntimeException e) {
             delivery.recordDead("Failed to decrypt channel secret: " + e.getMessage());
             deliveries.save(delivery);

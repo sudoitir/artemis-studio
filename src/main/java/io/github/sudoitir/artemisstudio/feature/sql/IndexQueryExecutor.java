@@ -72,7 +72,7 @@ public class IndexQueryExecutor {
                 SELECT observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
                        priority, message_type, queue_name, address, node_name, correlation_id, group_id,
                        user_id, reply_to, jms_type, body, props, cluster_id, node_id, durable,
-                       origin, orig_address, source_message_id, body_truncated, sealed, sealed_nonce
+                       origin, orig_address, source_message_id, body_truncated, sealed
                   FROM message_index
                  WHERE cluster_id = ?
                 """);
@@ -403,9 +403,7 @@ public class IndexQueryExecutor {
             return row;
         }
         Map<String, String> originals = sealer.unseal(
-                MessageIndexWriter.aad(clusterId, row.nodeId(), row.queueName(), row.messageId()),
-                sealed,
-                rs.getBytes("sealed_nonce"));
+                MessageIndexWriter.aad(clusterId, row.nodeId(), row.queueName(), row.messageId()), sealed);
         return SqlGovernance.withContent(row, ContentSealer.restore(SqlGovernance.content(row), originals));
     }
 

@@ -34,7 +34,7 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Notification channel CRUD, testing, and the delivery log (ADR-0036, ADR-0105). A channel's
  * secret (a Slack or Teams webhook URL, a webhook signing secret, an SMTP password, a PagerDuty
- * routing key) is AES-GCM at rest via {@link SecretVault}'s opaque-AAD overload and never
+ * routing key) is AES-GCM at rest via {@link SecretVault} and never
  * returned in plaintext.
  */
 @Service
@@ -77,7 +77,7 @@ public class NotificationChannelService {
     public NotificationChannelView create(NotificationChannelRequest request) {
         validator.validate(request.kind(), request.config(), request.secret(), false);
         NotificationChannelEntity channel = new NotificationChannelEntity(
-                request.name(), request.kind(), request.config() != null ? request.config() : "{}", null, null);
+                request.name(), request.kind(), request.config() != null ? request.config() : "{}", null);
         channel.setEnabled(request.enabled());
         channels.save(channel); // need the generated id before sealing the AAD
         if (request.secret() != null && !request.secret().isBlank()) {
@@ -104,7 +104,7 @@ public class NotificationChannelService {
         if (!channel.getKind().equals(request.kind())) {
             throw new IllegalArgumentException("kind: a channel's kind cannot be changed; create a new channel");
         }
-        validator.validate(request.kind(), request.config(), request.secret(), channel.getSecretCt() != null);
+        validator.validate(request.kind(), request.config(), request.secret(), channel.getSealed() != null);
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
@@ -166,7 +166,7 @@ public class NotificationChannelService {
             throw new IllegalArgumentException("kind: a channel's kind cannot be changed; create a new channel");
         }
         validator.validate(
-                request.kind(), request.config(), request.secret(), stored != null && stored.getSecretCt() != null);
+                request.kind(), request.config(), request.secret(), stored != null && stored.getSealed() != null);
         String secret = hasSecret ? request.secret().trim() : stored != null ? storedSecret(stored) : "";
         String name =
                 stored != null ? stored.getName() : "(unsaved " + request.kind().toLowerCase() + " channel)";
@@ -286,15 +286,13 @@ public class NotificationChannelService {
     }
 
     private String storedSecret(NotificationChannelEntity channel) {
-        return channel.getSecretCt() == null
+        return channel.getSealed() == null
                 ? ""
-                : vault.decrypt(
-                        channel.getId() + "|" + channel.getKind(), channel.getSecretCt(), channel.getSecretNonce());
+                : vault.open(channel.getId() + "|" + channel.getKind(), channel.getSealed());
     }
 
     private void seal(NotificationChannelEntity channel, String plaintext) {
-        SecretVault.Sealed sealed = vault.encrypt(channel.getId() + "|" + channel.getKind(), plaintext);
-        channel.replaceSecret(sealed.ciphertext(), sealed.nonce());
+        channel.replaceSecret(vault.seal(channel.getId() + "|" + channel.getKind(), plaintext));
         channels.save(channel);
     }
 

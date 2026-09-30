@@ -27,7 +27,6 @@ class RrPayloads {
     private static final String TRUNCATED = "truncated";
     private static final String POLICY_VERSION = "policyVersion";
     private static final String SEALED = "sealed";
-    private static final String NONCE = "nonce";
 
     private final ContentPolicy policy;
     private final ContentSealer sealer;
@@ -95,23 +94,19 @@ class RrPayloads {
             detail.put(TRUNCATED, true);
         }
         detail.put(POLICY_VERSION, governed.policyVersion());
-        ContentSealer.SealedOriginals sealed = sealer.seal(aad(flowId, kind, at), governed.sealable());
+        byte[] sealed = sealer.seal(aad(flowId, kind, at), governed.sealable());
         if (sealed != null) {
-            detail.put(SEALED, Base64.getEncoder().encodeToString(sealed.ciphertext()));
-            detail.put(NONCE, Base64.getEncoder().encodeToString(sealed.nonce()));
+            detail.put(SEALED, Base64.getEncoder().encodeToString(sealed));
         }
         return detail;
     }
 
     private Map<String, String> originals(UUID flowId, String kind, Instant at, Map<String, Object> stored) {
-        if (!(stored.get(SEALED) instanceof String sealed) || !(stored.get(NONCE) instanceof String nonce)) {
+        if (!(stored.get(SEALED) instanceof String sealed)) {
             return Map.of();
         }
         try {
-            return sealer.unseal(
-                    aad(flowId, kind, at),
-                    Base64.getDecoder().decode(sealed),
-                    Base64.getDecoder().decode(nonce));
+            return sealer.unseal(aad(flowId, kind, at), Base64.getDecoder().decode(sealed));
         } catch (IllegalArgumentException notBase64) {
             return Map.of();
         }

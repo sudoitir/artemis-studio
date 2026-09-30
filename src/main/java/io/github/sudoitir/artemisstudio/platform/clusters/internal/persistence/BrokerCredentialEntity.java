@@ -39,23 +39,18 @@ public class BrokerCredentialEntity {
     @Column(name = "username")
     private String username;
 
-    @Column(name = "secret_ct", nullable = false)
-    private byte[] secretCt;
+    @Column(name = "sealed", nullable = false)
+    private byte[] sealed;
 
-    @Column(name = "secret_nonce", nullable = false)
-    private byte[] secretNonce;
-
-    public BrokerCredentialEntity(UUID clusterId, String kind, String username, byte[] secretCt, byte[] secretNonce) {
+    public BrokerCredentialEntity(UUID clusterId, String kind, String username, byte[] sealed) {
         this.clusterId = clusterId;
         this.kind = kind;
         this.username = username;
-        this.secretCt = secretCt;
-        this.secretNonce = secretNonce;
+        this.sealed = sealed;
     }
 
-    public void replaceSecret(String username, byte[] secretCt, byte[] secretNonce) {
+    public void replaceSecret(String username, byte[] sealed) {
         this.username = username;
-        this.secretCt = secretCt;
-        this.secretNonce = secretNonce;
+        this.sealed = sealed;
     }
 }

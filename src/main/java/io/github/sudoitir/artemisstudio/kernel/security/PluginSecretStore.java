@@ -53,12 +53,10 @@ public class PluginSecretStore implements PluginScopedBeans {
             throw new IllegalArgumentException(
                     "The secret '" + name + "' is larger than " + MAX_VALUE_BYTES + " bytes and was not stored.");
         }
-        SecretVault.Sealed sealed = vault.encrypt(aad(pluginId, name), value);
         PluginSecretEntity row =
                 secrets.findByPluginIdAndName(pluginId, name).orElseGet(() -> new PluginSecretEntity(pluginId, name));
         boolean replaced = row.getId() != null;
-        row.setCiphertext(sealed.ciphertext());
-        row.setNonce(sealed.nonce());
+        row.setSealed(vault.seal(aad(pluginId, name), value));
         row.setUpdatedAt(clock.instant());
         secrets.save(row);
         audit.changed(
@@ -72,7 +70,7 @@ public class PluginSecretStore implements PluginScopedBeans {
     Optional<String> get(String pluginId, String name) {
         requireName(name);
         return secrets.findByPluginIdAndName(pluginId, name)
-                .map(row -> vault.decrypt(aad(pluginId, name), row.getCiphertext(), row.getNonce()));
+                .map(row -> vault.open(aad(pluginId, name), row.getSealed()));
     }
 
     @Transactional

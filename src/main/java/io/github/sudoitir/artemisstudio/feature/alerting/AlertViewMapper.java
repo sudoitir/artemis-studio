@@ -58,7 +58,7 @@ public class AlertViewMapper {
                 e.getKind(),
                 e.getConfig(),
                 e.isEnabled(),
-                e.getSecretCt() != null,
+                e.getSealed() != null,
                 boundRuleCount,
                 health);
     }

@@ -2,11 +2,11 @@
 - [x] 1.1 Brainstorm and investigate; `/opsx:update` adds design.md, sharpens specs, replaces these tasks
 
 ## 2. Core envelope (A; everything else depends on it)
-- [ ] 2.1 `Keyring`, `KeyProvider`, env provider (bare key or `1=<b64>,2=<b64>`), file provider, `SecretProviderProperties` (`artemis-studio.secrets.*`); startup fails naming the provider on a missing, empty or wrong-length key
-- [ ] 2.2 `SecretVault` blob format (D1): `seal(aad, plaintext)`, `open(aad, blob)`, `rewrap(blob, target)`, `kekVersion(blob)`; unknown version reloads the keyring once; unit tests (round trip, AAD binding, tamper, wrong key, rewrap keeps ciphertext, unknown version)
-- [ ] 2.3 `secret_key_state` changeset + current version held in the DB (D4); startup fails if the keyring lacks the current version
-- [ ] 2.4 Changesets swap each store to one `sealed bytea` and drop old ciphertext (D2): broker_credential, notification_channel, plugin_secret, message_index, rr_event detail; `SchemaBaselineDiffTest` entries
-- [ ] 2.5 Move every caller to the new API (ClusterService, ClusterConnectionSettings, ClusterSecrets, NotificationChannelService, AlertDispatcher, PluginSecretStore, ContentSealer, MessageIndexWriter, MessageIndexRemasker, IndexQueryExecutor, RrPayloads) and their tests
+- [x] 2.1 `Keyring`, `KeyProvider`, env provider (bare key or `1=<b64>,2=<b64>`), file provider, `SecretProviderProperties` (`artemis-studio.secrets.*`); startup fails naming the provider on a missing, empty or wrong-length key
+- [x] 2.2 `SecretVault` blob format (D1): `seal(aad, plaintext)`, `open(aad, blob)`, `rewrap(blob, target)`, `kekVersion(blob)`; unknown version reloads the keyring once; unit tests (round trip, AAD binding, tamper, wrong key, rewrap keeps ciphertext, unknown version)
+- [x] 2.3 `secret_key_state` changeset + current version held in the DB (D4); startup fails if the keyring lacks the current version
+- [x] 2.4 Changesets swap each store to one `sealed bytea` and drop old ciphertext (D2): broker_credential, notification_channel, plugin_secret, message_index, rr_event detail; `SchemaBaselineDiffTest` entries
+- [x] 2.5 Move every caller to the new API (ClusterService, ClusterConnectionSettings, ClusterSecrets, NotificationChannelService, AlertDispatcher, PluginSecretStore, ContentSealer, MessageIndexWriter, MessageIndexRemasker, IndexQueryExecutor, RrPayloads) and their tests
 
 ## 3. Providers (B)
 - [ ] 3.1 Vault provider on `spring-vault-core` (KV v2 versions = key versions; token, AppRole, Kubernetes auth); test against Testcontainers Vault
