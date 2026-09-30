@@ -75,7 +75,8 @@ function blockedReason(
 ): string | null {
   if (check.isPending) return 'Checking the connection…';
   if (checkPassed) return null;
-  if (stale || check.isError) return 'Check the connection again — the details changed since the last check.';
+  if (stale) return 'Check the connection again — the details changed since the last check.';
+  if (check.isError) return 'The check failed. Fix what it reports above, then check again.';
   return 'Check the connection first.';
 }
 

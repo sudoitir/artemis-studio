@@ -146,6 +146,8 @@ describe('RegisterClusterForm', () => {
 
     expect(await screen.findByText(/Studio supports Artemis 2\.33\.0 and later/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    // Nothing was edited, so the hint must not claim the details changed.
+    expect(screen.getByText('The check failed. Fix what it reports above, then check again.')).toBeInTheDocument();
   });
 
   it('lists an operation the brokers are too old for with the release it needs', async () => {
