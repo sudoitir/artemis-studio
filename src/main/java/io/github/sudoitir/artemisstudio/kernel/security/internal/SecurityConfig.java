@@ -22,6 +22,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
@@ -105,6 +106,8 @@ public class SecurityConfig {
                         // reachable unauthenticated, or the login page itself cannot load.
                         .anyRequest()
                         .permitAll())
+                // First of all, so every reader of the client's address sees it in one spelling.
+                .addFilterBefore(new ClientAddressFilter(), DisableEncodeUrlFilter.class)
                 // A session that should no longer count ends first, so nothing after it sees it signed in.
                 .addFilterAfter(new SessionLifetimeFilter(sessions), SecurityContextHolderFilter.class)
                 // SecurityContextHolderFilter loads (empty, session-less) context from the

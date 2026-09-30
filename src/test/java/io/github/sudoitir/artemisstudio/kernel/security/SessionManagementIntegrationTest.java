@@ -82,9 +82,15 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         private final HttpClient http =
                 HttpClient.newBuilder().cookieHandler(cookies).build();
         private final String userAgent;
+        private final String host;
 
         Browser(String userAgent) {
+            this(userAgent, "localhost");
+        }
+
+        Browser(String userAgent, String host) {
             this.userAgent = userAgent;
+            this.host = host;
         }
 
         HttpResponse<String> send(String method, String path, String body, String... headers) throws Exception {
@@ -93,7 +99,7 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
                     .map(java.net.HttpCookie::getValue)
                     .findFirst()
                     .orElse("");
-            var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            var request = HttpRequest.newBuilder(URI.create("http://" + host + ":" + port + path))
                     .method(method, body == null ? BodyPublishers.noBody() : BodyPublishers.ofString(body))
                     .header("User-Agent", userAgent)
                     .header("X-XSRF-TOKEN", xsrf);
@@ -178,6 +184,17 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
                 .params(action, target, actor)
                 .query(Long.class)
                 .single();
+    }
+
+    @Test
+    void aClientOnIpv6LoopbackIsListedByItsCompactAddress() throws Exception {
+        newUser("loopback-v6");
+        Browser browser = new Browser("curl/8.5.0", "[::1]").signIn("loopback-v6");
+
+        var addresses = JsonPath.<List<String>>read(
+                browser.send("GET", "/api/v1/auth/sessions", null).body(), "$[*].clientAddress");
+
+        assertThat(addresses).containsExactly("::1");
     }
 
     // ---- lifetimes ---------------------------------------------------------------------------
