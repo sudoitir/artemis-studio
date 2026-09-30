@@ -1,12 +1,17 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
+import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.AccountSessionView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.EndedSessionsView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.CreateUserRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.EffectivePermissionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.SetDisabledRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -31,10 +36,29 @@ public class UsersController {
 
     private final UserService users;
     private final EffectiveAccess effectivePermissions;
+    private final SessionService sessionService;
 
     @GetMapping("/{userId}/effective-permissions")
     public List<EffectivePermissionView> effectivePermissions(@PathVariable UUID userId) {
         return effectivePermissions.of(userId);
+    }
+
+    @GetMapping("/{userId}/sessions")
+    public List<AccountSessionView> sessionsOf(@PathVariable UUID userId, HttpServletRequest req) {
+        return sessionService.listOf(userId, req);
+    }
+
+    /** Ends every session of the user, except the caller's own current one. */
+    @DeleteMapping("/{userId}/sessions")
+    public EndedSessionsView endSessionsOf(@PathVariable UUID userId, HttpServletRequest req) {
+        return sessionService.endAllOf(userId, req);
+    }
+
+    @DeleteMapping("/{userId}/sessions/{handle}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void endSessionOf(
+            @PathVariable UUID userId, @PathVariable String handle, HttpServletRequest req, HttpServletResponse resp) {
+        sessionService.endOf(userId, handle, req, resp);
     }
 
     @GetMapping

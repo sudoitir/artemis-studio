@@ -7,6 +7,9 @@ import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.LoginService;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
+import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.AccountSessionView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.EndedSessionsView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,7 +21,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +44,7 @@ public class AuthSessionController {
     private final IdentityProviderListing providers;
     private final UserAccounts accounts;
     private final SessionAuthentication sessions;
+    private final SessionService sessionService;
 
     public record LoginRequest(
             @Schema(nullable = true, description = "The credential provider to sign in with. Omit for local.")
@@ -120,6 +126,30 @@ public class AuthSessionController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(HttpServletRequest req, HttpServletResponse resp) {
         logins.logout(req, resp);
+    }
+
+    @GetMapping("/sessions")
+    public List<AccountSessionView> ownSessions(
+            @AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        return sessionService.listOwn(principal.getUsername(), req);
+    }
+
+    /** Ends every other session of the caller. */
+    @DeleteMapping("/sessions")
+    public EndedSessionsView endOtherOwnSessions(
+            @AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+        return sessionService.endOtherOwn(principal.getUsername(), req);
+    }
+
+    /** Ends one of the caller's sessions; ending the current one signs out. */
+    @DeleteMapping("/sessions/{handle}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void endOwnSession(
+            @AuthenticationPrincipal StudioPrincipal principal,
+            @PathVariable String handle,
+            HttpServletRequest req,
+            HttpServletResponse resp) {
+        sessionService.endOwn(principal.getUsername(), handle, req, resp);
     }
 
     @GetMapping("/me")

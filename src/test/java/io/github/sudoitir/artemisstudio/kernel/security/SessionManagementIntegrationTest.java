@@ -288,4 +288,136 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
             SecurityContextHolder.clearContext();
         }
     }
+
+    // ---- own sessions ------------------------------------------------------------------------
+
+    @Test
+    void aUserSeesTheirSessionsAndWhichOneIsCurrentWithoutTheIdentifier() throws Exception {
+        newUser("own-list");
+        Browser laptop = signedIn("own-list");
+        Browser phone = new Browser("curl/8.5.0").signIn("own-list");
+
+        var body = laptop.send("GET", "/api/v1/auth/sessions", null).body();
+
+        assertThat((List<?>) JsonPath.read(body, "$")).hasSize(2);
+        assertThat((List<?>) JsonPath.read(body, "$[?(@.current == true)]")).hasSize(1);
+        assertThat((List<String>) JsonPath.read(body, "$[?(@.current == true)].userAgent"))
+                .singleElement()
+                .asString()
+                .contains("Firefox");
+        assertThat((List<String>) JsonPath.read(body, "$[?(@.current == false)].userAgent"))
+                .containsExactly("curl/8.5.0");
+        assertThat((List<String>) JsonPath.read(body, "$[*].handle")).allMatch(h -> h.matches("[0-9a-f]{32}"));
+        assertThat((List<String>) JsonPath.read(body, "$[*].clientAddress")).doesNotContainNull();
+        store.findByPrincipalName("own-list")
+                .keySet()
+                .forEach(id -> assertThat(body).doesNotContain(id));
+        assertThat(phone.currentHandle()).isNotEqualTo(laptop.currentHandle());
+    }
+
+    @Test
+    void endingAnotherSessionRejectsItAtItsNextRequestAndIsAudited() throws Exception {
+        newUser("own-end");
+        Browser laptop = signedIn("own-end");
+        Browser phone = signedIn("own-end");
+        String phoneHandle = phone.currentHandle();
+
+        assertThat(laptop.status("DELETE", "/api/v1/auth/sessions/" + phoneHandle))
+                .isEqualTo(204);
+
+        assertThat(phone.status("GET", "/api/v1/auth/me")).isEqualTo(401);
+        assertThat(laptop.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+        assertThat(laptop.handles()).hasSize(1);
+        assertThat(audited("SESSION_END", "own-end", "own-end")).isEqualTo(1);
+    }
+
+    @Test
+    void endingTheCurrentSessionIsSigningOut() throws Exception {
+        newUser("own-current");
+        Browser laptop = signedIn("own-current");
+
+        assertThat(laptop.status("DELETE", "/api/v1/auth/sessions/" + laptop.currentHandle()))
+                .isEqualTo(204);
+
+        assertThat(laptop.status("GET", "/api/v1/auth/me")).isEqualTo(401);
+        assertThat(store.findByPrincipalName("own-current")).isEmpty();
+    }
+
+    @Test
+    void aUserCannotEndAnotherUsersSession() throws Exception {
+        newUser("own-victim");
+        newUser("own-attacker");
+        Browser victim = signedIn("own-victim");
+        Browser attacker = signedIn("own-attacker");
+
+        assertThat(attacker.status("DELETE", "/api/v1/auth/sessions/" + victim.currentHandle()))
+                .isEqualTo(404);
+        assertThat(attacker.status("DELETE", "/api/v1/auth/sessions/" + "0".repeat(32)))
+                .isEqualTo(404);
+
+        assertThat(victim.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+    }
+
+    @Test
+    void signingOutEverywhereElseKeepsTheCurrentSession() throws Exception {
+        newUser("own-others");
+        Browser laptop = signedIn("own-others");
+        Browser phone = signedIn("own-others");
+        Browser tablet = signedIn("own-others");
+
+        var response = laptop.send("DELETE", "/api/v1/auth/sessions", null);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat((Integer) JsonPath.read(response.body(), "$.ended")).isEqualTo(2);
+        assertThat(phone.status("GET", "/api/v1/auth/me")).isEqualTo(401);
+        assertThat(tablet.status("GET", "/api/v1/auth/me")).isEqualTo(401);
+        assertThat(laptop.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+        assertThat(audited("SESSION_END", "own-others", "own-others")).isEqualTo(2);
+    }
+
+    // ---- administrators ----------------------------------------------------------------------
+
+    @Test
+    void anAdministratorListsAndEndsAnotherUsersSessionsAndItIsAudited() throws Exception {
+        newAdministrator("adm-admin");
+        UUID targetId = newUser("adm-target");
+        Browser admin = signedIn("adm-admin");
+        Browser target = signedIn("adm-target");
+        Browser other = signedIn("adm-target");
+        String targetHandle = target.currentHandle();
+
+        var listed = admin.send("GET", "/api/v1/users/" + targetId + "/sessions", null);
+        assertThat(listed.statusCode()).isEqualTo(200);
+        assertThat((List<?>) JsonPath.read(listed.body(), "$")).hasSize(2);
+        assertThat((List<?>) JsonPath.read(listed.body(), "$[?(@.current == true)]"))
+                .isEmpty();
+
+        assertThat(admin.status("DELETE", "/api/v1/users/" + targetId + "/sessions/" + targetHandle))
+                .isEqualTo(204);
+        assertThat(target.status("GET", "/api/v1/auth/me")).isEqualTo(401);
+        assertThat(other.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+        assertThat(audited("SESSION_END", "adm-target", "adm-admin")).isEqualTo(1);
+
+        var all = admin.send("DELETE", "/api/v1/users/" + targetId + "/sessions", null);
+        assertThat((Integer) JsonPath.read(all.body(), "$.ended")).isEqualTo(1);
+        assertThat(other.status("GET", "/api/v1/auth/me")).isEqualTo(401);
+        assertThat(admin.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+    }
+
+    @Test
+    void withoutUserAdministrationTheAdminEndpointsAreRefused() throws Exception {
+        UUID targetId = newUser("adm-denied-target");
+        newUser("adm-denied");
+        Browser target = signedIn("adm-denied-target");
+        Browser caller = signedIn("adm-denied");
+
+        assertThat(caller.status("GET", "/api/v1/users/" + targetId + "/sessions"))
+                .isEqualTo(403);
+        assertThat(caller.status("DELETE", "/api/v1/users/" + targetId + "/sessions/" + target.currentHandle()))
+                .isEqualTo(403);
+        assertThat(caller.status("DELETE", "/api/v1/users/" + targetId + "/sessions"))
+                .isEqualTo(403);
+
+        assertThat(target.status("GET", "/api/v1/auth/me")).isEqualTo(200);
+    }
 }

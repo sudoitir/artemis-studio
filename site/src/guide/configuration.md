@@ -16,6 +16,7 @@ description: The environment variables Artemis Studio reads, which are required,
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values stored in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
 | `ARTEMIS_STUDIO_PUBLIC_URL` | no | The address operators reach Studio at, e.g. `https://studio.example.com`. Alert notifications link back to the cluster's alerts when it is set; see [Alert delivery](./alert-delivery) |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | behind a proxy outside the private ranges | A regular expression matching the addresses of your reverse proxies. Only these may set the client address through `X-Forwarded-For`; the sign-in limits and the audit trail use it. The default trusts loopback, `10/8`, `172.16/12`, `192.168/16` and `fc00::/7`. Never leave it empty: that trusts every client |
+| `ARTEMIS_STUDIO_IDENTITY_LOCAL_BREACH_LOOKUP_ENABLED` | no | Off by default. When `true`, a new local password is also checked against the online breached-password service: only the first five characters of its SHA-1 leave Studio, and a failed lookup lets the password through. The offline list of the 100,000 most common passwords is always used |
 | `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=50` |
 
 ## Secrets and key rotation
@@ -142,6 +143,21 @@ There is no configuration server.
 See [ADR-0047](/reference/adr/0047-two-configuration-planes) for why, and
 [ADR-0048](/reference/adr/0048-settings-driven-dynamic-schedules) for how a
 schedule picks up a changed setting.
+
+## Sign-in and sessions
+
+Under **Settings → Sessions** and **Settings → Password login**, without a restart:
+
+| Setting | Key | Default | Is |
+|---|---|---|---|
+| Idle timeout | `security.session.idle-timeout` | `30m` | How long a session may go without the user doing anything. Only requests that change something, and requests the console makes within a minute of a click or key press, count. Polling and the live stream do not, so a tab left open signs out. A script that must stay signed in sends `X-Studio-Activity: 1` |
+| Absolute session lifetime | `security.session.absolute-lifetime` | `12h` | How long after signing in a session ends, however active it is |
+| Password minimum length | `identity-local.password.min-length` | `12` | The fewest characters a new local password may have |
+
+A duration is written `30m`, `12h` or in ISO-8601 (`PT30M`). A user sees where they are signed
+in, and ends any of those sessions, under **Account → Sessions**; an administrator does the same
+for any user from **Administration → Users → Sessions**. See
+[ADR-0144](/reference/adr/0144-session-lifetimes-and-session-management).
 
 ## Database
 

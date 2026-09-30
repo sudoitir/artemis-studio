@@ -15,6 +15,7 @@ import {
 import { notifications } from '@mantine/notifications';
 
 import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
+import { UserSessionsDrawer } from './UserSessionsDrawer.tsx';
 import {
   useAddGrant,
   useCreateUser,
@@ -44,6 +45,7 @@ export function UsersPanel() {
   const [grantingFor, setGrantingFor] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<{ id: string; username: string } | null>(null);
+  const [inspectingSessions, setInspectingSessions] = useState<{ id: string; username: string } | null>(null);
 
   const policyReason = createUser.error?.type.endsWith('/password-policy') ? createUser.error.message : undefined;
 
@@ -156,6 +158,14 @@ export function UsersPanel() {
                       Unlock
                     </Button>
                   ) : null}
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    aria-label={`Sessions of ${u.username}`}
+                    onClick={() => setInspectingSessions(u)}
+                  >
+                    Sessions
+                  </Button>
                   <Button size="xs" variant="subtle" onClick={() => setPreviewing(u)}>
                     Effective permissions
                   </Button>
@@ -179,6 +189,7 @@ export function UsersPanel() {
       </div>
 
       <EffectivePermissionsDrawer user={previewing} onClose={() => setPreviewing(null)} />
+      <UserSessionsDrawer user={inspectingSessions} onClose={() => setInspectingSessions(null)} />
 
       <Modal
         opened={createOpen}

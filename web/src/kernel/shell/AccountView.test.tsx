@@ -25,6 +25,18 @@ function mockAccountApis() {
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
       }),
     ),
+    http.get('*/api/v1/auth/sessions', () =>
+      HttpResponse.json([
+        {
+          handle: 'a'.repeat(32),
+          signedInAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
+          clientAddress: '203.0.113.7',
+          userAgent: null,
+          current: true,
+        },
+      ]),
+    ),
     http.get('*/api/v1/tokens', () => HttpResponse.json([])),
     http.get('*/api/v1/permissions', () => HttpResponse.json([{ action: 'cluster:read', label: 'Read clusters' }])),
     http.get('*/api/v1/clusters', () => HttpResponse.json([])),
@@ -37,6 +49,8 @@ describe('AccountView', () => {
     renderWithProviders(<AccountView />);
 
     expect(await screen.findByText('ada')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sessions' })).toBeInTheDocument();
+    expect(await screen.findByText('This session')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'API keys' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'MCP connection' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute('href', '/change-password');

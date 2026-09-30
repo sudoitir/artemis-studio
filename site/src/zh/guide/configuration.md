@@ -13,6 +13,8 @@ description: Artemis Studio 读取的环境变量、哪些是必需的，以及�
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | 是 | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | 使用 `env` 提供者时 | 保护所有已存储机密的密钥。必须是**恰好 32 字节**的 Base64，否则应用不会启动：`openssl rand -base64 32`。要保存多个版本，参见[机密与密钥轮换](#机密与密钥轮换) |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | 否 | 用于解密 `studio_config_property` 中存放的 `{cipher}` 值。这是与 `ARTEMIS_STUDIO_SECRET_KEY` **不同**的一把密钥——不要复用 |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | 反向代理位于私有网段之外时 | 匹配你的反向代理地址的正则表达式。只有这些地址可以通过 `X-Forwarded-For` 设定客户端地址；登录限制与审计链路都使用该地址。默认信任回环地址、`10/8`、`172.16/12`、`192.168/16` 与 `fc00::/7`。切勿留空：那会信任所有客户端 |
+| `ARTEMIS_STUDIO_IDENTITY_LOCAL_BREACH_LOOKUP_ENABLED` | 否 | 默认关闭。设为 `true` 时，新的本地密码还会与在线的泄露密码服务比对：只有其 SHA-1 的前五个字符会离开 Studio，查询失败则放行该密码。始终使用离线的 10 万个最常见密码列表 |
 | `JAVA_OPTS` | 否 | 默认为 `-XX:MaxRAMPercentage=50` |
 
 ## 机密与密钥轮换
@@ -80,6 +82,18 @@ KV 版本 2 默认只保留 **10 个版本**，写入第 11 个时会删除最�
 **部署平面**——Spring Cloud bootstrap 属性——存放属于这次部署的内容：数据源、密钥、OIDC issuer。这里的值可以以 `{cipher}` 形式存储，并由 `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` 解密。系统中没有配置中心。
 
 原因见 [ADR-0047](/reference/adr/0047-two-configuration-planes)，调度如何感知设置变更见 [ADR-0048](/reference/adr/0048-settings-driven-dynamic-schedules)（英文）。
+
+## 登录与会话
+
+在 **设置 → 会话** 与 **设置 → 密码登录** 下，无需重启即可调整：
+
+| 设置 | 键 | 默认值 | 含义 |
+|---|---|---|---|
+| 空闲超时 | `security.session.idle-timeout` | `30m` | 会话在用户没有任何操作的情况下可持续多久。只有会更改内容的请求，以及控制台在用户点击或按键后一分钟内发出的请求才算作操作；轮询与实时流不算，因此开着不管的标签页会被登出。需要保持登录的脚本可发送 `X-Studio-Activity: 1` |
+| 会话绝对时长 | `security.session.absolute-lifetime` | `12h` | 登录后多久会话必定结束，无论多活跃 |
+| 密码最小长度 | `identity-local.password.min-length` | `12` | 新的本地密码至少需要的字符数 |
+
+时长可写作 `30m`、`12h`，或 ISO-8601 形式（`PT30M`）。用户可在 **账户 → 会话** 中查看自己在哪里登录并结束其中任意会话；管理员可在 **管理 → 用户 → 会话** 中对任意用户做同样的事。见 [ADR-0144](/reference/adr/0144-session-lifetimes-and-session-management)（英文）。
 
 ## 数据库
 

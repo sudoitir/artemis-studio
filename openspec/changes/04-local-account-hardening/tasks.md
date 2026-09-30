@@ -18,7 +18,7 @@
 
 ## 5. Sessions (C)
 - [x] 5.1 Idle and absolute settings; `SessionLifetimeFilter` with activity header; `maxInactiveInterval` backstop
-- [ ] 5.2 Own and admin session list/end endpoints with hashed handles; `SESSION_END`
+- [x] 5.2 Own and admin session list/end endpoints with hashed handles; `SESSION_END`
 
 ## 6. Second factors (D)
 - [ ] 6.1 `SecondFactors` SPI; `role.requires_mfa` (ADMIN true); local-only rule; grant of a required role ends sessions
