@@ -81,7 +81,6 @@ export function plugin(over: Partial<PluginView> = {}): PluginView {
 export function inventory(plugins: PluginView[], restart: Partial<PluginsView['restart']> = {}): PluginsView {
   return {
     canInstall: true,
-    cannotInstall: null,
     uploadEnabled: true,
     safeMode: false,
     safeModeReason: null,
@@ -96,7 +95,7 @@ export function inventory(plugins: PluginView[], restart: Partial<PluginsView['r
       ...restart,
     },
     plugins,
-  } as PluginsView;
+  };
 }
 
 /** The signed-in operator; `authenticatedAt` decides whether a plugin action needs a fresh sign-in. */
