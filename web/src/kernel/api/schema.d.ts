@@ -15236,6 +15236,7 @@ export interface operations {
             200: {
                 headers: {
                     [name: string]: unknown;
+                lastEventId?: number;
                 };
                 content: {
                     "*/*": components["schemas"]["SettingsResponse"];

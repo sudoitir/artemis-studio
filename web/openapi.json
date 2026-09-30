@@ -13745,6 +13745,14 @@
             "default" : "topology,health,queues"
           }
         }, {
+          "name" : "lastEventId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
           "name" : "Last-Event-ID",
           "in" : "header",
           "required" : false,
