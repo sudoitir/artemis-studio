@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigApplySe
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiffService;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpViews;
@@ -62,7 +63,7 @@ public class BrokerConfigMcpReadTools {
             case DRIFT -> declaration(brokerConfig.get(id), false);
             case XML -> brokerConfig.exportXml(id, null);
             case APPLIES ->
-                brokerConfigApply.history(id, 20).stream()
+                brokerConfigApply.history(id, ResourceQuery.ofPage(1, 20)).stream()
                         .map(a -> new McpViews.ConfigApply(
                                 a.getId(),
                                 a.getStartedAt(),

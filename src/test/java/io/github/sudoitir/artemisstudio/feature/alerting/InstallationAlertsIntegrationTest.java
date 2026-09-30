@@ -207,7 +207,11 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
                 assertThat(f.clusterId()).isNull();
                 assertThat(f.ruleName()).isEqualTo(quota.getName());
             });
-            assertThat(alertService.history(clusterId, 1, 50).items()).hasSize(1);
+            assertThat(alertService
+                            .history(
+                                    clusterId, io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery.ofPage(1, 50))
+                            .data())
+                    .hasSize(1);
 
             AlertRuleView edited = ruleService.update(
                     clusterId,

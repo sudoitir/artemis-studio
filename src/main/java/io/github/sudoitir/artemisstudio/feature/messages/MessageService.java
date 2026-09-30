@@ -111,10 +111,13 @@ public class MessageService {
     // ---- browse -----------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public MessagePageView browse(UUID clusterId, String queueName, UUID nodeId, String filter, int page, int size) {
+    public MessagePageView browse(
+            UUID clusterId, String queueName, UUID nodeId, String filter, int page, int requestedSize) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
-        BrowseResult result = browseAt(clusterId, queueName, resolved, page, Math.min(size, BROKER_PAGE_CAP), filter);
+        // The broker serves at most BROKER_PAGE_CAP rows; the page size reported and used for hasNext is that one.
+        int size = Math.min(requestedSize, BROKER_PAGE_CAP);
+        BrowseResult result = browseAt(clusterId, queueName, resolved, page, size, filter);
         GovernContext context = contentPolicy.context(clusterId, resolved.address());
         List<BrowsedMessage> messages = result.page().messages();
         List<GovernedMessage> governed = messages.stream()
@@ -125,12 +128,16 @@ public class MessageService {
             rows.add(toSummary(messages.get(i), governed.get(i)));
         }
         clearViews.recordClear(context, "QUEUE", queueName, governed);
+        Long total = result.page().total();
+        // ponytail: with no broker count, a full page is taken to have a successor; the last page can be a false yes
+        boolean hasNext = total != null ? (long) page * size < total : rows.size() == size;
         return new MessagePageView(
                 rows,
-                result.page().total(),
-                result.page().totalUnavailable(),
                 page,
                 size,
+                total,
+                hasNext,
+                result.page().totalUnavailable(),
                 resolved.node().getId(),
                 result.servedBy().name());
     }

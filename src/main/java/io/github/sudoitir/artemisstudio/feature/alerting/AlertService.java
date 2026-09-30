@@ -4,9 +4,10 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertFiringRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
-import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringPageView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ClusterFiringCountView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import java.util.List;
@@ -43,19 +44,12 @@ public class AlertService {
     }
 
     @Transactional(readOnly = true)
-    public AlertFiringPageView history(UUID clusterId, int page, int size) {
+    public PagedView<AlertFiringView> history(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
-        int p = Math.max(page, 1);
-        int s = Math.clamp(size, 1, 500);
-        var result = firingRepo.findVisible(clusterId, perm.can(AlertPermissions.ALERT_READ), PageRequest.of(p - 1, s));
+        var result = firingRepo.findVisible(
+                clusterId, perm.can(AlertPermissions.ALERT_READ), PageRequest.of(query.page() - 1, query.size()));
         Map<UUID, String> names = ruleNames(result.getContent());
-        return new AlertFiringPageView(
-                result.getContent().stream()
-                        .map(f -> mapper.firing(f, names.get(f.getRuleId())))
-                        .toList(),
-                result.getTotalElements(),
-                p,
-                s);
+        return PagedView.of(result, f -> mapper.firing(f, names.get(f.getRuleId())));
     }
 
     /**

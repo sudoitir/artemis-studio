@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Consumer-health reads (consumer-health spec, ADR-0089). Read-only; no broker call. */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/consumer-health")
+@RequestMapping("/clusters/{clusterId}/consumer-health")
 @RequiredArgsConstructor
 public class TriageController {
 
@@ -43,13 +43,9 @@ public class TriageController {
                     .forQueue(clusterId, queue.trim())
                     .map(ConsumerHealthView::of)
                     .orElseThrow(() -> new NotFoundException("queue", queue));
-            return new PagedView<>(List.of(one), 1, 1, 1);
+            return new PagedView<>(List.of(one), 1, 1, 1L, false);
         }
         PagedView<ConsumerHealth> result = consumerHealth.page(clusterId, ResourceQuery.of(q, page, size, sort));
-        return new PagedView<>(
-                result.data().stream().map(ConsumerHealthView::of).toList(),
-                result.count(),
-                result.page(),
-                result.pageSize());
+        return result.map(ConsumerHealthView::of);
     }
 }

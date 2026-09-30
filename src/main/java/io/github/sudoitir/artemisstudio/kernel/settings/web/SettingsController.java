@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  * default. An invalid value is a {@code 400} through {@link ApiExceptionHandler}.
  */
 @RestController
-@RequestMapping("/api/v1/settings")
+@RequestMapping("/settings")
 @RequiredArgsConstructor
 public class SettingsController {
 

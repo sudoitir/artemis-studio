@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { BulkRunView } from './api.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -48,10 +49,12 @@ describe('BulkRunsView', () => {
   it('lists each run with its operation, size, author and outcome, linked to the run', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/bulk/runs', () =>
-        HttpResponse.json([
-          run({ id: 'r1', operation: 'DELETE', status: 'SUCCEEDED', total: 3, username: 'admin' }),
-          run({ id: 'r2', operation: 'PAUSE', status: 'PREVIEWED', total: 12, username: 'ops', startedAt: null }),
-        ]),
+        HttpResponse.json(
+          paged([
+            run({ id: 'r1', operation: 'DELETE', status: 'SUCCEEDED', total: 3, username: 'admin' }),
+            run({ id: 'r2', operation: 'PAUSE', status: 'PREVIEWED', total: 12, username: 'ops', startedAt: null }),
+          ]),
+        ),
       ),
     );
     renderWithProviders(<BulkRunsView />);
@@ -67,7 +70,7 @@ describe('BulkRunsView', () => {
   });
 
   it('teaches what a bulk run is when there are none, and links to Queues', async () => {
-    server.use(http.get('*/api/v1/clusters/c1/bulk/runs', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/bulk/runs', () => HttpResponse.json(paged([]))));
     renderWithProviders(<BulkRunsView />);
 
     expect(await screen.findByText('No bulk runs yet')).toBeInTheDocument();

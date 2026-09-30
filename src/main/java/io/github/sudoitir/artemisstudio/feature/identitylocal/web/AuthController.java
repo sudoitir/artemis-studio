@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Self-service password change for a local account (identity-and-sessions spec, ADR-0037). */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 

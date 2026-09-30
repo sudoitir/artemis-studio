@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * is a {@code 400} naming the allowed range; an unknown store a {@code 404}.
  */
 @RestController
-@RequestMapping("/api/v1/data")
+@RequestMapping("/data")
 @RequiredArgsConstructor
 public class DataController {
 

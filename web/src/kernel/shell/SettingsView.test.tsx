@@ -10,6 +10,7 @@ import { CONTRACT, defineFeature, type StudioFeature } from '../feature.ts';
 import { FeatureProvider } from '../FeatureProvider.tsx';
 import { rootRoute } from '../routing/roots.ts';
 import { SettingsView } from './SettingsView.tsx';
+import { paged } from '../api/paging.ts';
 
 /**
  * The Settings page's tabs (operator-ui spec): grouped under fixed headings, the open tab in the
@@ -71,9 +72,9 @@ describe('the Settings page', () => {
           grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
         }),
       ),
-      http.get('*/api/v1/clusters', () => HttpResponse.json([])),
-      http.get('*/api/v1/environments', () => HttpResponse.json([])),
-      http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
     );
   });
 

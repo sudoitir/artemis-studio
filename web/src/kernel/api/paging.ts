@@ -5,9 +5,29 @@ import { clusterKey, request, type ApiError } from './request.ts';
 /** Generic paged envelope (`PagedView<T>` on the backend). */
 export interface PagedView<T> {
   data: T[];
-  count: number;
   page: number;
   pageSize: number;
+  /** The total across all pages; null where the server cannot know it. */
+  count: number | null;
+  hasNext: boolean;
+}
+
+/** The largest page the server allows (`ResourceQuery.MAX_SIZE`). */
+export const MAX_PAGE_SIZE = 500;
+
+/**
+ * Every row of a list the UI shows in full (roles, environments, channels, …): pages of the maximum size,
+ * followed while the server says another page exists. Stopping early would read as "no such row".
+ */
+export async function requestAll<T>(path: string): Promise<T[]> {
+  const joiner = path.includes('?') ? '&' : '?';
+  const rows: T[] = [];
+  for (let page = 1; ; page++) {
+    const result = await request<PagedView<T>>(`${path}${joiner}size=${MAX_PAGE_SIZE}&page=${page}`);
+    rows.push(...result.data);
+    // An empty page that claims a successor would loop forever; it is the end.
+    if (!result.hasNext || result.data.length === 0) return rows;
+  }
 }
 
 export interface ResourceParams {
@@ -39,4 +59,9 @@ export function useResource<T>(
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });
+}
+
+/** Rows in the envelope every list endpoint answers with, for the fixtures that stand in for one. */
+export function paged<T>(data: T[]): PagedView<T> {
+  return { data, page: 1, pageSize: 50, count: data.length, hasNext: false };
 }

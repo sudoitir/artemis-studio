@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.core.type.TypeReference;
@@ -42,7 +45,7 @@ import tools.jackson.databind.json.JsonMapper;
  * the only endpoints reachable with no session — see {@code SecurityConfig}'s allow-list.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthSessionController {
 
@@ -165,10 +168,14 @@ public class AuthSessionController {
 
     /** Public: the login screen is built from this before any session exists. */
     @GetMapping("/providers")
-    public List<IdentityProviderView> providers() {
-        return providers.providers().stream()
-                .map(p -> new IdentityProviderView(p.id(), p.kind(), p.label(), p.startPath()))
-                .toList();
+    public PagedView<IdentityProviderView> providers(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size)
+                .paginate(
+                        providers.providers().stream()
+                                .map(p -> new IdentityProviderView(p.id(), p.kind(), p.label(), p.startPath()))
+                                .toList(),
+                        null);
     }
 
     @PostMapping("/login")
@@ -228,10 +235,13 @@ public class AuthSessionController {
     }
 
     @GetMapping("/sessions")
-    public List<AccountSessionView> ownSessions(
-            @AuthenticationPrincipal StudioPrincipal principal, HttpServletRequest req) {
+    public PagedView<AccountSessionView> ownSessions(
+            @AuthenticationPrincipal StudioPrincipal principal,
+            HttpServletRequest req,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         requireSession(principal);
-        return sessionService.listOwn(principal.getUsername(), req);
+        return ResourceQuery.ofPage(page, size).paginate(sessionService.listOwn(principal.getUsername(), req), null);
     }
 
     /** Ends every other session of the caller. */

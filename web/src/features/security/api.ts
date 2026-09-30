@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -32,7 +33,7 @@ export const keys = {
 export function useUsers(enabled = true): UseQueryResult<UserView[], ApiError> {
   return useQuery({
     queryKey: keys.users,
-    queryFn: () => request<UserView[]>('/users'),
+    queryFn: () => requestAll<UserView>('/users'),
     enabled,
   });
 }
@@ -40,7 +41,7 @@ export function useUsers(enabled = true): UseQueryResult<UserView[], ApiError> {
 export function useEffectivePermissions(userId: string | null): UseQueryResult<EffectivePermissionView[], ApiError> {
   return useQuery({
     queryKey: keys.effectivePermissions(userId ?? ''),
-    queryFn: () => request<EffectivePermissionView[]>(`/users/${userId}/effective-permissions`),
+    queryFn: () => requestAll<EffectivePermissionView>(`/users/${userId}/effective-permissions`),
     enabled: userId !== null,
   });
 }
@@ -121,14 +122,14 @@ export function useRemoveGrant() {
 export function useRoles(): UseQueryResult<RoleView[], ApiError> {
   return useQuery({
     queryKey: keys.roles,
-    queryFn: () => request<RoleView[]>('/roles'),
+    queryFn: () => requestAll<RoleView>('/roles'),
   });
 }
 
 export function usePermissionsCatalogue(): UseQueryResult<PermissionView[], ApiError> {
   return useQuery({
     queryKey: keys.permissions,
-    queryFn: () => request<PermissionView[]>('/permissions'),
+    queryFn: () => requestAll<PermissionView>('/permissions'),
   });
 }
 
@@ -215,7 +216,7 @@ const sessionsPath = (userId?: string) => (userId ? `/users/${userId}/sessions` 
 export function useSessions(userId?: string, enabled = true): UseQueryResult<AccountSessionView[], ApiError> {
   return useQuery({
     queryKey: keys.sessions(userId),
-    queryFn: () => request<AccountSessionView[]>(sessionsPath(userId)),
+    queryFn: () => requestAll<AccountSessionView>(sessionsPath(userId)),
     enabled,
   });
 }

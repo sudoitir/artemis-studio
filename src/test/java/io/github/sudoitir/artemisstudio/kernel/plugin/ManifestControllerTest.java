@@ -144,6 +144,13 @@ class ManifestControllerTest {
                         new PluginDescriptorParser(),
                         host,
                         new StaticListableBeanFactory().getBeanProvider(IdentityProviderListing.class)))
+                // What ApiVersioningConfig adds in the application.
+                .setCustomHandlerMapping(() -> {
+                    var mapping =
+                            new org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping();
+                    mapping.setPathPrefixes(java.util.Map.of("/api/v1", type -> true));
+                    return mapping;
+                })
                 .build();
     }
 }

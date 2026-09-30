@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { FindingsInbox } from './FindingsInbox.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const FINDING = {
   id: 'f1',
@@ -30,10 +31,10 @@ function mockApis(permissions: string[], byStatus: Record<string, unknown[]> = {
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
       }),
     ),
-    http.get('*/api/v1/clusters', () => HttpResponse.json([])),
+    http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/governance/findings', ({ request }) => {
       const status = new URL(request.url).searchParams.get('status') ?? 'OPEN';
-      return HttpResponse.json(byStatus[status] ?? []);
+      return HttpResponse.json(paged(byStatus[status] ?? []));
     }),
   );
 }

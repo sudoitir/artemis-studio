@@ -10,15 +10,38 @@ import java.util.Locale;
  * {@code field} or {@code -field} (descending). Filtering, sorting and paging
  * all happen in memory after the per-node fan-out (ADR-0017).
  */
-public record ResourceQuery(String q, int page, int size, String sort) {
+public record ResourceQuery(String q, Integer page, Integer size, String sort) {
 
+    public static final int DEFAULT_SIZE = 50;
+    public static final int MAX_SIZE = 500;
+
+    /**
+     * An absent {@code page} is 1 and an absent {@code size} is {@value #DEFAULT_SIZE}; a {@code page} below 1 or a
+     * {@code size} outside 1 to {@value #MAX_SIZE} is refused ({@code invalid-value}), not clamped.
+     */
     public ResourceQuery {
-        page = page < 1 ? 1 : page;
-        size = size < 1 ? 50 : Math.min(size, 500);
+        page = page == null ? 1 : page;
+        size = size == null ? DEFAULT_SIZE : size;
+        if (page < 1) {
+            throw new IllegalArgumentException("page starts at 1.");
+        }
+        if (size < 1 || size > MAX_SIZE) {
+            throw new IllegalArgumentException("size must be between 1 and " + MAX_SIZE + ".");
+        }
     }
 
     public static ResourceQuery of(String q, Integer page, Integer size, String sort) {
-        return new ResourceQuery(q, page == null ? 1 : page, size == null ? 50 : size, sort);
+        return new ResourceQuery(q, page, size, sort);
+    }
+
+    /** A query for paging alone, for a list with nothing to search or sort. */
+    public static ResourceQuery ofPage(Integer page, Integer size) {
+        return new ResourceQuery(null, page, size, null);
+    }
+
+    /** The zero-based row offset of this page, for {@code LIMIT/OFFSET}. */
+    public int offset() {
+        return (page - 1) * size;
     }
 
     /** Case-insensitive substring match; a blank filter matches everything. */
@@ -49,8 +72,8 @@ public record ResourceQuery(String q, int page, int size, String sort) {
                     .sorted(sortDescending() ? comparator.reversed() : comparator)
                     .toList();
         }
-        int from = Math.min((page - 1) * size, ordered.size());
+        int from = Math.min(offset(), ordered.size());
         int to = Math.min(from + size, ordered.size());
-        return new PagedView<>(ordered.subList(from, to), all.size(), page, size);
+        return new PagedView<>(ordered.subList(from, to), page, size, (long) all.size(), to < ordered.size());
     }
 }

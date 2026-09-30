@@ -5,6 +5,7 @@ import { screen } from '@testing-library/react';
 import { manifestHandler } from '../test/manifest.ts';
 import { renderAppAt } from '../test/render.tsx';
 import { server } from '../test/setup.ts';
+import { paged } from '../kernel/api/paging.ts';
 
 const capability = { status: 'AVAILABLE', reason: null, brokerXmlSnippet: null };
 
@@ -19,9 +20,11 @@ function mockShell() {
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
       }),
     ),
-    http.get('*/api/v1/clusters', () => HttpResponse.json([{ id: 'c1', name: 'prod-eu', health: 'OK', nodeCount: 2 }])),
-    http.get('*/api/v1/environments', () => HttpResponse.json([])),
-    http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+    http.get('*/api/v1/clusters', () =>
+      HttpResponse.json(paged([{ id: 'c1', name: 'prod-eu', health: 'OK', nodeCount: 2 }])),
+    ),
+    http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/clusters/c1', () =>
       HttpResponse.json({
         id: 'c1',

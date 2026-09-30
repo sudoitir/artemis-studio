@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -65,14 +66,14 @@ export function useTransferRun(clusterId: string, runId: string): UseQueryResult
 export function useTransferRuns(clusterId: string): UseQueryResult<TransferRunView[], ApiError> {
   return useQuery({
     queryKey: keys.runs(clusterId),
-    queryFn: () => request<TransferRunView[]>(`${base(clusterId)}/runs`),
+    queryFn: () => requestAll<TransferRunView>(`${base(clusterId)}/runs`),
   });
 }
 
 export function useOrphans(clusterId: string): UseQueryResult<OrphanView[], ApiError> {
   return useQuery({
     queryKey: keys.orphans(clusterId),
-    queryFn: () => request<OrphanView[]>(`${base(clusterId)}/orphans`),
+    queryFn: () => requestAll<OrphanView>(`${base(clusterId)}/orphans`),
   });
 }
 

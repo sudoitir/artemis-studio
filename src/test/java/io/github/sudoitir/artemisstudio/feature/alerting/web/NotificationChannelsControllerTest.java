@@ -98,7 +98,7 @@ class NotificationChannelsControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/channels/{id}/deliveries", id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(post("/api/v1/channels/{id}/deliveries/{seq}/retry", id, 999999999L))
                 .andExpect(status().isNotFound());
         mvc.perform(delete("/api/v1/channels/{id}", id)).andExpect(status().isNoContent());

@@ -6,6 +6,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { manifestHandler } from '../../test/manifest.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { paged } from '../api/paging.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -37,7 +38,7 @@ function mockApi({
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
       }),
     ),
-    http.get('*/api/v1/alerts/firing', () => HttpResponse.json(firing)),
+    http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged(firing))),
   );
 }
 

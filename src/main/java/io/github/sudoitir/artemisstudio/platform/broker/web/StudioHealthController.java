@@ -129,7 +129,7 @@ public class StudioHealthController {
             boolean degraded) {}
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
-    @GetMapping("/api/v1/system/health")
+    @GetMapping("/system/health")
     public StudioHealth studioHealth() {
         Instant now = Instant.now();
         List<JobHealth> jobViews =

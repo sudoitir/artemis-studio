@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DryRun
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageDetailView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessagePageView;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.PartialView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.core.web.ApiExceptionHandler;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -39,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code BrokerConnectionException} through {@link ApiExceptionHandler}.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/queues/{queueName}/messages")
+@RequestMapping("/clusters/{clusterId}/queues/{queueName}/messages")
 @RequiredArgsConstructor
 public class MessageController {
 
@@ -51,9 +52,10 @@ public class MessageController {
             @PathVariable String queueName,
             @RequestParam(required = false) UUID node,
             @RequestParam(required = false) String filter,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return messages.browse(clusterId, queueName, node, filter, Math.max(page, 1), Math.max(size, 1));
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        ResourceQuery paging = ResourceQuery.ofPage(page, size);
+        return messages.browse(clusterId, queueName, node, filter, paging.page(), paging.size());
     }
 
     @GetMapping("/{messageId}")

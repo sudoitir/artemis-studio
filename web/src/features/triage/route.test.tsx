@@ -4,14 +4,17 @@ import { screen } from '@testing-library/react';
 
 import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 const capability = { status: 'AVAILABLE', reason: null, brokerXmlSnippet: null };
 
 /** What the shell itself reads on any cluster screen. */
 function shell() {
   return [
-    http.get('*/api/v1/clusters', () => HttpResponse.json([{ id: 'c1', name: 'prod', health: 'OK', nodeCount: 1 }])),
-    http.get('*/api/v1/environments', () => HttpResponse.json([])),
+    http.get('*/api/v1/clusters', () =>
+      HttpResponse.json(paged([{ id: 'c1', name: 'prod', health: 'OK', nodeCount: 1 }])),
+    ),
+    http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/auth/me', () =>
       HttpResponse.json({
         id: 'u1',
@@ -20,7 +23,7 @@ function shell() {
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
       }),
     ),
-    http.get('*/api/v1/alerts/firing', () => HttpResponse.json([])),
+    http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
     http.get('*/api/v1/clusters/c1/dlq', () => HttpResponse.json({ settingsAvailable: true, addresses: [] })),
     http.get('*/api/v1/clusters/c1', () =>

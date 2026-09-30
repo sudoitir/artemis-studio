@@ -6,8 +6,9 @@ import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelT
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ChannelTestResultView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.NotificationChannelView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,15 +25,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Global notification channels, their tests and delivery log (alerting spec, ADR-0036, ADR-0105). */
 @RestController
-@RequestMapping("/api/v1/channels")
+@RequestMapping("/channels")
 @RequiredArgsConstructor
 public class NotificationChannelsController {
 
     private final NotificationChannelService channels;
 
     @GetMapping
-    public List<NotificationChannelView> list() {
-        return channels.list();
+    public PagedView<NotificationChannelView> list(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(channels.list(), null);
     }
 
     @PostMapping
@@ -66,9 +68,11 @@ public class NotificationChannelsController {
     }
 
     @GetMapping("/{channelId}/deliveries")
-    public List<AlertDeliveryView> deliveries(
-            @PathVariable UUID channelId, @RequestParam(defaultValue = "50") int limit) {
-        return channels.deliveries(channelId, limit);
+    public PagedView<AlertDeliveryView> deliveries(
+            @PathVariable UUID channelId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return channels.deliveries(channelId, ResourceQuery.ofPage(page, size));
     }
 
     @PostMapping("/{channelId}/deliveries/{seq}/retry")

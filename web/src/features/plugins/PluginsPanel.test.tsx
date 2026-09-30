@@ -14,6 +14,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { PluginPlanView, PluginsView, PluginView } from './api.ts';
 import { PluginsPanel } from './PluginsPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const NOW = new Date().toISOString();
 
@@ -348,7 +349,7 @@ describe('Administration → Plugins', () => {
       http.get('*/api/v1/admin/plugins', () =>
         HttpResponse.json(inventory([plugin({ status: 'uninstalled', activatedAt: null })])),
       ),
-      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json(paged([]))),
       http.post('*/api/v1/admin/plugins/acme-notes/purge', ({ request }) => {
         if (new URL(request.url).searchParams.get('dryRun') === 'false') purged = true;
         return HttpResponse.json({
@@ -400,7 +401,7 @@ describe('Administration → Plugins', () => {
           ]),
         ),
       ),
-      http.get('*/api/v1/admin/plugins/acme-beta/history', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/plugins/acme-beta/history', () => HttpResponse.json(paged([]))),
     );
     renderPanel();
     const rows = (await screen.findAllByRole('row')).slice(1);
@@ -414,7 +415,7 @@ describe('Administration → Plugins', () => {
       http.get('*/api/v1/admin/plugins', () =>
         HttpResponse.json(inventory([plugin({ verified: false, signerFingerprint: 'AB:CD:EF' })])),
       ),
-      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json(paged([]))),
     );
     renderPanel('/admin?tab=plugins&plugin=acme-notes');
     expect(await screen.findByText('CN=Acme (not a trusted key)')).toBeInTheDocument();
@@ -429,7 +430,7 @@ describe('Administration → Plugins', () => {
       http.get('*/api/v1/admin/plugins', () =>
         HttpResponse.json(inventory([plugin({ status: 'disabled', verified: false })])),
       ),
-      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json(paged([]))),
       http.post('*/api/v1/admin/plugins/acme-notes/enable', ({ request }) => {
         calls.push(new URL(request.url).search);
         if (!calls.at(-1)) {
@@ -606,7 +607,7 @@ describe('Administration → Plugins inventory', () => {
 
   it('opens the plugin a link names', async () => {
     listing([plugin()]);
-    server.use(http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/admin/plugins/acme-notes/history', () => HttpResponse.json(paged([]))));
     renderPanel('/admin?tab=plugins&plugin=acme-notes');
     expect(await screen.findByRole('dialog', { name: 'Notes 1.0.0' })).toBeInTheDocument();
   });
@@ -647,7 +648,7 @@ describe('Administration → Plugins inventory', () => {
     listing([]);
     server.use(
       http.get('*/api/v1/admin/plugins/installers', () =>
-        HttpResponse.json([{ userId: 'u1', username: 'ops', grantedAt: NOW, grantedBy: null }]),
+        HttpResponse.json(paged([{ userId: 'u1', username: 'ops', grantedAt: NOW, grantedBy: null }])),
       ),
     );
     const user = userEvent.setup();

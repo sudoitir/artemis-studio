@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { ConfigApplyHistoryView, ConfigDocumentView, ConfigRevisionView } from './api.ts';
 import { declaration, halted, plan } from './fixtures.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -52,8 +53,8 @@ const apply = (id: number, over: Partial<ConfigApplyHistoryView> = {}): ConfigAp
 
 function serve(revisions: ConfigRevisionView[], applies: ConfigApplyHistoryView[]) {
   server.use(
-    http.get('*/api/v1/clusters/c1/config/revisions', () => HttpResponse.json(revisions)),
-    http.get('*/api/v1/clusters/c1/config/applies', () => HttpResponse.json(applies)),
+    http.get('*/api/v1/clusters/c1/config/revisions', () => HttpResponse.json(paged(revisions))),
+    http.get('*/api/v1/clusters/c1/config/applies', () => HttpResponse.json(paged(applies))),
   );
 }
 

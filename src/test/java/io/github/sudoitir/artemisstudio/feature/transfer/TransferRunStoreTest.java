@@ -127,6 +127,25 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
     // ---- store ---------------------------------------------------------------------
 
     @Test
+    void theHistoryIsPaged() throws Exception {
+        for (String queue : new String[] {"a", "b", "c"}) {
+            state(preview(TransferMode.MOVE, queue), TransferState.SUCCEEDED);
+        }
+
+        mvc.perform(get("/api/v1/clusters/{c}/transfers/runs", source).param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.count").value(3))
+                .andExpect(jsonPath("$.hasNext").value(true));
+        mvc.perform(get("/api/v1/clusters/{c}/transfers/runs", source)
+                        .param("size", "2")
+                        .param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
     void theLedgerRecordsEachCopiedIdOnce() {
         UUID runId = preview(TransferMode.COPY, "orders").getId();
 
@@ -307,7 +326,7 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
             for (UUID cluster : List.of(source, target)) {
                 mvc.perform(get("/api/v1/clusters/{c}/transfers/runs", cluster))
                         .andExpect(status().isOk())
-                        .andExpect(jsonPath("$[?(@.id == '%s')].state".formatted(run.getId()))
+                        .andExpect(jsonPath("$.data[?(@.id == '%s')].state".formatted(run.getId()))
                                 .value("STOPPED"));
             }
             mvc.perform(get("/api/v1/clusters/{c}/transfers/runs/{r}", target, run.getId()))

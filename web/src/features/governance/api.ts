@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -21,7 +22,7 @@ export const keys = {
 export function useFindings(status: string): UseQueryResult<FindingView[], ApiError> {
   return useQuery({
     queryKey: keys.findings(status),
-    queryFn: () => request<FindingView[]>(`/governance/findings?status=${encodeURIComponent(status)}`),
+    queryFn: () => requestAll<FindingView>(`/governance/findings?status=${encodeURIComponent(status)}`),
   });
 }
 
@@ -47,7 +48,7 @@ export function useRemaskProgress(): UseQueryResult<PolicyView, ApiError> {
 export function useRules(): UseQueryResult<RuleView[], ApiError> {
   return useQuery({
     queryKey: keys.rules,
-    queryFn: () => request<RuleView[]>('/governance/rules'),
+    queryFn: () => requestAll<RuleView>('/governance/rules'),
   });
 }
 

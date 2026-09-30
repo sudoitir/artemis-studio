@@ -52,6 +52,8 @@ class OpenApiSnapshotTest extends PostgresIntegrationTest {
 
         // Re-serialise through a key-sorted mapper so ordering never causes a diff.
         JsonNode tree = mapper.readTree(body);
+        // info.version is the running Studio version; the snapshot pins it so the file is stable.
+        ((tools.jackson.databind.node.ObjectNode) tree.get("info")).put("version", "0.0.0");
         String pretty = mapper.writeValueAsString(tree) + "\n";
 
         String existing = Files.exists(SNAPSHOT) ? Files.readString(SNAPSHOT, StandardCharsets.UTF_8) : null;
@@ -63,6 +65,41 @@ class OpenApiSnapshotTest extends PostgresIntegrationTest {
                 .as("web/openapi.json is stale — it has been rewritten; run `npm --prefix web run gen:api`, "
                         + "review the schema.d.ts diff, and commit both")
                 .isEqualTo(existing);
+    }
+
+    /** ADR-0149: a list is the paged envelope; no GET returns a bare array. */
+    @Test
+    void noGetReturnsATopLevelArray() throws Exception {
+        MockMvc mvc = webAppContextSetup(webContext).build();
+
+        JsonNode paths = mapper.readTree(mvc.perform(get("/v3/api-docs").accept("application/json"))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(StandardCharsets.UTF_8))
+                .path("paths");
+
+        java.util.List<String> bare = new java.util.ArrayList<>();
+        paths.properties().forEach(path -> {
+            if (!path.getKey().startsWith("/api/v1/")) {
+                return;
+            }
+            path.getValue()
+                    .path("get")
+                    .path("responses")
+                    .path("200")
+                    .path("content")
+                    .properties()
+                    .forEach(content -> {
+                        if ("array"
+                                .equals(content.getValue()
+                                        .path("schema")
+                                        .path("type")
+                                        .asString())) {
+                            bare.add(path.getKey());
+                        }
+                    });
+        });
+        assertThat(bare).as("GET endpoints that return a bare array").isEmpty();
     }
 
     /** ADR-0096: Jackson 3 rejects a request missing a primitive, so the contract must require it. */

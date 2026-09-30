@@ -18,7 +18,7 @@ import org.springframework.web.context.request.WebRequest;
  * cluster as observed, so a client that polls without the stream still keeps sampling alive.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/flow")
+@RequestMapping("/clusters/{clusterId}/flow")
 @RequiredArgsConstructor
 public class FlowController {
 

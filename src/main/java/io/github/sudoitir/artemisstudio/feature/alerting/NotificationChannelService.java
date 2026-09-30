@@ -16,6 +16,8 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import java.time.Duration;
@@ -181,12 +183,11 @@ public class NotificationChannelService {
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions).ALERT_READ)")
     @Transactional(readOnly = true)
-    public List<AlertDeliveryView> deliveries(UUID channelId, int limit) {
+    public PagedView<AlertDeliveryView> deliveries(UUID channelId, ResourceQuery query) {
         requireChannel(channelId);
-        int size = Math.clamp(limit, 1, LOG_MAX);
-        return deliveries.findByChannelIdOrderBySeqDesc(channelId, PageRequest.of(0, size)).stream()
-                .map(this::deliveryView)
-                .toList();
+        return PagedView.of(
+                deliveries.findByChannelIdOrderBySeqDesc(channelId, PageRequest.of(query.page() - 1, query.size())),
+                this::deliveryView);
     }
 
     /** Returns a dead delivery to the queue with a fresh attempt budget. 409 for any other state. */

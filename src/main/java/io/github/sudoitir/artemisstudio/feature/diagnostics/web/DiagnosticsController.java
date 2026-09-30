@@ -45,18 +45,18 @@ public class DiagnosticsController {
 
     private final DiagnosticsService diagnostics;
 
-    @GetMapping("/api/v1/diagnostics/summary")
+    @GetMapping("/diagnostics/summary")
     public SummaryView summary() {
         return SummaryView.of(diagnostics.summary());
     }
 
-    @PostMapping("/api/v1/admin/diagnostics/bundles")
+    @PostMapping("/admin/diagnostics/bundles")
     @ResponseStatus(HttpStatus.CREATED)
     public BundleView prepare() {
         return BundleView.of(diagnostics.prepare());
     }
 
-    @PostMapping(value = "/api/v1/admin/diagnostics/bundles/{id}/download", produces = "application/zip")
+    @PostMapping(value = "/admin/diagnostics/bundles/{id}/download", produces = "application/zip")
     public ResponseEntity<StreamingResponseBody> download(
             @PathVariable UUID id, @Valid @RequestBody DownloadRequest request) {
         Snapshot bundle = diagnostics.take(id, request.sections());

@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.governance.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -84,11 +82,11 @@ class GovernanceFindingsControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/governance/findings"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.address == '" + ADDRESS + "')].fieldPath")
+                .andExpect(jsonPath("$.data[?(@.address == '" + ADDRESS + "')].fieldPath")
                         .value("contact"))
-                .andExpect(jsonPath("$[?(@.address == '" + ADDRESS + "')].dataClassLabel")
+                .andExpect(jsonPath("$.data[?(@.address == '" + ADDRESS + "')].dataClassLabel")
                         .value("email"))
-                .andExpect(jsonPath("$[?(@.address == '" + ADDRESS + "')].hitCount")
+                .andExpect(jsonPath("$.data[?(@.address == '" + ADDRESS + "')].hitCount")
                         .value(12));
     }
 
@@ -154,8 +152,6 @@ class GovernanceFindingsControllerTest extends PostgresIntegrationTest {
                         UsernamePasswordAuthenticationToken.authenticated(reader, null, reader.getAuthorities()));
 
         mvc.perform(get("/api/v1/governance/findings")).andExpect(status().isOk());
-        assertThatThrownBy(() -> mvc.perform(post("/api/v1/governance/findings/{id}/confirm", id)))
-                .rootCause()
-                .isInstanceOf(AccessDeniedException.class);
+        mvc.perform(post("/api/v1/governance/findings/{id}/confirm", id)).andExpect(status().isForbidden());
     }
 }

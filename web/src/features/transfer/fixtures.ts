@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 
 import type { Finding, TransferRunView } from './api.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 /** Test fixtures for the transfer screens. Placeholder names only. */
 
@@ -70,10 +71,12 @@ export function clusterHandlers(
     http.get('*/api/v1/clusters/c1', () => HttpResponse.json(detail('c1', 'primary'))),
     http.get('*/api/v1/clusters/c2', () => HttpResponse.json(detail('c2', 'dr-site'))),
     http.get('*/api/v1/clusters', () =>
-      HttpResponse.json([
-        { id: 'c1', name: 'primary', nodeCount: 2, updatedAt: '2026-09-21T10:00:00Z', environmentId: null },
-        { id: 'c2', name: 'dr-site', nodeCount: 2, updatedAt: '2026-09-21T10:00:00Z', environmentId: null },
-      ]),
+      HttpResponse.json(
+        paged([
+          { id: 'c1', name: 'primary', nodeCount: 2, updatedAt: '2026-09-21T10:00:00Z', environmentId: null },
+          { id: 'c2', name: 'dr-site', nodeCount: 2, updatedAt: '2026-09-21T10:00:00Z', environmentId: null },
+        ]),
+      ),
     ),
     http.get('*/api/v1/clusters/:id/queues', () => HttpResponse.json({ items: [], total: 0 })),
   ];

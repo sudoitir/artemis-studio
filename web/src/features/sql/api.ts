@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -72,7 +73,7 @@ export function useVerifyOnBroker(clusterId: string) {
 export function useIndexSubscriptions(clusterId: string): UseQueryResult<SqlIndexSubscriptionView[], ApiError> {
   return useQuery({
     queryKey: keys.sqlIndex(clusterId),
-    queryFn: () => request<SqlIndexSubscriptionView[]>(`/clusters/${clusterId}/sql/index`),
+    queryFn: () => requestAll<SqlIndexSubscriptionView>(`/clusters/${clusterId}/sql/index`),
   });
 }
 

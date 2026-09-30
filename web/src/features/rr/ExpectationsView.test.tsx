@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { ExpectationsView } from './ExpectationsView.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -31,18 +32,18 @@ function expectation(over: Record<string, unknown> = {}) {
 describe('ExpectationsView', () => {
   // The capture hint reads capture subscriptions; a test that is not about it sees none.
   beforeEach(() => {
-    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))));
   });
 
   it('lists declared expectations', async () => {
-    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([expectation()])));
+    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged([expectation()]))));
     renderWithProviders(<ExpectationsView clusterId="c1" />);
 
     expect(await screen.findByText('orders.request')).toBeInTheDocument();
   });
 
   it('shows an empty state with no expectations', async () => {
-    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged([]))));
     renderWithProviders(<ExpectationsView clusterId="c1" />);
 
     expect(await screen.findByText(/No addresses declared yet/)).toBeInTheDocument();
@@ -51,7 +52,7 @@ describe('ExpectationsView', () => {
   it('creates a new expectation from the form', async () => {
     let created = false;
     server.use(
-      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(created ? [expectation()] : [])),
+      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged(created ? [expectation()] : []))),
       http.post('*/api/v1/clusters/c1/rr/expectations', () => {
         created = true;
         return HttpResponse.json(expectation(), { status: 201 });
@@ -72,7 +73,7 @@ describe('ExpectationsView', () => {
     let created = false;
     server.use(
       http.get('*/api/v1/clusters/c1/queues', () => HttpResponse.json({ data: [], page: 1, size: 300, total: 0 })),
-      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(created ? [expectation()] : [])),
+      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged(created ? [expectation()] : []))),
       http.post('*/api/v1/clusters/c1/rr/expectations', async ({ request }) => {
         sent.push((await request.json()) as { replyAddresses?: string[] });
         created = true;
@@ -101,7 +102,7 @@ describe('ExpectationsView', () => {
   it('explains what leaving the reply addresses empty means', async () => {
     // Conflating "I meant temporary queues" with "I have not filled this in" is
     // what produced an expectation that could never be joined.
-    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged([]))));
     renderWithProviders(<ExpectationsView clusterId="c1" />);
 
     expect(await screen.findByText(/temporary queue/)).toBeInTheDocument();
@@ -111,7 +112,7 @@ describe('ExpectationsView', () => {
     // The help is four lines of prose. Inside a bottom-aligned row it was what sat
     // on the baseline, so the field it belongs to floated above every other control
     // on the form. It renders below the row now, and this is the regression guard.
-    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged([]))));
     renderWithProviders(<ExpectationsView clusterId="c1" />);
 
     const help = await screen.findByText(/temporary queue/);
@@ -125,7 +126,7 @@ describe('ExpectationsView', () => {
   it('says when a declared pattern matches nothing on the cluster yet', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/rr/expectations', () =>
-        HttpResponse.json([expectation({ replyAddresses: ['orders.reply.*'], resolvedReplyAddresses: [] })]),
+        HttpResponse.json(paged([expectation({ replyAddresses: ['orders.reply.*'], resolvedReplyAddresses: [] })])),
       ),
     );
     renderWithProviders(<ExpectationsView clusterId="c1" />);
@@ -136,13 +137,15 @@ describe('ExpectationsView', () => {
   it('flags an over-broad pattern rather than silently tracing a subset', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/rr/expectations', () =>
-        HttpResponse.json([
-          expectation({
-            replyAddresses: ['*'],
-            resolvedReplyAddresses: Array.from({ length: 32 }, (_, i) => `a.${i}`),
-            replyAddressesCapped: true,
-          }),
-        ]),
+        HttpResponse.json(
+          paged([
+            expectation({
+              replyAddresses: ['*'],
+              resolvedReplyAddresses: Array.from({ length: 32 }, (_, i) => `a.${i}`),
+              replyAddressesCapped: true,
+            }),
+          ]),
+        ),
       ),
     );
     renderWithProviders(<ExpectationsView clusterId="c1" />);
@@ -153,12 +156,14 @@ describe('ExpectationsView', () => {
   it('names traced addresses that are only sampled, and hides the hint once they are captured', async () => {
     let captured = false;
     server.use(
-      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json([expectation()])),
+      http.get('*/api/v1/clusters/c1/rr/expectations', () => HttpResponse.json(paged([expectation()]))),
       http.get('*/api/v1/clusters/c1/sql/index', () =>
         HttpResponse.json(
-          captured
-            ? [{ id: 's1', queuePattern: 'orders.#', mode: 'CAPTURE', enabled: true, nodes: [] }]
-            : [{ id: 's1', queuePattern: 'orders.request', mode: 'SAMPLE', enabled: true, nodes: [] }],
+          paged(
+            captured
+              ? [{ id: 's1', queuePattern: 'orders.#', mode: 'CAPTURE', enabled: true, nodes: [] }]
+              : [{ id: 's1', queuePattern: 'orders.request', mode: 'SAMPLE', enabled: true, nodes: [] }],
+          ),
         ),
       ),
     );

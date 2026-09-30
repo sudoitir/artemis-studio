@@ -71,7 +71,7 @@ class AlertsControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/clusters/{id}/alerts/rules", clusterId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Deep queue"));
+                .andExpect(jsonPath("$.data[0].name").value("Deep queue"));
 
         String updateBody = """
                 {"name":"Deep queue v2","kind":"METRIC_THRESHOLD","metric":"messageCount","comparator":"GT",

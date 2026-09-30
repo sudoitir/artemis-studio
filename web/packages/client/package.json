@@ -1,0 +1,27 @@
+{
+  "name": "@artemis-studio/client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A typed TypeScript client for the Artemis Studio API, generated from its OpenAPI document.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sudoitir/artemis-studio.git",
+    "directory": "web/packages/client"
+  },
+  "homepage": "https://sudoitir.github.io/artemis-studio/",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "schema.d.ts",
+    "README.md"
+  ],
+  "sideEffects": false
+}

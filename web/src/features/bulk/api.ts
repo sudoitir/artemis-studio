@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -57,6 +58,6 @@ export function useBulkRun(clusterId: string, runId: string): UseQueryResult<Bul
 export function useBulkRuns(clusterId: string): UseQueryResult<BulkRunView[], ApiError> {
   return useQuery({
     queryKey: keys.runs(clusterId),
-    queryFn: () => request<BulkRunView[]>(`${base(clusterId)}/runs`),
+    queryFn: () => requestAll<BulkRunView>(`${base(clusterId)}/runs`),
   });
 }

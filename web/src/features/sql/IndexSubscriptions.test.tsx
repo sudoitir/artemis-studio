@@ -6,6 +6,7 @@ import { notifications } from '@mantine/notifications';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -48,7 +49,7 @@ function mockMe() {
 describe('IndexSubscriptions', () => {
   it('states that message bodies will be stored before the subscription is created', async () => {
     mockMe();
-    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))));
     const user = userEvent.setup();
     renderWithProviders(<IndexSubscriptions />);
 
@@ -63,7 +64,7 @@ describe('IndexSubscriptions', () => {
 
   it('teaches what an index is when none exists, rather than showing an empty table', async () => {
     mockMe();
-    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))));
     renderWithProviders(<IndexSubscriptions />);
 
     expect(await screen.findByText(/Nothing is being indexed/i)).toBeInTheDocument();
@@ -72,7 +73,7 @@ describe('IndexSubscriptions', () => {
 
   it('shows what a subscription is holding', async () => {
     mockMe();
-    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([subscription()])));
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([subscription()]))));
     renderWithProviders(<IndexSubscriptions />);
 
     expect(await screen.findByText('ORDER.IN')).toBeInTheDocument();
@@ -85,7 +86,7 @@ describe('IndexSubscriptions', () => {
   it('states the blast radius and needs the pattern typed before it will delete', async () => {
     mockMe();
     server.use(
-      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([subscription()])),
+      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([subscription()]))),
       http.delete('*/api/v1/clusters/c1/sql/index/s1', () => HttpResponse.json({ messagesDestroyed: 1284 })),
     );
     const user = userEvent.setup();
@@ -104,7 +105,7 @@ describe('IndexSubscriptions', () => {
 
   it('states the full blast radius before capture can be started', async () => {
     mockMe();
-    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))));
     const user = userEvent.setup();
     renderWithProviders(<IndexSubscriptions />);
 
@@ -128,30 +129,32 @@ describe('IndexSubscriptions', () => {
     mockMe();
     server.use(
       http.get('*/api/v1/clusters/c1/sql/index', () =>
-        HttpResponse.json([
-          subscription({
-            mode: 'CAPTURE',
-            maxBytes: 5_368_709_120,
-            nodes: [
-              {
-                nodeId: 'n1',
-                nodeName: 'primary',
-                state: 'ACTIVE',
-                detail: null,
-                capturedFrom: '2026-09-07T09:00:00Z',
-                droppedEstimate: 0,
-              },
-              {
-                nodeId: 'n2',
-                nodeName: 'backup',
-                state: 'FAILED',
-                detail: 'an exclusive divert on ORDER.IN would shadow the capture divert',
-                capturedFrom: null,
-                droppedEstimate: 0,
-              },
-            ],
-          }),
-        ]),
+        HttpResponse.json(
+          paged([
+            subscription({
+              mode: 'CAPTURE',
+              maxBytes: 5_368_709_120,
+              nodes: [
+                {
+                  nodeId: 'n1',
+                  nodeName: 'primary',
+                  state: 'ACTIVE',
+                  detail: null,
+                  capturedFrom: '2026-09-07T09:00:00Z',
+                  droppedEstimate: 0,
+                },
+                {
+                  nodeId: 'n2',
+                  nodeName: 'backup',
+                  state: 'FAILED',
+                  detail: 'an exclusive divert on ORDER.IN would shadow the capture divert',
+                  capturedFrom: null,
+                  droppedEstimate: 0,
+                },
+              ],
+            }),
+          ]),
+        ),
       ),
     );
     renderWithProviders(<IndexSubscriptions />);
@@ -167,7 +170,7 @@ describe('IndexSubscriptions', () => {
     mockMe();
     server.use(
       http.get('*/api/v1/clusters/c1/sql/index', () =>
-        HttpResponse.json([subscription({ mode: 'CAPTURE', nodes: [] })]),
+        HttpResponse.json(paged([subscription({ mode: 'CAPTURE', nodes: [] })])),
       ),
     );
     const user = userEvent.setup();
@@ -203,7 +206,7 @@ describe('IndexSubscriptions', () => {
     mockMe();
     let created = false;
     server.use(
-      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))),
       http.post('*/api/v1/clusters/c1/sql/index', ({ request }) => {
         if (new URL(request.url).searchParams.get('dryRun') === 'true') {
           return HttpResponse.json({
@@ -255,7 +258,7 @@ describe('IndexSubscriptions', () => {
   it('states why capture would be refused instead of offering to arm it', async () => {
     mockMe();
     server.use(
-      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])),
+      http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))),
       http.post('*/api/v1/clusters/c1/sql/index', () =>
         HttpResponse.json({
           addresses: [],
@@ -282,7 +285,7 @@ describe('IndexSubscriptions', () => {
 
   it('checks a bound on blur against the limit the server enforces', async () => {
     mockMe();
-    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))));
     const user = userEvent.setup();
     renderWithProviders(<IndexSubscriptions />);
 
@@ -313,7 +316,7 @@ function grants(permissions: string[]) {
 }
 
 function listing(rows: unknown[]) {
-  server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(rows)));
+  server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged(rows))));
 }
 
 const node = (over: Record<string, unknown>) => ({

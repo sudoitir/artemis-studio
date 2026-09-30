@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { type PagedView, requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
 
-export type AlertFiringPageView = Schemas['AlertFiringPageView'];
 export type AlertFiringView = Schemas['AlertFiringView'];
 export type AlertRuleRequest = Schemas['AlertRuleRequest'];
 export type AlertRuleView = Schemas['AlertRuleView'];
@@ -30,7 +30,7 @@ export const keys = {
 export function useAlertRules(clusterId: string): UseQueryResult<AlertRuleView[], ApiError> {
   return useQuery({
     queryKey: keys.alertRules(clusterId),
-    queryFn: () => request<AlertRuleView[]>(`/clusters/${clusterId}/alerts/rules`),
+    queryFn: () => requestAll<AlertRuleView>(`/clusters/${clusterId}/alerts/rules`),
   });
 }
 
@@ -38,7 +38,7 @@ export function useAlertRules(clusterId: string): UseQueryResult<AlertRuleView[]
 export function usePluginMetrics(clusterId: string): UseQueryResult<PluginMetricView[], ApiError> {
   return useQuery({
     queryKey: keys.pluginMetrics(clusterId),
-    queryFn: () => request<PluginMetricView[]>(`/clusters/${clusterId}/alerts/plugin-metrics`),
+    queryFn: () => requestAll<PluginMetricView>(`/clusters/${clusterId}/alerts/plugin-metrics`),
   });
 }
 
@@ -80,7 +80,7 @@ export function useDeleteAlertRule(clusterId: string) {
 export function useFiringAlerts(clusterId: string): UseQueryResult<AlertFiringView[], ApiError> {
   return useQuery({
     queryKey: keys.alertFiring(clusterId),
-    queryFn: () => request<AlertFiringView[]>(`/clusters/${clusterId}/alerts/firing`),
+    queryFn: () => requestAll<AlertFiringView>(`/clusters/${clusterId}/alerts/firing`),
     refetchInterval: 15_000,
   });
 }
@@ -89,10 +89,11 @@ export function useAlertHistory(
   clusterId: string,
   page: number,
   size: number,
-): UseQueryResult<AlertFiringPageView, ApiError> {
+): UseQueryResult<PagedView<AlertFiringView>, ApiError> {
   return useQuery({
     queryKey: keys.alertHistory(clusterId, page, size),
-    queryFn: () => request<AlertFiringPageView>(`/clusters/${clusterId}/alerts/history?page=${page}&size=${size}`),
+    queryFn: () =>
+      request<PagedView<AlertFiringView>>(`/clusters/${clusterId}/alerts/history?page=${page}&size=${size}`),
     placeholderData: (prev) => prev,
   });
 }
@@ -101,7 +102,7 @@ export function useAlertHistory(
 export function useFiringCounts(enabled = true): UseQueryResult<ClusterFiringCountView[], ApiError> {
   return useQuery({
     queryKey: keys.firingCounts,
-    queryFn: () => request<ClusterFiringCountView[]>('/alerts/firing'),
+    queryFn: () => requestAll<ClusterFiringCountView>('/alerts/firing'),
     refetchInterval: 30_000,
     enabled,
   });
@@ -110,7 +111,7 @@ export function useFiringCounts(enabled = true): UseQueryResult<ClusterFiringCou
 export function useNotificationChannels(): UseQueryResult<NotificationChannelView[], ApiError> {
   return useQuery({
     queryKey: keys.channels,
-    queryFn: () => request<NotificationChannelView[]>('/channels'),
+    queryFn: () => requestAll<NotificationChannelView>('/channels'),
   });
 }
 
@@ -169,7 +170,7 @@ export function useTestChannelConfig() {
 export function useChannelDeliveries(channelId: string | null): UseQueryResult<AlertDeliveryView[], ApiError> {
   return useQuery({
     queryKey: keys.deliveries(channelId ?? ''),
-    queryFn: () => request<AlertDeliveryView[]>(`/channels/${channelId}/deliveries?limit=100`),
+    queryFn: () => requestAll<AlertDeliveryView>(`/channels/${channelId}/deliveries`),
     enabled: channelId !== null,
     refetchInterval: 10_000,
   });

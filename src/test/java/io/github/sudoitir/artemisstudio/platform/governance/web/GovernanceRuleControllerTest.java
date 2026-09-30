@@ -74,10 +74,10 @@ class GovernanceRuleControllerTest extends PostgresIntegrationTest {
     void theBuiltInCredentialRulesAreListedFirst() throws Exception {
         mvc.perform(get("/api/v1/governance/rules"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].builtin").value(true))
-                .andExpect(jsonPath("$[?(@.selector == 'authorization')].dataClass")
+                .andExpect(jsonPath("$.data[0].builtin").value(true))
+                .andExpect(jsonPath("$.data[?(@.selector == 'authorization')].dataClass")
                         .value("CREDENTIAL"))
-                .andExpect(jsonPath("$[?(@.selector == 'authorization')].defaultAction")
+                .andExpect(jsonPath("$.data[?(@.selector == 'authorization')].defaultAction")
                         .value("DROP"));
     }
 
@@ -151,10 +151,6 @@ class GovernanceRuleControllerTest extends PostgresIntegrationTest {
                         UsernamePasswordAuthenticationToken.authenticated(reader, null, reader.getAuthorities()));
 
         mvc.perform(get("/api/v1/governance/rules")).andExpect(status().isOk());
-        // Without the filter chain nothing translates the denial into a 403; the method-security refusal is the proof.
-        org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> mvc.perform(delete("/api/v1/governance/rules/{id}", AUTHORIZATION_RULE)))
-                .rootCause()
-                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        mvc.perform(delete("/api/v1/governance/rules/{id}", AUTHORIZATION_RULE)).andExpect(status().isForbidden());
     }
 }

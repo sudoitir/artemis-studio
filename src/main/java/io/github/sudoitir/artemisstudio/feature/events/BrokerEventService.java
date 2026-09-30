@@ -48,8 +48,6 @@ public class BrokerEventService {
     @Transactional(readOnly = true)
     public BrokerEventPageView page(UUID clusterId, BrokerEventQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        int p = Math.max(query.page(), 1);
-        int s = Math.clamp(query.size(), 1, 500);
         Page<BrokerEventEntity> result = events.findPage(
                 clusterId,
                 blankToNull(query.type()),
@@ -57,12 +55,13 @@ public class BrokerEventService {
                 blankToNull(query.address()),
                 query.from() != null ? query.from() : Instant.EPOCH,
                 query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
-                PageRequest.of(p - 1, s));
+                PageRequest.of(query.page() - 1, query.size()));
         return new BrokerEventPageView(
                 result.getContent().stream().map(this::toView).toList(),
+                result.getNumber() + 1,
+                result.getSize(),
                 result.getTotalElements(),
-                p,
-                s,
+                result.hasNext(),
                 writer.droppedFor(clusterId),
                 events.oldestRetained(clusterId));
     }

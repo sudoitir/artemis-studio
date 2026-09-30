@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { AdminTokensPanel } from './AdminTokensPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const LEAKED = {
   id: 't7',
@@ -38,7 +39,7 @@ function me(permissions: string[]) {
 describe('AdminTokensPanel', () => {
   it('lists every user’s keys and flags stale ones', async () => {
     me(['token:admin']);
-    server.use(http.get('*/api/v1/admin/tokens', () => HttpResponse.json([LEAKED])));
+    server.use(http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([LEAKED]))));
     renderWithProviders(<AdminTokensPanel />);
 
     expect(await screen.findByText('grace')).toBeInTheDocument();
@@ -50,7 +51,7 @@ describe('AdminTokensPanel', () => {
     let revoked = false;
     me(['token:admin']);
     server.use(
-      http.get('*/api/v1/admin/tokens', () => HttpResponse.json([LEAKED])),
+      http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([LEAKED]))),
       http.delete('*/api/v1/admin/tokens/t7', () => {
         revoked = true;
         return new HttpResponse(null, { status: 204 });

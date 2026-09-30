@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 const navigateSpy = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -219,9 +220,9 @@ describe('RegisterClusterButton', () => {
   it('tells the operator this is an add when a cluster already exists', async () => {
     server.use(
       http.get('*/api/v1/clusters', () =>
-        HttpResponse.json([
-          { id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 2, updatedAt: '2026-01-01T00:00:00Z' },
-        ]),
+        HttpResponse.json(
+          paged([{ id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 2, updatedAt: '2026-01-01T00:00:00Z' }]),
+        ),
       ),
     );
     const user = userEvent.setup();
@@ -233,7 +234,7 @@ describe('RegisterClusterButton', () => {
   });
 
   it('renders an icon-only trigger with an accessible name when the rail is collapsed', () => {
-    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json([])));
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))));
     renderWithProviders(<RegisterClusterButton collapsed />);
 
     const trigger = screen.getByRole('button', { name: 'Register cluster' });

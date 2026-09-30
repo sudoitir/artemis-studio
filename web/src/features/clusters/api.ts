@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -34,7 +35,7 @@ export const keys = {
 export function useClusters(): UseQueryResult<ClusterSummary[], ApiError> {
   return useQuery({
     queryKey: keys.all,
-    queryFn: () => request<ClusterSummary[]>('/clusters'),
+    queryFn: () => requestAll<ClusterSummary>('/clusters'),
     refetchInterval: 5_000,
   });
 }
@@ -117,7 +118,7 @@ export function useRotateCredentials(clusterId: string) {
 export function useEnvironments(): UseQueryResult<EnvironmentView[], ApiError> {
   return useQuery({
     queryKey: keys.environments,
-    queryFn: () => request<EnvironmentView[]>('/environments'),
+    queryFn: () => requestAll<EnvironmentView>('/environments'),
   });
 }
 

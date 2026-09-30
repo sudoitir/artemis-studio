@@ -75,12 +75,6 @@ public final class AlertViews {
             @Schema(requiredMode = REQUIRED) Instant startedAt,
             @Schema(nullable = true) Instant resolvedAt) {}
 
-    public record AlertFiringPageView(
-            @Schema(requiredMode = REQUIRED) List<AlertFiringView> items,
-            @Schema(requiredMode = REQUIRED) long totalElements,
-            @Schema(requiredMode = REQUIRED) int page,
-            @Schema(requiredMode = REQUIRED) int size) {}
-
     /**
      * @param boundRuleCount how many rules route to this channel — what deleting it would silence
      * @param health the channel's recent delivery record, or null before its first delivery

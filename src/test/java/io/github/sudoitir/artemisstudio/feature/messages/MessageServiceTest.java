@@ -205,7 +205,7 @@ class MessageServiceTest {
         assertThat(page.transport()).isEqualTo("JOLOKIA");
         assertThat(page.count()).isEqualTo(42L);
         assertThat(page.page()).isEqualTo(2);
-        assertThat(page.pageSize()).isEqualTo(500);
+        assertThat(page.pageSize()).isEqualTo(MessageService.BROKER_PAGE_CAP);
         assertThat(page.data()).singleElement().satisfies(row -> {
             assertThat(row.messageId()).isEqualTo(1);
             assertThat(row.groupId()).isEqualTo("group-1");

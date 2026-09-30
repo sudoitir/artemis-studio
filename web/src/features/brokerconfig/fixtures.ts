@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 
 import type { ConfigApplyOutcomeView, ConfigCatalogueView, ConfigDeclarationView, ConfigNodeStateView } from './api.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 /** Test fixtures for the configuration screens. Placeholder names only. */
 
@@ -128,8 +129,8 @@ export function baseHandlers(d: ConfigDeclarationView = declaration(), permissio
     http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster())),
     http.get('*/api/v1/clusters/c1/config', () => HttpResponse.json(d)),
     http.get('*/api/v1/clusters/c1/config/catalogue', () => HttpResponse.json(CATALOGUE)),
-    http.get('*/api/v1/clusters/c1/config/revisions', () => HttpResponse.json([])),
-    http.get('*/api/v1/clusters/c1/config/applies', () => HttpResponse.json([])),
+    http.get('*/api/v1/clusters/c1/config/revisions', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/clusters/c1/config/applies', () => HttpResponse.json(paged([]))),
   ];
 }
 

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.RequestIds;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
@@ -60,7 +61,7 @@ class AuthenticationAuditRecorder implements AuthenticationAudit {
 
     /** No session exists yet, so the actor is the anonymous caller at this address. */
     private static Actor anonymous(HttpServletRequest request) {
-        return new Actor(Actor.ANONYMOUS, request.getRemoteAddr(), request.getHeader("X-Request-Id"), null);
+        return new Actor(Actor.ANONYMOUS, request.getRemoteAddr(), RequestIds.of(request), null);
     }
 
     @Override

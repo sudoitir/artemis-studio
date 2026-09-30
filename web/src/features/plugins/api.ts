@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -62,7 +63,7 @@ export function usePlugins(): UseQueryResult<PluginsView, ApiError> {
 export function usePluginHistory(id: string | undefined): UseQueryResult<AuditEventView[], ApiError> {
   return useQuery({
     queryKey: keys.history(id ?? ''),
-    queryFn: () => request<AuditEventView[]>(`${BASE}/${encodeURIComponent(id!)}/history`),
+    queryFn: () => requestAll<AuditEventView>(`${BASE}/${encodeURIComponent(id!)}/history`),
     enabled: !!id,
   });
 }
@@ -79,7 +80,7 @@ export function usePurgePlan(id: string | undefined, enabled: boolean): UseQuery
 export function useInstallers(enabled: boolean): UseQueryResult<PluginInstallerView[], ApiError> {
   return useQuery({
     queryKey: keys.installers,
-    queryFn: () => request<PluginInstallerView[]>(`${BASE}/installers`),
+    queryFn: () => requestAll<PluginInstallerView>(`${BASE}/installers`),
     enabled,
   });
 }

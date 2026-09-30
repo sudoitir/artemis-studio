@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Group -> role mappings and the default role, per external identity provider (ADR-0073). */
 @RestController
-@RequestMapping("/api/v1/identity/providers/{providerId}/group-mappings")
+@RequestMapping("/identity/providers/{providerId}/group-mappings")
 @RequiredArgsConstructor
 public class GroupMappingController {
 

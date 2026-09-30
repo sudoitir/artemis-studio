@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -17,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
  * (non-negotiable #2).
  */
 @RestController
-@RequestMapping("/api/v1/clusters")
+@RequestMapping("/clusters")
 @RequiredArgsConstructor
 public class ClusterController {
 
@@ -67,8 +68,9 @@ public class ClusterController {
     }
 
     @GetMapping
-    public List<ClusterSummary> list() {
-        return service.list();
+    public PagedView<ClusterSummary> list(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(service.list(), null);
     }
 
     @GetMapping("/{clusterId}")

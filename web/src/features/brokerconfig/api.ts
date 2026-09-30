@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, BASE, clusterKey, lifecycleQuery, type LifecycleVars, request } from '../../kernel/api/request.ts';
 import { type ResourceParams } from '../../kernel/api/paging.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
@@ -109,14 +110,14 @@ export function useBrokerConfigCatalogue(clusterId: string): UseQueryResult<Conf
 export function useBrokerConfigRevisions(clusterId: string): UseQueryResult<ConfigRevisionView[], ApiError> {
   return useQuery({
     queryKey: [...keys.brokerConfig(clusterId), 'revisions'],
-    queryFn: () => request<ConfigRevisionView[]>(`${configBase(clusterId)}/revisions`),
+    queryFn: () => requestAll<ConfigRevisionView>(`${configBase(clusterId)}/revisions`),
   });
 }
 
 export function useBrokerConfigApplies(clusterId: string): UseQueryResult<ConfigApplyHistoryView[], ApiError> {
   return useQuery({
     queryKey: [...keys.brokerConfig(clusterId), 'applies'],
-    queryFn: () => request<ConfigApplyHistoryView[]>(`${configBase(clusterId)}/applies`),
+    queryFn: () => requestAll<ConfigApplyHistoryView>(`${configBase(clusterId)}/applies`),
   });
 }
 
@@ -288,7 +289,7 @@ export function useConfigConnectors(
 ): UseQueryResult<ConfigNodeConnectorsView[], ApiError> {
   return useQuery({
     queryKey: [...keys.brokerConfig(clusterId), 'connectors'],
-    queryFn: () => request<ConfigNodeConnectorsView[]>(`${configBase(clusterId)}/connectors`),
+    queryFn: () => requestAll<ConfigNodeConnectorsView>(`${configBase(clusterId)}/connectors`),
     staleTime: 60_000,
     enabled,
   });
@@ -301,7 +302,7 @@ export function useBridgeCredentials(
 ): UseQueryResult<ConfigBridgeCredentialView[], ApiError> {
   return useQuery({
     queryKey: [...keys.brokerConfig(clusterId), 'bridge-credentials'],
-    queryFn: () => request<ConfigBridgeCredentialView[]>(`${configBase(clusterId)}/bridge-credentials`),
+    queryFn: () => requestAll<ConfigBridgeCredentialView>(`${configBase(clusterId)}/bridge-credentials`),
     enabled,
   });
 }

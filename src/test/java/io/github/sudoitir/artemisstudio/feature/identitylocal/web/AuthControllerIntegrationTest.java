@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.App
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -57,8 +58,19 @@ class AuthControllerIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     SessionAuthentication sessions;
 
+    /**
+     * Each MockMvc signs in from an address of its own. The sign-in limiter counts failures per source in the
+     * shared application context, so other test classes' failed attempts from 127.0.0.1 must not throttle these.
+     */
+    private static final AtomicInteger SOURCES = new AtomicInteger();
+
     private MockMvc mvc() {
+        String source = "10.77." + SOURCES.incrementAndGet() / 250 + "." + SOURCES.get() % 250;
         return MockMvcBuilders.webAppContextSetup(webContext)
+                .defaultRequest(get("/").with(request -> {
+                    request.setRemoteAddr(source);
+                    return request;
+                }))
                 .apply(springSecurity())
                 .build();
     }

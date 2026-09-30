@@ -2,15 +2,17 @@ package io.github.sudoitir.artemisstudio.kernel.jobs.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatus;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** {@code GET /api/v1/system/jobs}: every background job's status (operational-health spec). */
@@ -71,9 +73,15 @@ public class JobsController {
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
-    @GetMapping("/api/v1/system/jobs")
-    public List<JobStatusView> jobs() {
+    @GetMapping("/system/jobs")
+    public PagedView<JobStatusView> jobs(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
         Instant now = Instant.now();
-        return statuses.all().stream().map(s -> JobStatusView.of(s, now)).toList();
+        return ResourceQuery.ofPage(page, size)
+                .paginate(
+                        statuses.all().stream()
+                                .map(s -> JobStatusView.of(s, now))
+                                .toList(),
+                        null);
     }
 }

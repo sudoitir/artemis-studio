@@ -11,7 +11,6 @@ import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.ClockDiagnosticsV
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.CreateExpectationRequest;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.ExpectationDiagnosticsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.ExpectationView;
-import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.FlowPageView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.FlowView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrDiagnosticsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.RrEventView;
@@ -21,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
@@ -209,10 +209,8 @@ public class RequestReplyService {
     // ---- flows (read side) ---------------------------------------------
 
     @Transactional(readOnly = true)
-    public FlowPageView flowPage(UUID clusterId, FlowQuery query) {
+    public PagedView<FlowView> flowPage(UUID clusterId, FlowQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        int p = Math.max(query.page(), 1);
-        int s = Math.clamp(query.size(), 1, 500);
         Page<RrFlowEntity> result = flows.findPage(
                 clusterId,
                 blankToNull(query.state()),
@@ -220,9 +218,8 @@ public class RequestReplyService {
                 blankToNull(query.correlationId()),
                 query.from() != null ? query.from() : Instant.EPOCH,
                 query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
-                PageRequest.of(p - 1, s));
-        return new FlowPageView(
-                result.getContent().stream().map(f -> toFlowView(f, false)).toList(), result.getTotalElements(), p, s);
+                PageRequest.of(query.page() - 1, query.size()));
+        return PagedView.of(result, f -> toFlowView(f, false));
     }
 
     @Transactional(readOnly = true)

@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { ApiKeysPanel } from './ApiKeysPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const CATALOGUE = [
   {
@@ -43,7 +44,7 @@ function mockBaseApis(grants: unknown[], tokens: unknown[] = []) {
     http.get('*/api/v1/auth/me', () =>
       HttpResponse.json({ id: 'u1', username: 'ada', mustChangePassword: false, grants }),
     ),
-    http.get('*/api/v1/tokens', () => HttpResponse.json(tokens)),
+    http.get('*/api/v1/tokens', () => HttpResponse.json(paged(tokens))),
     http.get('*/api/v1/tokens/policy', () =>
       HttpResponse.json({
         maxLifetime: 'PT2160H',
@@ -52,13 +53,15 @@ function mockBaseApis(grants: unknown[], tokens: unknown[] = []) {
       }),
     ),
     http.get('*/api/v1/mcp/tools', () =>
-      HttpResponse.json([
-        { name: 'list_resources', posture: 'READ', summary: 'List resources' },
-        { name: 'queue_lifecycle', posture: 'MUTATE', summary: 'Create, purge or delete a queue' },
-      ]),
+      HttpResponse.json(
+        paged([
+          { name: 'list_resources', posture: 'READ', summary: 'List resources' },
+          { name: 'queue_lifecycle', posture: 'MUTATE', summary: 'Create, purge or delete a queue' },
+        ]),
+      ),
     ),
-    http.get('*/api/v1/permissions', () => HttpResponse.json(CATALOGUE)),
-    http.get('*/api/v1/clusters', () => HttpResponse.json([])),
+    http.get('*/api/v1/permissions', () => HttpResponse.json(paged(CATALOGUE))),
+    http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
   );
 }
 

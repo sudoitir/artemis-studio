@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * ceiling refuses and the audit log records.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/sql")
+@RequestMapping("/clusters/{clusterId}/sql")
 @RequiredArgsConstructor
 public class SqlController {
 

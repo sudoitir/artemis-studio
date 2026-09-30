@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.bulk;
 
 import static org.hamcrest.Matchers.endsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,6 +68,32 @@ class BulkControllerTest extends BulkTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.run.total").value(2))
                 .andExpect(jsonPath("$.run.selection.q").value("orders"));
+    }
+
+    @Test
+    void theHistoryIsPagedAndLeavesOutPreviews() throws Exception {
+        for (String name : new String[] {"orders.a", "orders.b", "payments"}) {
+            preview("""
+                            {"operation":"PAUSE","names":["%s"],"q":null,"disconnectConsumers":false}
+                            """.formatted(name)).andExpect(status().isCreated());
+        }
+        mvc.perform(get("/api/v1/clusters/{c}/bulk/runs", clusterId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
+        jdbc.update("UPDATE bulk_run SET status = 'SUCCEEDED' WHERE cluster_id = ?", clusterId);
+        mvc.perform(get("/api/v1/clusters/{c}/bulk/runs", clusterId).param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.count").value(3))
+                .andExpect(jsonPath("$.pageSize").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true));
+        mvc.perform(get("/api/v1/clusters/{c}/bulk/runs", clusterId)
+                        .param("size", "2")
+                        .param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.page").value(2))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test

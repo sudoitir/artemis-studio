@@ -25,7 +25,7 @@ public class NodeConfigController {
      * <p>Read-only introspection at the same permission tier as the topology read,
      * and deliberately unaudited: only mutating calls write an audit event.
      */
-    @GetMapping("/api/v1/clusters/{clusterId}/nodes/{nodeId}/config")
+    @GetMapping("/clusters/{clusterId}/nodes/{nodeId}/config")
     public NodeConfigView nodeConfig(@PathVariable UUID clusterId, @PathVariable UUID nodeId) {
         return configDiff.nodeConfig(clusterId, nodeId);
     }

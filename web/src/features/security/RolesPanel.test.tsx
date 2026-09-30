@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { PermissionView, RoleView } from './api.ts';
 import { RolesPanel } from './RolesPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const CATALOGUE: PermissionView[] = [
   { action: 'queue:create', label: 'Create queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
@@ -29,8 +30,10 @@ const ROLES: RoleView[] = [
 
 function serve(roles: RoleView[] = ROLES, catalogue: PermissionView[] | Response = CATALOGUE) {
   server.use(
-    http.get('*/api/v1/roles', () => HttpResponse.json(roles)),
-    http.get('*/api/v1/permissions', () => (catalogue instanceof Response ? catalogue : HttpResponse.json(catalogue))),
+    http.get('*/api/v1/roles', () => HttpResponse.json(paged(roles))),
+    http.get('*/api/v1/permissions', () =>
+      catalogue instanceof Response ? catalogue : HttpResponse.json(paged(catalogue)),
+    ),
   );
 }
 
@@ -200,7 +203,7 @@ describe('RolesPanel editor', () => {
 
   it('says the permissions are loading while the catalogue has not arrived', async () => {
     server.use(
-      http.get('*/api/v1/roles', () => HttpResponse.json(ROLES)),
+      http.get('*/api/v1/roles', () => HttpResponse.json(paged(ROLES))),
       http.get('*/api/v1/permissions', () => new Promise(() => {})),
     );
     const user = userEvent.setup();

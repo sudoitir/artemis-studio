@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { RulesPanel } from './RulesPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const BUILT_IN = {
   id: 'b1',
@@ -43,8 +44,8 @@ function mockApis(permissions: string[]) {
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
       }),
     ),
-    http.get('*/api/v1/clusters', () => HttpResponse.json([])),
-    http.get('*/api/v1/governance/rules', () => HttpResponse.json([BUILT_IN, CUSTOM])),
+    http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/governance/rules', () => HttpResponse.json(paged([BUILT_IN, CUSTOM]))),
     http.get('*/api/v1/governance/remask', () =>
       HttpResponse.json({ version: 3, rowsUnderEarlierVersion: 1200, capped: false }),
     ),

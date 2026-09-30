@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { plural } from './plural.ts';
 import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -413,14 +414,14 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
           }}
           emptyLabel={
             <Text size="sm">
-              No {config.noun}s right now. This view is a live read across every serving node — one request per node per
-              load.
+              No {plural(config.noun)} right now. This view is a live read across every serving node — one request per
+              node per load.
             </Text>
           }
         />
       )}
 
-      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={`${config.noun}s`} />
+      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={plural(config.noun)} />
     </Stack>
   );
 }

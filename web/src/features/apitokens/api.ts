@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -25,7 +26,7 @@ export const keys = {
 export function useTokens(): UseQueryResult<TokenView[], ApiError> {
   return useQuery({
     queryKey: keys.tokens,
-    queryFn: () => request<TokenView[]>('/tokens'),
+    queryFn: () => requestAll<TokenView>('/tokens'),
   });
 }
 
@@ -33,7 +34,7 @@ export function useTokens(): UseQueryResult<TokenView[], ApiError> {
 export function useAdminTokens(): UseQueryResult<TokenView[], ApiError> {
   return useQuery({
     queryKey: keys.adminTokens,
-    queryFn: () => request<TokenView[]>('/admin/tokens'),
+    queryFn: () => requestAll<TokenView>('/admin/tokens'),
   });
 }
 
@@ -50,7 +51,7 @@ export function useMcpTools(): UseQueryResult<McpToolView[] | null, ApiError> {
     queryKey: keys.mcpTools,
     queryFn: async () => {
       try {
-        return await request<McpToolView[]>('/mcp/tools');
+        return await requestAll<McpToolView>('/mcp/tools');
       } catch (e) {
         if (e instanceof ApiError && e.status === 404) {
           return null;

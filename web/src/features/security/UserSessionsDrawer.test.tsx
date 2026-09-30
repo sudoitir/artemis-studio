@@ -7,6 +7,7 @@ import { server } from '../../test/setup.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import type { AccountSessionView, UserView } from './api.ts';
 import { UsersPanel } from './UsersPanel.tsx';
+import { paged } from '../../kernel/api/paging.ts';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -37,9 +38,9 @@ const PHONE = session('b'.repeat(32), '198.51.100.9');
 
 function serve(state: { sessions: AccountSessionView[] }) {
   server.use(
-    http.get('*/api/v1/users', () => HttpResponse.json([alice])),
-    http.get('*/api/v1/roles', () => HttpResponse.json([])),
-    http.get('*/api/v1/users/id-alice/sessions', () => HttpResponse.json(state.sessions)),
+    http.get('*/api/v1/users', () => HttpResponse.json(paged([alice]))),
+    http.get('*/api/v1/roles', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/users/id-alice/sessions', () => HttpResponse.json(paged(state.sessions))),
   );
 }
 

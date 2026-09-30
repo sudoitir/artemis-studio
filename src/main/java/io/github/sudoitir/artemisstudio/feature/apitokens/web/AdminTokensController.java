@@ -3,7 +3,8 @@ package io.github.sudoitir.artemisstudio.feature.apitokens.web;
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.UsageView;
-import java.util.List;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * ADR-0136): so a leaked token can be revoked without its owner. No mint and no rotate here.
  */
 @RestController
-@RequestMapping("/api/v1/admin/tokens")
+@RequestMapping("/admin/tokens")
 @RequiredArgsConstructor
 @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.apitokens.TokenPermissions).TOKEN_ADMIN)")
 public class AdminTokensController {
@@ -30,8 +31,9 @@ public class AdminTokensController {
     private final TokenViewAssembler views;
 
     @GetMapping
-    public List<TokenView> list() {
-        return views.views(tokens.listAll());
+    public PagedView<TokenView> list(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(views.views(tokens.listAll()), null);
     }
 
     @GetMapping("/{tokenId}/usage")

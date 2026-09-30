@@ -20,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
@@ -44,7 +45,7 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
@@ -324,13 +325,12 @@ public class BulkService {
     }
 
     /** Runs that were executed, newest first. */
-    public List<BulkRunView> history(UUID clusterId) {
+    public PagedView<BulkRunView> history(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return runs
-                .findByClusterIdAndStatusNotOrderByCreatedAtDesc(clusterId, BulkRunStatus.PREVIEWED, Limit.of(HISTORY))
-                .stream()
-                .map(this::view)
-                .toList();
+        return PagedView.of(
+                runs.findByClusterIdAndStatusNotOrderByCreatedAtDesc(
+                        clusterId, BulkRunStatus.PREVIEWED, PageRequest.of(query.page() - 1, query.size())),
+                this::view);
     }
 
     private BulkRunEntity load(UUID clusterId, UUID runId) {

@@ -17,7 +17,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
 
     Optional<AuditEventEntity> findByIdAndClusterId(Long id, UUID clusterId);
 
-    List<AuditEventEntity> findByTargetTypeAndTargetNameOrderByTsDesc(
+    Page<AuditEventEntity> findByTargetTypeAndTargetNameOrderByTsDesc(
             String targetType, String targetName, org.springframework.data.domain.Pageable page);
 
     /**

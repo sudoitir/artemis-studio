@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
@@ -13,7 +15,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** User CRUD and role grants (authorization spec). Every write needs {@code user:admin}. */
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 public class UsersController {
 
@@ -39,13 +40,20 @@ public class UsersController {
     private final SessionService sessionService;
 
     @GetMapping("/{userId}/effective-permissions")
-    public List<EffectivePermissionView> effectivePermissions(@PathVariable UUID userId) {
-        return effectivePermissions.of(userId);
+    public PagedView<EffectivePermissionView> effectivePermissions(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(effectivePermissions.of(userId), null);
     }
 
     @GetMapping("/{userId}/sessions")
-    public List<AccountSessionView> sessionsOf(@PathVariable UUID userId, HttpServletRequest req) {
-        return sessionService.listOf(userId, req);
+    public PagedView<AccountSessionView> sessionsOf(
+            @PathVariable UUID userId,
+            HttpServletRequest req,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(sessionService.listOf(userId, req), null);
     }
 
     /** Ends every session of the user, except the caller's own current one. */
@@ -62,8 +70,9 @@ public class UsersController {
     }
 
     @GetMapping
-    public List<UserView> list() {
-        return users.list();
+    public PagedView<UserView> list(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(users.list(), null);
     }
 
     @PostMapping

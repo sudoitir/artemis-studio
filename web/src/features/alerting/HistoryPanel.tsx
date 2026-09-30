@@ -25,9 +25,8 @@ export function HistoryPanel({ clusterId }: Readonly<{ clusterId: string }>) {
     );
   }
 
-  const items = history.data?.items ?? [];
-  const total = history.data?.totalElements ?? 0;
-  const hasMore = page * PAGE_SIZE < total;
+  const items = history.data?.data ?? [];
+  const hasMore = history.data?.hasNext ?? false;
 
   if (items.length === 0) {
     return (
@@ -85,7 +84,7 @@ export function HistoryPanel({ clusterId }: Readonly<{ clusterId: string }>) {
       </Table>
       <Group justify="space-between" mt="sm">
         <Text size="xs" c="dimmed">
-          {total} total
+          {history.data?.count ?? 0} total
         </Text>
         <Group gap="xs">
           <Button size="xs" variant="default" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

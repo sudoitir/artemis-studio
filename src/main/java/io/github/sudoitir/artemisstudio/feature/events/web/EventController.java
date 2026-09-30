@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.events.BrokerEventQuery;
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * oldest retained event so buffer overflow is visible.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/events")
+@RequestMapping("/clusters/{clusterId}/events")
 @RequiredArgsConstructor
 public class EventController {
 
@@ -35,9 +36,11 @@ public class EventController {
             @RequestParam(required = false) String address,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return events.page(clusterId, new BrokerEventQuery(type, nodeId, address, from, to, page, size));
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        ResourceQuery paging = ResourceQuery.ofPage(page, size);
+        return events.page(
+                clusterId, new BrokerEventQuery(type, nodeId, address, from, to, paging.page(), paging.size()));
     }
 
     /** One event by its seq, for a shared link; 404 once retention has reaped it. */

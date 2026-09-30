@@ -7,6 +7,8 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.Created
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenPolicyView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.UsageView;
+import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
@@ -45,7 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
  * session can say.
  */
 @RestController
-@RequestMapping("/api/v1/tokens")
+@RequestMapping("/tokens")
 @RequiredArgsConstructor
 public class TokensController {
 
@@ -55,9 +57,12 @@ public class TokensController {
     private final SessionAuthentication sessions;
 
     @GetMapping
-    public List<TokenView> list(@AuthenticationPrincipal StudioPrincipal principal) {
+    public PagedView<TokenView> list(
+            @AuthenticationPrincipal StudioPrincipal principal,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         requireSession(principal);
-        return views.views(tokens.listFor(principal.userId()));
+        return ResourceQuery.ofPage(page, size).paginate(views.views(tokens.listFor(principal.userId())), null);
     }
 
     @GetMapping("/policy")

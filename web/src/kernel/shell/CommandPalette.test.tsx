@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { manifestHandler } from '../../test/manifest.ts';
 import { server } from '../../test/setup.ts';
+import { paged } from '../api/paging.ts';
 
 const navigate = vi.fn();
 
@@ -34,16 +35,18 @@ function mockApi(permissions: string[] = ['*']) {
       }),
     ),
     http.get('*/api/v1/clusters', () =>
-      HttpResponse.json([
-        {
-          id: 'c1',
-          name: 'prod-eu',
-          description: null,
-          health: 'OK',
-          nodeCount: 2,
-          updatedAt: new Date().toISOString(),
-        },
-      ]),
+      HttpResponse.json(
+        paged([
+          {
+            id: 'c1',
+            name: 'prod-eu',
+            description: null,
+            health: 'OK',
+            nodeCount: 2,
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+      ),
     ),
     http.get('*/api/v1/clusters/c1/queues', ({ request }) => {
       queueRequests.push(new URL(request.url).search);
