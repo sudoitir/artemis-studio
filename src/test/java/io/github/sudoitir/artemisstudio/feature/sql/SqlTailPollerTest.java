@@ -15,10 +15,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncod
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsePage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.Channel;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
-import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -385,19 +381,10 @@ class SqlTailPollerTest {
 
     /** A poll runs on its own thread, so the assertions wait for it rather than assume it. */
     private static void await(java.util.function.BooleanSupplier condition) {
-        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-        while (System.nanoTime() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new AssertionError("interrupted while waiting for the poll", e);
-            }
-        }
-        throw new AssertionError("the poll did not produce what the test waited for");
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(10))
+                .until(condition::getAsBoolean);
     }
 
     private static final class CollectingListener implements SqlTailPoller.Listener {

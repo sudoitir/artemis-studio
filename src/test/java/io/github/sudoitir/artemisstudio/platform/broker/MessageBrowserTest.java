@@ -85,8 +85,8 @@ class MessageBrowserTest {
 
     @Test
     void mapsAnInvalidFilterToIllegalArgument() {
-        assertThatThrownBy(() ->
-                        browser.browse(client("browse-bad-filter.json", 0), MBEAN, 1, 50, "this is not a filter =="))
+        JolokiaBrokerClient client = client("browse-bad-filter.json", 0);
+        assertThatThrownBy(() -> browser.browse(client, MBEAN, 1, 50, "this is not a filter =="))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid message filter");
     }
