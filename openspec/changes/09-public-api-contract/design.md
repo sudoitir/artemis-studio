@@ -55,7 +55,8 @@ The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show 
   - `count` is nullable only where the total is unknown (browsing messages).
   - `hasNext` makes the next page discoverable without a count.
 - Every list endpoint takes `page` (1-based) and `size` (default 50, max 500; out of range → 400 `invalid-value`) through `ResourceQuery`, next to its own filters. Filter-free lists ignore `q`/`sort` only if they have nothing to search.
-- The five bespoke page views fold into `PagedView`. The `limit` parameters are removed.
+- The audit, flow and alert-history page views fold into `PagedView`. The message and broker-event pages keep their own types, because they carry facts about the page itself (`countUnavailable`, `node`, `transport`, `dropped`, `oldestRetained`), but they have the same envelope fields. The `limit` parameters are removed.
+- The UI's full-list reads (`requestAll`) follow `hasNext` across pages, so a list longer than 500 is never silently cut short.
 - Bare-list endpoints are wrapped and paginated in memory when their source is in memory, and in SQL (`LIMIT/OFFSET`) when it is a table.
 - Non-list singletons (settings, data stores, group mappings) keep their shape.
 - Offset over cursor: the resource lists are assembled in memory from a per-node fan-out, so there is no stable cursor to hand out. Table-backed lists are small or time-ordered with filters. A cursor can be added to a specific endpoint later without breaking the envelope.
