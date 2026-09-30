@@ -69,7 +69,7 @@ public class UserService {
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional
     public UserView create(CreateUserRequest request) {
-        if (users.findByUsername(request.username()).isPresent()) {
+        if (users.existsByUsernameIgnoreCase(request.username())) {
             throw new ConflictException(
                     "duplicate-username", "A user named '" + request.username() + "' already exists.");
         }

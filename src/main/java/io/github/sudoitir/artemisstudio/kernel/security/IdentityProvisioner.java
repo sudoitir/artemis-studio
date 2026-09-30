@@ -45,9 +45,12 @@ public class IdentityProvisioner {
         return Optional.of(new StudioPrincipal(user.getId(), user.getUsername(), grants.loadFor(user.getId()), false));
     }
 
-    /** Usernames are unique across providers, so a name already taken is qualified with the provider id. */
+    /**
+     * Usernames are unique across providers, ignoring case, so a name already taken is qualified with the
+     * provider id.
+     */
     private String freeUsername(ExternalIdentity identity) {
-        return users.findByUsername(identity.username()).isPresent()
+        return users.existsByUsernameIgnoreCase(identity.username())
                 ? identity.username() + "@" + identity.providerId()
                 : identity.username();
     }

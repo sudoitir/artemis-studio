@@ -89,7 +89,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // role.requires_mfa (kernel-security 0007) and api_token.minted_with_mfa (feature-apitokens 0003).
                     "local_(totp|recovery_code|recovery_key|trusted_device)",
                     "user_(entities|credentials)",
-                    "CREATE TABLE role ")
+                    "CREATE TABLE role ",
+                    // Usernames are unique ignoring case (kernel-security 0008).
+                    "uq_app_user_username_lower")
             .map(Pattern::compile)
             .toList();
 

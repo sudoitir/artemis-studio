@@ -68,6 +68,17 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void usernamesAreUniqueIgnoringCase() {
+        String name = "Case-" + UUID.randomUUID();
+        AppUserEntity first = users.saveAndFlush(AppUserEntity.local(name, null, "{noop}x"));
+        assertThat(users.existsByUsernameIgnoreCase(name.toLowerCase())).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> users.saveAndFlush(AppUserEntity.local(name.toUpperCase(), null, "{noop}x")))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        users.delete(first);
+    }
+
+    @Test
     void anExternalUserHasNoPasswordHash() {
         AppUserEntity user = users.save(AppUserEntity.external("sso", "sub-1", "external-" + UUID.randomUUID(), null));
         AppUserEntity reloaded =
