@@ -132,7 +132,7 @@ export function SecuritySettings() {
           {rows.map((v) => (
             <Table.Tr key={v}>
               <Table.Td style={numeric}>{v}</Table.Td>
-              <Table.Td>{versionState(s, v)}</Table.Td>
+              <Table.Td>{versionState(s, v, running)}</Table.Td>
               <Table.Td ta="end" style={numeric}>
                 {s.countsByVersion[String(v)] ?? 0}
               </Table.Td>
@@ -190,12 +190,14 @@ export function SecuritySettings() {
   );
 }
 
-function versionState(s: SecretsStatus, v: number): string {
+function versionState(s: SecretsStatus, v: number, running: boolean): string {
   const n = s.countsByVersion[String(v)] ?? 0;
   if (v === s.currentVersion) return 'Current';
   if (v > s.currentVersion) return 'Newer, available to rotate to';
-  return n > 0
-    ? `Older, still wraps ${n} ${n === 1 ? 'secret' : 'secrets'}`
+  if (n > 0) return `Older, still wraps ${n} ${n === 1 ? 'secret' : 'secrets'}`;
+  // A running rotation can still see a stale writer; removal is safe only once it has succeeded.
+  return running
+    ? 'Older, unused: keep until the rotation succeeds'
     : 'Older, unused: safe to remove from the provider';
 }
 

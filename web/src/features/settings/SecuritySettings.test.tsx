@@ -180,6 +180,16 @@ describe('SecuritySettings', () => {
     expect(await screen.findByText(/Version 1 protects no secrets and can be removed/)).toBeInTheDocument();
   });
 
+  it('keeps an unused older version until a running rotation succeeds', async () => {
+    server.use(
+      me(fresh()),
+      status({ currentVersion: 2, countsByVersion: { '2': 7 }, lastRotation: { ...ROTATION, status: 'RUNNING' } }),
+    );
+    renderWithProviders(<SecuritySettings />);
+    expect(await screen.findByText('Older, unused: keep until the rotation succeeds')).toBeInTheDocument();
+    expect(screen.queryByText(/safe to remove/)).not.toBeInTheDocument();
+  });
+
   it('shows the cause of a failed rotation', async () => {
     server.use(me(fresh()), status({ lastRotation: { ...ROTATION, status: 'FAILED', error: 'Vault is sealed' } }));
     renderWithProviders(<SecuritySettings />);
