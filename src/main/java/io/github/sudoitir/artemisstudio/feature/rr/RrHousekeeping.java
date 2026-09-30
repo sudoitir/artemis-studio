@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-/** Puts request-reply flows and their captured payloads under the data lifecycle (ADR-0132). */
+/** Puts request-reply flows and their captured payloads under the data lifecycle (ADR-0134). */
 @Component
 class RrHousekeeping implements HousekeepingContributor {
 

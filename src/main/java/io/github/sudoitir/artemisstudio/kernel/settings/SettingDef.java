@@ -28,7 +28,7 @@ public record SettingDef(
         String min,
         String max) {
 
-    /** The duration value, and the {@link #max}, meaning "no limit" (ADR-0132). */
+    /** The duration value, and the {@link #max}, meaning "no limit" (ADR-0134). */
     public static final String FOREVER = "forever";
 
     /** A setting bounded only by its kind's floor. */

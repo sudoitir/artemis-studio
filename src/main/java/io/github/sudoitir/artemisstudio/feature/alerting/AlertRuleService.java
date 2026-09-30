@@ -39,7 +39,7 @@ public class AlertRuleService {
             "CONFIG_DRIFT",
             "SETUP_RISK");
 
-    /** What an installation-scoped rule may watch (ADR-0133); a cluster's rules never may, and vice versa. */
+    /** What an installation-scoped rule may watch (ADR-0135); a cluster's rules never may, and vice versa. */
     private static final Set<String> INSTALLATION_CONDITIONS = Set.of("STORAGE_QUOTA", "STORAGE_HEALTH");
 
     private static final Set<String> COMPARATORS = Set.of("GT", "GTE", "LT", "LTE", "EQ", "NE");
@@ -57,7 +57,7 @@ public class AlertRuleService {
     private final java.util.List<AlertCondition> conditions;
 
     /**
-     * The cluster's rules and, for a caller with the global grant, the installation's (ADR-0133),
+     * The cluster's rules and, for a caller with the global grant, the installation's (ADR-0135),
      * which every cluster's alerts view shows.
      */
     @Transactional(readOnly = true)

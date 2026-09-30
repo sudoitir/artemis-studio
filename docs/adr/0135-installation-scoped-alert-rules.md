@@ -1,4 +1,4 @@
-# ADR-0133: Alert rules can be scoped to the installation
+# ADR-0135: Alert rules can be scoped to the installation
 
 - **Status**: accepted
 - **Date**: 2026-09-30
@@ -15,11 +15,11 @@ would get none.
 ## Decision
 
 - A rule without a cluster (`alert_rule.cluster_id IS NULL`) is **installation-scoped**, and so are
-  its state and firings (`alert_firing.cluster_id` becomes nullable, changeset `feature-alerting 0004`).
+  its state and firings (`alert_firing.cluster_id` becomes nullable, changeset `feature-alerting 0005`).
 - `InstallationSignalSource` beans evaluate installation conditions, the way `AlertSignalSource`
   beans evaluate cluster ones. `AlertEvaluator.evaluateInstallation(kind)` runs the matching
   enabled installation rules through the same debounce, history and delivery as any rule.
-- The data lifecycle ([ADR-0132](0132-one-data-lifecycle-for-every-store.md)) provides
+- The data lifecycle ([ADR-0134](0134-one-data-lifecycle-for-every-store.md)) provides
   `STORAGE_QUOTA` (a store over its quota warning) and `STORAGE_HEALTH` (a table unhealthy or a
   partition missing). One rule of each is seeded by the same changeset, so once per database and
   never again: enabled, bound to no channel, editable like any rule, and not recreated once an

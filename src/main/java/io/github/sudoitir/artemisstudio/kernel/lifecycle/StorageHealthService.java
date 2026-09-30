@@ -19,7 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 /**
- * The health of every table in Studio's schema and in the plugins' schemas (ADR-0132): size,
+ * The health of every table in Studio's schema and in the plugins' schemas (ADR-0134): size,
  * growth, dead tuples, last vacuum and, for daily-partitioned tables, whether the partitions of
  * the coming days exist. The numbers come from Postgres' statistics, so they are estimates.
  */

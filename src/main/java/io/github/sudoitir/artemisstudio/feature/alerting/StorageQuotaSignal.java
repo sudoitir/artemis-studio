@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code STORAGE_QUOTA} (ADR-0133): a store whose usage has passed its quota's warning share. A
+ * {@code STORAGE_QUOTA} (ADR-0135): a store whose usage has passed its quota's warning share. A
  * store with no quota is never active. The value is the share of the quota used, in percent.
  */
 @Component

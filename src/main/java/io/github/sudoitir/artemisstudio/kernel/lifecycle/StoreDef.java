@@ -5,7 +5,7 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * One store that grows with use, and the bounds of its retention policy (ADR-0132).
+ * One store that grows with use, and the bounds of its retention policy (ADR-0134).
  *
  * @param id unique among the contributor's stores; a plugin's is shown as {@code <pluginId>.<id>}
  * @param label what the Data page calls it

@@ -4,7 +4,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { HealthTable } from './HealthTable.tsx';
 import { RetentionTable } from './RetentionTable.tsx';
 
-/** Administration → Data (ADR-0132): retention and quotas per store, and the tables' storage health. */
+/** Administration → Data (ADR-0134): retention and quotas per store, and the tables' storage health. */
 export function DataPanel() {
   const search = useSearch({ strict: false }) as { view?: string };
   const navigate = useNavigate();

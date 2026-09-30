@@ -12,7 +12,7 @@ import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Request-reply flows under the data lifecycle (ADR-0132). {@code rr_event} rows go with their flow
+ * Request-reply flows under the data lifecycle (ADR-0134). {@code rr_event} rows go with their flow
  * through {@code ON DELETE CASCADE} (fk_rr_event_flow).
  */
 class RrFlowStore implements ManagedStore {

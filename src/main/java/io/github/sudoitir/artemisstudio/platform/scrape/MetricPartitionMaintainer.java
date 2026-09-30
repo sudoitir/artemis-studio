@@ -10,7 +10,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Daily partition creation for {@code metric_sample} (ADR-0006, ADR-0033). Creates
  * today's partition plus a few days ahead so a missed run never causes an insert to
  * fail. Dropping expired partitions is the {@code metrics} store's purge
- * ({@link MetricSampleStore}, ADR-0132).
+ * ({@link MetricSampleStore}, ADR-0134).
  *
  * <p>Mirrors changeset {@code 012-metric-partitions.sql}'s bootstrap DO block —
  * that changeset only covers the moment migrations finish; this is the ongoing

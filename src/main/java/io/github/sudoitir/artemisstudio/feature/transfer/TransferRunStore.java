@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Transfer runs under the data lifecycle (ADR-0132): a run that is over for good goes once it is
+ * Transfer runs under the data lifecycle (ADR-0134): a run that is over for good goes once it is
  * older than the retention, and a preview nobody executed goes when it expires, whatever the
  * retention. The copy ledger goes with its run through {@code ON DELETE CASCADE}.
  *

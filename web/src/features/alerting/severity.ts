@@ -72,7 +72,7 @@ export const SLOW_CONSUMER_TEMPLATE = {
   severity: 'WARNING',
 } as const;
 
-/** What an installation-scoped rule may watch (ADR-0133): Studio's own storage, not a cluster. */
+/** What an installation-scoped rule may watch (ADR-0135): Studio's own storage, not a cluster. */
 export const INSTALLATION_CONDITIONS = ['STORAGE_QUOTA', 'STORAGE_HEALTH'] as const;
 
 export const STATE_CONDITIONS = [

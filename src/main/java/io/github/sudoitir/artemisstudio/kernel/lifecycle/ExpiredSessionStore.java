@@ -8,7 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Expired web sessions under the data lifecycle (ADR-0132). It replaces Spring Session's own cleanup,
+ * Expired web sessions under the data lifecycle (ADR-0134). It replaces Spring Session's own cleanup,
  * which every instance ran; here it runs once per installation. The retention is the grace after a
  * session's expiry. {@code spring_session_attributes} rows go with their session through
  * {@code ON DELETE CASCADE}. It lives here, not in {@code kernel.security} which owns the tables,

@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The {@code broker_event} history under the data lifecycle (ADR-0028, ADR-0132). Volume follows
+ * The {@code broker_event} history under the data lifecycle (ADR-0028, ADR-0134). Volume follows
  * broker chatter Studio does not control, so retention is what bounds it next to the writer's buffer.
  */
 @Component

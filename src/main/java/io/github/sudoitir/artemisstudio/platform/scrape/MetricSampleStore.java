@@ -18,7 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The {@code metrics} store (ADR-0132): raw {@code metric_sample} rows, purged past the retention
+ * The {@code metrics} store (ADR-0134): raw {@code metric_sample} rows, purged past the retention
  * policy (ADR-0006). A batch drops one daily partition whose whole day is older than the cutoff,
  * and once none is left deletes from {@code metric_sample_default}, the catch-all for rows written
  * before their day had a partition, which a date range can never drop. {@link

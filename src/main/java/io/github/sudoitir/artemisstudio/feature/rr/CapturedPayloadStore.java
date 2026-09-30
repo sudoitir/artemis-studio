@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * The captured request and reply bodies inside {@code rr_event.detail}, under the data lifecycle
- * (ADR-0132). Purging strips the payload keys from old events and keeps the events, so a flow's timeline
+ * (ADR-0134). Purging strips the payload keys from old events and keeps the events, so a flow's timeline
  * outlives its bodies; a timeline that lost a body simply shows the event without one.
  */
 class CapturedPayloadStore implements ManagedStore {

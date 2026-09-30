@@ -13,7 +13,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * Every store under the lifecycle and its policy (ADR-0132). Core stores are the enabled modules'
+ * Every store under the lifecycle and its policy (ADR-0134). Core stores are the enabled modules'
  * {@link HousekeepingContributor} beans; a plugin's come and go with it. Each store's policy is
  * three settings registered under {@code lifecycle.<store>}, written with {@code data:write}.
  */

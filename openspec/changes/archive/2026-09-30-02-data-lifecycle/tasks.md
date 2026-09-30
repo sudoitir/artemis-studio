@@ -1,5 +1,5 @@
 ## 1. Groundwork (inline)
-- [x] 1.1 ADR-0132 (data lifecycle engine and HousekeepingContributor SPI) and ADR-0133 (installation-scoped alert rules)
+- [x] 1.1 ADR-0134 (data lifecycle engine and HousekeepingContributor SPI) and ADR-0135 (installation-scoped alert rules)
 - [x] 1.2 `SettingDef` min/max and `forever`; `SettingsService.addSettings(namespace, defs, read, write)` replacing `addPluginSettings`; per-setting write permission; `effective()` lists only settings-owned keys; Contract.VERSION 4 → 5 (Java and web)
 - [x] 1.3 `kernel/lifecycle` module: `@PluginApi` `HousekeepingContributor`, `ManagedStore`, `StoreDef`, `StoreUsage`, `PurgeEstimate`; `DataPermissions`; `LifecycleRegistry` (core and plugin stores, generated settings); `HousekeepingPluginBridge`; `LifecycleSql` batch helpers
 - [x] 1.4 `HousekeepingJob` (INSTALLATION, batched, per-store failure isolation, `PURGE_STORE` audit) and `lifecycle_purge` status table

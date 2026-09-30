@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** The classification-findings store against a real Postgres (ADR-0132). */
+/** The classification-findings store against a real Postgres (ADR-0134). */
 class ClassificationFindingsStoreIntegrationTest extends PostgresIntegrationTest {
 
     private static final String OLD = "now() - interval '100 days'";

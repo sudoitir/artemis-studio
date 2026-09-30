@@ -72,10 +72,10 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "CREATE TABLE broker_credential ",
                     // Installation-wide job locks (ADR-0125, changeset kernel-jobs 0001).
                     "shedlock",
-                    // The data lifecycle's purge record (ADR-0132, changeset kernel-lifecycle 0001).
+                    // The data lifecycle's purge record (ADR-0134, changeset kernel-lifecycle 0001).
                     "lifecycle_purge",
                     "storage_sample",
-                    // Installation-scoped alert rules (ADR-0133, changeset feature-alerting 0004).
+                    // Installation-scoped alert rules (ADR-0135, changeset feature-alerting 0005).
                     "CREATE TABLE alert_firing ")
             .map(Pattern::compile)
             .toList();

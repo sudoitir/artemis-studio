@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The alert history under the data lifecycle (ADR-0132): resolved firings and finished deliveries
+ * The alert history under the data lifecycle (ADR-0134): resolved firings and finished deliveries
  * older than the retention. A firing that is still open is what {@code alert_state} and the
  * evaluator resolve later, and a pending delivery is still owed to a channel, so neither is ever
  * purged, however old.

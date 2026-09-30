@@ -52,7 +52,7 @@ public class AlertEvaluator {
      */
     private final List<AlertCondition> conditions;
 
-    /** The state of Studio itself that installation-scoped rules read (ADR-0133). */
+    /** The state of Studio itself that installation-scoped rules read (ADR-0135). */
     private final List<InstallationSignalSource> installationSignals;
 
     private final ClusterDirectory clusters;
@@ -75,7 +75,7 @@ public class AlertEvaluator {
     }
 
     /**
-     * Evaluates the enabled installation-scoped rules of one kind (ADR-0133), through the same
+     * Evaluates the enabled installation-scoped rules of one kind (ADR-0135), through the same
      * debounce, history and delivery as a cluster's, with no cluster anywhere. Called when fresh
      * storage numbers exist, not per cluster, so a condition fires once however many clusters
      * there are.

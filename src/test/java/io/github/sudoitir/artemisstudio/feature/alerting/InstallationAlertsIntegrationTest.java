@@ -34,7 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * Installation-scoped alert rules (ADR-0133): the two storage rules exist once whatever the
+ * Installation-scoped alert rules (ADR-0135): the two storage rules exist once whatever the
  * clusters, a store over its quota warning fires one alert that every cluster's view shows, and
  * disabling the rule silences it. The lifecycle's numbers are stubbed; what they are is
  * {@code LifecycleService}'s and {@code StorageHealthService}'s own tests' business.

@@ -79,7 +79,7 @@ public class SettingsService {
     /**
      * The write permission of every key registered through {@link #addSettings} with one other than
      * {@code settings:write}. Such a key belongs to another screen (the Data page's retention
-     * policies, ADR-0132), so {@link #effective()} does not list it.
+     * policies, ADR-0134), so {@link #effective()} does not list it.
      */
     private volatile Map<String, String> writePermissions = Map.of();
 
@@ -121,7 +121,7 @@ public class SettingsService {
     /**
      * Activates settings registered at runtime rather than by a module descriptor: a plugin's own
      * {@link SettingDef}s (design.md, task 6.4, with {@code namespace} its plugin id) and the
-     * retention policies of the data lifecycle (ADR-0132). Every key must be namespaced under
+     * retention policies of the data lifecycle (ADR-0134). Every key must be namespaced under
      * {@code <namespace>.} and must not already be registered, or the whole call
      * fails without registering any of them. Once registered, each definition with an {@code apply}
      * is pushed once with its current effective value (the packaged default, since a freshly

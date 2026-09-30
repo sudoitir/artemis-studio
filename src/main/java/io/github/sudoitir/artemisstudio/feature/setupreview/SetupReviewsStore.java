@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The setup review under the data lifecycle (ADR-0132). {@code setup_review} holds one row per
+ * The setup review under the data lifecycle (ADR-0134). {@code setup_review} holds one row per
  * cluster, the latest review, rewritten in place, so no review is ever older than the newest one
  * of its cluster and none is purged (a cluster's delete cascades to it). {@code setup_finding} is
  * the latest finding per subject; the stale ones are those a run could not re-check, whose

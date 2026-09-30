@@ -3,7 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
 
-/** Retention, quotas and storage health for every store. Module descriptor (ADR-0070, ADR-0132). */
+/** Retention, quotas and storage health for every store. Module descriptor (ADR-0070, ADR-0134). */
 public final class LifecycleModule {
 
     public static final String ID = "lifecycle";

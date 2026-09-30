@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Purges every store to its retention (ADR-0132). Run by the {@code housekeeping} job, once per
+ * Purges every store to its retention (ADR-0134). Run by the {@code housekeeping} job, once per
  * installation. Deliberately not transactional: each batch commits on its own, so writers to the
  * store wait for one batch at most, and a store that fails leaves the others to run.
  */

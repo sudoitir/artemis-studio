@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code STORAGE_HEALTH} (ADR-0133): a table with a problem, such as bloat or a missing partition.
+ * {@code STORAGE_HEALTH} (ADR-0135): a table with a problem, such as bloat or a missing partition.
  * The subject is {@code schema.table}; the value is its dead-tuple share in percent, or 1 when the
  * problem is not bloat.
  */

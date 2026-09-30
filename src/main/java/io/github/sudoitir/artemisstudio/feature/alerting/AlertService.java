@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Read side of alert firings — current and historical (alerting spec). A cluster's view also holds
- * the installation's firings (ADR-0133), for a caller with the global grant.
+ * the installation's firings (ADR-0135), for a caller with the global grant.
  */
 @Service
 @RequiredArgsConstructor

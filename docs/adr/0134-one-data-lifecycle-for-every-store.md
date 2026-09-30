@@ -1,4 +1,4 @@
-# ADR-0132: One data lifecycle for every store
+# ADR-0134: One data lifecycle for every store
 
 - **Status**: accepted
 - **Date**: 2026-09-30

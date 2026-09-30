@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Request-reply tracing deadlines, capture, and cadences. Retention is the {@code rr-flows} and {@code captured-payloads} stores (ADR-0132). */
+/** Request-reply tracing deadlines, capture, and cadences. Retention is the {@code rr-flows} and {@code captured-payloads} stores (ADR-0134). */
 @Component
 @RequiredArgsConstructor
 public class RrSettings implements SettingsContribution {

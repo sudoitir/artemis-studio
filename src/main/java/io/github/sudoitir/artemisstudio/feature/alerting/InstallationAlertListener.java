@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-/** Re-evaluates the installation's state rules on fresh storage numbers (ADR-0133). */
+/** Re-evaluates the installation's state rules on fresh storage numbers (ADR-0135). */
 @Component
 @RequiredArgsConstructor
 @Slf4j

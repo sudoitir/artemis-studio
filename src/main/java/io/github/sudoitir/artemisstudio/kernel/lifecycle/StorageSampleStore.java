@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-/** The storage samples behind table growth are themselves a store (ADR-0132). */
+/** The storage samples behind table growth are themselves a store (ADR-0134). */
 @Component
 class StorageSampleStore implements ManagedStore, HousekeepingContributor {
 

@@ -22,7 +22,7 @@ jobs run once through ShedLock (ADR-0125).
 
 ## Decisions
 
-### 1. One `HousekeepingContributor` SPI for core and plugin stores (ADR-0132)
+### 1. One `HousekeepingContributor` SPI for core and plugin stores (ADR-0134)
 `kernel/lifecycle` holds three `@PluginApi` types:
 - `HousekeepingContributor`: `List<ManagedStore> stores()`;
 - `ManagedStore`: `StoreDef def()`, `StoreUsage usage()`, `PurgeEstimate preview(Instant cutoff)`,
@@ -119,7 +119,7 @@ The daily `storage-sample` INSTALLATION job writes per-table sizes to `storage_s
 - a partition is missing;
 - its store is over the quota warning.
 
-### 6. Installation-scoped alert rules (ADR-0133)
+### 6. Installation-scoped alert rules (ADR-0135)
 - **Schema:** a rule with no cluster (`alert_rule.cluster_id IS NULL`) is about the installation;
   `alert_firing.cluster_id` becomes nullable to match.
 - **Evaluation:** `AlertEvaluator.evaluateInstallation(kind)` evaluates such rules against

@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The classification inbox under the data lifecycle (ADR-0132). A finding is one row per
+ * The classification inbox under the data lifecycle (ADR-0134). A finding is one row per
  * (address, location, field path, class), upserted whenever the pattern is seen again, so the
  * table is bounded by distinct patterns, not by traffic. An OPEN finding not seen for the whole
  * retention is stale and goes; a confirmed or dismissed one is an operator's decision and stays.

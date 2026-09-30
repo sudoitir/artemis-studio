@@ -18,7 +18,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 /**
- * No table grows unnoticed (ADR-0132): every table a changelog creates either belongs to a store
+ * No table grows unnoticed (ADR-0134): every table a changelog creates either belongs to a store
  * under the data lifecycle, is a partition of one, or is listed here as bounded by design, with why.
  * A new table that is none of these fails the build until it gets a store or a reason.
  */

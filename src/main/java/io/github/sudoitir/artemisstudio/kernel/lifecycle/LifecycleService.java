@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
-/** What the Data page reads and writes (ADR-0132). Policy writes go through the settings store, so they are audited. */
+/** What the Data page reads and writes (ADR-0134). Policy writes go through the settings store, so they are audited. */
 @Service
 @RequiredArgsConstructor
 public class LifecycleService {

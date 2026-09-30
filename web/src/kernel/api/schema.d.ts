@@ -2840,7 +2840,7 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Null for an installation-scoped rule (ADR-0133)
+             * @description Null for an installation-scoped rule (ADR-0135)
              */
             clusterId?: string | null;
             name: string;
@@ -5481,7 +5481,7 @@ export interface components {
             ruleId: string;
             /**
              * Format: uuid
-             * @description Null for an installation-scoped rule (ADR-0133)
+             * @description Null for an installation-scoped rule (ADR-0135)
              */
             clusterId?: string | null;
             ruleName: string;
@@ -5528,7 +5528,7 @@ export interface components {
         ClusterFiringCountView: {
             /**
              * Format: uuid
-             * @description Null for the installation's own firings (ADR-0133)
+             * @description Null for the installation's own firings (ADR-0135)
              */
             clusterId?: string | null;
             /** Format: int64 */

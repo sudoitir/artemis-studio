@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Installation-scoped alert rules (ADR-0133). A rule with no cluster is about Studio itself, and so
+-- Installation-scoped alert rules (ADR-0135). A rule with no cluster is about Studio itself, and so
 -- are its state and its firings: alert_firing.cluster_id becomes nullable (alert_rule.cluster_id
 -- already is, and alert_state and alert_delivery never had a cluster). The state-condition check
 -- gains STORAGE_QUOTA and STORAGE_HEALTH, and one enabled rule of each is seeded, bound to no
@@ -8,7 +8,7 @@
 -- cluster exists, however many instances start together; an operator's deletion is never undone.
 -- Never edit this file once released.
 
---changeset artemis-studio:feature-alerting-0004-installation-rules splitStatements:true
+--changeset artemis-studio:feature-alerting-0005-installation-rules splitStatements:true
 ALTER TABLE alert_firing ALTER COLUMN cluster_id DROP NOT NULL;
 ALTER TABLE alert_rule DROP CONSTRAINT ck_alert_rule_state_condition;
 ALTER TABLE alert_rule

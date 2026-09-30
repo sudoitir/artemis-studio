@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * Daily partition maintenance for {@code message_index} (ADR-0059). The same problem
  * and the same maneuver as {@link MetricPartitionMaintainer}: create tomorrow's
  * partition before rows need it. Reclaiming what has outlived the store's retention,
- * which caps every subscription's, is {@link MessageIndexStore}'s purge (ADR-0132).
+ * which caps every subscription's, is {@link MessageIndexStore}'s purge (ADR-0134).
  *
  * <p>Each subscription may carry a shorter retention than the store, and a partition
  * holds rows from every subscription, so the store cannot honour that by dropping a

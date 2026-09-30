@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** The alert-history store against a real Postgres (ADR-0132). */
+/** The alert-history store against a real Postgres (ADR-0134). */
 class AlertHistoryStoreIntegrationTest extends PostgresIntegrationTest {
 
     private static final String OLD = "now() - interval '100 days'";

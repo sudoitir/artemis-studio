@@ -390,7 +390,7 @@ public class MessageIndexService {
         return inRange("intervalMs", intervalMs, 1000, 3_600_000);
     }
 
-    /** The message-index store's retention in whole days: the most any subscription may keep (ADR-0132). */
+    /** The message-index store's retention in whole days: the most any subscription may keep (ADR-0134). */
     private int storeRetentionDays() {
         return (int) lifecycle.retention(MessageIndexStore.ID).orElseThrow().toDays();
     }

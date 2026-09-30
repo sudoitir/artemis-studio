@@ -18,7 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The {@code message-index} store (ADR-0132): indexed and captured message payload in {@code
+ * The {@code message-index} store (ADR-0134): indexed and captured message payload in {@code
  * message_index}, purged past the store's retention, which caps every subscription's own (ADR-0059).
  * A batch drops one daily partition whose whole day is older than the cutoff, and once none is left
  * deletes from {@code message_index_default}, the catch-all for rows written before their day had a

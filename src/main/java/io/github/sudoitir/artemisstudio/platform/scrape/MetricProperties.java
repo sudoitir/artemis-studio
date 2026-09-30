@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * The maintainer's cron that rolls the daily {@code metric_sample} partitions ahead
  * (ADR-0006), runtime-overridable (ADR-0048). How long samples are kept is the
- * {@code metrics} store's retention policy (ADR-0132).
+ * {@code metrics} store's retention policy (ADR-0134).
  *
  * <p>Sizing: {@link MetricSampleWriter} appends six rows per queue per tier-B/C tick.
  * ADR-0089 raised that from four by adding {@code deliveringCount} and

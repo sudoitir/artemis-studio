@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.alerting;
 
 /**
- * A state of Studio itself that an installation-scoped rule (ADR-0133) reads, the way an
+ * A state of Studio itself that an installation-scoped rule (ADR-0135) reads, the way an
  * {@link AlertSignalSource} answers a cluster's. Evaluated once per installation, never per
  * cluster.
  */

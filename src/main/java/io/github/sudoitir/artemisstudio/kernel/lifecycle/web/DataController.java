@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Retention, quotas and storage health ({@code /api/v1/data}, ADR-0132). An out-of-bounds policy
+ * Retention, quotas and storage health ({@code /api/v1/data}, ADR-0134). An out-of-bounds policy
  * is a {@code 400} naming the allowed range; an unknown store a {@code 404}.
  */
 @RestController

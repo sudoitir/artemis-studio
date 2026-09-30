@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Puts a plugin's {@link HousekeepingContributor} stores under the lifecycle while it is active (ADR-0132). */
+/** Puts a plugin's {@link HousekeepingContributor} stores under the lifecycle while it is active (ADR-0134). */
 @Component
 @RequiredArgsConstructor
 class HousekeepingPluginBridge implements PluginBridge {

@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Table sizes sampled by the storage-sample job (ADR-0132), for growth on the storage health
+-- Table sizes sampled by the storage-sample job (ADR-0134), for growth on the storage health
 -- page. Kept bounded by the storage-samples store. Never edit this file once released.
 
 --changeset artemis-studio:kernel-lifecycle-0002-storage-sample

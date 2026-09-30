@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** The broker-config-history store against a real Postgres (ADR-0132). */
+/** The broker-config-history store against a real Postgres (ADR-0134). */
 class BrokerConfigHistoryStoreIntegrationTest extends PostgresIntegrationTest {
 
     private static final String OLD = "now() - interval '500 days'";

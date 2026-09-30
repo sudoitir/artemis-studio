@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Broker-event write buffering (ADR-0028). Retention is the {@code broker-events} store (ADR-0132). */
+/** Broker-event write buffering (ADR-0028). Retention is the {@code broker-events} store (ADR-0134). */
 @Component
 @RequiredArgsConstructor
 public class EventsSettings implements SettingsContribution {

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * The lifecycle's own schedule, and the three settings every store's policy is made of
- * (ADR-0132): {@code lifecycle.<store>.retention}, {@code .quota} and {@code .quota-warn-percent}.
+ * (ADR-0134): {@code lifecycle.<store>.retention}, {@code .quota} and {@code .quota-warn-percent}.
  */
 @Component
 public class LifecycleSettings implements SettingsContribution {

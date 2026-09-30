@@ -1,7 +1,7 @@
 # data-lifecycle Specification
 
 ## Purpose
-Every store that grows with use, core or plugin, has one bounded retention policy, a quota and a previewable, audited, batched purge that runs once per installation, and the tables behind them are watched for health (ADR-0132).
+Every store that grows with use, core or plugin, has one bounded retention policy, a quota and a previewable, audited, batched purge that runs once per installation, and the tables behind them are watched for health (ADR-0134).
 
 ## Requirements
 

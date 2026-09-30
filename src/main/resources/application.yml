@@ -24,7 +24,7 @@ spring:
       initialize-schema: never
       table-name: spring_session
       # The data lifecycle purges expired sessions once per installation (expired-sessions
-      # store, ADR-0132); "-" turns off Spring Session's own cleanup, which every instance ran.
+      # store, ADR-0134); "-" turns off Spring Session's own cleanup, which every instance ran.
       cleanup-cron: "-"
 
   # OIDC/SSO (ADR-0040) is opt-in: with no `spring.security.oauth2.client.registration.*`
@@ -164,7 +164,7 @@ artemis-studio:
     read-timeout: 10s
     clock-skew-tolerance-ms: 2000  # a broker clock further off than this is called skew (ADR-0053)
   metric:
-    # Raw metric_sample retention is the "metrics" store's policy (ADR-0132).
+    # Raw metric_sample retention is the "metrics" store's policy (ADR-0134).
     partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer: creates the days ahead
   mcp:
     # Result caps for the MCP surface (ADR-0045); tighter than REST's on purpose.

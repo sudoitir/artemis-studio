@@ -7197,7 +7197,7 @@
           "clusterId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid",
-            "description" : "Null for an installation-scoped rule (ADR-0133)"
+            "description" : "Null for an installation-scoped rule (ADR-0135)"
           },
           "name" : {
             "type" : "string"
@@ -13857,7 +13857,7 @@
           "clusterId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid",
-            "description" : "Null for an installation-scoped rule (ADR-0133)"
+            "description" : "Null for an installation-scoped rule (ADR-0135)"
           },
           "ruleName" : {
             "type" : "string"
@@ -13961,7 +13961,7 @@
           "clusterId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid",
-            "description" : "Null for the installation's own firings (ADR-0133)"
+            "description" : "Null for the installation's own firings (ADR-0135)"
           },
           "firing" : {
             "type" : "integer",

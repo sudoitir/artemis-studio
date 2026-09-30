@@ -4,7 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.time.Instant;
 
 /**
- * A store the data lifecycle purges, previews and reports (ADR-0132). The engine owns the policy,
+ * A store the data lifecycle purges, previews and reports (ADR-0134). The engine owns the policy,
  * the schedule, the once-per-installation lock and the audit; the store only knows its own tables.
  */
 @PluginApi

@@ -1,5 +1,5 @@
 /**
- * The data lifecycle (ADR-0132): one retention policy, quota and batched purge for every store
+ * The data lifecycle (ADR-0134): one retention policy, quota and batched purge for every store
  * that grows with use, core or plugin, and the storage health of the tables behind them.
  */
 @ApplicationModule(

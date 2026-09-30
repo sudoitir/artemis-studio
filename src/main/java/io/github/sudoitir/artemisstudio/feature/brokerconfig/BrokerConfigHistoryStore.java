@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The broker configuration history under the data lifecycle (ADR-0132): old applies, then the old
+ * The broker configuration history under the data lifecycle (ADR-0134): old applies, then the old
  * revisions nothing depends on any more.
  *
  * <ul>

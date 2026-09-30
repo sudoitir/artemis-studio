@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- The last purge of each store (ADR-0132), shown on the Data page. Never edit this file once
+-- The last purge of each store (ADR-0134), shown on the Data page. Never edit this file once
 -- released; add a new changeset beside it.
 
 --changeset artemis-studio:kernel-lifecycle-0001-lifecycle-purge

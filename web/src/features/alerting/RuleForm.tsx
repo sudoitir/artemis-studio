@@ -83,7 +83,7 @@ export function RuleForm({
   submitting: boolean;
   onCancel?: () => void;
 }) {
-  // A rule with no cluster is about Studio itself: always a state rule, on a storage condition (ADR-0133).
+  // A rule with no cluster is about Studio itself: always a state rule, on a storage condition (ADR-0135).
   const installation = initial !== undefined && !initial.clusterId;
   const [kind, setKind] = useState<'METRIC_THRESHOLD' | 'STATE'>(
     (initial?.kind as 'METRIC_THRESHOLD' | 'STATE') ?? 'METRIC_THRESHOLD',
