@@ -1,0 +1,82 @@
+# Prometheus alert rules for Artemis Studio. Written against the names /actuator/prometheus serves;
+# an OTLP-to-Prometheus pipeline with default name translation yields the same ones.
+# Check with: promtool check rules studio-alerts.yml
+groups:
+  - name: artemis-studio-jobs
+    rules:
+      - alert: StudioJobStalled
+        # studio_job_degraded is 1 while no run has finished within three of the job's intervals.
+        expr: studio_job_degraded == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio job {{ $labels.job_id }} has stalled"
+          description: "No run of job {{ $labels.job_id }} has finished within three of its intervals."
+      - alert: StudioJobFailing
+        expr: sum by (job_id) (increase(studio_job_seconds_count{error!="none"}[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio job {{ $labels.job_id }} is failing"
+          description: "Job {{ $labels.job_id }} has raised an error in each of the last 5 minutes. Its last error is in Studio's log and on Settings, Studio health."
+
+  - name: artemis-studio-brokers
+    rules:
+      - alert: StudioBrokerNodeFailing
+        expr: |
+          sum by (node) (rate(studio_broker_management_seconds_count{outcome!="SUCCESS"}[5m]))
+            / sum by (node) (rate(studio_broker_management_seconds_count[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Management calls to broker node {{ $labels.node }} are failing"
+          description: "{{ $value | humanizePercentage }} of Studio's management calls to {{ $labels.node }} failed over the last 5 minutes."
+      - alert: StudioBrokerManagementSlow
+        expr: max by (node) (studio_broker_management_seconds{quantile="0.95"}) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Management calls to broker node {{ $labels.node }} are slow"
+          description: "The 95th percentile of management call latency to {{ $labels.node }} is {{ $value | humanizeDuration }}."
+      - alert: StudioBrokerPermitTimeouts
+        expr: increase(studio_broker_permit_timeouts_total[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio is rate-limited against broker node {{ $labels.node }}"
+          description: "Calls to {{ $labels.node }} timed out waiting for the per-node rate limit throughout the last 5 minutes. Raise the limit or reduce what polls this node."
+
+  - name: artemis-studio-database
+    rules:
+      - alert: StudioDatabasePoolWaiting
+        expr: hikaricp_connections_pending > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio threads are waiting for a database connection"
+          description: "{{ $value }} threads have waited for a connection from the pool for 5 minutes."
+      - alert: StudioDatabasePoolSaturated
+        expr: hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio's database pool is nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of the pool's connections have been in use for 5 minutes."
+
+  - name: artemis-studio-resources
+    rules:
+      - alert: StudioThreadsHigh
+        expr: jvm_threads_live_threads > 500
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Studio is running an unusual number of threads"
+          description: "{{ $value }} live threads for 15 minutes. Studio's threads are bounded by configuration, not by time, so steady growth points at a leak."

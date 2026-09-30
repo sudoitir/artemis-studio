@@ -190,7 +190,7 @@ shows the current count.
 
 When a plugin stops, its classes should leave memory. If a stopped version is still in memory a
 minute later, the Plugins tab says so and recommends a restart. The compose files cap metaspace at
-256 MB (`-XX:MaxMetaspaceSize=256m`), so a plugin that does not unload cleanly fails loudly rather
+384 MB (`-XX:MaxMetaspaceSize=384m`), so a plugin that does not unload cleanly fails loudly rather
 than growing without limit.
 
 ## Configuration

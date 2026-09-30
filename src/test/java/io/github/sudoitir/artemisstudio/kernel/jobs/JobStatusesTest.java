@@ -18,8 +18,17 @@ class JobStatusesTest {
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final AtomicBoolean heldElsewhere = new AtomicBoolean();
     private final JobStatuses statuses = new JobStatuses(
-            meters,
-            new DefaultLockingTaskExecutor(config -> heldElsewhere.get() ? Optional.empty() : Optional.of(() -> {})));
+            new DefaultLockingTaskExecutor(config -> heldElsewhere.get() ? Optional.empty() : Optional.of(() -> {})),
+            observationsInto(meters),
+            meters);
+
+    private static io.micrometer.observation.ObservationRegistry observationsInto(SimpleMeterRegistry meters) {
+        io.micrometer.observation.ObservationRegistry registry = io.micrometer.observation.ObservationRegistry.create();
+        registry.observationConfig()
+                .observationHandler(
+                        new io.micrometer.core.instrument.observation.DefaultMeterObservationHandler(meters));
+        return registry;
+    }
 
     @Test
     void anInstallationWideJobRunsOnlyWhileItHoldsItsLock() {
@@ -110,10 +119,10 @@ class JobStatusesTest {
         assertThat(failed.failures()).isEqualTo(1);
         assertThat(failed.lastError()).isEqualTo("boom");
 
-        assertThat(meters.find("studio.job")
-                        .tags("job", "demo", "feature", "rr")
-                        .timer()
-                        .count())
+        // The observation adds an `error` tag, so a failed run lands on its own timer beside the passing ones.
+        assertThat(meters.find("studio.job").tags("job.id", "demo", "feature", "rr").timers().stream()
+                        .mapToLong(io.micrometer.core.instrument.Timer::count)
+                        .sum())
                 .isEqualTo(2);
     }
 
@@ -168,5 +177,62 @@ class JobStatusesTest {
         JobStatus s = new JobStatus(
                 "tick", "rr", ScheduledJob.Scope.INSTANCE, Instant.EPOCH, null, null, null, 0, 0, null, null, null);
         assertThat(s.degraded(Instant.now())).isFalse();
+    }
+
+    @Test
+    void lagIsTheTimePastTheIntervalAndNeverNegative() {
+        Instant done = Instant.parse("2026-01-01T00:00:00Z");
+        JobStatus status = new JobStatus(
+                "poll",
+                "scrape",
+                ScheduledJob.Scope.INSTANCE,
+                done,
+                done,
+                done,
+                null,
+                1,
+                0,
+                null,
+                Duration.ofSeconds(10),
+                null);
+
+        assertThat(status.lag(done.plusSeconds(4))).isEqualTo(Duration.ZERO);
+        assertThat(status.lag(done.plusSeconds(25))).isEqualTo(Duration.ofSeconds(15));
+    }
+
+    @Test
+    void lagIsUnknownBeforeTheSchedulerHasComputedAnInterval() {
+        statuses.instrument(ScheduledJob.fixedDelay(
+                "fresh", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {}));
+
+        assertThat(statuses.all().getFirst().lag(Instant.now())).isNull();
+        assertThat(meters.get("studio.job.lag").tag("job.id", "fresh").gauge().value())
+                .isNaN();
+    }
+
+    @Test
+    void deregisteringAJobRemovesItsLagGauge() {
+        statuses.instrument(ScheduledJob.fixedDelay(
+                "gone", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {}));
+        statuses.deregister("gone");
+
+        assertThat(meters.find("studio.job.lag").tag("job.id", "gone").gauge()).isNull();
+    }
+
+    @Test
+    void aJobKeepingToScheduleIsNotDegradedAndDeregisteringRemovesTheGauge() {
+        ScheduledJob job = ScheduledJob.fixedDelay(
+                "steady", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {});
+        statuses.instrument(job);
+        statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+
+        assertThat(meters.get("studio.job.degraded")
+                        .tag("job.id", "steady")
+                        .gauge()
+                        .value())
+                .isEqualTo(0.0);
+        statuses.deregister("steady");
+        assertThat(meters.find("studio.job.degraded").tag("job.id", "steady").gauge())
+                .isNull();
     }
 }

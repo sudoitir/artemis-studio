@@ -1636,6 +1636,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["studioHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stream": {
         parameters: {
             query?: never;
@@ -4870,6 +4886,69 @@ export interface components {
              */
             lastSkippedElsewhere?: string | null;
             /** @description Whether no run has finished, here or elsewhere, within three of the job's intervals. */
+            degraded: boolean;
+        };
+        JobHealth: {
+            name: string;
+            /** @description The module that owns the job. */
+            feature: string;
+            /** @enum {string} */
+            status: "NEVER_RUN" | "FAILING" | "OK";
+            /** Format: date-time */
+            lastEnd?: string | null;
+            /**
+             * Format: double
+             * @description Seconds past the job's interval since it last completed; null until its interval is known.
+             */
+            lagSeconds?: number | null;
+            /** @description No run has finished within three of the job's intervals. */
+            degraded: boolean;
+        };
+        NodeHealth: {
+            name: string;
+            /** Format: uuid */
+            clusterId: string;
+            /** @description The node's host:port; null while Studio has no management address for it. */
+            node?: string | null;
+            /** Format: date-time */
+            lastSuccess?: string | null;
+            /** Format: date-time */
+            lastFailure?: string | null;
+            /** @description The most recent failure's message, redacted. */
+            lastError?: string | null;
+            /**
+             * Format: double
+             * @description 95th percentile of recent management call latency; null when none was measured.
+             */
+            managementP95Millis?: number | null;
+            /**
+             * Format: int64
+             * @description How long the latest request waited for this node's rate ceiling.
+             */
+            rateLimitWaitMillis?: number | null;
+            /** @description The latest management call to the node failed. */
+            degraded: boolean;
+        };
+        PoolHealth: {
+            /** Format: int32 */
+            active?: number | null;
+            /** Format: int32 */
+            idle?: number | null;
+            /** Format: int32 */
+            max?: number | null;
+            /** Format: int32 */
+            pending?: number | null;
+        };
+        StudioHealth: {
+            jobs: components["schemas"]["JobHealth"][];
+            nodes: components["schemas"]["NodeHealth"][];
+            dbPool: components["schemas"]["PoolHealth"];
+            /**
+             * Format: int32
+             * @description Event stream clients connected to this instance.
+             */
+            streamClients?: number | null;
+            /** @description Any job or node is degraded. */
             degraded: boolean;
         };
         SseEmitter: {
@@ -9523,6 +9602,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["JobStatusView"][];
+                };
+            };
+        };
+    };
+    studioHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StudioHealth"];
                 };
             };
         };

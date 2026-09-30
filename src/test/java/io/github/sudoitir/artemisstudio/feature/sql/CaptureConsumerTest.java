@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
@@ -11,6 +12,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionSettings;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreObservations;
 import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import jakarta.jms.Connection;
@@ -54,7 +56,7 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
     @BeforeEach
     void setUp() {
         BrokerProperties properties = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
-        pool = new CorePool(new CoreConnectionFactory(properties, mock(SslBundles.class)));
+        pool = new CorePool(new CoreConnectionFactory(properties, mock(SslBundles.class)), CoreObservations.none());
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))
                 .thenReturn(new CoreConnectionSettings(clusterId, BROKER_USER, BROKER_PASSWORD, null, true));
@@ -145,8 +147,11 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         send(queue, 3);
 
         consumer.start(spec(queue, "ORDER.IN"));
-        Thread.sleep(2_000);
-        assertThat(stored).as("three messages are far short of a full batch").isEmpty();
+        await().during(Duration.ofSeconds(2))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(stored)
+                        .as("three messages are far short of a full batch")
+                        .isEmpty());
 
         consumer.flushAll();
 
@@ -171,8 +176,11 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         String queue = "capture.restart." + UUID.randomUUID();
         send(queue, 3);
         consumer.start(spec(queue, "ORDER.IN"));
-        Thread.sleep(2_000);
-        assertThat(stored).as("three messages are far short of a full batch").isEmpty();
+        await().during(Duration.ofSeconds(2))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(stored)
+                        .as("three messages are far short of a full batch")
+                        .isEmpty());
 
         consumer.flushAll();
 
@@ -271,13 +279,7 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         }
     }
 
-    private static void awaitTrue(BooleanSupplier condition, Duration timeout) throws InterruptedException {
-        long deadline = System.nanoTime() + timeout.toNanos();
-        while (!condition.getAsBoolean()) {
-            if (System.nanoTime() > deadline) {
-                throw new AssertionError("Condition not met within " + timeout);
-            }
-            Thread.sleep(100);
-        }
+    private static void awaitTrue(BooleanSupplier condition, Duration timeout) {
+        await().atMost(timeout).until(condition::getAsBoolean);
     }
 }

@@ -208,6 +208,11 @@ public class SseHub {
         byCluster.clear();
     }
 
+    /** Open streams across every cluster. */
+    public int clientCount() {
+        return byCluster.values().stream().mapToInt(Set::size).sum();
+    }
+
     int subscriberCount(UUID clusterId) {
         Set<Subscriber> set = byCluster.get(clusterId);
         return set == null ? 0 : set.size();

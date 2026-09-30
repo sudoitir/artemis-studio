@@ -43,6 +43,7 @@ jobs:
       site: ${{ steps.filter.outputs.site }}
       manifests: ${{ steps.filter.outputs.manifests }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      observability: ${{ steps.filter.outputs.observability }}
       hub: ${{ steps.filter.outputs.hub }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,6 +70,8 @@ jobs:
               - 'pom.xml'
               - 'mvnw'
               - '.mvn/**'
+              # ObservabilityAssetsIntegrationTest reads the dashboards and rules.
+              - 'deploy/observability/**'
             web:
               - *ci
               - 'web/**'
@@ -98,6 +101,9 @@ jobs:
               - 'examples/plugin-template/pom.xml'
             workflows:
               - '.github/**'
+            observability:
+              - *ci
+              - 'deploy/observability/**'
             hub:
               - 'docs/dockerhub.md'
 
@@ -386,6 +392,24 @@ jobs:
           docker run --rm -v "$PWD:/repo" -w /repo \
             rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
 
+  # The shipped alert rules are valid and the dashboard is JSON. That their metric names exist is
+  # ObservabilityAssetsIntegrationTest, in the backend job.
+  observability:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.observability == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the alert rules and the dashboard
+        run: |
+          docker run --rm --entrypoint promtool -v "$PWD/deploy/observability/prometheus:/rules:ro" \
+            prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996 \
+            check rules /rules/studio-alerts.yml
+          jq empty deploy/observability/grafana/studio-overview.json
+
   # The one required status check. A job skipped by its path filter counts as passed; a failed
   # or cancelled one does not. Requiring this instead of each job keeps path filtering safe.
   # The backend shards' coverage as one report: merged with the JaCoCo CLI (resolved through Maven,
@@ -514,7 +538,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, backend, coverage, frontend, sonar, plugin-template, image, site, osv, actionlint]
+    needs: [changes, backend, coverage, frontend, sonar, plugin-template, image, site, osv, actionlint, observability]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -596,6 +620,9 @@ jobs:
           V=${{ steps.ver.outputs.version }}
           cp target/artemis-studio-exec.jar "artemis-studio-$V.jar"
           sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
+          # The Grafana dashboard and Prometheus rules, as their own asset (ADR-0147).
+          tar -czf "artemis-studio-observability-$V.tar.gz" deploy/observability
+          sha256sum "artemis-studio-observability-$V.tar.gz" > "artemis-studio-observability-$V.tar.gz.sha256"
 
       # Signed SLSA provenance and a CycloneDX SBOM for the jar, verifiable with
       # `gh attestation verify` and no key of ours (ADR-0139). The bundle is a release asset too.
@@ -711,6 +738,8 @@ jobs:
           files: |
             artemis-studio-${{ steps.ver.outputs.version }}.jar
             artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
+            artemis-studio-observability-${{ steps.ver.outputs.version }}.tar.gz
+            artemis-studio-observability-${{ steps.ver.outputs.version }}.tar.gz.sha256
             artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl
             artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
             artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json

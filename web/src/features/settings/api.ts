@@ -7,9 +7,14 @@ type Schemas = components['schemas'];
 export type SettingsResponse = Schemas['SettingsResponse'];
 export type SecretsStatus = Schemas['SecretsStatus'];
 export type RotationView = Schemas['RotationView'];
+export type StudioHealth = Schemas['StudioHealth'];
+export type JobHealth = Schemas['JobHealth'];
+export type NodeHealth = Schemas['NodeHealth'];
+export type PoolHealth = Schemas['PoolHealth'];
 
 const SETTINGS_KEY = ['settings'] as const;
 const SECRETS_KEY = ['settings', 'secrets'] as const;
+const HEALTH_KEY = ['system', 'health'] as const;
 
 export function useSettings(): UseQueryResult<SettingsResponse, ApiError> {
   return useQuery({
@@ -53,5 +58,14 @@ export function useStartRotation() {
   return useMutation<RotationView, ApiError, void>({
     mutationFn: () => request<RotationView>('/settings/secrets/rotations', { method: 'POST' }),
     onSettled: () => qc.invalidateQueries({ queryKey: SECRETS_KEY }),
+  });
+}
+
+/** Studio's own jobs, broker calls, pool and streams, refreshed every 5 s. */
+export function useStudioHealth(): UseQueryResult<StudioHealth, ApiError> {
+  return useQuery({
+    queryKey: HEALTH_KEY,
+    queryFn: () => request<StudioHealth>('/system/health'),
+    refetchInterval: 5_000,
   });
 }

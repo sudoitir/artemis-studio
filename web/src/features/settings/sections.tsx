@@ -3,6 +3,7 @@ import { Text } from '@mantine/core';
 import { DisplayPreferences } from './DisplayPreferences.tsx';
 import { OperationalConfig } from './OperationalConfig.tsx';
 import { SecuritySettings } from './SecuritySettings.tsx';
+import { StudioHealth } from './StudioHealth.tsx';
 
 /** Settings section: the operator's own display preferences, first and separate from what is shared. */
 export function DisplaySection() {
@@ -39,6 +40,19 @@ export function SecuritySection() {
         provider, never in Studio&rsquo;s database. Rotating re-wraps them under a newer key version.
       </Text>
       <SecuritySettings />
+    </>
+  );
+}
+
+/** Settings section: Studio's own health, so an operator can tell whether it is Studio or the broker that is behind. */
+export function HealthSection() {
+  return (
+    <>
+      <Text size="sm" c="dimmed" mb="sm">
+        Studio watching itself: its background jobs, its calls to each broker node, its database connections and its
+        open event streams. Refreshed every 5 seconds.
+      </Text>
+      <StudioHealth />
     </>
   );
 }

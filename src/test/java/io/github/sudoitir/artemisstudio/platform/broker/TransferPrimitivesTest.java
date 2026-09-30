@@ -48,9 +48,11 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
     @BeforeEach
     void setUp() {
         client = jolokiaClient();
-        relay = new CoreRelay(new CoreConnectionFactory(
-                new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000),
-                org.mockito.Mockito.mock(SslBundles.class)));
+        relay = new CoreRelay(
+                new CoreConnectionFactory(
+                        new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000),
+                        org.mockito.Mockito.mock(SslBundles.class)),
+                CoreObservations.none());
         suffix = Long.toString(System.nanoTime());
     }
 

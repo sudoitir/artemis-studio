@@ -44,7 +44,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
 
         BrokerProperties props = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
         CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
-        CorePool corePool = new CorePool(connectionFactory);
+        CorePool corePool = new CorePool(connectionFactory, CoreObservations.none());
 
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))
@@ -60,7 +60,8 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
                 jolokiaFallback,
                 new NodeCallLimiter(
                         new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
-                new MessageOperations());
+                new MessageOperations(),
+                CoreObservations.none());
 
         seed();
     }

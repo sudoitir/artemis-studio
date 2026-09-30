@@ -145,6 +145,33 @@ management:
   info:
     build:
       enabled: true
+  metrics:
+    distribution:
+      # The 95th percentile of management call latency per node, for the health view and the alert rules.
+      percentiles:
+        studio.broker.management: 0.95
+
+  # OTLP export of metrics, traces and logs (ADR-0147). Off by default: Studio sends nothing until the
+  # standard OpenTelemetry variables switch it on, which Boot maps onto the properties below
+  # (OpenTelemetryEnvironmentVariableEnvironmentPostProcessor): OTEL_EXPORTER_OTLP_ENDPOINT for the collector,
+  # and OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER and OTEL_LOGS_EXPORTER set to otlp for the three signals,
+  # plus OTEL_EXPORTER_OTLP_HEADERS, OTEL_TRACES_SAMPLER and the rest. Tracing itself stays on, so trace ids
+  # reach the log lines either way.
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  logging:
+    export:
+      otlp:
+        enabled: false
+  tracing:
+    export:
+      otlp:
+        enabled: false
+    # A low-traffic admin tool: keep every trace, so the one slow request is there to find.
+    sampling:
+      probability: 1.0
 
 # Application configuration, bound by ArtemisStudioProperties.
 #

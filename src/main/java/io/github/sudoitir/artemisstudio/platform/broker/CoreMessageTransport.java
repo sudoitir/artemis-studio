@@ -57,6 +57,7 @@ public class CoreMessageTransport implements MessageTransport {
     private final JolokiaMessageTransport jolokiaFallback;
     private final NodeCallLimiter limiter;
     private final MessageOperations messageOps;
+    private final CoreObservations observations;
 
     /**
      * Up to {@code limit} messages from the head of a queue, and no more — never counted, and
@@ -64,16 +65,20 @@ public class CoreMessageTransport implements MessageTransport {
      * so a backed-up request queue costs the same to sample as an empty one.
      */
     public List<BrowsedMessage> sample(TransportTarget target, int limit) {
-        try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
-            Session session = jms.session();
-            QueueBrowser browser = session.createBrowser(session.createQueue(target.queueName()));
-            List<BrowsedMessage> rows = new ArrayList<>(limit);
-            Enumeration<?> e = browser.getEnumeration();
-            while (rows.size() < limit && e.hasMoreElements()) {
-                rows.add(toBrowsed((Message) e.nextElement()));
-            }
-            browser.close();
-            return List.copyOf(rows);
+        try {
+            return observations.observe("sample", target.coreUrl(), () -> {
+                try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
+                    Session session = jms.session();
+                    QueueBrowser browser = session.createBrowser(session.createQueue(target.queueName()));
+                    List<BrowsedMessage> rows = new ArrayList<>(limit);
+                    Enumeration<?> e = browser.getEnumeration();
+                    while (rows.size() < limit && e.hasMoreElements()) {
+                        rows.add(toBrowsed((Message) e.nextElement()));
+                    }
+                    browser.close();
+                    return List.copyOf(rows);
+                }
+            });
         } catch (JMSException ex) {
             log.debug("Core sample of {} failed, falling back to Jolokia: {}", target.queueName(), ex.getMessage());
             return jolokiaFallback.browse(target, 1, limit, null).page().messages();
@@ -100,23 +105,27 @@ public class CoreMessageTransport implements MessageTransport {
         }
         limiter.acquire(permitKey(target), 1);
         List<BrowsedMessage> rows = new ArrayList<>(size);
-        try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
-            Session session = jms.session();
-            Queue queue = session.createQueue(target.queueName());
-            QueueBrowser browser = (filter == null || filter.isBlank())
-                    ? session.createBrowser(queue)
-                    : session.createBrowser(queue, filter);
-            long index = 0;
-            Enumeration<?> e = browser.getEnumeration();
-            // Read up to the requested page and stop. Counting by walking the rest of the queue
-            // streamed every message on a deep queue to Studio to show one page of them.
-            while (rows.size() < size && e.hasMoreElements()) {
-                Message m = (Message) e.nextElement();
-                if (index++ >= skip) {
-                    rows.add(toBrowsed(m));
+        try {
+            observations.run("browse", target.coreUrl(), () -> {
+                try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
+                    Session session = jms.session();
+                    Queue queue = session.createQueue(target.queueName());
+                    QueueBrowser browser = (filter == null || filter.isBlank())
+                            ? session.createBrowser(queue)
+                            : session.createBrowser(queue, filter);
+                    long index = 0;
+                    Enumeration<?> e = browser.getEnumeration();
+                    // Read up to the requested page and stop. Counting by walking the rest of the queue
+                    // streamed every message on a deep queue to Studio to show one page of them.
+                    while (rows.size() < size && e.hasMoreElements()) {
+                        Message m = (Message) e.nextElement();
+                        if (index++ >= skip) {
+                            rows.add(toBrowsed(m));
+                        }
+                    }
+                    browser.close();
                 }
-            }
-            browser.close();
+            });
         } catch (JMSException ex) {
             log.debug("Core browse of {} failed, falling back to Jolokia: {}", target.queueName(), ex.getMessage());
             return new BrowseResult(
@@ -172,17 +181,22 @@ public class CoreMessageTransport implements MessageTransport {
     @Override
     public void send(TransportTarget target, SendSpec spec) {
         limiter.acquire(permitKey(target), 1);
-        try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
-            Session session = jms.session();
-            Queue queue = session.createQueue(target.address());
-            Message message =
-                    spec.bodyBase64() ? bytesMessage(session, spec.body()) : session.createTextMessage(spec.body());
-            applyProperties(message, spec.headers());
-            applyProperties(message, spec.properties());
-            int deliveryMode = spec.durable() ? DeliveryMode.PERSISTENT : DeliveryMode.NON_PERSISTENT;
-            try (MessageProducer producer = session.createProducer(queue)) {
-                producer.send(message, deliveryMode, Message.DEFAULT_PRIORITY, 0L);
-            }
+        try {
+            observations.run("send", target.coreUrl(), () -> {
+                try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
+                    Session session = jms.session();
+                    Queue queue = session.createQueue(target.address());
+                    Message message = spec.bodyBase64()
+                            ? bytesMessage(session, spec.body())
+                            : session.createTextMessage(spec.body());
+                    applyProperties(message, spec.headers());
+                    applyProperties(message, spec.properties());
+                    int deliveryMode = spec.durable() ? DeliveryMode.PERSISTENT : DeliveryMode.NON_PERSISTENT;
+                    try (MessageProducer producer = session.createProducer(queue)) {
+                        producer.send(message, deliveryMode, Message.DEFAULT_PRIORITY, 0L);
+                    }
+                }
+            });
         } catch (JMSException ex) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE, "Core send failed: " + ex.getMessage());

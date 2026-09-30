@@ -1,15 +1,16 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import net.javacrumbs.shedlock.core.LockConfiguration;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor.TaskResult;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Component;
 /**
  * The status of every registered job, and the instrumentation that keeps it current:
  * start, end, last error, run and failure counts, the next scheduled run, and a
- * {@code studio.job} timer tagged with the job and its module.
+ * {@code studio.job} observation (a timer, and a span when tracing is exported) tagged with the job and its module.
  *
  * <p>A scheduler registers a job with both halves: {@code addTriggerTask(instrument(job),
  * trigger(job))}. An {@link ScheduledJob.Scope#INSTALLATION installation-wide} job runs only while
@@ -29,12 +30,15 @@ import org.springframework.stereotype.Component;
 @PluginApi
 public class JobStatuses {
 
+    private static final String JOB_ID = "job.id";
+
     /** A floor under every lock's lifetime; ShedLock's keep-alive extends it while a run lasts. */
     private static final Duration LOCK_AT_MOST = Duration.ofSeconds(60);
 
     private final Map<String, JobStatus> byId = new ConcurrentHashMap<>();
-    private final MeterRegistry meters;
     private final LockingTaskExecutor locks;
+    private final ObservationRegistry observations;
+    private final MeterRegistry meters;
 
     /** Guards {@link #paused} and {@link #inFlight}; runs and {@link #pause} wait on it. */
     private final Object gate = new Object();
@@ -42,9 +46,10 @@ public class JobStatuses {
     private boolean paused;
     private int inFlight;
 
-    public JobStatuses(MeterRegistry meters, LockingTaskExecutor locks) {
-        this.meters = meters;
+    public JobStatuses(LockingTaskExecutor locks, ObservationRegistry observations, MeterRegistry meters) {
         this.locks = locks;
+        this.observations = observations;
+        this.meters = meters;
     }
 
     /**
@@ -55,10 +60,15 @@ public class JobStatuses {
         if (byId.putIfAbsent(job.id(), JobStatus.never(job, Instant.now())) != null) {
             throw new IllegalStateException("Job id '" + job.id() + "' is registered twice");
         }
-        Timer timer = Timer.builder("studio.job")
-                .description("Background job run duration")
-                .tag("job", job.id())
-                .tag("feature", job.featureId())
+        Gauge.builder("studio.job.lag", () -> lagSeconds(job.id()))
+                .tag(JOB_ID, job.id())
+                .baseUnit("seconds")
+                .description(
+                        "Seconds a job is past its interval since it last completed; NaN until its interval is known")
+                .register(meters);
+        Gauge.builder("studio.job.degraded", () -> degraded(job.id()))
+                .tag(JOB_ID, job.id())
+                .description("1 while no run has finished within three of the job's intervals, else 0")
                 .register(meters);
         return () -> {
             synchronized (gate) {
@@ -69,9 +79,9 @@ public class JobStatuses {
             }
             try {
                 if (job.scope() == ScheduledJob.Scope.INSTALLATION) {
-                    runOnce(job, timer);
+                    runOnce(job);
                 } else {
-                    runRecorded(job, timer);
+                    runRecorded(job);
                 }
             } finally {
                 synchronized (gate) {
@@ -82,29 +92,45 @@ public class JobStatuses {
         };
     }
 
-    private void runRecorded(ScheduledJob job, Timer timer) {
+    private double lagSeconds(String jobId) {
+        JobStatus status = byId.get(jobId);
+        Duration lag = status == null ? null : status.lag(Instant.now());
+        return lag == null ? Double.NaN : lag.toMillis() / 1000.0;
+    }
+
+    private double degraded(String jobId) {
+        JobStatus status = byId.get(jobId);
+        return status != null && status.degraded(Instant.now()) ? 1 : 0;
+    }
+
+    private void runRecorded(ScheduledJob job) {
         byId.computeIfPresent(job.id(), (k, s) -> s.started(Instant.now()));
-        long started = System.nanoTime();
         try {
-            job.task().run();
+            observation(job).observe(job.task());
             byId.computeIfPresent(job.id(), (k, s) -> s.succeeded(Instant.now()));
         } catch (RuntimeException | Error e) {
             byId.computeIfPresent(job.id(), (k, s) -> s.failed(Instant.now(), e));
             throw e;
-        } finally {
-            timer.record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
         }
     }
 
+    /** One run as an observation: the {@code studio.job} timer and, when export is on, a span. */
+    private Observation observation(ScheduledJob job) {
+        return Observation.createNotStarted("studio.job", observations)
+                .contextualName("job " + job.id())
+                .lowCardinalityKeyValue(JOB_ID, job.id())
+                .lowCardinalityKeyValue("feature", job.featureId());
+    }
+
     /** Runs the job only while holding its lock; otherwise another instance has this tick. */
-    private void runOnce(ScheduledJob job, Timer timer) {
+    private void runOnce(ScheduledJob job) {
         Duration gap = job.minimumGap().get();
         Duration atMost = gap.compareTo(LOCK_AT_MOST) > 0 ? gap : LOCK_AT_MOST;
         TaskResult<Void> result;
         try {
             result = locks.executeWithLock(
                     () -> {
-                        runRecorded(job, timer);
+                        runRecorded(job);
                         return null;
                     },
                     new LockConfiguration(Instant.now(), job.id(), atMost, gap));
@@ -168,6 +194,8 @@ public class JobStatuses {
      */
     public void deregister(String jobId) {
         byId.remove(jobId);
+        meters.find("studio.job.lag").tag(JOB_ID, jobId).meters().forEach(meters::remove);
+        meters.find("studio.job.degraded").tag(JOB_ID, jobId).meters().forEach(meters::remove);
     }
 
     /** Every registered job, ordered by id. */

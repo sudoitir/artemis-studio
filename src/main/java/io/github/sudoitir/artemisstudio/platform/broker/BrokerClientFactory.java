@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.micrometer.observation.ObservationRegistry;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
@@ -50,6 +51,7 @@ public class BrokerClientFactory implements DisposableBean {
     private final ClockOffsetRegistry clockOffsets;
     private final NodeCallHealth callHealth;
     private final NodeCallLimiter limiter;
+    private final ObservationRegistry observations;
     private volatile HttpClientSettings baseSettings;
 
     /** One transport per TLS bundle name ({@link #PLAIN} for none). Replaced wholesale on a timeout change. */
@@ -67,7 +69,9 @@ public class BrokerClientFactory implements DisposableBean {
             BrokerProperties properties,
             ClockOffsetRegistry clockOffsets,
             NodeCallHealth callHealth,
-            NodeCallLimiter limiter) {
+            NodeCallLimiter limiter,
+            ObservationRegistry observations) {
+        this.observations = observations;
         this.mapper = mapper;
         this.sslBundles = sslBundles;
         this.clockOffsets = clockOffsets;
@@ -98,6 +102,8 @@ public class BrokerClientFactory implements DisposableBean {
 
     public JolokiaBrokerClient forNode(BrokerConnectionSettings settings, String jolokiaUrl) {
         RestClient.Builder builder = RestClient.builder()
+                .observationRegistry(observations)
+                .observationConvention(new ManagementObservationConvention())
                 .requestFactory(transport(settings).factory())
                 .configureMessageConverters(converters ->
                         converters.configureMessageConvertersList(c -> applyJolokiaConverters(c, mapper)));

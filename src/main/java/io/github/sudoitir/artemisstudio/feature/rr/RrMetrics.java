@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RrMetrics {
 
-    private static final String METRIC = "artemisstudio.rr.latency";
+    private static final String METRIC = "studio.rr.latency";
 
     private final MeterRegistry registry;
     private final RrFlowRepository flows;

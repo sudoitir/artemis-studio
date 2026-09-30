@@ -34,6 +34,7 @@ import org.springframework.stereotype.Component;
 public class CorePool {
 
     private final CoreConnectionFactory connectionFactory;
+    private final CoreObservations observations;
 
     private final Map<String, JmsPoolConnectionFactory> pools = new ConcurrentHashMap<>();
     private final Map<UUID, Set<String>> keysByCluster = new ConcurrentHashMap<>();
@@ -109,6 +110,21 @@ public class CorePool {
     private static final int CAPTURE_SESSIONS = 256;
 
     private PooledSession borrow(
+            UUID clusterId,
+            String coreUrl,
+            CoreConnectionSettings settings,
+            int acknowledgeMode,
+            String purpose,
+            int maxSessions,
+            Consumer<ActiveMQConnectionFactory> tuning)
+            throws JMSException {
+        return observations.observe(
+                "borrow",
+                coreUrl,
+                () -> borrowSession(clusterId, coreUrl, settings, acknowledgeMode, purpose, maxSessions, tuning));
+    }
+
+    private PooledSession borrowSession(
             UUID clusterId,
             String coreUrl,
             CoreConnectionSettings settings,

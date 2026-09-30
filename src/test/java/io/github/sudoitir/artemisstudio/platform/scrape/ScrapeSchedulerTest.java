@@ -23,7 +23,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -100,9 +99,10 @@ class ScrapeSchedulerTest {
                 coreSubscriptions,
                 eventPublisher,
                 new JobStatuses(
-                        new SimpleMeterRegistry(),
                         new net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor(
-                                config -> java.util.Optional.of(() -> {}))));
+                                config -> java.util.Optional.of(() -> {})),
+                        io.micrometer.observation.ObservationRegistry.NOOP,
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
     }
 
     private JolokiaBrokerClient client(String... fixtures) {
@@ -170,7 +170,7 @@ class ScrapeSchedulerTest {
 
         when(clusters.clusters()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(a, b));
-        when(connections.forCluster(eq(cluster.getId()), eq(GOOD)))
+        when(connections.forCluster(cluster.getId(), GOOD))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"));
 
@@ -189,9 +189,9 @@ class ScrapeSchedulerTest {
 
         when(clusters.clusters()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(bad, good));
-        when(connections.forCluster(eq(cluster.getId()), eq(BAD)))
+        when(connections.forCluster(cluster.getId(), BAD))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
-        when(connections.forCluster(eq(cluster.getId()), eq(GOOD)))
+        when(connections.forCluster(cluster.getId(), GOOD))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"));
 
         scheduler.tierA();
@@ -212,9 +212,9 @@ class ScrapeSchedulerTest {
         when(clusters.clusters()).thenReturn(List.of(clusterA, clusterB));
         when(clusters.nodes(clusterA.getId())).thenReturn(List.of(nodeA));
         when(clusters.nodes(clusterB.getId())).thenReturn(List.of(nodeB));
-        when(connections.forCluster(eq(clusterA.getId()), eq(BAD)))
+        when(connections.forCluster(clusterA.getId(), BAD))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
-        when(connections.forCluster(eq(clusterB.getId()), eq(GOOD)))
+        when(connections.forCluster(clusterB.getId(), GOOD))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"));
 
         scheduler.tierA();
@@ -232,7 +232,7 @@ class ScrapeSchedulerTest {
         when(clusters.clusters()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
         // search + listQueues page 1 (fixture reports count=1, so page 1 is the last page)
-        when(connections.forCluster(eq(cluster.getId()), eq(GOOD)))
+        when(connections.forCluster(cluster.getId(), GOOD))
                 .thenReturn(client("search-broker.json", "list-queues.json"));
 
         scheduler.tierC();

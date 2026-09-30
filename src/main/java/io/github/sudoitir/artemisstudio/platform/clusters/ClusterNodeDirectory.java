@@ -21,7 +21,7 @@ class ClusterNodeDirectory implements NodeDirectory {
     @Transactional(readOnly = true)
     public List<KnownNode> nodes() {
         return nodes.findAll().stream()
-                .map(n -> new KnownNode(n.getId(), n.getClusterId(), n.getName(), n.getJolokiaUrl()))
+                .map(n -> new KnownNode(n.getId(), n.getClusterId(), n.getName(), n.getJolokiaUrl(), n.getCoreUrl()))
                 .toList();
     }
 

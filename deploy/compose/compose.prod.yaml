@@ -95,7 +95,12 @@ services:
       ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
       # Metaspace is bounded so a plugin that does not unload cleanly fails loudly rather than
       # growing without limit; a restart frees it.
-      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=256m}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}
+      # Export metrics, traces and logs over OTLP: uncomment and set the endpoint (site/src/guide/observability.md).
+      # OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      # OTEL_METRICS_EXPORTER: otlp
+      # OTEL_TRACES_EXPORTER: otlp
+      # OTEL_LOGS_EXPORTER: otlp
     ports:
       - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
     depends_on:
@@ -110,7 +115,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1g
+          memory: 2g
 
 volumes:
   pgdata:

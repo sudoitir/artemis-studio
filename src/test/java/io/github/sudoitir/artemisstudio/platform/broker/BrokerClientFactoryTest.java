@@ -29,7 +29,8 @@ class BrokerClientFactoryTest {
             new ClockOffsetRegistry(Clock.systemUTC()),
             new NodeCallHealth(),
             new NodeCallLimiter(
-                    new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+                    new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+            io.micrometer.observation.ObservationRegistry.NOOP);
 
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
@@ -79,8 +80,8 @@ class BrokerClientFactoryTest {
             JolokiaBrokerClient client = factory.forNode(
                     SETTINGS, "http://127.0.0.1:" + server.getAddress().getPort() + "/console");
 
-            org.assertj.core.api.Assertions.assertThatThrownBy(
-                            () -> client.single(JolokiaRequest.search("org.apache.activemq.artemis:*")))
+            JolokiaRequest request = JolokiaRequest.search("org.apache.activemq.artemis:*");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.single(request))
                     .isInstanceOf(BrokerConnectionException.class)
                     .hasMessageContaining("redirected");
         } finally {
