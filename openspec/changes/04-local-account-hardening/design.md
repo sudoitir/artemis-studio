@@ -171,7 +171,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
   - The `public-url` setting's description warns that changing the host invalidates passkeys.
   - When `public-url` is unset, `GET /auth/mfa` reports `webauthn:{available:false, reason}`.
 - **Recovery codes:**
-  - 10 codes of 10 base32 characters, stored as SHA-256.
+  - 10 codes of 10 base32 characters, stored as an HMAC-SHA256, because 50 bits fall to an offline guess as a plain hash. The key is 32 random bytes made once (`local_recovery_key`), sealed by `SecretVault` and registered as a `SealedStore`, so a key rotation re-wraps it and never changes it (a key derived from a key-encryption key would change and orphan every hash).
   - **Issued at the first enrolment of any factor**, TOTP or passkey.
   - Input ignores case and dashes.
   - Use is atomic: `UPDATE … SET used_at=now() WHERE hash=:h AND used_at IS NULL`. Each use is audited `RECOVERY_CODE_USE`.

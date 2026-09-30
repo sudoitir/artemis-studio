@@ -26,7 +26,8 @@ CREATE TABLE local_totp_pending (
     CONSTRAINT fk_local_totp_pending_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
 );
 
--- Single-use recovery codes, kept as the SHA-256 of the code without dashes, upper-cased.
+-- Single-use recovery codes, kept as the HMAC-SHA256 of the code without dashes, upper-cased, under the
+-- installation's recovery-code key.
 CREATE TABLE local_recovery_code (
     used_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -35,4 +36,16 @@ CREATE TABLE local_recovery_code (
     CONSTRAINT pk_local_recovery_code PRIMARY KEY (user_id, code_hash),
     CONSTRAINT fk_local_recovery_code_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
 );
---rollback DROP TABLE local_recovery_code; DROP TABLE local_totp_pending; DROP TABLE local_totp;
+
+-- The HMAC key of the recovery codes: 32 random bytes made once and sealed by SecretVault under the AAD
+-- 'local_recovery_key'. It is a stored secret of its own rather than a key derived from a key-encryption
+-- key, so rotating or retiring a key version (ADR-0132) re-wraps it and never changes it, and every hash
+-- stays valid. A single row: the primary key is the constant true.
+CREATE TABLE local_recovery_key (
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    sealed bytea NOT NULL,
+    singleton boolean DEFAULT true NOT NULL,
+    CONSTRAINT pk_local_recovery_key PRIMARY KEY (singleton),
+    CONSTRAINT ck_local_recovery_key_single CHECK (singleton)
+);
+--rollback DROP TABLE local_recovery_key; DROP TABLE local_recovery_code; DROP TABLE local_totp_pending; DROP TABLE local_totp;

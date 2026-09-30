@@ -79,9 +79,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("local_totp", "configuration: one row per user with an authenticator app"),
             Map.entry("local_totp_pending", "current state: one row per user mid-enrolment, replaced on a retry"),
             Map.entry("local_recovery_code", "configuration: ten rows per user, replaced when regenerated"),
-            Map.entry("local_recovery_key", "a single row: the recovery codes' HMAC key"),
-            Map.entry("user_entities", "configuration: one row per user with a passkey"),
-            Map.entry("user_credentials", "configuration: one row per passkey"));
+            Map.entry("local_recovery_key", "a single row: the recovery codes' HMAC key"));
 
     @Autowired
     LifecycleRegistry registry;
