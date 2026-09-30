@@ -27,9 +27,9 @@
 - [x] 6.2 Security settings section: provider, versions, rows per version, last rotation, Rotate with step-up, polling while running, empty and error states; tests
 
 ## 7. Proof and docs (F)
-- [ ] 7.1 `SecretLeakTest`: plant known secrets across clusters, bridges, channels, plugin vault; assert absence from logs, audit rows, error bodies, export
-- [ ] 7.2 ADR-0132 (envelope, providers, rotation; supersedes ADR-0009's key handling) and ADR-0133 (redaction), mirrored to the site
-- [ ] 7.3 Docs: configuration guide (en, zh, fa) with providers, rotation and provider-switch procedure; dockerhub; compose files; module docs regenerated
+- [x] 7.1 `SecretLeakTest`: plant known secrets across clusters, bridges, channels, plugin vault; assert absence from logs, audit rows, error bodies, export
+- [x] 7.2 ADR-0132 (envelope, providers, rotation; supersedes ADR-0009's key handling) and ADR-0133 (redaction), mirrored to the site
+- [x] 7.3 Docs: configuration guide (en, zh, fa) with providers, rotation and provider-switch procedure; dockerhub; compose files; module docs regenerated
 
 ## 8. Finish
 - [ ] 8.1 Reviewer pass on the full diff; findings fixed

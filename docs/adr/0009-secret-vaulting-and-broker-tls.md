@@ -1,8 +1,12 @@
 # ADR-0009: Secret vaulting with JDK AES-GCM; broker TLS via SSL bundles
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0132](0132-envelope-encryption-key-providers-and-rotation.md)
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
+
+> **Superseded.** [ADR-0132](0132-envelope-encryption-key-providers-and-rotation.md) replaces
+> the single key from `ARTEMIS_STUDIO_SECRET_KEY` with envelope encryption, key providers and
+> online rotation. The broker TLS decision below (Spring Boot SSL bundles) still stands.
 
 ## Context
 

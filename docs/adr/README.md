@@ -18,7 +18,7 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0006](0006-metrics-in-postgres.md) | Own the metrics timeseries in PostgreSQL |
 | [0007](0007-packaging-single-image-compose-first.md) | One container image, Docker Compose first |
 | [0008](0008-schema-migrations-liquibase.md) | Liquibase migrations; schema physical tuning |
-| [0009](0009-secret-vaulting-and-broker-tls.md) | Secret vaulting with JDK AES-GCM; broker TLS via SSL bundles |
+| [0009](0009-secret-vaulting-and-broker-tls.md) | ~~Secret vaulting with JDK AES-GCM~~ — superseded by 0132; broker TLS via SSL bundles still stands |
 | [0010](0010-jolokia-over-restclient.md) | Jolokia over a blocking `RestClient`; `spring-boot-starter-webflux` removed |
 | [0011](0011-jdbcclient-over-spring-data-jdbc.md) | Persistence via JPA (Hibernate) mapped to the Liquibase-owned schema |
 | [0012](0012-corroborated-split-brain.md) | Split-brain detection requires corroborated evidence (amends 0002) |
@@ -137,3 +137,5 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0129](0129-releases-tag-the-merge-commit-and-commit-nothing.md) | A release tags the merge commit and pushes only the tag; its notes are the GitHub release body, the site fetches them for releases after 2026.09.60, and the release deploy key is removed (supersedes 0051's per-release file, 0126 D5) |
 | [0130](0130-permission-reach-is-declared-and-declarations-are-checked-at-runtime.md) | One permission catalogue (`FeatureRegistry.catalogue()`, built-ins then active plugins) for every reader; a permission declares `globalOnly`; a runtime `permissions` health check compares guards and plugin manifests with the catalogue and reports, never blocks |
 | [0131](0131-web-code-is-formatted-by-prettier.md) | Everything under `web/` is formatted by Prettier 3 (120 columns, single quotes, trailing commas), checked in the frontend CI job and applied by `just fmt`; the one-time reformat is in `.git-blame-ignore-revs` |
+| [0132](0132-envelope-encryption-key-providers-and-rotation.md) | Every stored secret is sealed under its own data key, wrapped by a versioned key-encryption key from one provider (env, file, Vault, Kubernetes); the current version is stored and changed by an online, resumable, audited rotation (supersedes 0009's key handling) |
+| [0133](0133-credentials-are-redacted-at-the-choke-points.md) | One `SecretRedactor` masks credential-like values in logs, audit parameters, error details and the broker.xml export; a leak test with planted secrets is the proof (extends 0092) |

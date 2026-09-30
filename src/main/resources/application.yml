@@ -141,8 +141,9 @@ management:
 # start, on purpose: an absent row means "use the packaged default", so an
 # upgrade ships a new default instead of being pinned by a row written once.
 artemis-studio:
-  # base64 of 32 bytes; encrypts stored broker credentials (ADR-0009).
-  # The app fails to start if this is missing or the wrong length.
+  # The env key provider (ADR-0132): base64 of 32 bytes (version 1), or `1=<b64>,2=<b64>`
+  # for key rotation. Protects every stored secret. The app fails to start if this is
+  # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
   secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
   scrape:
     # Tiered polling cadence (ADR-0015).

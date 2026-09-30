@@ -122,8 +122,9 @@ services:
       ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/artemis_studio
       ARTEMIS_STUDIO_DB_USER: artemis_studio
       ARTEMIS_STUDIO_DB_PASSWORD: artemis_studio
-      # Encrypts stored broker credentials (ADR-0009). Must be base64 of exactly
-      # 32 bytes or the app refuses to start. DEV ONLY — for prod run
+      # Protects every stored secret (ADR-0132). Base64 of exactly 32 bytes (one
+      # key, version 1) or `1=<b64>,2=<b64>` (several versions, for key rotation);
+      # the app refuses to start otherwise. DEV ONLY — for prod run
       # `openssl rand -base64 32` and keep it out of source control.
       ARTEMIS_STUDIO_SECRET_KEY: "YXJ0ZW1pcy1zdHVkaW8tZGV2LWluc2VjdXJlLWtleS0="
       # The dev brokers' users hold only the default `amq` role. Studio warns about it;
