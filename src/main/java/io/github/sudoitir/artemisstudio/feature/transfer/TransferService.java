@@ -307,21 +307,25 @@ public class TransferService {
                     null));
         }
         if (mode == TransferMode.COPY || !sameNode) {
-            for (ClusterNode node : sameNode ? List.of(source) : List.of(source, target)) {
-                if (node.getCoreUrl() == null) {
-                    out.add(new Finding(
-                            FindingKind.REFUSE,
-                            node == source ? "source-no-core" : "target-no-core",
-                            "Node %s has no Core connection, which a transfer relays messages over."
-                                    .formatted(node.getName()),
-                            BrokerXmlSnippets.CORE_ACCEPTOR));
-                }
-            }
+            coreFindings(sameNode ? List.of(source) : List.of(source, target), source, out);
         }
         if (mode == TransferMode.MOVE) {
             moveFindings(clusterId, sameNode, out);
         }
         return out;
+    }
+
+    private static void coreFindings(List<ClusterNode> nodes, ClusterNode source, List<Finding> out) {
+        for (ClusterNode node : nodes) {
+            if (node.getCoreUrl() == null) {
+                out.add(new Finding(
+                        FindingKind.REFUSE,
+                        node == source ? "source-no-core" : "target-no-core",
+                        "Node %s has no Core connection, which a transfer relays messages over."
+                                .formatted(node.getName()),
+                        BrokerXmlSnippets.CORE_ACCEPTOR));
+            }
+        }
     }
 
     private void moveFindings(UUID clusterId, boolean sameNode, List<Finding> out) {
