@@ -187,7 +187,7 @@ artemis-studio:
   # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
   secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
   # The address people open Studio at, e.g. https://studio.example.com. Alert notifications link back
-  # to it, and it is the relying party of passkeys (ADR-0146): with it blank passkeys are unavailable,
+  # to it, and it is the relying party of passkeys (ADR-0143): with it blank passkeys are unavailable,
   # and changing its host strands the passkeys enrolled under the old one. Blank: not set.
   public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
   scrape:

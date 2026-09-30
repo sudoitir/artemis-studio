@@ -101,7 +101,7 @@ arrive.
   `feature`. Relay spans cover opening a session and committing a batch (`relay.open`, `relay.commit`); Core spans
   cover `sample`, `browse`, `send` and `borrow`. There is no receive span: Studio's transport reads with a browser.
 - `JobStatuses` and `BrokerClientFactory` are `@PluginApi` and now take the `ObservationRegistry` in their constructors
-  (`JobStatuses` no longer takes a `MeterRegistry`). japicmp flags it, so `Contract.VERSION` is 7, mirrored in the web
+  (`JobStatuses` is now `(LockingTaskExecutor, ObservationRegistry, MeterRegistry)`). japicmp flags it, so `Contract.VERSION` is 7, mirrored in the web
   `CONTRACT` and the plugin template's `studio.contract`.
 
 ### D5. Metric names and the `node` tag
