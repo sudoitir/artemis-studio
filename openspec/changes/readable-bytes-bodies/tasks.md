@@ -21,8 +21,8 @@
 ## 4. Frontend body views
 
 - [x] 4.1 Regenerate `web/src/kernel/api/schema.d.ts`
-- [ ] 4.2 `payload.ts` compression label (+ `payload.test.ts`)
-- [ ] 4.3 `JsonTree.tsx` (Mantine `Tree`, ctx7 for the API) + Tree option in `MessageDetailPanel`; tests: collapse/expand, search, copy path, keys rendered as text, no copy for dotted keys
+- [x] 4.2 `payload.ts` compression label (+ `payload.test.ts`)
+- [x] 4.3 `JsonTree.tsx` (Mantine `Tree`, ctx7 for the API) + Tree option in `MessageDetailPanel`; tests: collapse/expand, search, copy path, keys rendered as text, no copy for dotted keys
 
 ## 5. Remove → Settings
 

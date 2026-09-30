@@ -23,6 +23,8 @@ export interface PayloadInput {
   contentType?: string | null;
   bodyTruncated: boolean;
   stringProperties?: Record<string, string> | null;
+  /** `gzip` or `deflate` when the broker held the text body compressed. */
+  bodyCompression?: string | null;
 }
 
 export interface DetectedPayload {
@@ -292,10 +294,23 @@ export function detectPayload(input: PayloadInput): DetectedPayload {
   const isBase64 = input.bodyEncoding === 'BASE64';
   const sizeBytes = isBase64 ? base64SizeBytes(body) : new Blob([body]).size;
 
-  return (
+  const detected =
     fromDeclaredType(input, body, isBase64, sizeBytes) ??
-    (isBase64 ? fromBase64Prefix(body, sizeBytes) : fromTextProbe(input, body, sizeBytes))
-  );
+    (isBase64 ? fromBase64Prefix(body, sizeBytes) : fromTextProbe(input, body, sizeBytes));
+  return input.bodyCompression && !isBase64
+    ? { ...detected, label: `${detected.label} · ${input.bodyCompression}` }
+    : detected;
+}
+
+/**
+ * The SQL console's path for a field of a JSON body, `body->>'a.b.0'`, or null when a key cannot be written
+ * in that form: the console splits the path on dots and does not unescape quotes.
+ */
+export function sqlBodyPath(segments: ReadonlyArray<string | number>): string | null {
+  if (segments.length === 0) return null;
+  const keys = segments.map(String);
+  if (keys.some((k) => k === '' || k.includes('.') || k.includes("'"))) return null;
+  return `body->>'${keys.join('.')}'`;
 }
 
 /**
@@ -324,9 +339,10 @@ function fromDeclaredType(
     );
   }
 
-  if (declaredFormat && declaredFormat !== 'text') {
+  // A declared container only describes bytes: a text body was already unwrapped from it by the server.
+  if (declaredFormat && declaredFormat !== 'text' && isBase64) {
     // A declared binary container: report it, and dump bytes rather than decode text.
-    const bytes = isBase64 ? decodeBase64(body, DETECT_PREFIX_BYTES) : null;
+    const bytes = decodeBase64(body, DETECT_PREFIX_BYTES);
     return {
       format: declaredFormat,
       label: labelFor(declaredFormat),

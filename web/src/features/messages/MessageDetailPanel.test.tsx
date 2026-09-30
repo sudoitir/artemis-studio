@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { MessageDetailPanel } from './MessageDetailPanel.tsx';
+import * as downloads from '../../ui/download.ts';
 
 function detail(over: Record<string, unknown> = {}) {
   return {
@@ -119,5 +121,78 @@ describe('MessageDetailPanel', () => {
 
     expect(await screen.findByText('String properties')).toBeInTheDocument();
     expect(screen.queryByText('This message is truncated')).not.toBeInTheDocument();
+  });
+
+  it('shows JSON a producer sent as bytes as JSON, without saying anything about bytes', async () => {
+    mockDetail(detail({ type: 4, body: '{"status":"FAILED"}', bodyCompression: 'gzip', transport: 'CORE' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByText('JSON · gzip')).toBeInTheDocument();
+    expect(screen.getByText('bytes')).toBeInTheDocument();
+    expect(screen.queryByText(/decod|Shown as bytes|Core client returned/i)).not.toBeInTheDocument();
+  });
+
+  it('browses a JSON body as a tree and copies a field path for the SQL console', async () => {
+    const user = userEvent.setup();
+    mockDetail(detail({ body: '{"order":{"id":4471,"lines":[{"sku":"acme-1"}]},"status":"FAILED"}' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    await user.click(await screen.findByRole('radio', { name: 'Tree' }));
+    const tree = screen.getByRole('tree', { name: 'Message body' });
+    expect(within(tree).getByText('{2}')).toBeInTheDocument();
+    expect(within(tree).queryByText('id')).not.toBeInTheDocument();
+
+    await user.click(within(tree).getByText('order'));
+    expect(within(tree).getByText('id')).toBeInTheDocument();
+
+    await user.click(within(tree).getByText('id'));
+    expect(screen.getByText("body->>'order.id'")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy path' })).toBeInTheDocument();
+  });
+
+  it('filters the tree by key or value and opens the path to each match', async () => {
+    const user = userEvent.setup();
+    mockDetail(detail({ body: '{"order":{"lines":[{"sku":"acme-1"}]},"status":"FAILED"}' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    await user.click(await screen.findByRole('radio', { name: 'Tree' }));
+    await user.type(screen.getByLabelText('Filter keys and values'), 'acme');
+
+    const tree = screen.getByRole('tree', { name: 'Message body' });
+    expect(within(tree).getByText('"acme-1"')).toBeInTheDocument();
+    expect(within(tree).queryByText('status')).not.toBeInTheDocument();
+  });
+
+  it('renders keys and values as text, never as markup', async () => {
+    const user = userEvent.setup();
+    mockDetail(detail({ body: '{"<img src=x onerror=alert(1)>":"<b>bold</b>"}' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    await user.click(await screen.findByRole('radio', { name: 'Tree' }));
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
+    expect(screen.getByText('"<b>bold</b>"')).toBeInTheDocument();
+    expect(document.querySelector('img[src="x"]')).toBeNull();
+  });
+
+  it('offers no tree for a body that is not JSON', async () => {
+    mockDetail(detail({ body: '<a><b/></a>' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByRole('radio', { name: 'Formatted' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Tree' })).not.toBeInTheDocument();
+  });
+
+  it('downloads a binary body as its bytes, not as base64', async () => {
+    const user = userEvent.setup();
+    const spy = vi.spyOn(downloads, 'download').mockImplementation(() => {});
+    mockDetail(detail({ transport: 'CORE', bodyEncoding: 'BASE64', body: 'AQIDBA==' }));
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Download' }));
+
+    const [name, blob] = spy.mock.calls[0];
+    expect(name).toBe('message-146.bin');
+    expect(new Uint8Array(await (blob as Blob).arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));
+    spy.mockRestore();
   });
 });

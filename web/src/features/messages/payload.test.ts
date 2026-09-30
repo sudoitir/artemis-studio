@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectPayload,
   messageTypeName,
+  sqlBodyPath,
   unavailableMessage,
   HIGHLIGHT_MAX_BYTES,
   PRETTY_MAX_BYTES,
@@ -16,6 +17,7 @@ function input(over: Partial<PayloadInput>): PayloadInput {
     contentType: over.contentType ?? null,
     bodyTruncated: over.bodyTruncated ?? false,
     stringProperties: over.stringProperties ?? null,
+    bodyCompression: over.bodyCompression ?? null,
   };
 }
 
@@ -182,5 +184,38 @@ describe('message type names', () => {
 
   it('shows an unknown code rather than hiding it', () => {
     expect(messageTypeName(99)).toBe('type 99');
+  });
+});
+
+describe('text the broker held compressed', () => {
+  it('names the compression next to the format', () => {
+    const d = detectPayload(input({ body: '{"a":1}', bodyCompression: 'gzip' }));
+    expect(d.format).toBe('json');
+    expect(d.label).toBe('JSON · gzip');
+    expect(d.formatted).toContain('"a": 1');
+  });
+
+  it('reads a text body as text even when the producer declared the container', () => {
+    const d = detectPayload(input({ body: '{"a":1}', contentType: 'application/gzip', bodyCompression: 'gzip' }));
+    expect(d.format).toBe('json');
+    expect(d.bytes).toBeNull();
+  });
+
+  it('still names a binary body by its container', () => {
+    const d = detectPayload(input({ body: b64([0x1f, 0x8b, 8, 0]), bodyEncoding: 'BASE64' }));
+    expect(d.label).toBe('binary · gzip');
+  });
+});
+
+describe('sqlBodyPath', () => {
+  it('joins keys and array indexes with dots', () => {
+    expect(sqlBodyPath(['order', 'lines', 0, 'sku'])).toBe("body->>'order.lines.0.sku'");
+  });
+
+  it('refuses a key the console cannot name', () => {
+    expect(sqlBodyPath(['a.b'])).toBeNull();
+    expect(sqlBodyPath(["o'brien"])).toBeNull();
+    expect(sqlBodyPath([''])).toBeNull();
+    expect(sqlBodyPath([])).toBeNull();
   });
 });
