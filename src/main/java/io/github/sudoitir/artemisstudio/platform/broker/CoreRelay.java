@@ -34,6 +34,7 @@ import org.springframework.stereotype.Component;
 public class CoreRelay {
 
     private final CoreConnectionFactory connectionFactory;
+    private final CoreObservations observations;
 
     private record Connection(ServerLocator locator, ClientSessionFactory factory) {
         boolean usable() {
@@ -53,6 +54,10 @@ public class CoreRelay {
 
     /** A new transacted session on the node's relay connection, opening that connection if needed. */
     public Session open(UUID clusterId, String url, CoreConnectionSettings settings) throws ActiveMQException {
+        return observations.observe("relay.open", url, () -> openSession(clusterId, url, settings));
+    }
+
+    private Session openSession(UUID clusterId, String url, CoreConnectionSettings settings) throws ActiveMQException {
         // Discovery stores a broker-advertised connector as a bare host:port, which the Core client
         // cannot dial ("Schema <host> not found"). Every relay call arrives here, so it is the one
         // place that has to say tcp://.
@@ -86,7 +91,7 @@ public class CoreRelay {
             }
             throw failure;
         }
-        return new Session(session);
+        return new Session(session, observations, url);
     }
 
     /** A node's Core endpoint, with the cluster's connection settings. */
@@ -172,8 +177,13 @@ public class CoreRelay {
         private final ClientSession clientSession;
         private ClientProducer producer;
 
-        Session(ClientSession clientSession) {
+        private final CoreObservations observations;
+        private final String url;
+
+        Session(ClientSession clientSession, CoreObservations observations, String url) {
             this.clientSession = clientSession;
+            this.observations = observations;
+            this.url = url;
         }
 
         /** A destructive consumer; each message it gives is acknowledged by {@link #acknowledge} and {@link #commit}. */
@@ -212,7 +222,7 @@ public class CoreRelay {
          * again one message per transaction, where a refusal means only that message already arrived.
          */
         public void commit() throws ActiveMQException {
-            clientSession.commit();
+            observations.run("relay.commit", url, clientSession::commit);
         }
 
         public void rollback() throws ActiveMQException {

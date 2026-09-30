@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
@@ -33,7 +32,7 @@ class JobSchedulerIntegrationTest extends PostgresIntegrationTest {
     LockingTaskExecutor jobLockExecutor;
 
     private JobStatuses instance() {
-        return new JobStatuses(new SimpleMeterRegistry(), jobLockExecutor);
+        return new JobStatuses(jobLockExecutor, io.micrometer.observation.ObservationRegistry.NOOP);
     }
 
     private LockingTaskExecutor otherProcess() {

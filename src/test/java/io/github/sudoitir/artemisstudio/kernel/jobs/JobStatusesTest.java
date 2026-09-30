@@ -18,8 +18,16 @@ class JobStatusesTest {
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final AtomicBoolean heldElsewhere = new AtomicBoolean();
     private final JobStatuses statuses = new JobStatuses(
-            meters,
-            new DefaultLockingTaskExecutor(config -> heldElsewhere.get() ? Optional.empty() : Optional.of(() -> {})));
+            new DefaultLockingTaskExecutor(config -> heldElsewhere.get() ? Optional.empty() : Optional.of(() -> {})),
+            observationsInto(meters));
+
+    private static io.micrometer.observation.ObservationRegistry observationsInto(SimpleMeterRegistry meters) {
+        io.micrometer.observation.ObservationRegistry registry = io.micrometer.observation.ObservationRegistry.create();
+        registry.observationConfig()
+                .observationHandler(
+                        new io.micrometer.core.instrument.observation.DefaultMeterObservationHandler(meters));
+        return registry;
+    }
 
     @Test
     void anInstallationWideJobRunsOnlyWhileItHoldsItsLock() {
@@ -110,10 +118,10 @@ class JobStatusesTest {
         assertThat(failed.failures()).isEqualTo(1);
         assertThat(failed.lastError()).isEqualTo("boom");
 
-        assertThat(meters.find("studio.job")
-                        .tags("job", "demo", "feature", "rr")
-                        .timer()
-                        .count())
+        // The observation adds an `error` tag, so a failed run lands on its own timer beside the passing ones.
+        assertThat(meters.find("studio.job").tags("job", "demo", "feature", "rr").timers().stream()
+                        .mapToLong(io.micrometer.core.instrument.Timer::count)
+                        .sum())
                 .isEqualTo(2);
     }
 

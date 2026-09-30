@@ -22,14 +22,15 @@ formatted message itself.
 - **Micrometer `Observation` is Studio's only instrumentation API.** The HTTP server, the Jolokia
   `RestClient`s, the Core transport choke points, scheduled job runs and JDBC
   (`datasource-micrometer`) each produce observations. One call site yields both a metric and a span.
-- **Export is off by default and has one switch:**
-  - `STUDIO_OTLP_ENABLED` turns on metrics, trace and log export together, and
-    `STUDIO_OTLP_ENDPOINT` names the collector.
+- **Export is off by default and uses the standard OTEL_* variables:**
+  - Boot 4.1 maps them onto its own properties. `OTEL_EXPORTER_OTLP_ENDPOINT` names the collector, and
+    `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` set to `otlp` turn the three
+    signals on. Headers, sampler and resource attributes come along.
   - Tracing runs even when export is off, so JSON logs still carry trace ids.
   - Sampling defaults to 1.0.
 - **Redaction happens again at export, with the same `SecretRedactor`:**
   - An `ObservationFilter` covers span and metric key-values and error messages.
-  - A `LogRecordProcessor` covers OpenTelemetry log bodies, attributes and exceptions.
+  - Wrappers around every span and log exporter cover OpenTelemetry log bodies, span and log attributes, and exceptions.
   - Payloads, message headers, management arguments and JDBC parameter values are never recorded.
 - **A broker node is identified in telemetry by `host:port`, never by its URL**, because the URL
   can carry `user:password@`.
@@ -50,5 +51,4 @@ formatted message itself.
   redaction choke points.
 - **The raw OpenTelemetry API for Studio's own spans.** That would give two instrumentation styles
   and metrics kept separately from spans.
-- **An `EnvironmentPostProcessor` deriving the export properties from one endpoint.** It is code
-  for what property placeholders already do.
+- **Custom `STUDIO_OTLP_*` variables.** They are non-standard, and Boot 4.1 already maps `OTEL_*`.

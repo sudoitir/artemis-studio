@@ -29,7 +29,8 @@ class BrokerClientFactoryTest {
             new ClockOffsetRegistry(Clock.systemUTC()),
             new NodeCallHealth(),
             new NodeCallLimiter(
-                    new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+                    new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
+            io.micrometer.observation.ObservationRegistry.NOOP);
 
     @org.junit.jupiter.api.AfterEach
     void tearDown() {

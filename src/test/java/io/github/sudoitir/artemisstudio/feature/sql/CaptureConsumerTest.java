@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionSettings;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreObservations;
 import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import jakarta.jms.Connection;
@@ -54,7 +55,7 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
     @BeforeEach
     void setUp() {
         BrokerProperties properties = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
-        pool = new CorePool(new CoreConnectionFactory(properties, mock(SslBundles.class)));
+        pool = new CorePool(new CoreConnectionFactory(properties, mock(SslBundles.class)), CoreObservations.none());
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))
                 .thenReturn(new CoreConnectionSettings(clusterId, BROKER_USER, BROKER_PASSWORD, null, true));

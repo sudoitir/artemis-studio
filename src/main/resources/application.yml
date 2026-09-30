@@ -146,6 +146,28 @@ management:
     build:
       enabled: true
 
+  # OTLP export of metrics, traces and logs (ADR-0146). Off by default: Studio sends nothing until the
+  # standard OpenTelemetry variables switch it on, which Boot maps onto the properties below
+  # (OpenTelemetryEnvironmentVariableEnvironmentPostProcessor): OTEL_EXPORTER_OTLP_ENDPOINT for the collector,
+  # and OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER and OTEL_LOGS_EXPORTER set to otlp for the three signals,
+  # plus OTEL_EXPORTER_OTLP_HEADERS, OTEL_TRACES_SAMPLER and the rest. Tracing itself stays on, so trace ids
+  # reach the log lines either way.
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  logging:
+    export:
+      otlp:
+        enabled: false
+  tracing:
+    export:
+      otlp:
+        enabled: false
+    # A low-traffic admin tool: keep every trace, so the one slow request is there to find.
+    sampling:
+      probability: 1.0
+
 # Application configuration, bound by ArtemisStudioProperties.
 #
 # These are DEFAULTS. Most of this tree is overridable at runtime from Settings
@@ -160,7 +182,7 @@ artemis-studio:
   # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
   secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
   # The address people open Studio at, e.g. https://studio.example.com. Alert notifications link back
-  # to it, and it is the relying party of passkeys (ADR-0143): with it blank passkeys are unavailable,
+  # to it, and it is the relying party of passkeys (ADR-0146): with it blank passkeys are unavailable,
   # and changing its host strands the passkeys enrolled under the old one. Blank: not set.
   public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
   scrape:

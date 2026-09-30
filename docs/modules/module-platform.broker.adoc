@@ -30,6 +30,7 @@ _Others_
 * `i.g.s.a.p.b.ClockOffsetRegistry`
 * `i.g.s.a.p.b.CoreConnectionFactory`
 * `i.g.s.a.p.b.MessageTransport` (via `i.g.s.a.p.b.CoreMessageTransport`)
+* `i.g.s.a.p.b.CoreObservations`
 * `i.g.s.a.p.b.CorePool`
 * `i.g.s.a.p.b.CoreSubscriptionCheck`
 * `i.g.s.a.p.b.CoreSubscriptionManager`

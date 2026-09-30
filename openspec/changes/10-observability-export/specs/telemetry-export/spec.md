@@ -2,8 +2,9 @@
 
 ### Requirement: OTLP export is configurable and off by default
 
-The system SHALL export metrics, traces and logs over OTLP only when export is switched on. One
-switch and one endpoint SHALL enable all three signals. By default, the system SHALL send nothing.
+The system SHALL export metrics, traces and logs over OTLP only when export is switched on. Export
+SHALL be configured with the standard OpenTelemetry SDK environment variables for endpoint,
+exporters, headers and sampling. By default, the system SHALL send nothing.
 
 #### Scenario: Default
 
@@ -12,7 +13,7 @@ switch and one endpoint SHALL enable all three signals. By default, the system S
 
 #### Scenario: Configured
 
-- **WHEN** export is switched on with an endpoint
+- **WHEN** an endpoint is configured and the three exporters are switched on
 - **THEN** metrics, traces and logs all arrive at that endpoint
 
 ### Requirement: A trace follows a request across boundaries

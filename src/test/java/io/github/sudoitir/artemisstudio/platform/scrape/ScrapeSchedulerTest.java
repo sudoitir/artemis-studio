@@ -23,7 +23,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -100,9 +99,9 @@ class ScrapeSchedulerTest {
                 coreSubscriptions,
                 eventPublisher,
                 new JobStatuses(
-                        new SimpleMeterRegistry(),
                         new net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor(
-                                config -> java.util.Optional.of(() -> {}))));
+                                config -> java.util.Optional.of(() -> {})),
+                        io.micrometer.observation.ObservationRegistry.NOOP));
     }
 
     private JolokiaBrokerClient client(String... fixtures) {
