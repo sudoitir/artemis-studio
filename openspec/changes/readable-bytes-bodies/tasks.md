@@ -26,8 +26,8 @@
 
 ## 5. Remove → Settings
 
-- [ ] 5.1 `RemoveClusterSection.tsx` + contribution in `features/clusters/feature.ts`; delete from `ClusterHeader.tsx` and `AddManagementUrl.tsx`; update the `RegisterSection` hint
-- [ ] 5.2 Tests: typed confirm arms the button, failure shows cause, success navigates away, keyboard-only pass, header has no Remove
+- [x] 5.1 `RemoveClusterSection.tsx` + contribution in `features/clusters/feature.ts`; delete from `ClusterHeader.tsx` and `AddManagementUrl.tsx`; update the `RegisterSection` hint
+- [x] 5.2 Tests: typed confirm arms the button, failure shows cause, success navigates away, keyboard-only pass, header has no Remove
 
 ## 6. Decision record and verification
 

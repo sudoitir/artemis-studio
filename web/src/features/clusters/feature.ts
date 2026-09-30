@@ -7,6 +7,7 @@ import { keys } from './api.ts';
 import { ClusterHeader } from './ClusterHeader.tsx';
 import { ClusterHome } from './ClusterHome.tsx';
 import { ClusterPalette } from './ClusterPalette.tsx';
+import { RemoveClusterSection } from './RemoveClusterSection.tsx';
 import { ClusterRail } from './ClusterRail.tsx';
 import { CapabilitiesSection, CredentialsSection, RegisterSection } from './ClusterSettings.tsx';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
@@ -63,6 +64,14 @@ export const clustersFeature = defineFeature({
         group: 'cluster',
         title: 'Connection capabilities',
         Component: CapabilitiesSection,
+      },
+      // Last in the cluster's group, whatever other features contribute to it.
+      {
+        id: 'clusters-remove',
+        order: 1000,
+        group: 'cluster',
+        title: 'Remove cluster',
+        Component: RemoveClusterSection,
       },
     ],
     'admin.tabs': [{ id: 'environments', order: 30, title: 'Environments', Component: EnvironmentsPanel }],

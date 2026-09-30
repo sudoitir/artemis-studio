@@ -1,9 +1,7 @@
-import { useState } from 'react';
-import { Alert, Button, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Alert, Group, Loader, Stack, Text, Title } from '@mantine/core';
 
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
-import { RemoveCluster } from './AddManagementUrl.tsx';
 import { useCluster, type CapabilitiesView } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import styles from './ClusterHeader.module.css';
@@ -24,7 +22,6 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   const { data, isPending, isError, error } = useCluster(clusterId);
   // The cluster's name, for the shell's title and breadcrumb (ADR-0109).
   useTitlePart('cluster', data?.name);
-  const [removing, setRemoving] = useState(false);
 
   const caps = data?.capabilities;
   // Nag only on a real, actionable gap. UNKNOWN is not one: since ADR-0049 D5
@@ -66,9 +63,6 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
             {meta}
           </Text>
         </div>
-        <Button variant="default" size="xs" color="red" onClick={() => setRemoving(true)}>
-          Remove
-        </Button>
       </Group>
 
       {data.health.level !== 'OK' && data.health.notes.length > 0 ? (
@@ -106,14 +100,6 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
           </Stack>
         </Alert>
       ) : null}
-
-      <RemoveCluster
-        clusterId={clusterId}
-        clusterName={data.name}
-        opened={removing}
-        onClose={() => setRemoving(false)}
-        onRemoved={() => globalThis.history.back()}
-      />
     </>
   );
 }
