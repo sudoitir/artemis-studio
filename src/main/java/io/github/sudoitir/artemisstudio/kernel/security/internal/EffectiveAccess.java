@@ -79,6 +79,14 @@ public class EffectiveAccess {
         return result;
     }
 
+    /** Why the action cannot be exercised at this scope; null when it can. */
+    private static String refusal(CatalogueEntry entry, Grant.ScopeType scope) {
+        if (entry == null) {
+            return NOT_CATALOGUED;
+        }
+        return entry.globalOnly() && scope != Grant.ScopeType.GLOBAL ? GLOBAL_ONLY : null;
+    }
+
     private static EffectivePermissionView view(
             String action,
             CatalogueEntry entry,
@@ -86,9 +94,7 @@ public class EffectiveAccess {
             UserRoleEntity row,
             RoleEntity role,
             String via) {
-        String reason = entry == null
-                ? NOT_CATALOGUED
-                : entry.globalOnly() && scope != Grant.ScopeType.GLOBAL ? GLOBAL_ONLY : null;
+        String reason = refusal(entry, scope);
         return new EffectivePermissionView(
                 action,
                 entry == null ? null : entry.description(),

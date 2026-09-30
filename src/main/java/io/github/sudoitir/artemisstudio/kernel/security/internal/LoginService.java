@@ -30,6 +30,8 @@ public class LoginService {
 
     public static final String DEFAULT_PROVIDER = "local";
 
+    private static final String INVALID_CREDENTIALS = "invalid credentials";
+
     private final List<IdentityProviders> contributions;
     private final LoginAttemptLimiter limiter;
     private final SessionAuthentication sessions;
@@ -53,12 +55,12 @@ public class LoginService {
             principal = credentialProvider(providerId).flatMap(p -> p.authenticate(username, password));
         } catch (DisabledException e) {
             limiter.recordFailure(username, sourceIp);
-            attempt.failed("invalid credentials");
+            attempt.failed(INVALID_CREDENTIALS);
             throw e;
         }
         if (principal.isEmpty()) {
             limiter.recordFailure(username, sourceIp);
-            attempt.failed("invalid credentials");
+            attempt.failed(INVALID_CREDENTIALS);
             throw new BadCredentialsException("Invalid username or password");
         }
         limiter.recordSuccess(username, sourceIp);
@@ -99,7 +101,7 @@ public class LoginService {
         }
         if (!same) {
             limiter.recordFailure(username, sourceIp);
-            attempt.failed("invalid credentials");
+            attempt.failed(INVALID_CREDENTIALS);
             if (limiter.isLocked(username, sourceIp)) {
                 sessions.end(request, response);
                 throw new BadCredentialsException("Too many failed attempts; the session was ended.");

@@ -70,12 +70,7 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
 
         @Bean
         IdentityProviders directories(IdentityProvisioner provisioner) {
-            return new IdentityProviders() {
-                @Override
-                public List<IdentityProvider> providers() {
-                    return List.of(new Directory("dir-a", provisioner), new Directory("dir-b", provisioner));
-                }
-            };
+            return () -> List.of(new Directory("dir-a", provisioner), new Directory("dir-b", provisioner));
         }
     }
 

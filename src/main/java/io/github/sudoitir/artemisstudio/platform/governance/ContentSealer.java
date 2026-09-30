@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.governance;
 
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,7 +20,26 @@ import tools.jackson.databind.ObjectMapper;
 public class ContentSealer {
 
     /** Ciphertext with its GCM tag, and the nonce it was produced with. */
-    public record SealedOriginals(byte[] ciphertext, byte[] nonce) {}
+    public record SealedOriginals(byte[] ciphertext, byte[] nonce) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof SealedOriginals(byte[] otherCiphertext, byte[] otherNonce)
+                    && Arrays.equals(ciphertext, otherCiphertext)
+                    && Arrays.equals(nonce, otherNonce);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Arrays.hashCode(ciphertext) + Arrays.hashCode(nonce);
+        }
+
+        /** Sizes only: the bytes are secret material and stay out of logs. */
+        @Override
+        public String toString() {
+            return "SealedOriginals[ciphertext=" + ciphertext.length + " bytes, nonce=" + nonce.length + " bytes]";
+        }
+    }
 
     private static final TypeReference<Map<String, String>> ORIGINALS = new TypeReference<>() {};
 

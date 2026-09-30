@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.UUID;
 import javax.crypto.Cipher;
@@ -57,7 +58,26 @@ public class SecretVault {
     }
 
     /** Ciphertext (with the GCM tag appended) plus the nonce used to produce it. */
-    public record Sealed(byte[] ciphertext, byte[] nonce) {}
+    public record Sealed(byte[] ciphertext, byte[] nonce) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Sealed(byte[] otherCiphertext, byte[] otherNonce)
+                    && Arrays.equals(ciphertext, otherCiphertext)
+                    && Arrays.equals(nonce, otherNonce);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Arrays.hashCode(ciphertext) + Arrays.hashCode(nonce);
+        }
+
+        /** Sizes only: the bytes are secret material and stay out of logs. */
+        @Override
+        public String toString() {
+            return "Sealed[ciphertext=" + ciphertext.length + " bytes, nonce=" + nonce.length + " bytes]";
+        }
+    }
 
     public Sealed encrypt(UUID clusterId, String kind, String plaintext) {
         return encrypt(aad(clusterId, kind), plaintext);

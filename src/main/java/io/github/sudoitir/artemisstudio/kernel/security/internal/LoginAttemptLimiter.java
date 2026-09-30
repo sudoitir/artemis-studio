@@ -32,7 +32,7 @@ public class LoginAttemptLimiter {
             Attempts a = existing == null ? new Attempts() : existing;
             a.failures++;
             if (a.failures >= LOCK_AFTER_FAILURES) {
-                long extra = a.failures - LOCK_AFTER_FAILURES;
+                long extra = (long) a.failures - LOCK_AFTER_FAILURES;
                 long seconds = Math.min(MAX_LOCKOUT_SECONDS, BASE_LOCKOUT_SECONDS << Math.min(extra, 10));
                 a.lockedUntil = Instant.now().plusSeconds(seconds);
             }
