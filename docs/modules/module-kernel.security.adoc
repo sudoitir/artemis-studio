@@ -13,11 +13,13 @@ _Configuration properties_
 
 _Others_
 
+* `i.g.s.a.k.s.AccountLockout`
 * `i.g.s.a.k.s.ActorResolver`
 * `i.g.s.a.k.s.ClusterAccessGuard`
 * `i.g.s.a.k.s.GrantLoader`
 * `i.g.s.a.k.s.IdentityProvisioner`
 * `i.g.s.a.k.s.KeyProvider`
+* `i.g.s.a.k.s.LoginAttemptLimiter`
 * `i.g.s.a.k.s.OperatorHandoff`
 * `i.g.s.a.k.s.PermissionResolver`
 * `i.g.s.a.k.s.ScopedGrants`

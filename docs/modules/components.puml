@@ -17,10 +17,10 @@ top to bottom direction
 
 System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
   Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Settings, "Settings", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, "Data lifecycle", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, "Event stream", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "Broker connectivity", $techn="Module", $descr="", $tags="", $link="")
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, "Password login", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "Clusters", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Datagovernance, "Data governance", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.APItokens, "API tokens", $techn="Module", $descr="", $tags="", $link="")
@@ -48,7 +48,7 @@ System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication",
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Singlesignon, "Single sign-on", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "Audit log", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "Scheduled jobs", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, "Password login", $techn="Module", $descr="", $tags="", $link="")
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Settings, "Settings", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }
@@ -65,7 +65,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApp
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Core, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Alerting, ArtemisStudioApplication.ArtemisStudioApplication.Eventstream, "uses", $techn="", $tags="", $link="")
@@ -189,8 +189,10 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Metrics, ArtemisStudioAppl
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Metrics, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugins, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugins, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "uses", $techn="", $tags="", $link="")

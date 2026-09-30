@@ -17,6 +17,7 @@ top to bottom direction
 
 System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
   Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, "Data lifecycle", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, "Password login", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
@@ -30,8 +31,13 @@ System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication",
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Security, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Passwordlogin, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
