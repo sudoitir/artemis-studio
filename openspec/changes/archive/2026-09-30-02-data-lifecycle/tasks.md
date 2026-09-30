@@ -21,5 +21,5 @@
 - [x] 4.2 `web/src/features/data/`: Retention and Storage health tabs, policy editor with preview, empty and error states, vitest
 
 ## 5. Finish
-- [ ] 5.1 `just verify` and `-Papi-check` green; screenshots light and dark
-- [ ] 5.2 PR merged on green CI; change archived
+- [x] 5.1 `just verify` and `-Papi-check` green; screenshots light and dark
+- [x] 5.2 PR merged on green CI; change archived
