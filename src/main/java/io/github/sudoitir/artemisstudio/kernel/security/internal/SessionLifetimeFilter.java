@@ -15,7 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Ends a session that should no longer count as signed in, right after the security context is
  * loaded, so the request carries on as the anonymous caller and the chain answers {@code 401}
- * where authentication is required. The one place session lifetimes are enforced (ADR-0144): a
+ * where authentication is required. The one place session lifetimes are enforced (ADR-0145): a
  * session ends when it has no {@code SessionFacts} (what a session created before facts existed
  * looks like), when it is older than the absolute lifetime, or when the user has done nothing for
  * longer than the idle timeout.

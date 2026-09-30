@@ -1,4 +1,4 @@
-# ADR-0144: Session lifetimes and session management
+# ADR-0145: Session lifetimes and session management
 
 - **Status**: accepted
 - **Date**: 2026-09-30

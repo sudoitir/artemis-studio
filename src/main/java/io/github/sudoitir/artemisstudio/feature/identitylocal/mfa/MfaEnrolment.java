@@ -39,7 +39,7 @@ import org.springframework.web.util.UriUtils;
 
 /**
  * Enrolling the caller's second factors (an authenticator app, passkeys) and their recovery codes (identity-and-sessions spec,
- * ADR-0142). The first factor of an account is trust on first use: it needs no step-up, because the
+ * ADR-0143). The first factor of an account is trust on first use: it needs no step-up, because the
  * user has nothing to step up with, and the enrolment is audited with the source address. Adding or
  * replacing a factor when one exists needs a fresh step-up, which includes that factor.
  */

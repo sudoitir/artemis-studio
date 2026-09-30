@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** What a local password must satisfy (ADR-0143), and how long a trusted device stays trusted (ADR-0142). */
+/** What a local password must satisfy (ADR-0144), and how long a trusted device stays trusted (ADR-0143). */
 @Component
 @RequiredArgsConstructor
 public class IdentityLocalSettings implements SettingsContribution {

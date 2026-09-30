@@ -7,7 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * The idle and absolute session limits (ADR-0144). Declared by the security module's descriptor but
+ * The idle and absolute session limits (ADR-0145). Declared by the security module's descriptor but
  * defined here, because security cannot depend on settings. The values are pushed into volatile
  * fields, since every authenticated request reads them.
  */

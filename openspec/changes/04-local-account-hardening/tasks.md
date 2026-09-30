@@ -1,6 +1,6 @@
 ## 1. Design
 - [x] 1.1 Brainstorm and investigate; `/opsx:update` adds design.md, sharpens specs, replaces these tasks
-- [x] 1.2 ADR-0142 second factors, ADR-0143 password policy and sign-in limits, ADR-0144 session lifetimes
+- [x] 1.2 ADR-0143 second factors, ADR-0144 password policy and sign-in limits, ADR-0145 session lifetimes
 
 ## 2. Session state core
 - [x] 2.1 `SessionAuthentication.establish(principal, SessionFacts)`: explicit authenticatedAt, mfaVerifiedAt + method, signedInAt, client address, user agent; password change carries facts over; login clears context and `PENDING_*` first

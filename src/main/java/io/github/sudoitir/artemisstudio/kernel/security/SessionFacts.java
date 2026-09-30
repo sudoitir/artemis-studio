@@ -6,7 +6,7 @@ import java.time.Instant;
 
 /**
  * What a session knows about how its user got in, kept in the session for its whole life
- * (ADR-0142, ADR-0144). Every field but {@code signedInAt} may be null.
+ * (ADR-0143, ADR-0145). Every field but {@code signedInAt} may be null.
  *
  * @param authenticatedAt when the user last proved themselves in full, which is what step-up
  *     freshness measures; null means the session is not fresh and needs a step-up

@@ -23,7 +23,7 @@ import {
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
 import { SecondFactorEnrolment, type EnrolMethod } from './SecondFactorEnrolment.tsx';
 
-/** Recovery codes issued at a time (ADR-0142). */
+/** Recovery codes issued at a time (ADR-0143). */
 const CODES_ISSUED = 10;
 /** At or below this many, running out is close enough to say so. */
 const CODES_LOW = 3;
@@ -36,7 +36,7 @@ interface Outcome {
 const returnTo = () => `${window.location.pathname}${window.location.search}`;
 
 /**
- * Account section: the signed-in local user's second factors (ADR-0142) — the authenticator app, passkeys,
+ * Account section: the signed-in local user's second factors (ADR-0143) — the authenticator app, passkeys,
  * recovery codes and the browsers they chose to trust — and how to change each. Every change that needs a fresh
  * sign-in asks for it inline; every outcome is announced, and a failure says why and what to do.
  */

@@ -11,7 +11,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 /**
  * RFC 6238 time-based one-time passwords on the JDK's {@code Mac}: HMAC-SHA1, 6 digits, 30-second
- * steps, and one step of clock drift either way (ADR-0142). What authenticator apps implement by default.
+ * steps, and one step of clock drift either way (ADR-0143). What authenticator apps implement by default.
  */
 final class Totp {
 

@@ -9,7 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 
 /**
- * The cookie that marks a browser as a trusted device (ADR-0142): 32 random bytes, of which only the
+ * The cookie that marks a browser as a trusted device (ADR-0143): 32 random bytes, of which only the
  * hash is kept. HttpOnly, {@code SameSite=Strict} and limited to the sign-in endpoints, so the browser
  * sends it nowhere else. Like the session cookie it is {@code Secure} whenever the request came over
  * HTTPS as Tomcat resolves it (through the trusted proxies), so plain-HTTP local development works.

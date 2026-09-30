@@ -58,7 +58,7 @@ public class UserAccounts {
         return users.findById(userId).map(UserAccounts::account);
     }
 
-    /** Whether the user holds, at any scope, a role that requires a second factor (ADR-0142). */
+    /** Whether the user holds, at any scope, a role that requires a second factor (ADR-0143). */
     @Transactional(readOnly = true)
     public boolean holdsMfaRole(UUID userId) {
         return userRoles.findByIdUserId(userId).stream()

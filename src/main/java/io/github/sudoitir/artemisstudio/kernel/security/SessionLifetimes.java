@@ -3,7 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 import java.time.Duration;
 
 /**
- * How long a session may live (ADR-0144). The values are runtime settings, owned by the settings
+ * How long a session may live (ADR-0145). The values are runtime settings, owned by the settings
  * module, which implements this so security can read them without depending on it.
  */
 public interface SessionLifetimes {

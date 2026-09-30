@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *
  * @param publicUrl the address people open Studio at, e.g. {@code https://studio.example.com}
  *     ({@code ARTEMIS_STUDIO_PUBLIC_URL}). Alert notifications link back to it, and it is the
- *     relying party of passkeys (ADR-0142), which are tied to its host: changing the host strands
+ *     relying party of passkeys (ADR-0143), which are tied to its host: changing the host strands
  *     the passkeys enrolled under the old one. Blank means it is not set. A trailing slash is dropped.
  */
 @ConfigurationProperties(prefix = "artemis-studio")

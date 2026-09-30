@@ -106,7 +106,7 @@ server:
   # Tomcat's RemoteIpValve, not Spring's ForwardedHeaderFilter: only a peer matching
   # internal-proxies may set the client address (X-Forwarded-For) and scheme; the sign-in
   # throttle, the audit trail and session facts all use the resolved address, so a client
-  # that is not a trusted proxy cannot forge its way past the throttle (ADR-0143).
+  # that is not a trusted proxy cannot forge its way past the throttle (ADR-0144).
   forward-headers-strategy: native
   tomcat:
     remoteip:
@@ -160,7 +160,7 @@ artemis-studio:
   # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
   secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
   # The address people open Studio at, e.g. https://studio.example.com. Alert notifications link back
-  # to it, and it is the relying party of passkeys (ADR-0142): with it blank passkeys are unavailable,
+  # to it, and it is the relying party of passkeys (ADR-0143): with it blank passkeys are unavailable,
   # and changing its host strands the passkeys enrolled under the old one. Blank: not set.
   public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
   scrape:
@@ -248,7 +248,7 @@ artemis-studio:
     drift-interval: 5m
     apply-step-cap: 100
   identity-local:
-    # Local sign-in (ADR-0143). The minimum length is overridable at runtime in Settings.
+    # Local sign-in (ADR-0144). The minimum length is overridable at runtime in Settings.
     password-min-length: 12
   security:
     # Governance (Phase 8, ADR-0037, ADR-0040).

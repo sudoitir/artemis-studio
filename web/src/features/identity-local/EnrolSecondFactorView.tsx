@@ -7,7 +7,7 @@ import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
 import { SecondFactorEnrolment } from './SecondFactorEnrolment.tsx';
 
 /**
- * Where a session lands when its role requires a second factor and the account has none (ADR-0142): every
+ * Where a session lands when its role requires a second factor and the account has none (ADR-0143): every
  * other request is refused with `423` until one is enrolled. The recovery codes of the first factor are shown
  * once, and only after the person confirms they saved them does the console open.
  */

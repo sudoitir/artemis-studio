@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Enrolling second factors for the signed-in local account (identity-and-sessions spec, ADR-0142).
+ * Enrolling second factors for the signed-in local account (identity-and-sessions spec, ADR-0143).
  * A session restricted to enrolment may call exactly the endpoints its filter lets through.
  */
 @RestController

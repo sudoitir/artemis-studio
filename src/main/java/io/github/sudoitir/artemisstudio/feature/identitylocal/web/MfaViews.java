@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** The second-factor enrolment requests and views (identity-and-sessions spec, ADR-0142). */
+/** The second-factor enrolment requests and views (identity-and-sessions spec, ADR-0143). */
 public final class MfaViews {
 
     private MfaViews() {}

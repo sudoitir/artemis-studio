@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * Personal API tokens and second factors (ADR-0142, D7): a token is minted from a session, records
+ * Personal API tokens and second factors (ADR-0143, D7): a token is minted from a session, records
  * whether that session had verified a second factor, and stops authenticating when its owner comes to
  * require one it was minted without. Bearer streams end when their token stops being accepted.
  */

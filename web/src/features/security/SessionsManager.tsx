@@ -18,7 +18,7 @@ const describeSession = (s: AccountSessionView) =>
 
 /**
  * The signed-in sessions of the caller, or of the user `userId` names when an administrator looks
- * (ADR-0144), each ended with one action. The caller's own current session is marked in words and
+ * (ADR-0145), each ended with one action. The caller's own current session is marked in words and
  * ends by signing out, wherever it is listed. Every outcome is announced, and a failure says why and
  * what to do.
  */

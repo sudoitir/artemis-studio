@@ -18,7 +18,7 @@ import org.springframework.security.web.webauthn.management.WebAuthnRelyingParty
 import org.springframework.security.web.webauthn.management.Webauthn4JRelyingPartyOperations;
 
 /**
- * Passkeys through Spring Security's WebAuthn support (ADR-0142), called from Studio's own JSON
+ * Passkeys through Spring Security's WebAuthn support (ADR-0143), called from Studio's own JSON
  * endpoints rather than its filters, which assume a form or filter-driven login. The repositories
  * are always there, so an existing passkey can be listed and removed; the relying party exists only
  * once {@code artemis-studio.public-url} says where Studio is reached, because a passkey is bound to

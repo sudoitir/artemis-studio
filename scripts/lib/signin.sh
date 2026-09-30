@@ -1,6 +1,6 @@
 # Sign in to Studio over its API the way the scripts need to. Sourced, not run.
 #
-# The built-in ADMIN role requires a second factor (ADR-0142), so on a fresh stack a script has to change the
+# The built-in ADMIN role requires a second factor (ADR-0143), so on a fresh stack a script has to change the
 # one-time password, enrol an authenticator app and confirm it before it can do anything; on every later run
 # it signs in with the password and a code computed from ADMIN_TOTP_SECRET, the secret the first run printed.
 #

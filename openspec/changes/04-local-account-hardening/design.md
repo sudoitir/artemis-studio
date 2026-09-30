@@ -16,12 +16,12 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - Non-goals: SAML, LDAP, SCIM; changing SSO logins; risk-based authentication; MFA challenges on bearer tokens (D7).
 
 ## Risks / Trade-offs
-- Trust on first use for enrolment (D8): a password thief who signs in before the owner enrols can enrol their own factor. Mitigated by audit with address; accepted in ADR-0142.
+- Trust on first use for enrolment (D8): a password thief who signs in before the owner enrols can enrol their own factor. Mitigated by audit with address; accepted in ADR-0143.
 - Account lockout is a denial-of-service lever; a trusted device bypasses the lock and admins can unlock; break-glass covers the last admin.
 - Changing `public-url`'s host invalidates passkeys; recovery codes are always issued and the setting warns.
 - The offline breached list is the top 100k only; the optional online lookup covers the long tail for installations that allow outbound calls.
 - The per-IP limit behind a shared NAT can slow legitimate users; limits are generous and only count failures.
-- Known accounts do one extra DB write on failure; the small timing difference is accepted (ADR-0143).
+- Known accounts do one extra DB write on failure; the small timing difference is accepted (ADR-0144).
 
 ## ADRs
 - 0142 Second factors for local accounts
@@ -38,7 +38,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 | D5 | **Trust this device**: skips the second factor at sign-in for a period the **admin** sets. `0` turns it off. | user |
 | D6 | TOTP is RFC 6238 on the JDK `Mac`, tested against the RFC vectors, because there is no maintained Java TOTP library worth the dependency. WebAuthn uses Spring Security 7's `WebAuthnRelyingPartyOperations` (webauthn4j) from our own JSON controllers, with Spring's JDBC repositories. | design |
 | D7 | Bearer and MCP calls are not challenged for MFA. A token records whether it was minted from an MFA-verified session, and one minted without MFA stops working once its owner's roles require MFA. | review |
-| D8 | First-sign-in enrolment is trust-on-first-use (TOFU), the industry norm. ADR-0142 accepts it; the mitigation is an audited `MFA_ENROL` with the address. Recovery is by break-glass (D10). | review |
+| D8 | First-sign-in enrolment is trust-on-first-use (TOFU), the industry norm. ADR-0143 accepts it; the mitigation is an audited `MFA_ENROL` with the address. Recovery is by break-glass (D10). | review |
 | D9 | The idle timeout measures **user activity**, not polling: the UI sets a header on requests the user caused. | review |
 | D10 | **Break-glass**: the deploy-time property `artemis-studio.identity-local.recover=<username>` runs at startup. It clears the account's lock, factors and trusted devices, revokes its API tokens, ends its sessions, sets must-change-password, and logs and audits the action. This covers a sole admin who lost both device and recovery codes. | review |
 | D11 | Implementation runs **sequentially** (A→B→C→D→E) with `implementer` subagents, not as parallel worktrees, because A–D all touch `LoginService`, `SessionAuthentication` and `LocalIdentity`. One `reviewer` pass before the PR. | review |
@@ -102,7 +102,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
 - **What counts.** A failure is a wrong password **or** a wrong second factor. Success (reset the counter, clear the limiter keys) is recorded **only once the whole login completes**, including the factor.
 - **A locked account answers exactly like a wrong password.** Same 401, same body, and no `SECOND_FACTOR_REQUIRED` even when the password is correct.
 - **Exception to the lock:** a login that presents a valid trusted-device cookie for that user bypasses the lock. This stops spraying from locking out the well-known `admin` name. The attempt still counts.
-- **Timing.** `LocalIdentity` matches unknown usernames against a dummy hash made by the same encoder. The remaining timing difference from the DB write for known accounts is accepted in ADR-0143.
+- **Timing.** `LocalIdentity` matches unknown usernames against a dummy hash made by the same encoder. The remaining timing difference from the DB write for known accounts is accepted in ADR-0144.
 - **Audit.**
   - `loginAttempted` moves before the throttle check.
   - A throttled attempt closes the audit row as `failed("throttled")`.

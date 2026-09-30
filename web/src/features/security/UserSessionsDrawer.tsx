@@ -3,7 +3,7 @@ import { Drawer, Text } from '@mantine/core';
 import { SessionsManager } from './SessionsManager.tsx';
 
 /**
- * One user's signed-in sessions, for an administrator (ADR-0144). Ending a session signs that
+ * One user's signed-in sessions, for an administrator (ADR-0145). Ending a session signs that
  * browser out at its next request. Requires `user:admin`.
  */
 export function UserSessionsDrawer({

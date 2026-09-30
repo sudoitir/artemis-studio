@@ -10,7 +10,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /**
- * An administrator resetting another user's second factors (ADR-0142): everything the user could sign
+ * An administrator resetting another user's second factors (ADR-0143): everything the user could sign
  * in or act with ends, it is audited, and the guards around it: step-up, not for oneself, and an
  * administrator who has verified a factor themselves when the target is required to hold one.
  */

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The second factors of local accounts as the sign-in path sees them (ADR-0142): TOTP, passkeys and
+ * The second factors of local accounts as the sign-in path sees them (ADR-0143): TOTP, passkeys and
  * recovery codes. Only accounts of the local provider are ever required to hold one; any other provider
  * does its own multi-factor authentication.
  */

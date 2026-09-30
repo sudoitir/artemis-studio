@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The second factors of local accounts (ADR-0142), as the sign-in path sees them. Implemented by
+ * The second factors of local accounts (ADR-0143), as the sign-in path sees them. Implemented by
  * the identity module that holds the factors; when it is switched off there is no bean and sign-in
  * is password only. The kernel asks the questions and keeps the session state; it never sees a
  * secret.
@@ -35,7 +35,7 @@ public interface SecondFactors {
      */
     void reset(UUID userId);
 
-    /** How long a browser stays trusted after a second factor; zero when trusted devices are switched off (ADR-0142). */
+    /** How long a browser stays trusted after a second factor; zero when trusted devices are switched off (ADR-0143). */
     Duration trustedDeviceLifetime();
 
     /**

@@ -20,7 +20,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
- * The browsers a user trusted after a second factor (ADR-0142), in {@code local_trusted_device}. The
+ * The browsers a user trusted after a second factor (ADR-0143), in {@code local_trusted_device}. The
  * cookie holds 256 random bits and only their SHA-256 is stored, so a copy of the table signs nobody in
  * and a plain hash is enough. A row counts until the earlier of its own expiry and its creation plus the
  * lifetime setting as it is now, so lowering the setting shortens every device at once and {@code 0}

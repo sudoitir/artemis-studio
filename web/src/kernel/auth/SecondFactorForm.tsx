@@ -23,7 +23,7 @@ const CODE = /^\d{6}$/;
 const problemIs = (error: ApiError, slug: string) => error.type.endsWith(`/${slug}`);
 
 /**
- * The second step of a sign-in, and of a step-up for an account that has a factor (ADR-0142): a passkey when the
+ * The second step of a sign-in, and of a step-up for an account that has a factor (ADR-0143): a passkey when the
  * account has one and this browser can use it, otherwise the six-digit code from an authenticator app, and a
  * recovery code as the way out for a lost device. Submitted explicitly (Enter or the button), never on the sixth
  * digit, so a code is never sent before the person means it.

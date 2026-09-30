@@ -37,7 +37,7 @@ export class ApiError extends Error {
 
 /**
  * The header that tells the server a person, not a background refresh, made this request, so it
- * counts towards the session's idle timeout (ADR-0144). Polling sends it only while the person is
+ * counts towards the session's idle timeout (ADR-0145). Polling sends it only while the person is
  * around; the event stream cannot send headers at all, so it never counts.
  */
 export const ACTIVITY_HEADER = 'X-Studio-Activity';

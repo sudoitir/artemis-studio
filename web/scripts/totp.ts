@@ -1,6 +1,6 @@
 /**
  * The RFC 6238 code (SHA-1, 6 digits, 30 s steps) a script gives as an account's second factor. Studio accepts
- * the previous, current or next step and refuses a step it has already seen (ADR-0142), so a second sign-in
+ * the previous, current or next step and refuses a step it has already seen (ADR-0143), so a second sign-in
  * within the same 30 s takes the next step, waiting for the clock when that is still too far ahead.
  */
 import { createHmac } from 'node:crypto';

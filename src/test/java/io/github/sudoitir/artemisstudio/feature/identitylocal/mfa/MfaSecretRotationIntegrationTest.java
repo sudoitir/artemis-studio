@@ -28,7 +28,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * A key rotation does not break second factors (ADR-0142, ADR-0132): the authenticator secrets and the recovery codes'
+ * A key rotation does not break second factors (ADR-0143, ADR-0132): the authenticator secrets and the recovery codes'
  * HMAC key are sealed stores, so the sweep re-wraps them to the new key version and a secret still opens, and a
  * recovery code issued before still spends, afterwards. The keyring holds versions 1 and 2, and the test puts the
  * shared database back on version 1, since other contexts hold only that key.

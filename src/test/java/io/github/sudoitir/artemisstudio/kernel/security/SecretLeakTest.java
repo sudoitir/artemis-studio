@@ -145,7 +145,7 @@ class SecretLeakTest extends PostgresIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"seedUrls\":[\"http://admin:" + URL_SECRET + "@127.0.0.1:1/console/jolokia\"]}"));
 
-        // A second-factor proof that is refused or does not parse (ADR-0142).
+        // A second-factor proof that is refused or does not parse (ADR-0143).
         send(post("/api/v1/auth/second-factor")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"totpCode\":\"" + TOTP_CODE + "\",\"recoveryCode\":\"" + RECOVERY_CODE + "\"}"));

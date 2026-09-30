@@ -42,7 +42,7 @@ public class SessionAuthentication {
     /**
      * The session attribute holding when the user last did something (an {@link Instant}). It is
      * apart from the immutable {@link SessionFacts} so that moving it rewrites one small value, not
-     * the whole record (ADR-0144).
+     * the whole record (ADR-0145).
      */
     public static final String LAST_ACTIVITY_AT = SessionAuthentication.class.getName() + ".lastActivityAt";
 

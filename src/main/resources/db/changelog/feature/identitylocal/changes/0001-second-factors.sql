@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Second factors of local accounts (ADR-0142). Column order follows non-negotiable #7.
+-- Second factors of local accounts (ADR-0143). Column order follows non-negotiable #7.
 -- Never edit this file once released; add a new changeset beside it.
 
 --changeset artemis-studio:feature-identitylocal-0001-second-factors

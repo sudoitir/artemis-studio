@@ -124,7 +124,7 @@ describe('request() headers', () => {
 });
 
 /**
- * Only what a person caused counts towards the idle timeout (ADR-0144): a request carries the
+ * Only what a person caused counts towards the idle timeout (ADR-0145): a request carries the
  * activity header while the pointer or keyboard was used in the last minute, and never otherwise,
  * so a tab that polls on its own goes idle.
  */

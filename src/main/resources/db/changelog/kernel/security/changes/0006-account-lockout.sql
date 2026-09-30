@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Account lockout (ADR-0143): consecutive failed sign-ins and, once they reach the limit, the
+-- Account lockout (ADR-0144): consecutive failed sign-ins and, once they reach the limit, the
 -- moment the lock lifts. Written only by AccountLockout, with atomic statements, so the
 -- entity maps both columns read-only. A lock that has passed is treated as absent; no job clears it.
 -- Never edit this file once released; add a new changeset beside it.

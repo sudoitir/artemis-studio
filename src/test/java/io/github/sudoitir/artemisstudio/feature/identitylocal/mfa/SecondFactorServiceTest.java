@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-/** Who is required to hold a second factor (ADR-0142, D3): local accounts holding a role that requires one, nobody else. */
+/** Who is required to hold a second factor (ADR-0143, D3): local accounts holding a role that requires one, nobody else. */
 class SecondFactorServiceTest {
 
     private final UserAccounts accounts = mock(UserAccounts.class);

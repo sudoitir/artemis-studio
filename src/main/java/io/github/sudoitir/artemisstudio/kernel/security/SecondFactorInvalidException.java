@@ -1,6 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-/** The second factor presented is wrong or was already used (ADR-0142). Mapped to HTTP 401. */
+/** The second factor presented is wrong or was already used (ADR-0143). Mapped to HTTP 401. */
 public class SecondFactorInvalidException extends RuntimeException {
 
     public SecondFactorInvalidException() {

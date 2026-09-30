@@ -37,7 +37,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * A user's passkeys (ADR-0142): the user entity, whose {@code name} is the user's id so a renamed
+ * A user's passkeys (ADR-0143): the user entity, whose {@code name} is the user's id so a renamed
  * account keeps its passkeys, and the WebAuthn ceremonies over Spring Security's operations. A
  * challenge lives in the session and answers one attempt. This class writes no audit and owns no
  * transaction; the callers that change what a user can sign in with do both.

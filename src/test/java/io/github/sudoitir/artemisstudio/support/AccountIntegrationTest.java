@@ -31,7 +31,7 @@ import org.springframework.session.Session;
 
 /**
  * Local accounts, second factors and sessions over real HTTP against the JDBC session store
- * (ADR-0142): the fixtures the account tests share. A {@link Browser} is a cookie jar with an address
+ * (ADR-0143): the fixtures the account tests share. A {@link Browser} is a cookie jar with an address
  * of its own; users hold custom roles because the built-in administrator requires a second factor.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

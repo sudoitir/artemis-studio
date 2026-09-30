@@ -159,7 +159,7 @@ Under **Settings → Sessions** and **Settings → Password login**, without a r
 A duration is written `30m`, `12h`, `30d` or in ISO-8601 (`PT30M`). A user sees where they are signed
 in, and ends any of those sessions, under **Account → Sessions**; an administrator does the same
 for any user from **Administration → Users → Sessions**. See
-[ADR-0144](/reference/adr/0144-session-lifetimes-and-session-management).
+[ADR-0145](/reference/adr/0145-session-lifetimes-and-session-management).
 
 ## Database
 

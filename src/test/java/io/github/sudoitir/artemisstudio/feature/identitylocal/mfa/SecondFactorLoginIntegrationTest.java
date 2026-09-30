@@ -37,7 +37,7 @@ import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 
 /**
- * Signing in with a second factor, and the sessions restricted to enrolling one (ADR-0142), over
+ * Signing in with a second factor, and the sessions restricted to enrolling one (ADR-0143), over
  * real HTTP against the JDBC session store: a session that holds only a half-finished sign-in has no
  * principal, so it can only be found by the cookie that carries it. TOTP codes are computed here the
  * way an authenticator app does; {@code last_step} is reset between uses because a code is accepted

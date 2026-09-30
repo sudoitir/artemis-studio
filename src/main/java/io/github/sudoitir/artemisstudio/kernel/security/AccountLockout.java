@@ -10,7 +10,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * The account lock (ADR-0143): 10 consecutive failed sign-ins lock the
+ * The account lock (ADR-0144): 10 consecutive failed sign-ins lock the
  * account for 15 minutes, in {@code app_user} so it holds across instances. Every sign-in path
  * reports its outcome here and nowhere else:
  *

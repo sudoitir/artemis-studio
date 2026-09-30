@@ -22,7 +22,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  * <ol>
  *   <li>the user must change their password: {@code 423 must-change-password};
  *   <li>the user's role requires a second factor and they have none: {@code 423
- *       mfa-enrolment-required}, until they enrol one (ADR-0142).
+ *       mfa-enrolment-required}, until they enrol one (ADR-0143).
  * </ol>
  *
  * The SPA shell and its static assets stay reachable, or the browser could not load the page that

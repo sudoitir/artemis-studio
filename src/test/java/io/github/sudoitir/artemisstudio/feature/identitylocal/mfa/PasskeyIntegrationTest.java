@@ -38,7 +38,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Passkeys, end to end over real HTTP (ADR-0142): registering and signing in with a software
+ * Passkeys, end to end over real HTTP (ADR-0143): registering and signing in with a software
  * authenticator from webauthn4j's own test support, so Spring Security's relying party verifies a
  * genuine attestation and a genuine assertion. Studio's public address is set, which is what makes
  * passkeys available; the case without it is in {@link SecondFactorLoginIntegrationTest}.

@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Only a signed-in session manages keys. A key that could mint or rotate keys would escape its
  * own narrowed grants and tool allow-list, and a leaked one could take over its owner's other keys.
- * A minted key also records whether its session had verified a second factor (ADR-0142), which only a
+ * A minted key also records whether its session had verified a second factor (ADR-0143), which only a
  * session can say.
  */
 @RestController

@@ -5,7 +5,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
-/** A user's signed-in sessions and how to end them (ADR-0144). A session's own identifier is never shown. */
+/** A user's signed-in sessions and how to end them (ADR-0145). A session's own identifier is never shown. */
 public final class SessionViews {
 
     private SessionViews() {}

@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.stereotype.Component;
 
 /**
- * The failed-sign-in throttle (ADR-0143), two keys, both counting unknown usernames too:
+ * The failed-sign-in throttle (ADR-0144), two keys, both counting unknown usernames too:
  *
  * <ul>
  *   <li>username and source address: 5 failures start an exponential

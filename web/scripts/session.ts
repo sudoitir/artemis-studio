@@ -20,7 +20,7 @@ export function password(): string {
   return value;
 }
 
-/** The secret of the account's authenticator app: the built-in ADMIN role requires one (ADR-0142). */
+/** The secret of the account's authenticator app: the built-in ADMIN role requires one (ADR-0143). */
 function totpSecret(): string {
   const value = process.env.ADMIN_TOTP_SECRET;
   if (!value) {

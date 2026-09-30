@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Whether a token was minted from a session that had verified a second factor (ADR-0142, D7). A token
+-- Whether a token was minted from a session that had verified a second factor (ADR-0143, D7). A token
 -- minted without one stops authenticating once its owner's roles require one. Tokens that exist
 -- when this is added count as minted without, so an administrator's older tokens are reminted after
 -- they verify a factor.

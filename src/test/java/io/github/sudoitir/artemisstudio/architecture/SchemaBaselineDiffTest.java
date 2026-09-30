@@ -84,7 +84,7 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "CREATE TABLE api_token ",
                     "uq_api_token_previous_prefix",
                     "api_token_usage",
-                    // Second factors of local accounts (ADR-0142): their tables (changesets feature-identitylocal
+                    // Second factors of local accounts (ADR-0143): their tables (changesets feature-identitylocal
                     // 0001..0003), the passkey tables Spring Security's JDBC repositories read (0002),
                     // role.requires_mfa (kernel-security 0007) and api_token.minted_with_mfa (feature-apitokens 0003).
                     "local_(totp|recovery_code|recovery_key|trusted_device)",

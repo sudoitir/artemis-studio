@@ -26,7 +26,7 @@ import { bootState } from '../plugins/boot.ts';
  * provider exists — with a choice when there is more than one — and one sign-in
  * action per redirect provider. While the list loads the form is offered, so a
  * slow request never reads as "sign-in unavailable". An account with a second factor gets a second step
- * once its password is right (ADR-0142); nothing is signed in before it.
+ * once its password is right (ADR-0143); nothing is signed in before it.
  */
 export function LoginView() {
   const [username, setUsername] = useState('');

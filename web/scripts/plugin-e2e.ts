@@ -8,7 +8,7 @@
  *   node --experimental-strip-types scripts/plugin-e2e.ts
  *
  * ADMIN_PASSWORD is the one Studio printed at first start; when the account must still change it,
- * NEW_PASSWORD becomes the password. The ADMIN role requires two-step verification (ADR-0142), so the run
+ * NEW_PASSWORD becomes the password. The ADMIN role requires two-step verification (ADR-0143), so the run
  * then sets up an authenticator app and gives its code whenever Studio asks it to confirm it is the admin.
  */
 import { chromium, request, type APIRequestContext } from '@playwright/test';

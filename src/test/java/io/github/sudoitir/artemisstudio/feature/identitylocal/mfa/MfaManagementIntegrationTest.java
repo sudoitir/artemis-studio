@@ -9,7 +9,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /**
- * Removing a second factor (ADR-0142): it needs a step-up, a user whose role requires a factor keeps
+ * Removing a second factor (ADR-0143): it needs a step-up, a user whose role requires a factor keeps
  * one, and removing the last one takes the recovery codes and trusted devices with it.
  */
 class MfaManagementIntegrationTest extends AccountIntegrationTest {

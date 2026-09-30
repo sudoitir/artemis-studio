@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * The optional online check of a new password against Have I Been Pwned's range API (ADR-0143), switched by
+ * The optional online check of a new password against Have I Been Pwned's range API (ADR-0144), switched by
  * the runtime setting {@code identity-local.password.breach-lookup}.
  * Only the first five characters of the password's SHA-1 leave Studio; the service returns every
  * suffix under that prefix and the match is made here. It fails open: an outage or a timeout logs

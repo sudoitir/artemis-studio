@@ -1,4 +1,4 @@
-# ADR-0143: Password policy, account lockout and sign-in limits
+# ADR-0144: Password policy, account lockout and sign-in limits
 
 - **Status**: accepted
 - **Date**: 2026-09-30

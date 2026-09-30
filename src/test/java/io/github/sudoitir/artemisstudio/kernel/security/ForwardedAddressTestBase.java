@@ -12,7 +12,7 @@ import org.springframework.web.client.RestClient;
 
 /**
  * A real Tomcat on a random port, because MockMvc bypasses the connector's {@code RemoteIpValve}
- * and so cannot tell whether a forwarded address was honoured (ADR-0143). Each subclass fixes who
+ * and so cannot tell whether a forwarded address was honoured (ADR-0144). Each subclass fixes who
  * counts as a trusted proxy; the test client is always the loopback peer.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

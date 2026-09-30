@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Expired trusted devices under the data lifecycle (ADR-0134, ADR-0142). A device stops counting at its
+ * Expired trusted devices under the data lifecycle (ADR-0134, ADR-0143). A device stops counting at its
  * expiry, so the retention is only the grace after it, and a purge never shortens a device that still counts.
  */
 @Component

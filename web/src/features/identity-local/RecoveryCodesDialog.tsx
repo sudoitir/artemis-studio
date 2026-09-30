@@ -31,7 +31,7 @@ function download(codes: string[]) {
 }
 
 /**
- * The recovery codes, shown once (ADR-0142). Nothing about this dialog is easy to dismiss by accident: the codes
+ * The recovery codes, shown once (ADR-0143). Nothing about this dialog is easy to dismiss by accident: the codes
  * cannot be shown again, so Escape, a click outside and a close button are all absent, and the way out is
  * the acknowledgement that they were saved. The button stays enabled and says what is missing, rather than
  * being disabled without a reason.

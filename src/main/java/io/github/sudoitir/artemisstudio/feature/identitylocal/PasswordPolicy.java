@@ -17,7 +17,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
- * What a new local password must satisfy (ADR-0143): a minimum length, bcrypt's 72-byte ceiling,
+ * What a new local password must satisfy (ADR-0144): a minimum length, bcrypt's 72-byte ceiling,
  * not the username, and not a common or breached password. Length and breaches matter more than
  * composition rules (NIST SP 800-63B). Runs before the password is encoded.
  */

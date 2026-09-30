@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Lists and ends a user's sessions (ADR-0144), through Spring Session's principal-name index. A
+ * Lists and ends a user's sessions (ADR-0145), through Spring Session's principal-name index. A
  * session is named by a handle, the first 32 hex characters of the SHA-256 of its identifier, so
  * the identifier itself, which is the credential, is never handed out. Ending the caller's own
  * current session is signing out. Ending another is audited as {@code SESSION_END}, naming the

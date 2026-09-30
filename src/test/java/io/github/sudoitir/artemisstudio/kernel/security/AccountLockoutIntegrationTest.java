@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * The account lock (ADR-0143) against the real filter chain and database. Every attempt comes from
+ * The account lock (ADR-0144) against the real filter chain and database. Every attempt comes from
  * its own source address, because the in-memory throttle keyed by username and source would
  * otherwise answer 429 after five and the database counter would never be reached. The database
  * is read outside any transaction, so what is asserted is what was committed.

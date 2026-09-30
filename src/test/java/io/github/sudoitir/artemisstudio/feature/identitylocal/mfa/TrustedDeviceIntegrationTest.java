@@ -20,7 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * Trusted devices (ADR-0142): the cookie, what is stored, what it skips and what it never does, the
+ * Trusted devices (ADR-0143): the cookie, what is stored, what it skips and what it never does, the
  * lifetime setting, the lock, and every way a device is revoked. Over real HTTP, because the point is
  * what a browser does with the cookie.
  */

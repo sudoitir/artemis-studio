@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * or deleted (authorization spec, design.md decision 4) — the permission model is
  * fully dynamic, so this immutability is the only thing stopping an operator
  * from quietly hollowing out a built-in role's meaning. The one thing an administrator may change
- * on a built-in role is whether it requires a second factor (ADR-0142).
+ * on a built-in role is whether it requires a second factor (ADR-0143).
  */
 @Service
 @RequiredArgsConstructor

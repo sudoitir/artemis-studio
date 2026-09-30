@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Break-glass (ADR-0142, D10): the operator names one local account in
+ * Break-glass (ADR-0143, D10): the operator names one local account in
  * {@code artemis-studio.identity-local.recover} and restarts Studio, and that account is unlocked,
  * loses its second factors, recovery codes and trusted devices, has its API tokens revoked, must change its password at the next
  * sign-in and has its sessions ended. It is for the sole administrator who lost both a device and the

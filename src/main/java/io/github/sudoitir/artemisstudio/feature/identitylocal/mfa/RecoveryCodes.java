@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
- * The single-use recovery codes of a user (ADR-0142): 10 codes of 10 Base32 characters, shown as
+ * The single-use recovery codes of a user (ADR-0143): 10 codes of 10 Base32 characters, shown as
  * {@code XXXXX-XXXXX} and kept only as the HMAC-SHA256 of the code without dashes, upper-cased, under
  * the installation's {@link RecoveryKey}. A code has 50 bits, so a plain hash would fall to an offline
  * guess from a copy of the table; the keyed one does not. Spending one is one atomic UPDATE, so a

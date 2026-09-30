@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * The HMAC key of the recovery codes (ADR-0142): 32 random bytes made once per installation and kept in
+ * The HMAC key of the recovery codes (ADR-0143): 32 random bytes made once per installation and kept in
  * {@code local_recovery_key}, sealed by {@link SecretVault}. It is a secret of its own, not a key derived from a
  * key-encryption key, because a derived key would change when a key version is rotated or retired and take every
  * stored hash with it. Rotation re-wraps the blob (see {@link Sealed}); the key stays the same.

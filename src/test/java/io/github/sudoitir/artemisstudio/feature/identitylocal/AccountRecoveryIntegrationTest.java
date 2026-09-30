@@ -14,7 +14,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
- * Break-glass recovery of a local account at startup (ADR-0142, D10): what it clears, what it forces,
+ * Break-glass recovery of a local account at startup (ADR-0143, D10): what it clears, what it forces,
  * what it audits and logs, and that a name it cannot recover is reported without stopping Studio.
  */
 @ExtendWith(OutputCaptureExtension.class)

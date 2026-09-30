@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Browsers a user chose to trust after a second factor (ADR-0142). Only the SHA-256 of the cookie's
+-- Browsers a user chose to trust after a second factor (ADR-0143). Only the SHA-256 of the cookie's
 -- random token is kept. expires_at is when this row stops counting; the trusted-device lifetime setting
 -- can shorten that, never lengthen it. Column order follows non-negotiable #7.
 -- Never edit this file once released; add a new changeset beside it.

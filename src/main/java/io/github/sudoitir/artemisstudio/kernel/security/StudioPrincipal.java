@@ -36,7 +36,7 @@ public class StudioPrincipal extends User {
 
     /**
      * {@code secondFactorEnrolmentRequired} is true for a session whose user must hold a second factor and
-     * has none yet (ADR-0142): it may do nothing but enrol one.
+     * has none yet (ADR-0143): it may do nothing but enrol one.
      */
     public StudioPrincipal(
             UUID userId,

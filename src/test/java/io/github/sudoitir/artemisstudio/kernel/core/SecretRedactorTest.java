@@ -32,7 +32,7 @@ class SecretRedactorTest {
                         "key [redacted] after"),
                 Arguments.of("token " + apiToken + " used", "token [redacted] used"),
                 Arguments.of("client_secret=abc", "client_secret=[redacted]"),
-                // The second-factor proofs of local accounts (ADR-0142): a code is a credential until it is used.
+                // The second-factor proofs of local accounts (ADR-0143): a code is a credential until it is used.
                 Arguments.of("{\"totpCode\":\"123456\"}", "{\"totpCode\":\"[redacted]\"}"),
                 Arguments.of("recoveryCode=ABCDE-FGHIJ failed", "recoveryCode=[redacted] failed"),
                 Arguments.of("webauthn=eyJpZCI6IngifQ", "webauthn=[redacted]"),

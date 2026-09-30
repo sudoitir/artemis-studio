@@ -38,7 +38,7 @@ import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 
 /**
- * Session lifetimes and session management (ADR-0144) over real HTTP against the JDBC session store:
+ * Session lifetimes and session management (ADR-0145) over real HTTP against the JDBC session store:
  * a browser here is a cookie jar, because MockMvc's mock sessions never reach the store the
  * endpoints read. The session's activity and facts are moved into the past directly in the store,
  * which is what time passing looks like to the filter.

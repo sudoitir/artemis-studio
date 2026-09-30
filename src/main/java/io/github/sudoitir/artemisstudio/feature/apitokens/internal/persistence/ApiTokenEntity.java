@@ -78,7 +78,7 @@ public class ApiTokenEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    /** Whether the session it was minted from had verified a second factor (ADR-0142, D7). */
+    /** Whether the session it was minted from had verified a second factor (ADR-0143, D7). */
     @Column(name = "minted_with_mfa", nullable = false, updatable = false)
     private boolean mintedWithMfa;
 

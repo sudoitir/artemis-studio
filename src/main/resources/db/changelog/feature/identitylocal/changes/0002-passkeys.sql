@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
--- Passkeys of local accounts (ADR-0142), in the two tables Spring Security's
+-- Passkeys of local accounts (ADR-0143), in the two tables Spring Security's
 -- JdbcPublicKeyCredentialUserEntityRepository and JdbcUserCredentialRepository read and write. Their
 -- table and column names are Spring's, because its SQL names them; the types are PostgreSQL's
 -- (text for its varchar ids, bytea for its blobs, timestamptz for its timestamps) and the column

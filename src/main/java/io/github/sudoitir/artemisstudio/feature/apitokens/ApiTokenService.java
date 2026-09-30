@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  * maximum lifetime.
  *
  * <p>A token records whether the session it was minted from had verified a second factor
- * (ADR-0142, D7), and stops authenticating once its owner is required to hold one and it was
+ * (ADR-0143, D7), and stops authenticating once its owner is required to hold one and it was
  * minted without.
  */
 @Service

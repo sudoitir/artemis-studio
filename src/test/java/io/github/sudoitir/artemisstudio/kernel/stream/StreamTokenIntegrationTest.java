@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * A stream opened with an API token lives no longer than the token is accepted (ADR-0142), over real
+ * A stream opened with an API token lives no longer than the token is accepted (ADR-0143), over real
  * HTTP. The periodic session check also asks whether each token stream's token is still live, so a
  * revoked token, or one whose owner now requires a second factor it was minted without, ends its stream
  * within the check's interval.
