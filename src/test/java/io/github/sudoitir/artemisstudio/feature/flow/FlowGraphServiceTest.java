@@ -656,4 +656,396 @@ class FlowGraphServiceTest {
     private static FlowEdgeView edge(FlowGraphView graph, EdgeKind kind) {
         return graph.edges().stream().filter(e -> e.kind() == kind).findFirst().orElseThrow();
     }
+
+    // ---- ranking and focus ------------------------------------------------------------------------
+
+    private FlowQuery ranked(Rank rank, int limit) {
+        return FlowQuery.of(null, 1, rank, limit, GroupBy.CLIENT_ID, null);
+    }
+
+    private static List<String> queueIds(FlowGraphView graph) {
+        return graph.nodes().stream()
+                .filter(n -> n.kind() == NodeKind.QUEUE)
+                .map(FlowNodeView::id)
+                .toList();
+    }
+
+    @Test
+    void theTopPathsAreChosenByTheRankTheOperatorAsked() {
+        queue("busy-in", "a1", "ANYCAST", 1, 1);
+        queue("busy-out", "a2", "ANYCAST", 1, 1);
+        queue("deep", "a3", "ANYCAST", 90_000, 1);
+        rate(added, "busy-in", 1000.0, Duration.ofSeconds(15));
+        rate(acked, "busy-out", 1000.0, Duration.ofSeconds(15));
+
+        assertThat(queueIds(service.graph(clusterId, ranked(Rank.IN, 1)))).containsExactly("queue:busy-in");
+        assertThat(queueIds(service.graph(clusterId, ranked(Rank.OUT, 1)))).containsExactly("queue:busy-out");
+        assertThat(queueIds(service.graph(clusterId, ranked(Rank.BACKLOG, 1)))).containsExactly("queue:deep");
+    }
+
+    @Test
+    void aQueueSeenOnlyByItsConsumerHasNoBacklogToRankBy() {
+        queue("known", "a1", "ANYCAST", 5, 1);
+        edge(Kind.CONSUME, "billing", "fresh", "fresh", 1.0, 1, false);
+
+        assertThat(queueIds(service.graph(clusterId, ranked(Rank.BACKLOG, 1)))).containsExactly("queue:known");
+    }
+
+    @Test
+    void anAddressOnlyProducersReachHasNoQueueAndRanksByWhatProducersSend() {
+        edge(Kind.PRODUCE, "shop", "lonely", "", 50.0, 1, false);
+        queue("orders", "orders", "ANYCAST", 1, 1);
+        rate(added, "orders", 5.0, Duration.ofSeconds(15));
+
+        FlowGraphView byIn = service.graph(clusterId, ranked(Rank.IN, 1));
+        assertThat(byIn.nodes())
+                .extracting(FlowNodeView::id)
+                .contains("address:lonely")
+                .doesNotContain("queue:orders");
+
+        FlowGraphView byBacklog = service.graph(clusterId, ranked(Rank.BACKLOG, 1));
+        assertThat(byBacklog.nodes()).extracting(FlowNodeView::id).contains("queue:orders");
+    }
+
+    @Test
+    void storeAndForwardAndTemporaryQueuesRankByTheirOwnRateAndNeverByBacklog() {
+        route(nodeA, FlowStore.RouteKind.TEMPORARY_QUEUE, "tmp.1", "tmp.1", "tmp.1", null, false, true, null);
+        edge(Kind.CONSUME, "rpc", "tmp.1", "tmp.1", 9.0, 1, false);
+        route(
+                nodeA,
+                FlowStore.RouteKind.STORE_AND_FORWARD,
+                "$.artemis.internal.sf.demo.abc",
+                "$.artemis.internal.sf.demo.abc",
+                "abc",
+                null,
+                false,
+                true,
+                4.0);
+        FlowQuery temporary = FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "TEMPORARY,CLUSTER");
+        FlowQuery temporaryOut = FlowQuery.of(null, 1, Rank.OUT, 40, GroupBy.CLIENT_ID, "TEMPORARY,CLUSTER");
+        FlowQuery temporaryBacklog = FlowQuery.of(null, 1, Rank.BACKLOG, 40, GroupBy.CLIENT_ID, "TEMPORARY,CLUSTER");
+
+        assertThat(service.graph(clusterId, temporary).totals().paths()).isEqualTo(2);
+        assertThat(service.graph(clusterId, temporaryOut).totals().paths()).isEqualTo(2);
+        assertThat(service.graph(clusterId, temporaryBacklog).totals().paths()).isEqualTo(2);
+    }
+
+    @Test
+    void focusingAnAddressOrAClientShowsWhatTouchesItAndWidensByHops() {
+        queue("orders", "orders", "ANYCAST", 0, 1);
+        queue("refunds", "refunds", "ANYCAST", 0, 1);
+        queue("audit", "audit", "ANYCAST", 0, 1);
+        edge(Kind.PRODUCE, "shop", "orders", "", 1.0, 1, false);
+        edge(Kind.PRODUCE, "shop", "refunds", "", 1.0, 1, false);
+        edge(Kind.CONSUME, "billing", "refunds", "refunds", 1.0, 1, false);
+        edge(Kind.CONSUME, "auditor", "audit", "audit", 1.0, 1, false);
+
+        FlowGraphView address = service.graph(clusterId, query("address:orders", 40));
+        assertThat(queueIds(address)).containsExactly("queue:orders");
+
+        FlowGraphView client = service.graph(clusterId, query("client:shop", 40));
+        assertThat(queueIds(client)).containsExactlyInAnyOrder("queue:orders", "queue:refunds");
+
+        FlowGraphView widened =
+                service.graph(clusterId, FlowQuery.of("client:shop", 2, Rank.IN, 40, GroupBy.CLIENT_ID, null));
+        assertThat(queueIds(widened)).containsExactlyInAnyOrder("queue:orders", "queue:refunds");
+        assertThat(widened.nodes())
+                .extracting(FlowNodeView::id)
+                .contains("consumer:billing")
+                .doesNotContain("consumer:auditor");
+
+        FlowGraphView unknown = service.graph(clusterId, query("client:nobody", 40));
+        assertThat(unknown.focus().matched()).isFalse();
+    }
+
+    @Test
+    void aFocusWidenedFromAConsumerReachesTheProducersOfItsQueuesAddresses() {
+        queue("orders", "orders", "ANYCAST", 0, 1);
+        queue("other", "other", "ANYCAST", 0, 1);
+        edge(Kind.CONSUME, "billing", "orders", "orders", 1.0, 1, false);
+        edge(Kind.CONSUME, "billing", "other", "other", 1.0, 1, false);
+        edge(Kind.PRODUCE, "shop", "other", "", 1.0, 1, false);
+
+        FlowGraphView narrow = service.graph(clusterId, query("queue:orders", 40));
+        FlowGraphView wide =
+                service.graph(clusterId, FlowQuery.of("queue:orders", 2, Rank.IN, 40, GroupBy.CLIENT_ID, null));
+
+        assertThat(queueIds(narrow)).containsExactly("queue:orders");
+        assertThat(queueIds(wide)).containsExactlyInAnyOrder("queue:orders", "queue:other");
+    }
+
+    // ---- client grouping and hiding -----------------------------------------------------------------
+
+    @Test
+    void clientsAreLabelledByTheFirstIdentityPartTheGroupingAllows() {
+        Edge anonymous = new Edge(Kind.CONSUME, "", "", "", "CORE", "a", "q", null, 0, 1, false);
+        Edge userOnly = new Edge(Kind.CONSUME, " ", "alice", "10.0.0.1", "CORE", "a", "q", null, 0, 1, false);
+        Edge hostOnly = new Edge(Kind.CONSUME, null, null, "10.0.0.1", "CORE", "a", "q", null, 0, 1, false);
+
+        assertThat(FlowGraphService.label(userOnly, GroupBy.CLIENT_ID)).isEqualTo("alice");
+        assertThat(FlowGraphService.label(hostOnly, GroupBy.CLIENT_ID)).isEqualTo("10.0.0.1");
+        assertThat(FlowGraphService.label(userOnly, GroupBy.USER)).isEqualTo("alice");
+        assertThat(FlowGraphService.label(hostOnly, GroupBy.USER)).isEqualTo("10.0.0.1");
+        assertThat(FlowGraphService.label(userOnly, GroupBy.HOST)).isEqualTo("10.0.0.1");
+        assertThat(FlowGraphService.label(anonymous, GroupBy.CLIENT_ID))
+                .isEqualTo(FlowGraphService.label(anonymous, GroupBy.USER))
+                .isEqualTo(FlowGraphService.label(anonymous, GroupBy.HOST));
+    }
+
+    @Test
+    void internalAndCaptureOwnedNamesAreRecognisedAndOrdinaryOnesAreNot() {
+        assertThat(FlowGraphService.internal("$.artemis.internal.sf.x")).isTrue();
+        assertThat(FlowGraphService.internal("activemq.notifications")).isTrue();
+        assertThat(FlowGraphService.internal("activemq.management")).isFalse();
+        assertThat(FlowGraphService.internal("orders")).isFalse();
+        assertThat(FlowGraphService.internal(null)).isFalse();
+        assertThat(FlowGraphService.captureOwned("artemis-studio.capture.x")).isTrue();
+        assertThat(FlowGraphService.captureOwned("orders")).isFalse();
+        assertThat(FlowGraphService.captureOwned(null)).isFalse();
+    }
+
+    @Test
+    void clientsOfInternalOrCaptureQueuesAreHiddenUnlessCaptureIsOn() {
+        queue("orders", "orders", "ANYCAST", 0, 1);
+        edge(Kind.CONSUME, "tap", "artemis-studio.capture.x", "artemis-studio.capture.x.q", 1.0, 1, false);
+        edge(Kind.PRODUCE, "tapper", "artemis-studio.capture.y", "", 1.0, 1, false);
+        edge(Kind.CONSUME, "cluster", "$.artemis.internal.sf.x", "$.artemis.internal.sf.x", 1.0, 1, false);
+
+        FlowGraphView hidden = service.graph(clusterId, query(null, 40));
+        FlowGraphView shown =
+                service.graph(clusterId, FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "CAPTURE"));
+
+        assertThat(hidden.nodes())
+                .extracting(FlowNodeView::id)
+                .doesNotContain("consumer:tap", "producer:tapper", "consumer:cluster");
+        assertThat(shown.nodes()).extracting(FlowNodeView::id).doesNotContain("consumer:cluster");
+        assertThat(shown.kpis().clients()).isGreaterThanOrEqualTo(2);
+    }
+
+    // ---- routing: diverts, bridges, hops, failure addresses --------------------------------------------
+
+    @Test
+    void aDivertFromAnAddressNotShownIsNotDrawnAndAFilteredExclusiveDivertBypassesNothing() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        route(nodeA, FlowStore.RouteKind.DIVERT, "elsewhere", "OTHER", "AUDIT", null, false, true, null);
+        route(nodeA, FlowStore.RouteKind.DIVERT, "picky", "ORDERS", "AUDIT", "color='red'", true, true, null);
+        route(nodeA, FlowStore.RouteKind.DIVERT, "copy", "ORDERS", "COPY", null, false, true, null);
+        samples.add(sample(null, 1, 1));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(graph.edges())
+                .filteredOn(e -> e.kind() == EdgeKind.DIVERT)
+                .extracting(FlowEdgeView::target)
+                .containsExactlyInAnyOrder("address:AUDIT", "address:COPY");
+        assertThat(edge(graph, EdgeKind.ROUTE).bypassed()).isFalse();
+        assertThat(graph.edges())
+                .filteredOn(e -> e.kind() == EdgeKind.DIVERT)
+                .allSatisfy(e -> assertThat(e.faults()).isEmpty());
+    }
+
+    @Test
+    void aBridgeWhoseSourceQueueIsNotShownIsNotDrawn() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        route(nodeA, FlowStore.RouteKind.BRIDGE, "hidden", "not.shown", "dc2", null, false, true, 1.0);
+        samples.add(sample(null, 1, 1));
+
+        assertThat(service.graph(clusterId, query(null, 40)).edges()).noneMatch(e -> e.kind() == EdgeKind.BRIDGE);
+    }
+
+    @Test
+    void aBridgeIntoAnAddressOfThisClusterDrawsThatAddressAndAHealthyOneHasNoFault() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        queue("MIRROR.in", "MIRROR", "ANYCAST", 0, 1);
+        route(nodeA, FlowStore.RouteKind.BRIDGE, "mirror", "ORDERS.in", "MIRROR", null, false, true, 2.0);
+        samples.add(sample(null, 1, 1));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        FlowEdgeView bridge = edge(graph, EdgeKind.BRIDGE);
+        assertThat(bridge.target()).isEqualTo("address:MIRROR");
+        assertThat(bridge.faults()).isEmpty();
+        assertThat(graph.nodes()).noneMatch(n -> n.kind() == NodeKind.REMOTE);
+    }
+
+    @Test
+    void aBridgeOnlyOneOfTwoSampledNodesHasIsPartiallyPresent() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        route(nodeA, FlowStore.RouteKind.BRIDGE, "to-dc2", "ORDERS.in", "dc2", null, false, true, 1.0);
+        samples.add(sample(null, 1, 1));
+        samples.add(new NodeSample(nodeB, clusterId, now, 1, 1, 1, 1, null, null));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(edge(graph, EdgeKind.BRIDGE).faults()).containsExactly(Fault.PARTIAL_PRESENCE);
+        assertThat(graph.kpis().faults()).isEqualTo(1);
+    }
+
+    @Test
+    void aClusterHopWhoseQueueIsNotShownIsSkippedAndAnUnknownNodeIsNamedByItsShortId() {
+        route(
+                nodeA,
+                FlowStore.RouteKind.STORE_AND_FORWARD,
+                "$.artemis.internal.sf.demo.0123456789abcdef",
+                "$.artemis.internal.sf.demo.0123456789abcdef",
+                "0123456789abcdef",
+                null,
+                false,
+                true,
+                1.0);
+        route(
+                nodeA,
+                FlowStore.RouteKind.STORE_AND_FORWARD,
+                "$.artemis.internal.sf.demo.short",
+                "$.artemis.internal.sf.demo.short",
+                "short",
+                null,
+                false,
+                true,
+                1.0);
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40));
+
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.kind() == NodeKind.REMOTE)
+                .extracting(FlowNodeView::label)
+                .contains("node 01234567", "node short");
+    }
+
+    @Test
+    void anExpiryAddressIsDrawnWithTheDeadLetterLayerAndNotWhenNoQueueFeedsIt() {
+        queue("ORDERS.in", "ORDERS", "ANYCAST", 0, 1);
+        route(nodeA, FlowStore.RouteKind.EXPIRY, "#", "#", "Expired", null, false, true, null);
+        FlowQuery expiry = FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "DEAD_LETTER");
+
+        FlowGraphView graph = service.graph(clusterId, expiry);
+        assertThat(graph.edges())
+                .filteredOn(e -> e.target().equals("address:Expired"))
+                .hasSize(1);
+
+        FlowGraphView blank = service.graph(clusterId, query(null, 40));
+        assertThat(blank.edges()).noneMatch(e -> e.target().equals("address:Expired"));
+
+        queues.clear();
+        assertThat(service.graph(clusterId, expiry).edges()).isEmpty();
+    }
+
+    // ---- broker node states ------------------------------------------------------------------------------
+
+    @Test
+    void everyKindOfSweepFailureIsMappedToTheStateAndMessageTheOperatorNeeds() {
+        Map<String, NodeSampleState> expected = new java.util.LinkedHashMap<>();
+        expected.put("TLS_FAILED", NodeSampleState.UNREACHABLE);
+        expected.put("WRONG_PATH", NodeSampleState.UNREACHABLE);
+        expected.put("NOT_ARTEMIS", NodeSampleState.UNREACHABLE);
+        expected.put("UNAUTHORIZED", NodeSampleState.PERMISSION_DENIED);
+        expected.put("COUNTER_UNAVAILABLE", NodeSampleState.COUNTER_UNAVAILABLE);
+        expected.put("BAD_RESPONSE", NodeSampleState.FAILED);
+
+        expected.forEach((kind, state) -> {
+            samples.clear();
+            samples.add(sample(kind, 0, 0));
+            FlowGraphView graph = service.graph(clusterId, query(null, 40));
+            assertThat(graph.brokerNodes()).as(kind).singleElement().satisfies(n -> {
+                assertThat(n.state()).isEqualTo(state);
+                assertThat(n.message()).isNotBlank();
+            });
+        });
+
+        samples.clear();
+        samples.add(sample("COUNTER_UNAVAILABLE", 0, 0));
+        assertThat(service.graph(clusterId, query(null, 40))
+                        .brokerNodes()
+                        .getFirst()
+                        .message())
+                .contains("unavailable, not zero");
+    }
+
+    @Test
+    void aFailedSweepUsesTheBrokersOwnErrorWhenItGaveOneAndAGenericLineWhenNot() {
+        samples.add(new NodeSample(nodeA, clusterId, now, 0, 0, 0, 0, "disk on fire", "BAD_RESPONSE"));
+        assertThat(service.graph(clusterId, query(null, 40))
+                        .brokerNodes()
+                        .getFirst()
+                        .message())
+                .isEqualTo("disk on fire");
+
+        samples.clear();
+        samples.add(new NodeSample(nodeA, clusterId, now, 0, 0, 0, 0, null, "BAD_RESPONSE"));
+        assertThat(service.graph(clusterId, query(null, 40))
+                        .brokerNodes()
+                        .getFirst()
+                        .message())
+                .isEqualTo("The latest sweep of this node failed.");
+    }
+
+    // ---- per-node breakdown ---------------------------------------------------------------------------------
+
+    @Test
+    void anAddressWithTwoQueuesOnOneNodeSumsThemIntoOneShareAndANodeNoLongerListedIsNamedAsRemoved() {
+        UUID gone = UUID.randomUUID();
+        queue("q1", "orders", "MULTICAST", 10, 1);
+        queue("q2", "orders", "MULTICAST", 5, 2);
+        queues.add(
+                new QueueSnapshot(clusterId, gone, "q1", "orders", "MULTICAST", true, false, now, 1, 1, 0, 0, 0, 0, 0));
+        when(metrics.latestRateWithTimeBySubjectAndNode(eq(clusterId), eq("messagesAdded"), any(), any()))
+                .thenReturn(Map.of(
+                        "q1", Map.of(nodeA, new SubjectRate(1.0, now.minusSeconds(5), Duration.ofSeconds(15))),
+                        "q2", Map.of(nodeA, new SubjectRate(2.0, now.minusSeconds(5), Duration.ofSeconds(15)))));
+        when(metrics.latestRateWithTimeBySubjectAndNode(eq(clusterId), eq("messagesAcked"), any(), any()))
+                .thenReturn(
+                        Map.of("q1", Map.of(nodeA, new SubjectRate(4.0, now.minusSeconds(5), Duration.ofSeconds(15)))));
+        samples.add(sample(null, 0, 3));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40).withByNode(true));
+
+        FlowNodeView address = graph.nodes().stream()
+                .filter(n -> n.id().equals("address:orders"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(address.byNode())
+                .filteredOn(sh -> sh.node().equals("node-a"))
+                .singleElement()
+                .satisfies(sh -> {
+                    assertThat(sh.messageCount()).isEqualTo(15);
+                    assertThat(sh.consumerCount()).isEqualTo(3);
+                    assertThat(sh.inRate()).isEqualTo(3.0);
+                    assertThat(sh.outRate()).isEqualTo(4.0);
+                });
+        assertThat(address.byNode()).anyMatch(sh -> sh.node().startsWith("removed node "));
+    }
+
+    @Test
+    void aTemporaryQueueAndAQueueWithNoPerNodeReadingCarryNoBreakdown() {
+        route(nodeA, FlowStore.RouteKind.TEMPORARY_QUEUE, "tmp.1", "tmp.1", "tmp.1", null, false, true, null);
+        edge(Kind.CONSUME, "rpc", "tmp.1", "tmp.1", 1.0, 1, false);
+        edge(Kind.CONSUME, "billing", "fresh", "fresh", 1.0, 1, false);
+        FlowQuery query = FlowQuery.of(null, 1, Rank.IN, 40, GroupBy.CLIENT_ID, "TEMPORARY")
+                .withByNode(true);
+
+        FlowGraphView graph = service.graph(clusterId, query);
+
+        assertThat(graph.nodes())
+                .filteredOn(n -> n.role() == NodeRole.TEMPORARY || n.id().equals("queue:fresh"))
+                .allSatisfy(n -> assertThat(n.byNode()).isNullOrEmpty());
+    }
+
+    @Test
+    void aStaleClientRateInTheBreakdownIsMarkedByAgeAsWellAsByFailure() {
+        queue("orders", "orders", "ANYCAST", 3, 1);
+        edges.add(new StoredEdge(
+                nodeA,
+                now.minus(Duration.ofMinutes(10)),
+                new Edge(
+                        Kind.CONSUME, "billing", "artemis", "10.0.0.5", "CORE", "orders", "orders", 4.0, 0, 1, false)));
+        samples.add(sample(null, 0, 1));
+
+        FlowGraphView graph = service.graph(clusterId, query(null, 40).withByNode(true));
+
+        FlowEdgeView consume = edge(graph, EdgeKind.CONSUME);
+        assertThat(consume.stale()).isTrue();
+        assertThat(consume.byNode())
+                .singleElement()
+                .satisfies(r -> assertThat(r.stale()).isTrue());
+    }
 }
