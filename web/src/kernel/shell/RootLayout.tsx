@@ -25,7 +25,7 @@ import { useKeySequences } from '../keyboard/useKeySequences.ts';
 
 const NAVBAR_ID = 'as-navbar';
 const MAIN_ID = 'as-main';
-const PUBLIC_PATHS = ['/login', '/change-password'];
+const PUBLIC_PATHS = new Set(['/login', '/change-password']);
 
 /**
  * The desktop workspace chrome: a fixed header, the collapsible sidebar (the features' way between
@@ -44,7 +44,7 @@ export function RootLayout() {
   const { clusterId } = useParams({ strict: false }) as { clusterId?: string };
   const location = useLocation();
   const navigate = useNavigate();
-  const isPublicRoute = PUBLIC_PATHS.includes(location.pathname);
+  const isPublicRoute = PUBLIC_PATHS.has(location.pathname);
   const me = useMe();
   const header = useSlot('shell.header');
   const navbar = useSlot('shell.navbar');
@@ -69,7 +69,7 @@ export function RootLayout() {
   );
 
   // Every place visited feeds the palette's Recent group: a view, or the resource open in it.
-  const recentLabel = view?.item ? (titleParts.resource ? `${titleParts.resource}` : view.item.label) : undefined;
+  const recentLabel = view?.item ? titleParts.resource || view.item.label : undefined;
   useEffect(() => {
     if (!view?.item || !recentLabel) return;
     recordRecent(view.clusterId, {

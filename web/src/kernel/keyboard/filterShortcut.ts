@@ -16,7 +16,7 @@ export function useFilterShortcut(ref: RefObject<HTMLInputElement | null>) {
 /** Focuses the registered filter field; false when the view has none, so the key is left alone. */
 export function focusFilter(): boolean {
   const input = current?.current;
-  if (!input || !input.isConnected) return false;
+  if (!input?.isConnected) return false;
   input.focus();
   input.select();
   return true;
