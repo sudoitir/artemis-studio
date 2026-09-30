@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderOptions } from '@testing-library/react';
@@ -18,10 +18,11 @@ function makeClient() {
   });
 }
 
-function Providers({ children }: { children: ReactNode }) {
+function Providers({ children, client }: { children: ReactNode; client?: QueryClient }) {
+  const [own] = useState(makeClient);
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <QueryClientProvider client={makeClient()}>
+      <QueryClientProvider client={client ?? own}>
         <FeatureProvider features={FEATURES}>
           <ActionHostProvider>{children}</ActionHostProvider>
         </FeatureProvider>
@@ -30,8 +31,14 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
+/** Renders `ui` under the providers; `client` is the QueryClient it runs against, for a test that inspects the cache. */
 export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
-  return render(ui, { wrapper: Providers, ...options });
+  const client = makeClient();
+  const result = render(ui, {
+    wrapper: ({ children }) => <Providers client={client}>{children}</Providers>,
+    ...options,
+  });
+  return { ...result, client };
 }
 
 /**

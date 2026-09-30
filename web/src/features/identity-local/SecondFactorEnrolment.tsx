@@ -119,7 +119,12 @@ function AuthenticatorSetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => 
       return;
     }
     confirm.mutate(digits, {
-      onSuccess: (result) => onEnrolled({ method: 'totp', recoveryCodes: result.recoveryCodes ?? null }),
+      onSuccess: (result) => {
+        onEnrolled({ method: 'totp', recoveryCodes: result.recoveryCodes ?? null });
+        // The key and the codes are the caller's now (or nobody's): the cache keeps neither.
+        confirm.reset();
+        start.reset();
+      },
       onError: (error) => {
         if (error.status === 400) {
           setFieldError(
@@ -264,6 +269,7 @@ function PasskeySetup({ onEnrolled }: { onEnrolled: (result: Enrolled) => void }
       }
       const created = await register.mutateAsync({ label: label.trim(), credential });
       onEnrolled({ method: 'passkey', recoveryCodes: created.recoveryCodes ?? null });
+      register.reset();
     } catch (error) {
       setFailure(error);
     } finally {

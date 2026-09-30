@@ -20,6 +20,8 @@ export const keys = {
 export function useChangePassword() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, ChangePasswordRequest>({
+    // Its variables are both passwords; the cache forgets them with the screen.
+    gcTime: 0,
     mutationFn: (body) =>
       request<void>('/auth/password', {
         method: 'POST',
@@ -42,6 +44,13 @@ export function useMfaStatus(enabled = true): UseQueryResult<MfaStatusView, ApiE
 }
 
 /**
+ * What a factor mutation returns can be a secret (an authenticator key, recovery codes) that is shown once, so the
+ * cache forgets the result the moment nothing observes it: `gcTime` 0, where the default keeps it for minutes.
+ * A screen that stays mounted after showing one calls `reset()` once it has taken what it needs.
+ */
+const FORGET_AT_ONCE = { gcTime: 0 } as const;
+
+/**
  * A change to the caller's factors refreshes the status, and `me` too: finishing an enrolment or removing a factor
  * re-establishes the session under a new id, and what `me` says (`secondFactorEnrolmentRequired`, when the session last
  * signed in) has changed with it. Resolves once both are fresh, so a caller may move on without being sent back.
@@ -49,6 +58,7 @@ export function useMfaStatus(enabled = true): UseQueryResult<MfaStatusView, ApiE
 function useFactorMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
   const qc = useQueryClient();
   return useMutation<TResult, ApiError, TVars>({
+    ...FORGET_AT_ONCE,
     mutationFn: fn,
     onSuccess: () =>
       Promise.all([qc.invalidateQueries({ queryKey: keys.mfa }), qc.invalidateQueries({ queryKey: keys.me })]),
@@ -58,6 +68,7 @@ function useFactorMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>
 /** Begins an authenticator app; nothing is active until it is confirmed, so the old one keeps working. */
 export function useStartTotp() {
   return useMutation<TotpEnrolmentView, ApiError, void>({
+    ...FORGET_AT_ONCE,
     mutationFn: () => request<TotpEnrolmentView>('/auth/mfa/totp', { method: 'POST' }),
   });
 }

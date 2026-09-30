@@ -438,6 +438,7 @@ function TwoStep({ status }: { status: MfaStatusView }) {
               setOutcome({ text: 'Recovery codes regenerated. The old ones no longer work.', failed: false });
               close();
               setCodes(result.codes);
+              regenerate.reset();
             },
           })
         }

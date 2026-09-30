@@ -14,6 +14,13 @@ export type SecondFactorRequest = Schemas['SecondFactorRequest'];
 /** How a person can prove a second factor: an authenticator code, a passkey, or a recovery code. */
 export type SecondFactorMethod = NonNullable<AuthResult['methods']>[number];
 
+/**
+ * What a sign-in mutation was given (a password, a code, a recovery code, a passkey's answer) is kept with it as
+ * its variables. The cache would hold them for minutes after the screen is gone; these are forgotten the moment
+ * nothing observes the mutation.
+ */
+const FORGET_AT_ONCE = { gcTime: 0 } as const;
+
 export const keys = {
   authProviders: ['auth', 'providers'] as const,
   me: ['auth', 'me'] as const,
@@ -40,6 +47,7 @@ export function useAuthProviders(): UseQueryResult<IdentityProviderView[], ApiEr
 export function useLogin() {
   const qc = useQueryClient();
   return useMutation<AuthResult, ApiError, LoginRequest>({
+    ...FORGET_AT_ONCE,
     mutationFn: (body) =>
       request<AuthResult>('/auth/login', {
         method: 'POST',
@@ -69,6 +77,7 @@ export function needsReauthentication(error: unknown): boolean {
 export function useReauthenticate() {
   const qc = useQueryClient();
   return useMutation<AuthResult, ApiError, string>({
+    ...FORGET_AT_ONCE,
     mutationFn: (password) =>
       request<AuthResult>('/auth/reauthenticate', {
         method: 'POST',
@@ -87,6 +96,7 @@ export function useReauthenticate() {
 export function useSecondFactor() {
   const qc = useQueryClient();
   return useMutation<AuthResult, ApiError, SecondFactorRequest>({
+    ...FORGET_AT_ONCE,
     mutationFn: (body) =>
       request<AuthResult>('/auth/second-factor', {
         method: 'POST',

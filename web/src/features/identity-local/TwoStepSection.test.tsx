@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -214,7 +214,7 @@ describe('TwoStepSection', () => {
     );
     serve({ status: ON });
     const user = userEvent.setup();
-    renderWithProviders(<TwoStepSection />);
+    const { client } = renderWithProviders(<TwoStepSection />);
 
     await user.click(await screen.findByRole('button', { name: 'Regenerate' }));
     const confirm = await screen.findByRole('dialog', { name: 'Regenerate recovery codes?' });
@@ -224,6 +224,17 @@ describe('TwoStepSection', () => {
     const codes = await screen.findByRole('dialog', { name: 'Save your recovery codes' });
     expect(within(codes).getByText('ABCDE-FGHJK')).toBeInTheDocument();
     expect(await screen.findByText(/Recovery codes regenerated/)).toBeInTheDocument();
+    // Shown once: the cache does not keep the codes behind the dialog while the section stays open.
+    await waitFor(() =>
+      expect(
+        JSON.stringify(
+          client
+            .getMutationCache()
+            .getAll()
+            .map((m) => m.state.data),
+        ),
+      ).not.toContain('ABCDEFGHJK'),
+    );
   });
 
   it('asks for a fresh sign-in inside the confirmation when the server says so, then removes the passkey', async () => {
