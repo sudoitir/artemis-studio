@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 
 import { renderWithProviders } from '../../test/render.tsx';
-import { info, plan } from './fixtures.ts';
+import { server } from '../../test/setup.ts';
+import type { PluginPlanView } from './api.ts';
+import { info, me, plan } from './fixtures.ts';
+import { InstallDialog } from './InstallDialog.tsx';
 import { PlanReview } from './PlanReview.tsx';
+
+const SHA = 'b'.repeat(64);
+
+/** A plan whose publisher status is overridden. */
+function trustPlan(over: Partial<PluginPlanView> = {}, trust: Partial<PluginPlanView['trust']> = {}): PluginPlanView {
+  const base = plan(over);
+  return { ...base, trust: { ...base.trust, ...trust } };
+}
+
+const onTrust = () => undefined;
 
 describe('PlanReview', () => {
   it('states who made a new plugin, which Studio versions it supports, and every capability as a sentence', () => {
@@ -183,5 +197,139 @@ describe('PlanReview', () => {
     expect(screen.getByText(/which are not active\. Install or enable them first\./)).toBeVisible();
     expect(screen.getByText('Worth knowing')).toBeInTheDocument();
     expect(screen.getByText('Uses a deprecated API.')).toBeInTheDocument();
+  });
+});
+
+describe('PlanReview publisher', () => {
+  it('names a trusted publisher in words, with a copyable fingerprint', () => {
+    renderWithProviders(<PlanReview plan={plan()} trust={{ canInstall: true, onTrust }} />);
+    expect(screen.getByText('Verified')).toBeInTheDocument();
+    expect(screen.getByText('AB:CD:EF')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy fingerprint' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Trust this key…' })).toBeNull();
+  });
+
+  it('offers to trust the key only when it is untrusted', () => {
+    const untrusted = trustPlan({}, { status: 'UNTRUSTED', keyName: null, allowed: false });
+    const first = renderWithProviders(<PlanReview plan={untrusted} trust={{ canInstall: true, onTrust }} />);
+    expect(screen.getByText('Untrusted key')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trust this key…' })).toBeEnabled();
+    first.unmount();
+
+    const second = renderWithProviders(<PlanReview plan={untrusted} trust={{ canInstall: false, onTrust }} />);
+    expect(screen.getByRole('button', { name: 'Trust this key…' })).toBeDisabled();
+    expect(screen.getByText('Only someone who can install plugins can trust a key.')).toBeInTheDocument();
+    second.unmount();
+
+    renderWithProviders(
+      <PlanReview
+        plan={trustPlan({}, { status: 'UNSIGNED', fingerprint: null, subject: null, keyName: null, allowed: false })}
+        trust={{ canInstall: true, onTrust }}
+      />,
+    );
+    expect(screen.getByText('Unsigned')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Trust this key…' })).toBeNull();
+    expect(screen.getByText(/An installer can allow unverified plugins under Trusted keys/)).toBeInTheDocument();
+  });
+
+  it('shows a changed signer old to new and emphasises an added permission', () => {
+    renderWithProviders(
+      <PlanReview
+        plan={trustPlan(
+          { fromVersion: '0.9.0', diff: { ...plan().diff, permissionsAdded: ['acme-notes:write'] } },
+          { signerChanged: true, previousFingerprint: '11:22' },
+        )}
+      />,
+    );
+    expect(screen.getByText(/Signer changed:/)).toHaveTextContent('Signer changed: 11:22 → AB:CD:EF');
+    expect(screen.getByText('Adds permission acme-notes:write')).toBeInTheDocument();
+  });
+
+  it('says that an allowed unsigned plugin is unverified', () => {
+    renderWithProviders(
+      <PlanReview plan={trustPlan({}, { status: 'UNSIGNED', fingerprint: null, subject: null, allowed: true })} />,
+    );
+    expect(screen.getByText(/Unverified: it can be installed only because an installer allowed/)).toBeInTheDocument();
+  });
+});
+
+describe('InstallDialog trust', () => {
+  it('keeps Activate disabled, with the reason, until the acknowledgement is ticked, then sends it', async () => {
+    let query = 'not called';
+    server.use(
+      me(),
+      http.get(`*/api/v1/admin/plugins/uploads/${SHA}`, () =>
+        HttpResponse.json(
+          trustPlan(
+            { fromVersion: '0.9.0', acknowledgements: ['permissions-added', 'signer-changed'] },
+            { signerChanged: true, previousFingerprint: '11:22' },
+          ),
+        ),
+      ),
+      http.post('*/api/v1/admin/plugins/uploads/:sha/activate', ({ request }) => {
+        query = new URL(request.url).search;
+        return HttpResponse.json(plan(), { status: 202 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<InstallDialog source={{ kind: 'resume', sha: SHA }} canInstall onClose={() => undefined} />);
+
+    const activate = await screen.findByRole('button', { name: 'Update Notes to 1.0.0' });
+    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
+    expect(activate).toBeDisabled();
+    expect(screen.getByText(/It is signed by a different key than the installed version/)).toBeInTheDocument();
+    expect(screen.getByText('Tick the confirmation above to activate.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'I have read this and want to continue' }));
+    expect(activate).toBeEnabled();
+    await user.click(activate);
+    await waitFor(() => expect(query).toBe('?acknowledge=true'));
+  });
+
+  it('trusts the key from the upload, then re-plans so Continue opens', async () => {
+    let body: unknown = null;
+    let trusted = false;
+    server.use(
+      me(),
+      http.get(`*/api/v1/admin/plugins/uploads/${SHA}`, () =>
+        HttpResponse.json(trusted ? plan() : trustPlan({}, { status: 'UNTRUSTED', keyName: null, allowed: false })),
+      ),
+      http.post('*/api/v1/admin/plugins/keys', async ({ request }) => {
+        body = await request.json();
+        trusted = true;
+        return HttpResponse.json(
+          {
+            fingerprint: 'AB:CD:EF',
+            name: 'Acme',
+            subject: 'CN=Acme',
+            addedAt: new Date().toISOString(),
+            addedBy: 'ops',
+          },
+          { status: 201 },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<InstallDialog source={{ kind: 'resume', sha: SHA }} canInstall onClose={() => undefined} />);
+
+    expect(await screen.findByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect(screen.getByText('Continue is unavailable until its publisher is trusted.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Trust this key…' }));
+
+    const dialog = await screen.findByRole('dialog', { name: "Trust this publisher's key" });
+    expect(within(dialog).getByText('AB:CD:EF')).toBeInTheDocument();
+    expect(within(dialog).getByText('Certificate subject: CN=Acme')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Trust this key' }));
+    expect(within(dialog).getByText('Give the key a name, such as the publisher.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Confirm you compared the fingerprint.')).toBeInTheDocument();
+    expect(body).toBeNull();
+
+    await user.type(within(dialog).getByLabelText('Key name'), 'Acme');
+    await user.click(within(dialog).getByRole('checkbox', { name: /I compared this fingerprint/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Trust this key' }));
+
+    await waitFor(() => expect(body).toEqual({ name: 'Acme', upload: SHA }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled());
+    expect(screen.getByText('Verified')).toBeInTheDocument();
   });
 });

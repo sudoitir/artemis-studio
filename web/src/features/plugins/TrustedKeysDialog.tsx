@@ -113,7 +113,7 @@ export function TrustedKeysDialog({ opened, onClose }: { opened: boolean; onClos
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Code className={styles.num}>{k.fingerprint}</Code>
+                    <Code className={styles.fingerprint}>{k.fingerprint}</Code>
                   </Table.Td>
                   <Table.Td>{(data.signedPlugins[k.fingerprint] ?? []).join(', ') || 'None installed'}</Table.Td>
                   <Table.Td>

@@ -68,7 +68,7 @@ export function TrustKeyDialog({
         </Text>
         <Stack gap={2}>
           <Text size="sm">Fingerprint</Text>
-          <Code className={styles.num}>{trust.fingerprint}</Code>
+          <Code className={styles.fingerprint}>{trust.fingerprint}</Code>
           <Text size="sm">Certificate subject: {trust.subject ?? 'none'}</Text>
         </Stack>
         <TextInput

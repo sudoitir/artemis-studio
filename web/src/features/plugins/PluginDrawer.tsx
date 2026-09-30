@@ -22,10 +22,12 @@ import {
   usePluginHistory,
   usePurge,
   usePurgePlan,
+  violationsOf,
   type LifecycleAction,
   type PluginView,
 } from './api.ts';
 import styles from './Plugins.module.css';
+import { UnverifiedBadge } from './UnverifiedBadge.tsx';
 import { STATUS, count } from './words.ts';
 
 type Pending = LifecycleAction | 'purge' | null;
@@ -51,14 +53,51 @@ function VendorLink({ url }: { url: string | null | undefined }) {
   );
 }
 
+/** Who signed the jar, and with which key; a key nobody trusts is said to be so. */
+function SignerRows({ plugin }: Readonly<{ plugin: PluginView }>) {
+  const fingerprint = plugin.signerFingerprint;
+  return (
+    <>
+      <Table.Tr>
+        <Table.Th>Signed by</Table.Th>
+        <Table.Td>
+          {fingerprint
+            ? `${plugin.signerSubject ?? 'An unnamed certificate'}${plugin.verified ? '' : ' (not a trusted key)'}`
+            : 'Not signed'}
+        </Table.Td>
+      </Table.Tr>
+      {fingerprint ? (
+        <Table.Tr>
+          <Table.Th>Key fingerprint</Table.Th>
+          <Table.Td>
+            <Group gap="xs" wrap="nowrap">
+              <Code className={styles.fingerprint}>{fingerprint}</Code>
+              <CopyButton value={fingerprint}>
+                {({ copied, copy }) => (
+                  <Button size="compact-xs" variant="subtle" onClick={copy} aria-label="Copy fingerprint">
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                )}
+              </CopyButton>
+            </Group>
+          </Table.Td>
+        </Table.Tr>
+      ) : null}
+    </>
+  );
+}
+
 /** What the plugin is and who put it there. */
 function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: PluginInfo }>) {
   return (
     <Stack gap="sm">
-      <Text size="sm">
-        <b>{STATUS[plugin.status] ?? plugin.status}</b>
-        {plugin.failure ? ` — ${plugin.failure}` : ''}
-      </Text>
+      <Group gap="xs">
+        <Text size="sm">
+          <b>{STATUS[plugin.status] ?? plugin.status}</b>
+          {plugin.failure ? ` — ${plugin.failure}` : ''}
+        </Text>
+        {plugin.verified ? null : <UnverifiedBadge />}
+      </Group>
       {info.description ? <Text size="sm">{info.description}</Text> : null}
       <Table variant="vertical" withTableBorder>
         <Table.Tbody>
@@ -107,6 +146,7 @@ function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: Plug
               </Group>
             </Table.Td>
           </Table.Tr>
+          <SignerRows plugin={plugin} />
           {info.license ? (
             <Table.Tr>
               <Table.Th>License</Table.Th>
@@ -256,6 +296,14 @@ function HistoryTab({ history }: Readonly<{ history: ReturnType<typeof usePlugin
   );
 }
 
+/** Whether the server asked for a confirmation, whether it is ticked, and whether it was skipped. */
+type AcknowledgementState = Readonly<{
+  needed: boolean;
+  checked: boolean;
+  missing: boolean;
+  onChange: (checked: boolean) => void;
+}>;
+
 type Action = { key: Exclude<Pending, null>; label: string; show: boolean };
 
 /** What can be done to the plugin; each button opens its confirmation. */
@@ -323,6 +371,7 @@ function Confirmations({
   purgePlan,
   cascade,
   onCascade,
+  acknowledgement,
   onRun,
   onPurged,
 }: Readonly<{
@@ -335,6 +384,7 @@ function Confirmations({
   purgePlan: ReturnType<typeof usePurgePlan>;
   cascade: boolean;
   onCascade: (on: boolean) => void;
+  acknowledgement: AcknowledgementState;
   onRun: (action: LifecycleAction) => void;
   onPurged: () => void;
 }>) {
@@ -354,6 +404,14 @@ function Confirmations({
             ? `Reactivates the version that ran before ${plugin.version}. The current version changed no database, so nothing is lost; ${info.title} does not pause.`
             : `Starts ${info.title} ${plugin.version} again for everyone.`}
         </Text>
+        {acknowledgement.needed ? (
+          <Checkbox
+            checked={acknowledgement.checked}
+            onChange={(e) => acknowledgement.onChange(e.currentTarget.checked)}
+            label="I have read the reason above and want to continue"
+            error={acknowledgement.missing ? 'Tick this to continue.' : undefined}
+          />
+        ) : null}
       </ConfirmAction>
 
       <ConfirmAction
@@ -442,14 +500,30 @@ export function PluginDrawer({
   const [tab, setTab] = useState<string | null>('overview');
   const [pending, setPending] = useState<Pending>(null);
   const [cascade, setCascade] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [ackMissing, setAckMissing] = useState(false);
   const lifecycle = useLifecycle();
   const purge = usePurge();
   const history = usePluginHistory(plugin?.id);
   const purgePlan = usePurgePlan(plugin?.id, !!plugin && (tab === 'data' || pending === 'purge'));
   const info = plugin?.info;
 
-  const run = (action: LifecycleAction) =>
-    plugin && lifecycle.mutate({ id: plugin.id, action, cascade }, { onSuccess: () => setPending(null) });
+  // Enable and roll back are first tried plainly; when the server says they need confirming, it says
+  // why (its message is shown) and a tick is required before they are sent again with `acknowledge`.
+  const needsAcknowledgement = violationsOf(lifecycle.error).some((v) => v.code === 'acknowledgement-required');
+
+  const run = (action: LifecycleAction) => {
+    if (needsAcknowledgement && !acknowledged) {
+      setAckMissing(true);
+      return;
+    }
+    if (plugin) {
+      lifecycle.mutate(
+        { id: plugin.id, action, cascade, acknowledge: acknowledged },
+        { onSuccess: () => setPending(null) },
+      );
+    }
+  };
 
   const actions: { key: Exclude<Pending, null>; label: string; show: boolean }[] = plugin
     ? [
@@ -517,6 +591,8 @@ export function PluginDrawer({
                 lifecycle.reset();
                 purge.reset();
                 setCascade(false);
+                setAcknowledged(false);
+                setAckMissing(false);
                 setPending(key);
               }}
             />
@@ -535,6 +611,15 @@ export function PluginDrawer({
           purgePlan={purgePlan}
           cascade={cascade}
           onCascade={setCascade}
+          acknowledgement={{
+            needed: needsAcknowledgement,
+            checked: acknowledged,
+            missing: ackMissing,
+            onChange: (checked) => {
+              setAcknowledged(checked);
+              setAckMissing(false);
+            },
+          }}
           onRun={run}
           onPurged={() => {
             setPending(null);

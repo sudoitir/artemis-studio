@@ -51,3 +51,10 @@
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* A 95-character fingerprint wraps at any colon rather than running out of its dialog. */
+.fingerprint {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}

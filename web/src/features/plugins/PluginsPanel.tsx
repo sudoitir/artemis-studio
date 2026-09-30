@@ -7,6 +7,8 @@ import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { useCheckUpdates, usePlugins, type PluginUpdateView, type PluginView } from './api.ts';
 import { InstallDialog, type Source } from './InstallDialog.tsx';
 import { InstallersDialog } from './InstallersDialog.tsx';
+import { TrustedKeysDialog } from './TrustedKeysDialog.tsx';
+import { UnverifiedBadge } from './UnverifiedBadge.tsx';
 import { PluginDrawer } from './PluginDrawer.tsx';
 import styles from './Plugins.module.css';
 import { RestartControl } from './RestartControl.tsx';
@@ -75,6 +77,7 @@ function pluginColumns(
               {p.info.vendor.name}
             </Text>
           </Text>
+          {p.verified ? null : <UnverifiedBadge />}
         </Group>
       ),
     },
@@ -141,6 +144,7 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
     search.upload ? { kind: 'resume', sha: search.upload } : null,
   );
   const [installersOpen, setInstallersOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   const setSearch = (next: { plugin?: string; upload?: string }) =>
@@ -231,6 +235,14 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
               Who can install
             </Button>
           ) : null}
+          <Button
+            variant="subtle"
+            disabled={!view.canInstall}
+            title={view.canInstall ? undefined : 'Only someone who can install plugins can manage trusted keys.'}
+            onClick={() => setKeysOpen(true)}
+          >
+            Trusted keys
+          </Button>
         </Group>
       </Group>
       {!canInstall && cannotInstall ? (
@@ -299,12 +311,14 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
 
       <InstallDialog
         source={source}
+        canInstall={canInstall}
         onClose={() => {
           setSource(null);
           if (search.upload) void setSearch({ upload: undefined });
         }}
       />
       <InstallersDialog opened={installersOpen} onClose={() => setInstallersOpen(false)} />
+      <TrustedKeysDialog opened={keysOpen} onClose={() => setKeysOpen(false)} />
       <PluginDrawer
         plugin={open}
         canInstall={canInstall}
