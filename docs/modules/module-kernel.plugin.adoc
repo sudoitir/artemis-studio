@@ -23,6 +23,8 @@ _Others_
 * `i.g.s.a.k.p.internal.descriptor.PluginDescriptorParser`
 * `i.g.s.a.k.p.internal.host.StudioRestart`
 * `i.g.s.a.k.p.PluginRuntimeStatus` (via `i.g.s.a.k.p.internal.runtime.PluginRuntimeStatusImpl`)
+* `i.g.s.a.k.p.internal.trust.PluginTrust`
+* `i.g.s.a.k.p.internal.trust.PluginTrustHealthIndicator`
 * `i.g.s.a.k.p.internal.validation.PluginValidator`
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 

@@ -20,6 +20,7 @@ _Others_
 * `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.p.internal.host.StudioRestart` (in Plugin contract)
+* `i.g.s.a.k.p.internal.trust.PluginTrust` (in Plugin contract)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
 * `i.g.s.a.k.s.GrantLoader` (in Security)
