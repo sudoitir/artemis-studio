@@ -363,45 +363,52 @@ public class SettingsService {
     /** Rejects a value outside its kind's syntax or its bounds, naming the allowed range. */
     static void validate(SettingDef spec, String value) {
         switch (spec.kind()) {
-            case DURATION -> {
-                boolean foreverAllowed = SettingDef.FOREVER.equals(spec.max());
-                if (SettingDef.FOREVER.equalsIgnoreCase(value.trim())) {
-                    if (!foreverAllowed) {
-                        throw outOfRange(spec);
-                    }
-                    return;
-                }
-                Duration d = Duration.parse(toIso(value));
-                if (d.isZero() || d.isNegative()) {
-                    throw new IllegalArgumentException(spec.key() + " must be a positive duration");
-                }
-                if (spec.min() != null && d.compareTo(Duration.parse(toIso(spec.min()))) < 0
-                        || spec.max() != null
-                                && !foreverAllowed
-                                && d.compareTo(Duration.parse(toIso(spec.max()))) > 0) {
-                    throw outOfRange(spec);
-                }
-            }
-            case INT -> {
-                int n = Integer.parseInt(value.trim());
-                int min = spec.min() == null ? 1 : Integer.parseInt(spec.min());
-                if (n < min || spec.max() != null && n > Integer.parseInt(spec.max())) {
-                    throw spec.min() == null && spec.max() == null
-                            ? new IllegalArgumentException(spec.key() + " must be at least 1")
-                            : outOfRange(spec);
-                }
-            }
+            case DURATION -> validateDuration(spec, value);
+            case INT -> validateInt(spec, value);
             case CRON -> validateCron(spec.key(), value.trim());
-            case BOOLEAN -> {
-                if (!value.trim().equals("true") && !value.trim().equals("false")) {
-                    throw new IllegalArgumentException(spec.key() + " must be true or false");
-                }
+            case BOOLEAN -> validateBoolean(spec.key(), value.trim());
+        }
+    }
+
+    private static void validateDuration(SettingDef spec, String value) {
+        boolean foreverAllowed = SettingDef.FOREVER.equals(spec.max());
+        if (SettingDef.FOREVER.equalsIgnoreCase(value.trim())) {
+            if (!foreverAllowed) {
+                throw outOfRange(spec);
             }
+            return;
+        }
+        Duration d = Duration.parse(toIso(value));
+        if (d.isZero() || d.isNegative()) {
+            throw new IllegalArgumentException(spec.key() + " must be a positive duration");
+        }
+        boolean belowMin = spec.min() != null && d.compareTo(Duration.parse(toIso(spec.min()))) < 0;
+        boolean aboveMax = spec.max() != null && !foreverAllowed && d.compareTo(Duration.parse(toIso(spec.max()))) > 0;
+        if (belowMin || aboveMax) {
+            throw outOfRange(spec);
+        }
+    }
+
+    private static void validateInt(SettingDef spec, String value) {
+        int n = Integer.parseInt(value.trim());
+        int min = spec.min() == null ? 1 : Integer.parseInt(spec.min());
+        if (n < min || spec.max() != null && n > Integer.parseInt(spec.max())) {
+            if (spec.min() == null && spec.max() == null) {
+                throw new IllegalArgumentException(spec.key() + " must be at least 1");
+            }
+            throw outOfRange(spec);
+        }
+    }
+
+    private static void validateBoolean(String key, String value) {
+        if (!value.equals("true") && !value.equals("false")) {
+            throw new IllegalArgumentException(key + " must be true or false");
         }
     }
 
     private static IllegalArgumentException outOfRange(SettingDef spec) {
-        String min = spec.min() != null ? spec.min() : spec.kind() == SettingDef.Kind.INT ? "1" : "more than 0";
+        String defaultMin = spec.kind() == SettingDef.Kind.INT ? "1" : "more than 0";
+        String min = spec.min() != null ? spec.min() : defaultMin;
         String max = spec.max() != null ? spec.max() : "no limit";
         return new IllegalArgumentException(spec.key() + " must be between " + min + " and " + max);
     }
