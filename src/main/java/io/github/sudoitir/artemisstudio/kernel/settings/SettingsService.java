@@ -364,9 +364,16 @@ public class SettingsService {
     static void validate(SettingDef spec, String value) {
         switch (spec.kind()) {
             case DURATION -> validateDuration(spec, value);
+            case DURATION_OR_OFF -> validateDurationOrOff(spec, value);
             case INT -> validateInt(spec, value);
             case CRON -> validateCron(spec.key(), value.trim());
             case BOOLEAN -> validateBoolean(spec.key(), value.trim());
+        }
+    }
+
+    private static void validateDurationOrOff(SettingDef spec, String value) {
+        if (Duration.parse(toIso(value)).isNegative()) {
+            throw new IllegalArgumentException(spec.key() + " must be zero or a positive duration");
         }
     }
 

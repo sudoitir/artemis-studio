@@ -34,11 +34,17 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
 
     /**
      * Paths reachable with no session or token, by design (identity-and-sessions
-     * spec: "Login endpoint is reachable unauthenticated"). Anything else under
+     * spec: "Login endpoint is reachable unauthenticated"; the second factor completes a sign-in that has
+     * no principal yet, and is checked against the session's pending sign-in). Anything else under
      * {@code /api/**} must require authentication.
      */
-    private static final Set<String> ALLOWED_UNAUTHENTICATED =
-            Set.of("/api/v1/auth/login", "/api/v1/auth/providers", "/actuator/health", "/actuator/health/**");
+    private static final Set<String> ALLOWED_UNAUTHENTICATED = Set.of(
+            "/api/v1/auth/login",
+            "/api/v1/auth/second-factor",
+            "/api/v1/auth/second-factor/options",
+            "/api/v1/auth/providers",
+            "/actuator/health",
+            "/actuator/health/**");
 
     @Autowired
     WebApplicationContext webContext;

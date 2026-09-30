@@ -8,11 +8,14 @@
  *   node --experimental-strip-types scripts/plugin-e2e.ts
  *
  * ADMIN_PASSWORD is the one Studio printed at first start; when the account must still change it,
- * NEW_PASSWORD becomes the password.
+ * NEW_PASSWORD becomes the password. The ADMIN role requires two-step verification (ADR-0143), so the run
+ * then sets up an authenticator app and gives its code whenever Studio asks it to confirm it is the admin.
  */
 import { chromium, request, type APIRequestContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+
+import { nextTotp } from './totp.ts';
 
 const BASE = process.env.STUDIO ?? 'http://localhost:8080';
 const USER = process.env.ADMIN_USER ?? 'admin';
@@ -62,9 +65,37 @@ async function awaitPlugin(api: APIRequestContext, want: { status: string; versi
   throw new Error(`${ID} never reached ${JSON.stringify(want)}; last ${JSON.stringify(last)}`);
 }
 
-/** Plugin changes need a sign-in within five minutes (ADR-0103); a slow run confirms again. */
+/** The secret of the authenticator app the run sets up for the admin. */
+let totpSecret = '';
+
+async function enrolAuthenticator(api: APIRequestContext) {
+  const started = (await expectStatus(await call(api, 'POST', '/auth/mfa/totp'), 200, 'start two-step set-up')) as {
+    secret: string;
+  };
+  totpSecret = started.secret;
+  await expectStatus(
+    await call(api, 'POST', '/auth/mfa/totp/confirm', { code: await nextTotp(totpSecret) }),
+    200,
+    'confirm two-step set-up',
+  );
+}
+
+/** Plugin changes need a sign-in within five minutes (ADR-0103); a slow run confirms again, password then code. */
 async function fresh(api: APIRequestContext, password: string) {
-  await expectStatus(await call(api, 'POST', '/auth/reauthenticate', { password }), 200, 'reauthenticate');
+  const step = (await expectStatus(
+    await call(api, 'POST', '/auth/reauthenticate', { password }),
+    200,
+    'reauthenticate',
+  )) as {
+    status: string;
+  };
+  if (step.status === 'SECOND_FACTOR_REQUIRED') {
+    await expectStatus(
+      await call(api, 'POST', '/auth/second-factor', { totpCode: await nextTotp(totpSecret) }),
+      200,
+      'second factor',
+    );
+  }
 }
 
 async function install(api: APIRequestContext, jar: string, expectedClass: string) {
@@ -90,14 +121,12 @@ async function main() {
 
   step('sign in');
   await api.get('/api/v1/auth/providers');
-  const me = (await expectStatus(
+  const signedIn = (await expectStatus(
     await call(api, 'POST', '/auth/login', { username: USER, password }),
     200,
     'login',
-  )) as {
-    mustChangePassword: boolean;
-  };
-  if (me.mustChangePassword) {
+  )) as { me: { mustChangePassword: boolean } };
+  if (signedIn.me.mustChangePassword) {
     const next = need('NEW_PASSWORD');
     await expectStatus(
       await call(api, 'POST', '/auth/password', { currentPassword: password, newPassword: next }),
@@ -105,8 +134,9 @@ async function main() {
       'change password',
     );
     password = next;
-    await expectStatus(await call(api, 'POST', '/auth/login', { username: USER, password }), 200, 'login again');
   }
+  // The password change keeps the session; the administrator's role requires a second factor before it may do more.
+  await enrolAuthenticator(api);
 
   step("an unknown publisher's jar is refused until an installer trusts its key");
   const untrusted = (await expectStatus(

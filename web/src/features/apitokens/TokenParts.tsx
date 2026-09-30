@@ -33,7 +33,13 @@ export function OneTimeSecret({ value, note }: Readonly<{ value: string; note?: 
       <Alert color="yellow">This value is shown once. Copy it now — it cannot be retrieved again.</Alert>
       {note ? <Text size="sm">{note}</Text> : null}
       <Group>
-        <TextInput value={value} readOnly style={{ flex: 1 }} ff="monospace" aria-label="API key" />
+        <TextInput
+          value={value}
+          readOnly
+          style={{ flex: 1 }}
+          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
+          aria-label="API key"
+        />
         <CopyButton value={value}>
           {({ copy, copied }) => (
             <ActionIcon onClick={copy} aria-label={copied ? 'Copied' : 'Copy key'}>

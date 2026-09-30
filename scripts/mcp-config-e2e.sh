@@ -8,7 +8,7 @@
 # version, and reads `text/event-stream` back. This drives exactly that, with curl
 # as the client, so the transport is the product's own and nothing is stubbed.
 #
-#   ADMIN_PASSWORD=... ./scripts/mcp-config-e2e.sh
+#   ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... ./scripts/mcp-config-e2e.sh
 #
 # Exit status is the number of failed checks.
 set -uo pipefail
@@ -16,6 +16,8 @@ set -uo pipefail
 STUDIO=${STUDIO:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
+# Once the admin has two-step verification (config-e2e.sh enrols it), the secret that run printed.
+ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 NEW_PASSWORD=${NEW_PASSWORD:-config-e2e-Passw0rd!}
 CLUSTER_NAME=${CLUSTER_NAME:-mcp-config-e2e}
 SEED=${SEED:-http://artemis-primary:8161/console/jolokia}
@@ -26,6 +28,9 @@ MATCH=${MATCH:-MCP.E2E.#}
 COOKIES=$(mktemp)
 trap 'rm -f "$COOKIES"' EXIT
 
+# shellcheck source=lib/signin.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/signin.sh"
+
 FAILURES=0
 say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 pass() { printf '\033[32m  PASS %s\033[0m\n' "$*"; }
@@ -34,30 +39,11 @@ note() { printf '\033[36m  ·    %s\033[0m\n' "$*"; }
 die() { printf '\n\033[31mABORT: %s\033[0m\n' "$*" >&2; exit 99; }
 
 py() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
-csrf() { awk '$6 == "XSRF-TOKEN" { print $7 }' "$COOKIES" | tail -1; }
-
-api() {
-  local method=$1 path=$2
-  shift 2
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$path" \
-    -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
-}
-
 # ── sign in and mint a key ────────────────────────────────────────────────────
 
-curl -sS -c "$COOKIES" "$STUDIO/api/v1/auth/csrf" >/dev/null
-
-# `config-e2e.sh` rotates the bootstrap password on its first run against a fresh
-# stack, so the same fallback applies here: try what was given, then what that
-# script would have set.
-login() { api POST /auth/login -d "{\"username\": \"$ADMIN_USER\", \"password\": \"$1\"}" | grep -q '"username"'; }
-if login "$ADMIN_PASSWORD"; then
-  :
-elif login "$NEW_PASSWORD"; then
-  ADMIN_PASSWORD=$NEW_PASSWORD
-else
-  die "login failed — is ADMIN_PASSWORD the one just dev-up printed?"
-fi
+# `config-e2e.sh` rotates the bootstrap password on its first run against a fresh stack, so the same
+# fallback applies here: try what was given, then what that script would have set.
+studio_sign_in "$NEW_PASSWORD" || die "could not sign in to Studio"
 
 say "registering $CLUSTER_NAME and minting an MCP key"
 existing=$(api GET /clusters | py "next((c['id'] for c in d if c['name']=='$CLUSTER_NAME'), '')")

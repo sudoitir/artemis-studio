@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
@@ -57,6 +59,7 @@ public class SecurityConfig {
             List<IdentityProviders> identityProviders,
             HandlerExceptionResolver handlerExceptionResolver,
             CsrfTokenRepository csrfTokenRepository,
+            SessionAuthentication sessions,
             PermissionResolver perm)
             throws Exception {
         http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
@@ -75,6 +78,8 @@ public class SecurityConfig {
                         new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/second-factor",
+                                "/api/v1/auth/second-factor/options",
                                 "/api/v1/auth/providers",
                                 "/actuator/health",
                                 "/actuator/health/**")
@@ -101,12 +106,16 @@ public class SecurityConfig {
                         // reachable unauthenticated, or the login page itself cannot load.
                         .anyRequest()
                         .permitAll())
+                // First of all, so every reader of the client's address sees it in one spelling.
+                .addFilterBefore(new ClientAddressFilter(), DisableEncodeUrlFilter.class)
+                // A session that should no longer count ends first, so nothing after it sees it signed in.
+                .addFilterAfter(new SessionLifetimeFilter(sessions), SecurityContextHolderFilter.class)
                 // SecurityContextHolderFilter loads (empty, session-less) context from the
                 // repository and would overwrite a bearer authentication set before it runs —
                 // this filter must come after, not before.
                 .addFilterAfter(new BearerAuthenticationFilter(identityProviders), SecurityContextHolderFilter.class)
                 .addFilterAfter(
-                        new MustChangePasswordFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
+                        new RestrictedSessionFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
 
         // Redirect sign-in (ADR-0040) adds what it needs; a module with nothing to add adds nothing.

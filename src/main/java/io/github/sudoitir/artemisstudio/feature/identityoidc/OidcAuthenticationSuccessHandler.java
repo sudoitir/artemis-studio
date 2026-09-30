@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.ExternalIdentity;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -72,7 +73,7 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
             response.sendRedirect("/login?error=oidc-unmapped");
             return;
         }
-        sessions.establish(principal.get(), request, response);
+        sessions.establish(principal.get(), SessionFacts.signedIn(request), request, response);
         attempt.succeeded();
         response.sendRedirect(stepUp.map(OidcStepUp.Pending::returnTo).orElse("/"));
     }

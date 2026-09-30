@@ -64,11 +64,7 @@ describe('AddressPicker', () => {
     // The whole row is one accessible name, so a screen reader announces the
     // address with the two facts that distinguish a request queue from a reply one.
     expect(
-      await screen.findByRole(
-        'option',
-        { name: 'orders.request, anycast, 12 messages, on 3 of 3 nodes', ...opt },
-        { timeout: 4000 },
-      ),
+      await screen.findByRole('option', { name: 'orders.request, anycast, 12 messages, on 3 of 3 nodes', ...opt }),
     ).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^orders\.events, multicast,/, ...opt })).toBeInTheDocument();
   });
@@ -84,7 +80,7 @@ describe('AddressPicker', () => {
 
     await user.click(screen.getByRole('textbox', { name: /request address/i }));
 
-    const option = await screen.findByRole('option', { name: new RegExp(`^${long},`), ...opt }, { timeout: 4000 });
+    const option = await screen.findByRole('option', { name: new RegExp(`^${long},`), ...opt });
     const name = option.querySelector(`[title="${long}"]`);
     expect(name).not.toBeNull();
     expect(name).toHaveTextContent(long);
@@ -100,7 +96,7 @@ describe('AddressPicker', () => {
     renderWithProviders(<Harness />);
 
     await user.click(screen.getByRole('textbox', { name: /request address/i }));
-    await screen.findByRole('option', { name: /orders\.events/, ...opt }, { timeout: 4000 });
+    await screen.findByRole('option', { name: /orders\.events/, ...opt });
 
     await user.click(screen.getByRole('checkbox', { name: 'multicast', ...opt }));
 

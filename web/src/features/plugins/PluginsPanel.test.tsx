@@ -297,7 +297,7 @@ describe('Administration → Plugins', () => {
 
     expect(await screen.findByText(/You can close this; it carries on/)).toBeInTheDocument();
     status = 'active';
-    expect(await screen.findByText('Notes 1.0.0 is active', {}, { timeout: 5_000 })).toBeInTheDocument();
+    expect(await screen.findByText('Notes 1.0.0 is active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload Studio' })).toBeInTheDocument();
   });
 
@@ -318,12 +318,7 @@ describe('Administration → Plugins', () => {
       ),
       http.post('*/api/v1/auth/reauthenticate', async () => {
         reauthenticated = true;
-        return HttpResponse.json({
-          method: 'PASSWORD',
-          startPath: null,
-          authenticatedAt: new Date().toISOString(),
-          windowSeconds: 300,
-        });
+        return HttpResponse.json({ status: 'AUTHENTICATED', me: null, methods: null });
       }),
     );
     const user = userEvent.setup();

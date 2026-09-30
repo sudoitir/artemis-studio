@@ -1,4 +1,4 @@
-import { ActionIcon, CopyButton, Group, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, CopyButton, Group, Input, Stack, Text, TextInput } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconCopy } from '@tabler/icons-react';
 
@@ -38,7 +38,13 @@ export function McpConnectionPanel() {
       </Text>
 
       <Group align="flex-end">
-        <TextInput label="Endpoint" value={endpoint} readOnly ff="monospace" style={{ flex: 1 }} />
+        <TextInput
+          label="Endpoint"
+          value={endpoint}
+          readOnly
+          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
+          style={{ flex: 1 }}
+        />
         <CopyButton value={endpoint}>
           {({ copy }) => (
             <ActionIcon size="lg" variant="default" onClick={copy} aria-label="Copy endpoint">
@@ -49,9 +55,7 @@ export function McpConnectionPanel() {
       </Group>
 
       <div>
-        <Text size="sm" fw={500} mb={4}>
-          Client configuration
-        </Text>
+        <Input.Label mb={4}>Client configuration</Input.Label>
         <CodeHighlight code={config} language="json" />
       </div>
 

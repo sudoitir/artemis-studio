@@ -9,7 +9,7 @@
 # happens when the canary refuses. `BrokerConfigApplyServiceTest` mocks the broker
 # layer, so it can only prove Studio's half of every one of those sentences.
 #
-#   ADMIN_PASSWORD=... ./scripts/config-e2e.sh
+#   ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... ./scripts/config-e2e.sh
 #
 # Everything goes through the product's own surfaces — Studio's REST API and the
 # Artemis CLI inside the broker image. The only direct reads are the two
@@ -24,6 +24,8 @@ set -uo pipefail
 STUDIO=${STUDIO:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
+# Once the admin has two-step verification (the first run enrols it), the secret that run printed.
+ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 NEW_PASSWORD=${NEW_PASSWORD:-config-e2e-Passw0rd!}
 COMPOSE=${COMPOSE:-docker compose -f deploy/compose/compose.dev.yaml}
 CLUSTER_NAME=${CLUSTER_NAME:-config-e2e}
@@ -32,22 +34,15 @@ JAR=/var/lib/artemis-instance/bin/artemis
 COOKIES=$(mktemp)
 trap 'rm -f "$COOKIES"' EXIT
 
+# shellcheck source=lib/signin.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/signin.sh"
+
 FAILURES=0
 say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 pass() { printf '\033[32m  PASS %s\033[0m\n' "$*"; }
 fail() { printf '\033[31m  FAIL %s\033[0m\n' "$*" >&2; FAILURES=$((FAILURES + 1)); }
 note() { printf '\033[36m  ·    %s\033[0m\n' "$*"; }
 die() { printf '\n\033[31mABORT: %s\033[0m\n' "$*" >&2; exit 99; }
-
-csrf() { awk '$6 == "XSRF-TOKEN" { print $7 }' "$COOKIES" | tail -1; }
-
-# api METHOD PATH [curl args...] → response body on stdout
-api() {
-  local method=$1 path=$2
-  shift 2
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$path" \
-    -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
-}
 
 # status METHOD PATH [curl args...] → HTTP status code on stdout
 status() {
@@ -114,23 +109,7 @@ done
 curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 || die "Studio never became healthy at $STUDIO"
 
 say "signing in"
-login() {
-  curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/auth/me" >/dev/null || true
-  api POST /auth/login -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$1\"}" | grep -q '"username"'
-}
-if login "$ADMIN_PASSWORD"; then
-  if curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/clusters" | grep -q must-change-password; then
-    say "changing the bootstrap password"
-    api POST /auth/password \
-      -d "{\"currentPassword\":\"$ADMIN_PASSWORD\",\"newPassword\":\"$NEW_PASSWORD\"}" >/dev/null
-    ADMIN_PASSWORD=$NEW_PASSWORD
-    login "$ADMIN_PASSWORD" || die "login failed after the password change"
-  fi
-elif login "$NEW_PASSWORD"; then
-  ADMIN_PASSWORD=$NEW_PASSWORD
-else
-  die "login failed — is ADMIN_PASSWORD the one just dev-up printed?"
-fi
+studio_sign_in "$NEW_PASSWORD" || die "could not sign in to Studio"
 pass "signed in as $ADMIN_USER"
 
 # The run applies to the catch-all address setting, and addAddressSettings replaces

@@ -18,11 +18,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.SealedStore;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretRotations;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -205,7 +205,7 @@ class SecretRotationTest extends PostgresIntegrationTest {
 
     private static MockHttpServletRequest freshSession() {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true).setAttribute(SessionAuthentication.AUTHENTICATED_AT, Instant.now());
+        request.getSession(true).setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, SessionFacts.signedIn(request));
         return request;
     }
 

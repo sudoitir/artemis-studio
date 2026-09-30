@@ -21,9 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * {@code 014-identity.sql} applies cleanly on top of {@code 003-identity.sql}
- * / {@code 002-estate.sql} (Liquibase runs this for every test in the suite;
- * this test asserts what it produced), the three built-in roles are seeded
+ * The kernel/security {@code 0001-baseline.sql} applies cleanly (Liquibase runs this for
+ * every test in the suite; this test asserts what it produced), the three built-in roles are seeded
  * with the expected permissions, and the new entities round-trip
  * (identity-and-sessions spec, authorization spec, api-tokens spec).
  */
@@ -69,6 +68,17 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void usernamesAreUniqueIgnoringCase() {
+        String name = "Case-" + UUID.randomUUID();
+        AppUserEntity first = users.saveAndFlush(AppUserEntity.local(name, null, "{noop}x"));
+        assertThat(users.existsByUsernameIgnoreCase(name.toLowerCase())).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> users.saveAndFlush(AppUserEntity.local(name.toUpperCase(), null, "{noop}x")))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        users.delete(first);
+    }
+
+    @Test
     void anExternalUserHasNoPasswordHash() {
         AppUserEntity user = users.save(AppUserEntity.external("sso", "sub-1", "external-" + UUID.randomUUID(), null));
         AppUserEntity reloaded =
@@ -87,7 +97,8 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
                 "as_abcdefghijk",
                 new byte[32],
                 Instant.now().plusSeconds(60),
-                List.of()));
+                List.of(),
+                false));
         assertThat(tokens.findByPrefix("as_abcdefghijk")).isPresent();
         assertThat(token.isActive(Instant.now(), Duration.ofDays(90))).isTrue();
 

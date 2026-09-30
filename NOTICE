@@ -6,6 +6,13 @@ The Artemis Studio Authors (https://github.com/sudoitir/artemis-studio).
 
 ---
 
+The list of common passwords in identitylocal/breached-passwords.txt.gz is the
+first 100,000 entries of SecLists' xato-net-10-million-passwords list
+(https://github.com/danielmiessler/SecLists), Copyright (c) 2018 Daniel Miessler,
+used under the MIT License.
+
+---
+
 Apache ActiveMQ and Apache ActiveMQ Artemis are trademarks of the Apache
 Software Foundation. Artemis Studio is an independent project. It is not
 produced by, endorsed by, or affiliated with the Apache Software Foundation.

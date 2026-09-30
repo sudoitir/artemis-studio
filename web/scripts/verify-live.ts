@@ -1,7 +1,7 @@
 /**
  * The live pause and window checks, driven rather than clicked.
  *
- *   ADMIN_PASSWORD=… node --experimental-strip-types web/scripts/verify-live.ts
+ *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… node --experimental-strip-types web/scripts/verify-live.ts
  *
  * Point it at a running `just demo`. What it prints is the evidence for the
  * behaviours the unit tests can only assert in jsdom: that pausing really does
@@ -16,8 +16,8 @@
  * on purpose (ADR-0052), so a reload-based script measures the wrong thing.
  */
 import { chromium } from '@playwright/test';
+import { signIn } from './session.ts';
 
-const BASE = 'http://localhost:8080';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 
@@ -27,13 +27,7 @@ p.on('request', (r) => {
   if (u.pathname.startsWith('/api/v1/') && !u.pathname.startsWith('/api/v1/stream')) api.push(u.pathname);
 });
 
-await p.goto(`${BASE}/login`);
-await p.getByRole('textbox', { name: 'Username' }).fill('admin');
-await p.getByRole('textbox', { name: 'Password' }).fill(process.env.ADMIN_PASSWORD!);
-await p.getByRole('button', { name: /sign in|log in/i }).click();
-await p.waitForURL((u) => !u.pathname.startsWith('/login'));
-await p.getByRole('link', { name: /demo/i }).first().click();
-await p.waitForURL(/\/clusters\/[0-9a-f-]+/);
+await signIn(p);
 
 const go = async (view: RegExp) => {
   await p.getByRole('link', { name: view }).first().click();

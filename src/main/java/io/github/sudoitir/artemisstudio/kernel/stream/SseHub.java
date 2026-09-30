@@ -1,13 +1,18 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -74,6 +79,15 @@ public class SseHub {
         }
     }
 
+    /**
+     * Tell a subscriber that has just connected that its stream is open. Nothing else is sent until
+     * the first event or heartbeat, up to {@code sse.heartbeat-interval} away, and the browser fires
+     * {@code onopen} only once the first bytes arrive, so the console would sit "connecting" until then.
+     */
+    public void greet(Subscriber subscriber) {
+        sendTo(subscriber, PING, Instant.now().toEpochMilli(), null);
+    }
+
     /** Send one event to one subscriber — used for {@code Last-Event-ID} replay on connect. */
     public void sendTo(Subscriber subscriber, String topic, Object data, String eventId) {
         // clusterId is only needed to deregister a dead emitter; on the replay path the
@@ -133,6 +147,53 @@ public class SseHub {
         } catch (RuntimeException _) {
             // already closed
         }
+    }
+
+    /** A session ended on this instance: complete the streams it opened, so a signed-out user gets no more events. */
+    @EventListener
+    void onSessionEnded(SessionEnded ended) {
+        complete(s -> ended.sessionId().equals(s.sessionId()));
+    }
+
+    /** A session was given a new id: its streams follow it, so they are not mistaken for those of a session that ended. */
+    @EventListener
+    void onSessionIdChanged(SessionIdChanged changed) {
+        byCluster
+                .values()
+                .forEach(set -> set.stream()
+                        .filter(s -> changed.oldId().equals(s.sessionId()))
+                        .forEach(s -> s.followSession(changed.newId())));
+    }
+
+    /**
+     * Complete the streams whose session {@code isLive} no longer accepts, which finds what
+     * {@link #onSessionEnded} cannot see: a session that timed out, or ended on another instance.
+     * Asks once per session however many streams it holds.
+     */
+    public void closeEndedSessions(Predicate<String> isLive) {
+        Map<String, Boolean> live = new HashMap<>();
+        complete(s -> s.sessionId() != null && !live.computeIfAbsent(s.sessionId(), isLive::test));
+    }
+
+    /**
+     * Complete the streams opened with an API token that {@code isLive} no longer accepts: revoked,
+     * expired, or its owner disabled or now required to hold a second factor it was minted without.
+     * Asks once per token however many streams it holds.
+     */
+    public void closeEndedTokens(Predicate<UUID> isLive) {
+        Map<UUID, Boolean> live = new HashMap<>();
+        complete(s -> s.tokenId() != null && !live.computeIfAbsent(s.tokenId(), isLive::test));
+    }
+
+    private void complete(Predicate<Subscriber> ended) {
+        byCluster.forEach((clusterId, set) -> set.stream().filter(ended).forEach(s -> {
+            remove(clusterId, s);
+            try {
+                s.emitter().complete();
+            } catch (RuntimeException _) {
+                // already closed
+            }
+        }));
     }
 
     /** End every open stream and forget its subscribers. Clients reconnect to the next instance. */

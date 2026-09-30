@@ -193,4 +193,28 @@ describe('ApiKeysPanel', () => {
     expect(await screen.findByText('2026-09-30')).toBeInTheDocument();
     expect(screen.getAllByText('42').length).toBeGreaterThan(0);
   });
+
+  it.each([
+    [
+      'session-required',
+      /only be created from a signed-in console session.*Sign in to the console and create it there/,
+    ],
+    ['mfa-required', /has not completed it\. Sign out, sign in with your second factor, then create the key/],
+  ])('says why a key was refused (%s) and what to do', async (slug, advice) => {
+    mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }]);
+    server.use(
+      http.post('*/api/v1/tokens', () =>
+        HttpResponse.json({ type: `https://artemis-studio.dev/problems/${slug}`, title: slug }, { status: 403 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ApiKeysPanel />);
+
+    await user.click(await screen.findByRole('button', { name: 'New key' }));
+    await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'agent');
+    await user.click(await screen.findByRole('checkbox', { name: 'Select all in Clusters' }));
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(advice);
+  });
 });

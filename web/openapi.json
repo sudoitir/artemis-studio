@@ -10,6 +10,33 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/users/{userId}/unlock" : {
+      "put" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "unlock",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{userId}/disabled" : {
       "put" : {
         "tags" : [ "users-controller" ],
@@ -3175,6 +3202,53 @@
         }
       }
     },
+    "/api/v1/auth/second-factor" : {
+      "post" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "secondFactor",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SecondFactorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuthResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/second-factor/options" : {
+      "post" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "secondFactorOptions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/reauthenticate" : {
       "post" : {
         "tags" : [ "auth-session-controller" ],
@@ -3195,7 +3269,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ReauthenticationView"
+                  "$ref" : "#/components/schemas/AuthResult"
                 }
               }
             }
@@ -3220,6 +3294,126 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/webauthn" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "registerPasskey",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterPasskeyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PasskeyRegisteredView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/webauthn/options" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "passkeyOptions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : { }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/totp" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "startTotp",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TotpEnrolmentView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "removeTotp",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/totp/confirm" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "confirmTotp",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConfirmTotpRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TotpConfirmedView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/recovery-codes" : {
+      "post" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "regenerateRecoveryCodes",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecoveryCodesView"
+                }
+              }
+            }
           }
         }
       }
@@ -3255,7 +3449,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/MeView"
+                  "$ref" : "#/components/schemas/AuthResult"
                 }
               }
             }
@@ -3856,6 +4050,61 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ConfigDeclarationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/sessions" : {
+      "get" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "sessionsOf",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AccountSessionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "endSessionsOf",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EndedSessionsView"
                 }
               }
             }
@@ -6099,6 +6348,43 @@
         }
       }
     },
+    "/api/v1/auth/sessions" : {
+      "get" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "ownSessions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AccountSessionView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "endOtherOwnSessions",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EndedSessionsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/providers" : {
       "get" : {
         "tags" : [ "auth-session-controller" ],
@@ -6113,6 +6399,24 @@
                   "items" : {
                     "$ref" : "#/components/schemas/IdentityProviderView"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa" : {
+      "get" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "status_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MfaStatusView"
                 }
               }
             }
@@ -6332,6 +6636,60 @@
         }
       }
     },
+    "/api/v1/users/{userId}/sessions/{handle}" : {
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "endSessionOf",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "handle",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/second-factors" : {
+      "delete" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "resetSecondFactors",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{userId}/grants/{roleId}" : {
       "delete" : {
         "tags" : [ "users-controller" ],
@@ -6506,6 +6864,75 @@
         }
       }
     },
+    "/api/v1/auth/sessions/{handle}" : {
+      "delete" : {
+        "tags" : [ "auth-session-controller" ],
+        "operationId" : "endOwnSession",
+        "parameters" : [ {
+          "name" : "handle",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/webauthn/{id}" : {
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "removePasskey",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/trusted-devices" : {
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "revokeTrustedDevices",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/trusted-devices/{id}" : {
+      "delete" : {
+        "tags" : [ "mfa-controller" ],
+        "operationId" : "revokeTrustedDevice",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/admin/tokens/{tokenId}" : {
       "delete" : {
         "tags" : [ "admin-tokens-controller" ],
@@ -6568,15 +6995,6 @@
   },
   "components" : {
     "schemas" : {
-      "SetDisabledRequest" : {
-        "type" : "object",
-        "properties" : {
-          "disabled" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "disabled" ]
-      },
       "GrantSummary" : {
         "type" : "object",
         "properties" : {
@@ -6619,6 +7037,23 @@
           "mustChangePassword" : {
             "type" : "boolean"
           },
+          "lockedUntil" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "When repeated failed sign-ins stop blocking this account; null when it is not locked."
+          },
+          "secondFactors" : {
+            "type" : "array",
+            "description" : "The second factors the user has set up: TOTP for an authenticator app and WEBAUTHN for passkeys. Empty when they have none.",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "TOTP", "WEBAUTHN", "RECOVERY_CODE", "TRUSTED_DEVICE" ]
+            }
+          },
+          "secondFactorRequired" : {
+            "type" : "boolean",
+            "description" : "The user must hold a second factor: a local account with a role that requires one."
+          },
           "grants" : {
             "type" : "array",
             "items" : {
@@ -6626,7 +7061,16 @@
             }
           }
         },
-        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "username" ]
+        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "secondFactorRequired", "secondFactors", "username" ]
+      },
+      "SetDisabledRequest" : {
+        "type" : "object",
+        "properties" : {
+          "disabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "disabled" ]
       },
       "UpdateSettingRequest" : {
         "type" : "object",
@@ -6650,9 +7094,13 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "requiresMfa" : {
+            "type" : "boolean",
+            "description" : "Whether local accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA."
           }
         },
-        "required" : [ "name", "permissions" ]
+        "required" : [ "name", "permissions", "requiresMfa" ]
       },
       "RoleView" : {
         "type" : "object",
@@ -6672,9 +7120,12 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "requiresMfa" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "builtin", "id", "name", "permissions" ]
+        "required" : [ "builtin", "id", "name", "permissions", "requiresMfa" ]
       },
       "DefaultRoleRequest" : {
         "type" : "object",
@@ -10680,69 +11131,55 @@
         },
         "required" : [ "kind" ]
       },
-      "ReauthenticateRequest" : {
+      "SecondFactorRequest" : {
         "type" : "object",
         "properties" : {
-          "password" : {
-            "type" : "string",
-            "minLength" : 1
-          }
-        },
-        "required" : [ "password" ]
-      },
-      "ReauthenticationView" : {
-        "type" : "object",
-        "properties" : {
-          "method" : {
-            "type" : "string",
-            "description" : "PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.",
-            "enum" : [ "PASSWORD", "REDIRECT" ]
-          },
-          "startPath" : {
-            "type" : [ "string", "null" ]
-          },
-          "authenticatedAt" : {
+          "totpCode" : {
             "type" : [ "string", "null" ],
-            "format" : "date-time"
+            "description" : "A code from an authenticator app."
           },
-          "windowSeconds" : {
+          "recoveryCode" : {
+            "type" : [ "string", "null" ],
+            "description" : "A single-use recovery code; dashes and case are ignored."
+          },
+          "webauthn" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : { },
+            "description" : "The credential a passkey returned for the options from POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it."
+          },
+          "trustDevice" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Trust this browser, so the next sign-in needs only the password. Honoured at sign-in when trusted devices are on (see trustDeviceDays); ignored for a step-up."
+          }
+        }
+      },
+      "AuthResult" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AUTHENTICATED", "SECOND_FACTOR_REQUIRED" ]
+          },
+          "me" : {
+            "type" : "null",
+            "$ref" : "#/components/schemas/MeView",
+            "description" : "The signed-in user; set when the status is AUTHENTICATED."
+          },
+          "methods" : {
+            "type" : [ "array", "null" ],
+            "description" : "How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, WEBAUTHN a passkey, RECOVERY_CODE one of the single-use codes.",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "TOTP", "WEBAUTHN", "RECOVERY_CODE", "TRUSTED_DEVICE" ]
+            }
+          },
+          "trustDeviceDays" : {
             "type" : "integer",
-            "format" : "int64"
+            "format" : "int32",
+            "description" : "For a sign-in that needs a second factor: for how many days the user may trust this browser after giving it, so the next sign-in asks for the password only. 0 when trusted devices are off, and always 0 in any other case. Send trustDevice with the second factor to trust it."
           }
         },
-        "required" : [ "method", "windowSeconds" ]
-      },
-      "ChangePasswordRequest" : {
-        "type" : "object",
-        "properties" : {
-          "currentPassword" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "newPassword" : {
-            "type" : "string",
-            "minLength" : 1
-          }
-        },
-        "required" : [ "currentPassword", "newPassword" ]
-      },
-      "LoginRequest" : {
-        "type" : "object",
-        "properties" : {
-          "provider" : {
-            "type" : [ "string", "null" ],
-            "description" : "The credential provider to sign in with. Omit for local."
-          },
-          "username" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "password" : {
-            "type" : "string",
-            "minLength" : 1
-          }
-        },
-        "required" : [ "password", "username" ]
+        "required" : [ "status", "trustDeviceDays" ]
       },
       "GrantView" : {
         "type" : "object",
@@ -10776,6 +11213,10 @@
           "mustChangePassword" : {
             "type" : "boolean"
           },
+          "secondFactorEnrolmentRequired" : {
+            "type" : "boolean",
+            "description" : "The user's role requires two-step verification and they have none: the session may only enrol one until they do."
+          },
           "grants" : {
             "type" : "array",
             "items" : {
@@ -10786,7 +11227,167 @@
             "$ref" : "#/components/schemas/ReauthenticationView"
           }
         },
-        "required" : [ "grants", "id", "mustChangePassword", "reauthentication", "username" ]
+        "required" : [ "grants", "id", "mustChangePassword", "reauthentication", "secondFactorEnrolmentRequired", "username" ]
+      },
+      "ReauthenticationView" : {
+        "type" : "object",
+        "properties" : {
+          "method" : {
+            "type" : "string",
+            "description" : "PASSWORD to re-enter it here; REDIRECT to sign in with the provider again.",
+            "enum" : [ "PASSWORD", "REDIRECT" ]
+          },
+          "startPath" : {
+            "type" : [ "string", "null" ]
+          },
+          "authenticatedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "windowSeconds" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "method", "windowSeconds" ]
+      },
+      "ReauthenticateRequest" : {
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password" ]
+      },
+      "ChangePasswordRequest" : {
+        "type" : "object",
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "newPassword" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "currentPassword", "newPassword" ]
+      },
+      "RegisterPasskeyRequest" : {
+        "type" : "object",
+        "properties" : {
+          "label" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "credential" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        },
+        "required" : [ "credential", "label" ]
+      },
+      "PasskeyRegisteredView" : {
+        "type" : "object",
+        "properties" : {
+          "passkey" : {
+            "$ref" : "#/components/schemas/PasskeyView"
+          },
+          "recoveryCodes" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "passkey" ]
+      },
+      "PasskeyView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "created" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastUsed" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "When the passkey was last used to sign in; when it was created until then."
+          }
+        },
+        "required" : [ "created", "id", "label", "lastUsed" ]
+      },
+      "TotpEnrolmentView" : {
+        "type" : "object",
+        "properties" : {
+          "secret" : {
+            "type" : "string"
+          },
+          "otpauthUri" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "otpauthUri", "secret" ]
+      },
+      "ConfirmTotpRequest" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "code" ]
+      },
+      "TotpConfirmedView" : {
+        "type" : "object",
+        "properties" : {
+          "recoveryCodes" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "RecoveryCodesView" : {
+        "type" : "object",
+        "properties" : {
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "codes" ]
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "provider" : {
+            "type" : [ "string", "null" ],
+            "description" : "The credential provider to sign in with. Omit for local."
+          },
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password", "username" ]
       },
       "PluginPurgePlanView" : {
         "type" : "object",
@@ -10963,6 +11564,32 @@
           }
         },
         "required" : [ "applyMode", "reportUndeclared", "undeclaredExclusions" ]
+      },
+      "AccountSessionView" : {
+        "type" : "object",
+        "properties" : {
+          "handle" : {
+            "type" : "string"
+          },
+          "signedInAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastActivityAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "clientAddress" : {
+            "type" : [ "string", "null" ]
+          },
+          "userAgent" : {
+            "type" : [ "string", "null" ]
+          },
+          "current" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "current", "handle", "lastActivityAt", "signedInAt" ]
       },
       "EffectivePermissionView" : {
         "type" : "object",
@@ -14530,6 +15157,86 @@
         },
         "required" : [ "id", "kind", "label" ]
       },
+      "MfaStatusView" : {
+        "type" : "object",
+        "properties" : {
+          "local" : {
+            "type" : "boolean"
+          },
+          "required" : {
+            "type" : "boolean"
+          },
+          "enrolled" : {
+            "type" : "boolean"
+          },
+          "totpEnrolled" : {
+            "type" : "boolean"
+          },
+          "recoveryCodesRemaining" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "webauthn" : {
+            "$ref" : "#/components/schemas/WebAuthnAvailabilityView"
+          },
+          "passkeys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PasskeyView"
+            }
+          },
+          "trustedDevices" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TrustedDeviceView"
+            }
+          }
+        },
+        "required" : [ "enrolled", "local", "passkeys", "recoveryCodesRemaining", "required", "totpEnrolled", "trustedDevices", "webauthn" ]
+      },
+      "TrustedDeviceView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "client" : {
+            "type" : [ "string", "null" ]
+          },
+          "address" : {
+            "type" : [ "string", "null" ]
+          },
+          "created" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastUsed" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expires" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "current" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "created", "current", "expires", "id", "lastUsed" ]
+      },
+      "WebAuthnAvailabilityView" : {
+        "type" : "object",
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "available" ]
+      },
       "ClusterFiringCountView" : {
         "type" : "object",
         "properties" : {
@@ -14750,6 +15457,16 @@
           }
         },
         "required" : [ "grantedAt", "userId", "username" ]
+      },
+      "EndedSessionsView" : {
+        "type" : "object",
+        "properties" : {
+          "ended" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "ended" ]
       },
       "DeletedView" : {
         "type" : "object",

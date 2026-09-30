@@ -15,6 +15,7 @@ _Services_
 
 _Others_
 
+* `i.g.s.a.k.s.SettingsContribution` (via `i.g.s.a.k.s.SessionSettings`)
 * `i.g.s.a.k.s.SettingsReader`
 * `i.g.s.a.k.s.StudioInstance`
 |Bean references

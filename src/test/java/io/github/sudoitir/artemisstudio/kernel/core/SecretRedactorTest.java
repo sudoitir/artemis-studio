@@ -32,6 +32,11 @@ class SecretRedactorTest {
                         "key [redacted] after"),
                 Arguments.of("token " + apiToken + " used", "token [redacted] used"),
                 Arguments.of("client_secret=abc", "client_secret=[redacted]"),
+                // The second-factor proofs of local accounts (ADR-0143): a code is a credential until it is used.
+                Arguments.of("{\"totpCode\":\"123456\"}", "{\"totpCode\":\"[redacted]\"}"),
+                Arguments.of("recoveryCode=ABCDE-FGHIJ failed", "recoveryCode=[redacted] failed"),
+                Arguments.of("webauthn=eyJpZCI6IngifQ", "webauthn=[redacted]"),
+                Arguments.of("as_trusted_device=abc123", "as_trusted_device=[redacted]"),
                 // Over-masking is deliberate: a name that merely contains a term is treated as a credential.
                 Arguments.of("tokenCount=5", "tokenCount=[redacted]"),
                 Arguments.of("password=[redacted]", "password=[redacted]"));
@@ -67,7 +72,11 @@ class SecretRedactorTest {
                 "client_secret",
                 "Authorization",
                 "privateKey",
-                "userCredentials"
+                "userCredentials",
+                "totpCode",
+                "recovery_code",
+                "as_trusted_device",
+                "webauthn"
             })
     void recognisesCredentialKeys(String name) {
         assertThat(SecretRedactor.isCredentialKey(name)).isTrue();

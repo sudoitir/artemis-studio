@@ -11,7 +11,13 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
+    // Vitest's 5 s per test is sized for a unit test. These render Mantine, TanStack Router and, for the
+    // screens that use them, a virtualised grid or a diagram in jsdom, and a full run puts every core to
+    // work at once: a test that takes 2 s alone takes 6 s beside 20 others. A timeout is only the bound on
+    // a test that is stuck, so it is set where a slow machine cannot trip it (a stuck one still fails).
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     // `npm run test:coverage` (ADR-0128): V8 coverage of the app's own sources, reported as text,
     // HTML, a JSON summary that CI puts in the job summary, and lcov for SonarQube Cloud. No threshold.
     coverage: {

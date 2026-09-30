@@ -25,7 +25,7 @@ import { useKeySequences } from '../keyboard/useKeySequences.ts';
 
 const NAVBAR_ID = 'as-navbar';
 const MAIN_ID = 'as-main';
-const PUBLIC_PATHS = new Set(['/login', '/change-password']);
+const PUBLIC_PATHS = new Set(['/login', '/change-password', '/enrol-second-factor']);
 
 /**
  * The desktop workspace chrome: a fixed header, the collapsible sidebar (the features' way between
@@ -55,6 +55,9 @@ export function RootLayout() {
       void navigate({ to: '/login' });
     } else if (me.data?.mustChangePassword && location.pathname !== '/change-password') {
       void navigate({ to: '/change-password' });
+    } else if (me.data?.secondFactorEnrolmentRequired && !me.data.mustChangePassword) {
+      // The session may enrol a second factor and do nothing else until it has (identity-and-sessions spec).
+      void navigate({ to: '/enrol-second-factor' });
     }
   }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
 
@@ -99,7 +102,7 @@ export function RootLayout() {
     );
   }
 
-  if (me.isError || me.data?.mustChangePassword) {
+  if (me.isError || me.data?.mustChangePassword || me.data?.secondFactorEnrolmentRequired) {
     // The effect above is already navigating away; render nothing in the meantime.
     return null;
   }

@@ -2,8 +2,10 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,17 +39,42 @@ public final class UserViews {
             @Schema(requiredMode = REQUIRED) String providerId,
             @Schema(requiredMode = REQUIRED) boolean disabled,
             @Schema(requiredMode = REQUIRED) boolean mustChangePassword,
+
+            @Schema(
+                    nullable = true,
+                    description =
+                            "When repeated failed sign-ins stop blocking this account; null when it is not locked.")
+            Instant lockedUntil,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The second factors the user has set up: TOTP for an authenticator app and "
+                            + "WEBAUTHN for passkeys. Empty when they have none.")
+            List<SessionFacts.Method> secondFactors,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The user must hold a second factor: a local account with a role that requires one.")
+            boolean secondFactorRequired,
+
             @Schema(requiredMode = REQUIRED) List<GrantSummary> grants) {}
 
     public record RoleRequest(
             @NotBlank String name,
-            @Schema(requiredMode = REQUIRED) List<String> permissions) {}
+            @Schema(requiredMode = REQUIRED) List<String> permissions,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether local accounts holding this role need a second factor. "
+                            + "Single sign-on users rely on their identity provider's own MFA.")
+            boolean requiresMfa) {}
 
     public record RoleView(
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) boolean builtin,
-            @Schema(requiredMode = REQUIRED) List<String> permissions) {}
+            @Schema(requiredMode = REQUIRED) List<String> permissions,
+            @Schema(requiredMode = REQUIRED) boolean requiresMfa) {}
 
     public record PermissionView(
             @Schema(requiredMode = REQUIRED) String action,

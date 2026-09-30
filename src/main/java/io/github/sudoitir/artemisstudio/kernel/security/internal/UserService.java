@@ -2,8 +2,16 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
+import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
+import io.github.sudoitir.artemisstudio.kernel.security.PersonalTokens;
+import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -15,8 +23,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.CreateUser
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantSummary;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,7 +53,12 @@ public class UserService {
     private final UserRoleRepository userRoles;
     private final PasswordEncoder passwordEncoder;
     private final AdministrationAudit audit;
+    private final AccountLockout lockout;
     private final SessionTerminator sessions;
+    private final Optional<PasswordRules> passwordRules;
+    private final Optional<SecondFactors> secondFactors;
+    private final Optional<PersonalTokens> personalTokens;
+    private final SessionAuthentication sessionState;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -53,10 +69,11 @@ public class UserService {
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional
     public UserView create(CreateUserRequest request) {
-        if (users.findByUsername(request.username()).isPresent()) {
+        if (users.existsByUsernameIgnoreCase(request.username())) {
             throw new ConflictException(
                     "duplicate-username", "A user named '" + request.username() + "' already exists.");
         }
+        passwordRules.ifPresent(rules -> rules.check(request.username(), request.password()));
         AppUserEntity user =
                 AppUserEntity.local(request.username(), request.email(), passwordEncoder.encode(request.password()));
         user.setMustChangePassword(true);
@@ -77,8 +94,20 @@ public class UserService {
         audit.changed(disabled ? "USER_DISABLE" : "USER_ENABLE", "user", user.getUsername(), null);
         if (disabled) {
             sessions.endSessionsOf(List.of(user.getUsername()));
+            secondFactors.ifPresent(f -> f.revokeTrustedDevices(userId, "account disabled"));
         }
         return toView(user);
+    }
+
+    /** Lift the account lock and the sign-in throttle for the user, so they can try again at once. */
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional
+    public UserView unlock(UUID userId) {
+        AppUserEntity user = requireUser(userId);
+        lockout.unlock(user.getId(), user.getUsername());
+        audit.changed("ACCOUNT_UNLOCK", "user", user.getUsername(), null);
+        // The entity still holds the lock it was loaded with; the columns are written by SQL, not through it.
+        return toView(user, null);
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -94,6 +123,10 @@ public class UserService {
                 "user",
                 user.getUsername(),
                 Map.of("role", role.getName(), "scopeType", request.scopeType()));
+        if (role.isRequiresMfa()) {
+            // Sessions signed in before the grant never verified a second factor; the next sign-in enforces it.
+            sessions.endSessionsOf(List.of(user.getUsername()));
+        }
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -118,6 +151,38 @@ public class UserService {
         audit.changed(
                 "GRANT_REMOVE", "user", user.getUsername(), Map.of("role", role.getName(), "scopeType", scopeType));
         sessions.endSessionsOf(List.of(user.getUsername()));
+    }
+
+    /**
+     * Remove a user's second factors, as an administrator does when they lost their device: the
+     * authenticator app, passkeys, recovery codes and trusted devices go, their API tokens are revoked
+     * and their sessions end, so at the next sign-in they enrol again if their role requires a factor.
+     * It needs a step-up; it is never for one's own account, where recovery codes are the way; and when the
+     * target must hold a factor, the administrator's own session must have verified one.
+     */
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    @Transactional
+    public UserView resetSecondFactors(UUID userId, HttpServletRequest request) {
+        if (!sessionState.recentlyAuthenticated(request)) {
+            throw new ReauthenticationRequiredException();
+        }
+        AppUserEntity user = requireUser(userId);
+        StudioPrincipal actor = currentPrincipalOrNull();
+        if (actor != null && userId.equals(actor.userId())) {
+            throw new ConflictException("self-reset", "Use one of your recovery codes, or ask another administrator.");
+        }
+        boolean targetRequired = secondFactors.map(f -> f.required(userId)).orElse(false);
+        if (targetRequired
+                && sessionState.facts(request).map(SessionFacts::mfaVerifiedAt).isEmpty()) {
+            throw new SecondFactorRequiredException(
+                    "This user must hold a second factor, so you must have verified yours in this session first."
+                            + " Sign in again and give your authenticator code or passkey.");
+        }
+        secondFactors.ifPresent(f -> f.reset(userId));
+        int tokens = personalTokens.map(t -> t.revokeAllOf(userId)).orElse(0);
+        sessions.endSessionsOf(List.of(user.getUsername()));
+        audit.changed("MFA_RESET", "user", user.getUsername(), Map.of("tokensRevoked", tokens));
+        return toView(user);
     }
 
     private void guardNotLastAdmin(AppUserEntity user, String verb) {
@@ -146,6 +211,11 @@ public class UserService {
     }
 
     private UserView toView(AppUserEntity user) {
+        Instant lock = user.getLockedUntil();
+        return toView(user, lock != null && lock.isAfter(Instant.now()) ? lock : null);
+    }
+
+    private UserView toView(AppUserEntity user, Instant lockedUntil) {
         List<GrantSummary> grants = userRoles.findByIdUserId(user.getId()).stream()
                 .map(ur -> new GrantSummary(
                         roles.findById(ur.getRoleId()).map(RoleEntity::getName).orElse("?"),
@@ -160,6 +230,9 @@ public class UserService {
                 user.getProviderId(),
                 user.isDisabled(),
                 user.isMustChangePassword(),
+                lockedUntil,
+                secondFactors.map(f -> f.enrolledMethods(user.getId())).orElse(List.of()),
+                secondFactors.map(f -> f.required(user.getId())).orElse(false),
                 grants);
     }
 }

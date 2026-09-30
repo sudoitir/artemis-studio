@@ -24,7 +24,7 @@ public final class SettingsViews {
      * @param group the section to render this under
      * @param label the human name of the setting
      * @param hint one line on what it does and what changing it costs
-     * @param kind {@code DURATION}, {@code INT} or {@code CRON} — how to validate and edit it
+     * @param kind {@code DURATION}, {@code DURATION_OR_OFF} (a duration, or 0 for off), {@code INT} or {@code CRON} — how to validate and edit it
      */
     public record SettingValue(
             @Schema(requiredMode = REQUIRED) String value,

@@ -2,4 +2,8 @@
 |===
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.core`
+|Spring components
+|_Configuration properties_
+
+* `i.g.s.a.k.c.StudioProperties`
 |===

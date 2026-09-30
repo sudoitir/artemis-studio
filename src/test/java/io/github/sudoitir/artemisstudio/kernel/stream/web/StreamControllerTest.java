@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -77,6 +78,18 @@ class StreamControllerTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aNewSubscriberIsGreetedAtOnceSoTheClientSeesTheStreamOpen() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+
+        mvc.perform(get("/api/v1/stream").param("clusterId", clusterId.toString()))
+                .andExpect(request().asyncStarted());
+
+        ArgumentCaptor<Subscriber> registered = ArgumentCaptor.forClass(Subscriber.class);
+        verify(hub).register(eq(clusterId), registered.capture());
+        verify(hub).greet(registered.getValue());
+    }
+
+    @Test
     void theRrTopicIsAccepted() throws Exception {
         UUID clusterId = UUID.randomUUID();
 
@@ -107,7 +120,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
     @Test
     void aLastEventIdReplaysTheMissedEventsBeforeLiveDelivery() throws Exception {
         UUID clusterId = UUID.randomUUID();
-        when(events.since(eq(clusterId), eq(10L), eq(500))).thenReturn(List.of(view(11L), view(12L)));
+        when(events.since(clusterId, 10L, 500)).thenReturn(List.of(view(11L), view(12L)));
 
         mvc.perform(get("/api/v1/stream")
                         .param("clusterId", clusterId.toString())
@@ -139,7 +152,8 @@ class StreamControllerTest extends PostgresIntegrationTest {
         var controller = new StreamController(localHub, mock(ClusterAccessGuard.class), topics);
         UUID clusterId = UUID.randomUUID();
 
-        controller.stream(clusterId, "alerts,topology", null, new MockHttpServletResponse());
+        controller.stream(
+                clusterId, "alerts,topology", null, new MockHttpServletRequest(), new MockHttpServletResponse());
 
         ArgumentCaptor<Subscriber> captor = ArgumentCaptor.forClass(Subscriber.class);
         verify(localHub).register(eq(clusterId), captor.capture());

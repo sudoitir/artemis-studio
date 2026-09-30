@@ -67,7 +67,7 @@ public final class McpFixture {
             Set<String> permissions,
             List<String> mcpTools) {
         // user_role.scope_id and api_token_grant.scope_id are NOT NULL; a GLOBAL row
-        // carries the nil UUID sentinel (014-identity.sql), not null. The token/owner
+        // carries the nil UUID sentinel (kernel/security 0001-baseline.sql), not null. The token/owner
         // grant intersection compares scope ids for equality, so both sides must use it.
         UUID scope = scopeType == Grant.ScopeType.GLOBAL
                 ? io.github.sudoitir.artemisstudio.kernel.security.ScopeIds.GLOBAL
@@ -88,7 +88,8 @@ public final class McpFixture {
                 "mcp-test-key",
                 Instant.now().plus(Duration.ofDays(1)),
                 List.of(new Grant(scopeType, scope, Set.copyOf(permissions))),
-                mcpTools);
+                mcpTools,
+                false);
         return new Key(user.getId(), username, minted.plaintext());
     }
 

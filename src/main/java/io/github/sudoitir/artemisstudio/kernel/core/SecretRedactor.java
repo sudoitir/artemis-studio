@@ -17,10 +17,12 @@ public final class SecretRedactor {
 
     public static final String MASK = "[redacted]";
 
-    private static final String TERMS =
-            "password|passwd|pwd|secret|token|api[-_]?key|authorization|credential|private[-_]?key";
+    private static final Pattern KEY = Pattern.compile(
+            "(?i)password|passwd|pwd|secret|token|api[-_]?key|authorization|credential|private[-_]?key");
 
-    private static final Pattern KEY = Pattern.compile("(?i)" + TERMS);
+    /** The second-factor terms, a pattern of their own so that neither one is too complex to read. */
+    private static final Pattern SECOND_FACTOR_KEY =
+            Pattern.compile("(?i)totp|recovery[-_]?code|trusted[-_]?device|webauthn");
 
     /**
      * {@code key=value}, {@code key: value} and {@code "key":"value"}. A value is a quoted string, an
@@ -66,7 +68,8 @@ public final class SecretRedactor {
 
     /** Whether a parameter, header or field name suggests its value is a credential. */
     public static boolean isCredentialKey(String name) {
-        return name != null && KEY.matcher(name).find();
+        return name != null
+                && (KEY.matcher(name).find() || SECOND_FACTOR_KEY.matcher(name).find());
     }
 
     /** A value whose key is not a credential is left alone, and the scan resumes inside it: it may hold one. */

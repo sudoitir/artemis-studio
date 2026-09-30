@@ -18,6 +18,36 @@
   --mantine-color-dimmed: color-mix(in srgb, var(--mantine-color-gray-7), var(--mantine-color-gray-6));
 }
 
+/* The light scheme's filled red carries a white label at under 4:1 (red-6 3.6:1, red-7 3.85:1). --as-danger is the
+   AA red already measured for text (5.46:1 on white, so 5.46:1 behind a white label). (`html:` outranks the
+   variables Mantine injects at run time.) */
+html:root[data-mantine-color-scheme='light'] {
+  --mantine-color-red-filled: var(--as-danger);
+  --mantine-color-red-filled-hover: color-mix(in srgb, var(--as-danger) 88%, black);
+  /* A red alert's title and icon (see the dark scheme's rule below). */
+  --mantine-color-red-light-color: color-mix(in srgb, var(--as-danger), black 25%);
+}
+
+/* Mantine draws a field's error, red text and a red alert's words in red-7/red-8 steps that measure 3.3-3.4:1 on
+   the card and the page ("Use at least 12 characters." in both schemes). --as-danger is the red already measured
+   for text in each scheme (5.46:1 on white in light, 4.7:1 on the dark card). */
+html:root[data-mantine-color-scheme] {
+  --mantine-color-error: var(--as-danger);
+  --mantine-color-red-text: var(--as-danger);
+}
+
+/* A red alert's title and icon sit on the red tint of its own background, which is lighter than the card:
+   "Not reset" measured 3.83:1 in dark and 4.51:1 in light with --as-danger. Lighter and darker steps clear it. */
+html:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-red-light-color: var(--mantine-color-red-3);
+}
+
+/* A filled button's label is white by default: on pine-5 that is 3.15:1 (and on red-5 2.8:1), under the AA 4.5:1
+   floor. Black measures 6.7:1 and 7.6:1. Mantine sets the label as an inline variable, hence !important. */
+:root[data-mantine-color-scheme='dark'] .mantine-Button-root:is(:not([data-variant]), [data-variant='filled']) {
+  --button-color: var(--mantine-color-black) !important;
+}
+
 :root {
   --as-surface: var(--mantine-color-body);
   --as-surface-raised: var(--mantine-color-default);
@@ -76,6 +106,19 @@
      Measured on the dark body: 6.78:1 and 5.84:1. */
   --as-code-property: var(--mantine-color-indigo-3);
   --as-code-meta: var(--mantine-color-grape-4);
+  /* Read-only code blocks (Shiki's CSS-variables theme, main.tsx) reuse the editor's roles: a key or
+     keyword, a string or tag, a number or constant, an attribute or function name. Bare punctuation
+     and comments read as dimmed text. */
+  --shiki-foreground: var(--as-text);
+  --shiki-token-keyword: var(--as-code-keyword);
+  --shiki-token-string: var(--as-code-string);
+  --shiki-token-string-expression: var(--as-code-string);
+  --shiki-token-constant: var(--as-code-number);
+  --shiki-token-function: var(--as-code-property);
+  --shiki-token-parameter: var(--as-code-meta);
+  --shiki-token-comment: var(--as-code-comment);
+  --shiki-token-punctuation: var(--as-text-dimmed);
+  --shiki-token-link: var(--as-code-property);
   /* Half the row-hover tint, so the caret's line is findable without competing
      with the selection; text keeps the body contrast on it. */
   --as-code-active-line: color-mix(in srgb, var(--as-grid-row-hover) 50%, transparent);

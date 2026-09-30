@@ -132,7 +132,7 @@ public final class PluginRuntime implements AutoCloseable {
     }
 
     /** This runtime's own connection pool size ({@code maximumPoolSize=3}, design.md §2) — an admin
-     * view and {@code PluginLifecycleIT} read this rather than reach into the Hikari instance. */
+     * view and {@code PluginLifecycleIntegrationTest} read this rather than reach into the Hikari instance. */
     public int poolMaxSize() {
         return dataSource.getMaximumPoolSize();
     }

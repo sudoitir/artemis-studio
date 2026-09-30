@@ -137,7 +137,7 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
       ) : null}
       {create.isError ? (
         <Alert color="red" title="The key was not created">
-          {create.error.message}
+          {createFailure(create.error)}
         </Alert>
       ) : null}
       {chosen.length === 0 ? (
@@ -150,4 +150,15 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
       </Button>
     </Stack>
   );
+}
+
+/** Why a key could not be made, and what to do about it. */
+function createFailure(error: { type: string; message: string }): string {
+  if (error.type.endsWith('/session-required')) {
+    return 'A key can only be created from a signed-in console session, not with another key. Sign in to the console and create it there.';
+  }
+  if (error.type.endsWith('/mfa-required')) {
+    return 'Your role requires two-step verification, and this session has not completed it. Sign out, sign in with your second factor, then create the key.';
+  }
+  return error.message;
 }

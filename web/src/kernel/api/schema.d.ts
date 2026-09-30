@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/v1/users/{userId}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["unlock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{userId}/disabled": {
         parameters: {
             query?: never;
@@ -1076,6 +1092,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/second-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["secondFactor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/second-factor/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["secondFactorOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/reauthenticate": {
         parameters: {
             query?: never;
@@ -1102,6 +1150,86 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/webauthn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["registerPasskey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/webauthn/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["passkeyOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startTotp"];
+        delete: operations["removeTotp"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/totp/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmTotp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["regenerateRecoveryCodes"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1378,6 +1506,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["configure"];
+        trace?: never;
+    };
+    "/api/v1/users/{userId}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sessionsOf"];
+        put?: never;
+        post?: never;
+        delete: operations["endSessionsOf"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/users/{userId}/effective-permissions": {
@@ -2372,6 +2516,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ownSessions"];
+        put?: never;
+        post?: never;
+        delete: operations["endOtherOwnSessions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/providers": {
         parameters: {
             query?: never;
@@ -2380,6 +2540,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["providers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2516,6 +2692,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{userId}/sessions/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["endSessionOf"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{userId}/second-factors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["resetSecondFactors"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{userId}/grants/{roleId}": {
         parameters: {
             query?: never;
@@ -2596,6 +2804,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sessions/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["endOwnSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/webauthn/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removePasskey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/trusted-devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeTrustedDevices"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/mfa/trusted-devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeTrustedDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tokens/{tokenId}": {
         parameters: {
             query?: never;
@@ -2648,9 +2920,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        SetDisabledRequest: {
-            disabled: boolean;
-        };
         GrantSummary: {
             roleName: string;
             /** Format: uuid */
@@ -2667,7 +2936,19 @@ export interface components {
             providerId: string;
             disabled: boolean;
             mustChangePassword: boolean;
+            /**
+             * Format: date-time
+             * @description When repeated failed sign-ins stop blocking this account; null when it is not locked.
+             */
+            lockedUntil?: string | null;
+            /** @description The second factors the user has set up: TOTP for an authenticator app and WEBAUTHN for passkeys. Empty when they have none. */
+            secondFactors: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[];
+            /** @description The user must hold a second factor: a local account with a role that requires one. */
+            secondFactorRequired: boolean;
             grants: components["schemas"]["GrantSummary"][];
+        };
+        SetDisabledRequest: {
+            disabled: boolean;
         };
         UpdateSettingRequest: {
             value: string;
@@ -2675,6 +2956,8 @@ export interface components {
         RoleRequest: {
             name: string;
             permissions: string[];
+            /** @description Whether local accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA. */
+            requiresMfa: boolean;
         };
         RoleView: {
             /** Format: uuid */
@@ -2682,6 +2965,7 @@ export interface components {
             name: string;
             builtin: boolean;
             permissions: string[];
+            requiresMfa: boolean;
         };
         DefaultRoleRequest: {
             /** Format: uuid */
@@ -4263,8 +4547,46 @@ export interface components {
             config?: string;
             secret?: string;
         };
-        ReauthenticateRequest: {
-            password: string;
+        SecondFactorRequest: {
+            /** @description A code from an authenticator app. */
+            totpCode?: string | null;
+            /** @description A single-use recovery code; dashes and case are ignored. */
+            recoveryCode?: string | null;
+            /** @description The credential a passkey returned for the options from POST /auth/second-factor/options, as PublicKeyCredential.toJSON() gives it. */
+            webauthn?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Trust this browser, so the next sign-in needs only the password. Honoured at sign-in when trusted devices are on (see trustDeviceDays); ignored for a step-up. */
+            trustDevice?: boolean | null;
+        };
+        AuthResult: {
+            /** @enum {string} */
+            status: "AUTHENTICATED" | "SECOND_FACTOR_REQUIRED";
+            /** @description The signed-in user; set when the status is AUTHENTICATED. */
+            me?: components["schemas"]["MeView"];
+            /** @description How the user can prove a second factor; set when the status is SECOND_FACTOR_REQUIRED. TOTP is a code from an authenticator app, WEBAUTHN a passkey, RECOVERY_CODE one of the single-use codes. */
+            methods?: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[] | null;
+            /**
+             * Format: int32
+             * @description For a sign-in that needs a second factor: for how many days the user may trust this browser after giving it, so the next sign-in asks for the password only. 0 when trusted devices are off, and always 0 in any other case. Send trustDevice with the second factor to trust it.
+             */
+            trustDeviceDays: number;
+        };
+        GrantView: {
+            scopeType: string;
+            /** Format: uuid */
+            scopeId?: string | null;
+            permissions: string[];
+        };
+        MeView: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            mustChangePassword: boolean;
+            /** @description The user's role requires two-step verification and they have none: the session may only enrol one until they do. */
+            secondFactorEnrolmentRequired: boolean;
+            grants: components["schemas"]["GrantView"][];
+            reauthentication: components["schemas"]["ReauthenticationView"];
         };
         ReauthenticationView: {
             /**
@@ -4278,29 +4600,52 @@ export interface components {
             /** Format: int64 */
             windowSeconds: number;
         };
+        ReauthenticateRequest: {
+            password: string;
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        RegisterPasskeyRequest: {
+            label: string;
+            credential: {
+                [key: string]: unknown;
+            };
+        };
+        PasskeyRegisteredView: {
+            passkey: components["schemas"]["PasskeyView"];
+            recoveryCodes?: string[] | null;
+        };
+        PasskeyView: {
+            id: string;
+            label: string;
+            /** Format: date-time */
+            created: string;
+            /**
+             * Format: date-time
+             * @description When the passkey was last used to sign in; when it was created until then.
+             */
+            lastUsed: string;
+        };
+        TotpEnrolmentView: {
+            secret: string;
+            otpauthUri: string;
+        };
+        ConfirmTotpRequest: {
+            code: string;
+        };
+        TotpConfirmedView: {
+            recoveryCodes?: string[] | null;
+        };
+        RecoveryCodesView: {
+            codes: string[];
         };
         LoginRequest: {
             /** @description The credential provider to sign in with. Omit for local. */
             provider?: string | null;
             username: string;
             password: string;
-        };
-        GrantView: {
-            scopeType: string;
-            /** Format: uuid */
-            scopeId?: string | null;
-            permissions: string[];
-        };
-        MeView: {
-            /** Format: uuid */
-            id: string;
-            username: string;
-            mustChangePassword: boolean;
-            grants: components["schemas"]["GrantView"][];
-            reauthentication: components["schemas"]["ReauthenticationView"];
         };
         PluginPurgePlanView: {
             schema: string;
@@ -4363,6 +4708,16 @@ export interface components {
             applyMode: "STUDIO_MANAGED" | "CONFIG_MANAGED";
             reportUndeclared: boolean;
             undeclaredExclusions: string[];
+        };
+        AccountSessionView: {
+            handle: string;
+            /** Format: date-time */
+            signedInAt: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+            clientAddress?: string | null;
+            userAgent?: string | null;
+            current: boolean;
         };
         EffectivePermissionView: {
             action: string;
@@ -5789,6 +6144,34 @@ export interface components {
             /** @description Where a redirect provider's sign-in begins. */
             startPath?: string | null;
         };
+        MfaStatusView: {
+            local: boolean;
+            required: boolean;
+            enrolled: boolean;
+            totpEnrolled: boolean;
+            /** Format: int32 */
+            recoveryCodesRemaining: number;
+            webauthn: components["schemas"]["WebAuthnAvailabilityView"];
+            passkeys: components["schemas"]["PasskeyView"][];
+            trustedDevices: components["schemas"]["TrustedDeviceView"][];
+        };
+        TrustedDeviceView: {
+            /** Format: uuid */
+            id: string;
+            client?: string | null;
+            address?: string | null;
+            /** Format: date-time */
+            created: string;
+            /** Format: date-time */
+            lastUsed: string;
+            /** Format: date-time */
+            expires: string;
+            current: boolean;
+        };
+        WebAuthnAvailabilityView: {
+            available: boolean;
+            reason?: string | null;
+        };
         ClusterFiringCountView: {
             /**
              * Format: uuid
@@ -5869,6 +6252,10 @@ export interface components {
             grantedAt: string;
             grantedBy?: string | null;
         };
+        EndedSessionsView: {
+            /** Format: int32 */
+            ended: number;
+        };
         /** @description How many captured messages the deletion destroyed. */
         DeletedView: {
             /** Format: int64 */
@@ -5883,6 +6270,28 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    unlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
+        };
+    };
     setDisabled: {
         parameters: {
             query?: never;
@@ -8136,6 +8545,52 @@ export interface operations {
             };
         };
     };
+    secondFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecondFactorRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuthResult"];
+                };
+            };
+        };
+    };
+    secondFactorOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     reauthenticate: {
         parameters: {
             query?: never;
@@ -8155,7 +8610,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ReauthenticationView"];
+                    "*/*": components["schemas"]["AuthResult"];
                 };
             };
         };
@@ -8179,6 +8634,134 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    registerPasskey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterPasskeyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PasskeyRegisteredView"];
+                };
+            };
+        };
+    };
+    passkeyOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    startTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TotpEnrolmentView"];
+                };
+            };
+        };
+    };
+    removeTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    confirmTotp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmTotpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TotpConfirmedView"];
+                };
+            };
+        };
+    };
+    regenerateRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryCodesView"];
+                };
             };
         };
     };
@@ -8219,7 +8802,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["MeView"];
+                    "*/*": components["schemas"]["AuthResult"];
                 };
             };
         };
@@ -8665,6 +9248,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConfigDeclarationView"];
+                };
+            };
+        };
+    };
+    sessionsOf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountSessionView"][];
+                };
+            };
+        };
+    };
+    endSessionsOf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EndedSessionsView"];
                 };
             };
         };
@@ -10129,6 +10756,46 @@ export interface operations {
             };
         };
     };
+    ownSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccountSessionView"][];
+                };
+            };
+        };
+    };
+    endOtherOwnSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EndedSessionsView"];
+                };
+            };
+        };
+    };
     providers: {
         parameters: {
             query?: never;
@@ -10145,6 +10812,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["IdentityProviderView"][];
+                };
+            };
+        };
+    };
+    status_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MfaStatusView"];
                 };
             };
         };
@@ -10339,6 +11026,49 @@ export interface operations {
             };
         };
     };
+    endSessionOf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resetSecondFactors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
+        };
+    };
     removeGrant: {
         parameters: {
             query: {
@@ -10451,6 +11181,84 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
+            };
+        };
+    };
+    endOwnSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removePasskey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeTrustedDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeTrustedDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

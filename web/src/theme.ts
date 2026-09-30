@@ -26,7 +26,10 @@ const pine: MantineColorsTuple = [
 
 export const theme = createTheme({
   primaryColor: 'pine',
-  primaryShade: { light: 6, dark: 5 },
+  // pine-6 is 4.03:1 with white text and on a white body, under the AA floor of 4.5:1 for a button label and a
+  // link; pine-7 is 5.3:1. The dark scheme keeps pine-5 (its links need the brighter step) and theme.css darkens the
+  // label of a filled button there instead.
+  primaryShade: { light: 7, dark: 5 },
   colors: { pine },
   defaultRadius: 'md',
   // Every Mantine transition — the console's disclosure included — is disabled when

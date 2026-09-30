@@ -52,6 +52,11 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    // elk.ts takes ELK's worker script as a URL (`?url`). The scanner records that import as a dependency to
+    // pre-bundle, and the bundler then looks for a file named with the query. It is an asset, not a module.
+    exclude: ['elkjs/lib/elk-worker.min.js?url'],
+  },
   build: {
     outDir: 'dist',
     // Module Federation's bootstrap awaits the shared scope before the app starts.

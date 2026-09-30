@@ -19,8 +19,8 @@ spring:
 
   session:
     jdbc:
-      # Liquibase owns this schema (014-identity.sql), not the library's own
-      # initializer (ADR-0011).
+      # Liquibase owns this schema (db/changelog/kernel/security/changes/0001-baseline.sql),
+      # not the library's own initializer (ADR-0011).
       initialize-schema: never
       table-name: spring_session
       # The data lifecycle purges expired sessions once per installation (expired-sessions
@@ -103,7 +103,18 @@ springdoc:
 
 server:
   port: ${ARTEMIS_STUDIO_PORT:8080}
-  forward-headers-strategy: framework
+  # Tomcat's RemoteIpValve, not Spring's ForwardedHeaderFilter: only a peer matching
+  # internal-proxies may set the client address (X-Forwarded-For) and scheme; the sign-in
+  # throttle, the audit trail and session facts all use the resolved address, so a client
+  # that is not a trusted proxy cannot forge its way past the throttle (ADR-0144).
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Java regex matched against the peer's address. The default trusts loopback and the
+      # private ranges 10/8, 172.16/12, 192.168/16 and fc00::/7. Behind a proxy outside them,
+      # override with SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES (a regex covering only your
+      # proxies); never leave it empty, which trusts every peer.
+      internal-proxies: '127\.\d{1,3}\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1|::1|f[cd][0-9a-f]{2}(:[0-9a-f]{1,4}){7}'
   servlet:
     session:
       timeout: 8h
@@ -148,6 +159,10 @@ artemis-studio:
   # for key rotation. Protects every stored secret. The app fails to start if this is
   # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
   secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
+  # The address people open Studio at, e.g. https://studio.example.com. Alert notifications link back
+  # to it, and it is the relying party of passkeys (ADR-0143): with it blank passkeys are unavailable,
+  # and changing its host strands the passkeys enrolled under the old one. Blank: not set.
+  public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
   scrape:
     # Tiered polling cadence (ADR-0015).
     tier-a-interval: 5s      # HA state + topology + split-brain corroboration
@@ -216,9 +231,6 @@ artemis-studio:
     connect-timeout: 10s         # notificationRestClient connect + read timeout
     initial-backoff: 5s          # first retry delay (exponential with jitter)
     max-backoff: 10m             # backoff ceiling
-    # Where operators reach Studio; notifications link back to the cluster's alerts when set
-    # (ADR-0105). Blank: no link.
-    public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
     email-timeout: 15s           # SMTP connect + read + write timeout, per delivery
   setup-review:
     # HA, clustering and durability configuration review (ADR-0106): one batched read per node.
@@ -235,6 +247,9 @@ artemis-studio:
     # issue without an explicit override.
     drift-interval: 5m
     apply-step-cap: 100
+  identity-local:
+    # Local sign-in (ADR-0144). The minimum length is overridable at runtime in Settings.
+    password-min-length: 12
   security:
     # Governance (Phase 8, ADR-0037, ADR-0040).
     oidc-claim: groups            # the token/userinfo claim holding the user's groups; mappings are set per provider in Administration

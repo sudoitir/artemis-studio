@@ -13,6 +13,9 @@ description: Artemis Studio 读取的环境变量、哪些是必需的，以及�
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | 是 | — |
 | `ARTEMIS_STUDIO_SECRET_KEY` | 使用 `env` 提供者时 | 保护所有已存储机密的密钥。必须是**恰好 32 字节**的 Base64，否则应用不会启动：`openssl rand -base64 32`。要保存多个版本，参见[机密与密钥轮换](#机密与密钥轮换) |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | 否 | 用于解密 `studio_config_property` 中存放的 `{cipher}` 值。这是与 `ARTEMIS_STUDIO_SECRET_KEY` **不同**的一把密钥——不要复用 |
+| `ARTEMIS_STUDIO_PUBLIC_URL` | 使用通行密钥时 | 用户访问 Studio 的地址，例如 `https://studio.example.com`（属性 `artemis-studio.public-url`，原为 `artemis-studio.alerting.public-url`）。设置后，告警通知会链接回对应集群的告警页。**通行密钥**也绑定到它：未设置时，用户仍可使用验证器应用，但不能使用通行密钥，账户页会提示这一点。通行密钥归属于它的主机，因此更改主机（而不只是端口或路径）会使按旧主机注册的所有通行密钥失效；恢复码与验证器应用不受影响。若它不是 `http` 或 `https` 地址，启动会失败 |
+| `ARTEMIS_STUDIO_IDENTITY_LOCAL_RECOVER` | 否 | **应急恢复。** 填一个本地用户名。启动时 Studio 会解锁该账户，移除其验证器应用、通行密钥、恢复码与受信任设备，吊销其 API 令牌，要求下次登录时修改密码，终止其所有会话，并把操作写入审计记录、把警告写入日志。适用于唯一的管理员同时丢失了设备和恢复码的情况。**重启后请删除它**，否则下次重启会再次恢复该账户；用户名不存在时只会记录一条错误，不做任何更改。管理员用当前密码登录、设置新密码并重新注册验证方式 |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | 反向代理位于私有网段之外时 | 匹配你的反向代理地址的正则表达式。只有这些地址可以通过 `X-Forwarded-For` 设定客户端地址；登录限制与审计链路都使用该地址。默认信任回环地址、`10/8`、`172.16/12`、`192.168/16` 与 `fc00::/7`。切勿留空：那会信任所有客户端 |
 | `JAVA_OPTS` | 否 | 默认为 `-XX:MaxRAMPercentage=50` |
 
 ## 机密与密钥轮换
@@ -80,6 +83,20 @@ KV 版本 2 默认只保留 **10 个版本**，写入第 11 个时会删除最�
 **部署平面**——Spring Cloud bootstrap 属性——存放属于这次部署的内容：数据源、密钥、OIDC issuer。这里的值可以以 `{cipher}` 形式存储，并由 `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` 解密。系统中没有配置中心。
 
 原因见 [ADR-0047](/reference/adr/0047-two-configuration-planes)，调度如何感知设置变更见 [ADR-0048](/reference/adr/0048-settings-driven-dynamic-schedules)（英文）。
+
+## 登录与会话
+
+在 **设置 → 会话** 与 **设置 → 密码登录** 下，无需重启即可调整：
+
+| 设置 | 键 | 默认值 | 含义 |
+|---|---|---|---|
+| 空闲超时 | `security.session.idle-timeout` | `30m` | 会话在用户没有任何操作的情况下可持续多久。只有会更改内容的请求，以及控制台在用户点击或按键后一分钟内发出的请求才算作操作；轮询与实时流不算，因此开着不管的标签页会被登出。需要保持登录的脚本可发送 `X-Studio-Activity: 1` |
+| 会话绝对时长 | `security.session.absolute-lifetime` | `12h` | 登录后多久会话必定结束，无论多活跃 |
+| 密码最小长度 | `identity-local.password.min-length` | `12` | 新的本地密码至少需要的字符数 |
+| 泄露密码检查 | `identity-local.password.breach-lookup` | 关闭 | 一个开关。开启后，新的本地密码还会与在线的泄露密码服务比对：只有其 SHA-1 的前五个字符会离开 Studio，查询失败则放行该密码。始终使用离线的 10 万个最常见密码列表 |
+| 受信任设备有效期 | `identity-local.mfa.trusted-device-lifetime` | `30d` | 用户在登录时完成第二验证后，可以信任当前浏览器：在此期间，从该浏览器登录只需密码。设为 `0` 则关闭受信任设备：不再提供该选项，已有的受信任设备也会被忽略。需要再次确认身份的操作仍然需要第二验证；账户因别处的失败而被锁定时，其主人仍可在受信任设备上登录。修改密码、重置账户的验证方式、停用账户都会撤销其受信任设备 |
+
+时长可写作 `30m`、`12h`，或 ISO-8601 形式（`PT30M`）。用户可在 **账户 → 会话** 中查看自己在哪里登录并结束其中任意会话；管理员可在 **管理 → 用户 → 会话** 中对任意用户做同样的事。见 [ADR-0145](/reference/adr/0145-session-lifetimes-and-session-management)（英文）。
 
 ## 数据库
 

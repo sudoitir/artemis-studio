@@ -57,7 +57,8 @@ docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrato
 ```
 
 Open <http://localhost:8080> and sign in as `admin` with the password the last line
-prints. It is shown once, and you choose your own at the first sign-in.
+prints. It is shown once: you choose your own at the first sign-in, and set up two-step verification, which the
+admin role requires.
 
 <details>
 <summary>From a clone with <code>just</code>, or a bare container against your own Postgres</summary>
@@ -207,7 +208,7 @@ just dev             # or: backend :8080 + Vite :5173 together, with live reload
 just verify          # everything CI runs
 ```
 
-`ADMIN_PASSWORD=… just demo` adds two more live/backup pairs and fills all six nodes
+`ADMIN_PASSWORD=… just demo` (the first run also needs `NEW_ADMIN_PASSWORD=…`, and later ones `ADMIN_TOTP_SECRET=…`) adds two more live/backup pairs and fills all six nodes
 with realistic traffic: diverts, a bridge, cluster hops, a growing backlog with no
 consumer, a real dead-letter backlog and one stopped node. The screenshots above are
 recorded from that stack by `just shots` and `just demo-gif`; nothing is staged.

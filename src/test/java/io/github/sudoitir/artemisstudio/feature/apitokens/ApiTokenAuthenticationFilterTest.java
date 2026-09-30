@@ -77,7 +77,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
 
         mvc().perform(get("/api/v1/clusters").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isOk());
@@ -92,7 +93,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
 
         // The token was minted with only cluster:read, so even reading environments
         // (which needs environment:read) is forbidden — narrowing is per-permission,
@@ -116,7 +118,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
         jdbc.sql("UPDATE api_token SET expires_at = now() - interval '1 minute' WHERE id = ?")
                 .param(minted.entity().getId())
                 .update();
@@ -134,7 +137,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
         apiTokenService.revoke(user.getId(), minted.entity().getId());
 
         mvc().perform(get("/api/v1/clusters").header("Authorization", "Bearer " + minted.plaintext()))
@@ -150,7 +154,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
         String prefix = minted.plaintext().substring(0, minted.plaintext().indexOf('_', 3));
         String tampered = prefix + "_" + "x".repeat(43);
 
@@ -167,7 +172,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("environment:read"))),
-                List.of());
+                List.of(),
+                false);
 
         mvc().perform(get("/api/v1/environments").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isOk());
@@ -188,7 +194,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
 
         user.setDisabled(true);
         users.save(user);
@@ -219,6 +226,11 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 org.springframework.security.web.context.HttpSessionSecurityContextRepository
                         .SPRING_SECURITY_CONTEXT_KEY,
                 context);
+        // A real sign-in records these facts; a session without them counts as signed out.
+        session.setAttribute(
+                io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication.FACTS_ATTRIBUTE,
+                io.github.sudoitir.artemisstudio.kernel.security.SessionFacts.signedIn(
+                        new org.springframework.mock.web.MockHttpServletRequest()));
 
         mvc().perform(get("/api/v1/clusters").session(session)).andExpect(status().isOk());
         for (String header : List.of("Basic eDp4", "Bearer not-a-real-token", "x")) {
@@ -247,7 +259,8 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 "ci-name",
                 Instant.now().plusSeconds(3600),
                 List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
-                List.of());
+                List.of(),
+                false);
 
         String body = mvc().perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isOk())

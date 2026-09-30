@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Alert, Button, Group, PasswordInput, Stack, Text } from '@mantine/core';
 
-import { useMe, useReauthenticate } from './api.ts';
+import { needsReauthentication, useMe, useReauthenticate, type SecondFactorMethod } from './api.ts';
 import { useFreshSignIn } from './freshSignIn.ts';
+import { SecondFactorForm } from './SecondFactorForm.tsx';
 
 /**
- * "Confirm it is you" (ADR-0103): installing or changing a plugin runs code on the server, so a
- * session that signed in more than five minutes ago confirms first — with its password, or by
- * signing in again at its identity provider, which brings the operator back to `returnTo`.
- * Renders nothing once the session is fresh.
+ * "Confirm it is you" (ADR-0103): a sensitive change — installing a plugin, changing a second factor — runs only
+ * after a sign-in from the last five minutes, so a session that signed in earlier confirms first: with its password
+ * and, when the account has one, its second factor; or by signing in again at its identity provider, which brings
+ * the operator back to `returnTo`. Renders nothing once the session is fresh.
  */
 export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   const me = useMe();
@@ -16,6 +17,8 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   const reauthenticate = useReauthenticate();
   const [password, setPassword] = useState('');
   const [empty, setEmpty] = useState(false);
+  const [secondFactor, setSecondFactor] = useState<SecondFactorMethod[] | null>(null);
+  const [restarted, setRestarted] = useState<string | null>(null);
   const reauth = me.data?.reauthentication;
   if (fresh || !reauth) return null;
 
@@ -35,6 +38,26 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
     );
   }
 
+  if (secondFactor) {
+    return (
+      <Stack gap="xs">
+        <Text size="sm" fw={600}>
+          Confirm it is you
+        </Text>
+        <SecondFactorForm
+          methods={secondFactor}
+          trustDeviceDays={0}
+          onDone={() => setSecondFactor(null)}
+          onRestart={({ message }) => {
+            setSecondFactor(null);
+            setRestarted(message);
+          }}
+          onBack={() => setSecondFactor(null)}
+        />
+      </Stack>
+    );
+  }
+
   const failed = reauthenticate.error;
   return (
     <form
@@ -44,7 +67,13 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
           setEmpty(true);
           return;
         }
-        reauthenticate.mutate(password, { onSuccess: () => setPassword('') });
+        setRestarted(null);
+        reauthenticate.mutate(password, {
+          onSuccess: (result) => {
+            setPassword('');
+            if (result.status === 'SECOND_FACTOR_REQUIRED') setSecondFactor(result.methods ?? []);
+          },
+        });
       }}
     >
       <Stack gap="xs">
@@ -71,7 +100,23 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
             Confirm
           </Button>
         </Group>
+        <div aria-live="polite">{restarted ? <Text size="sm">{restarted}</Text> : null}</div>
       </Stack>
     </form>
+  );
+}
+
+/**
+ * What an action shows when the server refused it with `reauthentication-required`: the step-up itself, then, once
+ * confirmed, a line saying to try again, since the refused action did not run. Renders nothing for any other error.
+ */
+export function StepUpPrompt({ error, returnTo }: Readonly<{ error: unknown; returnTo: string }>) {
+  const fresh = useFreshSignIn();
+  if (!needsReauthentication(error)) return null;
+  return (
+    <>
+      <div aria-live="polite">{fresh ? <Text size="sm">Confirmed. Try again.</Text> : null}</div>
+      <StepUp returnTo={returnTo} />
+    </>
   );
 }

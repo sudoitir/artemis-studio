@@ -24,6 +24,8 @@ set -euo pipefail
 STUDIO=${STUDIO:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
+# Once the admin has two-step verification (the first run enrols it), the secret the seed printed.
+ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 TRAFFIC_MINUTES=${TRAFFIC_MINUTES:-20}
 COMPOSE=${COMPOSE:?set COMPOSE to the docker compose invocation for the demo stack}
 
@@ -34,18 +36,10 @@ CLIENT_JVM=(-e 'JAVA_ARGS_APPEND=-Xms16m -Xmx64m -XX:+UseSerialGC')
 COOKIES=$(mktemp)
 trap 'rm -f "$COOKIES"' EXIT
 
+# shellcheck source=lib/signin.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/signin.sh"
+
 say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
-
-# Studio protects mutating calls with the double-submit CSRF cookie a browser
-# sends automatically; curl has to echo it back by hand.
-csrf() { awk '$6 == "XSRF-TOKEN" { print $7 }' "$COOKIES" | tail -1; }
-
-api() {
-  local method=$1 path=$2
-  shift 2
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$path" \
-    -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
-}
 
 say "waiting for Studio to answer"
 # `just demo` may have just recreated the container; the compose healthcheck gates
@@ -57,32 +51,10 @@ for _ in $(seq 1 60); do
 done
 
 say "signing in to Studio"
-# One unauthenticated GET to be issued the CSRF cookie the login POST must echo.
-curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/auth/me" >/dev/null || true
-
-login=$(api POST /auth/login -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}")
-if ! grep -q '"username"' <<<"$login"; then
-  echo "login failed — is the password the one 'just dev-up' printed?" >&2
-  exit 1
-fi
-# A fresh stack's admin password is one-time: every other call answers 423 until it is
-# changed. Change it only to a password the operator chose, never one invented here.
-if grep -q '"mustChangePassword":true' <<<"$login"; then
-  if [ -z "${NEW_ADMIN_PASSWORD:-}" ]; then
-    echo "Studio requires the one-time admin password to be changed first." >&2
-    echo "Rerun with NEW_ADMIN_PASSWORD=<a password you choose>, and use that password from then on." >&2
-    exit 1
-  fi
-  say "changing the one-time admin password to NEW_ADMIN_PASSWORD"
-  # The change re-establishes the session, so the cookies stay valid for the rest of the run.
-  status=$(python3 -c 'import json,sys; print(json.dumps({"currentPassword": sys.argv[1], "newPassword": sys.argv[2]}))' \
-      "$ADMIN_PASSWORD" "$NEW_ADMIN_PASSWORD" \
-    | api POST /auth/password --data-binary @- -o /dev/null -w '%{http_code}')
-  if [ "$status" != 204 ]; then
-    echo "changing the admin password failed with HTTP $status" >&2
-    exit 1
-  fi
-fi
+# A fresh stack's admin password is one-time and its ADMIN role requires two-step verification: the sign-in
+# changes the password to one the operator chose (never one invented here), enrols an authenticator app and
+# prints its secret. Later runs need ADMIN_PASSWORD and ADMIN_TOTP_SECRET.
+studio_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD || exit 1
 
 say "registering the demo cluster"
 # Re-registered rather than reused, so a second run cannot inherit a half-built

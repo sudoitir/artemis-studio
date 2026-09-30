@@ -77,7 +77,12 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
 
     private StudioPrincipal authenticateKeyFor(UUID userId, Grant tokenGrant) {
         var minted = tokens.mint(
-                userId, "k-" + UUID.randomUUID(), Instant.now().plusSeconds(3600), List.of(tokenGrant), List.of());
+                userId,
+                "k-" + UUID.randomUUID(),
+                Instant.now().plusSeconds(3600),
+                List.of(tokenGrant),
+                List.of(),
+                false);
         return tokens.authenticate(minted.plaintext());
     }
 

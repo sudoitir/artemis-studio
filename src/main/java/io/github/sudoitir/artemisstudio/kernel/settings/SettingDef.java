@@ -50,6 +50,8 @@ public record SettingDef(
     public enum Kind {
         /** A Spring-style ({@code 5s}, {@code 72h}) or ISO-8601 duration. Must be positive, or {@link #FOREVER} where allowed. */
         DURATION,
+        /** Like {@link #DURATION}, but {@code 0} is allowed and turns the thing it times off. */
+        DURATION_OR_OFF,
         /** A whole number, at least {@code min} (1 when unset). */
         INT,
         /** A six-field Spring cron expression. Rejected if it would fire more than once a minute. */

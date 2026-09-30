@@ -4,9 +4,11 @@ import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
 
+export type AccountSessionView = Schemas['AccountSessionView'];
 export type CreateUserRequest = Schemas['CreateUserRequest'];
 export type DefaultRoleRequest = Schemas['DefaultRoleRequest'];
 export type EffectivePermissionView = Schemas['EffectivePermissionView'];
+export type EndedSessionsView = Schemas['EndedSessionsView'];
 export type GrantRequest = Schemas['GrantRequest'];
 export type GroupMappingRequest = Schemas['GroupMappingRequest'];
 export type GroupMappingView = Schemas['GroupMappingView'];
@@ -22,6 +24,8 @@ export const keys = {
   permissions: ['permissions'] as const,
   roles: ['roles'] as const,
   users: ['users'] as const,
+  /** The caller's own sessions, or a user's when an administrator looks at theirs. */
+  sessions: (userId?: string) => (userId ? (['users', userId, 'sessions'] as const) : (['auth', 'sessions'] as const)),
   effectivePermissions: (userId: string) => ['users', userId, 'effective-permissions'] as const,
 };
 
@@ -61,6 +65,27 @@ export function useSetUserDisabled() {
         method: 'PUT',
         body: JSON.stringify({ disabled } satisfies SetDisabledRequest),
       }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
+/** Lift an account's lock (repeated failed sign-ins) so its user can sign in again at once. */
+export function useUnlockUser() {
+  const qc = useQueryClient();
+  return useMutation<UserView, ApiError, string>({
+    mutationFn: (userId) => request<UserView>(`/users/${userId}/unlock`, { method: 'PUT' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
+/**
+ * Remove a user's second factors: the authenticator app, passkeys, recovery codes and trusted devices go, their API
+ * keys are revoked, and they are signed out everywhere. Needs `user:admin` and a fresh sign-in; refused for oneself.
+ */
+export function useResetSecondFactors() {
+  const qc = useQueryClient();
+  return useMutation<UserView, ApiError, string>({
+    mutationFn: (userId) => request<UserView>(`/users/${userId}/second-factors`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
   });
 }
@@ -181,5 +206,34 @@ export function useSetDefaultRole(providerId: string) {
         body: JSON.stringify(body),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.groupMappings(providerId) }),
+  });
+}
+
+const sessionsPath = (userId?: string) => (userId ? `/users/${userId}/sessions` : '/auth/sessions');
+
+/** Signed-in sessions: the caller's own, or the user's when `userId` is given (needs `user:admin`). */
+export function useSessions(userId?: string, enabled = true): UseQueryResult<AccountSessionView[], ApiError> {
+  return useQuery({
+    queryKey: keys.sessions(userId),
+    queryFn: () => request<AccountSessionView[]>(sessionsPath(userId)),
+    enabled,
+  });
+}
+
+/** End one session by its handle. Refreshes the list either way: a session already gone should not stay listed. */
+export function useEndSession(userId?: string) {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (handle) => request<void>(`${sessionsPath(userId)}/${handle}`, { method: 'DELETE' }),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.sessions(userId) }),
+  });
+}
+
+/** End every session but the one making the request. */
+export function useEndOtherSessions(userId?: string) {
+  const qc = useQueryClient();
+  return useMutation<EndedSessionsView, ApiError, void>({
+    mutationFn: () => request<EndedSessionsView>(sessionsPath(userId), { method: 'DELETE' }),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.sessions(userId) }),
   });
 }

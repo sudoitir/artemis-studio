@@ -59,6 +59,13 @@ public class AppUserEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Read-only: {@code AccountLockout} writes the lock with atomic SQL, which a stale entity must not overwrite. */
+    @Column(name = "locked_until", insertable = false, updatable = false)
+    private Instant lockedUntil;
+
+    @Column(name = "failed_login_count", insertable = false, updatable = false)
+    private int failedLoginCount;
+
     public static AppUserEntity local(String username, String email, String passwordHash) {
         AppUserEntity u = new AppUserEntity();
         u.username = username;

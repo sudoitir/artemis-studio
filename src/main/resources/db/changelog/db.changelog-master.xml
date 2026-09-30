@@ -34,6 +34,7 @@
     <include file="db/changelog/platform/clusters/changelog.xml"    relativeToChangelogFile="false"/>
     <include file="db/changelog/platform/scrape/changelog.xml"      relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/apitokens/changelog.xml"    relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/identitylocal/changelog.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/events/changelog.xml"       relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/alerting/changelog.xml"     relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/rr/changelog.xml"           relativeToChangelogFile="false"/>

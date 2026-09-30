@@ -1,12 +1,17 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
+import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.AccountSessionView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.EndedSessionsView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.CreateUserRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.EffectivePermissionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.SetDisabledRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -31,10 +36,29 @@ public class UsersController {
 
     private final UserService users;
     private final EffectiveAccess effectivePermissions;
+    private final SessionService sessionService;
 
     @GetMapping("/{userId}/effective-permissions")
     public List<EffectivePermissionView> effectivePermissions(@PathVariable UUID userId) {
         return effectivePermissions.of(userId);
+    }
+
+    @GetMapping("/{userId}/sessions")
+    public List<AccountSessionView> sessionsOf(@PathVariable UUID userId, HttpServletRequest req) {
+        return sessionService.listOf(userId, req);
+    }
+
+    /** Ends every session of the user, except the caller's own current one. */
+    @DeleteMapping("/{userId}/sessions")
+    public EndedSessionsView endSessionsOf(@PathVariable UUID userId, HttpServletRequest req) {
+        return sessionService.endAllOf(userId, req);
+    }
+
+    @DeleteMapping("/{userId}/sessions/{handle}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void endSessionOf(
+            @PathVariable UUID userId, @PathVariable String handle, HttpServletRequest req, HttpServletResponse resp) {
+        sessionService.endOf(userId, handle, req, resp);
     }
 
     @GetMapping
@@ -51,6 +75,21 @@ public class UsersController {
     @PutMapping("/{userId}/disabled")
     public UserView setDisabled(@PathVariable UUID userId, @RequestBody SetDisabledRequest request) {
         return users.setDisabled(userId, request.disabled());
+    }
+
+    @PutMapping("/{userId}/unlock")
+    public UserView unlock(@PathVariable UUID userId) {
+        return users.unlock(userId);
+    }
+
+    /**
+     * Remove the user's second factors, recovery codes, trusted devices and API tokens, and end their
+     * sessions. Needs {@code user:admin} and a recent step-up; refused for oneself ({@code 409 self-reset})
+     * and, when the user must hold a factor, unless this session verified one ({@code 403 mfa-required}).
+     */
+    @DeleteMapping("/{userId}/second-factors")
+    public UserView resetSecondFactors(@PathVariable UUID userId, HttpServletRequest req) {
+        return users.resetSecondFactors(userId, req);
     }
 
     @PostMapping("/{userId}/grants")

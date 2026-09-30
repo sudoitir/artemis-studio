@@ -15,10 +15,16 @@ const CATALOGUE: PermissionView[] = [
 ];
 
 const ROLES: RoleView[] = [
-  { id: 'r-admin', name: 'ADMIN', builtin: true, permissions: ['*'] },
-  { id: 'r-1', name: 'queue-operator', builtin: false, permissions: ['queue:create', 'queue:delete'] },
-  { id: 'r-2', name: 'queue-creator', builtin: false, permissions: ['queue:create'] },
-  { id: 'r-3', name: 'queue-clone', builtin: false, permissions: ['queue:create', 'queue:delete'] },
+  { id: 'r-admin', name: 'ADMIN', builtin: true, permissions: ['*'], requiresMfa: true },
+  {
+    id: 'r-1',
+    name: 'queue-operator',
+    builtin: false,
+    permissions: ['queue:create', 'queue:delete'],
+    requiresMfa: false,
+  },
+  { id: 'r-2', name: 'queue-creator', builtin: false, permissions: ['queue:create'], requiresMfa: false },
+  { id: 'r-3', name: 'queue-clone', builtin: false, permissions: ['queue:create', 'queue:delete'], requiresMfa: false },
 ];
 
 function serve(roles: RoleView[] = ROLES, catalogue: PermissionView[] | Response = CATALOGUE) {
@@ -31,14 +37,16 @@ function serve(roles: RoleView[] = ROLES, catalogue: PermissionView[] | Response
 afterEach(() => vi.restoreAllMocks());
 
 describe('RolesPanel list', () => {
-  it('counts the roles, marks built-in ones and offers edit and delete only for custom ones', async () => {
+  it('counts the roles, marks built-in ones and offers delete only for custom ones', async () => {
     serve();
     renderWithProviders(<RolesPanel />);
 
     expect(await screen.findByText('4 roles')).toBeInTheDocument();
     const builtin = screen.getByRole('row', { name: /ADMIN/ });
     expect(within(builtin).getByText('built-in')).toBeInTheDocument();
-    expect(within(builtin).queryByRole('button')).toBeNull();
+    // A built-in role can still change whether it requires two-step verification, but is never deleted.
+    expect(within(builtin).getByRole('button', { name: 'Edit ADMIN' })).toBeInTheDocument();
+    expect(within(builtin).queryByRole('button', { name: 'Delete ADMIN' })).toBeNull();
     const custom = screen.getByRole('row', { name: /queue-operator/ });
     expect(custom).toHaveTextContent('queue:create, queue:delete');
     expect(within(custom).getByRole('button', { name: 'Edit queue-operator' })).toBeInTheDocument();
@@ -109,7 +117,9 @@ describe('RolesPanel editor', () => {
     await user.click(await within(dialog).findByRole('checkbox', { name: 'Select all in Queues' }));
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(body).toEqual({ name: 'new-role', permissions: ['queue:create', 'queue:delete'] }));
+    await waitFor(() =>
+      expect(body).toEqual({ name: 'new-role', permissions: ['queue:create', 'queue:delete'], requiresMfa: false }),
+    );
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New role' })).toBeNull());
   });
 
@@ -135,7 +145,10 @@ describe('RolesPanel editor', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
-      expect(put).toEqual({ url: '/api/v1/roles/r-2', body: { name: 'queue-maker', permissions: ['queue:create'] } }),
+      expect(put).toEqual({
+        url: '/api/v1/roles/r-2',
+        body: { name: 'queue-maker', permissions: ['queue:create'], requiresMfa: false },
+      }),
     );
   });
 

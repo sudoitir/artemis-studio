@@ -22,8 +22,39 @@ function mockAccountApis() {
         id: 'u1',
         username: 'ada',
         mustChangePassword: false,
+        secondFactorEnrolmentRequired: false,
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
+        reauthentication: {
+          method: 'PASSWORD',
+          startPath: null,
+          authenticatedAt: new Date().toISOString(),
+          windowSeconds: 300,
+        },
       }),
+    ),
+    http.get('*/api/v1/auth/mfa', () =>
+      HttpResponse.json({
+        local: true,
+        required: false,
+        enrolled: false,
+        totpEnrolled: false,
+        recoveryCodesRemaining: 0,
+        webauthn: { available: true, reason: null },
+        passkeys: [],
+        trustedDevices: [],
+      }),
+    ),
+    http.get('*/api/v1/auth/sessions', () =>
+      HttpResponse.json([
+        {
+          handle: 'a'.repeat(32),
+          signedInAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
+          clientAddress: '203.0.113.7',
+          userAgent: null,
+          current: true,
+        },
+      ]),
     ),
     http.get('*/api/v1/tokens', () => HttpResponse.json([])),
     http.get('*/api/v1/permissions', () => HttpResponse.json([{ action: 'cluster:read', label: 'Read clusters' }])),
@@ -37,6 +68,11 @@ describe('AccountView', () => {
     renderWithProviders(<AccountView />);
 
     expect(await screen.findByText('ada')).toBeInTheDocument();
+    // Two-step verification sits right after the password, before the sessions it protects.
+    const headings = screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
+    expect(headings.slice(1, 4)).toEqual(['Password', 'Two-step verification', 'Sessions']);
+    expect(await screen.findByText('Two-step verification is off')).toBeInTheDocument();
+    expect(await screen.findByText('This session')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'API keys' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'MCP connection' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute('href', '/change-password');

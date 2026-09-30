@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.stream.EventReplay;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.Set;
@@ -21,7 +22,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * {@code GET /api/v1/stream?clusterId={uuid}&topics={csv}} — the single
  * multiplexed stream per cluster (ADR-0003, ADR-0018, ADR-0027). No timeout;
- * {@link SseHub}'s heartbeat keeps it open. {@code X-Accel-Buffering: no} tells
+ * {@link SseHub}'s heartbeat keeps it open, and a first ping goes out on connect so the
+ * client's {@code onopen} does not wait for it. {@code X-Accel-Buffering: no} tells
  * proxies not to buffer it.
  *
  * <p>The recognised topics are those the enabled modules declare (ADR-0070); a
@@ -50,6 +52,7 @@ public class StreamController {
             @RequestParam UUID clusterId,
             @RequestParam(defaultValue = "topology,health,queues") String topics,
             @RequestHeader(name = "Last-Event-ID", required = false) Long lastEventId,
+            HttpServletRequest request,
             HttpServletResponse response) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         response.setHeader("X-Accel-Buffering", "no");
@@ -61,12 +64,14 @@ public class StreamController {
                 .collect(Collectors.toUnmodifiableSet());
 
         SseEmitter emitter = new SseEmitter(0L);
-        Subscriber subscriber = new Subscriber(emitter, wanted.isEmpty() ? this.topics.defaultTopics() : wanted);
+        Subscriber subscriber =
+                Subscriber.of(emitter, wanted.isEmpty() ? this.topics.defaultTopics() : wanted, request);
         hub.register(clusterId, subscriber);
 
         emitter.onCompletion(() -> hub.remove(clusterId, subscriber));
         emitter.onTimeout(() -> hub.remove(clusterId, subscriber));
         emitter.onError(e -> hub.remove(clusterId, subscriber));
+        hub.greet(subscriber);
 
         if (lastEventId != null) {
             this.topics.replays().forEach((topic, replay) -> {

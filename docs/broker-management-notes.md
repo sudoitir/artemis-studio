@@ -5,10 +5,13 @@ Verified against the dev compose pair (`deploy/compose/compose.dev.yaml`):
 `:8161` (primary) and `:8261` (backup), Core on `:61616` / `:61617`.
 Credentials `artemis` / `artemis`, role `amq`.
 
-Reproduce: `just up`, then the `curl` calls below, and
-`ArtemisStudio` test `NotificationSpikeIT` for the notification catalogue
-(`./mvnw test -Dtest=NotificationSpikeIT
--DargLine='-Djunit.jupiter.conditions.deactivate=org.junit.*DisabledCondition'`).
+Reproduce: `just up`, then the `curl` calls below. The notification catalogue (section 7) was
+captured by a Phase 0 spike test, `NotificationSpikeIT`, which was run by hand and no longer
+exists. Its successor is `CoreEventClientTest` (`./mvnw test -Dtest=CoreEventClientTest`): it
+starts an Artemis container, provokes broker activity, drains `activemq.notifications` for 12
+seconds and asserts only that `BINDING_ADDED`, `CONSUMER_CREATED`, `CONSUMER_CLOSED` and
+`SESSION_CREATED` appear, that `JMSMessageID` is null and that `_AMQ_NotifTimestamp` is a
+`Long`. It does not record the full capture, so section 7 stays the reference for the rest.
 
 All JSON below is verbatim tool output, only whitespace added.
 
@@ -284,7 +287,8 @@ Clean pair, `NodeID f7734597-...`, both `ReplicaSync=true`.
 ## 7. `activemq.notifications` catalogue
 
 Consumed over the Core/JMS client (`artemis-jakarta-client`, already a
-dependency). Full capture in `NotificationSpikeIT`. Provoked by: one JMS
+dependency). Captured by the Phase 0 spike; `CoreEventClientTest` now checks the types Studio
+uses. Provoked by: one JMS
 connection, two sessions, an auto-created queue, a producer + consumer, one
 message sent and received, then everything closed.
 
@@ -631,7 +635,7 @@ What actually shipped, against the plan in §8-§9:
 
 ## 13. Phase 5 slice 0 spike — request-reply correlation
 
-`RequestReplySpikeIT` (real broker via `ArtemisIntegrationTest`) ran both reply
+`RequestReplySpikeIntegrationTest` (real broker via `ArtemisIntegrationTest`) ran both reply
 patterns and a stuck-request case, answering the seven questions design.md D1
 posed before slice 1 committed to a join strategy.
 

@@ -8,7 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts.Account;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -18,12 +18,20 @@ import org.springframework.stereotype.Component;
  * {@code app_user} (identity-and-sessions spec).
  */
 @Component
-@RequiredArgsConstructor
 class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
 
     private final UserAccounts accounts;
     private final PasswordEncoder passwordEncoder;
     private final GrantLoader grantLoader;
+    /** A hash from the same encoder, checked against when there is no real one. */
+    private final String dummyHash;
+
+    LocalIdentity(UserAccounts accounts, PasswordEncoder passwordEncoder, GrantLoader grantLoader) {
+        this.accounts = accounts;
+        this.passwordEncoder = passwordEncoder;
+        this.grantLoader = grantLoader;
+        this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
 
     @Override
     public List<LocalIdentity> providers() {
@@ -32,7 +40,7 @@ class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
 
     @Override
     public String id() {
-        return "local";
+        return IdentityLocalModule.PROVIDER_ID;
     }
 
     @Override
@@ -43,14 +51,15 @@ class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
     @Override
     public Optional<StudioPrincipal> authenticate(String username, String password) {
         Account user = accounts.byUsername(username).orElse(null);
-        if (user == null
-                || user.disabled()
-                || user.passwordHash() == null
-                || !passwordEncoder.matches(password, user.passwordHash())) {
-            if (user != null && user.disabled()) {
-                throw new DisabledException("Account disabled");
-            }
+        boolean hasPassword = user != null && user.passwordHash() != null;
+        // Exactly one hash check whether or not the account exists, so the time taken does not
+        // say which usernames do.
+        boolean matches = passwordEncoder.matches(password, hasPassword ? user.passwordHash() : dummyHash);
+        if (!hasPassword || !matches) {
             return Optional.empty();
+        }
+        if (user.disabled()) {
+            throw new DisabledException("Account disabled");
         }
         return Optional.of(new StudioPrincipal(
                 user.id(), user.username(), grantLoader.loadFor(user.id()), user.mustChangePassword()));

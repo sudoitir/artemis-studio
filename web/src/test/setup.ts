@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 
 import { manifestHandler } from './manifest.ts';
@@ -13,6 +13,12 @@ import { manifestHandler } from './manifest.ts';
  * a test disables features with `server.use(manifestHandler([...]))`.
  */
 export const server = setupServer(manifestHandler());
+
+// findBy* and waitFor give up after 1 s by default, and a screen behind a lazy route, a query and a
+// virtualised grid takes longer than that to appear when the whole suite is running. The wait ends the moment
+// the element exists, so this only lengthens the failure of a test that is wrong (which vitest's own timeout,
+// vitest.config.ts, still bounds).
+configure({ asyncUtilTimeout: 8_000 });
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => {

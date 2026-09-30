@@ -5,10 +5,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertStateMachine.TransitionKind;
+import io.github.sudoitir.artemisstudio.kernel.core.StudioProperties;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -34,15 +34,7 @@ class AlertPayloadsTest {
         when(node.getId()).thenReturn(nodeId);
         when(node.getName()).thenReturn("primary-1");
         when(clusters.nodes(clusterId)).thenReturn(List.of(node));
-        AlertingProperties props = new AlertingProperties(
-                Duration.ofSeconds(5),
-                5,
-                Duration.ofSeconds(10),
-                Duration.ofSeconds(5),
-                Duration.ofMinutes(10),
-                publicUrl,
-                Duration.ofSeconds(15));
-        return new AlertPayloads(clusters, props, mapper);
+        return new AlertPayloads(clusters, new StudioProperties(publicUrl), mapper);
     }
 
     @Test

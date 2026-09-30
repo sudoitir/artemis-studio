@@ -1,7 +1,7 @@
 /**
  * Real-browser verification of the Flow screen against a running, seeded Studio (not a capture).
  *
- *   ADMIN_PASSWORD=… node --experimental-strip-types scripts/verify-flow.ts
+ *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… node --experimental-strip-types scripts/verify-flow.ts
  *
  * Checks what jsdom cannot: the ELK worker lays the graph out, dots animate only when motion is
  * allowed, the keyboard reaches a node and the inspector returns focus, and how long reads and

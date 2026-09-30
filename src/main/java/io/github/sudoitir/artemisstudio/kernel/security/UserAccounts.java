@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -42,9 +43,28 @@ public class UserAccounts {
         return users.findByUsername(username).map(UserAccounts::account);
     }
 
+    /**
+     * Serialise the caller's transaction with every other that locks this account, until it ends: work
+     * that reads the account's state and then acts on it, such as issuing recovery codes to whoever
+     * enrols the first factor, so two of them cannot both find the account bare.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lock(UUID userId) {
+        users.findWithLockById(userId).orElseThrow(() -> new NotFoundException("user", userId));
+    }
+
     @Transactional(readOnly = true)
     public Optional<Account> byId(UUID userId) {
         return users.findById(userId).map(UserAccounts::account);
+    }
+
+    /** Whether the user holds, at any scope, a role that requires a second factor (ADR-0143). */
+    @Transactional(readOnly = true)
+    public boolean holdsMfaRole(UUID userId) {
+        return userRoles.findByIdUserId(userId).stream()
+                .anyMatch(ur -> roles.findById(ur.getRoleId())
+                        .map(RoleEntity::isRequiresMfa)
+                        .orElse(false));
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +78,14 @@ public class UserAccounts {
         AppUserEntity user = users.findById(userId).orElseThrow(() -> new NotFoundException("user", userId));
         user.setPasswordHash(passwordHash);
         user.setMustChangePassword(false);
+        users.save(user);
+    }
+
+    /** The user must change their password at their next sign-in. */
+    @Transactional
+    public void requirePasswordChange(UUID userId) {
+        AppUserEntity user = users.findById(userId).orElseThrow(() -> new NotFoundException("user", userId));
+        user.setMustChangePassword(true);
         users.save(user);
     }
 
