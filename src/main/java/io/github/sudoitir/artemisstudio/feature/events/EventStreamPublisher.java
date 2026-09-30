@@ -1,33 +1,59 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
 import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventEntity;
-import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusEvents;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * Fans a flushed batch of broker events out over SSE (ADR-0027). Each event goes
- * on the data-bearing {@code events} topic with its {@code seq} as the SSE id;
- * the resource-view signal topics it implies are stale are then nudged through
- * {@link TopicCoalescer} (D11).
+ * Fans a flushed batch of broker events out over SSE (ADR-0027, ADR-0148). The replica that wrote
+ * the batch announces its seqs on the bus; every replica, that one included, loads the rows when the
+ * announcement arrives and sends each as a frame on the data-bearing {@code events} topic, with its
+ * {@code seq} as the SSE id. So a frame is delivered once per replica, and only the writer nudges the
+ * resource-view signal topics the events imply are stale, through {@link TopicCoalescer} (D11); those
+ * signals cross the bus themselves.
  */
 @Component
 @RequiredArgsConstructor
 public class EventStreamPublisher implements BrokerEventPublisher {
 
-    private final SseHub hub;
+    private final StudioBus bus;
+    private final ApplicationEventPublisher frames;
+    private final ObjectMapper mapper;
     private final TopicCoalescer coalescer;
     private final BrokerEventService events;
+    private final BrokerEventRepository repository;
 
     @Override
     public void published(List<BrokerEventEntity> batch) {
+        if (batch.isEmpty()) {
+            return;
+        }
+        bus.publish(new BusEvents(batch.stream().map(BrokerEventEntity::getSeq).toList()));
         for (BrokerEventEntity e : batch) {
-            hub.publish(e.getClusterId(), EventsModule.TOPIC, events.toView(e), Long.toString(e.getSeq()));
             String derived = derivedTopicOf(e.getType());
             if (derived != null) {
                 coalescer.touch(e.getClusterId(), derived);
             }
+        }
+    }
+
+    /** Announced by some replica: hand each stored row to the local subscribers of its cluster. */
+    @EventListener
+    void on(BusEvents announced) {
+        for (BrokerEventEntity e : repository.findBySeqInOrderBySeqAsc(announced.seqs())) {
+            frames.publishEvent(new BusFrame(
+                    e.getClusterId(),
+                    EventsModule.TOPIC,
+                    mapper.valueToTree(events.toView(e)),
+                    Long.toString(e.getSeq())));
         }
     }
 

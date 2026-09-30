@@ -95,7 +95,7 @@ class ScrapeSchedulerTest {
                 sweepCursor,
                 upsert,
                 metrics,
-                new StreamSignals(new SseHub()),
+                new StreamSignals(org.mockito.Mockito.mock(SseHub.class)),
                 coreSubscriptions,
                 eventPublisher,
                 new JobStatuses(

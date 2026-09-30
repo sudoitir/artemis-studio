@@ -3,25 +3,45 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusMessage;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
 class SseHubTest {
 
-    private final SseHub hub = new SseHub();
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final StudioBus bus = mock(StudioBus.class);
+    private final SseHub hub = new SseHub(bus, mapper);
+
+    /** What the bus would do: hand the message back to this replica, which is how every frame arrives. */
+    private void loopback() {
+        doAnswer(invocation -> {
+                    hub.on((BusFrame) invocation.getArgument(0));
+                    return null;
+                })
+                .when(bus)
+                .publish(any(BusMessage.class));
+    }
 
     @Test
     void publishReachesOnlySubscribersOfThatTopic() throws IOException {
+        loopback();
         UUID clusterId = UUID.randomUUID();
         SseEmitter queuesEmitter = mock(SseEmitter.class);
         SseEmitter topologyEmitter = mock(SseEmitter.class);
@@ -36,6 +56,7 @@ class SseHubTest {
 
     @Test
     void aDeadEmitterIsDroppedOnTheNextPublish() throws IOException {
+        loopback();
         UUID clusterId = UUID.randomUUID();
         SseEmitter dead = mock(SseEmitter.class);
         doThrow(new IOException("client gone")).when(dead).send(any(SseEmitter.SseEventBuilder.class));
@@ -50,6 +71,7 @@ class SseHubTest {
 
     @Test
     void publishToAClusterWithNoSubscribersIsANoOp() {
+        loopback();
         UUID clusterId = UUID.randomUUID();
 
         assertThatCode(() -> hub.publish(clusterId, "queues")).doesNotThrowAnyException();
@@ -96,6 +118,56 @@ class SseHubTest {
         hub.heartbeat();
 
         assertThat(hub.subscriberCount(clusterId)).isZero();
+    }
+
+    @Test
+    void publishBroadcastsAFrameAndDeliversNothingItself() throws IOException {
+        UUID clusterId = UUID.randomUUID();
+        SseEmitter emitter = mock(SseEmitter.class);
+        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
+
+        hub.publish(clusterId, "events", Map.of("seq", 7), "7");
+
+        verify(bus).publish(new BusFrame(clusterId, "events", mapper.readTree("{\"seq\":7}"), "7"));
+        verify(emitter, never()).send(any(SseEmitter.SseEventBuilder.class));
+    }
+
+    @Test
+    void aSignalIsBroadcastWithoutData() {
+        UUID clusterId = UUID.randomUUID();
+
+        hub.publish(clusterId, "queues");
+
+        verify(bus).publish(new BusFrame(clusterId, "queues", null, null));
+    }
+
+    @Test
+    void aFrameThatArrivesIsDeliveredOnceToTheLocalSubscribersOfItsTopic() throws IOException {
+        UUID clusterId = UUID.randomUUID();
+        SseEmitter wants = mock(SseEmitter.class);
+        SseEmitter other = mock(SseEmitter.class);
+        hub.register(clusterId, new Subscriber(wants, Set.of("events"), null));
+        hub.register(clusterId, new Subscriber(other, Set.of("queues"), null));
+
+        hub.on(new BusFrame(clusterId, "events", mapper.readTree("{\"seq\":7}"), "7"));
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(wants).send(frame.capture());
+        assertThat(render(frame.getValue())).contains("event:events", "id:7");
+        verify(other, never()).send(any(SseEmitter.SseEventBuilder.class));
+    }
+
+    @Test
+    void theBusComingBackTellsEverySubscriberToResync() throws IOException {
+        UUID clusterId = UUID.randomUUID();
+        SseEmitter emitter = mock(SseEmitter.class);
+        hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
+
+        hub.on(new BusResumed());
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter).send(frame.capture());
+        assertThat(render(frame.getValue())).contains("event:" + SseHub.RESYNC);
     }
 
     private static String render(SseEmitter.SseEventBuilder builder) {

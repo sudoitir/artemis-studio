@@ -1,6 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
 import java.io.IOException;
@@ -15,15 +18,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * The in-memory SSE fan-out (ADR-0018). One {@code Set<Subscriber>} per cluster;
+ * The SSE fan-out (ADR-0018). One {@code Set<Subscriber>} per cluster;
  * {@link #publish} sends a tiny change-signal event to every subscriber that
  * asked for the topic. Events carry no data — the client refetches the matching
  * query key — so a broker that changes nothing produces only the heartbeat.
  *
- * <p>The registry is per-instance and does not survive a restart; multi-instance
- * fan-out is post-MVP (matches {@code docs/architecture.md}).
+ * <p>{@link #publish} does not deliver directly: it broadcasts a {@link BusFrame} to every replica
+ * (ADR-0148), this one included, and each delivers it to its own subscribers when it arrives, so a
+ * plugin publishing on one replica reaches the clients of all of them. The registry itself is
+ * per-instance and does not survive a restart. The bus carries at most about 7 KB a frame: a larger
+ * payload arrives as the plain {@code {topic,clusterId,ts}} signal, and the client refetches.
  */
 @Component
 @PluginApi
@@ -33,7 +40,17 @@ public class SseHub {
     /** The keep-alive event name. Not a topic: it is sent to every subscriber. */
     public static final String PING = "ping";
 
+    /** Sent to every subscriber when the bus came back after a loss: frames in the gap are gone, so refetch. */
+    public static final String RESYNC = "resync";
+
     private final Map<UUID, Set<Subscriber>> byCluster = new ConcurrentHashMap<>();
+    private final StudioBus bus;
+    private final ObjectMapper mapper;
+
+    public SseHub(StudioBus bus, ObjectMapper mapper) {
+        this.bus = bus;
+        this.mapper = mapper;
+    }
 
     public void register(UUID clusterId, Subscriber subscriber) {
         byCluster.computeIfAbsent(clusterId, k -> ConcurrentHashMap.newKeySet()).add(subscriber);
@@ -56,9 +73,26 @@ public class SseHub {
      * pass {@code data == null} and get the {@code {topic,clusterId,ts}} envelope;
      * the {@code events} topic passes the real payload and an {@code eventId}
      * (the {@code broker_event.seq}), which becomes the SSE {@code id:} line and
-     * powers {@code Last-Event-ID} replay (ADR-0027).
+     * powers {@code Last-Event-ID} replay (ADR-0027). Sent over the bus: it reaches the subscribers of
+     * every replica, and of this one only when it arrives back.
      */
     public void publish(UUID clusterId, String topic, Object data, String eventId) {
+        bus.publish(new BusFrame(clusterId, topic, data == null ? null : mapper.valueToTree(data), eventId));
+    }
+
+    /** A frame arrived, from this replica or another: deliver it to the local subscribers. */
+    @EventListener
+    void on(BusFrame frame) {
+        deliver(frame.clusterId(), frame.topic(), frame.data(), frame.id());
+    }
+
+    /** The bus is back: what was sent while it was down is lost, so every client refetches. */
+    @EventListener
+    void on(BusResumed resumed) {
+        toAll(RESYNC);
+    }
+
+    private void deliver(UUID clusterId, String topic, Object data, String eventId) {
         Set<Subscriber> set = byCluster.get(clusterId);
         if (set == null || set.isEmpty()) {
             return;
@@ -118,10 +152,15 @@ public class SseHub {
      * sits in front. The watchdog window on the client is set well above it.
      */
     public void heartbeat() {
+        toAll(PING);
+    }
+
+    /** One named event, carrying the server's clock, to every subscriber, whatever it asked for. */
+    private void toAll(String event) {
         byCluster.forEach((clusterId, set) -> set.forEach(s -> {
             try {
                 s.emitter()
-                        .send(SseEmitter.event().name(PING).data(Instant.now().toEpochMilli()));
+                        .send(SseEmitter.event().name(event).data(Instant.now().toEpochMilli()));
             } catch (IOException | RuntimeException e) {
                 drop(clusterId, s, e);
             }
