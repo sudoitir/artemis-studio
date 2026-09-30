@@ -40,6 +40,7 @@ jobs:
       plugin: ${{ steps.filter.outputs.plugin }}
       image: ${{ steps.filter.outputs.image }}
       release: ${{ steps.filter.outputs.release }}
+      clients: ${{ steps.filter.outputs.clients }}
       site: ${{ steps.filter.outputs.site }}
       manifests: ${{ steps.filter.outputs.manifests }}
       workflows: ${{ steps.filter.outputs.workflows }}
@@ -87,6 +88,12 @@ jobs:
             # A release: only what the image is built from. A CI-only merge releases nothing.
             release:
               - *build
+              - 'clients/**'
+            # The generated Java client, built from web/openapi.json (ADR-0148).
+            clients:
+              - *ci
+              - 'clients/**'
+              - 'web/openapi.json'
             site:
               - *ci
               - 'site/**'
@@ -184,6 +191,9 @@ jobs:
       - run: npm run build
       - name: Fail on a stale generated API schema
         run: git diff --exit-code src/kernel/api/schema.d.ts
+      # The published TypeScript client compiles against the schema just generated (ADR-0148).
+      - name: Build the TypeScript client
+        run: node packages/client/build.mjs 2026.01.0
       - run: npm run format:check
       - run: npm run lint
       - run: npm run test:coverage
@@ -204,6 +214,42 @@ jobs:
           name: frontend-coverage
           path: web/coverage
           retention-days: 14
+
+  # A break of the public API is refused unless a commit of the PR marks it (ADR-0146): oasdiff
+  # compares web/openapi.json with the latest release's. `just api-diff` runs the same script.
+  api-compat:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The release tags, and origin/main for the PR's commits.
+          fetch-depth: 0
+          persist-credentials: false
+      - run: scripts/api-compat.sh origin/main
+
+  # The Java client is generated from web/openapi.json, so a generator failure shows up here, not at
+  # release (ADR-0148).
+  client-java:
+    needs: changes
+    if: >-
+      github.event_name == 'pull_request'
+      && (needs.changes.outputs.web == 'true' || needs.changes.outputs.clients == 'true')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: clients/java/pom.xml
+      - run: ./mvnw -B -f clients/java/pom.xml verify
 
   # The plugin kit, end to end (ADR-0102): build the template plugin against this Studio's API
   # jar and SDK, check it exactly as an upload would, then install, use, update, roll back and
@@ -538,7 +584,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, backend, coverage, frontend, sonar, plugin-template, image, site, osv, actionlint, observability]
+    needs: [changes, backend, coverage, frontend, sonar, api-compat, client-java, plugin-template, image, site, osv, actionlint, observability]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -623,6 +669,9 @@ jobs:
           # The Grafana dashboard and Prometheus rules, as their own asset (ADR-0147).
           tar -czf "artemis-studio-observability-$V.tar.gz" deploy/observability
           sha256sum "artemis-studio-observability-$V.tar.gz" > "artemis-studio-observability-$V.tar.gz.sha256"
+          # The API document of this release, with the release as its version (ADR-0148).
+          jq --arg v "$V" '.info.version = $v' web/openapi.json > "artemis-studio-$V.openapi.json"
+          sha256sum "artemis-studio-$V.openapi.json" > "artemis-studio-$V.openapi.json.sha256"
 
       # Signed SLSA provenance and a CycloneDX SBOM for the jar, verifiable with
       # `gh attestation verify` and no key of ours (ADR-0139). The bundle is a release asset too.
@@ -643,6 +692,9 @@ jobs:
           sbom-path: artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
       - name: Stage the jar's provenance bundle
         run: cp "${{ steps.jar-provenance.outputs.bundle-path }}" "artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artemis-studio-${{ steps.ver.outputs.version }}.openapi.json
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -740,6 +792,8 @@ jobs:
             artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
             artemis-studio-observability-${{ steps.ver.outputs.version }}.tar.gz
             artemis-studio-observability-${{ steps.ver.outputs.version }}.tar.gz.sha256
+            artemis-studio-${{ steps.ver.outputs.version }}.openapi.json
+            artemis-studio-${{ steps.ver.outputs.version }}.openapi.json.sha256
             artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl
             artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
             artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
@@ -755,6 +809,7 @@ jobs:
           SIGNER=(--repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml")
           gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}"
           gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
+          gh attestation verify "artemis-studio-$V.openapi.json" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
           # Docker Hub lists a freshly pushed referrer only after a delay, so give it a minute.
@@ -938,3 +993,85 @@ jobs:
         run: |
           npx -y semver@7 -r '>=11.5.1' "$(npm -v)" >/dev/null || { echo "npm $(npm -v) is too old to publish"; exit 1; }
           npm publish --access public --provenance
+
+  # The TypeScript client on npm (ADR-0148), versioned like Studio (2026.09.0 is npm 2026.9.0) and
+  # built from the release's own OpenAPI document, so every release publishes one. Trusted
+  # publishing through GitHub's OIDC, as for the SDK; the package's trusted publisher is set up once
+  # on npmjs.com (workflow ci.yml, no environment).
+  publish-client-ts:
+    needs: release
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.version }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Build @artemis-studio/client
+        working-directory: web
+        run: |
+          npm ci
+          node packages/client/build.mjs "${{ needs.release.outputs.version }}"
+      - name: Publish
+        working-directory: web/packages/client/dist
+        run: |
+          npx -y semver@7 -r '>=11.5.1' "$(npm -v)" >/dev/null || { echo "npm $(npm -v) is too old to publish"; exit 1; }
+          npm publish --access public --provenance
+
+  # The Java client on Maven Central (ADR-0148): generated from the release's OpenAPI document, so
+  # every release publishes one, signed and attested like the plugin API.
+  publish-client-java:
+    needs: release
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.version }}
+          persist-credentials: false
+      - name: Check the publishing secrets are set
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          missing=0
+          for name in SONATYPE_USERNAME SONATYPE_PASSWORD GPG_PRIVATE_KEY GPG_PASSPHRASE; do
+            if [ -z "${!name}" ]; then echo "::error::repository secret $name is not set"; missing=1; fi
+          done
+          exit $missing
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          server-id: central
+          server-username-env-var: MAVEN_USERNAME
+          server-password-env-var: MAVEN_PASSWORD
+      - name: Publish io.github.sudoitir:artemis-studio-client:${{ needs.release.outputs.version }}
+        env:
+          MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B -f clients/java/pom.xml versions:set -DnewVersion="${{ needs.release.outputs.version }}" -DgenerateBackupPoms=false
+          ./mvnw -B -f clients/java/pom.xml -Prelease -Dgpg.signer=bc deploy
+      # The bytes Central serves: the jar, its sources and javadoc, and the pom.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            clients/java/target/artemis-studio-client*.jar
+            clients/java/pom.xml

@@ -1,6 +1,6 @@
 ## 1. Design
 - [x] 1.1 Brainstorm and investigate; `/opsx:update` adds design.md, sharpens specs, replaces these tasks
-- [ ] 1.2 ADRs: 0143 public API contract (versioning, `!` flag, deprecation, pagination/error/limit convention), 0144 idempotency keys, 0145 published generated clients (revisits ADR-0019 in part)
+- [x] 1.2 ADRs: 0146 public API contract (versioning, `!` flag, deprecation, pagination/error/limit convention), 0147 idempotency keys, 0148 published generated clients (revisits ADR-0019 in part); 0143 to 0145 were taken by the account-security changes
 
 ## 2. Errors and limits (D4)
 - [ ] 2.1 Problem+json `AuthenticationEntryPoint` (401 `unauthenticated`) and `AccessDeniedHandler` (403 `forbidden`, `csrf`) wired in `SecurityConfig`; `BearerAuthenticationFilter` delegates to the entry point
@@ -36,14 +36,14 @@
 - [ ] 6.3 Negative test: an extra field fails validation
 
 ## 7. Break detection (D1)
-- [ ] 7.1 `api-compat` PR job in `ci.yml`: pinned oasdiff against `<latest CalVer tag>:web/openapi.json`, passes on break only with a `!`/`BREAKING CHANGE:` commit in the PR; joins `ci-ok`
-- [ ] 7.2 `just api-diff` recipe running the same comparison
+- [x] 7.1 `api-compat` PR job in `ci.yml`: pinned oasdiff against `<latest CalVer tag>:web/openapi.json`, passes on break only with a `!`/`BREAKING CHANGE:` commit in the PR; joins `ci-ok`
+- [x] 7.2 `just api-diff` recipe running the same comparison
 
 ## 8. Release artifacts and clients (D7)
-- [ ] 8.1 Release job attaches `artemis-studio-<V>.openapi.json` (version stamped) with `.sha256` and provenance
-- [ ] 8.2 `web/packages/client` → `@artemis-studio/client` (openapi-typescript + openapi-fetch, bearer auth, `ProblemError`), built like `plugin-sdk`, unit-tested
-- [ ] 8.3 `clients/java/pom.xml` → `io.github.sudoitir:artemis-studio-client` (openapi-generator `java`/`native`); built in PR CI
-- [ ] 8.4 Publish both clients on every release (npm provenance, Central signed + attested); add their paths to `changes.release`
+- [x] 8.1 Release job attaches `artemis-studio-<V>.openapi.json` (version stamped) with `.sha256` and provenance
+- [x] 8.2 `web/packages/client` → `@artemis-studio/client` (openapi-typescript + openapi-fetch, bearer auth, `ProblemError`), built like `plugin-sdk`, unit-tested
+- [x] 8.3 `clients/java/pom.xml` → `io.github.sudoitir:artemis-studio-client` (openapi-generator `java`/`native`); built in PR CI
+- [x] 8.4 Publish both clients on every release (npm provenance, Central signed + attested); add their paths to `changes.release`
 
 ## 9. Finish
 - [ ] 9.1 `just verify` green; `just api-diff` shows this change's breaks

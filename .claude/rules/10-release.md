@@ -26,7 +26,7 @@ The ruleset requires the one `ci-ok` check on a branch that is up to date with `
 so the merge commit is the tree CI verified.
 
 A push to `main` releases when it changes what the image is built from
-(`src/`, `web/`, `pom.xml`, the Maven wrapper, `Dockerfile`, `.dockerignore`). A docs-,
+(`src/`, `web/`, `clients/`, `pom.xml`, the Maven wrapper, `Dockerfile`, `.dockerignore`). A docs-,
 site- or CI-only push releases nothing; its commits appear in the next release's
 changelog. The path lists live in the `changes` job of `ci.yml`
 ([ADR-0088](../../docs/adr/0088-path-filtered-ci-and-releases.md)).
@@ -56,7 +56,10 @@ version already there, so a failed publish is retried by the next release:
   attests the files it deployed;
 - `publish-sdk`: `@artemis-studio/plugin-sdk` to npm, when `web/packages`, `web/src/sdk`,
   `web/src/kernel` or the web manifests changed. Its job stays in `ci.yml`: npm trusted
-  publishing is bound to that file name.
+  publishing is bound to that file name;
+- `publish-client-ts` and `publish-client-java`: `@artemis-studio/client` to npm and
+  `io.github.sudoitir:artemis-studio-client` to Central, on **every** release, generated from the
+  release's `web/openapi.json` (ADR-0148). The release also attaches `artemis-studio-<version>.openapi.json`.
 
 A pull request that changes the image inputs scans the built image with Grype and fails on a
 critical or high finding that has a fix; bump the base-image digest or the dependency.

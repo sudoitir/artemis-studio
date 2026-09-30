@@ -176,6 +176,13 @@ fmt:
     {{npm}} run format
     {{npm}} run lint -- --fix
 
+# ── api ──────────────────────────────────────────────────────────────────────
+
+# The API-break gate CI runs: web/openapi.json against the latest release tag. Needs Docker.
+[group('quality')]
+api-diff:
+    scripts/api-compat.sh
+
 # ── changelog ────────────────────────────────────────────────────────────────
 
 # Preview the next release's notes, rendered from the commits since the last tag.
