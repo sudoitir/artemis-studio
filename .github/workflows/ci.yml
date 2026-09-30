@@ -85,6 +85,8 @@ jobs:
             image:
               - *ci
               - *build
+              # The HA reference stack the image is failed over in.
+              - 'deploy/compose/**'
             # A release: only what the image is built from. A CI-only merge releases nothing.
             release:
               - *build
@@ -343,12 +345,16 @@ jobs:
         if: failure()
         run: tail -300 "$RUNNER_TEMP/studio.log"
 
-  # The Dockerfile still builds. Single-arch, no push, in parallel with the tests.
+  # The Dockerfile still builds, and two replicas of the image built here survive a kill and a rolling stop
+  # (ADR-0152). Single-arch, no push, in parallel with the tests.
   image:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.image == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
+    env:
+      # `just ha-failover` runs the same stack and script.
+      COMPOSE: docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -367,6 +373,32 @@ jobs:
             type=registry,ref=${{ env.BUILDCACHE }}
             type=gha
           cache-to: type=gha,mode=max
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      # Two replicas behind HAProxy, one broker and Postgres, on the image just built: SIGKILL the owner of a
+      # cluster under load, then stop the other replica gracefully. No request fails in the second, no event is
+      # lost in either, and scraping resumes (web/scripts/ha-failover.ts).
+      - name: Throwaway secrets for the failover stack
+        run: |
+          db_password="$(openssl rand -hex 16)"
+          secret_key="$(openssl rand -base64 32)"
+          echo "::add-mask::$db_password"
+          echo "::add-mask::$secret_key"
+          {
+            echo "DB_PASSWORD=$db_password"
+            echo "SECRET_KEY=$secret_key"
+          } >> "$GITHUB_ENV"
+      - name: Fail over between two replicas
+        run: |
+          $COMPOSE up -d --wait --wait-timeout 300
+          node --experimental-strip-types web/scripts/ha-failover.ts
+      - name: The replicas' logs
+        if: failure()
+        run: $COMPOSE logs --tail 300 studio-1 studio-2 lb
+      - name: Remove the failover stack
+        if: always()
+        run: $COMPOSE down -v
       # Grype, pinned by digest like actionlint (ADR-0139). The first run reports every finding,
       # fixed or not; the second fails on a fixable high or critical and names the fixed version.
       - name: Scan the image
