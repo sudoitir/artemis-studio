@@ -52,7 +52,6 @@ class AuditCoverageTest {
                     "caches the latest configuration review; accepting or revoking a risk is what SetupReviewService audits"),
             Map.entry("feature.events.BrokerEventWriter", "persists broker notifications as they arrive"),
             Map.entry("feature.flow.FlowStore", "caches sampled client activity while a flow view is open"),
-            Map.entry("feature.events.BrokerEventReaper", "trims broker events past retention"),
             Map.entry("feature.rr.RrCorrelator", "records observed request-reply flows"),
             Map.entry(
                     "feature.rr.RrEventRemasker",
@@ -61,7 +60,6 @@ class AuditCoverageTest {
                     "feature.sql.MessageIndexRemasker",
                     "re-masks stored messages under a policy whose rule change was already audited"),
             Map.entry("feature.rr.RrDeadlineSweep", "marks flows past their deadline"),
-            Map.entry("feature.rr.RrFlowReaper", "trims request-reply flows past retention"),
             Map.entry("feature.sql.CaptureLoss", "measures capture loss for the index view"),
             Map.entry(
                     "feature.plugins.internal.persistence.RegistrationRepository",

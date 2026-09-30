@@ -17,6 +17,4 @@ public record RrProperties(
         @DefaultValue("5s") Duration sweepInterval,
         @DefaultValue("5s") Duration sampleInterval,
         @DefaultValue("15m") Duration percentileWindow,
-        @DefaultValue("4096") int payloadCaptureBytes,
-        @DefaultValue("7d") Duration retention,
-        @DefaultValue("0 20 3 * * *") String reaperCron) {}
+        @DefaultValue("4096") int payloadCaptureBytes) {}

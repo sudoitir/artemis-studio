@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +38,10 @@ public class AlertRuleService {
             "CLOCK_SKEW",
             "CONFIG_DRIFT",
             "SETUP_RISK");
+
+    /** What an installation-scoped rule may watch (ADR-0135); a cluster's rules never may, and vice versa. */
+    private static final Set<String> INSTALLATION_CONDITIONS = Set.of("STORAGE_QUOTA", "STORAGE_HEALTH");
+
     private static final Set<String> COMPARATORS = Set.of("GT", "GTE", "LT", "LTE", "EQ", "NE");
 
     private final AlertRuleRepository rules;
@@ -45,15 +50,20 @@ public class AlertRuleService {
     private final ActorResolver actorResolver;
     private final AlertViewMapper mapper;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver perm;
     private final PluginMetricCondition pluginMetrics;
 
     /** Every rule kind's predicate, so validation accepts exactly what evaluation can run. */
     private final java.util.List<AlertCondition> conditions;
 
+    /**
+     * The cluster's rules and, for a caller with the global grant, the installation's (ADR-0135),
+     * which every cluster's alerts view shows.
+     */
     @Transactional(readOnly = true)
     public List<AlertRuleView> list(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
-        return rules.findByClusterIdOrderByName(clusterId).stream()
+        return rules.findVisible(clusterId, perm.can(AlertPermissions.ALERT_READ)).stream()
                 .map(r -> view(r, channelIds(r.getId())))
                 .toList();
     }
@@ -75,7 +85,7 @@ public class AlertRuleService {
     @Transactional
     public AlertRuleView create(UUID clusterId, AlertRuleRequest request) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
-        AlertRuleEntity rule = validated(request);
+        AlertRuleEntity rule = validated(request, false);
         rule.setClusterId(clusterId);
         rules.save(rule);
         bindChannels(rule.getId(), request.channelIds());
@@ -97,14 +107,14 @@ public class AlertRuleService {
     public AlertRuleView update(UUID clusterId, UUID ruleId, AlertRuleRequest request) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity existing = requireRule(clusterId, ruleId);
-        AlertRuleEntity updated = validated(request);
+        AlertRuleEntity updated = validated(request, existing.getClusterId() == null);
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 "UPDATE_ALERT_RULE",
                 "ALERT_RULE",
                 existing.getName(),
-                clusterId,
+                existing.getClusterId(),
                 null,
                 Map.of("kind", updated.getKind()),
                 false);
@@ -137,7 +147,7 @@ public class AlertRuleService {
                 "DELETE_ALERT_RULE",
                 "ALERT_RULE",
                 rule.getName(),
-                clusterId,
+                rule.getClusterId(),
                 null,
                 Map.of(),
                 false);
@@ -147,7 +157,10 @@ public class AlertRuleService {
 
     // ---- helpers ------------------------------------------------------------
 
-    private AlertRuleEntity validated(AlertRuleRequest r) {
+    private AlertRuleEntity validated(AlertRuleRequest r, boolean installation) {
+        if (installation && !"STATE".equals(r.kind())) {
+            throw new IllegalArgumentException("an installation rule must be a state rule");
+        }
         if ("METRIC_THRESHOLD".equals(r.kind())) {
             if (r.metric() == null || r.comparator() == null || r.threshold() == null) {
                 throw new IllegalArgumentException(
@@ -172,7 +185,8 @@ public class AlertRuleService {
                     null, r.name(), r.metric(), r.comparator(), r.threshold(), r.forSeconds(), r.severity(), r.scope());
         }
         if ("STATE".equals(r.kind())) {
-            if (r.stateCondition() == null || !STATE_CONDITIONS.contains(r.stateCondition())) {
+            Set<String> allowed = installation ? INSTALLATION_CONDITIONS : STATE_CONDITIONS;
+            if (r.stateCondition() == null || !allowed.contains(r.stateCondition())) {
                 throw new IllegalArgumentException("unknown stateCondition: " + r.stateCondition());
             }
             if (r.metric() != null || r.comparator() != null || r.threshold() != null) {
@@ -203,9 +217,17 @@ public class AlertRuleService {
                 .toList();
     }
 
+    /**
+     * The cluster's rule, or an installation rule when the caller holds the write grant globally:
+     * an operator scoped to one cluster cannot silence the installation's alerts, and is told the
+     * rule does not exist.
+     */
     private AlertRuleEntity requireRule(UUID clusterId, UUID ruleId) {
         AlertRuleEntity rule = rules.findById(ruleId).orElseThrow(() -> new NotFoundException("AlertRule", ruleId));
-        if (!clusterId.equals(rule.getClusterId())) {
+        boolean visible = rule.getClusterId() == null
+                ? perm.can(AlertPermissions.ALERT_WRITE)
+                : clusterId.equals(rule.getClusterId());
+        if (!visible) {
             throw new NotFoundException("AlertRule", ruleId);
         }
         return rule;

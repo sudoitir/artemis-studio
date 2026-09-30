@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.settings.StudioInstance;
@@ -18,6 +19,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +49,12 @@ class MessageIndexServicePreviewTest {
         when(reconciler.servingNodes(CLUSTER)).thenReturn(List.of(primary));
     }
 
+    private static LifecycleRegistry lifecycle() {
+        LifecycleRegistry lifecycle = mock(LifecycleRegistry.class);
+        when(lifecycle.retention(MessageIndexStore.ID)).thenReturn(Optional.of(Duration.ofDays(7)));
+        return lifecycle;
+    }
+
     private MessageIndexService service(String brokerRole) {
         CaptureProperties properties = new CaptureProperties(
                 brokerRole,
@@ -71,7 +79,8 @@ class MessageIndexServicePreviewTest {
                 reconciler,
                 new CaptureTap(null, null, properties, new ObjectMapper()),
                 properties,
-                instance);
+                instance,
+                lifecycle());
     }
 
     private static MessageIndexService.Spec spec(String pattern, Long ringSize) {
@@ -114,6 +123,17 @@ class MessageIndexServicePreviewTest {
 
         assertThat(preview.addresses()).isEmpty();
         assertThat(preview.refusal()).contains("matches no address");
+    }
+
+    @Test
+    void aRetentionLongerThanTheStoresIsRefusedNamingTheMaximum() {
+        MessageIndexService.Spec spec = new MessageIndexService.Spec(
+                "ORDER.IN", null, 8, null, CaptureMode.CAPTURE, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service("studio").preview(CLUSTER, spec))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("between 1 and 7")
+                .hasMessageContaining("got 8");
     }
 
     @Test
@@ -163,7 +183,8 @@ class MessageIndexServicePreviewTest {
                 reconciler,
                 new CaptureTap(null, null, properties, new ObjectMapper()),
                 properties,
-                mock(StudioInstance.class));
+                mock(StudioInstance.class),
+                lifecycle());
 
         service.delete(CLUSTER, id);
 

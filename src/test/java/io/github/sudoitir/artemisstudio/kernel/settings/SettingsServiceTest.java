@@ -7,10 +7,11 @@ import static org.assertj.core.api.Assertions.tuple;
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
+import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -20,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** {@link SettingsService}: default fall-through, put-then-get, validation, and live limiter/reaper wiring. */
+/** {@link SettingsService}: default fall-through, put-then-get, validation, and live limiter wiring. */
 @ExtendWith(AdminAuthenticationExtension.class)
 class SettingsServiceTest extends PostgresIntegrationTest {
 
@@ -32,9 +33,6 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     NodeCallLimiter limiter;
-
-    @Autowired
-    MetricSampleReaper reaper;
 
     @Autowired
     AuditEventRepository auditEvents;
@@ -49,29 +47,27 @@ class SettingsServiceTest extends PostgresIntegrationTest {
     @Test
     void unsetKeysFallThroughToTheApplicationYmlDefaults() {
         assertThat(settings.duration(ScrapeSettings.TIER_A)).isEqualTo(Duration.ofSeconds(5));
-        assertThat(settings.intValue(ScrapeSettings.METRIC_RETENTION_DAYS)).isEqualTo(7);
+        assertThat(settings.intValue(BrokerSettings.RATE_LIMIT)).isEqualTo(20);
         assertThat(settings.effective().get(ScrapeSettings.TIER_A).overridden()).isFalse();
     }
 
     @Test
     void putThenGetReturnsTheOverrideAndFlagsIt() {
         settings.put(ScrapeSettings.TIER_B, "30s");
-        settings.put(ScrapeSettings.METRIC_RETENTION_DAYS, "3");
+        settings.put(BrokerSettings.RATE_LIMIT, "3");
 
         assertThat(settings.duration(ScrapeSettings.TIER_B)).isEqualTo(Duration.ofSeconds(30));
-        assertThat(settings.intValue(ScrapeSettings.METRIC_RETENTION_DAYS)).isEqualTo(3);
+        assertThat(settings.intValue(BrokerSettings.RATE_LIMIT)).isEqualTo(3);
         assertThat(settings.effective().get(ScrapeSettings.TIER_B).overridden()).isTrue();
         assertThat(settings.effective().get(ScrapeSettings.TIER_B).defaultValue())
                 .isEqualTo("PT15S");
     }
 
     @Test
-    void settingTheLimiterAndRetentionAppliesToTheLiveHolders() {
+    void settingTheLimiterAppliesToTheLiveHolder() {
         settings.put(BrokerSettings.RATE_LIMIT, "9");
-        settings.put(ScrapeSettings.METRIC_RETENTION_DAYS, "2");
 
         assertThat(limiter.permitsPerSecond()).isEqualTo(9);
-        assertThat(reaper.retentionDays()).isEqualTo(2);
     }
 
     @Test
@@ -98,12 +94,14 @@ class SettingsServiceTest extends PostgresIntegrationTest {
     void everyKindRoundTrips() {
         settings.put(BrokerSettings.READ_TIMEOUT, "45s");
         settings.put(AlertingSettings.MAX_ATTEMPTS, "9");
-        settings.put(ScrapeSettings.METRIC_REAPER_CRON, "0 45 4 * * *");
+        settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "0 45 4 * * *");
 
         assertThat(settings.duration(BrokerSettings.READ_TIMEOUT)).isEqualTo(Duration.ofSeconds(45));
         assertThat(settings.intValue(AlertingSettings.MAX_ATTEMPTS)).isEqualTo(9);
-        assertThat(settings.value(ScrapeSettings.METRIC_REAPER_CRON)).isEqualTo("0 45 4 * * *");
-        assertThat(settings.effective().get(ScrapeSettings.METRIC_REAPER_CRON).kind())
+        assertThat(settings.value(ScrapeSettings.METRIC_PARTITION_CRON)).isEqualTo("0 45 4 * * *");
+        assertThat(settings.effective()
+                        .get(ScrapeSettings.METRIC_PARTITION_CRON)
+                        .kind())
                 .isEqualTo("CRON");
     }
 
@@ -114,11 +112,11 @@ class SettingsServiceTest extends PostgresIntegrationTest {
      */
     @Test
     void aCronThatFiresTooOftenIsRejected() {
-        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_REAPER_CRON, "* * * * * *"))
+        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "* * * * * *"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_REAPER_CRON, "not a cron"))
+        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "not a cron"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(settings.value(ScrapeSettings.METRIC_REAPER_CRON)).isEqualTo("0 30 3 * * *");
+        assertThat(settings.value(ScrapeSettings.METRIC_PARTITION_CRON)).isEqualTo("0 0 3 * * *");
     }
 
     /** Every key is described well enough for the settings screen to render it unaided. */
@@ -162,5 +160,17 @@ class SettingsServiceTest extends PostgresIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(auditEvents.findAll()).isEmpty();
+    }
+
+    @Test
+    void aSettingRegisteredAtRuntimeTakesItsStoredOverride() {
+        repo.save(new StudioSettingEntity("acme.retention", "\"30d\""));
+        SettingDef def = new SettingDef(
+                "acme.retention", "g", "l", "h", SettingDef.Kind.DURATION, () -> "7d", null, "1d", "90d");
+
+        settings.addSettings("acme", java.util.List.of(def), SettingsPermissions.SETTINGS_WRITE);
+
+        assertThat(settings.value("acme.retention")).isEqualTo("30d");
+        settings.removeSettings("acme");
     }
 }

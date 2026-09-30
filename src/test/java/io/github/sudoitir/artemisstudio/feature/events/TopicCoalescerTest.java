@@ -14,8 +14,7 @@ import org.junit.jupiter.api.Test;
 class TopicCoalescerTest {
 
     private final SseHub hub = mock(SseHub.class);
-    private final EventsProperties props =
-            new EventsProperties(Duration.ofHours(72), 100, Duration.ofSeconds(1), 50, "0 15 * * * *");
+    private final EventsProperties props = new EventsProperties(100, Duration.ofSeconds(1), 50);
     private final TopicCoalescer coalescer = new TopicCoalescer(hub, props);
 
     @Test

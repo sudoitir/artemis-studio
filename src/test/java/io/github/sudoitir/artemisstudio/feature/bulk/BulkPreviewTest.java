@@ -104,23 +104,6 @@ class BulkPreviewTest extends BulkTestSupport {
         assertThat(otherOptions).isNotEqualTo(first);
     }
 
-    @Test
-    void anExpiredPreviewIsDeletedByHousekeeping() {
-        queue(nodeA, "orders.a", 0, 0, false);
-        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
-        jdbc.update(
-                "UPDATE bulk_run SET expires_at = now() - interval '1 minute' WHERE id = ?",
-                preview.run().id());
-
-        bulk.deleteExpiredPreviews();
-
-        assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM bulk_run WHERE id = ?",
-                        Long.class,
-                        preview.run().id()))
-                .isZero();
-    }
-
     private static List<String> names(BulkRunDetailView run) {
         return run.items().stream().map(BulkItemView::queueName).toList();
     }

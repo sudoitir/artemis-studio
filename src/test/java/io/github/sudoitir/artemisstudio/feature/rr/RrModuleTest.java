@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.support.ModuleIntegrationTest;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
@@ -19,4 +20,9 @@ class RrModuleTest extends ModuleIntegrationTest {
 
     @MockitoBean
     QueueLifecycleOperations queueLifecycleOperations;
+
+    // ...and bounds its retention by the message index store's, through the data lifecycle.
+
+    @MockitoBean
+    LifecycleRegistry lifecycleRegistry;
 }

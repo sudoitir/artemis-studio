@@ -95,6 +95,7 @@ public class AlertingMcpTools {
     private static McpViews.AlertRuleSummary rule(AlertRuleView v) {
         return new McpViews.AlertRuleSummary(
                 v.id(),
+                v.clusterId() == null,
                 v.name(),
                 v.kind(),
                 v.metric(),

@@ -136,4 +136,58 @@ describe('RulesPanel', () => {
 
     expect(await screen.findByText('Deep queue')).toBeInTheDocument();
   });
+
+  it('marks an installation rule and keeps a cluster rule unmarked', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/alerts/rules', () =>
+        HttpResponse.json([
+          rule(),
+          rule({
+            id: 'r2',
+            clusterId: null,
+            name: 'Quota watch',
+            kind: 'STATE',
+            metric: null,
+            comparator: null,
+            threshold: null,
+            stateCondition: 'STORAGE_QUOTA',
+          }),
+        ]),
+      ),
+      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+    );
+    renderWithProviders(<RulesPanel clusterId="c1" />);
+
+    expect(await screen.findByText('Quota watch')).toBeInTheDocument();
+    expect(screen.getAllByText('Installation')).toHaveLength(1);
+  });
+
+  it('edits an installation rule on the storage conditions only', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/alerts/rules', () =>
+        HttpResponse.json([
+          rule({
+            id: 'r2',
+            clusterId: null,
+            name: 'Quota watch',
+            kind: 'STATE',
+            metric: null,
+            comparator: null,
+            threshold: null,
+            stateCondition: 'STORAGE_QUOTA',
+          }),
+        ]),
+      ),
+      http.get('*/api/v1/channels', () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RulesPanel clusterId="c1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Quota watch' }));
+    await user.click(screen.getByRole('combobox', { name: 'State condition' }));
+
+    expect(await screen.findByText('storage health')).toBeInTheDocument();
+    expect(screen.queryByText('node down')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Kind' })).toBeDisabled();
+  });
 });

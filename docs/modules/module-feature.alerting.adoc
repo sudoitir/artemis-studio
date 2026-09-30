@@ -37,16 +37,19 @@ _Others_
 * `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.SlackSender`)
 * `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.SlowConsumerCondition`)
 * `i.g.s.a.f.a.AlertCondition` (via `i.g.s.a.f.a.StateCondition`)
+* `i.g.s.a.f.a.InstallationSignalSource` (via `i.g.s.a.f.a.StorageHealthSignal`)
+* `i.g.s.a.f.a.InstallationSignalSource` (via `i.g.s.a.f.a.StorageQuotaSignal`)
 * `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.TeamsSender`)
 * `i.g.s.a.f.a.NotificationSender` (via `i.g.s.a.f.a.WebhookSender`)
 |Bean references
 |* `i.g.s.a.k.s.SecretVault` (in Security)
 * `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
 * `i.g.s.a.p.s.PluginMetrics` (in Scraping)
 * `i.g.s.a.p.s.MetricSamples` (in Scraping)
@@ -55,8 +58,11 @@ _Others_
 * `i.g.s.a.p.c.BrokerNodeMapper` (in Clusters)
 * `i.g.s.a.p.c.HaStateEvaluator` (in Clusters)
 * `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
+* `i.g.s.a.k.l.StorageHealthService` (in Data lifecycle)
+* `i.g.s.a.k.l.LifecycleService` (in Data lifecycle)
 |Events listened to
 |* `i.g.s.a.p.s.ScrapeTierCompleted` 
 * `i.g.s.a.p.c.ClusterRegistered` 
+* `i.g.s.a.k.l.StorageSampled` 
 * `i.g.s.a.p.c.ClusterRegistered` 
 |===

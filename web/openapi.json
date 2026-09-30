@@ -294,6 +294,35 @@
         }
       }
     },
+    "/api/v1/data/stores/{id}" : {
+      "put" : {
+        "tags" : [ "data-controller" ],
+        "operationId" : "update_3",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdatePolicyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/rr/expectations/{expectationId}" : {
       "put" : {
         "tags" : [ "request-reply-controller" ],
@@ -623,7 +652,7 @@
     "/api/v1/channels/{channelId}" : {
       "put" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "update_3",
+        "operationId" : "update_4",
         "parameters" : [ {
           "name" : "channelId",
           "in" : "path",
@@ -1090,6 +1119,42 @@
         }
       }
     },
+    "/api/v1/data/stores/{id}/preview" : {
+      "post" : {
+        "tags" : [ "data-controller" ],
+        "operationId" : "preview",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PreviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
@@ -1309,7 +1374,7 @@
     "/api/v1/clusters/{clusterId}/transfers/preview" : {
       "post" : {
         "tags" : [ "transfer-controller" ],
-        "operationId" : "preview",
+        "operationId" : "preview_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2699,7 +2764,7 @@
     "/api/v1/clusters/{clusterId}/bulk/preview" : {
       "post" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "preview_1",
+        "operationId" : "preview_2",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -3450,7 +3515,7 @@
       },
       "patch" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "update_4",
+        "operationId" : "update_5",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -3910,6 +3975,42 @@
                   "items" : {
                     "$ref" : "#/components/schemas/FindingView"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data/stores" : {
+      "get" : {
+        "tags" : [ "data-controller" ],
+        "operationId" : "stores",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StoresResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data/health" : {
+      "get" : {
+        "tags" : [ "data-controller" ],
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HealthResponse"
                 }
               }
             }
@@ -4668,7 +4769,7 @@
     "/api/v1/clusters/{clusterId}/health" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "health",
+        "operationId" : "health_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -6453,6 +6554,27 @@
         },
         "required" : [ "id", "name", "sortOrder" ]
       },
+      "UpdatePolicyRequest" : {
+        "type" : "object",
+        "properties" : {
+          "retention" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "quota" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "quotaWarnPercent" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "quota", "quotaWarnPercent", "retention" ]
+      },
       "UpdateExpectationRequest" : {
         "type" : "object",
         "properties" : {
@@ -7073,8 +7195,9 @@
             "format" : "uuid"
           },
           "clusterId" : {
-            "type" : "string",
-            "format" : "uuid"
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "Null for an installation-scoped rule (ADR-0135)"
           },
           "name" : {
             "type" : "string"
@@ -7128,7 +7251,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "channelIds", "clusterId", "createdAt", "enabled", "forSeconds", "id", "kind", "name", "severity", "sourceAvailable", "updatedAt" ]
+        "required" : [ "channelIds", "createdAt", "enabled", "forSeconds", "id", "kind", "name", "severity", "sourceAvailable", "updatedAt" ]
       },
       "NotificationChannelRequest" : {
         "type" : "object",
@@ -7723,6 +7846,30 @@
           }
         },
         "required" : [ "address", "dataClass", "dataClassLabel", "fieldPath", "firstSeenAt", "hitCount", "id", "lastSeenAt", "location", "status" ]
+      },
+      "PreviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "retention" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "retention" ]
+      },
+      "PreviewResponse" : {
+        "type" : "object",
+        "properties" : {
+          "rows" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "bytes", "rows" ]
       },
       "Credentials" : {
         "type" : "object",
@@ -10680,6 +10827,155 @@
         },
         "required" : [ "capped", "rowsUnderEarlierVersion", "version" ]
       },
+      "StoreView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "tables" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "retention" : {
+            "type" : "string"
+          },
+          "defaultRetention" : {
+            "type" : "string"
+          },
+          "minRetention" : {
+            "type" : "string"
+          },
+          "maxRetention" : {
+            "type" : "string"
+          },
+          "quotaUnit" : {
+            "type" : "string"
+          },
+          "quota" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "quotaWarnPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rows" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "usageError" : {
+            "type" : "string"
+          },
+          "quotaUsedPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "overWarning" : {
+            "type" : "boolean"
+          },
+          "lastPurgeAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastPurged" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastPurgeError" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "defaultRetention", "id", "label", "maxRetention", "minRetention", "overWarning", "quota", "quotaUnit", "quotaWarnPercent", "retention", "source", "tables" ]
+      },
+      "StoresResponse" : {
+        "type" : "object",
+        "properties" : {
+          "stores" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StoreView"
+            }
+          }
+        },
+        "required" : [ "stores" ]
+      },
+      "HealthResponse" : {
+        "type" : "object",
+        "properties" : {
+          "tables" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TableView"
+            }
+          }
+        },
+        "required" : [ "tables" ]
+      },
+      "TableView" : {
+        "type" : "object",
+        "properties" : {
+          "schema" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "rows" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "deadRows" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "deadPercent" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lastVacuum" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "growthBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "partitioned" : {
+            "type" : "boolean"
+          },
+          "missingPartitions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          },
+          "problems" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "bytes", "deadPercent", "deadRows", "missingPartitions", "name", "partitioned", "problems", "rows", "schema" ]
+      },
       "ClusterSummary" : {
         "type" : "object",
         "properties" : {
@@ -13558,6 +13854,11 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "clusterId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "Null for an installation-scoped rule (ADR-0135)"
+          },
           "ruleName" : {
             "type" : "string"
           },
@@ -13658,15 +13959,16 @@
         "type" : "object",
         "properties" : {
           "clusterId" : {
-            "type" : "string",
-            "format" : "uuid"
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "Null for the installation's own firings (ADR-0135)"
           },
           "firing" : {
             "type" : "integer",
             "format" : "int64"
           }
         },
-        "required" : [ "clusterId", "firing" ]
+        "required" : [ "firing" ]
       },
       "PluginBudgetView" : {
         "type" : "object",

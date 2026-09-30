@@ -10,11 +10,11 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
-import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleReaper;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.Bucket;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.NodeBucket;
@@ -40,7 +40,7 @@ class MetricQueryServiceTest {
     MetricSamples repository;
 
     @Mock
-    MetricSampleReaper reaper;
+    LifecycleRegistry lifecycle;
 
     /** Permissive by default: an unstubbed void call is a no-op, i.e. access granted.
      * The guard's real behaviour is covered by {@code ClusterScopeAuthorizationTest}. */
@@ -59,8 +59,8 @@ class MetricQueryServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(reaper.retentionDays()).thenReturn(7);
-        service = new MetricQueryService(repository, reaper, clusterAccess, directory, pluginMetrics);
+        when(lifecycle.retention("metrics")).thenReturn(Optional.of(Duration.ofDays(7)));
+        service = new MetricQueryService(repository, lifecycle, clusterAccess, directory, pluginMetrics);
     }
 
     @Test

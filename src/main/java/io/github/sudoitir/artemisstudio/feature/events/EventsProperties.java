@@ -11,8 +11,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "artemis-studio.events")
 public record EventsProperties(
-        @DefaultValue("72h") Duration retention,
         @DefaultValue("10000") int bufferSize,
         @DefaultValue("1s") Duration flush,
-        @DefaultValue("1000") int coalesceWindowMillis,
-        @DefaultValue("0 15 * * * *") String reaperCron) {}
+        @DefaultValue("1000") int coalesceWindowMillis) {}

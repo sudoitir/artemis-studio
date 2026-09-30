@@ -213,9 +213,10 @@ public final class McpViews {
     /** One node's share of a lifecycle command. */
     public record LifecycleNode(String node, String status, Long affected, String error) {}
 
-    /** An alert rule, flattened — ids as ids, no channel objects. */
+    /** An alert rule, flattened — ids as ids, no channel objects. {@code installation}: it is about Studio, not a cluster. */
     public record AlertRuleSummary(
             UUID ruleId,
+            boolean installation,
             String name,
             String kind,
             String metric,

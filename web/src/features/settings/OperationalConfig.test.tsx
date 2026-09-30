@@ -55,12 +55,12 @@ describe('OperationalConfig', () => {
         HttpResponse.json({
           settings: {
             'scrape.tier-a-interval': setting(),
-            'metric.retention-days': setting({
+            'metric.partition-maintainer-cron': setting({
               group: 'Retention',
-              label: 'Metric retention (days)',
-              value: '7',
-              defaultValue: '7',
-              kind: 'INT',
+              label: 'Partition maintainer schedule',
+              value: '0 0 3 * * *',
+              defaultValue: '0 0 3 * * *',
+              kind: 'CRON',
             }),
             'scrape.tier-b-interval': setting({ label: 'Tier B interval', value: '15s' }),
           },

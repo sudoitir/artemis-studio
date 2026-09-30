@@ -17,7 +17,6 @@ _Configuration properties_
 
 _Others_
 
-* `i.g.s.a.f.e.BrokerEventReaper`
 * `i.g.s.a.f.e.BrokerEventWriter`
 * `i.g.s.a.f.e.BrokerEventPublisher` (via `i.g.s.a.f.e.EventStreamPublisher`)
 * `i.g.s.a.f.e.EventsFeature`

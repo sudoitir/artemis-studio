@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertStateEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertStateRepository;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,29 +52,62 @@ public class AlertEvaluator {
      */
     private final List<AlertCondition> conditions;
 
+    /** The state of Studio itself that installation-scoped rules read (ADR-0135). */
+    private final List<InstallationSignalSource> installationSignals;
+
+    private final ClusterDirectory clusters;
     private final SseHub hub;
     private final AlertPayloads payloads;
 
     @Transactional
     public void evaluate(UUID clusterId, String kind) {
-        List<AlertRuleEntity> enabled = rules.findByClusterIdAndKindAndEnabledTrue(clusterId, kind);
         boolean anyTransition = false;
-        for (AlertRuleEntity rule : enabled) {
+        for (AlertRuleEntity rule : rules.findByClusterIdAndKindAndEnabledTrue(clusterId, kind)) {
             AlertRuleSpec spec = specOf(rule);
             AlertCondition condition = conditionFor(spec);
-            if (condition == null) {
-                continue;
-            }
-            Evaluation evaluation = condition.evaluate(clusterId, spec);
-            List<Transition> transitions = process(rule, evaluation);
-            if (!transitions.isEmpty()) {
-                anyTransition = true;
-                enqueueDelivery(rule, transitions);
+            if (condition != null) {
+                anyTransition |= advance(rule, condition.evaluate(clusterId, spec));
             }
         }
         if (anyTransition) {
             hub.publish(clusterId, "alerts");
         }
+    }
+
+    /**
+     * Evaluates the enabled installation-scoped rules of one kind (ADR-0135), through the same
+     * debounce, history and delivery as a cluster's, with no cluster anywhere. Called when fresh
+     * storage numbers exist, not per cluster, so a condition fires once however many clusters
+     * there are.
+     */
+    @Transactional
+    public void evaluateInstallation(String kind) {
+        boolean anyTransition = false;
+        for (AlertRuleEntity rule : rules.findByClusterIdIsNullAndKindAndEnabledTrue(kind)) {
+            InstallationSignalSource source = installationSignals.stream()
+                    .filter(s -> s.condition().equals(rule.getStateCondition()))
+                    .findFirst()
+                    .orElse(null);
+            if (source == null) {
+                log.warn("Installation alert rule {} has an unrecognised condition; skipping", rule.getId());
+                continue;
+            }
+            anyTransition |= advance(rule, source.evaluate());
+        }
+        if (anyTransition) {
+            // The stream is per cluster and an installation alert shows in every cluster's view.
+            clusters.clusters().forEach(c -> hub.publish(c.getId(), "alerts"));
+        }
+    }
+
+    /** Runs one rule's evaluation through state, history and delivery; whether anything changed. */
+    private boolean advance(AlertRuleEntity rule, Evaluation evaluation) {
+        List<Transition> transitions = process(rule, evaluation);
+        if (transitions.isEmpty()) {
+            return false;
+        }
+        enqueueDelivery(rule, transitions);
+        return true;
     }
 
     private AlertCondition conditionFor(AlertRuleSpec rule) {

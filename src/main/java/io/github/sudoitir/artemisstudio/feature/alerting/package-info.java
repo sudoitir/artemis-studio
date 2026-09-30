@@ -7,6 +7,7 @@
             "kernel.audit",
             "kernel.core",
             "kernel.jobs",
+            "kernel.lifecycle",
             "kernel.plugin",
             "kernel.plugin :: descriptor",
             "kernel.security",

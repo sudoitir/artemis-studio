@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.bulk.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,9 +32,4 @@ public interface BulkRunRepository extends JpaRepository<BulkRunEntity, UUID> {
     @Transactional
     @Query("update BulkRunEntity r set r.status = :to where r.id = :id and r.status = :from")
     int transition(@Param("id") UUID id, @Param("from") BulkRunStatus from, @Param("to") BulkRunStatus to);
-
-    @Modifying
-    @Transactional
-    @Query("delete from BulkRunEntity r where r.status = :status and r.expiresAt < :now")
-    int deleteExpired(@Param("status") BulkRunStatus status, @Param("now") Instant now);
 }
