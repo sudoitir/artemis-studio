@@ -117,6 +117,7 @@ The CI job `api-compat` runs `oasdiff breaking --fail-on ERR` between `git show 
 - [The idempotency filter buffers request and response bodies] → Multipart is excluded. JSON bodies here are small, and bulk bodies are already capped (ADR-0022).
 - [A crash mid-request leaves a `PENDING` key that answers 409 until the 24 h purge] → Taking over a live claim could run a mutation twice. Long work is asynchronous (202 plus a run id), so a stuck claim only blocks a retry that should use a new key.
 - [Replays carry only the status, content type and body, not headers such as `Location`] → The body already names what was created. 401, 403 and 429 are not recorded (like 5xx), so a refusal is never replayed. Bodies over 8 MiB with a key are refused with `idempotency-unsupported`.
+- [Spring keeps one deprecation spec per API version, so `v1` can carry one endpoint-level deprecation at a time] → Several endpoints share one declaration through a combined predicate. Deprecations with different sunsets are the case a new version exists for.
 - [Replaying a stored 4xx means a fixed request needs a new key] → This is the documented semantics (same key = same result). Clients mint a key per logical attempt.
 - [Strict `additionalProperties: false` validation will surface existing undocumented fields] → Each one is fixed by documenting it or removing it. That is the point.
 - [npm trusted publishing must be configured for a new package] → This is a one-time manual step on npmjs.com by the maintainer, called out in the PR.
