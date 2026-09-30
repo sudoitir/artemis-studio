@@ -305,7 +305,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/grype"
           grype() {
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-              -v "$RUNNER_TEMP/grype:/grype" -e GRYPE_DB_CACHE_DIR=/grype \
+              -v "$RUNNER_TEMP/grype:/cache" -e GRYPE_DB_CACHE_DIR=/cache \
               anchore/grype:v0.119.0@sha256:8c2c9234a345577a6d321a4753aa3ee1276d8975c8452d2344a56b57733ecad3 \
               artemis-studio:ci "$@"
           }
