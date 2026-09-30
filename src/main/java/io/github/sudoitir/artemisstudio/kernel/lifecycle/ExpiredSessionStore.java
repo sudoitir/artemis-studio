@@ -18,12 +18,14 @@ import org.springframework.stereotype.Component;
 class ExpiredSessionStore implements ManagedStore, HousekeepingContributor {
 
     /** {@code expiry_time} is epoch milliseconds; the cutoff is expiry plus the retention. */
+    private static final String TABLE = "spring_session";
+
     private static final String EXPIRED = "expiry_time < (extract(epoch from ?::timestamptz) * 1000)";
 
     private static final StoreDef DEF = new StoreDef(
             "expired-sessions",
             "Expired sessions",
-            List.of("spring_session", "spring_session_attributes"),
+            List.of(TABLE, "spring_session_attributes"),
             QuotaUnit.ROWS,
             Duration.ofMinutes(1),
             Duration.ofMinutes(1),
@@ -52,11 +54,11 @@ class ExpiredSessionStore implements ManagedStore, HousekeepingContributor {
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        return LifecycleSql.estimate(jdbc, "spring_session", EXPIRED, cutoff);
+        return LifecycleSql.estimate(jdbc, TABLE, EXPIRED, cutoff);
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        return LifecycleSql.deleteBatch(jdbc, "spring_session", EXPIRED, cutoff, limit);
+        return LifecycleSql.deleteBatch(jdbc, TABLE, EXPIRED, cutoff, limit);
     }
 }

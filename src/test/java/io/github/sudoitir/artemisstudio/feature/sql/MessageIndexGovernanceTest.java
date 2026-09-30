@@ -227,7 +227,7 @@ class MessageIndexGovernanceTest extends PostgresIntegrationTest {
         assertThat((String) stored.get("props"))
                 .contains("[redacted personal data]")
                 .doesNotContain("Jane Doe");
-        assertThat(stored.get("policy_version")).isEqualTo(version);
+        assertThat(stored).containsEntry("policy_version", version);
         assertThat(index.countBelow(version, 10)).isZero();
 
         as(Set.of("message:read", "message:clear"));

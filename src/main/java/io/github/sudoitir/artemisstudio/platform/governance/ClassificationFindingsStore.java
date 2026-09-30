@@ -23,12 +23,13 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class ClassificationFindingsStore implements HousekeepingContributor, ManagedStore {
 
+    private static final String TABLE = "classification_finding";
     private static final String STALE = "last_seen_at < ? AND status = 'OPEN'";
 
     private static final StoreDef DEF = new StoreDef(
             "classification-findings",
             "Classification findings",
-            List.of("classification_finding"),
+            List.of(TABLE),
             StoreDef.QuotaUnit.ROWS,
             Duration.ofDays(90),
             Duration.ofDays(1),
@@ -53,11 +54,11 @@ class ClassificationFindingsStore implements HousekeepingContributor, ManagedSto
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        return LifecycleSql.estimate(jdbc, "classification_finding", STALE, cutoff);
+        return LifecycleSql.estimate(jdbc, TABLE, STALE, cutoff);
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        return LifecycleSql.deleteBatch(jdbc, "classification_finding", STALE, cutoff, limit);
+        return LifecycleSql.deleteBatch(jdbc, TABLE, STALE, cutoff, limit);
     }
 }

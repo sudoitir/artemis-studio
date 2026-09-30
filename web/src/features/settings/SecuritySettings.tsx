@@ -30,16 +30,34 @@ function targetVersion(s: SecretsStatus): number | null {
 /** Secrets still wrapped under a version older than the current one. */
 const straggling = (s: SecretsStatus) => Object.keys(s.countsByVersion).some((v) => Number(v) < s.currentVersion);
 
-/**
- * The key provider, the key versions and the stored secrets under each, the last rotation, and the
- * control that starts one. Rotation re-wraps secrets in the background while Studio keeps serving,
- * so progress is shown and announced rather than awaited.
- */
-export function SecuritySettings() {
-  const status = useSecretsStatus();
+const STATUS_COLORS: Record<string, string> = { FAILED: 'red', RUNNING: 'blue' };
+
+const secretNoun = (n: number) => (n === 1 ? 'secret' : 'secrets');
+
+/** What a rotation would re-wrap: every secret still under a version below the goal. */
+function rewrapCount(s: SecretsStatus, goal: number): number {
+  return Object.entries(s.countsByVersion)
+    .filter(([v]) => Number(v) < goal)
+    .reduce((sum, [, n]) => sum + n, 0);
+}
+
+function rotationVerdict(missingPermission: boolean, running: boolean, rotatable: boolean) {
+  if (missingPermission) return { kind: 'blocked', reason: 'You need the settings-write permission.' } as const;
+  if (running) return { kind: 'blocked', reason: 'A rotation is running.' } as const;
+  if (!rotatable) return { kind: 'blocked', reason: 'Add a newer key version to the provider first.' } as const;
+  return { kind: 'allowed', uncertain: false } as const;
+}
+
+function announcement(starting: boolean, last: RotationView | null): string {
+  if (starting) return 'Starting the rotation.';
+  if (!last) return '';
+  return `Key rotation ${(STATUSES[last.status] ?? last.status).toLowerCase()}.`;
+}
+
+/** The rotation mutation, its retry after a step-up, and the confirmation dialog's open state. */
+function useRotationFlow() {
   const rotate = useStartRotation();
   const fresh = useFreshSignIn();
-  const { can, loading } = useCan();
   const [open, setOpen] = useState(false);
 
   // After a step-up the server's 403 is stale: retry once when the session turns fresh.
@@ -53,6 +71,19 @@ export function SecuritySettings() {
   useEffect(() => {
     if (rotate.isSuccess) setOpen(false);
   }, [rotate.isSuccess]);
+
+  return { rotate, open, setOpen };
+}
+
+/**
+ * The key provider, the key versions and the stored secrets under each, the last rotation, and the
+ * control that starts one. Rotation re-wraps secrets in the background while Studio keeps serving,
+ * so progress is shown and announced rather than awaited.
+ */
+export function SecuritySettings() {
+  const status = useSecretsStatus();
+  const { rotate, open, setOpen } = useRotationFlow();
+  const { can, loading } = useCan();
 
   if (status.isError) {
     return (
@@ -79,35 +110,14 @@ export function SecuritySettings() {
   const running = last?.status === 'RUNNING';
   const target = targetVersion(s);
   const rotatable = target !== null || straggling(s);
-  // What a rotation would re-wrap: every secret still under a version below the target.
-  const goal = target ?? s.currentVersion;
-  const toRewrap = Object.entries(s.countsByVersion)
-    .filter(([v]) => Number(v) < goal)
-    .reduce((sum, [, n]) => sum + n, 0);
+  const toRewrap = rewrapCount(s, target ?? s.currentVersion);
   const stored = Object.values(s.countsByVersion).reduce((a, b) => a + b, 0);
-  const verdict =
-    !loading && !can('settings:write')
-      ? ({ kind: 'blocked', reason: 'You need the settings-write permission.' } as const)
-      : running
-        ? ({ kind: 'blocked', reason: 'A rotation is running.' } as const)
-        : !rotatable
-          ? ({ kind: 'blocked', reason: 'Add a newer key version to the provider first.' } as const)
-          : ({ kind: 'allowed', uncertain: false } as const);
-
-  const rows = [
-    ...new Set([...s.availableVersions, ...Object.keys(s.countsByVersion).map(Number), s.currentVersion]),
-  ].sort((x, y) => x - y);
-  const conflict = rotate.error && !needsReauthentication(rotate.error) ? rotate.error : null;
-  const outcome = rotate.isPending
-    ? 'Starting the rotation.'
-    : last
-      ? `Key rotation ${STATUSES[last.status]?.toLowerCase() ?? last.status.toLowerCase()}.`
-      : '';
+  const verdict = rotationVerdict(!loading && !can('settings:write'), running, rotatable);
 
   return (
     <Stack gap="md" maw={640}>
       <div role="status" aria-live="polite" style={{ position: 'absolute', insetInlineStart: -9999 }}>
-        {outcome}
+        {announcement(rotate.isPending, last)}
       </div>
       <Paper withBorder p="md">
         <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
@@ -120,39 +130,8 @@ export function SecuritySettings() {
         </Text>
       </Paper>
 
-      {s.missingVersions.length > 0 ? (
-        <Alert color="red" variant="light" role="alert" title="A key version is missing from the provider">
-          {s.missingVersions
-            .map((v) => {
-              const n = s.countsByVersion[String(v)] ?? 0;
-              return `Version ${v} still protects ${n} stored ${n === 1 ? 'secret' : 'secrets'}.`;
-            })
-            .join(' ')}{' '}
-          Those secrets cannot be read until the key is restored to the provider. Restore it, then rotate so nothing
-          depends on it.
-        </Alert>
-      ) : null}
-
-      <Table aria-label="Key versions">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Key version</Table.Th>
-            <Table.Th>State</Table.Th>
-            <Table.Th ta="end">Stored secrets</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((v) => (
-            <Table.Tr key={v}>
-              <Table.Td style={numeric}>{v}</Table.Td>
-              <Table.Td>{versionState(s, v, running)}</Table.Td>
-              <Table.Td ta="end" style={numeric}>
-                {s.countsByVersion[String(v)] ?? 0}
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
+      <MissingVersions s={s} />
+      <KeyVersionsTable s={s} running={running} />
       {stored === 0 ? <Text size="sm">No secrets are stored yet.</Text> : null}
 
       <Text size="sm">{guidance(s, target, running, last?.status === 'SUCCEEDED')}</Text>
@@ -175,33 +154,103 @@ export function SecuritySettings() {
         </Alert>
       )}
 
-      <Modal opened={open} onClose={() => setOpen(false)} title="Rotate the key">
-        <Stack gap="md">
-          <Text size="sm">
-            {target !== null
-              ? `This re-wraps ${toRewrap} stored ${toRewrap === 1 ? 'secret' : 'secrets'} from version ${s.currentVersion} to version ${target}.`
-              : `This finishes re-wrapping ${toRewrap} ${toRewrap === 1 ? 'secret' : 'secrets'} still under older versions.`}{' '}
-            Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
-          </Text>
-          {needsReauthentication(rotate.error) ? (
-            <StepUp returnTo={`${window.location.pathname}?tab=settings-security`} />
-          ) : null}
-          {conflict ? (
-            <Alert color="red" variant="light" role="alert" title="Not started">
-              {conflict.message} {nextAction(conflict.type)}
-            </Alert>
-          ) : null}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button loading={rotate.isPending} onClick={() => rotate.mutate()}>
-              Rotate key
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <RotateModal
+        open={open}
+        onClose={() => setOpen(false)}
+        explanation={rotateExplanation(s.currentVersion, target, toRewrap)}
+        rotate={rotate}
+      />
     </Stack>
+  );
+}
+
+function MissingVersions({ s }: Readonly<{ s: SecretsStatus }>) {
+  if (s.missingVersions.length === 0) return null;
+  return (
+    <Alert color="red" variant="light" role="alert" title="A key version is missing from the provider">
+      {s.missingVersions
+        .map((v) => {
+          const n = s.countsByVersion[String(v)] ?? 0;
+          return `Version ${v} still protects ${n} stored ${secretNoun(n)}.`;
+        })
+        .join(' ')}{' '}
+      Those secrets cannot be read until the key is restored to the provider. Restore it, then rotate so nothing depends
+      on it.
+    </Alert>
+  );
+}
+
+function KeyVersionsTable({ s, running }: Readonly<{ s: SecretsStatus; running: boolean }>) {
+  const rows = [
+    ...new Set([...s.availableVersions, ...Object.keys(s.countsByVersion).map(Number), s.currentVersion]),
+  ].sort((x, y) => x - y);
+  return (
+    <Table aria-label="Key versions">
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Key version</Table.Th>
+          <Table.Th>State</Table.Th>
+          <Table.Th ta="end">Stored secrets</Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {rows.map((v) => (
+          <Table.Tr key={v}>
+            <Table.Td style={numeric}>{v}</Table.Td>
+            <Table.Td>{versionState(s, v, running)}</Table.Td>
+            <Table.Td ta="end" style={numeric}>
+              {s.countsByVersion[String(v)] ?? 0}
+            </Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+function rotateExplanation(currentVersion: number, target: number | null, toRewrap: number): string {
+  if (target === null) {
+    return `This finishes re-wrapping ${toRewrap} ${secretNoun(toRewrap)} still under older versions.`;
+  }
+  return `This re-wraps ${toRewrap} stored ${secretNoun(toRewrap)} from version ${currentVersion} to version ${target}.`;
+}
+
+function RotateModal({
+  open,
+  onClose,
+  explanation,
+  rotate,
+}: Readonly<{
+  open: boolean;
+  onClose: () => void;
+  explanation: string;
+  rotate: ReturnType<typeof useStartRotation>;
+}>) {
+  const conflict = rotate.error && !needsReauthentication(rotate.error) ? rotate.error : null;
+  return (
+    <Modal opened={open} onClose={onClose} title="Rotate the key">
+      <Stack gap="md">
+        <Text size="sm">
+          {explanation} Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
+        </Text>
+        {needsReauthentication(rotate.error) ? (
+          <StepUp returnTo={`${window.location.pathname}?tab=settings-security`} />
+        ) : null}
+        {conflict ? (
+          <Alert color="red" variant="light" role="alert" title="Not started">
+            {conflict.message} {nextAction(conflict.type)}
+          </Alert>
+        ) : null}
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={rotate.isPending} onClick={() => rotate.mutate()}>
+            Rotate key
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 
@@ -210,7 +259,7 @@ function versionState(s: SecretsStatus, v: number, running: boolean): string {
   if (s.missingVersions.includes(v)) return 'Missing from the provider: restore it';
   if (v === s.currentVersion) return 'Current';
   if (v > s.currentVersion) return 'Newer, available to rotate to';
-  if (n > 0) return `Older, still wraps ${n} ${n === 1 ? 'secret' : 'secrets'}`;
+  if (n > 0) return `Older, still wraps ${n} ${secretNoun(n)}`;
   // A running rotation can still see a stale writer; removal is safe only once it has succeeded.
   return running
     ? 'Older, unused: keep until the rotation succeeds'
@@ -236,14 +285,14 @@ function nextAction(type: string): string {
   return 'Try again; if it keeps failing, check the Studio log.';
 }
 
-function RotationSummary({ rotation: r }: { rotation: RotationView }) {
+function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) {
   const counting = r.status === 'RUNNING' && r.rewrapped + r.remaining === 0;
   // Every row is re-wrapped, but the rotation waits out the settle window so no replica still writes under the old key.
   const settling = r.status === 'RUNNING' && !counting && r.remaining === 0;
   return (
     <Alert
       variant="light"
-      color={r.status === 'FAILED' ? 'red' : r.status === 'RUNNING' ? 'blue' : 'gray'}
+      color={STATUS_COLORS[r.status] ?? 'gray'}
       title={`Last rotation: ${STATUSES[r.status] ?? r.status}`}
     >
       <Stack gap={2}>

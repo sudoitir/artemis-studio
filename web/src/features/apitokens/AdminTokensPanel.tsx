@@ -56,93 +56,8 @@ function Inventory() {
           <Text size="sm">{tokens.error.message}</Text>
           <Text size="sm">Reload the page to try again.</Text>
         </Alert>
-      ) : tokens.data?.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No user has a key yet. Users mint keys for scripts and assistants on their account page.
-        </Text>
       ) : (
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Owner</Table.Th>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Permissions</Table.Th>
-              <Table.Th>MCP tools</Table.Th>
-              <Table.Th>Expires</Table.Th>
-              <Table.Th>Last used</Table.Th>
-              <Table.Th>
-                <VisuallyHidden>Actions</VisuallyHidden>
-              </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {(tokens.data ?? []).map((t) => (
-              <Table.Tr key={t.id}>
-                <Table.Td>
-                  <Text size="sm">{t.owner}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{t.name}</Text>
-                  <Text size="xs" ff="monospace" c="dimmed">
-                    {t.prefix}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4}>
-                    <TokenStatus token={t} />
-                    {t.stale ? (
-                      <Badge size="xs" color="yellow" variant="light">
-                        stale
-                      </Badge>
-                    ) : null}
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">
-                    {t.grants.length === 0
-                      ? 'None'
-                      : t.grants.map((g) => (g.scopeType === 'GLOBAL' ? g.action : `${g.action} (cluster)`)).join(', ')}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" c="dimmed">
-                    {t.mcpTools.length === 0 ? 'Every tool' : t.mcpTools.join(', ')}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">{formatInstant(t.expiresAt)}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" c="dimmed">
-                    {formatInstant(t.lastUsedAt)}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4} wrap="nowrap">
-                    <Tooltip label="Usage">
-                      <ActionIcon variant="subtle" onClick={() => setUsageOf(t)} aria-label={`Usage of ${t.name}`}>
-                        <IconChartBar size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    {!t.revokedAt && Date.parse(t.expiresAt) > serverNow() ? (
-                      <Tooltip label="Revoke">
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          onClick={() => setRevoking(t)}
-                          aria-label={`Revoke ${t.name} of ${t.owner}`}
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    ) : null}
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+        <InventoryTable tokens={tokens.data} onUsage={setUsageOf} onRevoke={setRevoking} />
       )}
 
       <RevokeModal token={revoking} onClose={() => setRevoking(null)} />
@@ -158,7 +73,109 @@ function Inventory() {
   );
 }
 
-function RevokeModal({ token, onClose }: { token: TokenView | null; onClose: () => void }) {
+function InventoryTable({
+  tokens,
+  onUsage,
+  onRevoke,
+}: Readonly<{
+  tokens: TokenView[] | undefined;
+  onUsage: (token: TokenView) => void;
+  onRevoke: (token: TokenView) => void;
+}>) {
+  if (tokens?.length === 0) {
+    return (
+      <Text size="sm" c="dimmed">
+        No user has a key yet. Users mint keys for scripts and assistants on their account page.
+      </Text>
+    );
+  }
+  return (
+    <Table>
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Owner</Table.Th>
+          <Table.Th>Name</Table.Th>
+          <Table.Th>Status</Table.Th>
+          <Table.Th>Permissions</Table.Th>
+          <Table.Th>MCP tools</Table.Th>
+          <Table.Th>Expires</Table.Th>
+          <Table.Th>Last used</Table.Th>
+          <Table.Th>
+            <VisuallyHidden>Actions</VisuallyHidden>
+          </Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {(tokens ?? []).map((t) => (
+          <Table.Tr key={t.id}>
+            <Table.Td>
+              <Text size="sm">{t.owner}</Text>
+            </Table.Td>
+            <Table.Td>
+              <Text size="sm">{t.name}</Text>
+              <Text size="xs" ff="monospace" c="dimmed">
+                {t.prefix}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <Group gap={4}>
+                <TokenStatus token={t} />
+                {t.stale ? (
+                  <Badge size="xs" color="yellow" variant="light">
+                    stale
+                  </Badge>
+                ) : null}
+              </Group>
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs">
+                {t.grants.length === 0
+                  ? 'None'
+                  : t.grants.map((g) => (g.scopeType === 'GLOBAL' ? g.action : `${g.action} (cluster)`)).join(', ')}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs" c="dimmed">
+                {t.mcpTools.length === 0 ? 'Every tool' : t.mcpTools.join(', ')}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs">{formatInstant(t.expiresAt)}</Text>
+            </Table.Td>
+            <Table.Td>
+              <Text size="xs" c="dimmed">
+                {formatInstant(t.lastUsedAt)}
+              </Text>
+            </Table.Td>
+            <Table.Td>
+              <Group gap={4} wrap="nowrap">
+                <Tooltip label="Usage">
+                  <ActionIcon variant="subtle" onClick={() => onUsage(t)} aria-label={`Usage of ${t.name}`}>
+                    <IconChartBar size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                {!t.revokedAt && Date.parse(t.expiresAt) > serverNow() ? (
+                  <Tooltip label="Revoke">
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      onClick={() => onRevoke(t)}
+                      aria-label={`Revoke ${t.name} of ${t.owner}`}
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : null}
+              </Group>
+            </Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+function RevokeModal({ token, onClose }: Readonly<{ token: TokenView | null; onClose: () => void }>) {
   const revoke = useAdminRevokeToken();
   return (
     <Modal opened={token !== null} onClose={onClose} title={token ? `Revoke ${token.owner}'s key ${token.name}` : ''}>

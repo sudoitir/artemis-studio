@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class OidcClientSecretConfig {
 
+    private OidcClientSecretConfig() {}
+
     @Bean
     static BeanPostProcessor oidcClientSecretSource(ObjectProvider<KeyProvider> provider) {
         return new OidcClientSecretSource(provider::getObject);

@@ -20,7 +20,7 @@ public class PurgeStatus {
         this.jdbc = jdbc;
     }
 
-    void record(String storeId, Instant at, long purged, String error) {
+    void recordRun(String storeId, Instant at, long purged, String error) {
         jdbc.update("""
                 INSERT INTO lifecycle_purge (store_id, last_run_at, last_purged, last_error) VALUES (?, ?, ?, ?)
                 ON CONFLICT (store_id) DO UPDATE

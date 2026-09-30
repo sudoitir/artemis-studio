@@ -188,12 +188,7 @@ class McpToolCatalog {
                 .filter(e -> e.posture() == Posture.MUTATE)
                 .map(McpToolDef::name)
                 .collect(Collectors.joining(", "));
-        String mutating = readOnly()
-                ? "The agent surface is read-only on this installation: no mutating tool is offered. "
-                : mutations.isEmpty()
-                        ? "This key is offered no mutating tools. "
-                        : "Mutating tools: " + mutations + " — all default to dryRun=true, and a real destructive "
-                                + "run needs `confirm` to equal the subject's name. ";
+        String mutating = mutatingSentence(mutations);
         return "Artemis Studio: cluster-wide management and observability for Apache ActiveMQ Artemis brokers. "
                 + "Read tools: " + reads + ". "
                 + mutating
@@ -206,5 +201,16 @@ class McpToolCatalog {
                 + "Start from studio://clusters or " + HELP_TOOL + ". "
                 + "Installed plugins may add their own tools, prefixed with the plugin's id; call " + HELP_TOOL
                 + " to see the current index, which always reflects what is installed right now.";
+    }
+
+    private String mutatingSentence(String mutations) {
+        if (readOnly()) {
+            return "The agent surface is read-only on this installation: no mutating tool is offered. ";
+        }
+        if (mutations.isEmpty()) {
+            return "This key is offered no mutating tools. ";
+        }
+        return "Mutating tools: " + mutations + " — all default to dryRun=true, and a real destructive "
+                + "run needs `confirm` to equal the subject's name. ";
     }
 }

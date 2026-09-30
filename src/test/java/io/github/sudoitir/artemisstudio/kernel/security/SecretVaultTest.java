@@ -295,8 +295,7 @@ class SecretVaultTest {
     void aKeyringNeverPrintsKeyMaterial() {
         Keyring keyring = new Keyring(new TreeMap<>(java.util.Map.of(1, key(7), 2, key(8))));
 
-        assertThat(keyring.toString()).isEqualTo("Keyring[1, 2]");
-        assertThat(keyring.hashCode()).isEqualTo(new Keyring(new TreeMap<>(keyring.keys())).hashCode());
+        assertThat(keyring).hasToString("Keyring[1, 2]").hasSameHashCodeAs(new Keyring(new TreeMap<>(keyring.keys())));
     }
 
     @Test

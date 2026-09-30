@@ -73,7 +73,7 @@ class TokenRequestLimitFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
         } finally {
             tokenWindows.exit(token.tokenId());
-            usage.record(token.tokenId(), outcome(request, response.getStatus()));
+            usage.recordRequest(token.tokenId(), outcome(request, response.getStatus()));
         }
     }
 
@@ -97,7 +97,7 @@ class TokenRequestLimitFilter extends OncePerRequestFilter {
 
     private void refuse(HttpServletResponse response, TokenPrincipal token, long retryAfter, String detail)
             throws IOException {
-        usage.record(token.tokenId(), TokenUsage.Outcome.LIMITED);
+        usage.recordRequest(token.tokenId(), TokenUsage.Outcome.LIMITED);
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setHeader("Retry-After", Long.toString(retryAfter));
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);

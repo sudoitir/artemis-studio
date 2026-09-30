@@ -36,7 +36,9 @@ class BrokerConfigHistoryStore implements HousekeepingContributor, ManagedStore 
                 + ".id AND ns.basis IS DISTINCT FROM 'ADOPTED')";
     }
 
-    private static final String APPLIES = "started_at < ? AND NOT " + namedByNodeState("broker_config_apply");
+    private static final String APPLY_TABLE = "broker_config_apply";
+    private static final String REVISION_TABLE = "broker_config_revision";
+    private static final String APPLIES = "started_at < ? AND NOT " + namedByNodeState(APPLY_TABLE);
 
     /**
      * The cutoff is bound once, as {@code k.at}, because an apply that would itself be purged must
@@ -57,7 +59,7 @@ class BrokerConfigHistoryStore implements HousekeepingContributor, ManagedStore 
     private static final StoreDef DEF = new StoreDef(
             "broker-config-history",
             "Broker configuration history",
-            List.of("broker_config_revision", "broker_config_apply"),
+            List.of(REVISION_TABLE, APPLY_TABLE),
             StoreDef.QuotaUnit.ROWS,
             Duration.ofDays(365),
             Duration.ofDays(7),
@@ -82,16 +84,14 @@ class BrokerConfigHistoryStore implements HousekeepingContributor, ManagedStore 
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        PurgeEstimate applies = LifecycleSql.estimate(jdbc, "broker_config_apply", APPLIES, cutoff);
-        PurgeEstimate revisions = LifecycleSql.estimate(jdbc, "broker_config_revision", REVISIONS, cutoff);
+        PurgeEstimate applies = LifecycleSql.estimate(jdbc, APPLY_TABLE, APPLIES, cutoff);
+        PurgeEstimate revisions = LifecycleSql.estimate(jdbc, REVISION_TABLE, REVISIONS, cutoff);
         return new PurgeEstimate(applies.rows() + revisions.rows(), applies.bytes() + revisions.bytes());
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        long applies = LifecycleSql.deleteBatch(jdbc, "broker_config_apply", APPLIES, cutoff, limit);
-        return applies > 0
-                ? applies
-                : LifecycleSql.deleteBatch(jdbc, "broker_config_revision", REVISIONS, cutoff, limit);
+        long applies = LifecycleSql.deleteBatch(jdbc, APPLY_TABLE, APPLIES, cutoff, limit);
+        return applies > 0 ? applies : LifecycleSql.deleteBatch(jdbc, REVISION_TABLE, REVISIONS, cutoff, limit);
     }
 }

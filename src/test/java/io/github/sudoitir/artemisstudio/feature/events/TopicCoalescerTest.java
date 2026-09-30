@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -25,11 +24,11 @@ class TopicCoalescerTest {
             coalescer.touch(clusterId, "consumers");
         }
 
-        verify(hub, timeout(1_000).times(1)).publish(eq(clusterId), eq("consumers"));
+        verify(hub, timeout(1_000).times(1)).publish(clusterId, "consumers");
 
         // A fresh touch after the window fires again.
         coalescer.touch(clusterId, "consumers");
-        verify(hub, timeout(1_000).times(2)).publish(eq(clusterId), eq("consumers"));
+        verify(hub, timeout(1_000).times(2)).publish(clusterId, "consumers");
     }
 
     @Test
