@@ -211,7 +211,7 @@ public class MessagePredicate {
         return null;
     }
 
-    /** {@code body->>'a.b'} — dotted keys, text out, null when the body is not JSON. */
+    /** {@code body->>'a.b'} — dotted keys (an array's by index), text out, null when the body is not JSON. */
     private Object jsonPath(String path, BrowsedMessage message) {
         String body = message.body();
         if (body == null || body.isBlank()) {
@@ -227,7 +227,8 @@ public class MessagePredicate {
             if (node == null) {
                 return null;
             }
-            node = node.get(key);
+            // An array steps by index, as Postgres' #>> does over the index, so one path reads both sources.
+            node = node.isArray() && key.matches("\\d{1,9}") ? node.get(Integer.parseInt(key)) : node.get(key);
         }
         if (node == null || node.isNull()) {
             return null;

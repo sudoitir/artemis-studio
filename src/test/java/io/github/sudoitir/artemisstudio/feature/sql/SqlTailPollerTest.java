@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
@@ -207,6 +208,8 @@ class SqlTailPollerTest {
                 null,
                 "body-" + messageId,
                 false,
+                false,
+                null,
                 Map.of(),
                 QueryAst.Source.INDEX,
                 observedAt,
@@ -471,6 +474,7 @@ class SqlTailPollerTest {
                 null,
                 "body-" + i,
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 null,
                 false,
                 null,

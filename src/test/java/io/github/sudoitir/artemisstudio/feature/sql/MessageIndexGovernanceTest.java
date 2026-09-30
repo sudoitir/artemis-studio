@@ -124,6 +124,8 @@ class MessageIndexGovernanceTest extends PostgresIntegrationTest {
                 null,
                 body,
                 false,
+                false,
+                null,
                 properties,
                 Source.BROKER,
                 null,

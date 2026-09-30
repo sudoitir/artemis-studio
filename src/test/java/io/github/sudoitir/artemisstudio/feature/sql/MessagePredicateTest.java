@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Literal;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Operator;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Term;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import java.time.Duration;
@@ -46,6 +47,7 @@ class MessagePredicateTest {
                 "user",
                 body,
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 "jms-type",
                 false,
                 null,
@@ -79,7 +81,7 @@ class MessagePredicateTest {
 
         assertThat(compiled.test(message("x"))).isTrue();
         assertThat(compiled.test(new BrowsedMessage(
-                        1, 0, false, 0, 0, 0, 0, null, null, null, null, null, null, null, false, null, Map.of(),
+                        1, 0, false, 0, 0, 0, 0, null, null, null, null, null, null, null, null, false, null, Map.of(),
                         Map.of(), Map.of(), Map.of(), Map.of())))
                 .isFalse();
     }
@@ -309,6 +311,10 @@ class MessagePredicateTest {
                 .isEqualTo("3");
         assertThat(predicate.resolve(new Term.JsonTerm("a.arr"), message(body), CONTEXT))
                 .isEqualTo("[1,2]");
+        assertThat(predicate.resolve(new Term.JsonTerm("a.arr.1"), message(body), CONTEXT))
+                .isEqualTo("2");
+        assertThat(predicate.resolve(new Term.JsonTerm("a.arr.9"), message(body), CONTEXT))
+                .isNull();
         assertThat(predicate.resolve(new Term.JsonTerm("a.nil"), message(body), CONTEXT))
                 .isNull();
         assertThat(predicate.resolve(new Term.JsonTerm("a.missing"), message(body), CONTEXT))

@@ -91,7 +91,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "user_(entities|credentials)",
                     "CREATE TABLE role ",
                     // Usernames are unique ignoring case (kernel-security 0008).
-                    "uq_app_user_username_lower")
+                    "uq_app_user_username_lower",
+                    // Text bodies of bytes messages are full-text indexed; binary is body_base64 (ADR-0148,
+                    // changeset feature-sql 0005).
+                    "ix_message_index_body_fts",
+                    "message_index_default_to_tsvector_idx")
             .map(Pattern::compile)
             .toList();
 

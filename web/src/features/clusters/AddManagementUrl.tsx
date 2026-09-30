@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { useDeleteCluster, useOverrideNodeUrl, type NodeEndpointView } from './api.ts';
+import { useOverrideNodeUrl, type NodeEndpointView } from './api.ts';
 
 /**
  * "Found, not yet manageable" → give a discovered node a reachable management
@@ -88,57 +87,6 @@ export function AddManagementUrl({
             }
           >
             Save
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
-  );
-}
-
-/** Typed-name confirmation for a destructive removal (non-negotiable #2). */
-export function RemoveCluster({
-  clusterId,
-  clusterName,
-  opened,
-  onClose,
-  onRemoved,
-}: Readonly<{
-  clusterId: string;
-  clusterName: string;
-  opened: boolean;
-  onClose: () => void;
-  onRemoved: () => void;
-}>) {
-  const remove = useDeleteCluster();
-
-  return (
-    <Modal opened={opened} onClose={onClose} title={`Remove ${clusterName}?`} size="md">
-      <Stack gap="sm">
-        <Text size="sm" c="dimmed">
-          This removes Studio's registration and stored credentials. It does not touch the broker.
-        </Text>
-        {/* The shared typed-confirmation, not a fourth hand-rolled copy. */}
-        <ConfirmByTyping
-          token={clusterName}
-          confirmLabel="Remove cluster"
-          loading={remove.isPending}
-          onConfirm={() =>
-            remove.mutate(clusterId, {
-              onSuccess: () => {
-                notifications.show({
-                  color: 'gray',
-                  title: 'Cluster removed',
-                  message: clusterName,
-                });
-                onClose();
-                onRemoved();
-              },
-            })
-          }
-        />
-        <Group justify="flex-end">
-          <Button variant="subtle" onClick={onClose}>
-            Cancel
           </Button>
         </Group>
       </Stack>

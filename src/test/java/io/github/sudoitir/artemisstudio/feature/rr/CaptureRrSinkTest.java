@@ -62,6 +62,8 @@ class CaptureRrSinkTest {
                 replyTo,
                 "body",
                 false,
+                false,
+                null,
                 props,
                 Source.INDEX,
                 null,

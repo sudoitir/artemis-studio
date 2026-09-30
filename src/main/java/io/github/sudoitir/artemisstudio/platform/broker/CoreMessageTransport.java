@@ -242,22 +242,35 @@ public class CoreMessageTransport implements MessageTransport {
     public static BrowsedMessage toBrowsed(Message m) throws JMSException {
         String body;
         BodyEncoding encoding;
+        BodyDecoder.Compression compression = BodyDecoder.Compression.NONE;
+        long size;
         switch (m) {
             case TextMessage text -> {
                 body = text.getText();
                 encoding = BodyEncoding.TEXT;
+                size = body == null ? 0 : body.getBytes(StandardCharsets.UTF_8).length;
             }
             case BytesMessage bytes -> {
                 bytes.reset();
                 long len = bytes.getBodyLength();
                 byte[] raw = new byte[(int) Math.min(len, Integer.MAX_VALUE)];
                 bytes.readBytes(raw);
-                body = Base64.getEncoder().encodeToString(raw);
-                encoding = BodyEncoding.BASE64;
+                size = raw.length;
+                // Text carried as bytes reads as text everywhere (ADR-0148); only binary stays base64.
+                BodyDecoder.Decoded decoded = BodyDecoder.decode(raw);
+                if (decoded.isBinary()) {
+                    body = Base64.getEncoder().encodeToString(raw);
+                    encoding = BodyEncoding.BASE64;
+                } else {
+                    body = decoded.text();
+                    encoding = BodyEncoding.TEXT;
+                    compression = decoded.compression();
+                }
             }
             default -> {
                 body = null;
                 encoding = BodyEncoding.TEXT;
+                size = 0;
             }
         }
 
@@ -290,13 +303,14 @@ public class CoreMessageTransport implements MessageTransport {
                 m.getJMSPriority(),
                 m.getJMSTimestamp(),
                 m.getJMSExpiration(),
-                bodyByteLength(body, encoding),
+                size,
                 m.getStringProperty("_AMQ_GROUP_ID"),
                 m.getJMSCorrelationID(),
                 m.getJMSReplyTo() != null ? m.getJMSReplyTo().toString() : null,
                 blankToNull(stringProp(m, "_AMQ_VALIDATED_USER")),
                 body,
                 encoding,
+                compression,
                 m.getJMSType(),
                 false, // Core does not truncate
                 null,
@@ -326,15 +340,6 @@ public class CoreMessageTransport implements MessageTransport {
             return 4;
         }
         return 0;
-    }
-
-    private static long bodyByteLength(String body, BodyEncoding encoding) {
-        if (body == null) {
-            return 0;
-        }
-        return encoding == BodyEncoding.BASE64
-                ? Base64.getDecoder().decode(body).length
-                : body.getBytes(StandardCharsets.UTF_8).length;
     }
 
     private static String stringProp(Message m, String name) {

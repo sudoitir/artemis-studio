@@ -28,9 +28,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SqlGovernance {
 
-    /** Artemis' BYTES message type; its body is binary and cannot be classified. */
-    static final int BYTES_MESSAGE = 4;
-
     private static final String HEADER_CORRELATION_ID = "correlationId";
     private static final String HEADER_GROUP_ID = "groupId";
     private static final String HEADER_USER_ID = "userId";
@@ -85,6 +82,8 @@ public class SqlGovernance {
                 content.headers().get(HEADER_REPLY_TO),
                 content.body(),
                 row.bodyTruncated(),
+                row.bodyBase64(),
+                row.bodyCompression(),
                 content.properties(),
                 row.source(),
                 row.observedAt(),
@@ -99,7 +98,7 @@ public class SqlGovernance {
         headers.put(HEADER_GROUP_ID, row.groupId());
         headers.put(HEADER_USER_ID, row.userId());
         headers.put(HEADER_REPLY_TO, row.replyTo());
-        return new MessageContent(headers, row.properties(), row.body(), row.messageType() == BYTES_MESSAGE, null);
+        return new MessageContent(headers, row.properties(), row.body(), row.bodyBase64(), null);
     }
 
     /**
@@ -139,6 +138,7 @@ public class SqlGovernance {
                 g.headers().get(HEADER_USER_ID),
                 g.body(),
                 m.bodyEncoding(),
+                m.bodyCompression(),
                 m.contentType(),
                 m.bodyTruncated(),
                 m.observedLimitBytes(),

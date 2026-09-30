@@ -45,6 +45,10 @@ public record QueryResult(
             String replyTo,
             String body,
             boolean bodyTruncated,
+            /** The body is binary, carried as base64 (or withheld); a text body is false whatever the message type. */
+            boolean bodyBase64,
+            /** gzip or deflate when the text body was unwrapped from one; null otherwise. */
+            String bodyCompression,
             Map<String, Object> properties,
             Source source,
             Instant observedAt,

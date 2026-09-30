@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Literal;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Operator;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Term;
+import io.github.sudoitir.artemisstudio.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
@@ -113,6 +114,7 @@ class SqlGovernanceTest {
                 null,
                 "{\"email\":\"jane@example.com\"}",
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 "application/json",
                 false,
                 null,
@@ -143,6 +145,10 @@ class SqlGovernanceTest {
     // ---- rows ----------------------------------------------------------
 
     private static QueryResult.Row row(String address, int messageType) {
+        return row(address, messageType, false);
+    }
+
+    private static QueryResult.Row row(String address, int messageType, boolean bodyBase64) {
         return new QueryResult.Row(
                 UUID.randomUUID(),
                 "node-a",
@@ -162,6 +168,8 @@ class SqlGovernanceTest {
                 "reply",
                 "body text",
                 true,
+                bodyBase64,
+                null,
                 Map.of("k", "v"),
                 QueryAst.Source.INDEX,
                 java.time.Instant.parse("2026-01-01T00:00:00Z"),
@@ -189,9 +197,9 @@ class SqlGovernanceTest {
         assertThat(text.body()).isEqualTo("body text");
         assertThat(text.base64()).isFalse();
 
-        assertThat(SqlGovernance.content(row("orders", SqlGovernance.BYTES_MESSAGE))
-                        .base64())
-                .isTrue();
+        // Binary is a property of the stored body, not the message type: a bytes message carrying text is text.
+        assertThat(SqlGovernance.content(row("orders", 4)).base64()).isFalse();
+        assertThat(SqlGovernance.content(row("orders", 4, true)).base64()).isTrue();
     }
 
     @Test
@@ -330,6 +338,7 @@ class SqlGovernanceTest {
                 "usr",
                 "b",
                 BodyEncoding.TEXT,
+                Compression.NONE,
                 null,
                 false,
                 null,

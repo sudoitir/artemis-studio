@@ -168,9 +168,7 @@ export const FUNCTIONS = ['now', 'lower', 'upper'];
 export const FULL_TEXT = {
   predicate: "MATCH (body) AGAINST ('terms')",
   rank: 'match_rank',
-  note:
-    'Quoted phrases, -exclusion and or work as they do in a search box. Binary bodies are not ' +
-    'full-text indexed, so a BytesMessage is never a MATCH.',
+  note: 'Quoted phrases, -exclusion and or work as they do in a search box. Binary bodies are not full-text indexed.',
 };
 
 /** How each evaluation class reads to an operator, in words rather than a colour. */

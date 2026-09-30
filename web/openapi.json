@@ -13515,6 +13515,10 @@
           "bodyEncoding" : {
             "type" : "string"
           },
+          "bodyCompression" : {
+            "type" : [ "string", "null" ],
+            "description" : "How a text body was compressed on the broker (gzip or deflate); null when it was not."
+          },
           "contentType" : {
             "type" : [ "string", "null" ]
           },

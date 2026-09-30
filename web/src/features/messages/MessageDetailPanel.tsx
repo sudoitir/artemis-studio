@@ -16,6 +16,7 @@ import { CodeHighlight } from '@mantine/code-highlight';
 
 import { useMessageDetail, type MessageDetailView } from './api.ts';
 import { HexDump } from './HexDump.tsx';
+import { JsonTree } from './JsonTree.tsx';
 import { detectPayload, messageTypeName, unavailableMessage } from './payload.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
@@ -82,6 +83,7 @@ function PropertyTable({
 function MessageBody({
   body,
   bodyEncoding,
+  bodyCompression,
   contentType,
   bodyTruncated,
   stringProperties,
@@ -91,6 +93,7 @@ function MessageBody({
 }: Readonly<{
   body: string | null;
   bodyEncoding: string;
+  bodyCompression?: string | null;
   contentType?: string | null;
   bodyTruncated: boolean;
   stringProperties: Record<string, string>;
@@ -100,17 +103,27 @@ function MessageBody({
 }>) {
   const bodyRedactions = redactionsAt(redactions, 'BODY');
   const masked = bodyRedactions.some((r) => !r.clear);
-  const [view, setView] = useState<'formatted' | 'raw'>('formatted');
+  const [view, setView] = useState<BodyView>('formatted');
   const detected = useMemo(
-    () => detectPayload({ body, bodyEncoding, contentType, bodyTruncated, stringProperties }),
-    [body, bodyEncoding, contentType, bodyTruncated, stringProperties],
+    () => detectPayload({ body, bodyEncoding, bodyCompression, contentType, bodyTruncated, stringProperties }),
+    [body, bodyEncoding, bodyCompression, contentType, bodyTruncated, stringProperties],
+  );
+  // The tree is offered only for JSON that parsed, so it inherits every size ceiling the formatter has.
+  const tree = useMemo(
+    () =>
+      detected.format === 'json' && detected.formatted !== null ? (JSON.parse(detected.formatted) as unknown) : null,
+    [detected],
   );
 
   const raw = body ?? '';
-  const shown = view === 'formatted' && detected.formatted !== null ? detected.formatted : raw;
+  const shown = view !== 'raw' && detected.formatted !== null ? detected.formatted : raw;
   const note = unavailableMessage(detected);
 
-  const downloadBody = () => download(`message-${messageId}.${FILE_EXTENSION[detected.format] ?? 'txt'}`, raw);
+  // A binary body is handed over as its bytes, not as the base64 that carried it.
+  const downloadBody = () =>
+    bodyEncoding === 'BASE64'
+      ? download(`message-${messageId}.bin`, new Blob([base64Bytes(raw)]))
+      : download(`message-${messageId}.${FILE_EXTENSION[detected.format] ?? 'txt'}`, raw);
 
   return (
     <Stack gap={4}>
@@ -133,9 +146,10 @@ function MessageBody({
             <SegmentedControl
               size="xs"
               value={view}
-              onChange={(v) => setView(v as 'formatted' | 'raw')}
+              onChange={(v) => setView(v as BodyView)}
               data={[
                 { label: 'Formatted', value: 'formatted' },
+                ...(tree === null ? [] : [{ label: 'Tree', value: 'tree' }]),
                 { label: 'Raw', value: 'raw' },
               ]}
             />
@@ -163,6 +177,7 @@ function MessageBody({
 
       {body === null && withheld.length > 0 ? null : (
         <BodyContent
+          tree={view === 'tree' ? tree : null}
           bytes={detected.bytes}
           code={shown || '(empty)'}
           language={(view === 'formatted' && detected.highlightLanguage) || 'text'}
@@ -175,22 +190,28 @@ function MessageBody({
           {detected.unavailable === 'truncated' ? ' See the truncation notice below.' : ''}
         </Text>
       ) : null}
-      {bodyEncoding === 'BASE64' ? (
-        <Text size="xs" c="dimmed">
-          Shown as bytes — the Core client returned the exact body, not a stringified copy.
-        </Text>
-      ) : null}
     </Stack>
   );
 }
 
-/** The body as bytes when it is binary, otherwise as highlighted text. */
+type BodyView = 'formatted' | 'tree' | 'raw';
+
+function base64Bytes(base64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(base64.replaceAll(/\s/g, ''));
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.codePointAt(i)!;
+  return out;
+}
+
+/** The body as bytes when it is binary, as a tree when asked for, otherwise as highlighted text. */
 function BodyContent({
+  tree,
   bytes,
   code,
   language,
-}: Readonly<{ bytes: Uint8Array | null; code: string; language: string }>) {
+}: Readonly<{ tree: unknown; bytes: Uint8Array | null; code: string; language: string }>) {
   if (bytes) return <HexDump bytes={bytes} />;
+  if (tree !== null) return <JsonTree value={tree} />;
   return <CodeHighlight code={code} language={language} />;
 }
 
@@ -324,6 +345,7 @@ function MessageDetailContent({ m }: Readonly<{ m: MessageDetailView }>) {
       <MessageBody
         body={m.body ?? null}
         bodyEncoding={m.bodyEncoding}
+        bodyCompression={m.bodyCompression}
         contentType={m.contentType}
         bodyTruncated={m.bodyTruncated}
         stringProperties={m.stringProperties}

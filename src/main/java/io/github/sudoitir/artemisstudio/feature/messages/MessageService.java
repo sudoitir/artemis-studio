@@ -527,6 +527,7 @@ public class MessageService {
                 g.headers().get("userId"),
                 g.body(),
                 m.bodyEncoding().name(),
+                m.bodyCompression().apiName(),
                 m.contentType(),
                 m.bodyTruncated(),
                 m.observedLimitBytes(),

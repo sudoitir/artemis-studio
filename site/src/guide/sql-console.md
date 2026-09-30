@@ -85,8 +85,8 @@ Scan: `body`, `messageId`, `messageType`, `replyTo`, and — on the index only �
 Over the index, `MATCH (body) AGAINST ('terms')` is full-text search over stored
 bodies, served from a GIN index rather than scanned, and `ORDER BY match_rank`
 ranks by how well each row matched. Quoted phrases, `-exclusion` and `or` work as
-they do in a search box. Binary bodies are not full-text indexed, so a
-`BytesMessage` is never a match — use `LIKE` for those.
+they do in a search box. Binary bodies are not full-text indexed; a bytes
+message whose body is text is searched like any other.
 
 A JSON field inside the body is `body->>'orderId'`. The only functions the
 dialect accepts are `now()`, `lower()`, `upper()`, plus `interval` in a relative
