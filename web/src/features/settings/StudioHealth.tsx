@@ -19,12 +19,12 @@ const JOB_STATES: Record<JobHealth['status'], string> = {
   NEVER_RUN: 'Not run yet',
 };
 
-const REPLICA_STATES: Record<ReplicaHealth['state'], string> = {
-  STARTING: 'Starting',
-  READY: 'Ready',
-  DRAINING: 'Draining: shutting down, taking no new requests',
-  STOPPED: 'Stopped',
-  GONE: 'Gone: no heartbeat, presumed crashed',
+const REPLICA_STATES: Record<ReplicaHealth['state'], { label: string; detail?: string }> = {
+  STARTING: { label: 'Starting' },
+  READY: { label: 'Ready' },
+  DRAINING: { label: 'Draining', detail: 'Shutting down; takes no new requests' },
+  STOPPED: { label: 'Stopped' },
+  GONE: { label: 'Gone', detail: 'No heartbeat; presumed crashed' },
 };
 
 /** State goes in words; the colour only underlines a problem. */
@@ -150,7 +150,7 @@ function ReplicasTable({ replicas }: Readonly<{ replicas: ReplicaHealth[] }>) {
       <Table.Tbody>
         {replicas.map((r) => (
           <Table.Tr key={r.id}>
-            <Table.Td>
+            <Table.Td style={{ whiteSpace: 'nowrap' }}>
               <Text size="sm">
                 {r.host}
                 {r.self ? (
@@ -163,8 +163,15 @@ function ReplicasTable({ replicas }: Readonly<{ replicas: ReplicaHealth[] }>) {
                 {r.id.slice(0, 8)}
               </Text>
             </Table.Td>
-            <Table.Td>{r.version}</Table.Td>
-            <Table.Td>{REPLICA_STATES[r.state]}</Table.Td>
+            <Table.Td style={{ whiteSpace: 'nowrap' }}>{r.version}</Table.Td>
+            <Table.Td>
+              <Text size="sm">{REPLICA_STATES[r.state].label}</Text>
+              {REPLICA_STATES[r.state].detail ? (
+                <Text size="xs" c="dimmed">
+                  {REPLICA_STATES[r.state].detail}
+                </Text>
+              ) : null}
+            </Table.Td>
             <Table.Td ta="end" style={numeric}>
               {elapsedLabel(r.heartbeatAgeMillis)} ago
             </Table.Td>

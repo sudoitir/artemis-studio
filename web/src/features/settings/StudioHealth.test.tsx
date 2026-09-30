@@ -152,7 +152,7 @@ describe('StudioHealth', () => {
 
     const replicas = await screen.findByRole('table', { name: 'Replicas' });
     const gone = within(replicas).getByRole('row', { name: /studio-2/ });
-    expect(gone).toHaveTextContent('Gone: no heartbeat, presumed crashed');
+    expect(gone).toHaveTextContent('GoneNo heartbeat; presumed crashed');
     expect(gone).toHaveTextContent('2m ago');
     expect(gone).toHaveTextContent('Degraded');
     const draining = within(replicas).getByRole('row', { name: /studio-3/ });
