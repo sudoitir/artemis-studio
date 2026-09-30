@@ -22,7 +22,7 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
     Optional<BrokerEventEntity> findByClusterIdAndSeq(UUID clusterId, Long seq);
 
     /** Bounded replay for a reconnecting SSE client (slice 3). */
-    List<BrokerEventEntity> findByClusterIdAndSeqGreaterThanOrderBySeqAsc(UUID clusterId, long seq, Pageable pageable);
+    List<BrokerEventEntity> findByClusterIdAndSeqGreaterThanOrderBySeqDesc(UUID clusterId, long seq, Pageable pageable);
 
     /** The oldest still-retained event's time, for the history API envelope. */
     @Query("select min(e.occurredAt) from BrokerEventEntity e where e.clusterId = :clusterId")

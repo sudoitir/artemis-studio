@@ -12,9 +12,9 @@
 - [x] 3.4 Readiness: `replica` indicator, `/livez` `/readyz`, `timeout-per-shutdown-phase`; DRAIN and RUNS shutdown phases
 
 ## 4. Stream across replicas (D4)
-- [ ] 4.1 `SseHub.publish` broadcasts, `deliver` local; events batches loaded by seq; 7,500-byte downgrade
-- [ ] 4.2 `StreamController`: `lastEventId` param, buffered replay-then-live, `resync` on cap, 503 while draining; `reconnect` on drain
-- [ ] 4.3 Client: send last id, handle `reconnect` and `resync`, refetch after a failed reconnect; SQL tail reopens on `reconnect`
+- [x] 4.1 `SseHub.publish` broadcasts, `deliver` local; events batches loaded by seq; 7,500-byte downgrade
+- [x] 4.2 `StreamController`: `lastEventId` param, buffered replay-then-live, `resync` on cap, 503 while draining; `reconnect` on drain
+- [x] 4.3 Client: send last id, handle `reconnect` and `resync`, refetch after a failed reconnect; SQL tail reopens on `reconnect`
 
 ## 5. Cluster ownership (D2)
 - [ ] 5.1 `cluster_lease` changelog, `ClusterOwnership` (HRW, renew, release, acquire, orphans, self-fence), duty events

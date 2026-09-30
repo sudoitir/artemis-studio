@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -26,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -44,6 +47,9 @@ class EventStreamBusTest extends PostgresIntegrationTest {
 
     @Autowired
     NamedParameterJdbcTemplate jdbc;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     private final UUID clusterId = UUID.randomUUID();
     private ConfigurableApplicationContext other;
@@ -88,7 +94,7 @@ class EventStreamBusTest extends PostgresIntegrationTest {
         writer.flush();
 
         List<String> seqs = jdbc.queryForList(
-                "SELECT seq::text FROM broker_event WHERE cluster_id = :c ORDER BY seq",
+                "SELECT seq::text FROM broker_event WHERE cluster_id = :c ORDER BY broker_event.seq",
                 Map.of("c", clusterId),
                 String.class);
         assertThat(seqs).hasSize(2);
@@ -97,6 +103,23 @@ class EventStreamBusTest extends PostgresIntegrationTest {
             assertThat(frames.get(0)).contains("event:events", "id:" + seqs.get(0), "CONSUMER_CREATED");
             assertThat(frames.get(1)).contains("event:events", "id:" + seqs.get(1), "SESSION_CREATED");
         }
+    }
+
+    @Test
+    void aRolledBackFlushReachesNoClient() throws Exception {
+        SseEmitter onA = subscribe(hubA, "events");
+        writer.accept(event("CONSUMER_CREATED"));
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            writer.flush();
+            status.setRollbackOnly();
+        });
+
+        Thread.sleep(1_000);
+        ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(onA, atLeast(0)).send(sent.capture());
+        // Keep-alives may arrive; an events frame may not.
+        assertThat(sent.getAllValues()).map(EventStreamBusTest::render).noneMatch(f -> f.contains("event:events"));
     }
 
     private SseEmitter subscribe(SseHub hub, String topic) {

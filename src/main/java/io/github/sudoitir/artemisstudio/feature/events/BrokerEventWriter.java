@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
-import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEventSink;
 import java.sql.Timestamp;
@@ -20,8 +19,6 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -50,7 +47,6 @@ public class BrokerEventWriter implements BrokerEventSink {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final ObjectMapper mapper;
-    private final BrokerEventRepository repository;
     private final ObjectProvider<BrokerEventPublisher> publisher;
 
     /** This bean through its proxy, so the shutdown drain's flushes are transactional. */
@@ -63,13 +59,11 @@ public class BrokerEventWriter implements BrokerEventSink {
     public BrokerEventWriter(
             NamedParameterJdbcTemplate jdbc,
             ObjectMapper mapper,
-            BrokerEventRepository repository,
             ObjectProvider<BrokerEventPublisher> publisher,
             ObjectProvider<BrokerEventWriter> self,
             EventsProperties properties) {
         this.jdbc = jdbc;
         this.mapper = mapper;
-        this.repository = repository;
         this.publisher = publisher;
         this.self = self;
         this.capacity = Math.max(1, properties.bufferSize());
@@ -148,9 +142,9 @@ public class BrokerEventWriter implements BrokerEventSink {
     }
 
     /**
-     * Inserts the batch and hands exactly the rows this insert produced to the sink once the
-     * surrounding transaction has committed: before that a reader on another replica cannot
-     * see them, and a rollback must publish nothing.
+     * Inserts the batch and hands exactly the rows this insert produced to the sink, inside the
+     * surrounding transaction. The sink announces them on the bus, whose notification Postgres sends
+     * only when that transaction commits, so a rollback announces nothing.
      */
     private void write(List<BrokerEvent> batch) {
         SqlParameterSource[] params = batch.stream().map(this::params).toArray(SqlParameterSource[]::new);
@@ -159,29 +153,9 @@ public class BrokerEventWriter implements BrokerEventSink {
         List<Long> seqs = keys.getKeyList().stream()
                 .map(row -> ((Number) row.get("seq")).longValue())
                 .toList();
-
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    publish(seqs);
-                }
-            });
-        } else {
-            publish(seqs);
-        }
-    }
-
-    /** The rows are committed by now: a failing sink is logged, never a reason to requeue them. */
-    private void publish(List<Long> seqs) {
         BrokerEventPublisher sink = publisher.getIfAvailable();
-        if (sink == null) {
-            return;
-        }
-        try {
-            sink.published(repository.findBySeqInOrderBySeqAsc(seqs));
-        } catch (RuntimeException e) {
-            log.warn("{} broker event(s) were stored but could not be published: {}", seqs.size(), e.getMessage());
+        if (sink != null) {
+            sink.written(seqs, batch);
         }
     }
 

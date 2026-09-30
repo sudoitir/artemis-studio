@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.Brok
 import io.github.sudoitir.artemisstudio.kernel.replica.BusEvents;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -14,7 +15,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Fans a flushed batch of broker events out over SSE (ADR-0027, ADR-0148). The replica that wrote
- * the batch announces its seqs on the bus; every replica, that one included, loads the rows when the
+ * the batch announces its seqs on the bus, in the transaction that stores them; every replica, that one included, loads the rows when the
  * announcement arrives and sends each as a frame on the data-bearing {@code events} topic, with its
  * {@code seq} as the SSE id. So a frame is delivered once per replica, and only the writer nudges the
  * resource-view signal topics the events imply are stale, through {@link TopicCoalescer} (D11); those
@@ -31,16 +32,20 @@ public class EventStreamPublisher implements BrokerEventPublisher {
     private final BrokerEventService events;
     private final BrokerEventRepository repository;
 
+    /**
+     * Runs inside the flush transaction: the announcement goes out when it commits. The signal topics
+     * are nudged here too; a rolled-back flush costs at most one needless refetch.
+     */
     @Override
-    public void published(List<BrokerEventEntity> batch) {
-        if (batch.isEmpty()) {
+    public void written(List<Long> seqs, List<BrokerEvent> batch) {
+        if (seqs.isEmpty()) {
             return;
         }
-        bus.publish(new BusEvents(batch.stream().map(BrokerEventEntity::getSeq).toList()));
-        for (BrokerEventEntity e : batch) {
-            String derived = derivedTopicOf(e.getType());
+        bus.publish(new BusEvents(seqs));
+        for (BrokerEvent e : batch) {
+            String derived = derivedTopicOf(e.type());
             if (derived != null) {
-                coalescer.touch(e.getClusterId(), derived);
+                coalescer.touch(e.clusterId(), derived);
             }
         }
     }
