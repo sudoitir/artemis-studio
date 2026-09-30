@@ -322,7 +322,7 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
         jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), run.getId());
 
         mvc.perform(post("/api/v1/clusters/{c}/transfers/runs/{r}/stop", source, run.getId()))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("RUNNING"));
     }
 
