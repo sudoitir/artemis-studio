@@ -54,8 +54,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "max by (job) (studio_job_lag_seconds{job=~\"$job\"})",
-          "legendFormat": "{{job}}"
+          "expr": "max by (job_id) (studio_job_lag_seconds{job_id=~\"$job\"})",
+          "legendFormat": "{{job_id}}"
         }
       ],
       "description": "Seconds a job is past its interval since it last completed. Empty until the interval is known."
@@ -87,8 +87,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (job) (increase(studio_job_seconds_count{job=~\"$job\",error!=\"none\"}[$__rate_interval]))",
-          "legendFormat": "{{job}}"
+          "expr": "sum by (job_id) (increase(studio_job_seconds_count{job_id=~\"$job\",error!=\"none\"}[$__rate_interval]))",
+          "legendFormat": "{{job_id}}"
         }
       ],
       "description": "Runs that raised an error."
@@ -120,8 +120,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (job) (rate(studio_job_seconds_sum{job=~\"$job\"}[$__rate_interval])) / sum by (job) (rate(studio_job_seconds_count{job=~\"$job\"}[$__rate_interval]))",
-          "legendFormat": "{{job}}"
+          "expr": "sum by (job_id) (rate(studio_job_seconds_sum{job_id=~\"$job\"}[$__rate_interval])) / sum by (job_id) (rate(studio_job_seconds_count{job_id=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "{{job_id}}"
         }
       ],
       "description": "Mean run time."
@@ -600,10 +600,10 @@
           "uid": "${DS_PROMETHEUS}"
         },
         "query": {
-          "query": "label_values(studio_job_lag_seconds, job)",
+          "query": "label_values(studio_job_lag_seconds, job_id)",
           "refId": "vjob"
         },
-        "definition": "label_values(studio_job_lag_seconds, job)",
+        "definition": "label_values(studio_job_lag_seconds, job_id)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,

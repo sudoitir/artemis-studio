@@ -70,8 +70,9 @@ the same names. `node` is always the broker's `host:port`, never its URL.
 
 | Metric | Meaning |
 | --- | --- |
-| `studio_job_lag_seconds{job}` | Seconds a background job is past its interval since it last completed; zero on schedule, `NaN` until its interval is known. |
-| `studio_job_seconds_{count,sum,max}{job,feature,error}` | Job runs. `error` is `none` for a run that succeeded. |
+| `studio_job_lag_seconds{job_id}` | Seconds a background job is past its interval since it last completed; zero on schedule, `NaN` until its interval is known. |
+| `studio_job_degraded{job_id}` | 1 while no run has finished within three of the job's intervals, else 0. The stalled-job alert uses it. |
+| `studio_job_seconds_{count,sum,max}{job_id,feature,error}` | Job runs. `error` is `none` for a run that succeeded. |
 | `studio_broker_management_seconds_{count,sum,max}{node,outcome,error}` | Jolokia management calls. `outcome` is `SUCCESS` or `ERROR`. The series with `quantile="0.95"` is the 95th percentile. |
 | `studio_broker_requests_total{node}` | Management requests Studio admitted to a node. |
 | `studio_broker_permit_wait_seconds_{count,sum,max}{node}` | Time requests waited for that node's rate ceiling. |
@@ -98,7 +99,7 @@ filters, and panels for job lag and failures, management call rate, latency and 
 waits and timeouts, Core latency, the database pool, stream clients and threads.
 
 **Alert rules.** Add `prometheus/studio-alerts.yml` to `rule_files` in `prometheus.yml` and reload.
-It alerts on a job past its interval or failing, a node failing more than 10% of its management
+It alerts on a job stalled or failing, a node failing more than 10% of its management
 calls, slow management calls (p95 over 2 s), permit timeouts, and a waiting or nearly exhausted
 database pool, and more than 500 live threads for 15 minutes (Studio's threads are bounded by
 configuration, so steady growth points at a leak). Check a copy you edited with `promtool check rules studio-alerts.yml`.

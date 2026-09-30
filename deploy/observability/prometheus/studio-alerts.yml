@@ -4,23 +4,23 @@
 groups:
   - name: artemis-studio-jobs
     rules:
-      - alert: StudioJobLagging
-        # studio_job_lag_seconds is the time a job is past its interval since it last completed.
-        expr: studio_job_lag_seconds > 0
-        for: 5m
+      - alert: StudioJobStalled
+        # studio_job_degraded is 1 while no run has finished within three of the job's intervals.
+        expr: studio_job_degraded == 1
+        for: 1m
         labels:
           severity: warning
         annotations:
-          summary: "Studio job {{ $labels.job }} is past its interval"
-          description: "Job {{ $labels.job }} has not completed within its interval for 5 minutes, by {{ $value | humanizeDuration }} now."
+          summary: "Studio job {{ $labels.job_id }} has stalled"
+          description: "No run of job {{ $labels.job_id }} has finished within three of its intervals."
       - alert: StudioJobFailing
-        expr: sum by (job) (increase(studio_job_seconds_count{error!="none"}[10m])) > 0
+        expr: sum by (job_id) (increase(studio_job_seconds_count{error!="none"}[10m])) > 0
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Studio job {{ $labels.job }} is failing"
-          description: "Job {{ $labels.job }} has raised an error in each of the last 5 minutes. Its last error is in Studio's log and on Settings, Studio health."
+          summary: "Studio job {{ $labels.job_id }} is failing"
+          description: "Job {{ $labels.job_id }} has raised an error in each of the last 5 minutes. Its last error is in Studio's log and on Settings, Studio health."
 
   - name: artemis-studio-brokers
     rules:

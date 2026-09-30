@@ -120,7 +120,7 @@ class JobStatusesTest {
         assertThat(failed.lastError()).isEqualTo("boom");
 
         // The observation adds an `error` tag, so a failed run lands on its own timer beside the passing ones.
-        assertThat(meters.find("studio.job").tags("job", "demo", "feature", "rr").timers().stream()
+        assertThat(meters.find("studio.job").tags("job.id", "demo", "feature", "rr").timers().stream()
                         .mapToLong(io.micrometer.core.instrument.Timer::count)
                         .sum())
                 .isEqualTo(2);
@@ -206,7 +206,7 @@ class JobStatusesTest {
                 "fresh", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {}));
 
         assertThat(statuses.all().getFirst().lag(Instant.now())).isNull();
-        assertThat(meters.get("studio.job.lag").tag("job", "fresh").gauge().value())
+        assertThat(meters.get("studio.job.lag").tag("job.id", "fresh").gauge().value())
                 .isNaN();
     }
 
@@ -216,6 +216,23 @@ class JobStatusesTest {
                 "gone", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {}));
         statuses.deregister("gone");
 
-        assertThat(meters.find("studio.job.lag").tag("job", "gone").gauge()).isNull();
+        assertThat(meters.find("studio.job.lag").tag("job.id", "gone").gauge()).isNull();
+    }
+
+    @Test
+    void aJobKeepingToScheduleIsNotDegradedAndDeregisteringRemovesTheGauge() {
+        ScheduledJob job = ScheduledJob.fixedDelay(
+                "steady", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {});
+        statuses.instrument(job);
+        statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+
+        assertThat(meters.get("studio.job.degraded")
+                        .tag("job.id", "steady")
+                        .gauge()
+                        .value())
+                .isEqualTo(0.0);
+        statuses.deregister("steady");
+        assertThat(meters.find("studio.job.degraded").tag("job.id", "steady").gauge())
+                .isNull();
     }
 }

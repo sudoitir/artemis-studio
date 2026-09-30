@@ -59,10 +59,14 @@ public class JobStatuses {
             throw new IllegalStateException("Job id '" + job.id() + "' is registered twice");
         }
         Gauge.builder("studio.job.lag", () -> lagSeconds(job.id()))
-                .tag("job", job.id())
+                .tag("job.id", job.id())
                 .baseUnit("seconds")
                 .description(
                         "Seconds a job is past its interval since it last completed; NaN until its interval is known")
+                .register(meters);
+        Gauge.builder("studio.job.degraded", () -> degraded(job.id()))
+                .tag("job.id", job.id())
+                .description("1 while no run has finished within three of the job's intervals, else 0")
                 .register(meters);
         return () -> {
             synchronized (gate) {
@@ -92,6 +96,11 @@ public class JobStatuses {
         return lag == null ? Double.NaN : lag.toMillis() / 1000.0;
     }
 
+    private double degraded(String jobId) {
+        JobStatus status = byId.get(jobId);
+        return status != null && status.degraded(Instant.now()) ? 1 : 0;
+    }
+
     private void runRecorded(ScheduledJob job) {
         byId.computeIfPresent(job.id(), (k, s) -> s.started(Instant.now()));
         try {
@@ -107,7 +116,7 @@ public class JobStatuses {
     private Observation observation(ScheduledJob job) {
         return Observation.createNotStarted("studio.job", observations)
                 .contextualName("job " + job.id())
-                .lowCardinalityKeyValue("job", job.id())
+                .lowCardinalityKeyValue("job.id", job.id())
                 .lowCardinalityKeyValue("feature", job.featureId());
     }
 
@@ -183,7 +192,8 @@ public class JobStatuses {
      */
     public void deregister(String jobId) {
         byId.remove(jobId);
-        meters.find("studio.job.lag").tag("job", jobId).meters().forEach(meters::remove);
+        meters.find("studio.job.lag").tag("job.id", jobId).meters().forEach(meters::remove);
+        meters.find("studio.job.degraded").tag("job.id", jobId).meters().forEach(meters::remove);
     }
 
     /** Every registered job, ordered by id. */
