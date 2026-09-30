@@ -19,7 +19,7 @@ final class PolicyEngine {
 
     /** Where detections in uncovered fields go. */
     interface FindingSink {
-        void record(String address, Location location, String path, DataClass dataClass);
+        void recordFinding(String address, Location location, String path, DataClass dataClass);
     }
 
     static final String BINARY_WITHHELD = "Binary body cannot be classified, so it is withheld.";
@@ -149,7 +149,7 @@ final class PolicyEngine {
                 hits.stream()
                         .map(Detectors.Hit::dataClass)
                         .distinct()
-                        .forEach(c -> findings.record(context.address(), location, name, c));
+                        .forEach(c -> findings.recordFinding(context.address(), location, name, c));
             }
             return spans(location, name, value, hits);
         }

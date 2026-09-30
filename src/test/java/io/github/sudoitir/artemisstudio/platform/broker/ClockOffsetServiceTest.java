@@ -37,7 +37,7 @@ class ClockOffsetServiceTest {
     private void reading(String url, long offsetMs) {
         long t0 = 1_000_000;
         // Round trip of 20ms, so the midpoint is t0 + 10 and the reading is clean.
-        registry.record(url, (t0 + 10 + offsetMs) / 1_000, t0, t0 + 20);
+        registry.recordReading(url, (t0 + 10 + offsetMs) / 1_000, t0, t0 + 20);
     }
 
     @Test

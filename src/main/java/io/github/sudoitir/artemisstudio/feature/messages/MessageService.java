@@ -124,7 +124,7 @@ public class MessageService {
         for (int i = 0; i < messages.size(); i++) {
             rows.add(toSummary(messages.get(i), governed.get(i)));
         }
-        clearViews.record(context, "QUEUE", queueName, governed);
+        clearViews.recordClear(context, "QUEUE", queueName, governed);
         return new MessagePageView(
                 rows,
                 result.page().total(),
@@ -146,7 +146,7 @@ public class MessageService {
                 .orElseThrow(() -> new NotFoundException("message", messageId));
         GovernContext context = contentPolicy.context(clusterId, resolved.address());
         GovernedMessage governed = contentPolicy.govern(context, content(message));
-        clearViews.record(context, "MESSAGE", queueName + "/" + messageId, List.of(governed));
+        clearViews.recordClear(context, "MESSAGE", queueName + "/" + messageId, List.of(governed));
         return toDetail(
                 message, governed, resolved.node().getId(), result.servedBy().name());
     }

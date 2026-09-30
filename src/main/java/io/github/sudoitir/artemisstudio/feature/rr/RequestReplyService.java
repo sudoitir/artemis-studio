@@ -426,7 +426,7 @@ public class RequestReplyService {
         List<RrEventView> views = events.findByFlowIdOrderByTsAsc(flow.getId()).stream()
                 .map(e -> toEventView(flow, e, payloadsReadable, clearAccess, served))
                 .toList();
-        clearViews.record(
+        clearViews.recordClear(
                 new GovernContext(clusterId, flow.getRequestAddress(), clearAccess),
                 "RR_FLOW",
                 flow.getId().toString(),

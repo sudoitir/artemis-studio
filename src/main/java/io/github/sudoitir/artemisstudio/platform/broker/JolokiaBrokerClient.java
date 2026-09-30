@@ -147,7 +147,7 @@ public class JolokiaBrokerClient {
      */
     private void recordClock(JolokiaResponse entry, long t0, long t1) {
         if (clockOffsets != null && entry.timestamp() != null) {
-            clockOffsets.record(jolokiaUrl, entry.timestamp(), t0, t1);
+            clockOffsets.recordReading(jolokiaUrl, entry.timestamp(), t0, t1);
         }
     }
 

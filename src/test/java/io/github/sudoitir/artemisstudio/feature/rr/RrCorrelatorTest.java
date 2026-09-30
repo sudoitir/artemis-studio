@@ -81,7 +81,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
         long tenMinutes = 600_000;
         long t0 = System.currentTimeMillis();
         // The broker answers claiming a time ten minutes ahead of this host's.
-        clockOffsets.record(jolokiaUrl, (t0 + tenMinutes) / 1_000, t0, t0 + 20);
+        clockOffsets.recordReading(jolokiaUrl, (t0 + tenMinutes) / 1_000, t0, t0 + 20);
         clocks.refresh();
 
         Instant seenAt = Instant.now();

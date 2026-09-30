@@ -23,7 +23,7 @@ class FindingsRecorderTest {
     @Test
     void repeatedDetectionsWriteNothingUntilFlushThenOneRowWithTheCount() {
         for (int i = 0; i < 1_000; i++) {
-            recorder.record("orders", Location.PROPERTY, "contact", DataClass.EMAIL);
+            recorder.recordFinding("orders", Location.PROPERTY, "contact", DataClass.EMAIL);
         }
         verifyNoInteractions(jdbc);
 
@@ -51,11 +51,11 @@ class FindingsRecorderTest {
     @Test
     void newFieldsBeyondTheCapAreDroppedAndCountedWhileKnownFieldsStillCount() {
         for (int i = 0; i < FindingsRecorder.MAX_PENDING; i++) {
-            recorder.record("orders", Location.PROPERTY, "field-" + i, DataClass.EMAIL);
+            recorder.recordFinding("orders", Location.PROPERTY, "field-" + i, DataClass.EMAIL);
         }
 
-        recorder.record("orders", Location.PROPERTY, "one-too-many", DataClass.EMAIL);
-        recorder.record("orders", Location.PROPERTY, "field-0", DataClass.EMAIL);
+        recorder.recordFinding("orders", Location.PROPERTY, "one-too-many", DataClass.EMAIL);
+        recorder.recordFinding("orders", Location.PROPERTY, "field-0", DataClass.EMAIL);
 
         assertThat(recorder.dropped()).isEqualTo(1);
         assertThat(recorder.pendingCount()).isEqualTo(FindingsRecorder.MAX_PENDING);
@@ -63,7 +63,7 @@ class FindingsRecorderTest {
 
     @Test
     void aDetectionWithoutAnAddressIsNotAFinding() {
-        recorder.record(null, Location.BODY, "", DataClass.PAN);
+        recorder.recordFinding(null, Location.BODY, "", DataClass.PAN);
 
         assertThat(recorder.pendingCount()).isZero();
     }

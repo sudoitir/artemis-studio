@@ -273,7 +273,7 @@ public class SqlStreamController {
             }
             Map<String, Long> classes = Map.copyOf(tailClear);
             tailClear.clear();
-            clearViews.record(
+            clearViews.recordClear(
                     actor,
                     new GovernContext(clusterId, null, true),
                     "CLUSTER",

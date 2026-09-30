@@ -38,7 +38,7 @@ class FindingsRecorder {
     private final ConcurrentHashMap<Key, Tally> pending = new ConcurrentHashMap<>();
     private final AtomicLong dropped = new AtomicLong();
 
-    void record(String address, Location location, String path, DataClass dataClass) {
+    void recordFinding(String address, Location location, String path, DataClass dataClass) {
         if (address == null) {
             return;
         }
