@@ -10,7 +10,9 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import lombok.extern.slf4j.Slf4j;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
@@ -27,13 +29,16 @@ import tools.jackson.databind.ObjectMapper;
  * {@code studio}. One dedicated connection listens, opened from the {@code spring.datasource}
  * values rather than taken from the pool, because it stays open for as long as the process runs.
  * A {@code studio-bus} thread reads notifications and pings the connection, and reconnects with a
- * backoff when it is lost.
+ * backoff when it is lost. It does nothing else: it parses each notification and hands it to a
+ * {@code studio-bus-dispatch} thread through an unbounded queue, so a slow listener never keeps
+ * PostgreSQL's notification queue from draining, which would stall every replica.
  *
  * <p>{@link #publish} runs {@code pg_notify} through the caller's transaction, so a message is sent
  * only when that transaction commits and never when it rolls back. Every replica, the sender
  * included, receives the message on its listening connection and handles it there, so there is
  * one path for all of them: a {@link BusFrame}, {@link BusEvents} or {@link ReplicaSignal} is
- * published as a Spring event on the {@code studio-bus} thread, where a listener must not block.
+ * published as a Spring event, in arrival order, on the single {@code studio-bus-dispatch} thread.
+ * A listener should still not block, because it delays every message behind it on this replica.
  * After a reconnect a {@link BusResumed} is published first.
  *
  * <p>PostgreSQL caps a notification payload at 8,000 bytes, so a frame beyond {@value #MAX_PAYLOAD}
@@ -55,7 +60,11 @@ public class StudioBus implements SmartLifecycle {
     private final ApplicationEventPublisher events;
     private final Set<String> oversized = ConcurrentHashMap.newKeySet();
 
+    /** Parsed messages, and {@link BusResumed}, from the reader to the dispatcher, in arrival order. */
+    private final BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
+
     private volatile Thread thread;
+    private volatile Thread dispatcher;
     private volatile boolean listening;
     private volatile Instant downSince = Instant.now();
 
@@ -70,6 +79,11 @@ public class StudioBus implements SmartLifecycle {
     /** Whether the listening connection is up: a replica that is not listening misses what others say. */
     public boolean isListening() {
         return listening;
+    }
+
+    /** Messages read from the connection that the dispatcher has not yet handed to the listeners. */
+    int backlog() {
+        return inbox.size();
     }
 
     /** Since when the bus has not been listening; empty while it is. Starts at the process start. */
@@ -123,6 +137,11 @@ public class StudioBus implements SmartLifecycle {
             return;
         }
         downSince = Instant.now();
+        inbox.clear();
+        Thread d = new Thread(this::dispatchLoop, "studio-bus-dispatch");
+        d.setDaemon(true);
+        dispatcher = d;
+        d.start();
         Thread t = new Thread(this::run, "studio-bus");
         t.setDaemon(true);
         thread = t;
@@ -132,13 +151,17 @@ public class StudioBus implements SmartLifecycle {
     @Override
     public void stop() {
         Thread t = thread;
+        Thread d = dispatcher;
         thread = null;
-        if (t != null) {
-            t.interrupt();
-            try {
-                t.join(Duration.ofSeconds(3));
-            } catch (InterruptedException _) {
-                Thread.currentThread().interrupt();
+        dispatcher = null;
+        for (Thread stopping : new Thread[] {t, d}) {
+            if (stopping != null) {
+                stopping.interrupt();
+                try {
+                    stopping.join(Duration.ofSeconds(3));
+                } catch (InterruptedException _) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
         listening = false;
@@ -171,7 +194,7 @@ public class StudioBus implements SmartLifecycle {
                 backoff = Duration.ofMillis(500);
                 if (connectedBefore) {
                     log.info("The studio bus is back");
-                    events.publishEvent(new BusResumed());
+                    inbox.add(new BusResumed());
                 }
                 connectedBefore = true;
                 pump(connection);
@@ -217,15 +240,30 @@ public class StudioBus implements SmartLifecycle {
         }
     }
 
+    /** Reader side: parse and queue, never call a listener. */
     private void dispatch(PGNotification[] notifications) {
         if (notifications == null) {
             return;
         }
         for (PGNotification notification : notifications) {
             try {
-                events.publishEvent(mapper.readValue(notification.getParameter(), BusMessage.class));
+                inbox.add(mapper.readValue(notification.getParameter(), BusMessage.class));
             } catch (JacksonException e) {
                 log.warn("Ignoring an unreadable bus message: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void dispatchLoop() {
+        while (dispatcher == Thread.currentThread()) {
+            Object message;
+            try {
+                message = inbox.take();
+            } catch (InterruptedException _) {
+                return;
+            }
+            try {
+                events.publishEvent(message);
             } catch (RuntimeException e) {
                 log.warn("A listener of a bus message failed", e);
             }

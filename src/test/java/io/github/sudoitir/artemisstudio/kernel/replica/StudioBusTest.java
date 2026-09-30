@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -127,6 +128,39 @@ class StudioBusTest extends PostgresIntegrationTest {
         assertThat(bus.downSince()).isEmpty();
         bus.publish(new ReplicaSignal("settings", "again"));
         await().atMost(Duration.ofSeconds(5)).until(() -> received.contains(new ReplicaSignal("settings", "again")));
+    }
+
+    @Test
+    void aStalledListenerDoesNotKeepTheReaderFromDrainingTheConnection() throws Exception {
+        CountDownLatch stall = new CountDownLatch(1);
+        List<Object> handled = new CopyOnWriteArrayList<>();
+        StudioBus stalled = new StudioBus(jdbc, mapper, datasource, event -> {
+            try {
+                stall.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            handled.add(event);
+        });
+        stalled.start();
+        try {
+            await().atMost(Duration.ofSeconds(10)).until(stalled::isListening);
+
+            for (int i = 0; i < 50; i++) {
+                bus.publish(new ReplicaSignal("settings", "k" + i));
+            }
+
+            await().atMost(Duration.ofSeconds(5)).until(() -> stalled.backlog() >= 49);
+            stall.countDown();
+            await().atMost(Duration.ofSeconds(5)).until(() -> handled.size() == 50);
+            assertThat(handled.stream().map(ReplicaSignal.class::cast).map(ReplicaSignal::key))
+                    .containsExactlyElementsOf(java.util.stream.IntStream.range(0, 50)
+                            .mapToObj(i -> "k" + i)
+                            .toList());
+        } finally {
+            stall.countDown();
+            stalled.stop();
+        }
     }
 
     private List<Object> sleepAndSnapshot() {

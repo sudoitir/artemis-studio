@@ -6,8 +6,12 @@ import io.github.sudoitir.artemisstudio.kernel.replica.BusEvents;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
+import jakarta.annotation.PreDestroy;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -23,6 +27,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class EventStreamPublisher implements BrokerEventPublisher {
 
     private final StudioBus bus;
@@ -31,6 +36,10 @@ public class EventStreamPublisher implements BrokerEventPublisher {
     private final TopicCoalescer coalescer;
     private final BrokerEventService events;
     private final BrokerEventRepository repository;
+
+    /** One thread, so batches load and go out in the order they were announced, off the bus dispatch thread. */
+    private final ExecutorService loader = Executors.newSingleThreadExecutor(
+            Thread.ofPlatform().name("events-load").daemon().factory());
 
     /**
      * Runs inside the flush transaction: the announcement goes out when it commits. The signal topics
@@ -50,9 +59,30 @@ public class EventStreamPublisher implements BrokerEventPublisher {
         }
     }
 
-    /** Announced by some replica: hand each stored row to the local subscribers of its cluster. */
+    /**
+     * Announced by some replica: hand each stored row to the local subscribers of its cluster. The rows
+     * are read on {@code events-load}, not on the bus dispatch thread, which must not wait for the database.
+     */
     @EventListener
     void on(BusEvents announced) {
+        loader.execute(() -> {
+            try {
+                load(announced);
+            } catch (RuntimeException e) {
+                log.warn(
+                        "Could not load {} announced broker events; they are not streamed from this replica",
+                        announced.seqs().size(),
+                        e);
+            }
+        });
+    }
+
+    @PreDestroy
+    void close() {
+        loader.shutdownNow();
+    }
+
+    private void load(BusEvents announced) {
         for (BrokerEventEntity e : repository.findBySeqInOrderBySeqAsc(announced.seqs())) {
             frames.publishEvent(new BusFrame(
                     e.getClusterId(),

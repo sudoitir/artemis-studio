@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.stream.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -14,6 +15,7 @@ import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEven
 import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +76,8 @@ class StreamReplayTest extends PostgresIntegrationTest {
                 .andReturn();
 
         live(clusterId, 14);
-        assertThat(ids(result)).containsExactly(11L, 12L, 13L, 14L);
+        await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(ids(result)).containsExactly(11L, 12L, 13L, 14L));
     }
 
     @Test
@@ -93,7 +96,9 @@ class StreamReplayTest extends PostgresIntegrationTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
-        assertThat(ids(result)).isEmpty();
+        live(clusterId, 11);
+        await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(ids(result)).containsExactly(11L));
     }
 
     @Test
@@ -112,6 +117,8 @@ class StreamReplayTest extends PostgresIntegrationTest {
                 .andReturn();
 
         live(clusterId, 511);
+        await().atMost(Duration.ofSeconds(5))
+                .until(() -> result.getResponse().getContentAsString().contains("id:511"));
         String body = result.getResponse().getContentAsString();
         assertThat(body.lastIndexOf("id:510")).isLessThan(body.indexOf("event:resync"));
         assertThat(body.indexOf("event:resync")).isLessThan(body.indexOf("id:511"));

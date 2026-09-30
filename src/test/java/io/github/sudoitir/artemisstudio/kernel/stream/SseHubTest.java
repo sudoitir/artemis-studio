@@ -2,12 +2,15 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -16,9 +19,13 @@ import io.github.sudoitir.artemisstudio.kernel.replica.BusMessage;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -53,8 +60,8 @@ class SseHubTest {
 
         hub.publish(clusterId, "queues");
 
-        verify(queuesEmitter).send(any(SseEmitter.SseEventBuilder.class));
-        verify(topologyEmitter, never()).send(any(SseEmitter.SseEventBuilder.class));
+        verify(queuesEmitter, timeout(2_000)).send(any(SseEmitter.SseEventBuilder.class));
+        verify(topologyEmitter, after(200).never()).send(any(SseEmitter.SseEventBuilder.class));
     }
 
     @Test
@@ -68,8 +75,8 @@ class SseHubTest {
 
         hub.publish(clusterId, "queues");
 
+        verify(dead, timeout(2_000)).completeWithError(any());
         assertThat(hub.subscriberCount(clusterId)).isZero();
-        verify(dead).completeWithError(any());
     }
 
     @Test
@@ -96,7 +103,7 @@ class SseHubTest {
         hub.heartbeat();
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        verify(emitter).send(frame.capture());
+        verify(emitter, timeout(2_000)).send(frame.capture());
         assertThat(render(frame.getValue())).contains("event:" + SseHub.PING);
     }
 
@@ -120,7 +127,7 @@ class SseHubTest {
 
         hub.heartbeat();
 
-        assertThat(hub.subscriberCount(clusterId)).isZero();
+        await().atMost(Duration.ofSeconds(2)).until(() -> hub.subscriberCount(clusterId) == 0);
     }
 
     @Test
@@ -155,9 +162,9 @@ class SseHubTest {
         hub.on(new BusFrame(clusterId, "events", mapper.readTree("{\"seq\":7}"), "7"));
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        verify(wants).send(frame.capture());
+        verify(wants, timeout(2_000)).send(frame.capture());
         assertThat(render(frame.getValue())).contains("event:events", "id:7");
-        verify(other, never()).send(any(SseEmitter.SseEventBuilder.class));
+        verify(other, after(200).never()).send(any(SseEmitter.SseEventBuilder.class));
     }
 
     @Test
@@ -179,7 +186,7 @@ class SseHubTest {
         hub.on(new BusFrame(clusterId, "events", mapper.readTree("14"), "14"));
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        verify(emitter, times(5)).send(sent.capture());
+        verify(emitter, timeout(2_000).times(5)).send(sent.capture());
         assertThat(sent.getAllValues().stream().map(SseHubTest::render))
                 .satisfiesExactly(
                         a -> assertThat(a).contains("id:11"),
@@ -198,7 +205,7 @@ class SseHubTest {
         hub.on(new BusResumed());
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        verify(emitter).send(frame.capture());
+        verify(emitter, timeout(2_000)).send(frame.capture());
         assertThat(render(frame.getValue())).contains("event:" + SseHub.RESYNC);
     }
 
@@ -212,10 +219,89 @@ class SseHubTest {
 
         InOrder order = inOrder(emitter);
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        order.verify(emitter).send(frame.capture());
-        order.verify(emitter).complete();
+        order.verify(emitter, timeout(2_000)).send(frame.capture());
+        order.verify(emitter, timeout(2_000)).complete();
         assertThat(render(frame.getValue())).contains("event:" + SseHub.RECONNECT);
         assertThat(hub.clientCount()).isZero();
+    }
+
+    @Test
+    void aSubscriberWhoseEmitterBlocksDelaysNobody() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        CountDownLatch stall = new CountDownLatch(1);
+        SseEmitter stalled = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+                    stall.await();
+                    return null;
+                })
+                .when(stalled)
+                .send(any(SseEmitter.SseEventBuilder.class));
+        SseEmitter healthy = mock(SseEmitter.class);
+        hub.register(clusterId, new Subscriber(stalled, Set.of("queues"), null));
+        hub.register(clusterId, new Subscriber(healthy, Set.of("queues"), null));
+
+        long start = System.nanoTime();
+        for (int i = 0; i < 3; i++) {
+            hub.on(new BusFrame(clusterId, "queues", null, null));
+        }
+
+        assertThat(Duration.ofNanos(System.nanoTime() - start)).as("dispatch").isLessThan(Duration.ofSeconds(1));
+        verify(healthy, timeout(2_000).times(3)).send(any(SseEmitter.SseEventBuilder.class));
+        stall.countDown();
+    }
+
+    @Test
+    void aSubscriberThatFallsTooFarBehindLosesItsQueueToOneResync() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        int total = Subscriber.OUTBOUND_CAPACITY + 500;
+        CountDownLatch stall = new CountDownLatch(1);
+        List<String> sent = new CopyOnWriteArrayList<>();
+        SseEmitter emitter = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+                    stall.await();
+                    sent.add(render(invocation.getArgument(0)));
+                    return null;
+                })
+                .when(emitter)
+                .send(any(SseEmitter.SseEventBuilder.class));
+        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
+
+        for (int i = 0; i < total; i++) {
+            hub.on(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
+        }
+        stall.countDown();
+
+        String last = "id:" + (total - 1);
+        await().atMost(Duration.ofSeconds(5))
+                .until(() -> !sent.isEmpty() && sent.getLast().contains(last));
+        assertThat(sent)
+                .as("resync frames")
+                .filteredOn(f -> f.contains("event:resync"))
+                .hasSize(1);
+        assertThat(sent).as("frames written").hasSizeLessThan(total);
+    }
+
+    @Test
+    void framesAreWrittenInTheOrderTheyArrived() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        List<String> sent = new CopyOnWriteArrayList<>();
+        SseEmitter emitter = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+                    sent.add(render(invocation.getArgument(0)));
+                    return null;
+                })
+                .when(emitter)
+                .send(any(SseEmitter.SseEventBuilder.class));
+        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
+
+        for (int i = 0; i < 300; i++) {
+            hub.on(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
+        }
+
+        await().atMost(Duration.ofSeconds(5)).until(() -> sent.size() == 300);
+        for (int i = 0; i < 300; i++) {
+            assertThat(sent.get(i)).contains("id:" + i + "\n");
+        }
     }
 
     private static String render(SseEmitter.SseEventBuilder builder) {

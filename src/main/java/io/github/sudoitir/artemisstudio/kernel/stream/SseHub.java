@@ -31,6 +31,10 @@ import tools.jackson.databind.ObjectMapper;
  * plugin publishing on one replica reaches the clients of all of them. The registry itself is
  * per-instance and does not survive a restart. The bus carries at most about 7 KB a frame: a larger
  * payload arrives as the plain {@code {topic,clusterId,ts}} signal, and the client refetches.
+ *
+ * <p>Delivery never blocks the caller, which is the bus dispatch thread: a frame is queued on each
+ * subscriber, whose own virtual thread writes it ({@link Subscriber}). A client that stops reading
+ * loses its queued frames to one {@link #RESYNC}; it does not delay the others.
  */
 @Component
 @PluginApi
@@ -57,9 +61,18 @@ public class SseHub {
 
     public void register(UUID clusterId, Subscriber subscriber) {
         byCluster.computeIfAbsent(clusterId, k -> ConcurrentHashMap.newKeySet()).add(subscriber);
+        subscriber.startDrain(
+                frame -> sendTo(clusterId, subscriber, frame.topic(), frame.data(), frame.id()),
+                () -> complete(subscriber));
     }
 
+    /** Forget a subscriber whose stream is over, and stop its writer. */
     public void remove(UUID clusterId, Subscriber subscriber) {
+        unregister(clusterId, subscriber);
+        subscriber.stopDrain();
+    }
+
+    private void unregister(UUID clusterId, Subscriber subscriber) {
         Set<Subscriber> set = byCluster.get(clusterId);
         if (set != null) {
             set.remove(subscriber);
@@ -112,8 +125,9 @@ public class SseHub {
         for (Subscriber s : set) {
             if (s.wants(topic)) {
                 synchronized (s) {
-                    if (!s.hold(new Subscriber.Held(topic, payload, eventId))) {
-                        sendTo(clusterId, s, topic, payload, eventId);
+                    Subscriber.Held frame = new Subscriber.Held(topic, payload, eventId);
+                    if (!s.hold(frame)) {
+                        queue(s, frame);
                     }
                 }
             }
@@ -131,8 +145,17 @@ public class SseHub {
                 if (upTo != null && frame.id() != null && Long.parseLong(frame.id()) <= upTo) {
                     continue;
                 }
-                sendTo(clusterId, subscriber, frame.topic(), frame.data(), frame.id());
+                queue(subscriber, frame);
             }
+        }
+    }
+
+    /** Hand a frame to the subscriber's writer; logs, once per subscriber, when it is so far behind that it resyncs. */
+    private void queue(Subscriber s, Subscriber.Held frame) {
+        if (s.enqueue(frame)) {
+            log.warn(
+                    "An SSE client is {} frames behind and stopped reading; its queue was dropped and it is told to resync",
+                    Subscriber.OUTBOUND_CAPACITY);
         }
     }
 
@@ -180,32 +203,38 @@ public class SseHub {
 
     /** One named event, carrying the server's clock, to every subscriber, whatever it asked for. */
     private void toAll(String event) {
-        byCluster.forEach((clusterId, set) -> set.forEach(s -> {
-            try {
-                s.emitter()
-                        .send(SseEmitter.event().name(event).data(Instant.now().toEpochMilli()));
-            } catch (IOException | RuntimeException e) {
-                drop(clusterId, s, e);
-            }
-        }));
+        byCluster
+                .values()
+                .forEach(set -> set.forEach(s -> {
+                    synchronized (s) {
+                        queue(s, new Subscriber.Held(event, Instant.now().toEpochMilli(), null));
+                    }
+                }));
     }
 
-    private void sendTo(UUID clusterId, Subscriber s, String event, Object data, String eventId) {
+    /** Writes one queued frame; a stream that cannot be written is dropped, and false stops its writer. */
+    private boolean sendTo(UUID clusterId, Subscriber s, String event, Object data, String eventId) {
         try {
             SseEmitter.SseEventBuilder builder = SseEmitter.event().name(event).data(data);
             if (eventId != null) {
                 builder.id(eventId);
             }
             s.emitter().send(builder);
+            return true;
         } catch (IOException | RuntimeException e) {
-            drop(clusterId, s, e);
+            remove(clusterId, s);
+            try {
+                s.emitter().completeWithError(e);
+            } catch (RuntimeException _) {
+                // already closed
+            }
+            return false;
         }
     }
 
-    private void drop(UUID clusterId, Subscriber s, Exception cause) {
-        remove(clusterId, s);
+    private void complete(Subscriber s) {
         try {
-            s.emitter().completeWithError(cause);
+            s.emitter().complete();
         } catch (RuntimeException _) {
             // already closed
         }
@@ -256,12 +285,8 @@ public class SseHub {
 
     private void complete(Predicate<Subscriber> ended) {
         byCluster.forEach((clusterId, set) -> set.stream().filter(ended).forEach(s -> {
-            remove(clusterId, s);
-            try {
-                s.emitter().complete();
-            } catch (RuntimeException _) {
-                // already closed
-            }
+            unregister(clusterId, s);
+            s.discard();
         }));
     }
 
@@ -271,13 +296,7 @@ public class SseHub {
      */
     public void closeAll() {
         toAll(RECONNECT);
-        byCluster.forEach((clusterId, set) -> set.forEach(s -> {
-            try {
-                s.emitter().complete();
-            } catch (RuntimeException _) {
-                // already closed
-            }
-        }));
+        byCluster.values().forEach(set -> set.forEach(Subscriber::finish));
         byCluster.clear();
     }
 
