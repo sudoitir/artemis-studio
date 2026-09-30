@@ -44,12 +44,4 @@ public interface SealedStore {
                 + ", 0) = 1 THEN (get_byte(" + sealed + ", 1)::bigint << 24) | (get_byte(" + sealed
                 + ", 2) << 16) | (get_byte(" + sealed + ", 3) << 8) | get_byte(" + sealed + ", 4) END)";
     }
-
-    /** A blob that could not be re-wrapped: names the store and the row, never a value or a key. */
-    final class RewrapException extends RuntimeException {
-
-        public RewrapException(String store, String row, Throwable cause) {
-            super("Store '" + store + "' row " + row + " could not be re-wrapped: " + cause.getMessage(), cause);
-        }
-    }
 }

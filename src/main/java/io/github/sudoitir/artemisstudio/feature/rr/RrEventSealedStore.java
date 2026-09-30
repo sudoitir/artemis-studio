@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
+import io.github.sudoitir.artemisstudio.kernel.security.RewrapException;
 import io.github.sudoitir.artemisstudio.kernel.security.SealedStore;
 import java.util.Base64;
 import java.util.List;

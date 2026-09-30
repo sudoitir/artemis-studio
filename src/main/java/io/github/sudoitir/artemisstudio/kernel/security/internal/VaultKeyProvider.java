@@ -154,7 +154,7 @@ class VaultKeyProvider implements KeyProvider, DisposableBean {
                 new KubernetesAuthentication(
                         KubernetesAuthenticationOptions.builder()
                                 .role(config.kubernetesRole())
-                                .jwtSupplier(() -> jwt())
+                                .jwtSupplier(this::jwt)
                                 .build(),
                         login);
             default ->

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
@@ -225,7 +226,7 @@ public class SecretVault implements SmartInitializingSingleton {
         return clusterId + "|" + kind;
     }
 
-    private byte[] unwrap(byte[] blob) throws Exception {
+    private byte[] unwrap(byte[] blob) throws GeneralSecurityException {
         int version = kekVersion(blob);
         byte[] wrapNonce = Arrays.copyOfRange(blob, WRAP_NONCE_AT, WRAPPED_AT);
         byte[] wrapped = Arrays.copyOfRange(blob, WRAPPED_AT, NONCE_AT);
@@ -272,7 +273,8 @@ public class SecretVault implements SmartInitializingSingleton {
         return nonce;
     }
 
-    private static byte[] gcm(int mode, SecretKey key, byte[] nonce, String aad, byte[] input) throws Exception {
+    private static byte[] gcm(int mode, SecretKey key, byte[] nonce, String aad, byte[] input)
+            throws GeneralSecurityException {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(mode, key, new GCMParameterSpec(TAG_BITS, nonce));
         cipher.updateAAD(aad.getBytes(StandardCharsets.UTF_8));

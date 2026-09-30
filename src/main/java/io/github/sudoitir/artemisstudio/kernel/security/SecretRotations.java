@@ -50,6 +50,8 @@ public class SecretRotations implements SmartInitializingSingleton {
     private static final String COLUMNS =
             "id, from_version, to_version, status, started_by, started_at, finished_at, rewrapped, remaining, error";
 
+    private static final String SELECT = "SELECT " + COLUMNS + " FROM secret_rotation";
+
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final SecretVault vault;
@@ -136,7 +138,7 @@ public class SecretRotations implements SmartInitializingSingleton {
                     jdbc.update("UPDATE secret_key_state SET current_kek_version = ?, updated_at = now()", to);
                 }
             });
-        } catch (DuplicateKeyException e) {
+        } catch (DuplicateKeyException _) {
             throw new ConflictException("rotation-running", "A key rotation is already running.");
         }
         vault.refreshCurrentVersion();
@@ -145,18 +147,12 @@ public class SecretRotations implements SmartInitializingSingleton {
     }
 
     public Optional<Rotation> running() {
-        return jdbc
-                .query("SELECT " + COLUMNS + " FROM secret_rotation WHERE status = 'RUNNING'", SecretRotations::map)
-                .stream()
+        return jdbc.query(SELECT + " WHERE status = 'RUNNING'", SecretRotations::map).stream()
                 .findFirst();
     }
 
     public Optional<Rotation> last() {
-        return jdbc
-                .query(
-                        "SELECT " + COLUMNS + " FROM secret_rotation ORDER BY started_at DESC LIMIT 1",
-                        SecretRotations::map)
-                .stream()
+        return jdbc.query(SELECT + " ORDER BY started_at DESC LIMIT 1", SecretRotations::map).stream()
                 .findFirst();
     }
 
@@ -171,7 +167,7 @@ public class SecretRotations implements SmartInitializingSingleton {
             keyringLoadedAt = now;
             try {
                 keyring = vault.reloadKeyring();
-            } catch (RuntimeException e) {
+            } catch (RuntimeException _) {
                 // the provider is unreachable now; the keys loaded at start are still shown
             }
         }
@@ -209,7 +205,7 @@ public class SecretRotations implements SmartInitializingSingleton {
                     jdbc.update("UPDATE secret_rotation SET rewrapped = ? WHERE id = ?", rewrapped, rotation.id());
                 } while (after != null);
             }
-        } catch (SealedStore.RewrapException e) {
+        } catch (RewrapException e) {
             jdbc.update(
                     "UPDATE secret_rotation SET status = 'FAILED', finished_at = now(), error = ? WHERE id = ?",
                     e.getMessage(),
@@ -263,8 +259,7 @@ public class SecretRotations implements SmartInitializingSingleton {
     }
 
     private Rotation byId(UUID id) {
-        return jdbc.queryForObject(
-                "SELECT " + COLUMNS + " FROM secret_rotation WHERE id = ?", SecretRotations::map, id);
+        return jdbc.queryForObject(SELECT + " WHERE id = ?", SecretRotations::map, id);
     }
 
     private static Rotation map(ResultSet rs, int row) throws SQLException {
