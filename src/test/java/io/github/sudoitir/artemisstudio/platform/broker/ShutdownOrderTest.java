@@ -24,6 +24,7 @@ class ShutdownOrderTest extends PostgresIntegrationTest {
 
         assertThat(phases)
                 .containsEntry("stream", ShutdownPhases.STREAM)
+                .containsEntry("runs", ShutdownPhases.RUNS)
                 .containsEntry("jobs", ShutdownPhases.JOBS)
                 .containsEntry("broker-events", ShutdownPhases.BUFFERS)
                 .containsEntry("broker-calls", ShutdownPhases.BROKER_CALLS)

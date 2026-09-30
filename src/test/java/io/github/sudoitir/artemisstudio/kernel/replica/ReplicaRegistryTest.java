@@ -138,7 +138,9 @@ class ReplicaRegistryTest extends PostgresIntegrationTest {
     @Test
     void theHeartbeatThreadKeepsTheReplicaAlive() throws Exception {
         own = new ReplicaRegistry(
-                jdbc, new HaProperties(Duration.ofMillis(200), Duration.ofSeconds(1), Duration.ZERO), builds);
+                jdbc,
+                new HaProperties(Duration.ofMillis(200), Duration.ofSeconds(1), Duration.ZERO, Duration.ZERO),
+                builds);
         own.start();
         Thread.sleep(1500);
 

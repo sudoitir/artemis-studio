@@ -34,7 +34,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 class ClusterOwnershipTest extends PostgresIntegrationTest {
 
     private static final HaProperties TTL_15S =
-            new HaProperties(Duration.ofSeconds(5), Duration.ofSeconds(15), Duration.ZERO);
+            new HaProperties(Duration.ofSeconds(5), Duration.ofSeconds(15), Duration.ZERO, Duration.ZERO);
 
     @Autowired
     JdbcTemplate jdbc;
@@ -230,7 +230,7 @@ class ClusterOwnershipTest extends PostgresIntegrationTest {
     @Test
     void aReplicaThatCannotRenewStopsOwningBeforeItsLeaseExpires() throws InterruptedException {
         register(3);
-        Node a = node(new HaProperties(Duration.ofSeconds(1), Duration.ofMillis(1500), Duration.ZERO));
+        Node a = node(new HaProperties(Duration.ofSeconds(1), Duration.ofMillis(1500), Duration.ZERO, Duration.ZERO));
         a.ownership().tick();
         assertThat(a.ownership().owns(clusters.getFirst())).isTrue();
 

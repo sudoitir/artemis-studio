@@ -412,6 +412,19 @@ class TransferRunnerTest {
     }
 
     @Test
+    void aStopFromStudiosOwnShutdownEndsTheSegmentAsInterrupted() throws Exception {
+        copyOfAll(0L);
+        when(background.stopRequested(RUN)).thenReturn(true);
+        when(background.stoppedForShutdown(RUN)).thenReturn(true);
+
+        TransferRunEntity run = execute();
+
+        assertThat(run.getState()).isEqualTo(TransferState.INTERRUPTED);
+        assertThat(run.getState().resumable()).isTrue();
+        assertThat(run.getLastError()).isEqualTo(TransferRecovery.INTERRUPTED);
+    }
+
+    @Test
     void aWithdrawnSourcePermissionStopsTheRunAndNamesIt() {
         TransferRunEntity run = copyOfAll(0L);
         when(handoff.stillHolds(any(), eq(SRC_CLUSTER), eq(run.getMode().sourcePermission())))

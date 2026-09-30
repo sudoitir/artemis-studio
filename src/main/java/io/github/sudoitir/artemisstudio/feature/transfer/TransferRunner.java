@@ -95,6 +95,11 @@ class TransferRunner {
         return background.requestStop(runId);
     }
 
+    /** Tell every replica to stop the run, for one that executes somewhere else. */
+    void signalStop(UUID runId) {
+        background.signalStop(runId);
+    }
+
     /** How a segment ended. {@code snippet} is the {@code broker.xml} that would have avoided a failure. */
     private record End(TransferState state, String error, String snippet) {
         static End of(TransferState state) {
@@ -790,7 +795,11 @@ class TransferRunner {
     }
 
     /** Always reached: the run gets its state and the segment's audit events their outcome, whatever happened. */
-    private void finish(Segment s, End end) {
+    private void finish(Segment s, End ended) {
+        // Studio's own shutdown stopped it: interrupted, so it is offered for resume like a crash.
+        End end = ended.state() == TransferState.STOPPED && background.stoppedForShutdown(s.id())
+                ? new End(TransferState.INTERRUPTED, TransferRecovery.INTERRUPTED, ended.snippet())
+                : ended;
         TransferRunEntity run = s.run;
         try {
             run.finish(end.state(), end.error(), end.snippet(), Instant.now());

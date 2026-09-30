@@ -50,8 +50,8 @@ public class TransferController {
     }
 
     @PostMapping("/runs/{runId}/stop")
-    public TransferRunView stop(@PathVariable UUID clusterId, @PathVariable UUID runId) {
-        return transfers.stop(clusterId, runId);
+    public ResponseEntity<TransferRunView> stop(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return ResponseEntity.accepted().body(transfers.stop(clusterId, runId));
     }
 
     @PostMapping("/runs/{runId}/resume")

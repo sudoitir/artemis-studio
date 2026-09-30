@@ -316,6 +316,17 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void acceptsTheStopOfARunThatExecutesOnAnotherReplica() throws Exception {
+        TransferRunEntity run = preview(TransferMode.COPY, "elsewhere");
+        state(run, TransferState.RUNNING);
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), run.getId());
+
+        mvc.perform(post("/api/v1/clusters/{c}/transfers/runs/{r}/stop", source, run.getId()))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.state").value("RUNNING"));
+    }
+
+    @Test
     void refusesToResumeAPreview() throws Exception {
         mvc.perform(post(
                         "/api/v1/clusters/{c}/transfers/runs/{r}/resume",

@@ -16,6 +16,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessageService;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
@@ -54,6 +55,9 @@ class BulkRunTest extends BulkTestSupport {
 
     @Autowired
     ReplicaRegistry replicas;
+
+    @Autowired
+    BackgroundRuns background;
 
     private final List<String> seen = new CopyOnWriteArrayList<>();
 
@@ -355,5 +359,87 @@ class BulkRunTest extends BulkTestSupport {
         jdbc.update("UPDATE bulk_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), id);
         recovery.recover();
         assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
+    }
+
+    /** Waits for what another thread has yet to do, such as a signal travelling through the database. */
+    private static void await(java.util.function.BooleanSupplier condition) {
+        Instant deadline = Instant.now().plus(Duration.ofSeconds(10));
+        while (!condition.getAsBoolean()) {
+            if (Instant.now().isAfter(deadline)) {
+                throw new AssertionError("The condition was not met in time");
+            }
+            java.util.concurrent.locks.LockSupport.parkNanos(10_000_000);
+        }
+    }
+
+    @Test
+    void aStopSignalFromAnotherReplicaReachesTheExecutingRun() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                // What a stop request on a replica that is not executing the run does: tell every replica.
+                background.signalStop(runId[0]);
+                await(() -> background.stopRequested(runId[0]));
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+
+        BulkRunDetailView run = execute(preview, false);
+
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.STOPPED);
+    }
+
+    @Test
+    void stoppingARunThatExecutesElsewhereIsAcceptedAndOneThatIsNotRunningIsRefused() {
+        queue(nodeA, "orders.1", 1, 0, false);
+        UUID running = preview(BulkOperation.PAUSE, "orders").run().id();
+        jdbc.update("UPDATE bulk_run SET status = 'RUNNING', replica_id = ? WHERE id = ?", UUID.randomUUID(), running);
+        UUID previewed = preview(BulkOperation.RESUME, "orders").run().id();
+
+        assertThat(bulk.stop(clusterId, running).status()).isEqualTo(BulkRunStatus.RUNNING);
+        assertThatThrownBy(() -> bulk.stop(clusterId, previewed)).isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void shutdownStopsARunThatOutlastsTheGraceAndRecordsItInterruptedWithItsProgress() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                await(() -> background.stoppedForShutdown(runId[0]));
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+        bulk.execute(clusterId, runId[0], new BulkExecuteRequest(preview.run().planHash(), false, false));
+        await(() -> seen.contains("orders.2"));
+
+        background.stopForShutdown(Duration.ZERO);
+
+        BulkRunDetailView run = awaitFinished(runId[0]);
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
+        assertThat(run.run().succeeded()).isEqualTo(2);
+        assertThat(run.run().error()).contains("Studio shut down");
+        assertThat(auditOutcome(run.run().auditEventId())).isEqualTo("FAILURE");
     }
 }

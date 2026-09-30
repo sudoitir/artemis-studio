@@ -72,6 +72,7 @@ public abstract class PostgresIntegrationTest {
         registry.add("artemis-studio.secret-key", () -> SECRET_KEY);
         // A cached context closes with the JVM; it has no load balancer to wait for.
         registry.add("artemis-studio.ha.drain-delay", () -> "0s");
+        registry.add("artemis-studio.ha.run-grace", () -> "0s");
         // For the same reason as the scrape tiers: the plugin-messaging pass would visit every
         // cluster the shared database has accumulated, from a scheduler thread, and call a mocked
         // BrokerConnections while a test is stubbing it. Its startup sweep still runs, before any

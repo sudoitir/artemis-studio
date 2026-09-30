@@ -484,8 +484,12 @@ public class TransferService {
         TransferRunEntity run = load(clusterId, runId);
         requireRunPermissions(run);
         if (!runner.requestStop(runId)) {
-            throw new ConflictException(
-                    "transfer-run-not-running", "This transfer is not running, so there is nothing to stop.");
+            if (!run.getState().active()) {
+                throw new ConflictException(
+                        "transfer-run-not-running", "This transfer is not running, so there is nothing to stop.");
+            }
+            // Executing on another replica (ADR-0148): every replica hears it, the executing one acts.
+            runner.signalStop(runId);
         }
         Operator operator = handoff.capture();
         AuditEvent event = childOf(

@@ -51,8 +51,8 @@ clusters each one owns. Broker-node figures on that screen are as seen from the 
 | A new replica takes its share of clusters | within 10 s of being ready |
 | A setting changed on one replica is used by all | within 2 s |
 
-The heartbeat, lease lifetime and drain delay are `artemis-studio.ha.heartbeat` (5 s),
-`artemis-studio.ha.ttl` (15 s) and `artemis-studio.ha.drain-delay` (5 s).
+The heartbeat, lease lifetime, drain delay and run grace are `artemis-studio.ha.heartbeat` (5 s),
+`artemis-studio.ha.ttl` (15 s), `artemis-studio.ha.drain-delay` (5 s) and `artemis-studio.ha.run-grace` (20 s).
 
 ## Probes
 

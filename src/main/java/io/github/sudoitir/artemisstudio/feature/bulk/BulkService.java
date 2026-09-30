@@ -313,13 +313,17 @@ public class BulkService {
         return params;
     }
 
-    /** Ask a running run to stop: the queue in flight finishes, the rest are cancelled. */
+    /** Ask a running run to stop, on whichever replica executes it: the queue in flight finishes, the rest are cancelled. */
     public BulkRunView stop(UUID clusterId, UUID runId) {
         BulkRunEntity run = load(clusterId, runId);
         clusterAccess.requireCluster(clusterId, run.getOperation().permission());
         if (!runner.requestStop(runId)) {
-            throw new ConflictException(
-                    "bulk-run-not-running", "This bulk run is not executing, so there is nothing to stop.");
+            if (run.getStatus() != BulkRunStatus.RUNNING) {
+                throw new ConflictException(
+                        "bulk-run-not-running", "This bulk run is not executing, so there is nothing to stop.");
+            }
+            // Executing on another replica (ADR-0148): every replica hears it, the executing one acts.
+            runner.signalStop(runId);
         }
         return view(run);
     }

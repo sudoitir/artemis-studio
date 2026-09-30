@@ -209,6 +209,9 @@ artemis-studio:
     # A stopping replica reports not ready and keeps serving this long before it closes streams,
     # so the load balancer has stopped routing to it. Longer than its detection time.
     drain-delay: 5s
+    # A stopping replica waits this long for its bulk runs and transfers to finish, then stops them
+    # and records them as interrupted with their progress.
+    run-grace: 20s
   scrape:
     # Tiered polling cadence (ADR-0015).
     tier-a-interval: 5s      # HA state + topology + split-brain corroboration

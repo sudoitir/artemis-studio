@@ -45,6 +45,9 @@ class BulkRunner {
 
     static final String TOPIC = "bulk";
 
+    static final String SHUTDOWN = "Studio shut down while this run was executing, so the rest of it was not acted on."
+            + " What was done is recorded. It was not resumed.";
+
     private final BulkRunRepository runs;
     private final BulkRunItemRepository items;
     private final QueueLifecycleService queues;
@@ -62,6 +65,11 @@ class BulkRunner {
     /** False when the run is not executing in this process. */
     boolean requestStop(UUID runId) {
         return background.requestStop(runId);
+    }
+
+    /** Tell every replica to stop the run, for one that executes somewhere else. */
+    void signalStop(UUID runId) {
+        background.signalStop(runId);
     }
 
     private void execute(BulkRunEntity run, AuditEvent event, Operator operator) {
@@ -95,7 +103,7 @@ class BulkRunner {
             log.error("Bulk run {} stopped unexpectedly", run.getId(), e);
             error = "The run stopped unexpectedly: " + e.getMessage();
         } finally {
-            finish(run, rows, event, stop.getAsBoolean(), error);
+            finish(run, rows, event, stop.getAsBoolean(), background.stoppedForShutdown(run.getId()), error);
         }
     }
 
@@ -222,9 +230,10 @@ class BulkRunner {
                 null);
     }
 
-    private static BulkRunStatus terminalStatus(List<BulkRunItemEntity> rows, boolean stopped, long succeeded) {
+    private static BulkRunStatus terminalStatus(
+            List<BulkRunItemEntity> rows, boolean stopped, boolean shutdown, long succeeded) {
         if (stopped && rows.stream().anyMatch(i -> i.getStatus() == BulkItemStatus.CANCELLED)) {
-            return BulkRunStatus.STOPPED;
+            return shutdown ? BulkRunStatus.INTERRUPTED : BulkRunStatus.STOPPED;
         }
         if (succeeded == rows.size()) {
             return BulkRunStatus.SUCCEEDED;
@@ -234,7 +243,12 @@ class BulkRunner {
 
     /** Always reached: the run gets a terminal status and its audit event an outcome, whatever happened. */
     private void finish(
-            BulkRunEntity run, List<BulkRunItemEntity> rows, AuditEvent event, boolean stopped, String error) {
+            BulkRunEntity run,
+            List<BulkRunItemEntity> rows,
+            AuditEvent event,
+            boolean stopped,
+            boolean shutdown,
+            String error) {
         Instant now = Instant.now();
         for (BulkRunItemEntity item : rows) {
             // Only after an unexpected failure can an item be left unfinished.
@@ -249,7 +263,10 @@ class BulkRunner {
             }
         }
         long succeeded = rows.stream().filter(i -> i.getStatus().succeeded()).count();
-        BulkRunStatus status = terminalStatus(rows, stopped, succeeded);
+        BulkRunStatus status = terminalStatus(rows, stopped, shutdown, succeeded);
+        if (status == BulkRunStatus.INTERRUPTED) {
+            error = SHUTDOWN;
+        }
         try {
             run.finish(status, error, now);
             progress(run, rows, status);

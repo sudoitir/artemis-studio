@@ -46,8 +46,8 @@ public class BulkController {
     }
 
     @PostMapping("/runs/{runId}/stop")
-    public BulkRunView stop(@PathVariable UUID clusterId, @PathVariable UUID runId) {
-        return bulk.stop(clusterId, runId);
+    public ResponseEntity<BulkRunView> stop(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return ResponseEntity.accepted().body(bulk.stop(clusterId, runId));
     }
 
     @GetMapping("/runs")
