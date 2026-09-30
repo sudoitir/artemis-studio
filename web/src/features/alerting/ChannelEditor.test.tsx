@@ -193,7 +193,7 @@ describe('ChannelEditor: adding', () => {
     await chooseKind(user, 'Email (SMTP)');
     const d = await dialog();
 
-    await user.type(d.getByLabelText(/^Name/), 'mail');
+    await fill(user, d.getByLabelText(/^Name/), 'mail');
     await user.click(d.getByRole('button', { name: 'Add channel' }));
     expect(await d.findByText('The SMTP server is required.')).toBeInTheDocument();
     expect(d.getByText('A valid sender address.')).toBeInTheDocument();
@@ -202,7 +202,7 @@ describe('ChannelEditor: adding', () => {
 
     const port = d.getByLabelText(/^Port/);
     await user.clear(port);
-    await user.type(port, '99999');
+    await fill(user, port, '99999');
     await user.tab();
     expect(await d.findByText('A port between 1 and 65535.')).toBeInTheDocument();
     await user.type(port, '{Backspace}');

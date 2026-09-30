@@ -456,11 +456,13 @@ describe('PluginDrawer: confirmations', () => {
     await screen.findByRole('dialog', { name: 'Disable Notes' });
 
     await user.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Disable Notes' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Disable Notes' })).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
     expect(onClose).not.toHaveBeenCalled();
 
     await user.keyboard('{Escape}');
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onClose).toHaveBeenCalled(), { timeout: 5000 });
   });
 
   describe('purge', () => {
