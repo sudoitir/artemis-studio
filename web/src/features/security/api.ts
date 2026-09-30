@@ -78,6 +78,18 @@ export function useUnlockUser() {
   });
 }
 
+/**
+ * Remove a user's second factors: the authenticator app, passkeys, recovery codes and trusted devices go, their API
+ * keys are revoked, and they are signed out everywhere. Needs `user:admin` and a fresh sign-in; refused for oneself.
+ */
+export function useResetSecondFactors() {
+  const qc = useQueryClient();
+  return useMutation<UserView, ApiError, string>({
+    mutationFn: (userId) => request<UserView>(`/users/${userId}/second-factors`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users }),
+  });
+}
+
 export function useAddGrant() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, { userId: string; body: GrantRequest }>({

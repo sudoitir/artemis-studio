@@ -10,6 +10,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -28,7 +29,10 @@ import {
 import { diffRoles } from './diffRoles.ts';
 import { PermissionPicker } from './PermissionPicker.tsx';
 
-/** Custom role CRUD; built-in roles (ADMIN/OPERATOR/VIEWER) are read-only (authorization spec). */
+/**
+ * Role CRUD (authorization spec). A built-in role (ADMIN/OPERATOR/VIEWER) keeps its name and permissions and is shown
+ * as facts; the one thing an administrator can change on it is whether it requires two-step verification.
+ */
 export function RolesPanel() {
   const roles = useRoles();
   const catalogue = usePermissionsCatalogue();
@@ -39,18 +43,25 @@ export function RolesPanel() {
   const [editing, setEditing] = useState<RoleView | 'new' | null>(null);
   const [name, setName] = useState('');
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [requiresMfa, setRequiresMfa] = useState(false);
 
   function openNew() {
     setEditing('new');
     setName('');
     setPermissions([]);
+    setRequiresMfa(false);
   }
 
   function openEdit(role: RoleView) {
     setEditing(role);
     setName(role.name);
     setPermissions(role.permissions);
+    setRequiresMfa(role.requiresMfa);
   }
+
+  const editedRole = editing !== 'new' && editing !== null ? editing : null;
+  // Saving ends the sessions of the role's members when what they signed in with has changed under them.
+  const endsSessions = editedRole !== null && (!editedRole.builtin || requiresMfa !== editedRole.requiresMfa);
 
   const [comparing, setComparing] = useState(false);
 
@@ -75,6 +86,7 @@ export function RolesPanel() {
           <Table.Tr>
             <Table.Th>Name</Table.Th>
             <Table.Th>Permissions</Table.Th>
+            <Table.Th>Two-step verification</Table.Th>
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
@@ -97,11 +109,16 @@ export function RolesPanel() {
                 </Text>
               </Table.Td>
               <Table.Td>
-                {r.builtin ? null : (
-                  <Group gap={4}>
-                    <ActionIcon variant="subtle" onClick={() => openEdit(r)} aria-label={`Edit ${r.name}`}>
-                      <IconPencil size={16} />
-                    </ActionIcon>
+                <Text size="sm" c={r.requiresMfa ? undefined : 'dimmed'}>
+                  {r.requiresMfa ? 'Required' : 'Not required'}
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Group gap={4}>
+                  <ActionIcon variant="subtle" onClick={() => openEdit(r)} aria-label={`Edit ${r.name}`}>
+                    <IconPencil size={16} />
+                  </ActionIcon>
+                  {r.builtin ? null : (
                     <ActionIcon
                       variant="subtle"
                       color="red"
@@ -114,8 +131,8 @@ export function RolesPanel() {
                     >
                       <IconTrash size={16} />
                     </ActionIcon>
-                  </Group>
-                )}
+                  )}
+                </Group>
               </Table.Td>
             </Table.Tr>
           ))}
@@ -129,19 +146,51 @@ export function RolesPanel() {
         size="lg"
       >
         <Stack gap="sm">
-          <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
-          {catalogueNotice(catalogue) ?? (
-            <PermissionPicker catalogue={catalogue.data ?? []} value={permissions} onChange={setPermissions} />
+          {editedRole?.builtin ? (
+            <>
+              <Stack gap={2}>
+                <Text size="sm" fw={500}>
+                  Name
+                </Text>
+                <Text size="sm">{editedRole.name}</Text>
+              </Stack>
+              <Stack gap={4}>
+                <Text size="sm" fw={500}>
+                  Permissions
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Built-in roles keep their name and permissions; only the setting below can change.
+                </Text>
+                <Text size="xs" ff="monospace">
+                  {editedRole.permissions.join(', ')}
+                </Text>
+              </Stack>
+            </>
+          ) : (
+            <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
           )}
+          {editedRole?.builtin
+            ? null
+            : (catalogueNotice(catalogue) ?? (
+                <PermissionPicker catalogue={catalogue.data ?? []} value={permissions} onChange={setPermissions} />
+              ))}
+          <Stack gap={4}>
+            <Switch
+              label="Require two-step verification"
+              description="Applies to local accounts. Single sign-on users rely on their identity provider."
+              checked={requiresMfa}
+              onChange={(e) => setRequiresMfa(e.currentTarget.checked)}
+            />
+            {endsSessions ? (
+              <Text size="xs" c="dimmed">
+                Saving signs out everyone who holds this role.
+              </Text>
+            ) : null}
+          </Stack>
           <Button
             loading={create.isPending || update.isPending}
             onClick={() => {
-              // Keeps the role's setting; the switch for it comes with the admin screen for two-step verification.
-              const body = {
-                name,
-                permissions,
-                requiresMfa: editing !== 'new' && editing !== null && editing.requiresMfa,
-              };
+              const body = { name, permissions, requiresMfa };
               if (editing === 'new') {
                 create.mutate(body, {
                   onSuccess: () => setEditing(null),

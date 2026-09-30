@@ -31,10 +31,10 @@
 - [x] 6.8 Factor management (step-up for add/replace/remove, last-factor guard), admin reset, break-glass recovery; audit events
 
 ## 7. Frontend (E)
-- [ ] 7.1 Move step-up to `kernel/auth`; `SecondFactorForm`; `LoginView` second step; activity header in `request.ts`
-- [ ] 7.2 Enrolment route with QR code, passkey, recovery-codes dialog
-- [ ] 7.3 Account sections: two-step verification, sessions
-- [ ] 7.4 Admin: unlock, sessions drawer, reset two-step verification, role MFA switch; password-policy errors
+- [x] 7.1 Move step-up to `kernel/auth`; `SecondFactorForm`; `LoginView` second step; activity header in `request.ts`
+- [x] 7.2 Enrolment route with QR code, passkey, recovery-codes dialog
+- [x] 7.3 Account sections: two-step verification, sessions
+- [x] 7.4 Admin: unlock, sessions drawer, reset two-step verification, role MFA switch; password-policy errors
 
 ## 8. Scripts (F)
 - [ ] 8.1 Demo seed enrols TOTP; `signIn` computes the code from `ADMIN_TOTP_SECRET`
