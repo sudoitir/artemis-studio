@@ -89,6 +89,20 @@
         <!-- The frontend build is opt-in so `mvn test` stays fast in day-to-day work.
              CI and the Docker image activate the `frontend` profile. -->
         <skip.frontend>true</skip.frontend>
+
+        <!-- SonarQube Cloud analysis (ADR-0132), run by CI's `sonar` job. -->
+        <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
+        <sonar.organization>sudoitir</sonar.organization>
+        <sonar.projectKey>sudoitir_artemis-studio</sonar.projectKey>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.sources>src/main,web/src</sonar.sources>
+        <sonar.tests>src/test,web/src</sonar.tests>
+        <sonar.test.inclusions>src/test/**,web/src/**/*.test.ts,web/src/**/*.test.tsx,web/src/test/**</sonar.test.inclusions>
+        <sonar.exclusions>web/src/test/**,web/src/kernel/api/schema.d.ts</sonar.exclusions>
+        <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.javascript.lcov.reportPaths>web/coverage/lcov.info</sonar.javascript.lcov.reportPaths>
+        <!-- The changesets are PostgreSQL; the PL/SQL analyser is Oracle's and misreads them. -->
+        <sonar.plsql.file.suffixes>.plsql</sonar.plsql.file.suffixes>
     </properties>
 
     <dependencyManagement>
@@ -309,6 +323,15 @@
 
     <build>
         <finalName>artemis-studio</finalName>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>${sonar-maven-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

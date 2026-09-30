@@ -13,12 +13,12 @@ export default defineConfig({
     css: false,
     include: ['src/**/*.test.{ts,tsx}'],
     // `npm run test:coverage` (ADR-0128): V8 coverage of the app's own sources, reported as text,
-    // HTML and a JSON summary that CI puts in the job summary. Informational, no threshold.
+    // HTML, a JSON summary that CI puts in the job summary, and lcov for SonarQube Cloud. No threshold.
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/kernel/api/schema.d.ts', 'src/**/*.d.ts'],
-      reporter: ['text-summary', 'html', 'json-summary'],
+      reporter: ['text-summary', 'html', 'json-summary', 'lcov'],
       reportsDirectory: 'coverage',
     },
   },

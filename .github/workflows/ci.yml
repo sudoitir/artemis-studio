@@ -388,7 +388,8 @@ jobs:
           $CLI merge "$RUNNER_TEMP"/jacoco/*/jacoco.exec --destfile target/jacoco.exec
           mkdir -p target/site/jacoco
           $CLI report target/jacoco.exec --classfiles target/classes --sourcefiles src/main/java \
-            --html target/site/jacoco --csv target/site/jacoco/jacoco.csv --name "Artemis Studio"
+            --html target/site/jacoco --csv target/site/jacoco/jacoco.csv --xml target/site/jacoco/jacoco.xml \
+            --name "Artemis Studio"
       - name: Coverage summary
         run: |
           python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
@@ -407,9 +408,83 @@ jobs:
           path: target/site/jacoco
           retention-days: 14
 
+  # SonarQube Cloud (ADR-0132): a PR is analysed with the coverage its own backend and frontend jobs
+  # just measured, and its quality gate is required through `ci-ok`. Main does not re-test
+  # (ADR-0126), so its analysis reuses the coverage of the PR run that the merge commit came from,
+  # which keeps the main dashboard and the README badges current. Fork PRs get no token and skip.
+  sonar:
+    needs: [changes, coverage, frontend]
+    if: >-
+      !cancelled() && (
+        (github.event_name == 'push'
+          && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'))
+        || (github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && needs.coverage.result == 'success' && needs.frontend.result == 'success'))
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # blame and new-code detection need the history
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Coverage of this PR
+        if: github.event_name == 'pull_request'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-coverage
+          path: target/site/jacoco
+      - name: Frontend coverage of this PR
+        if: github.event_name == 'pull_request'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frontend-coverage
+          path: web/coverage
+      - name: Coverage of the PR this merge came from
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" --jq '.[0].number')
+          head=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --event pull_request \
+            --commit "$head" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          echo "Coverage from PR #$pr, run $run"
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" -n backend-coverage -D target/site/jacoco
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" -n frontend-coverage -D web/coverage
+      - run: npm ci
+        working-directory: web
+      - name: Analyse
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >-
+          ./mvnw -B -DskipTests -Dspotless.apply.skip test-compile sonar:sonar
+          -Dsonar.qualitygate.wait=true
+
   ci-ok:
     if: always()
-    needs: [changes, backend, coverage, frontend, plugin-template, image, site, osv, actionlint]
+    needs: [changes, backend, coverage, frontend, sonar, plugin-template, image, site, osv, actionlint]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:

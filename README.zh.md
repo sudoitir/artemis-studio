@@ -17,6 +17,11 @@
 [![Latest release](https://img.shields.io/github/v/release/sudoitir/artemis-studio?include_prereleases&sort=semver&label=release)](https://github.com/sudoitir/artemis-studio/releases)
 [![Docker pulls](https://img.shields.io/docker/pulls/sudoit1/artemis-studio?logo=docker&label=pulls)](https://hub.docker.com/r/sudoit1/artemis-studio)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sudoitir/artemis-studio/badge)](https://scorecard.dev/viewer/?uri=github.com/sudoitir/artemis-studio)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_artemis-studio&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sudoitir_artemis-studio)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_artemis-studio&metric=coverage)](https://sonarcloud.io/summary/new_code?id=sudoitir_artemis-studio)
+[![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_artemis-studio&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=sudoitir_artemis-studio)
+[![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_artemis-studio&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=sudoitir_artemis-studio)
+[![Security](https://sonarcloud.io/api/project_badges/measure?project=sudoitir_artemis-studio&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=sudoitir_artemis-studio)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
 
 [文档](https://sudoitir.github.io/artemis-studio/zh/guide/) ·
