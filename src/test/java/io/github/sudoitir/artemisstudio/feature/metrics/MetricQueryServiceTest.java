@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -65,11 +66,9 @@ class MetricQueryServiceTest {
 
     @Test
     void counterResetWithinABucketNeverProducesANegativeRate() {
-        // messagesAdded goes 100 -> 150 -> 10 (a broker restart) within one bucket;
-        // rateSeries itself is exercised by MetricSamples's own SQL, but the
-        // clamp lives in that SQL's GREATEST(...,0) — here we assert the service
-        // passes the repository's already-clamped value straight through, never
-        // re-introducing a negative number of its own.
+        // A broker restart resets the messagesAdded counter within one bucket. The clamp lives in
+        // the repository's own SQL, so the service must pass the already-clamped value straight
+        // through and never introduce a negative number of its own.
         Instant bucket = Instant.parse("2026-01-01T00:00:00Z");
         when(repository.rateSeries(eq(clusterId), eq("messagesAdded"), any(), any(), any(), any()))
                 .thenReturn(List.of(new Bucket(bucket, 0.0, null)));
@@ -86,6 +85,7 @@ class MetricQueryServiceTest {
                         null));
 
         assertThat(response.series().get(0).points())
+                .isNotEmpty()
                 .allSatisfy(p -> assertThat(p.value()).isNotNegative());
     }
 
@@ -182,16 +182,14 @@ class MetricQueryServiceTest {
     @Test
     void aSplitIsRefusedForTheClusterScopeAndForAnyOtherDimension() {
         Instant to = Instant.now();
-        assertThatThrownBy(() -> service.query(
-                        clusterId,
-                        new MetricQuery(
-                                List.of("messageCount"), "CLUSTER", null, to.minusSeconds(60), to, null, "NODE")))
+        MetricQuery clusterSplit =
+                new MetricQuery(List.of("messageCount"), "CLUSTER", null, to.minusSeconds(60), to, null, "NODE");
+        assertThatThrownBy(() -> service.query(clusterId, clusterSplit))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("needs one queue");
-        assertThatThrownBy(() -> service.query(
-                        clusterId,
-                        new MetricQuery(
-                                List.of("messageCount"), "QUEUE", "orders", to.minusSeconds(60), to, null, "ADDRESS")))
+        MetricQuery addressSplit =
+                new MetricQuery(List.of("messageCount"), "QUEUE", "orders", to.minusSeconds(60), to, null, "ADDRESS");
+        assertThatThrownBy(() -> service.query(clusterId, addressSplit))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("splitBy must be NODE");
     }
@@ -205,13 +203,13 @@ class MetricQueryServiceTest {
     @Test
     void aPluginSeriesNeedsTheMetricsDeclaredPermission() {
         when(pluginMetrics.declared("acme-notes:edits")).thenReturn(Optional.of(editsMetric()));
-        org.mockito.Mockito.doThrow(new NotFoundException("cluster", clusterId))
+        doThrow(new NotFoundException("cluster", clusterId))
                 .when(clusterAccess)
                 .requireCluster(clusterId, "acme-notes:stats");
         Instant to = Instant.now();
 
-        assertThatThrownBy(() -> service.pluginQuery(
-                        clusterId, "acme-notes:edits", "daily", to.minus(Duration.ofHours(1)), to, null))
+        Instant from = to.minus(Duration.ofHours(1));
+        assertThatThrownBy(() -> service.pluginQuery(clusterId, "acme-notes:edits", "daily", from, to, null))
                 .isInstanceOf(NotFoundException.class);
     }
 

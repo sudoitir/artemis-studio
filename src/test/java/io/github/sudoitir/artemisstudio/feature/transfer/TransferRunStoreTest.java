@@ -156,8 +156,9 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
         TransferRunEntity elsewhere = preview(TransferMode.MOVE, "payments");
         runs.transition(first.getId(), Set.of(TransferState.PREVIEWED), TransferState.WAITING_FOR_CAPACITY);
 
-        assertThatThrownBy(
-                        () -> runs.transition(second.getId(), Set.of(TransferState.PREVIEWED), TransferState.RUNNING))
+        UUID secondId = second.getId();
+        Set<TransferState> previewed = Set.of(TransferState.PREVIEWED);
+        assertThatThrownBy(() -> runs.transition(secondId, previewed, TransferState.RUNNING))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThat(runs.transition(elsewhere.getId(), Set.of(TransferState.PREVIEWED), TransferState.RUNNING))
                 .isEqualTo(1);

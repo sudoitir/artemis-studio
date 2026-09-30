@@ -120,8 +120,8 @@ class RrSamplerTest {
 
         ObjectProvider<io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage> coverage =
                 mock(ObjectProvider.class);
-        when(coverage.getIfAvailable())
-                .thenReturn(mock(io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage.class));
+        var captureCoverage = mock(io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage.class);
+        when(coverage.getIfAvailable()).thenReturn(captureCoverage);
 
         return new Fixture(
                 new RrSampler(
