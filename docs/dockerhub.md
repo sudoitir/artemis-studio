@@ -24,6 +24,9 @@ itself if the container has a restart policy — the compose file sets
 &nbsp;·&nbsp; **Source and issues:**
 [github.com/sudoitir/artemis-studio](https://github.com/sudoitir/artemis-studio)
 
+Every image is signed by the project's release workflow and carries SLSA provenance and a
+CycloneDX SBOM: [verify a release](https://sudoitir.github.io/artemis-studio/guide/verify-releases).
+
 
 ## Screenshots
 

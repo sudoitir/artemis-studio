@@ -90,7 +90,7 @@
              CI and the Docker image activate the `frontend` profile. -->
         <skip.frontend>true</skip.frontend>
 
-        <!-- SonarQube Cloud analysis (ADR-0139), run by CI's `sonar` job. -->
+        <!-- SonarQube Cloud analysis (ADR-0140), run by CI's `sonar` job. -->
         <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
         <sonar.organization>sudoitir</sonar.organization>
         <sonar.projectKey>sudoitir_artemis-studio</sonar.projectKey>

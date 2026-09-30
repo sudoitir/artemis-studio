@@ -40,18 +40,26 @@ The `release` job in `.github/workflows/ci.yml` does all of it, with no manual s
 - pushes the image to Docker Hub — `sudoit1/artemis-studio`, `linux/amd64` +
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
+- attests the image and the jar keylessly with `actions/attest` (ADR-0139): SLSA provenance and
+  a CycloneDX SBOM (Syft) for each, the image's pushed to Docker Hub as OCI referrers;
 - creates a GitHub Release with the notes as its body and the
-  `artemis-studio-<version>.jar` + its `.sha256` attached, then dispatches `pages.yml`
+  `artemis-studio-<version>.jar`, its `.sha256`, its provenance bundle (`.jar.intoto.jsonl`) and
+  both SBOMs (`.jar.cdx.json`, `.image.cdx.json`) attached, then verifies the attestations with
+  the commands in `site/src/guide/verify-releases.md` and dispatches `pages.yml`
   so the site's changelog lists it (a release made with the workflow token triggers
   no workflow on its own).
 
 After it, each registry gets the release only when its inputs changed since the newest
 version already there, so a failed publish is retried by the next release:
 
-- `publish-api`: the plugin API to Maven Central, when `src/main` or `pom.xml` changed;
+- `publish-api`: the plugin API to Maven Central, when `src/main` or `pom.xml` changed, and
+  attests the files it deployed;
 - `publish-sdk`: `@artemis-studio/plugin-sdk` to npm, when `web/packages`, `web/src/sdk`,
   `web/src/kernel` or the web manifests changed. Its job stays in `ci.yml`: npm trusted
   publishing is bound to that file name.
+
+A pull request that changes the image inputs scans the built image with Grype and fails on a
+critical or high finding that has a fix; bump the base-image digest or the dependency.
 
 `hub-description` pushes `docs/dockerhub.md` as the Docker Hub repository description
 whenever that file changes, with or without a release. That file is the Hub's landing

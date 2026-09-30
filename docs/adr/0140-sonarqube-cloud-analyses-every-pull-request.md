@@ -1,4 +1,4 @@
-# ADR-0139: SonarQube Cloud analyses every pull request
+# ADR-0140: SonarQube Cloud analyses every pull request
 
 - **Status**: accepted
 - **Date**: 2026-09-30
