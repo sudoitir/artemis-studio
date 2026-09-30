@@ -213,8 +213,9 @@ public class SessionAuthentication {
                 .orElseThrow(() -> new AccessDeniedException("Change the password from a signed-in session"));
         String before = request.getSession().getId();
         establish(principal, facts, request, response);
-        terminator.endSessionsOfExcept(
-                principal.getUsername(), Set.of(before, request.getSession().getId()));
+        String after = request.getSession().getId();
+        events.publishEvent(new SessionIdChanged(before, after));
+        terminator.endSessionsOfExcept(principal.getUsername(), Set.of(before, after));
     }
 
     /**
@@ -223,7 +224,7 @@ public class SessionAuthentication {
      */
     public void reauthenticated(HttpServletRequest request) {
         SessionFacts facts = facts(request).orElseThrow(() -> new IllegalStateException("No session to step up"));
-        request.changeSessionId();
+        rotate(request);
         request.getSession().setAttribute(FACTS, facts.withAuthenticatedAt(Instant.now()));
     }
 
@@ -231,7 +232,7 @@ public class SessionAuthentication {
     public void reauthenticated(HttpServletRequest request, SessionFacts.Method method) {
         SessionFacts facts = facts(request).orElseThrow(() -> new IllegalStateException("No session to step up"));
         Instant now = Instant.now();
-        request.changeSessionId();
+        rotate(request);
         HttpSession session = request.getSession();
         session.removeAttribute(PENDING_STEP_UP);
         session.setAttribute(FACTS, facts.withAuthenticatedAt(now).withMfaVerified(now, method));
@@ -252,11 +253,19 @@ public class SessionAuthentication {
                 .orElseThrow(() -> new AccessDeniedException("Enrol a second factor from a signed-in session"));
         Instant now = Instant.now();
         boolean fresh = recentlyAuthenticated(request);
+        String before = request.getSession().getId();
         establish(
                 principal.withSecondFactorEnrolmentRequired(false),
                 (fresh ? facts.withAuthenticatedAt(now) : facts).withMfaVerified(now, method),
                 request,
                 response);
+        events.publishEvent(new SessionIdChanged(before, request.getSession().getId()));
+    }
+
+    /** A new id for the signed-in session, so an id observed before is not the one that carries what follows; its streams follow. */
+    private void rotate(HttpServletRequest request) {
+        String before = request.getSession().getId();
+        events.publishEvent(new SessionIdChanged(before, request.changeSessionId()));
     }
 
     /** The facts of this session; empty without a session or before sign-in. */

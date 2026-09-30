@@ -120,6 +120,7 @@ This change hardens local sign-in and keeps it easy to use. It follows `artemis-
   - `LAST_ACTIVITY_AT` is updated only by mutating requests and by requests carrying `X-Studio-Activity: 1`.
   - `web/src/kernel/api/request.ts` adds that header when the user has used the pointer or keyboard in the last 60 s. One global listener tracks this.
   - As a result, polling and SSE do not keep an unattended tab alive.
+- **Event streams follow a rotated session.** A step-up, enrolling a factor and a password change give the session a new id; `SessionAuthentication` publishes `SessionIdChanged(oldId, newId)` and `SseHub` re-keys the session's streams, so they are not closed as the ended session they are not. A new sign-in publishes nothing, so a stream never passes to the next user of a browser.
 - Spring Session's `maxInactiveInterval` is set to the idle timeout as a storage-level backstop.
 - **Session handles** are `hex(sha256(sessionId))[0..32]`. The raw id is never exposed.
 - **Endpoints**, all using `FindByIndexNameSessionRepository.findByPrincipalName`:

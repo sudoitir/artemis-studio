@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionEnded;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
@@ -152,6 +153,16 @@ public class SseHub {
     @EventListener
     void onSessionEnded(SessionEnded ended) {
         complete(s -> ended.sessionId().equals(s.sessionId()));
+    }
+
+    /** A session was given a new id: its streams follow it, so they are not mistaken for those of a session that ended. */
+    @EventListener
+    void onSessionIdChanged(SessionIdChanged changed) {
+        byCluster
+                .values()
+                .forEach(set -> set.stream()
+                        .filter(s -> changed.oldId().equals(s.sessionId()))
+                        .forEach(s -> s.followSession(changed.newId())));
     }
 
     /**

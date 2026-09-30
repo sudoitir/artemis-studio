@@ -236,6 +236,42 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
         hub.closeAll();
     }
 
+    @Test
+    void aStreamFollowsItsSessionThroughAStepUp() throws Exception {
+        newUser("stream-step-up", true);
+        UUID cluster = UUID.randomUUID();
+        Browser browser = new Browser().signIn("stream-step-up");
+        var stream = browser.openStream(cluster);
+        String before =
+                store.findByPrincipalName("stream-step-up").keySet().iterator().next();
+
+        var stepUp = browser.send("POST", "/api/v1/auth/reauthenticate", "{\"password\":\"%s\"}".formatted(PASSWORD));
+        assertThat(stepUp.statusCode()).isEqualTo(200);
+        assertThat(store.findByPrincipalName("stream-step-up"))
+                .doesNotContainKey(before)
+                .hasSize(1);
+        hub.closeEndedSessions(sessions::isLive);
+
+        assertThatThrownBy(() -> stream.get(1, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
+        assertThat(hub.subscriberCount(cluster)).isEqualTo(1);
+        browser.send("POST", "/api/v1/auth/logout");
+        assertEndsWithin(stream, PROMPT);
+    }
+
+    @Test
+    void aStreamDoesNotFollowItsSessionToAnotherUserWhoSignsInThere() throws Exception {
+        newUser("stream-first", true);
+        newUser("stream-second", true);
+        UUID cluster = UUID.randomUUID();
+        Browser browser = new Browser().signIn("stream-first");
+        var stream = browser.openStream(cluster);
+
+        browser.signIn("stream-second");
+        hub.closeEndedSessions(sessions::isLive);
+
+        assertEndsWithin(stream, PROMPT);
+    }
+
     private <S extends Session> void change(String username, java.util.function.Consumer<Session> edit) {
         changeIn(store, username, edit);
     }

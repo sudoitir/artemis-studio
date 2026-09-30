@@ -15,9 +15,22 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * authenticated it, which is null for a session. Identity is the emitter — the same client
  * reconnecting is a new subscriber. The stream ends with its session ({@link SseHub#onSessionEnded},
  * {@link SseHub#closeEndedSessions}) or when its token stops being accepted
- * ({@link SseHub#closeEndedTokens}).
+ * ({@link SseHub#closeEndedTokens}). A session that is given a new id keeps its streams, which
+ * follow it ({@link SseHub#onSessionIdChanged}).
  */
-public record Subscriber(SseEmitter emitter, Set<String> topics, String sessionId, UUID tokenId) {
+public final class Subscriber {
+
+    private final SseEmitter emitter;
+    private final Set<String> topics;
+    private final UUID tokenId;
+    private volatile String sessionId;
+
+    public Subscriber(SseEmitter emitter, Set<String> topics, String sessionId, UUID tokenId) {
+        this.emitter = emitter;
+        this.topics = topics;
+        this.sessionId = sessionId;
+        this.tokenId = tokenId;
+    }
 
     /** A subscriber that has a session and no token. */
     public Subscriber(SseEmitter emitter, Set<String> topics, String sessionId) {
@@ -33,6 +46,27 @@ public record Subscriber(SseEmitter emitter, Set<String> topics, String sessionI
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID tokenId = auth != null && auth.getPrincipal() instanceof TokenPrincipal p ? p.tokenId() : null;
         return new Subscriber(emitter, topics, session == null ? null : session.getId(), tokenId);
+    }
+
+    public SseEmitter emitter() {
+        return emitter;
+    }
+
+    public Set<String> topics() {
+        return topics;
+    }
+
+    /** The id of the session that opened the stream, as it is now. */
+    public String sessionId() {
+        return sessionId;
+    }
+
+    public UUID tokenId() {
+        return tokenId;
+    }
+
+    void followSession(String newId) {
+        this.sessionId = newId;
     }
 
     public boolean wants(String topic) {
