@@ -1,11 +1,11 @@
 package io.github.sudoitir.artemisstudio.kernel.core.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import io.github.sudoitir.artemisstudio.kernel.core.RequestIds;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -37,9 +37,7 @@ class UnexpectedFailureResolver implements HandlerExceptionResolver, WebMvcConfi
     @Override
     public ModelAndView resolveException(
             HttpServletRequest request, HttpServletResponse response, Object handler, Exception e) {
-        String requestId = request.getHeader("X-Request-Id") != null
-                ? request.getHeader("X-Request-Id")
-                : UUID.randomUUID().toString();
+        String requestId = RequestIds.of(request);
         log.error("Unhandled failure in request {}", requestId, e);
         ProblemDetail problem = Problems.of(
                 HttpStatus.INTERNAL_SERVER_ERROR,

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.core.RequestIds;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
@@ -15,13 +16,11 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * {@link StudioPrincipal} when one is present; otherwise the actor is
  * {@code "anonymous"} with no user id. The source IP comes from
  * {@code getRemoteAddr()}, and the request id is the inbound
- * {@code X-Request-Id} header or a fresh UUID.
+ * {@code X-Request-Id} header when it is a plain token, or a fresh UUID ({@link RequestIds}).
  */
 @Component
 @PluginApi
 public class ActorResolver {
-
-    private static final String REQUEST_ID_HEADER = "X-Request-Id";
 
     /** The operator a handed-off task acts for, bound by {@link OperatorHandoff#runAs}; there is no request there. */
     static final ScopedValue<Actor> ON_BEHALF_OF = ScopedValue.newInstance();
@@ -35,7 +34,7 @@ public class ActorResolver {
         String username = principal != null ? principal.getUsername() : Actor.ANONYMOUS;
         UUID userId = principal != null ? principal.userId() : null;
         String tokenName = principal != null ? principal.tokenName() : null;
-        return new Actor(username, sourceIp(request), requestId(request), userId, tokenName);
+        return new Actor(username, sourceIp(request), RequestIds.of(request), userId, tokenName);
     }
 
     /** For scheduler-originated audit rows. */
@@ -53,16 +52,6 @@ public class ActorResolver {
 
     private static String sourceIp(HttpServletRequest request) {
         return request == null ? null : request.getRemoteAddr();
-    }
-
-    private static String requestId(HttpServletRequest request) {
-        if (request != null) {
-            String header = request.getHeader(REQUEST_ID_HEADER);
-            if (header != null && !header.isBlank()) {
-                return header;
-            }
-        }
-        return UUID.randomUUID().toString();
     }
 
     private static HttpServletRequest currentRequest() {
