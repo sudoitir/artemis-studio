@@ -11,8 +11,8 @@
 
 ## 3. Web
 - [x] 3.1 Regenerate `openapi.json` / `schema.d.ts`; `api.ts` hooks and a raw download fetch; move `download()` to `web/src/ui/`
-- [x] 3.2 Diagnostics admin tab: intro, prepare, section list with sizes and redaction counts, preview with `[redacted]` highlighted, exclude, expiry countdown, download, audit link, empty, error and no-permission states
-- [x] 3.3 Report-a-bug dialog from the user menu and Spotlight: title and template, environment block, Copy, Open on GitHub (URL cap fallback)
+- [x] 3.2 Diagnostics admin tab: intro, prepare, section list with sizes and redaction counts, preview with `[redacted]` highlighted, exclude, expiry countdown, download with an inline confirmation, empty, error and no-permission states
+- [x] 3.3 Report-a-bug dialog from the user menu: title and template, environment block, Copy, Open on GitHub (URL cap fallback)
 - [x] 3.4 Vitest tests for both
 
 ## 4. Docs and finish
