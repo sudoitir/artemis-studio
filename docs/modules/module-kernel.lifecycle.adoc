@@ -17,6 +17,7 @@ _Others_
 * `i.g.s.a.k.l.LifecycleRegistry`
 * `i.g.s.a.k.l.LifecycleSettings`
 * `i.g.s.a.k.l.PurgeStatus`
+* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ReplicaStore`)
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.StorageSampleStore`)
 |Bean references
 |* `i.g.s.a.k.a.AuditService` (in Audit log)
