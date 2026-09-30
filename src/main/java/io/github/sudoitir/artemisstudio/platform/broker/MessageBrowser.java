@@ -178,45 +178,41 @@ public class MessageBrowser {
         }
     }
 
-    private static BrowsedMessage decodeRow(JsonNode row, int sizeLimit) {
-        String body = text(row, "text");
-        BodyEncoding encoding = BodyEncoding.TEXT;
-        BodyDecoder.Compression compression = BodyDecoder.Compression.NONE;
-        Map<String, String> strings = stringMap(row, "StringProperties");
+    /** A row's body as read, and the size the broker cut it at; {@code cutAt} is null when it was not cut. */
+    private record Body(String text, BodyEncoding encoding, BodyDecoder.Compression compression, Integer cutAt) {}
 
-        boolean truncated = isTruncated(body);
-        Integer observedLimit = truncated ? observedLimit(body) : null;
-
-        // A bytes message has no text, only its leading bytes: read them as text when they are (ADR-0148).
+    private static Body body(JsonNode row, int sizeLimit) {
+        String text = text(row, "text");
         JsonNode preview = row.get("BodyPreview");
-        if (body == null && preview != null && preview.isArray()) {
-            byte[] raw = new byte[preview.size()];
-            for (int i = 0; i < raw.length; i++) {
-                raw[i] = (byte) preview.get(i).asInt();
-            }
-            boolean cut = sizeLimit >= 0 && raw.length >= sizeLimit;
-            BodyDecoder.Decoded decoded = cut ? BodyDecoder.decodePrefix(raw) : BodyDecoder.decode(raw);
-            if (decoded.isBinary()) {
-                body = Base64.getEncoder().encodeToString(raw);
-                encoding = BodyEncoding.BASE64;
-            } else {
-                body = decoded.text();
-                compression = decoded.compression();
-            }
-            if (cut) {
-                truncated = true;
-                observedLimit = sizeLimit;
-            }
+        if (text != null || preview == null || !preview.isArray()) {
+            return new Body(text, BodyEncoding.TEXT, BodyDecoder.Compression.NONE, observedLimit(text));
         }
-        if (!truncated) {
-            for (String v : strings.values()) {
-                if (isTruncated(v)) {
-                    truncated = true;
-                    observedLimit = observedLimit(v);
-                    break;
-                }
-            }
+        // A bytes message has no text, only its leading bytes: read them as text when they are (ADR-0148).
+        byte[] raw = new byte[preview.size()];
+        for (int i = 0; i < raw.length; i++) {
+            raw[i] = (byte) preview.get(i).asInt();
         }
+        Integer cutAt = sizeLimit >= 0 && raw.length >= sizeLimit ? sizeLimit : null;
+        BodyDecoder.Decoded decoded = cutAt != null ? BodyDecoder.decodePrefix(raw) : BodyDecoder.decode(raw);
+        return decoded.isBinary()
+                ? new Body(Base64.getEncoder().encodeToString(raw), BodyEncoding.BASE64, decoded.compression(), cutAt)
+                : new Body(decoded.text(), BodyEncoding.TEXT, decoded.compression(), cutAt);
+    }
+
+    /** Where the broker cut the first truncated property value, or null when none was cut. */
+    private static Integer propertyCut(Map<String, String> strings) {
+        return strings.values().stream()
+                .map(MessageBrowser::observedLimit)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static BrowsedMessage decodeRow(JsonNode row, int sizeLimit) {
+        Map<String, String> strings = stringMap(row, "StringProperties");
+        Body body = body(row, sizeLimit);
+        Integer observedLimit = body.cutAt() != null ? body.cutAt() : propertyCut(strings);
+        boolean truncated = observedLimit != null;
 
         return new BrowsedMessage(
                 asLong(row, "messageID"),
@@ -230,9 +226,9 @@ public class MessageBrowser {
                 text(row, "correlationID"),
                 null, // Jolokia's browse() row carries no reply-to field (§11.2) — Core-only (ADR-0029)
                 blankToNull(text(row, "userID")),
-                body,
-                encoding,
-                compression,
+                body.text(),
+                body.encoding(),
+                body.compression(),
                 null,
                 truncated,
                 observedLimit,
@@ -245,12 +241,11 @@ public class MessageBrowser {
 
     // ---- truncation ------------------------------------------------------
 
-    private static boolean isTruncated(String value) {
-        return value != null && TRUNCATION_MARKER.matcher(value).find();
-    }
-
-    /** Chars that survived truncation = full length minus the {@code , + N more} marker. */
+    /** Chars that survived truncation = full length minus the {@code , + N more} marker; null when not truncated. */
     private static Integer observedLimit(String value) {
+        if (value == null) {
+            return null;
+        }
         var matcher = TRUNCATION_MARKER.matcher(value);
         return matcher.find() ? matcher.start() : null;
     }
