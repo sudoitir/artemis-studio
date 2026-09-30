@@ -10,7 +10,7 @@ const DURATION = /^\d+[dhm]$/;
  * One store's policy. The retention is checked on blur against the syntax and, by Preview or Save,
  * against the store's bounds on the server, which names the allowed range when it refuses.
  */
-export function PolicyDialog({ store, onClose }: { store: StoreView | null; onClose: () => void }) {
+export function PolicyDialog({ store, onClose }: Readonly<{ store: StoreView | null; onClose: () => void }>) {
   return (
     <Modal opened={store !== null} onClose={onClose} title={store ? `${store.label} policy` : ''}>
       {store && <PolicyForm key={store.id} store={store} onClose={onClose} />}
@@ -18,7 +18,7 @@ export function PolicyDialog({ store, onClose }: { store: StoreView | null; onCl
   );
 }
 
-function PolicyForm({ store, onClose }: { store: StoreView; onClose: () => void }) {
+function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: () => void }>) {
   const foreverAllowed = store.maxRetention === 'forever';
   const [forever, setForever] = useState(store.retention === 'forever');
   const [retention, setRetention] = useState(() => {

@@ -17,7 +17,7 @@ const LIFETIMES = [7, 30, 90, 180, 365];
  * more would only mint keys that silently lose what was ticked), and optionally the MCP tools the
  * key may call.
  */
-export function MintKeyForm({ onMinted }: { onMinted: (created: CreatedTokenView) => void }) {
+export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: CreatedTokenView) => void }>) {
   const create = useCreateToken();
   const policy = useTokenPolicy();
   const tools = useMcpTools();
