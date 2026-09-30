@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * list needs only message read, because it is a statement about what already exists.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/sql/index")
+@RequestMapping("/clusters/{clusterId}/sql/index")
 @RequiredArgsConstructor
 public class SqlIndexController {
 

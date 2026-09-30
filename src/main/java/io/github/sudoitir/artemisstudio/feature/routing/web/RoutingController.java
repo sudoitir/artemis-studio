@@ -42,7 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
  * cluster's configuration.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}")
+@RequestMapping("/clusters/{clusterId}")
 @RequiredArgsConstructor
 public class RoutingController {
 

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * operation's own permission.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/bulk")
+@RequestMapping("/clusters/{clusterId}/bulk")
 @RequiredArgsConstructor
 public class BulkController {
 

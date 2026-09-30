@@ -25,29 +25,29 @@ public class RolesController {
 
     private final RoleService roleService;
 
-    @GetMapping("/api/v1/roles")
+    @GetMapping("/roles")
     public List<RoleView> list() {
         return roleService.list();
     }
 
-    @PostMapping("/api/v1/roles")
+    @PostMapping("/roles")
     @ResponseStatus(HttpStatus.CREATED)
     public RoleView create(@Valid @RequestBody RoleRequest request) {
         return roleService.create(request);
     }
 
-    @PutMapping("/api/v1/roles/{roleId}")
+    @PutMapping("/roles/{roleId}")
     public RoleView update(@PathVariable UUID roleId, @Valid @RequestBody RoleRequest request) {
         return roleService.update(roleId, request);
     }
 
-    @DeleteMapping("/api/v1/roles/{roleId}")
+    @DeleteMapping("/roles/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID roleId) {
         roleService.delete(roleId);
     }
 
-    @GetMapping("/api/v1/permissions")
+    @GetMapping("/permissions")
     public List<PermissionView> permissions() {
         return roleService.catalogue();
     }

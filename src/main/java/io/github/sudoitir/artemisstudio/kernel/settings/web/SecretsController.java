@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * a {@code 409}.
  */
 @RestController
-@RequestMapping("/api/v1/settings/secrets")
+@RequestMapping("/settings/secrets")
 @RequiredArgsConstructor
 public class SecretsController {
 

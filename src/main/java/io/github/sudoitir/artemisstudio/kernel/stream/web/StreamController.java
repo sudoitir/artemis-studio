@@ -47,7 +47,7 @@ public class StreamController {
         this.topics = topics;
     }
 
-    @GetMapping(path = "/api/v1/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(
             @RequestParam UUID clusterId,
             @RequestParam(defaultValue = "topology,health,queues") String topics,

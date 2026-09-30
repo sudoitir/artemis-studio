@@ -92,7 +92,7 @@ public class SqlStreamController {
     /** Execution runs off the request thread; the emitter is returned immediately. */
     private final ExecutorService queries = Executors.newVirtualThreadPerTaskExecutor();
 
-    @GetMapping(path = "/api/v1/clusters/{clusterId}/sql/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(path = "/clusters/{clusterId}/sql/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @ApiResponse(
             responseCode = "200",
             description = "A stream of row, node, done, tail and failed frames.",

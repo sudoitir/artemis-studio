@@ -24,23 +24,23 @@ public class EnvironmentsController {
 
     private final EnvironmentService environments;
 
-    @GetMapping("/api/v1/environments")
+    @GetMapping("/environments")
     public List<EnvironmentView> list() {
         return environments.list();
     }
 
-    @PostMapping("/api/v1/environments")
+    @PostMapping("/environments")
     @ResponseStatus(HttpStatus.CREATED)
     public EnvironmentView create(@Valid @RequestBody EnvironmentRequest request) {
         return environments.create(request);
     }
 
-    @PutMapping("/api/v1/environments/{environmentId}")
+    @PutMapping("/environments/{environmentId}")
     public EnvironmentView update(@PathVariable UUID environmentId, @Valid @RequestBody EnvironmentRequest request) {
         return environments.update(environmentId, request);
     }
 
-    @DeleteMapping("/api/v1/environments/{environmentId}")
+    @DeleteMapping("/environments/{environmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID environmentId) {
         environments.delete(environmentId);
@@ -48,7 +48,7 @@ public class EnvironmentsController {
 
     public record AssignEnvironmentRequest(UUID environmentId) {}
 
-    @PutMapping("/api/v1/clusters/{clusterId}/environment")
+    @PutMapping("/clusters/{clusterId}/environment")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void assign(@PathVariable UUID clusterId, @RequestBody AssignEnvironmentRequest request) {
         environments.assignCluster(clusterId, request.environmentId());

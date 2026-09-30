@@ -105,6 +105,16 @@ class ApiErrorsIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void anUnsupportedApiVersionIs400InvalidApiVersion() throws Exception {
+        for (String version : new String[] {"v2", "zzz"}) {
+            mvc.perform(get("/api/" + version + "/clusters").with(user("nobody")))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith(PROBLEM))
+                    .andExpect(jsonPath("$.type").value(TYPE + "invalid-api-version"));
+        }
+    }
+
+    @Test
     void unexpectedFailureIs500AndHidesTheCause() throws Exception {
         mvc.perform(get("/api/v1/test/boom").with(user("nobody")))
                 .andExpect(status().isInternalServerError())
@@ -116,7 +126,7 @@ class ApiErrorsIntegrationTest extends PostgresIntegrationTest {
 
     @RestController
     static class Boom {
-        @GetMapping("/api/v1/test/boom")
+        @GetMapping("/test/boom")
         String boom() {
             throw new IllegalStateException("secret internal detail");
         }

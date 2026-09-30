@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code GET /clusters/{id}}, not a per-endpoint check here.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/rr")
+@RequestMapping("/clusters/{clusterId}/rr")
 @RequiredArgsConstructor
 public class RequestReplyController {
 

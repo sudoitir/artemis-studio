@@ -45,7 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
  * session can say.
  */
 @RestController
-@RequestMapping("/api/v1/tokens")
+@RequestMapping("/tokens")
 @RequiredArgsConstructor
 public class TokensController {
 

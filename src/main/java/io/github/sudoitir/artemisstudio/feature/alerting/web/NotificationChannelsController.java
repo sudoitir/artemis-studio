@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Global notification channels, their tests and delivery log (alerting spec, ADR-0036, ADR-0105). */
 @RestController
-@RequestMapping("/api/v1/channels")
+@RequestMapping("/channels")
 @RequiredArgsConstructor
 public class NotificationChannelsController {
 

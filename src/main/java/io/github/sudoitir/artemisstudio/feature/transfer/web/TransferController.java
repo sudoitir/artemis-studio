@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * through {@code ClusterAccessGuard} inside {@link TransferService}.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/transfers")
+@RequestMapping("/clusters/{clusterId}/transfers")
 @RequiredArgsConstructor
 public class TransferController {
 

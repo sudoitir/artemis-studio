@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Consumer-health reads (consumer-health spec, ADR-0089). Read-only; no broker call. */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/consumer-health")
+@RequestMapping("/clusters/{clusterId}/consumer-health")
 @RequiredArgsConstructor
 public class TriageController {
 

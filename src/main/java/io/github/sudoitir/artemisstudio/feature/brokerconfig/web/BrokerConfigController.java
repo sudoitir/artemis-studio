@@ -61,7 +61,7 @@ import org.springframework.web.bind.annotation.RestController;
  * so what the operator confirmed is what runs.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/config")
+@RequestMapping("/clusters/{clusterId}/config")
 @RequiredArgsConstructor
 public class BrokerConfigController {
 

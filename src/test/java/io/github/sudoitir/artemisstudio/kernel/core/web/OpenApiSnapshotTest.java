@@ -52,6 +52,8 @@ class OpenApiSnapshotTest extends PostgresIntegrationTest {
 
         // Re-serialise through a key-sorted mapper so ordering never causes a diff.
         JsonNode tree = mapper.readTree(body);
+        // info.version is the running Studio version; the snapshot pins it so the file is stable.
+        ((tools.jackson.databind.node.ObjectNode) tree.get("info")).put("version", "0.0.0");
         String pretty = mapper.writeValueAsString(tree) + "\n";
 
         String existing = Files.exists(SNAPSHOT) ? Files.readString(SNAPSHOT, StandardCharsets.UTF_8) : null;

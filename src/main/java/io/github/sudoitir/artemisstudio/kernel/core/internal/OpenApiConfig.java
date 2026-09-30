@@ -5,6 +5,7 @@ import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Content;
@@ -15,12 +16,14 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import java.util.List;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.PropertyCustomizer;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.ProblemDetail;
 
 /**
- * Pins the OpenAPI document's {@code info} and drops the generated server list so
+ * Pins the OpenAPI document's {@code info} (its version is the running Studio version) and drops the generated server list so
  * {@code web/openapi.json} (ADR-0019) is a stable snapshot — it must not change
  * just because the test ran on a different host or port.
  */
@@ -28,12 +31,12 @@ import org.springframework.http.ProblemDetail;
 class OpenApiConfig {
 
     @Bean
-    OpenAPI artemisStudioOpenApi() {
+    OpenAPI artemisStudioOpenApi(BuildProperties build) {
         return new OpenAPI()
                 .info(new Info()
                         .title(Branding.PRODUCT_NAME + " API")
                         .description(Branding.TAGLINE)
-                        .version("v1"))
+                        .version(build.getVersion()))
                 .servers(List.of());
     }
 
@@ -95,6 +98,41 @@ class OpenApiConfig {
                                                 .content(problem));
                         op.getResponses().putIfAbsent("429", tooMany);
                     }));
+        };
+    }
+
+    /**
+     * Controllers map paths without {@code /api/v1}; Spring adds {@code /api/{version}} (see
+     * {@link ApiVersioningConfig}). The document keeps concrete {@code /api/v1/...} paths and no
+     * {@code version} parameter, and marks the operations {@link ApiDeprecations} declares deprecated.
+     */
+    @Bean
+    OpenApiCustomizer versionedPaths(ObjectProvider<ApiDeprecation> deprecations) {
+        return openApi -> {
+            Paths concrete = new Paths();
+            openApi.getPaths().forEach((path, item) -> {
+                item.readOperations().forEach(op -> {
+                    if (op.getParameters() != null) {
+                        op.getParameters().removeIf(p -> "version".equals(p.getName()) && "path".equals(p.getIn()));
+                    }
+                });
+                concrete.addPathItem(path.replace("/api/{version}/", "/api/v1/"), item);
+            });
+            openApi.setPaths(concrete);
+            List<ApiDeprecation> declared = deprecations.orderedStream().toList();
+            concrete.forEach((path, item) -> item.readOperationsMap()
+                    .forEach((method, op) -> declared.stream()
+                            .filter(d -> path.startsWith("/api/v" + d.version() + "/"))
+                            .filter(d -> d.path() == null
+                                    || d.path().equals(path)
+                                            && d.method().name().equals(method.name()))
+                            .findFirst()
+                            .ifPresent(d -> {
+                                op.setDeprecated(true);
+                                op.setDescription((op.getDescription() == null ? "" : op.getDescription() + "\n\n")
+                                        + "Deprecated since " + d.deprecated().toLocalDate() + "; sunset "
+                                        + d.sunset().toLocalDate() + ".");
+                            })));
         };
     }
 

@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
  * grant on the cluster gets a 404 and cannot learn that the cluster exists.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}")
+@RequestMapping("/clusters/{clusterId}")
 @RequiredArgsConstructor
 public class QueueLifecycleController {
 

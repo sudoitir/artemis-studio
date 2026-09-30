@@ -25,10 +25,10 @@
 - [x] 4.5 Tests: replay applies once, different body 422, concurrent 409, other user's key independent, dryRun vs real, 5xx retry runs again, purge
 
 ## 5. Versioning and deprecation (D2)
-- [ ] 5.1 `info.version` from `BuildProperties`; snapshot test normalises it
-- [ ] 5.2 Spring API versioning: path-segment version via an `/api/{version}` path prefix for Studio's REST controllers (drop the literal `/api/v1` from their mappings), supported `1`, unsupported → 400 `invalid-api-version`; document keeps concrete `/api/v1` paths
-- [ ] 5.4 `StandardApiVersionDeprecationHandler` fed by `ApiDeprecations` declarations, which also mark operations `deprecated` in the document; test proves headers and flag
-- [ ] 5.3 Docs-site page: versioning, break marker, deprecation policy, pagination, problem types, rate-limit headers, idempotency
+- [x] 5.1 `info.version` from `BuildProperties`; snapshot test normalises it
+- [x] 5.2 Spring API versioning: path-segment version via an `/api/{version}` path prefix for Studio's REST controllers (drop the literal `/api/v1` from their mappings), supported `1`, unsupported → 400 `invalid-api-version`; document keeps concrete `/api/v1` paths
+- [x] 5.4 `StandardApiVersionDeprecationHandler` fed by `ApiDeprecations` declarations, which also mark operations `deprecated` in the document; test proves headers and flag
+- [x] 5.3 Docs-site page: versioning, break marker, deprecation policy, pagination, problem types, rate-limit headers, idempotency
 
 ## 6. Contract tests (D6)
 - [ ] 6.1 Pick the OpenAPI 3.1 validator (ctx7); test-scope `MockMvcBuilderCustomizer` validates every `/api/v1` JSON response against `web/openapi.json` with undocumented properties rejected

@@ -71,7 +71,7 @@ public class JobsController {
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
-    @GetMapping("/api/v1/system/jobs")
+    @GetMapping("/system/jobs")
     public List<JobStatusView> jobs() {
         Instant now = Instant.now();
         return statuses.all().stream().map(s -> JobStatusView.of(s, now)).toList();

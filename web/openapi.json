@@ -3,7 +3,7 @@
   "info" : {
     "title" : "Artemis Studio API",
     "description" : "Cluster-wide management and observability for Apache ActiveMQ Artemis",
-    "version" : "v1"
+    "version" : "0.0.0"
   },
   "servers" : [ {
     "url" : "http://localhost",

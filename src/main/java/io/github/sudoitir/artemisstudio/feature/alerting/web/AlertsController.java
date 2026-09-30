@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Alert firings, history, and rule CRUD for one cluster (alerting spec). */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/alerts")
+@RequestMapping("/clusters/{clusterId}/alerts")
 @RequiredArgsConstructor
 public class AlertsController {
 

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * fan out to a broker. It is on the hot path of every session and must stay cheap.
  */
 @RestController
-@RequestMapping("/api/v1/time")
+@RequestMapping("/time")
 @RequiredArgsConstructor
 public class TimeController {
 

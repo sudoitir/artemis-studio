@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * A session restricted to enrolment may call exactly the endpoints its filter lets through.
  */
 @RestController
-@RequestMapping("/api/v1/auth/mfa")
+@RequestMapping("/auth/mfa")
 @RequiredArgsConstructor
 public class MfaController {
 

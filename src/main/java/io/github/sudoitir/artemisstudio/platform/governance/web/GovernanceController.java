@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** The content policy's administration surface (data-governance spec). Permissions are checked in the services. */
 @RestController
-@RequestMapping("/api/v1/governance")
+@RequestMapping("/governance")
 @RequiredArgsConstructor
 public class GovernanceController {
 

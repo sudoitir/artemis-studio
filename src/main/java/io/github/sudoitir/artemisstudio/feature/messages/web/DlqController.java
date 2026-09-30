@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
  * ({@code settingsAvailable = false}) rather than guessing from names.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/dlq")
+@RequestMapping("/clusters/{clusterId}/dlq")
 @RequiredArgsConstructor
 public class DlqController {
 

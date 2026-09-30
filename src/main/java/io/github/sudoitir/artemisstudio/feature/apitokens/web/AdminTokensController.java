@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * ADR-0136): so a leaked token can be revoked without its owner. No mint and no rotate here.
  */
 @RestController
-@RequestMapping("/api/v1/admin/tokens")
+@RequestMapping("/admin/tokens")
 @RequiredArgsConstructor
 @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.apitokens.TokenPermissions).TOKEN_ADMIN)")
 public class AdminTokensController {

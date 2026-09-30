@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.ErrorResponse;
+import org.springframework.web.accept.InvalidApiVersionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -60,6 +61,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 "constraint-violation",
                 "Conflict",
                 "This conflicts with something that already exists.");
+    }
+
+    @ExceptionHandler(InvalidApiVersionException.class)
+    ProblemDetail onInvalidApiVersion(InvalidApiVersionException e) {
+        return Problems.of(
+                HttpStatus.BAD_REQUEST,
+                "invalid-api-version",
+                "Unsupported API version",
+                "API version '" + e.getVersion() + "' is not supported. Use v1.");
     }
 
     @ExceptionHandler(AccessDeniedException.class)

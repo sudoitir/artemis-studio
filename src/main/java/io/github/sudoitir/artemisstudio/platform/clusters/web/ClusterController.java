@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
  * (non-negotiable #2).
  */
 @RestController
-@RequestMapping("/api/v1/clusters")
+@RequestMapping("/clusters")
 @RequiredArgsConstructor
 public class ClusterController {
 

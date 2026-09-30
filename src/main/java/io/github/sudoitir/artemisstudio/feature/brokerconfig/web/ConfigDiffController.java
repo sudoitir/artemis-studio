@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * named node's logical node — the HA pair, which is where drift hurts.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/config-diff")
+@RequestMapping("/clusters/{clusterId}/config-diff")
 @RequiredArgsConstructor
 public class ConfigDiffController {
 

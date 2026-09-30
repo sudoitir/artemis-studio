@@ -42,7 +42,7 @@ import tools.jackson.databind.json.JsonMapper;
  * the only endpoints reachable with no session — see {@code SecurityConfig}'s allow-list.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthSessionController {
 

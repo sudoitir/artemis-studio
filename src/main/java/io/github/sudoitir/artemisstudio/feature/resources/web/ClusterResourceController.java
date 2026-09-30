@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@link ApiExceptionHandler}.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}")
+@RequestMapping("/clusters/{clusterId}")
 @RequiredArgsConstructor
 public class ClusterResourceController {
 

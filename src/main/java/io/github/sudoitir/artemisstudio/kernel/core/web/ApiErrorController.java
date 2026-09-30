@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.core.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import io.github.sudoitir.artemisstudio.kernel.core.Unversioned;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Boot's default JSON so those failures are problems too; the cause is never echoed.
  */
 @Hidden
+@Unversioned
 @RestController
 class ApiErrorController implements ErrorController {
 

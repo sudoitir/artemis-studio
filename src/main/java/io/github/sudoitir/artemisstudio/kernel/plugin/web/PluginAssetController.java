@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import io.github.sudoitir.artemisstudio.kernel.core.Unversioned;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntime;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry.Active;
@@ -40,6 +41,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code private, immutable} cache lifetime — the URL is content-addressed by {@code sha8}, so a
  * cached response can never go stale under the same URL.
  */
+@Unversioned
 @RestController
 @Hidden
 @RequiredArgsConstructor

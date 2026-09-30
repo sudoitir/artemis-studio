@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  * user / action / outcome / time, newest first.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/audit")
+@RequestMapping("/clusters/{clusterId}/audit")
 @RequiredArgsConstructor
 public class AuditController {
 

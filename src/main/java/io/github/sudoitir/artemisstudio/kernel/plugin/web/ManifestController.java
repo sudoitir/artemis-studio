@@ -59,7 +59,7 @@ public class ManifestController {
                 .toList();
     }
 
-    @GetMapping("/api/v1/manifest")
+    @GetMapping("/manifest")
     public ManifestView manifest() {
         List<ManifestFeatureView> builtins = registry.all().stream()
                 .map(d -> new ManifestFeatureView(

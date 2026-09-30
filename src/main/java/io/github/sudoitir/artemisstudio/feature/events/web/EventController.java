@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * oldest retained event so buffer overflow is visible.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/events")
+@RequestMapping("/clusters/{clusterId}/events")
 @RequiredArgsConstructor
 public class EventController {
 

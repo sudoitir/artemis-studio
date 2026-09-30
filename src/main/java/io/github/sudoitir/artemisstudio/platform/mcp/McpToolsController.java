@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
  * decision.
  */
 @RestController
-@RequestMapping("/api/v1/mcp/tools")
+@RequestMapping("/mcp/tools")
 @RequiredArgsConstructor
 public class McpToolsController {
 

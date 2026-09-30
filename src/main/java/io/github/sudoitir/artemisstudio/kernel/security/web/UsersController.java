@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** User CRUD and role grants (authorization spec). Every write needs {@code user:admin}. */
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 public class UsersController {
 

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Cross-cluster open-firing counts — the app shell's firing badge (alerting spec). */
 @RestController
-@RequestMapping("/api/v1/alerts")
+@RequestMapping("/alerts")
 @RequiredArgsConstructor
 public class AlertSummaryController {
 

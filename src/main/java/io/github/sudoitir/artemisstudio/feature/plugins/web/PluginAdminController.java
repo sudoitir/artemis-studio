@@ -72,7 +72,7 @@ import org.springframework.web.bind.annotation.RestController;
  * and its progress and outcome are the plugin's {@code status} and {@code progress}.
  */
 @RestController
-@RequestMapping("/api/v1/admin/plugins")
+@RequestMapping("/admin/plugins")
 @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
 @RequiredArgsConstructor
 public class PluginAdminController {

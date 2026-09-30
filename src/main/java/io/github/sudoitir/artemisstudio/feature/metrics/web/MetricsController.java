@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Historical metric reads (metrics spec, ADR-0033), optionally split by broker node (ADR-0110). */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/metrics")
+@RequestMapping("/clusters/{clusterId}/metrics")
 @RequiredArgsConstructor
 public class MetricsController {
 

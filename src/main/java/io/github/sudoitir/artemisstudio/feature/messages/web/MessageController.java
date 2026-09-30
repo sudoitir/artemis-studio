@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code BrokerConnectionException} through {@link ApiExceptionHandler}.
  */
 @RestController
-@RequestMapping("/api/v1/clusters/{clusterId}/queues/{queueName}/messages")
+@RequestMapping("/clusters/{clusterId}/queues/{queueName}/messages")
 @RequiredArgsConstructor
 public class MessageController {
 
