@@ -34,6 +34,7 @@ function mockAccountApis() {
     ),
     http.get('*/api/v1/auth/mfa', () =>
       HttpResponse.json({
+        local: true,
         required: false,
         enrolled: false,
         totpEnrolled: false,

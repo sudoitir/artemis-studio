@@ -66,6 +66,7 @@ public class MfaEnrolment {
         Duration lifetime = trustedDevices.lifetime();
         String cookie = TrustedDeviceCookie.read(request).orElse(null);
         return new MfaStatusView(
+                isLocal(principal),
                 factors.required(userId),
                 factors.enrolled(userId),
                 totp.hasActive(userId),
@@ -270,14 +271,17 @@ public class MfaEnrolment {
     }
 
     /** A password-only account of this provider, in a browser session: tokens and other providers do not enrol here. */
+    private boolean isLocal(StudioPrincipal principal) {
+        return accounts.byId(principal.userId())
+                .filter(a -> IdentityLocalModule.PROVIDER_ID.equals(a.providerId()))
+                .isPresent();
+    }
+
     private void requireLocalSession(StudioPrincipal principal) {
         if (principal.tokenName() != null) {
             throw new AccessDeniedException("Second factors are managed from a signed-in session, not with a token.");
         }
-        boolean local = accounts.byId(principal.userId())
-                .filter(a -> IdentityLocalModule.PROVIDER_ID.equals(a.providerId()))
-                .isPresent();
-        if (!local) {
+        if (!isLocal(principal)) {
             throw new ConflictException(
                     "mfa-not-local",
                     "Your account signs in through another provider, which manages two-step verification.");

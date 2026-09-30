@@ -19,11 +19,14 @@ public final class MfaViews {
     /**
      * Where the caller's second factors stand.
      *
+     * @param local the caller's account is a local one; any other provider's identity provider manages two-step
+     *     verification, and there is nothing here to set up
      * @param required the caller's role requires a second factor
      * @param enrolled the caller holds one that can complete a sign-in
      * @param passkeys the caller's passkeys, oldest first, whether or not passkeys can be used now
      */
     public record MfaStatusView(
+            @Schema(requiredMode = REQUIRED) boolean local,
             @Schema(requiredMode = REQUIRED) boolean required,
             @Schema(requiredMode = REQUIRED) boolean enrolled,
             @Schema(requiredMode = REQUIRED) boolean totpEnrolled,

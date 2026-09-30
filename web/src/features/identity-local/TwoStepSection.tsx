@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Alert, Badge, Button, Group, Loader, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
-import { useMe, needsReauthentication } from '../../kernel/auth/api.ts';
+import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { describeClient } from '../../kernel/auth/clientLabel.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
 import { passkeysSupported, PASSKEYS_UNSUPPORTED } from '../../kernel/auth/webauthn.ts';
@@ -41,18 +41,8 @@ const returnTo = () => `${window.location.pathname}${window.location.search}`;
  * sign-in asks for it inline; every outcome is announced, and a failure says why and what to do.
  */
 export function TwoStepSection() {
-  const me = useMe();
-  const sso = me.data?.reauthentication.method === 'REDIRECT';
-  const status = useMfaStatus(!sso);
+  const status = useMfaStatus();
 
-  if (sso) {
-    return (
-      <Text size="sm" c="dimmed">
-        Your account signs in through your organisation's identity provider, which manages two-step verification. Change
-        it there.
-      </Text>
-    );
-  }
   if (status.isPending) return <Loader size="sm" aria-label="Loading two-step verification" />;
   if (status.isError) {
     return (
@@ -64,6 +54,14 @@ export function TwoStepSection() {
           </Button>
         </Stack>
       </Alert>
+    );
+  }
+  if (!status.data.local) {
+    return (
+      <Text size="sm" c="dimmed">
+        Your account signs in through your organisation's identity provider, which manages two-step verification. Change
+        it there.
+      </Text>
     );
   }
   return <TwoStep status={status.data} />;

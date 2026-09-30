@@ -5996,6 +5996,7 @@ export interface components {
             startPath?: string | null;
         };
         MfaStatusView: {
+            local: boolean;
             required: boolean;
             enrolled: boolean;
             totpEnrolled: boolean;
