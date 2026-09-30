@@ -38,10 +38,10 @@
 - [x] 9.1 Replicas section in `StudioHealthController` and `StudioHealth.tsx` (host, version, state, heartbeat age, owned clusters, answering replica)
 
 ## 10. Deployment, tests, docs (D10)
-- [ ] 10.1 `compose.ha.yaml`, `compose.ha.test.yaml`, `ha/haproxy.cfg`; dev/prod healthchecks on `/readyz`
-- [ ] 10.2 `HaReplicasIT` (two contexts)
-- [ ] 10.3 `web/scripts/ha-failover.ts` and the `image` job steps in CI
-- [ ] 10.4 ADR-0152 (supersedes parts of ADR-0018 and ADR-0093); `site/src/guide/high-availability.md` and nav
+- [x] 10.1 `compose.ha.yaml`, `compose.ha.test.yaml`, `ha/haproxy.cfg`; dev/prod healthchecks on `/readyz`
+- [x] 10.2 `HaReplicasIT` (two contexts)
+- [x] 10.3 `web/scripts/ha-failover.ts` and the `image` job steps in CI
+- [x] 10.4 ADR-0152 (supersedes parts of ADR-0018 and ADR-0093); `site/src/guide/high-availability.md` and nav
 
 ## 11. Finish
 - [ ] 11.1 `just verify` green; self-health screenshots (light, dark, empty, error)
