@@ -27,4 +27,4 @@
 ## 7. Finish
 - [x] 7.1 Reviewer pass on the diff (security); findings fixed
 - [x] 7.2 `just verify` green; account and admin screenshots (light, dark, empty, error)
-- [ ] 7.3 PR merged on green CI with Sonar gate green; change archived; roadmap ticked
+- [x] 7.3 PR merged on green CI with Sonar gate green; change archived; roadmap ticked
