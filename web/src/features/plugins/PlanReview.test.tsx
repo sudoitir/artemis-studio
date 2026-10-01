@@ -41,6 +41,7 @@ describe('PlanReview', () => {
                 { name: 'notes_delete', posture: 'write', description: null },
                 { name: 'notes_purge', posture: 'destructive', description: null },
               ],
+              identityProviders: [],
             },
           }),
         })}
@@ -84,7 +85,14 @@ describe('PlanReview', () => {
             description: null,
             license: null,
             until: '2027.01.0',
-            contributions: { ui: false, permissions: [], settingKeys: [], streamTopics: [], mcpTools: [] },
+            contributions: {
+              ui: false,
+              permissions: [],
+              settingKeys: [],
+              streamTopics: [],
+              mcpTools: [],
+              identityProviders: [],
+            },
           }),
         })}
       />,
@@ -115,6 +123,8 @@ describe('PlanReview', () => {
             streamTopicsRemoved: ['notes.stale'],
             mcpToolsAdded: ['notes_search'],
             mcpToolsRemoved: ['notes_list'],
+            identityProvidersAdded: [],
+            identityProvidersRemoved: [],
           },
           rolesLosingPermission: { 'notes:admin': 1, 'notes:old': 3, 'notes:kept': 0 },
           info: info({ changeNotes: 'Adds sharing.' }),
@@ -293,6 +303,51 @@ describe('InstallDialog trust', () => {
     expect(activate).toBeEnabled();
     await user.click(activate);
     await waitFor(() => expect(query).toBe('?acknowledge=true'));
+  });
+
+  it('says a sign-in plugin will receive passwords, and needs the confirmation', async () => {
+    const signIn = trustPlan({
+      acknowledgements: ['signin-added'],
+      diff: { ...plan().diff, identityProvidersAdded: ['acme-notes:corp'] },
+      info: info({
+        contributions: {
+          ...info().contributions,
+          identityProviders: [{ id: 'acme-notes:corp', label: 'Corporate directory' }],
+        },
+      }),
+    });
+    server.use(
+      me(),
+      http.get(`*/api/v1/admin/plugins/uploads/${SHA}`, () => HttpResponse.json(signIn)),
+    );
+    renderWithProviders(<InstallDialog source={{ kind: 'resume', sha: SHA }} canInstall onClose={() => undefined} />);
+
+    expect(
+      await screen.findByText('This plugin will receive the passwords users type to sign in with Corporate directory.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install Notes 1.0.0' })).toBeDisabled();
+  });
+
+  it('lists a sign-in among what the plugin can do and what an update adds', () => {
+    renderWithProviders(
+      <PlanReview
+        plan={plan({
+          fromVersion: '0.9.0',
+          diff: { ...plan().diff, identityProvidersAdded: ['acme-notes:corp'] },
+          info: info({
+            contributions: {
+              ...info().contributions,
+              identityProviders: [{ id: 'acme-notes:corp', label: 'Corporate directory' }],
+            },
+          }),
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Receive the passwords users type to sign in with Corporate directory/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Adds sign-in acme-notes:corp')).toBeInTheDocument();
   });
 
   it('trusts the key from the upload, then re-plans so Continue opens', async () => {

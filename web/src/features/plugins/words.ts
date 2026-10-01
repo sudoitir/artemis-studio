@@ -42,6 +42,7 @@ export function contributionSummary(info: PluginInfoView): string {
     count(c.permissions.length, 'permission'),
     count(c.settingKeys.length, 'setting'),
     count(c.streamTopics.length, 'live topic'),
+    count(c.identityProviders.length, 'sign-in'),
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : 'Nothing visible';
 }
@@ -94,6 +95,14 @@ export function acknowledgementReasons(plan: PluginPlanView): string[] {
         return `It asks for ${plan.diff.permissionsAdded.length === 1 ? 'a permission' : 'permissions'} the installed version did not: ${plan.diff.permissionsAdded.join(', ')}.`;
       case 'signer-changed':
         return `It is signed by a different key than the installed version (${plan.trust.previousFingerprint ?? 'none'} to ${plan.trust.fingerprint ?? 'none'}).`;
+      case 'signin-added': {
+        const added = new Set(plan.diff.identityProvidersAdded);
+        const labels = plan.info.contributions.identityProviders
+          .filter((p) => added.has(p.id))
+          .map((p) => p.label)
+          .join(', ');
+        return `This plugin will receive the passwords users type to sign in with ${labels}.`;
+      }
       case 'unverified':
         return 'It is unverified: no trusted key vouches for it. An installer allowed unverified plugins.';
       default:

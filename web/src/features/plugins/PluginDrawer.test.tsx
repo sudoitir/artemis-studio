@@ -24,7 +24,7 @@ const INFO = {
   updateUrl: null,
   requires: [],
   requiresLicense: false,
-  contributions: { ui: true, permissions: [], settingKeys: [], streamTopics: [], mcpTools: [] },
+  contributions: { ui: true, permissions: [], settingKeys: [], streamTopics: [], mcpTools: [], identityProviders: [] },
 };
 
 function plugin(over: Partial<PluginView> = {}, info: Record<string, unknown> = {}): PluginView {
@@ -160,6 +160,7 @@ describe('PluginDrawer: contributions', () => {
             ],
             settingKeys: ['notes.limit'],
             streamTopics: ['notes.changed'],
+            identityProviders: [{ id: 'acme-notes:corp', label: 'Corporate directory' }],
           },
           requires: ['acme-core'],
         },
@@ -181,6 +182,9 @@ describe('PluginDrawer: contributions', () => {
     );
     expect(screen.getByText('notes.limit').closest('li')).toHaveTextContent('Setting notes.limit');
     expect(screen.getByText('notes.changed').closest('li')).toHaveTextContent('Live topic notes.changed');
+    expect(screen.getByText('acme-notes:corp').closest('li')).toHaveTextContent(
+      'Sign-in acme-notes:corp — Corporate directory; receives the passwords typed for it',
+    );
     expect(screen.getByText('Requires acme-core')).toBeInTheDocument();
     expect(screen.getByText('Required by acme-extras, acme-more')).toBeInTheDocument();
   });

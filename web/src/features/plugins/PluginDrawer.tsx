@@ -196,6 +196,11 @@ function ContributionsTab({ plugin, info }: Readonly<{ plugin: PluginView; info:
           Live topic <Code>{t}</Code>
         </List.Item>
       ))}
+      {info.contributions.identityProviders.map((i) => (
+        <List.Item key={i.id}>
+          Sign-in <Code>{i.id}</Code> — {i.label}; receives the passwords typed for it
+        </List.Item>
+      ))}
       {info.requires.length > 0 ? <List.Item>Requires {info.requires.join(', ')}</List.Item> : null}
       {plugin.dependants.length > 0 ? <List.Item>Required by {plugin.dependants.join(', ')}</List.Item> : null}
     </List>

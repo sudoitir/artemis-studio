@@ -195,6 +195,14 @@ function CapabilitiesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
           <List.Item>Keep {count(c.settingKeys.length, 'setting')} of its own.</List.Item>
         ) : null}
         {c.streamTopics.length > 0 ? <List.Item>Send live updates to open screens.</List.Item> : null}
+        {c.identityProviders.length > 0 ? (
+          <List.Item>
+            <Text span fw={700} className={styles.warning}>
+              Receive the passwords users type to sign in with {c.identityProviders.map((p) => p.label).join(', ')}
+            </Text>
+            , and decide who they are signed in as.
+          </List.Item>
+        ) : null}
         {changes > 0 ? (
           <List.Item>
             {plan.fromVersion ? 'Change its own database schema' : 'Create its own database schema'} with{' '}
@@ -232,6 +240,8 @@ function ChangesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
           ...d.settingKeysRemoved.map((k) => `Removes setting ${k}`),
           ...d.streamTopicsAdded.map((t) => `Adds live topic ${t}`),
           ...d.streamTopicsRemoved.map((t) => `Removes live topic ${t}`),
+          ...d.identityProvidersAdded.map((i) => `Adds sign-in ${i}`),
+          ...d.identityProvidersRemoved.map((i) => `Removes sign-in ${i}`),
         ].map((line) => (
           <List.Item key={line}>{line}</List.Item>
         ))}
