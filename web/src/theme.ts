@@ -101,8 +101,10 @@ const MONO_FALLBACK = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 export const theme = createTheme({
   primaryColor: 'cobalt',
-  // Light fills are cobalt-6 (6.2:1 against a white label), dark fills cobalt-4 (8.6:1 against black).
-  primaryShade: { light: 6, dark: 4 },
+  // One fill shade in both schemes: Mantine resolves `autoContrast` once, into an inline label colour,
+  // so a fill that changed shade with the scheme would keep the other scheme's label. Cobalt-6 carries a
+  // white label at 6.2:1 and stands at 3:1 against the dark surfaces.
+  primaryShade: 6,
   // The label of every filled control (Button, ActionIcon, Badge, Avatar) is white or black, whichever
   // measures higher. 0.179 is where the two contrast ratios are equal (4.58:1); Mantine's default of 0.3
   // leaves a white label at 3:1 on a mid-tone fill.

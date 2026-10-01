@@ -5,3 +5,17 @@ Every finding is fixed before this change is archived. Severity: S1 blocks a tas
 ## Code audit (before)
 
 No confirmed findings.
+
+## Screenshot review (before)
+
+### queues-resources-routing-sweep-1 [S2 · a11y · page] A button is nested inside a button in the queue selection bar
+- Where: `web/src/features/queues/` (the "Selected queues" region in QueuesView)
+- Evidence: React logs "<button> cannot contain a nested <button>" on the queues page; nested interactive content is invalid HTML and breaks keyboard and screen-reader use.
+- Fix: make the outer element a non-interactive container.
+- Status: open
+
+### queues-resources-routing-sweep-2 [S1 · design · base] The queues grid shows 3 of its columns at 1440 px
+- Where: queues (VirtualTable fit)
+- Evidence: Address and Queue take the stretched width; Depth, Consumers, Delivering, Scheduled, Durable, State and Nodes are off-screen behind a horizontal scroll.
+- Fix: DataTable column solver.
+- Status: open

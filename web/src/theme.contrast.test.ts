@@ -223,12 +223,14 @@ describe.each<Scheme>(['light', 'dark'])('contrast in the %s scheme', (scheme) =
   });
 
   it(`keeps a filled control's label at ${TEXT_MIN}:1, resting and hovered`, () => {
-    const shade = theme.primaryShade as Record<Scheme, number>;
+    // A number, not a per-scheme pair: the label `autoContrast` picks is fixed when the control renders.
+    expect(typeof theme.primaryShade).toBe('number');
+    const fillShade = theme.primaryShade as number;
     const white: Rgba = [255, 255, 255, 1];
     const black: Rgba = [0, 0, 0, 1];
     const failures: string[] = [];
     for (const name of ['cobalt', 'amber', 'signal']) {
-      for (const step of [shade[scheme], shade[scheme] + 1]) {
+      for (const step of [fillShade, fillShade + 1]) {
         const fill = parse(mantine.colors[name][step]);
         // What `autoContrast` does: black on a light fill, white on a dark one.
         const label = luminance(fill) > (theme.luminanceThreshold ?? 0.3) ? black : white;

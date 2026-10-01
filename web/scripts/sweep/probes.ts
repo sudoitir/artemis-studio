@@ -33,7 +33,7 @@ export const storeScheme = (scheme: 'light' | 'dark') =>
   `try { localStorage.setItem('mantine-color-scheme-value', '${scheme}'); } catch {}`;
 
 /** True while something on the page says it is still loading. */
-export const BUSY = `!!document.querySelector('.mantine-Skeleton-root, .mantine-Loader-root, [aria-busy="true"], [data-loading]')`;
+export const BUSY = `!!document.querySelector('#boot-status, .mantine-Skeleton-root, .mantine-Loader-root, [aria-busy="true"], [data-loading]')`;
 
 /**
  * What the page looks like at the moment of capture: the layout shift total, policy violations, the
