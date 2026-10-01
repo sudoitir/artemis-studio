@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -15,6 +14,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -31,6 +34,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -51,6 +56,7 @@ class ScrapeSchedulerTest {
 
     private static final String GOOD = "http://good:8161/console/jolokia";
     private static final String BAD = "http://bad:8161/console/jolokia";
+    private static final String STALLED = "http://stalled:8161/console/jolokia";
 
     private final JsonMapper mapper = new JsonMapper();
 
@@ -87,9 +93,13 @@ class ScrapeSchedulerTest {
     ScrapeCycle scrapeCycle;
     SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
+    ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
+        logs = new ListAppender<>();
+        logs.start();
+        ((Logger) LoggerFactory.getLogger(ScrapeScheduler.class)).addAppender(logs);
         when(ownership.owns(any())).thenReturn(true);
         scrapeCycle = new ScrapeCycle(persist);
         sweepCursor = new SweepCursor();
@@ -112,6 +122,11 @@ class ScrapeSchedulerTest {
                                 config -> java.util.Optional.of(() -> {})),
                         io.micrometer.observation.ObservationRegistry.NOOP,
                         new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+    }
+
+    @AfterEach
+    void tearDown() {
+        ((Logger) LoggerFactory.getLogger(ScrapeScheduler.class)).detachAppender(logs);
     }
 
     private JolokiaBrokerClient client(String... fixtures) {
@@ -216,27 +231,117 @@ class ScrapeSchedulerTest {
     }
 
     @Test
-    void aTierAPassForAClusterIsSkippedWhileAnotherIsRunningForIt() throws Exception {
+    void aStalledNodeDoesNotDelayTheProbeOfItsSiblings() {
+        UUID clusterId = UUID.randomUUID();
         ClusterEntity cluster = cluster("c");
-        java.util.concurrent.CountDownLatch inside = new java.util.concurrent.CountDownLatch(1);
+        BrokerNodeEntity stalled = node(clusterId, "stalled", STALLED);
+        BrokerNodeEntity healthy = node(clusterId, "healthy", GOOD);
         java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
         when(clusters.owned()).thenReturn(List.of(cluster));
-        when(clusters.nodes(cluster.getId())).thenAnswer(call -> {
-            inside.countDown();
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(stalled, healthy));
+        when(connections.forCluster(cluster.getId(), STALLED)).thenAnswer(call -> {
             release.await();
-            return List.of();
+            return client("search-broker.json", "ha-read-primary.json");
         });
-        scheduler.onDutyAcquired(new ClusterDutyAcquired(cluster.getId()));
-        assertThat(inside.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "ha-read-primary.json", "ha-read-primary.json"));
+        try {
+            scheduler.tierA();
+            scheduler.tierA();
+
+            verify(persist).applyTierA(eq(healthy.getId()), any(), eq(1L));
+            verify(persist).applyTierA(eq(healthy.getId()), any(), eq(2L));
+            verify(connections, times(1)).forCluster(cluster.getId(), STALLED);
+        } finally {
+            release.countDown();
+        }
+        verify(persist, timeout(5000)).applyTierA(eq(stalled.getId()), any(), eq(1L));
+    }
+
+    @Test
+    void aTierAReadThatFailedInsideAnOkResponseLeavesTheNodeAsItWas() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "ha-read-instance-not-found.json"));
 
         scheduler.tierA();
-        release.countDown();
 
-        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
-        verify(clusters, times(1)).nodes(cluster.getId());
-        verify(eventPublisher, after(300).times(1)).publishEvent(any(ScrapeTierCompleted.class));
+        verify(persist, never()).applyTierA(any(), any(), anyLong());
+        verify(persist, never()).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aFailedQueueListingLeavesTheNodeReachable() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues-failed.json"))
+                .thenReturn(client("search-broker.json", "list-queues-failed.json"));
+
+        scheduler.tierB();
+        scheduler.tierC();
+
+        verify(upsert, never()).upsertBatch(any());
+        verify(persist, never()).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aFailureToPersistWhatWasScrapedLeavesTheNodeReachable() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues.json"));
+        doThrow(new IllegalStateException("database down")).when(upsert).upsertBatch(any());
+
+        scheduler.tierB();
+
+        verify(upsert).upsertBatch(any());
+        verify(persist, never()).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aNodeThatKeepsFailingTheSameWayIsLoggedOnceWithItsCauseAndAgainWhenTheReasonChanges() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", BAD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        IllegalStateException refused = new IllegalStateException("Connection refused");
+        when(connections.forCluster(cluster.getId(), BAD))
+                .thenThrow(new BrokerConnectionException(
+                        BrokerConnectionException.Kind.UNREACHABLE, "Nothing is listening at bad:8161.", refused));
+
         scheduler.tierA();
-        verify(eventPublisher, times(2)).publishEvent(any(ScrapeTierCompleted.class));
+        scheduler.tierA();
+        assertThat(warnings()).hasSize(1);
+        assertThat(warnings().get(0)).contains("bad", "Nothing is listening at bad:8161.", "Connection refused");
+
+        doThrow(new BrokerConnectionException(
+                        BrokerConnectionException.Kind.UNREACHABLE, "The name 'bad' does not resolve."))
+                .when(connections)
+                .forCluster(cluster.getId(), BAD);
+        scheduler.tierA();
+        scheduler.tierA();
+        assertThat(warnings()).hasSize(2);
+        assertThat(warnings().get(1)).contains("does not resolve");
+    }
+
+    private List<String> warnings() {
+        return logs.list.stream()
+                .filter(e -> e.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
     }
 
     @Test
@@ -280,6 +385,70 @@ class ScrapeSchedulerTest {
 
         verify(persist, times(1)).applyTierA(any(), any(), eq(1L));
         verify(persist, times(1)).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aProbeStudioHeldBackItselfNeverMarksTheNodeUnreachable() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.THROTTLED));
+
+        scheduler.tierA();
+
+        verify(persist, never()).recordNodeError(any(), anyString());
+        assertThat(warnings()).anyMatch(w -> w.contains("calling this node as fast as"));
+    }
+
+    @Test
+    void aSlowNodesReadStillTakesPartInTheCorroborationOfItsOwnCycle() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity slow = node(clusterId, "slow", STALLED);
+        BrokerNodeEntity healthy = node(clusterId, "healthy", GOOD);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(slow, healthy));
+        when(connections.forCluster(cluster.getId(), STALLED)).thenAnswer(call -> {
+            release.await();
+            return client("search-broker.json", "ha-read-primary.json");
+        });
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "ha-read-primary.json"));
+        try {
+            scheduler.tierA();
+
+            // The pass has moved on, but the cycle is not judged while one of its reads is still out.
+            verify(persist, never()).recordSplitBrain(any(), any());
+            verify(eventPublisher, never()).publishEvent(any(ScrapeTierCompleted.class));
+        } finally {
+            release.countDown();
+        }
+        verify(persist, timeout(5000)).recordSplitBrain(eq(cluster.getId()), any());
+        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
+    }
+
+    @Test
+    void whatWentWrongWithANodeIsLoggedAgainOnceItsClusterHasBeenHandedBackAndForth() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", BAD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), BAD))
+                .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
+
+        scheduler.tierA();
+        scheduler.tierA();
+        assertThat(warnings()).hasSize(1);
+
+        scheduler.onDutyReleased(new ClusterDutyReleased(clusterId));
+        scheduler.tierA();
+
+        assertThat(warnings()).hasSize(2);
     }
 
     @Test

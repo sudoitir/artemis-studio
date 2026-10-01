@@ -1,9 +1,13 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
@@ -13,6 +17,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.C
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -48,12 +53,28 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
     /** A fresh client + mock server answering, in order: search broker, HA read, listNetworkTopology. */
     private ProbedSeed seed(String topologyFixture) {
+        return seed("ha-read-primary.json", topologyFixture);
+    }
+
+    private ProbedSeed seed(String haFixture, String topologyFixture) {
+        return seed(SEED_URL, haFixture, topologyFixture);
+    }
+
+    private ProbedSeed seed(String url, String haFixture, String topologyFixture) {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(SEED_URL)).andRespond(json("search-broker.json"));
-        server.expect(requestTo(SEED_URL)).andRespond(json("ha-read-primary.json"));
-        server.expect(requestTo(SEED_URL)).andRespond(json(topologyFixture));
-        return new ProbedSeed(SEED_URL, new JolokiaBrokerClient(builder.build(), SEED_URL, mapper));
+        server.expect(requestTo(url)).andRespond(json("search-broker.json"));
+        server.expect(requestTo(url)).andRespond(json(haFixture));
+        server.expect(requestTo(url)).andRespond(json(topologyFixture));
+        return new ProbedSeed(url, new JolokiaBrokerClient(builder.build(), url, mapper));
+    }
+
+    /** A seed whose broker is down: the first call, resolving the broker's MBean, gets no answer. */
+    private ProbedSeed deadSeed(String url) {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(url)).andRespond(withException(new ConnectException("Connection refused")));
+        return new ProbedSeed(url, new JolokiaBrokerClient(builder.build(), url, mapper));
     }
 
     private static ResponseCreator json(String fixture) {
@@ -103,6 +124,16 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aSeedWhoseHaReadFailedInsideAnOkResponseIsNotTakenForAStoppedBroker() {
+        UUID clusterId = newCluster();
+
+        List<ProbedSeed> seeds = List.of(seed("ha-read-instance-not-found.json", "topology.json"));
+        assertThatThrownBy(() -> discovery.discover(clusterId, seeds)).isInstanceOf(BrokerConnectionException.class);
+
+        assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).isEmpty();
+    }
+
+    @Test
     void manualOverrideRowSurvivesRediscoveryUnchanged() {
         UUID clusterId = newCluster();
         discovery.discover(clusterId, List.of(seed("topology.json")));
@@ -130,5 +161,44 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
         assertThat(nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616"))
                 .isPresent();
+    }
+
+    @Test
+    void afterAFailoverEveryUrlStaysOnItsOwnRowAndNoRowIsAdded() {
+        String primaryUrl = "http://artemis-secondary:8161/console/jolokia";
+        String backupUrl = "http://artemis-secondary-backup:8161/console/jolokia";
+        UUID clusterId = newCluster();
+        discovery.discover(
+                clusterId,
+                List.of(
+                        seed(primaryUrl, "ha-read-primary.json", "topology-secondary-pair.json"),
+                        seed(backupUrl, "ha-read-backup.json", "topology-secondary-pair.json")));
+
+        // The backup took over and reports itself PRIMARY; the old primary is back as a backup.
+        discovery.discover(
+                clusterId,
+                List.of(
+                        seed(backupUrl, "ha-read-primary.json", "topology-secondary-after-failover.json"),
+                        seed(primaryUrl, "ha-read-backup.json", "topology-secondary-after-failover.json")));
+
+        List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        assertThat(rows)
+                .extracting(BrokerNodeEntity::getName, BrokerNodeEntity::getJolokiaUrl, BrokerNodeEntity::getHaRole)
+                .containsExactly(
+                        tuple("artemis-secondary-backup:61616", backupUrl, "PRIMARY"),
+                        tuple("artemis-secondary:61616", primaryUrl, "BACKUP"));
+    }
+
+    @Test
+    void aDeadSeedDoesNotStopDiscoveryFromTheSeedsThatAnswered() {
+        UUID clusterId = newCluster();
+
+        discovery.discover(
+                clusterId, List.of(deadSeed("http://artemis-backup:8161/console/jolokia"), seed("topology.json")));
+
+        BrokerNodeEntity primary =
+                nodes.findByClusterIdAndName(clusterId, "artemis-primary:61616").orElseThrow();
+        assertThat(primary.getJolokiaUrl()).isEqualTo(SEED_URL);
+        assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).hasSize(2);
     }
 }

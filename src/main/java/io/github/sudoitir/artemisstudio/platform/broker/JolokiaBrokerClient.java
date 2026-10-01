@@ -1,10 +1,15 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
+import java.net.ConnectException;
+import java.net.UnknownHostException;
+import java.net.http.HttpConnectTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLException;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -37,7 +42,9 @@ public class JolokiaBrokerClient {
      * Resolved broker MBean names keyed by Jolokia URL, shared across every client
      * instance the factory builds. Clients are rebuilt per call, so without this
      * every scrape tick would pay an extra {@code search} POST just to re-learn a
-     * name that never changes. Populated once, then a tick is one POST.
+     * name that rarely changes. Populated once, then a tick is one POST. A URL is
+     * dropped when a call to it fails to connect or the broker reports the MBean
+     * gone, so a restarted or replaced broker is resolved again.
      */
     private final Map<String, String> sharedBrokerObjectNames;
 
@@ -50,8 +57,6 @@ public class JolokiaBrokerClient {
 
     /** Where each call's outcome goes, for broker health. Null where a client is built directly. */
     private final NodeCallHealth callHealth;
-
-    private volatile String cachedBrokerObjectName;
 
     /**
      * The per-node ceiling, taken before every request this client sends (ADR-0076). Null only
@@ -81,7 +86,6 @@ public class JolokiaBrokerClient {
         this.clockOffsets = clockOffsets;
         this.callHealth = callHealth;
         this.limiter = limiter;
-        this.cachedBrokerObjectName = sharedBrokerObjectNames.get(jolokiaUrl);
     }
 
     public String jolokiaUrl() {
@@ -115,8 +119,7 @@ public class JolokiaBrokerClient {
     public JsonNode parsed(JolokiaResponse entry) {
         if (!entry.ok()) {
             throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.BAD_RESPONSE,
-                    "Batch entry failed: " + (entry.error() != null ? entry.error() : "status " + entry.status()));
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "Batch entry failed: " + entry.failure());
         }
         return entry.valueParsed(mapper);
     }
@@ -164,13 +167,13 @@ public class JolokiaBrokerClient {
 
     /**
      * The broker's top-level MBean object name, resolved once via a Jolokia
-     * {@code search} and cached.
+     * {@code search} and cached per URL.
      *
      * @throws BrokerConnectionException {@code NOT_ARTEMIS} if the agent answers
      *     but exposes no Artemis broker MBean.
      */
     public String resolveBrokerObjectName() {
-        String cached = cachedBrokerObjectName;
+        String cached = sharedBrokerObjectNames.get(jolokiaUrl);
         if (cached != null) {
             return cached;
         }
@@ -178,19 +181,30 @@ public class JolokiaBrokerClient {
         if (matches.isEmpty()) {
             throw BrokerConnectionException.of(BrokerConnectionException.Kind.NOT_ARTEMIS);
         }
-        cachedBrokerObjectName = matches.get(0);
-        sharedBrokerObjectNames.put(jolokiaUrl, cachedBrokerObjectName);
-        return cachedBrokerObjectName;
+        String name = matches.get(0);
+        sharedBrokerObjectNames.put(jolokiaUrl, name);
+        return name;
+    }
+
+    /** A call against the resolved broker MBean; a broker that says the MBean is gone is resolved again next time. */
+    private JolokiaResponse singleOnBroker(JolokiaRequest request) {
+        JolokiaResponse response = single(request);
+        if (!response.ok()
+                && response.errorType() != null
+                && response.errorType().contains(ManagementRefusal.MBEAN_ABSENT)) {
+            sharedBrokerObjectNames.remove(jolokiaUrl);
+        }
+        return response;
     }
 
     /** Read attributes of the resolved broker MBean in one request. */
     public JolokiaResponse readBrokerAttributes(String... attributes) {
-        return single(JolokiaRequest.read(resolveBrokerObjectName(), attributes));
+        return singleOnBroker(JolokiaRequest.read(resolveBrokerObjectName(), attributes));
     }
 
     /** Invoke an operation on the resolved broker MBean. */
     public JolokiaResponse execOnBroker(String operation, Object... arguments) {
-        return single(JolokiaRequest.exec(resolveBrokerObjectName(), operation, arguments));
+        return singleOnBroker(JolokiaRequest.exec(resolveBrokerObjectName(), operation, arguments));
     }
 
     /** A broker-MBean operation whose {@code value} is a JSON string; returns the re-parsed node. */
@@ -199,8 +213,7 @@ public class JolokiaBrokerClient {
         if (!response.ok()) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE,
-                    "Operation " + operation + " failed: "
-                            + (response.error() != null ? response.error() : "status " + response.status()));
+                    "Operation " + operation + " failed: " + response.failure());
         }
         return response.valueParsed(mapper);
     }
@@ -239,22 +252,43 @@ public class JolokiaBrokerClient {
         } catch (HttpStatusCodeException e) {
             throw classify(e);
         } catch (ResourceAccessException e) {
+            // The broker may have restarted or been replaced at this address; learn its name again.
+            sharedBrokerObjectNames.remove(jolokiaUrl);
             if (hasCause(e, SSLException.class)) {
                 throw new BrokerConnectionException(
                         BrokerConnectionException.Kind.TLS_FAILED,
                         BrokerConnectionException.Kind.TLS_FAILED.defaultMessage(),
                         e);
             }
-            throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNREACHABLE,
-                    BrokerConnectionException.Kind.UNREACHABLE.defaultMessage(),
-                    e);
+            throw new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, unreachableMessage(e), e);
         } catch (RestClientException e) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE,
                     BrokerConnectionException.Kind.BAD_RESPONSE.defaultMessage() + notJsonHint(e),
                     e);
         }
+    }
+
+    /** Say which way the transport failed, so a slow broker does not read the same as a missing one. */
+    private String unreachableMessage(ResourceAccessException e) {
+        String at = NodeAddress.hostPort(jolokiaUrl);
+        if (hasCause(e, HttpConnectTimeoutException.class)) {
+            return "The broker at " + at + " did not accept the connection within the connect timeout.";
+        }
+        if (hasCause(e, HttpTimeoutException.class)) {
+            return "The broker at " + at + " accepted the connection but did not answer within the read timeout.";
+        }
+        if (hasCause(e, ConnectException.class)) {
+            return "Connection refused: nothing is listening at " + at + ".";
+        }
+        if (hasCause(e, UnknownHostException.class)) {
+            return "The host name of " + at + " does not resolve.";
+        }
+        Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
+        return "Could not reach the broker at " + at + ": "
+                + (root.getMessage() != null
+                        ? root.getMessage()
+                        : root.getClass().getSimpleName());
     }
 
     /**

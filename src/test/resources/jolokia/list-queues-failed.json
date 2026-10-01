@@ -1,0 +1,11 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "type": "exec",
+    "operation": "listQueues(java.lang.String,int,int)",
+    "arguments": ["", 1, 200]
+  },
+  "error_type": "java.lang.IllegalStateException",
+  "error": "java.lang.IllegalStateException : java.lang.NullPointerException",
+  "status": 500
+}

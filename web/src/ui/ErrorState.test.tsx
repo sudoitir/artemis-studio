@@ -126,6 +126,7 @@ describe('ErrorState', () => {
 
   it.each([
     ['UNREACHABLE', 'The broker is unreachable', 502, true],
+    ['THROTTLED', 'Studio is throttling calls to this broker', 503, true],
     ['UNAUTHORIZED', 'The broker rejected the credentials', 422, false],
     ['NOT_ARTEMIS', 'There is no Artemis broker at this agent', 422, false],
     ['WRONG_PATH', 'There is no Jolokia agent at this address', 422, false],

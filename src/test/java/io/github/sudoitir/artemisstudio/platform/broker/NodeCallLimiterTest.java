@@ -162,4 +162,16 @@ class NodeCallLimiterTest {
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessageContaining("shutting down");
     }
+
+    @Test
+    void aPermitTimeoutSaysStudioThrottledItselfRatherThanTheNodeIsUnreachable() {
+        NodeCallLimiter limiter = limiter(1);
+        limiter.acquire(NODE, 1);
+
+        assertThatThrownBy(() -> limiter.acquire(NODE, 1))
+                .isInstanceOfSatisfying(BrokerConnectionException.class, e -> {
+                    assertThat(e.kind()).isEqualTo(BrokerConnectionException.Kind.THROTTLED);
+                    assertThat(e.getMessage()).contains("Studio");
+                });
+    }
 }

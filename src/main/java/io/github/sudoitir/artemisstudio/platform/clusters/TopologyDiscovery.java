@@ -4,7 +4,9 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.bool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxedBool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,7 +72,7 @@ public class TopologyDiscovery {
 
     @Transactional
     public ClusterTopology discover(UUID clusterId, List<ProbedSeed> seeds) {
-        List<SeedReading> readings = seeds.stream().map(TopologyDiscovery::read).toList();
+        List<SeedReading> readings = readAnswering(seeds);
 
         // 1. Connector-named discovered rows from every seed's topology view.
         for (SeedReading r : readings) {
@@ -185,14 +188,27 @@ public class TopologyDiscovery {
         nodes.save(BrokerNodeEntity.discovered(clusterId, connector, haRole, nodeId));
     }
 
+    /**
+     * A seed's management URL is its identity: the row already holding it, else a
+     * connector-named row without a URL on the seed's host (or, when the connector
+     * is named differently from the management address, with the seed's NodeID and
+     * role), else a new row. A URL is never moved from one row to another. HA role
+     * and state are observed and are written to whichever row that is.
+     */
     private void attachSeed(UUID clusterId, SeedReading r) {
         String haRole = evaluator.deriveHaRole(r.backup(), r.clustered());
         String state = evaluator.deriveState(r.started());
 
-        BrokerNodeEntity node = nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
-                .filter(n -> r.nodeId() != null && r.nodeId().equals(n.getArtemisNodeId()))
-                .filter(n -> haRole.equals(n.getHaRole()))
+        List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        BrokerNodeEntity node = rows.stream()
+                .filter(n -> r.jolokiaUrl().equals(n.getJolokiaUrl()))
                 .findFirst()
+                .or(() -> unmanaged(rows, n -> connectorHost(n.getName()).equals(seedHost(r.jolokiaUrl()))))
+                .or(() -> unmanaged(
+                        rows,
+                        n -> r.nodeId() != null
+                                && r.nodeId().equals(n.getArtemisNodeId())
+                                && haRole.equals(n.getHaRole())))
                 .orElseGet(() ->
                         nodes.save(BrokerNodeEntity.fromSeed(clusterId, seedName(r.jolokiaUrl()), haRole, r.nodeId())));
 
@@ -204,8 +220,45 @@ public class TopologyDiscovery {
         nodes.save(node);
     }
 
+    /** The first row with no management URL, not under a manual override, that the filter accepts. */
+    private static Optional<BrokerNodeEntity> unmanaged(
+            List<BrokerNodeEntity> rows, Predicate<BrokerNodeEntity> match) {
+        return rows.stream()
+                .filter(n -> n.getJolokiaUrl() == null && !n.isManualOverride())
+                .filter(match)
+                .findFirst();
+    }
+
+    /**
+     * Reads each seed on its own: one that does not answer is skipped (the scrape's
+     * tier A records its error) and discovery goes on with the others. Only when none
+     * answered is there nothing to discover from, and the first failure is thrown.
+     */
+    private static List<SeedReading> readAnswering(List<ProbedSeed> seeds) {
+        List<SeedReading> readings = new ArrayList<>();
+        BrokerConnectionException firstFailure = null;
+        for (ProbedSeed seed : seeds) {
+            try {
+                readings.add(read(seed));
+            } catch (BrokerConnectionException e) {
+                if (firstFailure == null) {
+                    firstFailure = e;
+                }
+            }
+        }
+        if (readings.isEmpty() && firstFailure != null) {
+            throw firstFailure;
+        }
+        return readings;
+    }
+
     private static SeedReading read(ProbedSeed seed) {
-        JsonNode ha = seed.client().readBrokerAttributes(HA_ATTRS).value();
+        JolokiaResponse response = seed.client().readBrokerAttributes(HA_ATTRS);
+        if (!response.ok()) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "HA read failed: " + response.failure());
+        }
+        JsonNode ha = response.value();
         JsonNode topology = seed.client().execOnBrokerParsed("listNetworkTopology()");
 
         List<TopologyEntry> entries = new ArrayList<>();
@@ -225,6 +278,20 @@ public class TopologyDiscovery {
                 text(ha, "Version"),
                 boxedBool(ha, "Clustered"),
                 entries);
+    }
+
+    private static String seedHost(String jolokiaUrl) {
+        try {
+            return URI.create(jolokiaUrl).getHost();
+        } catch (RuntimeException _) {
+            return null;
+        }
+    }
+
+    /** The host of a {@code host:port} connector name. */
+    private static String connectorHost(String connector) {
+        int colon = connector.lastIndexOf(':');
+        return colon > 0 ? connector.substring(0, colon) : connector;
     }
 
     private static String seedName(String jolokiaUrl) {

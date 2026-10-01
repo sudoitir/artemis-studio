@@ -13,6 +13,7 @@ _Services_
 
 _Event listeners_
 
+* `i.g.s.a.f.e.BrokerEventWriter`
 * `i.g.s.a.f.e.BrokerEventPublisher` (via `i.g.s.a.f.e.EventStreamPublisher`)
 
 _Configuration properties_
@@ -21,7 +22,6 @@ _Configuration properties_
 
 _Others_
 
-* `i.g.s.a.f.e.BrokerEventWriter`
 * `i.g.s.a.f.e.EventsFeature`
 * `i.g.s.a.f.e.EventsSettings`
 * `i.g.s.a.f.e.TopicCoalescer`
@@ -31,5 +31,6 @@ _Others_
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 |Events listened to
-|* `i.g.s.a.k.r.BusEvents` 
+|* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.a.k.r.BusEvents` 
 |===

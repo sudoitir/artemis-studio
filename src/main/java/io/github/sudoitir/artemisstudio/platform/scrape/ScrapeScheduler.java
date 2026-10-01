@@ -2,10 +2,12 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
@@ -16,8 +18,10 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,15 +29,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -41,8 +48,9 @@ import tools.jackson.databind.JsonNode;
  * The tiered scrape scheduler (ADR-0015). Retires {@code HaRefreshTask}.
  *
  * <ul>
- *   <li><b>Tier A</b> (~5s): one HA-attribute read per manageable node, then a
- *       per-cluster split-brain corroboration pass.
+ *   <li><b>Tier A</b> (~5s): one HA-attribute read per manageable node, each on its own
+ *       so a stalled node delays only itself, then a per-cluster split-brain corroboration
+ *       pass. It is the only tier that decides whether a node is reachable.
  *   <li><b>Tier B</b> (~15s): the first {@code listQueues} page per node, so the
  *       busiest queues get a fast refresh without waiting for the full sweep.
  *   <li><b>Tier C</b> (~5m): one {@code listQueues} page per node per tick,
@@ -54,8 +62,9 @@ import tools.jackson.databind.JsonNode;
  *
  * <p>Every tier: acquire a per-node permit, do the POST, parse, hand a plain
  * result to a short transaction. Per-node fan-out is on virtual threads so one
- * slow or unreachable broker never blocks its siblings or another cluster — its
- * failure lands on {@code broker_node.last_error} and the loop carries on.
+ * slow or unreachable broker never blocks its siblings or another cluster. A tier A
+ * read that fails to reach the broker lands on {@code broker_node.last_error}; a failure
+ * of any other job is logged and leaves the node's reachability as it was.
  */
 // ponytail: tier B just refreshes listQueues page 1. Artemis 2.44 sortColumn /
 // GREATER_THAN both 500 with an NPE (Slice 0), so a broker-sorted "hot page" is
@@ -64,30 +73,43 @@ import tools.jackson.databind.JsonNode;
 @DependsOn("settingsService")
 @RequiredArgsConstructor
 @Slf4j
-public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
+public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBean {
 
     private static final String FEATURE = "scrape";
 
-    /** The clusters a tier A pass is running for on this replica. */
-    private final Set<UUID> tierAInFlight = ConcurrentHashMap.newKeySet();
+    /**
+     * How long a tier A pass waits for its probes before it carries on without the ones still
+     * running. A node that has not answered by then is left to finish on its own and is not probed
+     * again until it does.
+     */
+    private static final Duration PROBE_GRACE = Duration.ofSeconds(1);
+
+    /** Why each node's job last failed, by cluster, node and job, so a node that keeps failing the same way is logged once. */
+    private final Map<String, String> lastFailures = new ConcurrentHashMap<>();
+
+    /** The nodes a tier A probe is running for on this replica. */
+    private final Set<UUID> probesInFlight = ConcurrentHashMap.newKeySet();
+
+    /** Where tier A probes run: one virtual thread each, so a stalled node holds nothing but its own. */
+    private final ExecutorService probes = Executors.newVirtualThreadPerTaskExecutor();
 
     /**
-     * Registers the three tiers as trigger tasks whose {@code nextExecution}
-     * re-reads {@link SettingsService} every fire (ADR-0025), so a cadence change
-     * in Settings applies without a restart. Replaces the SpEL-bound
-     * {@code @Scheduled(fixedDelayString = "#{@settingsService…}")} that resolved
-     * once at wiring time. Fixed-delay semantics are preserved: the trigger reads
-     * {@code lastCompletion} (falling back to {@code lastActualExecution}, then
-     * "now") and adds the current interval.
+     * Schedules the tiers as trigger tasks whose {@code nextExecution} re-reads
+     * {@link SettingsService} every fire (ADR-0025), so a cadence change in Settings applies
+     * without a restart. Replaces the SpEL-bound
+     * {@code @Scheduled(fixedDelayString = "#{@settingsService…}")} that resolved once at wiring
+     * time. Fixed-delay semantics are preserved: the trigger reads {@code lastCompletion} (falling
+     * back to {@code lastActualExecution}, then "now") and adds the current interval. They run on
+     * a pool of their own, never the one other scheduled jobs share, so broker I/O never delays
+     * them and they never delay it.
      */
     @Override
-    public void configureTasks(ScheduledTaskRegistrar registrar) {
+    public void afterSingletonsInstantiated() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         tierScheduler = scheduler;
         scheduler.setPoolSize(4);
         scheduler.setThreadNamePrefix("scrape-");
         scheduler.initialize();
-        registrar.setTaskScheduler(scheduler);
 
         for (ScheduledJob tier : List.of(
                 ScheduledJob.fixedDelay(
@@ -114,7 +136,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
                         ScheduledJob.Scope.INSTALLATION,
                         () -> settings.duration(ScrapeSettings.DISCOVERY),
                         this::discovery))) {
-            registrar.addTriggerTask(jobStatuses.instrument(tier), jobStatuses.trigger(tier));
+            scheduler.schedule(jobStatuses.instrument(tier), jobStatuses.trigger(tier));
         }
     }
 
@@ -165,6 +187,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
     /** The pool is not a bean, so nothing else ends its threads when the context closes. */
     @Override
     public void destroy() {
+        probes.shutdownNow();
         ThreadPoolTaskScheduler scheduler = tierScheduler;
         if (scheduler != null) {
             scheduler.shutdown();
@@ -173,33 +196,45 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     /** Tiers A and B visit the clusters this replica owns; C and discovery run once for all (ShedLock). */
     public void tierA() {
-        try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (RegisteredCluster cluster : clusters.owned()) {
-                tierA(pool, cluster.getId());
-            }
+        for (RegisteredCluster cluster : clusters.owned()) {
+            tierA(cluster.getId());
         }
     }
 
     /**
-     * One tier A pass for one cluster. Skipped when a pass for it is already running: taking a cluster
-     * over runs one at once, which can overlap the scheduled one, and two at a time would count the
-     * cycle twice and scrape every node twice.
+     * One tier A pass for one cluster. Each node is probed on its own and never twice at once, so a
+     * node that stalls is skipped until it answers while its siblings are probed every pass. The
+     * pass waits only {@link #PROBE_GRACE} for its probes; the cycle is judged by the last of its
+     * probes to finish, so a slow node's reading is part of it. Taking a cluster over runs a pass
+     * at once, which can overlap the scheduled one.
      */
-    private void tierA(ExecutorService pool, UUID clusterId) {
-        if (!tierAInFlight.add(clusterId)) {
-            log.debug("Tier A for cluster {} is already running; skipping this pass", clusterId);
+    private void tierA(UUID clusterId) {
+        long cycle = scrapeCycle.next(clusterId);
+        List<ClusterNode> targets = manageableNodes(clusterId).stream()
+                .filter(node -> probesInFlight.add(node.getId()))
+                .toList();
+        if (targets.isEmpty()) {
+            completeTierA(clusterId);
             return;
         }
-        try {
-            scrapeTierA(pool, clusterId);
-        } finally {
-            tierAInFlight.remove(clusterId);
-        }
+        AtomicInteger pending = new AtomicInteger(targets.size());
+        List<Future<?>> started = targets.stream()
+                .<Future<?>>map(node -> probes.submit(() -> {
+                    try {
+                        runIsolated(node, "HA read", n -> probe(clusterId, n, cycle));
+                    } finally {
+                        probesInFlight.remove(node.getId());
+                        if (pending.decrementAndGet() == 0) {
+                            completeTierA(clusterId);
+                        }
+                    }
+                }))
+                .toList();
+        awaitProbes(started);
     }
 
-    private void scrapeTierA(ExecutorService pool, UUID clusterId) {
-        long cycle = scrapeCycle.next(clusterId);
-        fanOut(pool, manageableNodes(clusterId), node -> scrapeTierA(clusterId, node, cycle));
+    /** What follows once every probe of a cycle has finished: corroboration, stream signals and subscriptions. */
+    private void completeTierA(UUID clusterId) {
         try {
             List<NodeEndpoint> endpoints = persist.endpoints(clusterId);
             scrapeCycle.corroborate(clusterId, endpoints);
@@ -217,12 +252,28 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.A));
     }
 
+    private static void awaitProbes(List<Future<?>> started) {
+        long deadline = System.nanoTime() + PROBE_GRACE.toNanos();
+        for (Future<?> probe : started) {
+            try {
+                probe.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+            } catch (TimeoutException _) {
+                // Still running: it lands its own result when it answers.
+            } catch (ExecutionException e) {
+                log.warn("Scrape task failed unexpectedly: {}", e.getCause() != null ? e.getCause() : e, e);
+            } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
     /** A cluster just became this replica's: scrape it now, so its state and subscriptions do not wait a tick. */
     @EventListener
     void onDutyAcquired(ClusterDutyAcquired acquired) {
         Thread.startVirtualThread(() -> {
-            try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-                tierA(pool, acquired.clusterId());
+            try {
+                tierA(acquired.clusterId());
             } catch (RuntimeException e) {
                 log.warn(
                         "First scrape of cluster {} after taking it over failed: {}",
@@ -243,6 +294,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         UUID clusterId = released.clusterId();
         scrapeCycle.forget(clusterId);
         streamSignals.forget(clusterId);
+        lastFailures.keySet().removeIf(key -> key.startsWith(clusterId + "/"));
         Thread.startVirtualThread(() -> coreSubscriptions.forget(clusterId));
     }
 
@@ -250,7 +302,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (RegisteredCluster cluster : clusters.owned()) {
                 UUID clusterId = cluster.getId();
-                fanOut(pool, manageableNodes(clusterId), node -> scrapeHotQueues(clusterId, node));
+                fanOut(pool, manageableNodes(clusterId), "hot queue read", node -> scrapeHotQueues(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.B));
             }
         }
@@ -260,7 +312,7 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (RegisteredCluster cluster : clusters.clusters()) {
                 UUID clusterId = cluster.getId();
-                fanOut(pool, manageableNodes(clusterId), node -> scrapeSweepPage(clusterId, node));
+                fanOut(pool, manageableNodes(clusterId), "queue sweep", node -> scrapeSweepPage(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.C));
             }
         }
@@ -284,10 +336,30 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
 
     // ---- per-node jobs ---------------------------------------------------
 
-    private void scrapeTierA(UUID clusterId, ClusterNode node, long cycle) {
-        JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-        JsonNode ha = client.readBrokerAttributes(HA_ATTRS).value();
-        persist.applyTierA(node.getId(), ha, cycle);
+    /**
+     * The reachability probe, and the only job that writes or clears {@code broker_node.last_error}.
+     * A read that never got an answer marks the node; an answer that carries an error is a failed
+     * observation, so the node keeps the state and the error it had.
+     */
+    private void probe(UUID clusterId, ClusterNode node, long cycle) {
+        JolokiaResponse ha;
+        try {
+            ha = connections.forCluster(clusterId, node.getJolokiaUrl()).readBrokerAttributes(HA_ATTRS);
+        } catch (RuntimeException e) {
+            // Studio held the read back itself, so the node was never asked and nothing is known of it.
+            if (!(e instanceof BrokerConnectionException bce)
+                    || bce.kind() != BrokerConnectionException.Kind.THROTTLED) {
+                String message =
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                persist.recordNodeError(node.getId(), message);
+            }
+            throw e;
+        }
+        if (!ha.ok()) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "The HA read answered with an error: " + ha.failure());
+        }
+        persist.applyTierA(node.getId(), ha.value(), cycle);
     }
 
     private void scrapeHotQueues(UUID clusterId, ClusterNode node) {
@@ -332,9 +404,9 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
                 .toList();
     }
 
-    private void fanOut(ExecutorService pool, List<ClusterNode> targets, NodeJob job) {
+    private void fanOut(ExecutorService pool, List<ClusterNode> targets, String jobName, NodeJob job) {
         List<Future<?>> futures = targets.stream()
-                .<Future<?>>map(node -> pool.submit(() -> runIsolated(node, job)))
+                .<Future<?>>map(node -> pool.submit(() -> runIsolated(node, jobName, job)))
                 .toList();
         for (Future<?> f : futures) {
             try {
@@ -348,15 +420,19 @@ public class ScrapeScheduler implements SchedulingConfigurer, DisposableBean {
         }
     }
 
-    private void runIsolated(ClusterNode node, NodeJob job) {
+    private void runIsolated(ClusterNode node, String jobName, NodeJob job) {
+        String key = node.getClusterId() + "/" + node.getId() + "/" + jobName;
         try {
             // The client waits for the node's ceiling before each request it sends (ADR-0076).
             job.run(node);
+            lastFailures.remove(key);
         } catch (RuntimeException e) {
-            String message =
-                    e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            log.warn("Scrape failed for {} ({}): {}", node.getName(), node.getJolokiaUrl(), message);
-            persist.recordNodeError(node.getId(), message);
+            // Only the tier A probe says whether a node is reachable; what failed here is not that.
+            Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
+            String why = root == e ? e.toString() : e + ", caused by " + root;
+            if (!why.equals(lastFailures.put(key, why))) {
+                log.warn("The {} of {} ({}) failed: {}", jobName, node.getName(), node.getJolokiaUrl(), why);
+            }
         }
     }
 

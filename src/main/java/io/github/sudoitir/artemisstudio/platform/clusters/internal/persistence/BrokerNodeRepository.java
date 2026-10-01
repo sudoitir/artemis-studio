@@ -15,4 +15,6 @@ public interface BrokerNodeRepository extends JpaRepository<BrokerNodeEntity, UU
     List<BrokerNodeEntity> findByClusterIdOrderByNameAsc(UUID clusterId);
 
     Optional<BrokerNodeEntity> findByClusterIdAndName(UUID clusterId, String name);
+
+    boolean existsByClusterIdAndJolokiaUrlAndIdNot(UUID clusterId, String jolokiaUrl, UUID id);
 }

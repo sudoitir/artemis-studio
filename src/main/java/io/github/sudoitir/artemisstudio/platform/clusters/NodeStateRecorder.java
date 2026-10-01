@@ -49,7 +49,7 @@ public class NodeStateRecorder {
         });
     }
 
-    /** Record a failed scrape without disturbing last-known-good HA state. */
+    /** Record that the tier-A probe got no answer from a node, without disturbing last-known-good HA state. */
     @Transactional
     public void recordNodeError(UUID nodeId, String message) {
         nodes.findById(nodeId).ifPresent(node -> node.recordError(Instant.now(), message));
