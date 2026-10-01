@@ -5,7 +5,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * A username-and-password sign-in a plugin offers (ADR-0153). The plugin declares it under
+ * A username-and-password sign-in a plugin offers (ADR-0156). The plugin declares it under
  * {@code identityProviders} in {@code plugin.json} and exposes one bean of this type per declared
  * id; it is offered only while the plugin runs and its signer is trusted.
  *

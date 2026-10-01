@@ -25,7 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * A plugin's sign-in provider on the one login path (ADR-0153), over real HTTP: it signs users in
+ * A plugin's sign-in provider on the one login path (ADR-0156), over real HTTP: it signs users in
  * and maps their groups, and everything Studio owns on that path, from the answer to a wrong
  * password to the lockout, is what it is for a local account. A plugin that fails, hangs or loses
  * its signer stops signing anyone in, and nothing else notices.

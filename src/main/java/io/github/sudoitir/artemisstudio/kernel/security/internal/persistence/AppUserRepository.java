@@ -22,7 +22,7 @@ public interface AppUserRepository extends JpaRepository<AppUserEntity, UUID> {
 
     List<AppUserEntity> findAllByOrderByUsername();
 
-    /** A provider's accounts that can still sign in, as revalidation needs them (ADR-0153). */
+    /** A provider's accounts that can still sign in, as revalidation needs them (ADR-0156). */
     interface EnabledAccount {
         UUID getId();
 

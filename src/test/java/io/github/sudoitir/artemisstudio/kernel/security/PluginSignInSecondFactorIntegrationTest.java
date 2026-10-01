@@ -16,7 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Studio's second factor covers every account that signs in with a password, a plugin's included
- * (ADR-0153), and still leaves alone the users of a provider that does its own.
+ * (ADR-0156), and still leaves alone the users of a provider that does its own.
  */
 class PluginSignInSecondFactorIntegrationTest extends SignInPluginIntegrationTest {
 

@@ -34,7 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Plugins that sign users in, over real HTTP (ADR-0153): a signed fixture plugin installed through
+ * Plugins that sign users in, over real HTTP (ADR-0156): a signed fixture plugin installed through
  * {@link PluginHost} whose provider is answered by a {@link SignInProbe} directory, and the helpers
  * that sign its users in and map their groups.
  */

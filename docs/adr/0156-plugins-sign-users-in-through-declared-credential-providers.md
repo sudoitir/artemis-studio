@@ -1,4 +1,4 @@
-# ADR-0153: Plugins sign users in through declared credential providers that answer with an identity
+# ADR-0156: Plugins sign users in through declared credential providers that answer with an identity
 
 - **Status**: accepted
 - **Date**: 2026-10-01

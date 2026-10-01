@@ -576,7 +576,7 @@ public class PluginValidator {
         }
     }
 
-    /** ADR-0153: sign-in providers are namespaced like metrics, unique, and have a label the login screen can show. */
+    /** ADR-0156: sign-in providers are namespaced like metrics, unique, and have a label the login screen can show. */
     private void checkIdentityProviders(PluginDescriptor descriptor, List<Violation> violations) {
         String id = descriptor.id();
         if (id == null) {

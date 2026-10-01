@@ -122,7 +122,7 @@ public record PluginDescriptor(
 
     /**
      * A username-and-password sign-in the plugin offers through a {@code PluginCredentialProvider}
-     * bean (ADR-0153). Declared here so the login screen and the group mappings list it without
+     * bean (ADR-0156). Declared here so the login screen and the group mappings list it without
      * calling plugin code, and so the install review can say the plugin will receive passwords.
      *
      * @param id {@code <plugin id>:<name>}, the provider id Studio keys accounts and mappings by

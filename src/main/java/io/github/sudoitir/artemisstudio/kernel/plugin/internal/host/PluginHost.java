@@ -1471,7 +1471,7 @@ public class PluginHost implements SmartLifecycle {
         String previousFingerprint =
                 existing.map(PluginInstallEntity::getSignerFingerprint).orElse(null);
         boolean signerChanged = previousFingerprint != null && !previousFingerprint.equals(decision.fingerprint());
-        // A plugin that receives users' passwords is never covered by the unverified allowance (ADR-0153).
+        // A plugin that receives users' passwords is never covered by the unverified allowance (ADR-0156).
         boolean allowed = decision.status() == TrustDecision.Status.TRUSTED
                 || (trust.allowUnverified() && descriptor.identityProviders().isEmpty());
         List<String> acknowledgements = new ArrayList<>();

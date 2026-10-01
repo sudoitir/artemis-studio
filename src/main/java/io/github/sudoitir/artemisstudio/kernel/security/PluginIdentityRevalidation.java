@@ -16,7 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Asks each plugin sign-in provider which of its users it no longer vouches for, and takes their
- * access away (ADR-0153). A session holds the grants resolved at sign-in, so a user removed at the
+ * access away (ADR-0156). A session holds the grants resolved at sign-in, so a user removed at the
  * source would otherwise keep working until their session ends. For every subject a provider
  * returns, in one transaction, the user's sessions end, their API tokens are revoked, their trusted
  * devices are forgotten and {@code IDENTITY_REVOKED} is audited. The account stays enabled: a user

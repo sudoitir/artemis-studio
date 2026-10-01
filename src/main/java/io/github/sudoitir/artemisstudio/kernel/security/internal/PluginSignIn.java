@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * The sign-in providers plugins offer (ADR-0153): the one bridge that holds them and the one
+ * The sign-in providers plugins offer (ADR-0156): the one bridge that holds them and the one
  * {@link IdentityProviders} contribution that lists them, so a plugin's provider is one more
  * credential provider on {@link LoginService}'s path and nothing downstream knows it is a
  * plugin's. A plugin answers with who the credentials identify; the adapter here turns that into an

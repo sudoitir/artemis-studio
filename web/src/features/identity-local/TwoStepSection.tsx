@@ -36,7 +36,7 @@ interface Outcome {
 const returnTo = () => `${globalThis.location.pathname}${globalThis.location.search}`;
 
 /**
- * Account section: the signed-in password user's second factors, local or a plugin's sign-in (ADR-0143, ADR-0153) — the authenticator app, passkeys,
+ * Account section: the signed-in password user's second factors, local or a plugin's sign-in (ADR-0143, ADR-0156) — the authenticator app, passkeys,
  * recovery codes and the browsers they chose to trust — and how to change each. Every change that needs a fresh
  * sign-in asks for it inline; every outcome is announced, and a failure says why and what to do.
  */

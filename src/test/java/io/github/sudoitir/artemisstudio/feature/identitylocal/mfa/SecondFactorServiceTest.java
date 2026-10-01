@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
-/** Who is required to hold a second factor (ADR-0143, ADR-0153): password accounts holding a role that requires one, nobody else. */
+/** Who is required to hold a second factor (ADR-0143, ADR-0156): password accounts holding a role that requires one, nobody else. */
 class SecondFactorServiceTest {
 
     private final UserAccounts accounts = mock(UserAccounts.class);

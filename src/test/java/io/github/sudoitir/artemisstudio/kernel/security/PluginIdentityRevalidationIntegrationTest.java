@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Studio asks a plugin's sign-in provider which of its users it no longer vouches for, and takes
- * their access away (ADR-0153): sessions, API tokens and the audit row, with the account left alone.
+ * their access away (ADR-0156): sessions, API tokens and the audit row, with the account left alone.
  */
 class PluginIdentityRevalidationIntegrationTest extends SignInPluginIntegrationTest {
 

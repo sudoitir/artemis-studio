@@ -6,7 +6,7 @@ import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Takes access away from users a plugin's sign-in provider no longer vouches for (ADR-0153). */
+/** Takes access away from users a plugin's sign-in provider no longer vouches for (ADR-0156). */
 @Configuration(proxyBeanMethods = false)
 class PluginIdentityJobs {
 

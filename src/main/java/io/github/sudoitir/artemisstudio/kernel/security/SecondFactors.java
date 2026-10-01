@@ -19,7 +19,7 @@ public interface SecondFactors {
 
     /**
      * Whether the user must hold one: their provider checks a password (the local provider, or a
-     * plugin's sign-in, ADR-0153) and they hold a role that requires it. A user of a redirect provider
+     * plugin's sign-in, ADR-0156) and they hold a role that requires it. A user of a redirect provider
      * is never required, because that provider does its own MFA.
      */
     boolean required(UUID userId);

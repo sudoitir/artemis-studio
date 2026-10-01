@@ -9,7 +9,7 @@ import org.springframework.boot.health.contributor.Status;
 import org.springframework.stereotype.Component;
 
 /**
- * The {@code pluginSignIn} contributor (ADR-0153): degraded while a plugin's sign-in provider's latest call
+ * The {@code pluginSignIn} contributor (ADR-0156): degraded while a plugin's sign-in provider's latest call
  * failed, naming the provider and the reason; the next call that succeeds clears it. Local sign-in
  * never waits on a plugin, so this says a directory is unreachable, not that Studio is.
  */

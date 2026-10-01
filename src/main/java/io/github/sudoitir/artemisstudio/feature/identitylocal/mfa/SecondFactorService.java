@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The second factors of password accounts as the sign-in path sees them (ADR-0143): TOTP, passkeys and
  * recovery codes. Only an account whose provider checks a password, the local provider or a plugin's
- * sign-in (ADR-0153), is ever required to hold one; a redirect provider does its own multi-factor
+ * sign-in (ADR-0156), is ever required to hold one; a redirect provider does its own multi-factor
  * authentication.
  */
 @Component
