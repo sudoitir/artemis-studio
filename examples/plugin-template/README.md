@@ -84,6 +84,10 @@ update signed by a different trusted key is allowed, but the installer must conf
 
 ## Rules worth knowing before you write code
 
+- **A paid plugin can ask for a license.** Add `"requiresLicense": true` to `plugin.json` and Studio stores the
+  file an administrator uploads, shows its state on the Plugins tab and tells the plugin when it changes. Inject
+  `PluginLicense`, read `file()`, check it your own way and `report(...)` the verdict. Notes needs none, so the
+  descriptor leaves it out. See Licensing in the plugin guide.
 - **A table that grows with use is a store.** Contribute a `HousekeepingContributor`, the way `NotesStore`
   does, rather than a pruning job: operators then see it, set its retention and quota, and preview a purge on
   Administration → Data, and Studio purges it in small batches on one instance and audits each purge.
