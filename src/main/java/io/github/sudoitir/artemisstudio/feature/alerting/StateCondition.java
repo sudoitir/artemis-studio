@@ -51,7 +51,7 @@ public class StateCondition implements AlertCondition {
     public Evaluation evaluate(UUID clusterId, AlertRuleSpec rule) {
         List<ClusterNode> rows = nodes.nodes(clusterId);
         return switch (rule.stateCondition()) {
-            case "SPLIT_BRAIN" -> splitBrain(clusterId, rows);
+            case "SPLIT_BRAIN" -> splitBrain(rows);
             case "NODE_DOWN" -> nodeDown(rows);
             case "REPLICATION_BEHIND" -> replicationBehind(rows);
             case "CLUSTER_DEGRADED" -> clusterDegraded(clusterId, rows);
@@ -60,7 +60,7 @@ public class StateCondition implements AlertCondition {
         };
     }
 
-    private Evaluation splitBrain(UUID clusterId, List<ClusterNode> rows) {
+    private Evaluation splitBrain(List<ClusterNode> rows) {
         List<LogicalNode> logical =
                 evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), SplitBrainStatus.byNodeId(rows));
         boolean critical = logical.stream().anyMatch(n -> n.splitBrain() == SplitBrainStatus.CRITICAL);

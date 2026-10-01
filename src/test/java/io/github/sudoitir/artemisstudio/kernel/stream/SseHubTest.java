@@ -200,7 +200,7 @@ class SseHubTest {
         hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("13"), "13"));
         verify(emitter, times(2)).send(any(SseEmitter.SseEventBuilder.class));
 
-        hub.release(clusterId, subscriber, Map.of("events", 12L));
+        hub.release(subscriber, Map.of("events", 12L));
         hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("14"), "14"));
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);

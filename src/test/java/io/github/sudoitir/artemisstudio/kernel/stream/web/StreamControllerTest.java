@@ -185,7 +185,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
         InOrder order = inOrder(hub);
         order.verify(hub).register(eq(clusterId), subscriber.capture());
         order.verify(hub).sendTo(eq(subscriber.getValue()), eq("events"), any(), eq("11"));
-        order.verify(hub).release(clusterId, subscriber.getValue(), Map.of("events", 11L));
+        order.verify(hub).release(subscriber.getValue(), Map.of("events", 11L));
     }
 
     @Test
@@ -207,7 +207,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
         InOrder order = inOrder(hub);
         order.verify(hub).sendTo(eq(subscriber.getValue()), eq("events"), any(), eq("510"));
         order.verify(hub).sendTo(eq(subscriber.getValue()), eq(SseHub.RESYNC), any(), isNull());
-        order.verify(hub).release(clusterId, subscriber.getValue(), Map.of("events", 510L));
+        order.verify(hub).release(subscriber.getValue(), Map.of("events", 510L));
     }
 
     @Test

@@ -159,7 +159,7 @@ public class SseHub {
      * End buffering: send what arrived while the replay ran, in order, and go live. A frame of a topic
      * in {@code replayed} whose id is not above the id already replayed for it is a repeat and is skipped.
      */
-    public void release(UUID clusterId, Subscriber subscriber, Map<String, Long> replayed) {
+    public void release(Subscriber subscriber, Map<String, Long> replayed) {
         warnIfBehind(subscriber.release(replayed));
     }
 

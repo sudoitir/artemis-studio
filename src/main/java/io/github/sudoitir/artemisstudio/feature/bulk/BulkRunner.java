@@ -94,34 +94,7 @@ class BulkRunner {
         String error = null;
         boolean lost = false;
         try {
-            boolean halted = false;
-            for (BulkRunItemEntity item : rows) {
-                if (item.getStatus() != BulkItemStatus.PENDING) {
-                    continue;
-                }
-                if (!replicas.heartbeatFresh()) {
-                    throw new RunLost("this replica's heartbeat has lapsed");
-                }
-                // A stop asked on another replica whose signal did not reach this one is on the row.
-                if (!stop.getAsBoolean() && runs.existsByIdAndStopRequestedAtIsNotNull(run.getId())) {
-                    background.requestStop(run.getId());
-                }
-                if (stop.getAsBoolean() || halted) {
-                    item.finish(
-                            stop.getAsBoolean() ? BulkItemStatus.CANCELLED : BulkItemStatus.SKIPPED,
-                            null,
-                            null,
-                            null,
-                            Instant.now());
-                    write(run, () -> items.save(item));
-                } else {
-                    actOn(run, item, event, operator);
-                    progress(run, rows, BulkRunStatus.RUNNING);
-                    boolean bad =
-                            item.getStatus() == BulkItemStatus.FAILED || item.getStatus() == BulkItemStatus.PARTIAL;
-                    halted = bad && !run.isContinueOnFailure();
-                }
-            }
+            processPending(run, rows, stop, event, operator);
         } catch (RunLost e) {
             lost = true;
             log.warn(
@@ -136,6 +109,46 @@ class BulkRunner {
             if (!lost) {
                 finish(run, rows, event, stop.getAsBoolean(), background.stoppedForShutdown(run.getId()), error);
             }
+        }
+    }
+
+    private void processPending(
+            BulkRunEntity run,
+            List<BulkRunItemEntity> rows,
+            BooleanSupplier stop,
+            AuditEvent event,
+            Operator operator) {
+        boolean halted = false;
+        for (BulkRunItemEntity item : rows) {
+            if (item.getStatus() != BulkItemStatus.PENDING) {
+                continue;
+            }
+            checkAlive(run, stop);
+            if (stop.getAsBoolean() || halted) {
+                item.finish(
+                        stop.getAsBoolean() ? BulkItemStatus.CANCELLED : BulkItemStatus.SKIPPED,
+                        null,
+                        null,
+                        null,
+                        Instant.now());
+                write(run, () -> items.save(item));
+            } else {
+                actOn(run, item, event, operator);
+                progress(run, rows, BulkRunStatus.RUNNING);
+                boolean bad = item.getStatus() == BulkItemStatus.FAILED || item.getStatus() == BulkItemStatus.PARTIAL;
+                halted = bad && !run.isContinueOnFailure();
+            }
+        }
+    }
+
+    /** Throws {@link RunLost} when this replica's heartbeat has lapsed, and picks up a stop asked on another replica. */
+    private void checkAlive(BulkRunEntity run, BooleanSupplier stop) {
+        if (!replicas.heartbeatFresh()) {
+            throw new RunLost("this replica's heartbeat has lapsed");
+        }
+        // A stop asked on another replica whose signal did not reach this one is on the row.
+        if (!stop.getAsBoolean() && runs.existsByIdAndStopRequestedAtIsNotNull(run.getId())) {
+            background.requestStop(run.getId());
         }
     }
 

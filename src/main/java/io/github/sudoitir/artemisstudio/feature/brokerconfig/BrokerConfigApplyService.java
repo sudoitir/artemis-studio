@@ -231,7 +231,7 @@ public class BrokerConfigApplyService {
 
     private BrokerConfigApplyOutcome run(UUID clusterId, BrokerConfigApplyRequest request) {
         Prepared p = prepare(clusterId, request);
-        preflight(clusterId, p);
+        preflight(p);
         requireRunnable(p, request);
         if (p.plan.stepCount() == 0) {
             return nothingToDo(clusterId, p, request);
@@ -611,7 +611,7 @@ public class BrokerConfigApplyService {
      *       loses.
      * </ul>
      */
-    private void preflight(UUID clusterId, Prepared p) {
+    private void preflight(Prepared p) {
         List<String> notLive = p.plan.nodes().stream()
                 .filter(NodePlan::readable)
                 .filter(n -> !n.steps().isEmpty())

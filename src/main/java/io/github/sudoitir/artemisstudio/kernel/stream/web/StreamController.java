@@ -107,7 +107,7 @@ public class StreamController {
                 hub.remove(clusterId, subscriber);
                 throw e;
             }
-            hub.release(clusterId, subscriber, replayed);
+            hub.release(subscriber, replayed);
         }
         return emitter;
     }
