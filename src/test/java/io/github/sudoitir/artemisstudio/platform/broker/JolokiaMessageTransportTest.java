@@ -52,4 +52,34 @@ class JolokiaMessageTransportTest {
                         Map.entry("n", "7"),
                         Map.entry("ok", "true"));
     }
+
+    @Test
+    void anApplicationPropertyNamedLikeAHeaderKeepsItsName() {
+        BrokerConnections connections = mock(BrokerConnections.class);
+        JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
+        MessageOperations ops = mock(MessageOperations.class);
+        when(connections.forCluster(any(), any())).thenReturn(client);
+        when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
+
+        new JolokiaMessageTransport(connections, mock(MessageBrowser.class), ops)
+                .send(
+                        new TransportTarget(UUID.randomUUID(), UUID.randomUUID(), "q", "q", "ANYCAST", "u", null),
+                        new SendSpec(
+                                3,
+                                true,
+                                "hi",
+                                false,
+                                Map.of("type", "header-type"),
+                                Map.of("type", "property-type", "groupId", "not-a-group", "JMSXGroupID", "g")));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> sent = ArgumentCaptor.forClass(Map.class);
+        verify(ops).send(eq(client), anyString(), sent.capture(), anyInt(), eq("hi"), anyBoolean(), eq(""), eq(""));
+        assertThat(sent.getValue())
+                .containsOnly(
+                        Map.entry("JMSType", "header-type"),
+                        Map.entry("type", "property-type"),
+                        Map.entry("groupId", "not-a-group"),
+                        Map.entry("_AMQ_GROUP_ID", "g"));
+    }
 }
