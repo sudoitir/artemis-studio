@@ -1,3 +1,10 @@
+/* The list and the open section sit side by side and wrap by their own size, so the page needs no
+   breakpoints and a section is never pushed past the window at a high zoom. */
+.root {
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-lg);
+}
+
 .list {
   min-inline-size: 13rem;
   padding-inline-end: var(--mantine-spacing-md);
@@ -24,7 +31,15 @@
   padding-block-start: 0;
 }
 
+/* The open section takes the width that remains, and may shrink below its content so a table inside
+   it hides columns instead of widening the page. */
 .panel {
-  padding-inline-start: var(--mantine-spacing-lg);
-  max-inline-size: 45rem;
+  flex: 1 1 24rem;
+  min-inline-size: 0;
+  max-inline-size: 64rem;
+}
+
+.panel:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
 }

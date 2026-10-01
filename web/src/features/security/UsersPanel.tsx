@@ -1,25 +1,19 @@
-import { useState } from 'react';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  PasswordInput,
-  Select,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  TextInput,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useRef, useState } from 'react';
+import { ActionIcon, Button, Modal, PasswordInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { TwoStepStatus } from './cells.tsx';
+import { userColumns } from './columns.ts';
 import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
+import { withNotice } from './outcomes.ts';
 import { UserSessionsDrawer } from './UserSessionsDrawer.tsx';
 import {
   useAddGrant,
@@ -32,262 +26,295 @@ import {
   useUsers,
   type UserView,
 } from './api.ts';
+import classes from './Security.module.css';
 
-interface Outcome {
-  text: string;
-  failed: boolean;
-}
+const UNLOCK: ActionVerb = { verb: 'Unlock', past: 'Unlocked', progressive: 'Unlocking' };
+const RESET: ActionVerb = { verb: 'Reset', past: 'Reset', progressive: 'Resetting' };
+const ENABLE: ActionVerb = { verb: 'Enable', past: 'Enabled', progressive: 'Enabling' };
+const DISABLE: ActionVerb = { verb: 'Disable', past: 'Disabled', progressive: 'Disabling' };
+const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Removing' };
+const GRANT: ActionVerb = { verb: 'Grant', past: 'Granted', progressive: 'Granting' };
+const CREATE: ActionVerb = { verb: 'Create', past: 'Created', progressive: 'Creating' };
+
+type UserGrant = UserView['grants'][number];
+
+const rowKey = (u: UserView) => u.id;
+
+const grantLabel = (g: UserGrant) =>
+  `${g.roleName}${g.scopeType === 'GLOBAL' ? '' : ` (${g.scopeType.toLowerCase()})`}`;
 
 /** User accounts and their role grants (authorization spec). Requires `user:admin`. */
 export function UsersPanel() {
   const users = useUsers();
   const unlock = useUnlockUser();
   const reset = useResetSecondFactors();
-  const [unlockOutcome, setUnlockOutcome] = useState<Outcome | null>(null);
+  const setDisabled = useSetUserDisabled();
   const [resetting, setResetting] = useState<UserView | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [removing, setRemoving] = useState<{ user: UserView; grant: UserGrant } | null>(null);
+  const [removeOpen, setRemoveOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [grantingFor, setGrantingFor] = useState<string | null>(null);
+  const [grantingFor, setGrantingFor] = useState<UserView | null>(null);
   const [previewing, setPreviewing] = useState<{ id: string; username: string } | null>(null);
   const [inspectingSessions, setInspectingSessions] = useState<{ id: string; username: string } | null>(null);
 
-  const list = users.data ?? [];
+  const toggle = (u: UserView) =>
+    setDisabled.mutate(
+      { userId: u.id, disabled: !u.disabled },
+      withNotice(
+        u.disabled ? ENABLE : DISABLE,
+        `${u.username}`,
+        `The account is still ${u.disabled ? 'disabled' : 'enabled'}. Try again.`,
+      ),
+    );
+
+  // Built each render: the cells carry what is busy right now.
+  const columns = userColumns({
+    twoStep: (u) => (
+      <TwoStepStatus
+        user={u}
+        onReset={() => {
+          setResetting(u);
+          setResetOpen(true);
+        }}
+      />
+    ),
+    grants: (u) => (
+      <ul className={classes.grants} aria-label={`Roles of ${u.username}`}>
+        {u.grants.map((g) => (
+          <li key={`${g.roleId}-${g.scopeType}-${g.scopeId ?? 'global'}`} className={classes.grant}>
+            {grantLabel(g)}
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              aria-label={`Remove ${grantLabel(g)} from ${u.username}`}
+              onClick={() => {
+                setRemoving({ user: u, grant: g });
+                setRemoveOpen(true);
+              }}
+            >
+              <IconX size="0.875rem" aria-hidden />
+            </ActionIcon>
+          </li>
+        ))}
+        <li>
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            aria-label={`Grant a role to ${u.username}`}
+            onClick={() => setGrantingFor(u)}
+          >
+            Grant a role
+          </Button>
+        </li>
+      </ul>
+    ),
+    enabled: (u) => (
+      <Switch
+        checked={!u.disabled}
+        disabled={setDisabled.isPending && setDisabled.variables?.userId === u.id}
+        onChange={() => toggle(u)}
+        size="sm"
+        aria-label={`${u.disabled ? 'Enable' : 'Disable'} ${u.username}`}
+      />
+    ),
+    actions: (u) => (
+      <span className={classes.controls}>
+        {u.lockedUntil ? (
+          <Button
+            size="xs"
+            variant="default"
+            aria-label={`Unlock ${u.username}`}
+            loading={unlock.isPending && unlock.variables === u.id}
+            disabled={unlock.isPending}
+            onClick={() =>
+              unlock.mutate(u.id, withNotice(UNLOCK, u.username, 'The account is still locked. Try again.'))
+            }
+          >
+            Unlock
+          </Button>
+        ) : null}
+        <Button
+          size="xs"
+          variant="subtle"
+          aria-label={`Sessions of ${u.username}`}
+          onClick={() => setInspectingSessions(u)}
+        >
+          Sessions
+        </Button>
+        <Button
+          size="xs"
+          variant="subtle"
+          aria-label={`Effective permissions of ${u.username}`}
+          onClick={() => setPreviewing(u)}
+        >
+          Effective permissions
+        </Button>
+      </span>
+    ),
+  });
+
+  const count = users.data?.length;
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          {list.length} user{list.length === 1 ? '' : 's'}
-        </Text>
-        <Button size="xs" onClick={() => setCreateOpen(true)}>
-          New user
-        </Button>
-      </Group>
-
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Username</Table.Th>
-            <Table.Th>Provider</Table.Th>
-            <Table.Th>Two-step verification</Table.Th>
-            <Table.Th>Grants</Table.Th>
-            <Table.Th>Enabled</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {list.map((u) => (
-            <UserRow
-              key={u.id}
-              user={u}
-              unlock={unlock}
-              onUnlockOutcome={setUnlockOutcome}
-              onReset={() => setResetting(u)}
-              onGrant={() => setGrantingFor(u.id)}
-              onPreview={() => setPreviewing(u)}
-              onSessions={() => setInspectingSessions(u)}
-            />
-          ))}
-        </Table.Tbody>
-      </Table>
-
-      <div aria-live="polite">
-        {unlock.isPending ? (
-          <Text size="sm" c="dimmed">
-            Unlocking {list.find((u) => u.id === unlock.variables)?.username}…
-          </Text>
-        ) : null}
-        {!unlock.isPending && reset.isPending ? (
-          <Text size="sm" c="dimmed">
-            Resetting two-step verification of {resetting?.username}…
-          </Text>
-        ) : null}
-        {!unlock.isPending && !reset.isPending && unlockOutcome ? (
-          <Text size="sm" c={unlockOutcome.failed ? 'red' : 'dimmed'}>
-            {unlockOutcome.text}
-          </Text>
-        ) : null}
-      </div>
+    <Section title="Users" description="Accounts that can sign in, how each signs in, and the roles each holds.">
+      <DataTable
+        variant="static"
+        label="Users"
+        storageKey="security.users"
+        columns={columns}
+        data={users.data ?? []}
+        rowKey={rowKey}
+        loading={users.isPending}
+        error={users.isError ? <ErrorState error={users.error} onRetry={() => void users.refetch()} /> : undefined}
+        toolbar={{
+          start: <Button onClick={() => setCreateOpen(true)}>New user</Button>,
+          end:
+            count === undefined ? undefined : (
+              <Text size="sm" c="dimmed">
+                {count} user{count === 1 ? '' : 's'}
+              </Text>
+            ),
+        }}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No users"
+            description="Users sign in with a local password or through an identity provider. Create one to give someone access."
+          />
+        }
+      />
 
       <EffectivePermissionsDrawer user={previewing} onClose={() => setPreviewing(null)} />
       <UserSessionsDrawer user={inspectingSessions} onClose={() => setInspectingSessions(null)} />
 
-      <ResetModal
+      <ResetDialog
         user={resetting}
+        opened={resetOpen}
         reset={reset}
-        onClose={() => setResetting(null)}
-        onReset={(user) =>
-          setUnlockOutcome({ text: `Reset two-step verification of ${user.username}.`, failed: false })
-        }
+        onClose={() => {
+          setResetOpen(false);
+          reset.reset();
+        }}
       />
+      <RemoveGrantDialog removing={removing} opened={removeOpen} onClose={() => setRemoveOpen(false)} />
       <NewUserModal opened={createOpen} onClose={() => setCreateOpen(false)} />
-      <GrantModal userId={grantingFor} onClose={() => setGrantingFor(null)} />
-    </Stack>
+      <GrantModal user={grantingFor} onClose={() => setGrantingFor(null)} />
+    </Section>
   );
 }
 
-function UserRow({
-  user: u,
-  unlock,
-  onUnlockOutcome,
-  onReset,
-  onGrant,
-  onPreview,
-  onSessions,
-}: Readonly<{
-  user: UserView;
-  unlock: ReturnType<typeof useUnlockUser>;
-  onUnlockOutcome: (outcome: Outcome | null) => void;
-  onReset: () => void;
-  onGrant: () => void;
-  onPreview: () => void;
-  onSessions: () => void;
-}>) {
+/** States what removing a role takes from the user before it can be armed, then asks for their name. */
+function RemoveGrantDialog({
+  removing,
+  opened,
+  onClose,
+}: Readonly<{ removing: { user: UserView; grant: UserGrant } | null; opened: boolean; onClose: () => void }>) {
   const removeGrant = useRemoveGrant();
-  const setDisabled = useSetUserDisabled();
+  const confirm = ({ user, grant }: { user: UserView; grant: UserGrant }) =>
+    removeGrant.mutate(
+      {
+        userId: user.id,
+        roleId: grant.roleId,
+        scopeType: grant.scopeType,
+        scopeId: grant.scopeId ?? undefined,
+      },
+      withNotice(REMOVE, `${grantLabel(grant)} from ${user.username}`, 'They still hold the role. Try again.', onClose),
+    );
+
   return (
-    <Table.Tr>
-      <Table.Td>
-        <Text size="sm">{u.username}</Text>
-        {u.mustChangePassword ? (
-          <Text size="xs" c="dimmed">
-            must change password
-          </Text>
-        ) : null}
-        {u.lockedUntil ? (
-          <Badge size="xs" variant="light" color="red">
-            Locked until {new Date(u.lockedUntil).toLocaleTimeString([], { timeStyle: 'short' })}
-          </Badge>
-        ) : null}
-      </Table.Td>
-      <Table.Td>
-        <Badge size="xs" variant="light">
-          {u.providerId}
-        </Badge>
-      </Table.Td>
-      <Table.Td>
-        <TwoStepStatus user={u} onReset={onReset} />
-      </Table.Td>
-      <Table.Td>
-        <Group gap={4} wrap="wrap">
-          {u.grants.map((g) => (
-            <Badge
-              key={`${g.roleId}-${g.scopeType}-${g.scopeId ?? 'global'}`}
-              size="xs"
-              variant="outline"
-              style={{ cursor: 'pointer' }}
-              rightSection="×"
-              onClick={() =>
-                removeGrant.mutate({
-                  userId: u.id,
-                  roleId: g.roleId,
-                  scopeType: g.scopeType,
-                  scopeId: g.scopeId ?? undefined,
-                })
-              }
-            >
-              {g.roleName}
-              {g.scopeType !== 'GLOBAL' ? ` (${g.scopeType.toLowerCase()})` : ''}
-            </Badge>
-          ))}
-          <Badge size="xs" variant="light" style={{ cursor: 'pointer' }} onClick={onGrant}>
-            + grant
-          </Badge>
-        </Group>
-      </Table.Td>
-      <Table.Td>
-        <Switch
-          checked={!u.disabled}
-          onChange={() => setDisabled.mutate({ userId: u.id, disabled: !u.disabled })}
-          size="sm"
-          aria-label={`${u.disabled ? 'Enable' : 'Disable'} ${u.username}`}
-        />
-      </Table.Td>
-      <Table.Td>
-        <Group gap="xs" wrap="nowrap">
-          {u.lockedUntil ? (
-            <Button
-              size="xs"
-              variant="light"
-              aria-label={`Unlock ${u.username}`}
-              loading={unlock.isPending && unlock.variables === u.id}
-              disabled={unlock.isPending}
-              onClick={() => {
-                onUnlockOutcome(null);
-                unlock.mutate(u.id, {
-                  onSuccess: () => onUnlockOutcome({ text: `Unlocked ${u.username}.`, failed: false }),
-                  onError: (e) =>
-                    onUnlockOutcome({ text: `Could not unlock ${u.username}. ${e.message} Try again.`, failed: true }),
-                });
-              }}
-            >
-              Unlock
-            </Button>
-          ) : null}
-          <Button size="xs" variant="subtle" aria-label={`Sessions of ${u.username}`} onClick={onSessions}>
-            Sessions
-          </Button>
-          <Button size="xs" variant="subtle" onClick={onPreview}>
-            Effective permissions
-          </Button>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title={removing ? `Remove ${grantLabel(removing.grant)} from ${removing.user.username}` : 'Remove role'}
+      tone="danger"
+      typedName={removing?.user.username}
+      pending={removeGrant.isPending}
+      confirmLabel="Remove role"
+      consequence={
+        removing
+          ? `${removing.user.username} loses the permissions that ${grantLabel(removing.grant)} gave them. You can grant it again.`
+          : ''
+      }
+      onConfirm={() => removing && confirm(removing)}
+    />
   );
 }
 
-function ResetModal({
+/** What a refused reset means for the administrator, and what to do about it. */
+function resetFailure(error: { type: string; message: string }): { cause: string; next: string } {
+  if (error.type.endsWith('/self-reset')) {
+    return {
+      cause: 'You cannot reset your own two-step verification here.',
+      next: 'Sign in with one of your recovery codes instead.',
+    };
+  }
+  if (error.type.endsWith('/mfa-required')) {
+    return {
+      cause: 'This user must hold a second factor, so your own session has to have verified one.',
+      next: 'Sign out, sign in with your second factor, then try again.',
+    };
+  }
+  return { cause: error.message, next: 'Nothing was reset. Try again.' };
+}
+
+function ResetDialog({
   user,
+  opened,
   reset,
   onClose,
-  onReset,
 }: Readonly<{
   user: UserView | null;
+  opened: boolean;
   reset: ReturnType<typeof useResetSecondFactors>;
   onClose: () => void;
-  onReset: (user: UserView) => void;
 }>) {
-  return (
-    <Modal
-      opened={user !== null}
-      onClose={() => {
+  const confirm = (u: UserView) => {
+    const subject = `two-step verification of ${u.username}`;
+    reset.mutate(u.id, {
+      onSuccess: () => {
+        notify.succeeded({ action: RESET, subject });
         onClose();
-        reset.reset();
-      }}
-      title={user ? `Reset two-step verification of ${user.username}` : ''}
-    >
-      {user ? (
-        <Stack gap="md">
-          <Text size="sm">
-            This removes {user.username}'s authenticator app, passkeys, recovery codes and trusted devices, revokes
-            their API keys and signs them out everywhere.
-          </Text>
-          <Text size="sm" c="dimmed">
-            {user.secondFactorRequired
-              ? 'Their role requires two-step verification, so they set it up again the next time they sign in.'
-              : 'Signing in then needs only their password.'}
-          </Text>
-          <StepUpPrompt error={reset.error} returnTo={`${globalThis.location.pathname}${globalThis.location.search}`} />
-          {reset.error && !needsReauthentication(reset.error) ? (
-            <Alert color="red" variant="light" role="alert" title="Not reset">
-              {resetFailure(reset.error)}
-            </Alert>
-          ) : null}
-          <ConfirmByTyping
-            token={user.username}
-            confirmLabel="Reset two-step verification"
-            loading={reset.isPending}
-            onConfirm={() =>
-              reset.mutate(user.id, {
-                onSuccess: () => {
-                  onReset(user);
-                  onClose();
-                },
-              })
-            }
-          />
-        </Stack>
-      ) : null}
-    </Modal>
+      },
+      onError: (error) => {
+        // A stale sign-in is answered by the prompt in the dialog, not by a failure.
+        if (!needsReauthentication(error)) notify.failed({ action: RESET, subject, ...resetFailure(error) });
+      },
+    });
+  };
+
+  return (
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title={user ? `Reset two-step verification of ${user.username}` : 'Reset two-step verification'}
+      tone="danger"
+      typedName={user?.username}
+      pending={reset.isPending}
+      confirmLabel="Reset two-step verification"
+      consequence={
+        user ? (
+          <Stack gap="sm">
+            <Text size="sm">
+              This removes {user.username}&apos;s authenticator app, passkeys, recovery codes and trusted devices,
+              revokes their API keys and signs them out everywhere.
+            </Text>
+            <Text size="sm" c="dimmed">
+              {user.secondFactorRequired
+                ? 'Their role requires two-step verification, so they set it up again the next time they sign in.'
+                : 'Signing in then needs only their password.'}
+            </Text>
+            <StepUpPrompt
+              error={reset.error}
+              returnTo={`${globalThis.location.pathname}${globalThis.location.search}`}
+            />
+          </Stack>
+        ) : (
+          ''
+        )
+      }
+      onConfirm={() => user && confirm(user)}
+    />
   );
 }
 
@@ -296,48 +323,77 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const usernameInput = useRef<HTMLInputElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
   const policyReason = createUser.error?.type.endsWith('/password-policy') ? createUser.error.message : undefined;
 
+  const close = () => {
+    onClose();
+    createUser.reset();
+    setUsernameError(null);
+    setPasswordError(null);
+  };
+
+  const submit = () => {
+    const nameMissing = !username.trim();
+    const passwordMissing = !password;
+    setUsernameError(nameMissing ? 'Enter the username they sign in with.' : null);
+    setPasswordError(passwordMissing ? 'Enter an initial password.' : null);
+    if (nameMissing) {
+      usernameInput.current?.focus();
+      return;
+    }
+    if (passwordMissing) {
+      passwordInput.current?.focus();
+      return;
+    }
+    const subject = `user ${username.trim()}`;
+    createUser.mutate(
+      { username: username.trim(), email: email || undefined, password },
+      {
+        onSuccess: () => {
+          notify.succeeded({ action: CREATE, subject });
+          close();
+          setUsername('');
+          setEmail('');
+          setPassword('');
+        },
+        onError: (error) => {
+          // A refused password is explained beside its field.
+          if (error.type.endsWith('/password-policy')) passwordInput.current?.focus();
+          else
+            notify.failed({ action: CREATE, subject, cause: error.message, next: 'No user was created. Try again.' });
+        },
+      },
+    );
+  };
+
   return (
-    <Modal
-      opened={opened}
-      onClose={() => {
-        onClose();
-        createUser.reset();
-      }}
-      title="New user"
-    >
+    <Modal opened={opened} onClose={close} title="New user">
       <Stack gap="sm">
-        <TextInput label="Username" value={username} onChange={(e) => setUsername(e.currentTarget.value)} required />
+        <TextInput
+          ref={usernameInput}
+          label="Username"
+          value={username}
+          onChange={(e) => setUsername(e.currentTarget.value)}
+          onBlur={() => setUsernameError(username.trim() ? null : 'Enter the username they sign in with.')}
+          error={usernameError}
+          required
+        />
         <TextInput label="Email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
         <PasswordInput
+          ref={passwordInput}
           label="Initial password"
           value={password}
           onChange={(e) => setPassword(e.currentTarget.value)}
+          onBlur={() => setPasswordError(password ? null : 'Enter an initial password.')}
           description="The user will be required to change it on first login."
-          error={policyReason}
+          error={policyReason ?? passwordError}
           required
         />
-        <Button
-          loading={createUser.isPending}
-          onClick={() =>
-            createUser.mutate(
-              { username, email: email || undefined, password },
-              {
-                onSuccess: () => {
-                  onClose();
-                  setUsername('');
-                  setEmail('');
-                  setPassword('');
-                  notifications.show({ message: `Created ${username}`, color: 'green' });
-                },
-                onError: (e) => {
-                  if (!e.type.endsWith('/password-policy')) notifications.show({ message: e.message, color: 'red' });
-                },
-              },
-            )
-          }
-        >
+        <Button loading={createUser.isPending} onClick={submit}>
           Create
         </Button>
       </Stack>
@@ -345,102 +401,57 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
   );
 }
 
-function GrantModal({ userId, onClose }: Readonly<{ userId: string | null; onClose: () => void }>) {
+function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose: () => void }>) {
   const roles = useRoles();
   const addGrant = useAddGrant();
   const [roleId, setRoleId] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const roleInput = useRef<HTMLInputElement>(null);
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
+  const close = () => {
+    onClose();
+    setRoleError(null);
+  };
+
+  const submit = () => {
+    if (!user) return;
+    if (!roleId) {
+      setRoleError('Choose the role to grant.');
+      roleInput.current?.focus();
+      return;
+    }
+    const role = roleOptions.find((r) => r.value === roleId)?.label ?? 'the role';
+    addGrant.mutate(
+      { userId: user.id, body: { roleId, scopeType: 'GLOBAL' } },
+      withNotice(GRANT, `${role} to ${user.username}`, 'They do not hold the role. Try again.', () => {
+        close();
+        setRoleId(null);
+      }),
+    );
+  };
+
   return (
-    <Modal opened={userId !== null} onClose={onClose} title="Grant a role">
+    <Modal opened={user !== null} onClose={close} title={user ? `Grant a role to ${user.username}` : 'Grant a role'}>
       <Stack gap="sm">
-        <Select label="Role" data={roleOptions} value={roleId} onChange={setRoleId} placeholder="Select a role" />
-        <Text size="xs" c="dimmed">
-          Granted globally. Use the API to scope a grant to one environment or cluster.
-        </Text>
-        <Button
-          disabled={!roleId}
-          loading={addGrant.isPending}
-          onClick={() => {
-            if (!userId || !roleId) return;
-            addGrant.mutate(
-              { userId, body: { roleId, scopeType: 'GLOBAL' } },
-              {
-                onSuccess: () => {
-                  onClose();
-                  setRoleId(null);
-                },
-                onError: (e) => notifications.show({ message: e.message, color: 'red' }),
-              },
-            );
+        <Select
+          ref={roleInput}
+          label="Role"
+          data={roleOptions}
+          value={roleId}
+          onChange={(value) => {
+            setRoleId(value);
+            if (value) setRoleError(null);
           }}
-        >
+          error={roleError}
+          description="Granted globally. Use the API to scope a grant to one environment or cluster."
+          placeholder="Select a role"
+          required
+        />
+        <Button loading={addGrant.isPending} onClick={submit}>
           Grant
         </Button>
       </Stack>
     </Modal>
   );
-}
-
-const FACTOR_WORDS = { TOTP: 'Authenticator app', WEBAUTHN: 'Passkey' } as const;
-
-/** What a user's second step is, in words, with the way to reset it beside it when there is something to reset. */
-function TwoStepStatus({ user, onReset }: Readonly<{ user: UserView; onReset: () => void }>) {
-  const factors = user.secondFactors.flatMap((f) =>
-    f in FACTOR_WORDS ? [FACTOR_WORDS[f as keyof typeof FACTOR_WORDS]] : [],
-  );
-  const statusId = `two-step-${user.id}`;
-  const nothing = factors.length === 0;
-  let status = (
-    <Text id={statusId} size="sm">
-      {factors.join(', ')}
-    </Text>
-  );
-  if (!user.passwordAccount) {
-    status = (
-      <Text id={statusId} size="sm" c="dimmed">
-        Managed by their identity provider
-      </Text>
-    );
-  } else if (nothing && user.secondFactorRequired) {
-    status = (
-      <Text id={statusId} size="sm" fw={600} style={{ color: 'var(--as-warning)' }}>
-        Required, not set up
-      </Text>
-    );
-  } else if (nothing) {
-    status = (
-      <Text id={statusId} size="sm" c="dimmed">
-        Not set up
-      </Text>
-    );
-  }
-  return (
-    <Stack gap={2} align="flex-start">
-      {status}
-      {nothing ? null : (
-        <Anchor
-          component="button"
-          type="button"
-          size="xs"
-          aria-label={`Reset two-step verification of ${user.username}`}
-          aria-describedby={statusId}
-          onClick={onReset}
-        >
-          Reset two-step verification
-        </Anchor>
-      )}
-    </Stack>
-  );
-}
-
-/** What a refused reset means for the administrator, and what to do about it. */
-function resetFailure(error: { type: string; message: string }): string {
-  if (error.type.endsWith('/self-reset')) {
-    return 'You cannot reset your own two-step verification here. Sign in with one of your recovery codes instead.';
-  }
-  if (error.type.endsWith('/mfa-required')) {
-    return 'This user must hold a second factor, so your own session has to have verified one. Sign out, sign in with your second factor, then try again.';
-  }
-  return `${error.message} Try again.`;
 }

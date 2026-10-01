@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -58,7 +59,7 @@ describe('StudioHealth', () => {
     expect(within(jobs).getByText('On schedule')).toBeInTheDocument();
     expect(within(jobs).getByText('Healthy')).toBeInTheDocument();
     expect(within(screen.getByRole('table', { name: 'Broker nodes' })).getByText('12 ms')).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /Open event streams/ })).toHaveTextContent('3');
+    expect(screen.getByText('Open event streams').closest('dl')).toHaveTextContent('3');
     expect(screen.queryByText('Degraded')).not.toBeInTheDocument();
   });
 
@@ -177,8 +178,10 @@ describe('StudioHealth', () => {
 
     await screen.findByRole('table', { name: 'Background jobs' });
     expect(screen.getAllByText('Unavailable')).toHaveLength(8);
-    expect(screen.getByRole('row', { name: /Open event streams/ })).not.toHaveTextContent('0');
-    expect(screen.getByRole('row', { name: /Database connections in use/ })).not.toHaveTextContent('0');
+    expect(screen.getByText('Open event streams').closest('dl')).not.toHaveTextContent('0');
+    expect(screen.getByText('Database connections in use').closest('dl')).not.toHaveTextContent('0');
+    // Each one says why it is missing, so an absent reading is not taken for a fact.
+    expect(screen.getAllByText('The server could not read it.')).toHaveLength(5);
   });
 
   it('teaches when no jobs or nodes are registered', async () => {
@@ -190,10 +193,38 @@ describe('StudioHealth', () => {
   });
 
   it('states the cause and offers a retry when the read fails', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/system/health', () => {
+        calls++;
+        return calls === 1
+          ? HttpResponse.json({ title: 'Boom', status: 500, detail: 'The database is down.' }, { status: 500 })
+          : HttpResponse.json({
+              jobs: [],
+              nodes: [],
+              replicas: [],
+              answeringReplica: null,
+              dbPool: { active: 0, idle: 0, max: 10, pending: 0 },
+              streamClients: 0,
+              degraded: false,
+            });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<StudioHealth />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('The database is down.');
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('No background jobs are registered')).toBeInTheDocument();
+  });
+
+  it('names the permission when the read is forbidden', async () => {
     server.use(
       http.get('*/api/v1/system/health', () =>
         HttpResponse.json(
-          { title: 'Forbidden', status: 403, detail: 'You need the settings-read permission.' },
+          { title: 'Forbidden', status: 403, detail: 'Denied.', permission: 'settings:read' },
           { status: 403 },
         ),
       ),
@@ -201,14 +232,16 @@ describe('StudioHealth', () => {
     renderWithProviders(<StudioHealth />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('could not be loaded');
-    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(alert).toHaveTextContent('Your role does not include the settings:read permission.');
+    expect(alert).toHaveTextContent('Ask an administrator to grant settings:read.');
   });
 
   it('shows a loading state before the first answer', () => {
     server.use(http.get('*/api/v1/system/health', () => new Promise(() => {})));
     renderWithProviders(<StudioHealth />);
 
-    expect(screen.getByLabelText('Loading Studio health')).toHaveAttribute('aria-busy', 'true');
+    const loading = screen.getByRole('status');
+    expect(loading).toHaveTextContent('Loading Studio health');
+    expect(loading).toHaveAttribute('aria-busy', 'true');
   });
 });

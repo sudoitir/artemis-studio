@@ -1,15 +1,23 @@
-import { useMemo, useState } from 'react';
-import { Alert, Button, MultiSelect, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useRef, useState } from 'react';
+import { Button, MultiSelect, Select, Stack, Text, TextInput } from '@mantine/core';
 
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useClusters } from '../clusters/index.ts';
 import { PermissionPicker, usePermissionsCatalogue } from '../security/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { serverNow } from '../../kernel/time/time.ts';
 import { useCreateToken, useMcpTools, useTokenPolicy, type CreatedTokenView, type TokenGrantRequest } from './api.ts';
+import classes from './TokenParts.module.css';
+
+const CREATE: ActionVerb = { verb: 'Create', past: 'Created', progressive: 'Creating' };
 
 const GLOBAL = 'GLOBAL';
 const DAY_MS = 86_400_000;
 const LIFETIMES = [7, 30, 90, 180, 365];
+
+const NAME_ERROR = 'Name the key after where it will be used.';
+const GRANTS_ERROR = 'Choose at least one permission; a key without any could sign in and do nothing.';
 
 /**
  * Mints a key: a name, an expiry within the installation's maximum lifetime, grants from the
@@ -27,18 +35,20 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
 
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
+  const [grantsError, setGrantsError] = useState<string | null>(null);
   const [scope, setScope] = useState<string>(GLOBAL);
   const [chosen, setChosen] = useState<string[]>([]);
   const [lifetime, setLifetime] = useState<string | null>(null);
   const [mcpTools, setMcpTools] = useState<string[]>([]);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const permissions = useRef<HTMLDivElement>(null);
 
   const clusterId = scope === GLOBAL ? undefined : scope;
   // What the user can actually delegate at the selected scope. A wildcard grant makes every
-  // catalogued permission available; `can` resolves that.
-  const available = useMemo(
-    () => (catalogue.data ?? []).filter((p) => can(p.action, clusterId) && (scope === GLOBAL || !p.globalOnly)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [catalogue.data, clusterId, scope],
+  // catalogued permission available; `can` resolves that. Computed while rendering, so it follows the
+  // user's grants as they load or change, never a stale answer.
+  const available = (catalogue.data ?? []).filter(
+    (p) => can(p.action, clusterId) && (scope === GLOBAL || !p.globalOnly),
   );
 
   const latest = policy.data ? Date.parse(policy.data.latestExpiry) : null;
@@ -50,13 +60,19 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
   const selectedLifetime = lifetime ?? (lifetimeOptions.includes('30') ? '30' : (lifetimeOptions.at(-1) ?? null));
 
   const submit = () => {
-    if (!name.trim()) {
-      setNameError('Name the key after where it will be used.');
+    const nameMissing = !name.trim();
+    const grantsMissing = chosen.length === 0;
+    setNameError(nameMissing ? NAME_ERROR : null);
+    setGrantsError(grantsMissing ? GRANTS_ERROR : null);
+    if (nameMissing) {
+      nameInput.current?.focus();
       return;
     }
-    if (!selectedLifetime) {
+    if (grantsMissing) {
+      permissions.current?.focus();
       return;
     }
+    if (!selectedLifetime) return;
     const grants: TokenGrantRequest[] = chosen.map((action) => ({
       action,
       scopeType: scope === GLOBAL ? GLOBAL : 'CLUSTER',
@@ -66,32 +82,47 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
     const expiresAt = new Date(
       Math.min(serverNow() + Number(selectedLifetime) * DAY_MS, latest ?? Infinity),
     ).toISOString();
-    create.mutate({ name: name.trim(), expiresAt, grants, mcpTools }, { onSuccess: onMinted });
+    const subject = `key "${name.trim()}"`;
+    create.mutate(
+      { name: name.trim(), expiresAt, grants, mcpTools },
+      {
+        onSuccess: (created) => {
+          onMinted(created);
+          notify.succeeded({ action: CREATE, subject });
+        },
+        onError: (error) => notify.failed({ action: CREATE, subject, ...createFailure(error) }),
+      },
+    );
   };
 
   return (
     <Stack gap="sm">
       <TextInput
+        ref={nameInput}
         label="Name"
         value={name}
         onChange={(e) => setName(e.currentTarget.value)}
-        onBlur={() => setNameError(name.trim() ? null : 'Name the key after where it will be used.')}
+        onBlur={() => setNameError(name.trim() ? null : NAME_ERROR)}
         error={nameError}
         required
       />
-      <Select
-        label="Expires in"
-        description={
-          policy.data
-            ? `Keys on this installation live at most ${maxDays} days.`
-            : 'Loading the installation’s maximum lifetime…'
-        }
-        value={selectedLifetime}
-        onChange={setLifetime}
-        data={lifetimeOptions.map((d) => ({ value: d, label: `${d} days` }))}
-        allowDeselect={false}
-        required
-      />
+      {policy.isError ? (
+        <ErrorState variant="inline" error={policy.error} onRetry={() => void policy.refetch()} />
+      ) : (
+        <Select
+          label="Expires in"
+          description={
+            policy.data
+              ? `Keys on this installation live at most ${maxDays} days.`
+              : 'Loading the installation’s maximum lifetime…'
+          }
+          value={selectedLifetime}
+          onChange={setLifetime}
+          data={lifetimeOptions.map((d) => ({ value: d, label: `${d} days` }))}
+          allowDeselect={false}
+          required
+        />
+      )}
       <Select
         label="Scope"
         description="Where the key's permissions apply."
@@ -106,7 +137,7 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
           ...(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name })),
         ]}
       />
-      <div>
+      <div ref={permissions} tabIndex={-1} className={classes.group}>
         <Text size="sm" fw={500}>
           Permissions
         </Text>
@@ -118,8 +149,20 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
             You hold nothing at this scope, so a key made here could do nothing.
           </Text>
         ) : (
-          <PermissionPicker catalogue={available} value={chosen} onChange={setChosen} />
+          <PermissionPicker
+            catalogue={available}
+            value={chosen}
+            onChange={(next) => {
+              setChosen(next);
+              if (next.length > 0) setGrantsError(null);
+            }}
+          />
         )}
+        {grantsError ? (
+          <Text size="xs" role="alert" mt="xs">
+            {grantsError}
+          </Text>
+        ) : null}
       </div>
       {tools.data ? (
         <MultiSelect
@@ -135,17 +178,7 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
           }))}
         />
       ) : null}
-      {create.isError ? (
-        <Alert color="red" title="The key was not created">
-          {createFailure(create.error)}
-        </Alert>
-      ) : null}
-      {chosen.length === 0 ? (
-        <Text size="xs" c="dimmed">
-          Choose at least one permission; a key without any could sign in and do nothing.
-        </Text>
-      ) : null}
-      <Button loading={create.isPending} disabled={chosen.length === 0 || !selectedLifetime} onClick={submit}>
+      <Button loading={create.isPending} onClick={submit}>
         Create
       </Button>
     </Stack>
@@ -153,12 +186,18 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
 }
 
 /** Why a key could not be made, and what to do about it. */
-function createFailure(error: { type: string; message: string }): string {
+function createFailure(error: { type: string; message: string }): { cause: string; next: string } {
   if (error.type.endsWith('/session-required')) {
-    return 'A key can only be created from a signed-in console session, not with another key. Sign in to the console and create it there.';
+    return {
+      cause: 'A key can only be created from a signed-in console session, not with another key.',
+      next: 'Sign in to the console and create it there.',
+    };
   }
   if (error.type.endsWith('/mfa-required')) {
-    return 'Your role requires two-step verification, and this session has not completed it. Sign out, sign in with your second factor, then create the key.';
+    return {
+      cause: 'Your role requires two-step verification, and this session has not completed it.',
+      next: 'Sign out, sign in with your second factor, then create the key.',
+    };
   }
-  return error.message;
+  return { cause: error.message, next: 'No key was created. Try again.' };
 }

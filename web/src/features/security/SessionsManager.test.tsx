@@ -185,7 +185,8 @@ describe('SessionsManager, own sessions', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading sessions');
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('The database is down. Check your connection and try again.');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('The database is down.');
     await person.click(within(alert).getByRole('button', { name: 'Retry' }));
 
     expect(await screen.findByText('This session')).toBeInTheDocument();

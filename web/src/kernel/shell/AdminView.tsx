@@ -1,7 +1,10 @@
-import { Stack, Tabs, Title } from '@mantine/core';
+import { Tabs } from '@mantine/core';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { useSlot } from '../slots.ts';
+import classes from './Views.module.css';
 
 /**
  * Studio-wide administration (authorization spec): one tab per contribution, such as users, roles,
@@ -17,24 +20,29 @@ export function AdminView() {
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: v ?? undefined }) });
 
   return (
-    <Stack gap="md" p="lg">
-      <Title order={3}>Administration</Title>
+    <div className={classes.page}>
+      <Page>
+        <PageHeader
+          title="Administration"
+          description="What applies to the whole installation: who can sign in and what they may do, the environments, and what is installed."
+        />
 
-      <Tabs value={tab ?? null} onChange={setTab}>
-        <Tabs.List>
-          {tabs.map(({ id, title }) => (
-            <Tabs.Tab key={id} value={id}>
-              {title}
-            </Tabs.Tab>
+        <Tabs value={tab ?? null} onChange={setTab}>
+          <Tabs.List aria-label="Administration sections">
+            {tabs.map(({ id, title }) => (
+              <Tabs.Tab key={id} value={id}>
+                {title}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+
+          {tabs.map(({ id, Component }) => (
+            <Tabs.Panel key={id} value={id} pt="md">
+              <Component />
+            </Tabs.Panel>
           ))}
-        </Tabs.List>
-
-        {tabs.map(({ id, Component }) => (
-          <Tabs.Panel key={id} value={id} pt="md">
-            <Component />
-          </Tabs.Panel>
-        ))}
-      </Tabs>
-    </Stack>
+        </Tabs>
+      </Page>
+    </div>
   );
 }

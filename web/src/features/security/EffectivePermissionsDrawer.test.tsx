@@ -63,7 +63,8 @@ describe('EffectivePermissionsDrawer', () => {
     renderDrawer();
 
     expect(await screen.findByRole('dialog', { name: 'Effective permissions of alice' })).toBeInTheDocument();
-    expect(await screen.findByText(/holds no role, so they can do nothing/)).toBeInTheDocument();
+    expect(await screen.findByText('This user holds no role')).toBeInTheDocument();
+    expect(screen.getByText(/So they can do nothing/)).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Filter by permission or role' })).toBeNull();
   });
 
@@ -73,7 +74,7 @@ describe('EffectivePermissionsDrawer', () => {
     renderDrawer();
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Could not load the effective permissions');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
     expect(alert).toHaveTextContent('permissions unavailable');
 
     serve(PERMISSIONS);
@@ -131,8 +132,8 @@ describe('EffectivePermissionsDrawer', () => {
 
     await user.clear(filter);
     await user.type(filter, 'nothing-like-this');
-    expect(screen.getByText('Nothing matches “nothing-like-this”.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(screen.getByText('Nothing matches “nothing-like-this”')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(filter).toHaveValue('');
     expect(screen.getByText('queue:read')).toBeInTheDocument();
   });
@@ -143,7 +144,7 @@ describe('EffectivePermissionsDrawer', () => {
     const user = userEvent.setup();
     renderDrawer(USER, onClose);
 
-    await screen.findByText(/holds no role/);
+    await screen.findByText('This user holds no role');
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalled();
   });

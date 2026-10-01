@@ -1,4 +1,4 @@
-import { Anchor, Select, Stack, Switch, Text } from '@mantine/core';
+import { Button, Select, Stack, Switch, Text } from '@mantine/core';
 
 import { setShortcutsHelpOpen, useSingleKeyShortcuts } from '../../kernel/keyboard/shortcuts.ts';
 
@@ -11,6 +11,7 @@ import {
   useDisplayZone,
   zoneOptions,
 } from '../../kernel/time/timezone.ts';
+import classes from './Settings.module.css';
 
 /** Where the zone in use comes from: this browser, UTC, or an explicit pin. */
 function ZoneNote({ preference, resolved }: Readonly<{ preference: string; resolved: string }>) {
@@ -60,7 +61,7 @@ export function DisplayPreferences() {
   const groups = zoneOptions();
 
   return (
-    <Stack gap="xs" maw={440}>
+    <Stack gap="xs" className={classes.display}>
       <Select
         label="Timezone"
         description={
@@ -100,9 +101,11 @@ export function DisplayPreferences() {
         label="Single-key shortcuts"
         description="g then a letter to go to a view, ? for the list of shortcuts, / to focus a filter. Turn them off if you use speech input, or if they get in your way. ⌘K and ⌘B stay on."
       />
-      <Anchor component="button" type="button" size="xs" onClick={() => setShortcutsHelpOpen(true)} w="fit-content">
-        See every keyboard shortcut
-      </Anchor>
+      <div>
+        <Button variant="default" size="xs" onClick={() => setShortcutsHelpOpen(true)}>
+          See every keyboard shortcut
+        </Button>
+      </div>
     </Stack>
   );
 }

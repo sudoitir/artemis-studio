@@ -1,8 +1,13 @@
-import { Fragment } from 'react';
-import { Divider, Stack, Text, Title } from '@mantine/core';
+import { Text } from '@mantine/core';
 
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { useMe } from '../auth/api.ts';
 import { useSlot } from '../slots.ts';
+import classes from './Views.module.css';
 
 /**
  * The signed-in user's own page: who you are, then what the features contribute — how to change
@@ -16,27 +21,34 @@ export function AccountView() {
   const me = useMe();
   const sections = useSlot('account.sections');
 
+  let username = (
+    <Text size="sm" c="dimmed">
+      Loading…
+    </Text>
+  );
+  if (me.isError) username = <ErrorState variant="inline" error={me.error} onRetry={() => void me.refetch()} />;
+  else if (me.data) username = <Text size="sm">{me.data.username}</Text>;
+
   return (
-    <Stack gap="xl" maw={640} p="lg">
-      <Title order={3}>Account</Title>
+    <div className={classes.page}>
+      <div className={classes.narrow}>
+        <Page>
+          <PageHeader
+            title="Account"
+            description="Who you are signed in as, and the credentials and sessions that act as you."
+          />
 
-      <div>
-        <Title order={4}>Identity</Title>
-        <Text size="sm" c="dimmed" mb="sm">
-          Who you are signed in as.
-        </Text>
-        <Text size="sm">{me.data?.username ?? '—'}</Text>
+          <Section title="Identity" description="Who you are signed in as.">
+            <DescriptionList items={[{ term: 'Username', value: username }]} />
+          </Section>
+
+          {sections.map(({ id, title, Component }) => (
+            <Section key={id} title={title ?? id}>
+              <Component />
+            </Section>
+          ))}
+        </Page>
       </div>
-
-      {sections.map(({ id, title, Component }) => (
-        <Fragment key={id}>
-          <Divider />
-          <div>
-            <Title order={4}>{title}</Title>
-            <Component />
-          </div>
-        </Fragment>
-      ))}
-    </Stack>
+    </div>
   );
 }

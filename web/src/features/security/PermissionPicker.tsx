@@ -1,7 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Accordion,
-  Badge,
   Button,
   Center,
   Checkbox,
@@ -14,7 +13,9 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PermissionView } from './api.ts';
+import classes from './Security.module.css';
 
 const UNCATALOGUED = '__uncatalogued__';
 const WILDCARDS = '__wildcards__';
@@ -124,19 +125,19 @@ export function PermissionPicker({
 
   return (
     <Stack gap="xs">
-      <Group justify="space-between" align="flex-end">
+      <div className={classes.search}>
         <TextInput
+          className={classes.searchField}
           label="Search permissions"
-          leftSection={<IconSearch size={16} />}
+          leftSection={<IconSearch size="1rem" aria-hidden />}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
           rightSection={query ? <CloseButton aria-label="Clear search" onClick={() => setQuery('')} size="sm" /> : null}
-          style={{ flex: 1 }}
         />
-        <Text size="sm" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <Text size="sm" c="dimmed" className={classes.figure}>
           {value.length} selected
         </Text>
-      </Group>
+      </div>
 
       <VisuallyHidden role="status" aria-live="polite">
         {announcement}
@@ -167,9 +168,9 @@ export function PermissionPicker({
                       <Text size="sm" fw={500}>
                         {group.title}
                       </Text>
-                      <Badge size="sm" variant="light" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      <Text size="sm" c="dimmed" className={classes.figure}>
                         {held}/{all.length}
-                      </Badge>
+                      </Text>
                     </Group>
                   </Accordion.Control>
                 </Center>
@@ -183,11 +184,7 @@ export function PermissionPicker({
                             <Text size="sm" ff="monospace">
                               {e.action}
                             </Text>
-                            {e.globalOnly ? (
-                              <Badge size="xs" variant="outline">
-                                Global only
-                              </Badge>
-                            ) : null}
+                            {e.globalOnly ? <StatusBadge>Global only</StatusBadge> : null}
                           </Group>
                         }
                         description={

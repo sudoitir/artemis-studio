@@ -1,0 +1,71 @@
+/* The permission picker's search field takes the row's spare width; the count keeps its own. */
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+}
+
+.searchField {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+/* Counts line up from one row to the next. */
+.figure {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row controls sit on one line and wrap by width when the cell is narrow. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+/* A user's roles: one chip each, wrapping by width, with the control to grant another last. */
+.grants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grant {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-xs) 0;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-xs);
+  font-size: var(--mantine-font-size-xs);
+}
+
+/* A permission or a role, in the code face. */
+.code {
+  font-family: var(--mantine-font-family-monospace);
+  overflow-wrap: anywhere;
+}
+
+/* Two fields side by side, wrapping by their own width. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--mantine-spacing-sm);
+}
+
+/* What only one of two roles holds. */
+.only {
+  margin: 0;
+  padding-inline-start: var(--mantine-spacing-md);
+}
+
+/* A selector that stays a readable width instead of stretching across the page. */
+.field {
+  max-inline-size: 26rem;
+}

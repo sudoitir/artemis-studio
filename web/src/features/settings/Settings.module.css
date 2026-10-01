@@ -1,0 +1,45 @@
+/* Figures keep one width per digit, so a change between refreshes is visible without reading them. */
+.figure {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A section's content stays a readable width instead of stretching across the page. */
+.narrow {
+  max-inline-size: 40rem;
+}
+
+/* The pool and stream figures wrap by their own width. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--mantine-spacing-md);
+}
+
+/* A setting's field and its buttons share a line and wrap by width. */
+.setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--mantine-spacing-xs);
+}
+
+.settingField {
+  flex: 1 1 14rem;
+  max-inline-size: 22rem;
+  min-inline-size: 0;
+}
+
+/* A fault the operator must read first: a hairline in the danger token around words that state it. */
+.fault {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  padding: var(--mantine-spacing-md);
+  border: 1px solid var(--as-danger);
+  border-radius: var(--mantine-radius-md);
+}
+
+/* The display preferences stay a readable width instead of stretching across the page. */
+.display {
+  max-inline-size: 28rem;
+}

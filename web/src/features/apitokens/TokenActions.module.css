@@ -1,0 +1,7 @@
+/* Row controls sit on one line and wrap by width when the cell is narrow. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

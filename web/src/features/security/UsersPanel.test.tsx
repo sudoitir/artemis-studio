@@ -1,13 +1,25 @@
-import { describe, expect, it } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { Notifications, notifications } from '@mantine/notifications';
 
 import { server } from '../../test/setup.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import type { UserView } from './api.ts';
 import { UsersPanel } from './UsersPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+
+function renderUsers() {
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <UsersPanel />
+    </>,
+  );
+}
+
+afterEach(() => act(() => notifications.clean()));
 
 const LOCK_LIFTS_AT = new Date(Date.now() + 10 * 60_000).toISOString();
 
@@ -36,7 +48,7 @@ describe('UsersPanel account lock', () => {
   it('says in words that an account is locked and offers Unlock only there', async () => {
     serveUsers({ users: [user('alice', LOCK_LIFTS_AT), user('bob', null)] });
 
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     expect(await screen.findByText(/^Locked until /)).toBeInTheDocument();
     expect(screen.getAllByText(/^Locked until /)).toHaveLength(1);
@@ -57,17 +69,16 @@ describe('UsersPanel account lock', () => {
       }),
     );
     const person = userEvent.setup();
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     await person.click(await screen.findByRole('button', { name: 'Unlock alice' }));
 
     // In flight: announced, and the control cannot be submitted again.
-    expect(await screen.findByText('Unlocking alice…')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent('Unlocking alice…');
     expect(screen.getByRole('button', { name: 'Unlock alice' })).toBeDisabled();
     release();
 
-    await waitFor(() => expect(screen.getByText('Unlocked alice.')).toBeInTheDocument());
-    expect(screen.getByText('Unlocked alice.').closest('[aria-live="polite"]')).not.toBeNull();
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Unlocked alice'));
     await waitFor(() => expect(screen.queryByText(/^Locked until /)).not.toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Unlock alice' })).not.toBeInTheDocument();
   });
@@ -80,12 +91,13 @@ describe('UsersPanel account lock', () => {
       ),
     );
     const person = userEvent.setup();
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     await person.click(await screen.findByRole('button', { name: 'Unlock alice' }));
 
-    const outcome = await screen.findByText('Could not unlock alice. Access denied. Try again.');
-    expect(outcome.closest('[aria-live="polite"]')).not.toBeNull();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not unlock alice');
+    expect(alert).toHaveTextContent('Access denied. The account is still locked. Try again.');
     expect(screen.getByText(/^Locked until /)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Unlock alice' })).toBeEnabled();
   });
@@ -117,7 +129,7 @@ describe('UsersPanel two-step verification', () => {
       ],
     });
 
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     expect(await screen.findByText('Authenticator app, Passkey')).toBeInTheDocument();
     expect(screen.getByText('Not set up')).toBeInTheDocument();
@@ -135,7 +147,7 @@ describe('UsersPanel two-step verification', () => {
       users: [{ ...user('erin', null), providerId: 'acme:corp', secondFactorRequired: true }],
     });
 
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     expect(await screen.findByText('Required, not set up')).toBeInTheDocument();
     expect(screen.queryByText('Managed by their identity provider')).not.toBeInTheDocument();
@@ -154,7 +166,7 @@ describe('UsersPanel two-step verification', () => {
       }),
     );
     const person = userEvent.setup();
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     const trigger = await screen.findByRole('button', { name: 'Reset two-step verification of alice' });
     await person.click(trigger);
@@ -172,8 +184,7 @@ describe('UsersPanel two-step verification', () => {
     await person.click(confirm);
 
     await waitFor(() => expect(reset).toBe(true));
-    const outcome = await screen.findByText('Reset two-step verification of alice.');
-    expect(outcome.closest('[aria-live="polite"]')).not.toBeNull();
+    expect(await screen.findByRole('status')).toHaveTextContent('Reset two-step verification of alice');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(await screen.findByText('Not set up')).toBeInTheDocument();
   });
@@ -182,7 +193,7 @@ describe('UsersPanel two-step verification', () => {
     serveUsers({ users: [{ ...user('alice', null), secondFactors: ['TOTP'] }] });
     server.use(me());
     const person = userEvent.setup();
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     const trigger = await screen.findByRole('button', { name: 'Reset two-step verification of alice' });
     trigger.focus();
@@ -204,7 +215,7 @@ describe('UsersPanel two-step verification', () => {
       http.delete('*/api/v1/users/id-alice/second-factors', () => problem('reauthentication-required', 403)),
     );
     const person = userEvent.setup();
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     await person.click(await screen.findByRole('button', { name: 'Reset two-step verification of alice' }));
     const dialog = await screen.findByRole('dialog');
@@ -224,13 +235,113 @@ describe('UsersPanel two-step verification', () => {
       http.delete('*/api/v1/users/id-alice/second-factors', () => problem(slug, status)),
     );
     const person = userEvent.setup();
-    renderWithProviders(<UsersPanel />);
+    renderUsers();
 
     await person.click(await screen.findByRole('button', { name: 'Reset two-step verification of alice' }));
     const dialog = await screen.findByRole('dialog');
     await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
     await person.click(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(advice);
+    expect(await screen.findByRole('alert')).toHaveTextContent(advice);
+    // The dialog stays open, so the operator can act on what it says.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+});
+
+const withGrant = (name: string): UserView => ({
+  ...user(name, null),
+  grants: [{ roleId: 'r-viewer', roleName: 'VIEWER', scopeType: 'GLOBAL', scopeId: null }],
+});
+
+describe('UsersPanel roles and accounts', () => {
+  it('removes a role only once the username is typed, says what is lost, and announces it', async () => {
+    const state = { users: [withGrant('alice')] };
+    serveUsers(state);
+    let removed = false;
+    server.use(
+      http.delete('*/api/v1/users/id-alice/grants/r-viewer', () => {
+        removed = true;
+        state.users = [user('alice', null)];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('button', { name: 'Remove VIEWER from alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove VIEWER from alice' });
+    expect(dialog).toHaveTextContent('alice loses the permissions that VIEWER gave them');
+    const confirm = within(dialog).getByRole('button', { name: 'Remove role' });
+    expect(confirm).toBeDisabled();
+    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
+    await person.click(confirm);
+
+    await waitFor(() => expect(removed).toBe(true));
+    expect(await screen.findByRole('status')).toHaveTextContent('Removed VIEWER from alice');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove VIEWER from alice' })).toBeNull());
+  });
+
+  it('disables an account, announces it, and says why and what to do when that fails', async () => {
+    serveUsers({ users: [user('alice', null)] });
+    server.use(
+      http.put('*/api/v1/users/id-alice/disabled', () =>
+        HttpResponse.json({ title: 'Boom', detail: 'The database is down.' }, { status: 500 }),
+      ),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('switch', { name: 'Disable alice' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not disable alice');
+    expect(alert).toHaveTextContent('The database is down. The account is still enabled. Try again.');
+  });
+
+  it('asks which role to grant on submit, beside the field, and puts focus there', async () => {
+    serveUsers({ users: [user('alice', null)] });
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('button', { name: 'Grant a role to alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Grant a role to alice' });
+    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+
+    expect(await within(dialog).findByText('Choose the role to grant.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: /Role/ })).toHaveFocus();
+  });
+
+  it('asks for the username and the password on submit, focusing the first missing one', async () => {
+    serveUsers({ users: [] });
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('button', { name: 'New user' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New user' });
+    await person.click(within(dialog).getByRole('button', { name: 'Create' }));
+
+    expect(await within(dialog).findByText('Enter the username they sign in with.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Enter an initial password.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /Username/ })).toHaveFocus();
+  });
+
+  it('teaches what a user is when there are none', async () => {
+    serveUsers({ users: [] });
+    renderUsers();
+    expect(await screen.findByText('No users')).toBeInTheDocument();
+  });
+
+  it('states a failed load with its cause and offers a retry', async () => {
+    server.use(
+      http.get('*/api/v1/users', () =>
+        HttpResponse.json({ title: 'Boom', detail: 'The database is down.' }, { status: 500 }),
+      ),
+    );
+    renderUsers();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The database is down.');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

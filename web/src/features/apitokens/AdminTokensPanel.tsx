@@ -1,27 +1,25 @@
 import { useState } from 'react';
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Drawer,
-  Group,
-  Modal,
-  Stack,
-  Table,
-  Text,
-  Tooltip,
-  VisuallyHidden,
-} from '@mantine/core';
+import { ActionIcon, Drawer, Tooltip } from '@mantine/core';
 import { IconChartBar, IconTrash } from '@tabler/icons-react';
 
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { serverNow } from '../../kernel/time/time.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useAdminRevokeToken, useAdminTokens, type TokenView } from './api.ts';
-import { formatInstant } from './format.ts';
-import { TokenStatus, TokenUsagePanel } from './TokenParts.tsx';
+import { adminKeyColumns } from './columns.ts';
+import { tokenState } from './format.ts';
+import { TokenUsagePanel } from './TokenParts.tsx';
+import classes from './TokenActions.module.css';
 
 const TOKEN_ADMIN = 'token:admin';
+
+const REVOKE: ActionVerb = { verb: 'Revoke', past: 'Revoked', progressive: 'Revoking' };
+
+const rowKey = (t: TokenView) => t.id;
 
 /**
  * Every user's API keys, metadata only, so a leaked key can be revoked without its owner
@@ -32,10 +30,18 @@ export function AdminTokensPanel() {
   const { can, loading } = useCan();
   if (!loading && !can(TOKEN_ADMIN)) {
     return (
-      <Alert color="gray" title="You cannot see other users' keys">
-        The key inventory needs the global permission &ldquo;See and revoke every user&apos;s API tokens&rdquo; (
-        {TOKEN_ADMIN}). Ask an administrator to add it to one of your roles.
-      </Alert>
+      <Section title="API keys">
+        <EmptyState
+          kind="empty"
+          title="You cannot see other users' keys"
+          description={
+            <>
+              The key inventory needs the global permission &ldquo;See and revoke every user&apos;s API tokens&rdquo; (
+              {TOKEN_ADMIN}). Ask an administrator to add it to one of your roles.
+            </>
+          }
+        />
+      </Section>
     );
   }
   return <Inventory />;
@@ -43,24 +49,60 @@ export function AdminTokensPanel() {
 
 function Inventory() {
   const tokens = useAdminTokens();
+  // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [revoking, setRevoking] = useState<TokenView | null>(null);
+  const [revokeOpen, setRevokeOpen] = useState(false);
   const [usageOf, setUsageOf] = useState<TokenView | null>(null);
 
-  return (
-    <Stack gap="md">
-      <Text size="sm" c="dimmed">
-        Every user&apos;s keys. A key unused for longer than the stale period in Operational configuration is flagged.
-      </Text>
-      {tokens.isError ? (
-        <Alert color="red" title="The key inventory could not be loaded">
-          <Text size="sm">{tokens.error.message}</Text>
-          <Text size="sm">Reload the page to try again.</Text>
-        </Alert>
-      ) : (
-        <InventoryTable tokens={tokens.data} onUsage={setUsageOf} onRevoke={setRevoking} />
-      )}
+  const columns = adminKeyColumns({
+    actions: (t) => (
+      <span className={classes.controls}>
+        <Tooltip label="Usage">
+          <ActionIcon variant="subtle" onClick={() => setUsageOf(t)} aria-label={`Usage of ${t.name}`}>
+            <IconChartBar size="1rem" aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Revoke">
+          <ActionIcon
+            variant="subtle"
+            disabled={tokenState(t) !== 'Active'}
+            onClick={() => {
+              setRevoking(t);
+              setRevokeOpen(true);
+            }}
+            aria-label={`Revoke ${t.name} of ${t.owner}`}
+          >
+            <IconTrash size="1rem" aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      </span>
+    ),
+  });
 
-      <RevokeModal token={revoking} onClose={() => setRevoking(null)} />
+  return (
+    <Section
+      title="API keys"
+      description="Every user's keys. A key unused for longer than the stale period in Operational configuration is flagged."
+    >
+      <DataTable
+        variant="static"
+        label="Every user's API keys"
+        storageKey="apitokens.admin"
+        columns={columns}
+        data={tokens.data ?? []}
+        rowKey={rowKey}
+        loading={tokens.isPending}
+        error={tokens.isError ? <ErrorState error={tokens.error} onRetry={() => void tokens.refetch()} /> : undefined}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No user has a key yet"
+            description="Users mint keys for scripts and assistants on their account page."
+          />
+        }
+      />
+
+      <RevokeKey token={revoking} opened={revokeOpen} onClose={() => setRevokeOpen(false)} />
       <Drawer
         opened={usageOf !== null}
         onClose={() => setUsageOf(null)}
@@ -69,135 +111,52 @@ function Inventory() {
       >
         {usageOf ? <TokenUsagePanel scope="admin" tokenId={usageOf.id} /> : null}
       </Drawer>
-    </Stack>
+    </Section>
   );
 }
 
-function InventoryTable({
-  tokens,
-  onUsage,
-  onRevoke,
-}: Readonly<{
-  tokens: TokenView[] | undefined;
-  onUsage: (token: TokenView) => void;
-  onRevoke: (token: TokenView) => void;
-}>) {
-  if (tokens?.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No user has a key yet. Users mint keys for scripts and assistants on their account page.
-      </Text>
-    );
-  }
-  return (
-    <Table>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Owner</Table.Th>
-          <Table.Th>Name</Table.Th>
-          <Table.Th>Status</Table.Th>
-          <Table.Th>Permissions</Table.Th>
-          <Table.Th>MCP tools</Table.Th>
-          <Table.Th>Expires</Table.Th>
-          <Table.Th>Last used</Table.Th>
-          <Table.Th>
-            <VisuallyHidden>Actions</VisuallyHidden>
-          </Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {(tokens ?? []).map((t) => (
-          <Table.Tr key={t.id}>
-            <Table.Td>
-              <Text size="sm">{t.owner}</Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="sm">{t.name}</Text>
-              <Text size="xs" ff="monospace" c="dimmed">
-                {t.prefix}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Group gap={4}>
-                <TokenStatus token={t} />
-                {t.stale ? (
-                  <Badge size="xs" color="yellow" variant="light">
-                    stale
-                  </Badge>
-                ) : null}
-              </Group>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs">
-                {t.grants.length === 0
-                  ? 'None'
-                  : t.grants.map((g) => (g.scopeType === 'GLOBAL' ? g.action : `${g.action} (cluster)`)).join(', ')}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs" c="dimmed">
-                {t.mcpTools.length === 0 ? 'Every tool' : t.mcpTools.join(', ')}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs">{formatInstant(t.expiresAt)}</Text>
-            </Table.Td>
-            <Table.Td>
-              <Text size="xs" c="dimmed">
-                {formatInstant(t.lastUsedAt)}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Group gap={4} wrap="nowrap">
-                <Tooltip label="Usage">
-                  <ActionIcon variant="subtle" onClick={() => onUsage(t)} aria-label={`Usage of ${t.name}`}>
-                    <IconChartBar size={16} />
-                  </ActionIcon>
-                </Tooltip>
-                {!t.revokedAt && Date.parse(t.expiresAt) > serverNow() ? (
-                  <Tooltip label="Revoke">
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => onRevoke(t)}
-                      aria-label={`Revoke ${t.name} of ${t.owner}`}
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Tooltip>
-                ) : null}
-              </Group>
-            </Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
-  );
-}
-
-function RevokeModal({ token, onClose }: Readonly<{ token: TokenView | null; onClose: () => void }>) {
+/** States what revoking does to the owner before it can be armed, then asks for the key's name. */
+function RevokeKey({
+  token,
+  opened,
+  onClose,
+}: Readonly<{ token: TokenView | null; opened: boolean; onClose: () => void }>) {
   const revoke = useAdminRevokeToken();
+  const close = () => {
+    revoke.reset();
+    onClose();
+  };
+
+  const confirm = (t: TokenView) =>
+    revoke.mutate(t.id, {
+      onSuccess: () => {
+        close();
+        notify.succeeded({ action: REVOKE, subject: `${t.owner}'s key "${t.name}"` });
+      },
+      onError: (error) =>
+        notify.failed({
+          action: REVOKE,
+          subject: `${t.owner}'s key "${t.name}"`,
+          cause: error.message,
+          next: 'The key still works. Try again.',
+        }),
+    });
+
   return (
-    <Modal opened={token !== null} onClose={onClose} title={token ? `Revoke ${token.owner}'s key ${token.name}` : ''}>
-      {token ? (
-        <Stack gap="sm">
-          <Text size="sm">
-            Every request with this key is refused from the next one on, and {token.owner} sees it as revoked. The
-            revocation is audited. It cannot be undone; {token.owner} can mint a new key.
-          </Text>
-          {revoke.isError ? (
-            <Alert color="red" title="The key was not revoked">
-              {revoke.error.message}
-            </Alert>
-          ) : null}
-          <ConfirmByTyping
-            token={token.name}
-            confirmLabel="Revoke key"
-            loading={revoke.isPending}
-            onConfirm={() => revoke.mutate(token.id, { onSuccess: onClose })}
-          />
-        </Stack>
-      ) : null}
-    </Modal>
+    <ConfirmDialog
+      opened={opened}
+      onClose={close}
+      title={token ? `Revoke ${token.owner}'s key ${token.name}` : 'Revoke key'}
+      tone="danger"
+      typedName={token?.name}
+      pending={revoke.isPending}
+      confirmLabel="Revoke key"
+      consequence={
+        token
+          ? `Every request with this key is refused from the next one on, and ${token.owner} sees it as revoked. The revocation is audited. It cannot be undone; ${token.owner} can mint a new key.`
+          : ''
+      }
+      onConfirm={() => token && confirm(token)}
+    />
   );
 }

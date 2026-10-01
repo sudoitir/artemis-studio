@@ -1,12 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Group, Modal, Paper, Progress, Skeleton, Stack, Table, Text } from '@mantine/core';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Button, Group, Progress, Stack, Text, VisuallyHidden } from '@mantine/core';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useSecretsStatus, useStartRotation, type RotationView, type SecretsStatus } from './api.ts';
+import { keyVersionColumns } from './columns.ts';
+import classes from './Settings.module.css';
 
 const PROVIDERS: Record<string, string> = {
   env: 'Environment variable',
@@ -17,7 +26,7 @@ const PROVIDERS: Record<string, string> = {
 
 const STATUSES: Record<string, string> = { RUNNING: 'Running', SUCCEEDED: 'Succeeded', FAILED: 'Failed' };
 
-const numeric = { fontVariantNumeric: 'tabular-nums' } as const;
+const ROTATE: ActionVerb = { verb: 'Start', past: 'Started', progressive: 'Starting' };
 
 const when = (iso: string) => new Date(iso).toLocaleString();
 
@@ -29,8 +38,6 @@ function targetVersion(s: SecretsStatus): number | null {
 
 /** Secrets still wrapped under a version older than the current one. */
 const straggling = (s: SecretsStatus) => Object.keys(s.countsByVersion).some((v) => Number(v) < s.currentVersion);
-
-const STATUS_COLORS: Record<string, string> = { FAILED: 'red', RUNNING: 'blue' };
 
 const secretNoun = (n: number) => (n === 1 ? 'secret' : 'secrets');
 
@@ -60,19 +67,39 @@ function useRotationFlow() {
   const fresh = useFreshSignIn();
   const [open, setOpen] = useState(false);
 
+  const { mutate, error: rotateError } = rotate;
+  const start = useCallback(
+    () =>
+      mutate(undefined, {
+        onSuccess: () => notify.succeeded({ action: ROTATE, subject: 'the key rotation' }),
+        onError: (error) => {
+          // A stale sign-in is answered by the prompt in the dialog, not by a failure.
+          if (!needsReauthentication(error)) {
+            notify.failed({
+              action: ROTATE,
+              subject: 'the key rotation',
+              cause: error.message,
+              next: nextAction(error.type),
+            });
+          }
+        },
+      }),
+    [mutate],
+  );
+
   // After a step-up the server's 403 is stale: retry once when the session turns fresh.
   const wasFresh = useRef(fresh);
   useEffect(() => {
-    if (fresh && !wasFresh.current && needsReauthentication(rotate.error)) rotate.mutate();
+    if (fresh && !wasFresh.current && needsReauthentication(rotateError)) start();
     wasFresh.current = fresh;
-  }, [fresh, rotate]);
+  }, [fresh, rotateError, start]);
 
   // Closes on success from either the first attempt or the retry after a step-up.
   useEffect(() => {
     if (rotate.isSuccess) setOpen(false);
   }, [rotate.isSuccess]);
 
-  return { rotate, open, setOpen };
+  return { rotate, start, open, setOpen };
 }
 
 /**
@@ -82,28 +109,14 @@ function useRotationFlow() {
  */
 export function SecuritySettings() {
   const status = useSecretsStatus();
-  const { rotate, open, setOpen } = useRotationFlow();
+  const { rotate, start, open, setOpen } = useRotationFlow();
   const { can, loading } = useCan();
 
   if (status.isError) {
-    return (
-      <Alert color="red" variant="light" title={status.error.title} role="alert">
-        <Stack gap="xs" align="flex-start">
-          <Text size="sm">{status.error.message} The key status could not be loaded; try again.</Text>
-          <Button size="xs" variant="default" onClick={() => status.refetch()}>
-            Retry
-          </Button>
-        </Stack>
-      </Alert>
-    );
+    return <ErrorState error={status.error} onRetry={() => void status.refetch()} />;
   }
-  if (status.isPending)
-    return (
-      <Stack gap="sm" maw={640} aria-busy="true" aria-label="Loading key status">
-        <Skeleton height={72} />
-        <Skeleton height={96} />
-      </Stack>
-    );
+  // The frame holds the height of the provider, the versions and the rotation, so they do not push anything.
+  if (status.isPending) return <LoadingState label="Loading key status" blockSize="28rem" />;
 
   const s = status.data;
   const last = s.lastRotation ?? null;
@@ -115,24 +128,23 @@ export function SecuritySettings() {
   const verdict = rotationVerdict(!loading && !can('settings:write'), running, rotatable);
 
   return (
-    <Stack gap="md" maw={640}>
-      <div role="status" aria-live="polite" style={{ position: 'absolute', insetInlineStart: -9999 }}>
-        {announcement(rotate.isPending, last)}
-      </div>
-      <Paper withBorder p="md">
-        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-          Key provider
-        </Text>
+    <Stack gap="lg" className={classes.narrow}>
+      <VisuallyHidden role="status">{announcement(rotate.isPending, last)}</VisuallyHidden>
+
+      <Section
+        title="Key provider"
+        headingLevel={3}
+        variant="card"
+        description="Studio reads its key versions from here; the keys themselves never reach Studio’s database or this screen."
+      >
         <Text fw={600}>{PROVIDERS[s.provider] ?? s.provider}</Text>
-        <Text size="sm" c="dimmed">
-          Studio reads its key versions from here; the keys themselves never reach Studio&rsquo;s database or this
-          screen.
-        </Text>
-      </Paper>
+      </Section>
 
       <MissingVersions s={s} />
-      <KeyVersionsTable s={s} running={running} />
-      {stored === 0 ? <Text size="sm">No secrets are stored yet.</Text> : null}
+      <Section title="Key versions" headingLevel={3}>
+        <KeyVersions s={s} running={running} />
+        {stored === 0 ? <Text size="sm">No secrets are stored yet.</Text> : null}
+      </Section>
 
       <Text size="sm">{guidance(s, target, running, last?.status === 'SUCCEEDED')}</Text>
       <Group gap="sm">
@@ -146,65 +158,66 @@ export function SecuritySettings() {
       {last ? (
         <RotationSummary rotation={last} />
       ) : (
-        <Alert variant="light" color="gray" title="No rotation has run">
-          Rotation re-wraps stored secrets under a newer key.{' '}
-          {rotatable
-            ? 'A newer key version is ready, so you can rotate now.'
-            : 'It needs a newer key version in the provider; add one there, then rotate here.'}
-        </Alert>
+        <Section title="No rotation has run" headingLevel={3} variant="card">
+          <Text size="sm">
+            Rotation re-wraps stored secrets under a newer key.{' '}
+            {rotatable
+              ? 'A newer key version is ready, so you can rotate now.'
+              : 'It needs a newer key version in the provider; add one there, then rotate here.'}
+          </Text>
+        </Section>
       )}
 
-      <RotateModal
+      <RotateDialog
         open={open}
         onClose={() => setOpen(false)}
         explanation={rotateExplanation(s.currentVersion, target, toRewrap)}
         rotate={rotate}
+        onConfirm={start}
       />
     </Stack>
   );
 }
 
+/** A version the provider has lost while secrets still depend on it: a fault, stated before anything else. */
 function MissingVersions({ s }: Readonly<{ s: SecretsStatus }>) {
+  const titleId = useId();
   if (s.missingVersions.length === 0) return null;
   return (
-    <Alert color="red" variant="light" role="alert" title="A key version is missing from the provider">
-      {s.missingVersions
-        .map((v) => {
-          const n = s.countsByVersion[String(v)] ?? 0;
-          return `Version ${v} still protects ${n} stored ${secretNoun(n)}.`;
-        })
-        .join(' ')}{' '}
-      Those secrets cannot be read until the key is restored to the provider. Restore it, then rotate so nothing depends
-      on it.
-    </Alert>
+    <div className={classes.fault} role="alert" aria-labelledby={titleId}>
+      <Text fw={600} id={titleId}>
+        A key version is missing from the provider
+      </Text>
+      <Text size="sm">
+        {s.missingVersions
+          .map((v) => {
+            const n = s.countsByVersion[String(v)] ?? 0;
+            return `Version ${v} still protects ${n} stored ${secretNoun(n)}.`;
+          })
+          .join(' ')}{' '}
+        Those secrets cannot be read until the key is restored to the provider. Restore it, then rotate so nothing
+        depends on it.
+      </Text>
+    </div>
   );
 }
 
-function KeyVersionsTable({ s, running }: Readonly<{ s: SecretsStatus; running: boolean }>) {
+function KeyVersions({ s, running }: Readonly<{ s: SecretsStatus; running: boolean }>) {
   const rows = [
     ...new Set([...s.availableVersions, ...Object.keys(s.countsByVersion).map(Number), s.currentVersion]),
   ].sort((x, y) => x - y);
   return (
-    <Table aria-label="Key versions">
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Key version</Table.Th>
-          <Table.Th>State</Table.Th>
-          <Table.Th ta="end">Stored secrets</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {rows.map((v) => (
-          <Table.Tr key={v}>
-            <Table.Td style={numeric}>{v}</Table.Td>
-            <Table.Td>{versionState(s, v, running)}</Table.Td>
-            <Table.Td ta="end" style={numeric}>
-              {s.countsByVersion[String(v)] ?? 0}
-            </Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+    <DataTable
+      variant="static"
+      label="Key versions"
+      columns={keyVersionColumns({
+        state: (v) => versionState(s, v, running),
+        stored: (v) => s.countsByVersion[String(v)] ?? 0,
+      })}
+      data={rows}
+      rowKey={String}
+      empty={null}
+    />
   );
 }
 
@@ -215,42 +228,38 @@ function rotateExplanation(currentVersion: number, target: number | null, toRewr
   return `This re-wraps ${toRewrap} stored ${secretNoun(toRewrap)} from version ${currentVersion} to version ${target}.`;
 }
 
-function RotateModal({
+function RotateDialog({
   open,
   onClose,
   explanation,
   rotate,
+  onConfirm,
 }: Readonly<{
   open: boolean;
   onClose: () => void;
   explanation: string;
   rotate: ReturnType<typeof useStartRotation>;
+  onConfirm: () => void;
 }>) {
-  const conflict = rotate.error && !needsReauthentication(rotate.error) ? rotate.error : null;
   return (
-    <Modal opened={open} onClose={onClose} title="Rotate the key">
-      <Stack gap="md">
-        <Text size="sm">
-          {explanation} Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
-        </Text>
-        {needsReauthentication(rotate.error) ? (
-          <StepUp returnTo={`${globalThis.location.pathname}?tab=settings-security`} />
-        ) : null}
-        {conflict ? (
-          <Alert color="red" variant="light" role="alert" title="Not started">
-            {conflict.message} {nextAction(conflict.type)}
-          </Alert>
-        ) : null}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button loading={rotate.isPending} onClick={() => rotate.mutate()}>
-            Rotate key
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
+    <ConfirmDialog
+      opened={open}
+      onClose={onClose}
+      title="Rotate the key"
+      confirmLabel="Rotate key"
+      pending={rotate.isPending}
+      consequence={
+        <Stack gap="md">
+          <Text size="sm">
+            {explanation} Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
+          </Text>
+          {needsReauthentication(rotate.error) ? (
+            <StepUp returnTo={`${globalThis.location.pathname}?tab=settings-security`} />
+          ) : null}
+        </Stack>
+      }
+      onConfirm={onConfirm}
+    />
   );
 }
 
@@ -290,26 +299,20 @@ function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) 
   // Every row is re-wrapped, but the rotation waits out the settle window so no replica still writes under the old key.
   const settling = r.status === 'RUNNING' && !counting && r.remaining === 0;
   return (
-    <Alert
-      variant="light"
-      color={STATUS_COLORS[r.status] ?? 'gray'}
-      title={`Last rotation: ${STATUSES[r.status] ?? r.status}`}
-    >
+    <Section title={`Last rotation: ${STATUSES[r.status] ?? r.status}`} headingLevel={3} variant="card">
       <Stack gap={2}>
-        <Text size="sm" style={numeric}>
+        <Text size="sm" className={classes.figure}>
           Version {r.fromVersion} to version {r.toVersion}, started by {r.startedBy} at {when(r.startedAt)}.
         </Text>
         {r.status === 'RUNNING' && !counting ? (
           <Progress
             aria-label="Rotation progress"
             value={(100 * r.rewrapped) / (r.rewrapped + r.remaining)}
-            color="blue"
             size="md"
-            animated
-            my={4}
+            my="xs"
           />
         ) : null}
-        <Text size="sm" style={numeric}>
+        <Text size="sm" className={classes.figure}>
           {counting ? 'Progress: counting…' : `Progress: ${r.rewrapped} re-wrapped, ${r.remaining} remaining.`}
         </Text>
         {settling ? (
@@ -321,12 +324,15 @@ function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) 
         {r.status === 'RUNNING' ? <Text size="sm">Running for {elapsed(r.startedAt)}.</Text> : null}
         {r.finishedAt ? <Text size="sm">Finished at {when(r.finishedAt)}.</Text> : null}
         {r.status === 'FAILED' ? (
-          <Text size="sm" role="alert">
-            {r.error ?? 'No cause was recorded.'} Keep the old key in the provider, fix the cause, and rotate again.
-          </Text>
+          <Group gap="xs" align="flex-start" wrap="nowrap" role="alert">
+            <StatusBadge tone="danger">Failed</StatusBadge>
+            <Text size="sm">
+              {r.error ?? 'No cause was recorded.'} Keep the old key in the provider, fix the cause, and rotate again.
+            </Text>
+          </Group>
         ) : null}
       </Stack>
-    </Alert>
+    </Section>
   );
 }
 

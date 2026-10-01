@@ -93,6 +93,14 @@ describe('the Settings page', () => {
     expect(screen.getByText('Yours alone')).toBeInTheDocument();
   });
 
+  it('is one page: a single h1, and each open section is an h2', async () => {
+    renderAppAt('/settings-under-test', features);
+
+    await screen.findByRole('tablist', { name: 'Settings sections' });
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Settings']);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Display']);
+  });
+
   it('opens the tab the address names, and keeps a chosen tab in the address', async () => {
     const { router } = renderAppAt('/settings-under-test?tab=credentials', features);
 
@@ -110,7 +118,7 @@ describe('the Settings page', () => {
     expect(await screen.findByText('Yours alone')).toBeInTheDocument();
   });
 
-  it('moves between tabs with the arrows and opens one with Enter, focusing its heading', async () => {
+  it('moves between tabs with the arrows and opens one with Enter, focusing its section', async () => {
     renderAppAt('/settings-under-test', features);
     const user = userEvent.setup();
 
@@ -121,8 +129,10 @@ describe('the Settings page', () => {
     expect(screen.getByText('Yours alone')).toBeInTheDocument();
 
     await user.keyboard('{Enter}');
-    const heading = await screen.findByRole('heading', { name: 'Operational configuration' });
-    await waitFor(() => expect(heading).toHaveFocus());
+    // The section the tab names takes focus, and its heading is the one the page outline shows.
+    const panel = await screen.findByRole('tabpanel', { name: 'Operational configuration' });
+    await waitFor(() => expect(panel).toHaveFocus());
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Operational configuration' })).toBeInTheDocument();
     expect(screen.getByText('Shared')).toBeInTheDocument();
   });
 });
