@@ -3,7 +3,7 @@ import { useLocalStorage } from '@mantine/hooks';
 
 export type Density = 'compact' | 'comfortable';
 
-/** The browser-storage key `public/boot-prefs.js` reads before the first paint (ADR-0161). */
+/** The browser-storage key `public/boot-prefs.js` reads before the first paint (ADR-0162). */
 export const DENSITY_KEY = 'as:density';
 
 const DEFAULT_DENSITY: Density = 'compact';
@@ -23,7 +23,7 @@ export function densityToggleLabel(density: Density): string {
 }
 
 /**
- * The viewer's table density, for every table (ADR-0161): a per-browser preference, not part of the URL.
+ * The viewer's table density, for every table (ADR-0162): a per-browser preference, not part of the URL.
  *
  * Storage is read synchronously, so the first render already uses it; `boot-prefs.js` has put the same
  * value on `<html data-density>` before React ran, and the hook keeps that attribute in step afterwards.

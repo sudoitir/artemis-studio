@@ -61,6 +61,7 @@ export function pluginColumns({ updates, onUpdate, onOpen, showLicense }: Plugin
             cell: licenseCell,
             kind: 'status',
             priority: 'high',
+            badge: true,
           } satisfies Column<PluginView>,
         ]
       : []),

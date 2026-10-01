@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react';
 // don't want here, and the test run needs the jsdom environment + setup file.
 // Same @vitejs/plugin-react transform, so component behaviour matches the build.
 //
-// Two projects (ADR-0164). `unit` is jsdom, for behaviour (ADR-0024). `browser` runs the
+// Two projects (ADR-0165). `unit` is jsdom, for behaviour (ADR-0024). `browser` runs the
 // `*.browser.test.*` files in Chromium, where layout, CSS modules, fonts and contrast are real.
 const BROWSER_TESTS = '**/*.browser.test.{ts,tsx}';
 
@@ -75,7 +75,7 @@ export default defineConfig({
             enabled: true,
             headless: true,
             provider: playwright(),
-            // The widest window the console is laid out for (ADR-0163); a test sets its own container width.
+            // The widest window the console is laid out for (ADR-0164); a test sets its own container width.
             instances: [{ browser: 'chromium', viewport: { width: 1920, height: 1080 } }],
           },
         },

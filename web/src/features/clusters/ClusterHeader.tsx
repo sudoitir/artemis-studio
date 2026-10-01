@@ -21,7 +21,7 @@ function capabilityGaps(caps: CapabilitiesView | undefined): string[] {
  * environment beside the environment's colour, and what is known of its health, then the health banner
  * and a notice for a capability the connection lacks.
  *
- * It holds no heading. Each view's `PageHeader` renders the page's one h1 (ADR-0162), so the cluster
+ * It holds no heading. Each view's `PageHeader` renders the page's one h1 (ADR-0163), so the cluster
  * is stated beside it as context, not as a second top-level heading. How current the data is stays
  * with the shell's freshness indicator, which answers it for every route.
  */

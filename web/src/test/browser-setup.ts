@@ -4,7 +4,7 @@ import { cleanup } from '@testing-library/react';
 
 // The same style sheets and fonts the application loads (main.tsx), so a browser test lays out what a
 // viewer sees. Nothing is wrapped globally: a test renders its own providers and does its own
-// data passing, and there is no network mock because there is no network (ADR-0164).
+// data passing, and there is no network mock because there is no network (ADR-0165).
 import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
 import '@fontsource-variable/atkinson-hyperlegible-mono/index.css';
 import '@mantine/core/styles.css';

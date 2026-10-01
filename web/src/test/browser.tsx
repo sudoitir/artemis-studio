@@ -5,7 +5,7 @@ import axe from 'axe-core';
 
 import { cssVariablesResolver, theme } from '../theme.ts';
 
-/** The two colour schemes every browser test checks (ADR-0158). */
+/** The two colour schemes every browser test checks (ADR-0159). */
 export const SCHEMES = ['light', 'dark'] as const;
 export type Scheme = (typeof SCHEMES)[number];
 
@@ -71,7 +71,7 @@ export async function settle(signature: () => string, stableFrames = 4): Promise
   }
 }
 
-/** WCAG 2.2 AA, which is what ADR-0164 holds every page and part to. */
+/** WCAG 2.2 AA, which is what ADR-0165 holds every page and part to. */
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 /** What axe finds wrong inside `root`, one readable line each; an empty list is a pass. */

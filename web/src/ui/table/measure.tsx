@@ -23,7 +23,7 @@ interface MeasurerProps {
 }
 
 /**
- * Where column widths come from (ADR-0160): an `inert`, `aria-hidden`, zero-size box, clipped so it
+ * Where column widths come from (ADR-0161): an `inert`, `aria-hidden`, zero-size box, clipped so it
  * can never widen the page, holding a `max-content` grid of the header and a sample of the values.
  * Each cell is in its kind's font and bounded in `ch`, so a track's width is already clamped, and
  * because the grid does not depend on the table's own width, what it reports cannot lock a column at

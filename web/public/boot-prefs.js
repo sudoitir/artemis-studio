@@ -1,6 +1,6 @@
 /*
  * Applies the viewer's colour scheme and table density before React runs, so a reload never shows one
- * frame in the wrong scheme or at the wrong row height (ADR-0158, ADR-0161). A static same-origin script,
+ * frame in the wrong scheme or at the wrong row height (ADR-0159, ADR-0162). A static same-origin script,
  * loaded synchronously from index.html: the Content-Security-Policy allows it without 'unsafe-inline'.
  *
  * It mirrors two stored values and accepts nothing outside their known sets:

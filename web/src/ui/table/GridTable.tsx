@@ -128,7 +128,7 @@ function isCopyKey(e: KeyboardEvent): boolean {
   return (e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && !e.altKey;
 }
 
-/** Ctrl+Shift+Left/Right, which resizes the column of a header cell (ADR-0160). */
+/** Ctrl+Shift+Left/Right, which resizes the column of a header cell (ADR-0161). */
 function isResizeKey(e: KeyboardEvent): boolean {
   return e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
 }
@@ -692,7 +692,7 @@ export function GridTable<T>({
     return false;
   };
 
-  // Ctrl+Shift+Left/Right on a header cell resizes its column (ADR-0160); the grid keeps its one
+  // Ctrl+Shift+Left/Right on a header cell resizes its column (ADR-0161); the grid keeps its one
   // tab stop, so this is the keyboard's way to what the border handle does.
   const resizeKey = (e: KeyboardEvent, { pos, cell }: KeyTarget): boolean => {
     const column = pos.row === 0 && isResizeKey(e) ? columns[pos.col - firstDataCol] : undefined;

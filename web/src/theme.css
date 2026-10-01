@@ -1,4 +1,4 @@
-/* Semantic token layer (ADR-0156). Components reference these, never raw values or
+/* Semantic token layer (ADR-0157). Components reference these, never raw values or
    primitive scale steps directly. The primitives are the tuples in theme.ts; the numbers
    CSS and JavaScript both read (--as-row-h-*, --as-duration-*, --as-z-*, --as-nav-w) come
    from its cssVariablesResolver. Dark is the base; light overrides.
@@ -40,7 +40,7 @@
 
   /* Status semantics. Green is deliberately NOT here: in an ops console green
      is a word, not a brand colour, and "health is the absence of colour"
-     (ADR-0157). A healthy screen is near-monochrome; colour enters only when
+     (ADR-0158). A healthy screen is near-monochrome; colour enters only when
      something is wrong. */
   --as-ok: var(--as-text);
   --as-warning: var(--mantine-color-amber-4);

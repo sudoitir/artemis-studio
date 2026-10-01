@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 /**
- * What a viewer has done to one table (ADR-0160): the widths they set, the columns they hid or chose
+ * What a viewer has done to one table (ADR-0161): the widths they set, the columns they hid or chose
  * to show, and their order. Stored per browser, never in the URL. It is the shape a saved view would
  * persist.
  */

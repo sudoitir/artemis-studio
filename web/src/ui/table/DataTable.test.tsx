@@ -401,7 +401,7 @@ describe('DataTable', () => {
     });
   });
 
-  describe('column widths (ADR-0160)', () => {
+  describe('column widths (ADR-0161)', () => {
     afterEach(() => {
       localStorage.clear();
       vi.restoreAllMocks();

@@ -115,7 +115,7 @@ function rowHeightPx(rowH: number): number {
 }
 
 /**
- * The console's one data table (ADR-0159), in one of two renderers over one column model:
+ * The console's one data table (ADR-0160), in one of two renderers over one column model:
  *
  * <ul>
  *   <li>`'grid'`, the default: interactive and always virtualised, with a roving-focus keyboard
@@ -123,7 +123,7 @@ function rowHeightPx(rowH: number): number {
  *   <li>`'static'`: a native `<table>` for a small read-only set, drawn as the grid above 200 rows.
  * </ul>
  *
- * Columns are sized by what they hold, never by pixel widths (ADR-0160). When they do not fit, the
+ * Columns are sized by what they hold, never by pixel widths (ADR-0161). When they do not fit, the
  * longest values are shortened, then the least important columns are hidden (and counted in the
  * Columns control), and only then does the table scroll sideways. Sorting is a round trip through
  * the URL: pass `sort` and `onSortChange`.

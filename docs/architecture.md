@@ -122,7 +122,7 @@ web/src/
 ```
 
 Every page is built from the shared page parts in `ui/` and every table is the one `DataTable`
-(ADR-0162, ADR-0159); a plugin uses the same parts through the SDK, whose exports are frozen per
+(ADR-0163, ADR-0160); a plugin uses the same parts through the SDK, whose exports are frozen per
 release.
 
 A feature's `feature.ts` calls `defineFeature` with what it contributes: routes under

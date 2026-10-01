@@ -39,7 +39,7 @@ const shellVars = () => ({
 /**
  * The desktop workspace chrome: a fixed header, the collapsible sidebar (the features' way between
  * clusters, then the open cluster's view nav, ADR-0034), and the routed detail column.
- * Desktop-first: no phone or tablet layout (ADR-0163).
+ * Desktop-first: no phone or tablet layout (ADR-0164).
  *
  * The sidebar collapses to an icon rail rather than disappearing: `AppShell`'s
  * own `collapsed` prop removes the navbar's width entirely, which is the wrong

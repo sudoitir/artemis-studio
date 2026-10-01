@@ -1,7 +1,7 @@
 import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from '@mantine/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Three-layer tokens (ADR-0156).
+// Three-layer tokens (ADR-0157).
 //
 //   primitive  → this file: colour tuples, the type scale, spacing, radius, shadows and `other`
 //   semantic   → CSS custom properties in theme.css (--as-surface, --as-danger…)
@@ -13,7 +13,7 @@ import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Graphite: near-monochrome surfaces, borders and text (ADR-0157). It feeds Mantine's `gray`
+ * Graphite: near-monochrome surfaces, borders and text (ADR-0158). It feeds Mantine's `gray`
  * (light scheme) and, as `dark`, the dark scheme. Steps run lightest to darkest, so Mantine's
  * conventions hold in both: gray-0 is the page, gray-4 a control's border, gray-9 the text;
  * dark-0 is the text, dark-4 a control's border, dark-6 a raised surface, dark-7 the body.

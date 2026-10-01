@@ -155,7 +155,7 @@ interface MeasurementResult {
 }
 
 /**
- * Measures the columns when, and only when, ADR-0160 says to, in a layout effect so it is before
+ * Measures the columns when, and only when, ADR-0161 says to, in a layout effect so it is before
  * paint: the first non-empty data, a change to the column set, fonts finishing loading, a density
  * change, and an explicit refit. Rows that arrive later can only widen columns, at most every
  * 2 seconds, and never while the viewer is reading the table.

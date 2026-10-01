@@ -18,13 +18,13 @@ import { VIEWS, type Fixture, type TableView_ } from '../test/tableViews.tsx';
 import { FEATURES } from './features.ts';
 
 /**
- * Every grid's real columns, laid out by Chromium (ADR-0164). jsdom has no layout, which is how the
- * column-fitting defect of ADR-0160 passed its tests, so nothing here is mocked: the views' own
+ * Every grid's real columns, laid out by Chromium (ADR-0165). jsdom has no layout, which is how the
+ * column-fitting defect of ADR-0161 passed its tests, so nothing here is mocked: the views' own
  * `columns.ts` factories, the real theme, the real style sheets and the bundled typefaces.
  */
 
 /**
- * The two windows the console is laid out for at either end of its range (ADR-0163), at 100% zoom with
+ * The two windows the console is laid out for at either end of its range (ADR-0164), at 100% zoom with
  * the navigation expanded. A table gets the content box of its window, not the window: at 1280 px that is
  * `contentWidth(1280)`, the window less the navigation, the shell's padding and the page's scroll bar, and
  * it is what every width-dependent assertion here is made against.

@@ -477,7 +477,7 @@
   white-space: normal;
 }
 
-/* The measurer (ADR-0160): inert, zero-size and clipped, so it can never widen the page. */
+/* The measurer (ADR-0161): inert, zero-size and clipped, so it can never widen the page. */
 .measurer {
   position: absolute;
   inset-block-start: 0;

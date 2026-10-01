@@ -9,7 +9,7 @@ import styles from './ClusterLayout.module.css';
 
 /**
  * One cluster's screen: the context its features contribute (the cluster header is a strip, never a
- * heading), then the routed view, whose own `PageHeader` is the page's one h1 (ADR-0162).
+ * heading), then the routed view, whose own `PageHeader` is the page's one h1 (ADR-0163).
  *
  * It hosts the dialogs row actions open (ADR-0107), and mounts the cluster's one SSE stream, subscribed
  * to the topics of every enabled feature (ADR-0018, ADR-0070). A view never opens a second one for a

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { cssVariablesResolver, theme } from './theme.ts';
 
 /**
- * WCAG contrast of the semantic tokens (ADR-0157): every text token on every surface token, and every
+ * WCAG contrast of the semantic tokens (ADR-0158): every text token on every surface token, and every
  * non-text mark on the surfaces it is drawn on, in both schemes. The values are read from the files the
  * browser reads, `theme.css` and the theme's own tuples and resolver, so the test cannot drift from them.
  */

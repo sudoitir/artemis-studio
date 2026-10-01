@@ -36,7 +36,7 @@ import type { StoreView, TableView } from '../features/lifecycle/api.ts';
 import type { TransferRunView } from '../features/transfer/api.ts';
 
 /**
- * Every grid's real columns, each with the rows a table browser test draws (ADR-0164). A `normal`
+ * Every grid's real columns, each with the rows a table browser test draws (ADR-0165). A `normal`
  * fixture is what an installation typically shows; a `long` one stresses the widths: names of 120
  * characters or more, a 200-character address and figures in the billions. In the long fixture the
  * first two rows differ only in the last eight characters of each name, so a test can tell whether
@@ -540,7 +540,15 @@ const plugin = (f: Fixture, i: number): PluginView => ({
     restartToActivate: false,
     updateUrl: null,
     requires: [],
-    contributions: { ui: true, permissions: [], settingKeys: ['a', 'b'], streamTopics: [], mcpTools: [] },
+    requiresLicense: false,
+    contributions: {
+      ui: true,
+      permissions: [],
+      settingKeys: ['a', 'b'],
+      streamTopics: [],
+      mcpTools: [],
+      identityProviders: [],
+    },
   },
 });
 
@@ -806,7 +814,7 @@ export const VIEWS: TableView_[] = [
   view({
     name: 'plugins',
     label: 'Plugins',
-    columns: pluginColumns({ updates, onUpdate: () => {}, onOpen: () => {} }),
+    columns: pluginColumns({ updates, onUpdate: () => {}, onOpen: () => {}, showLicense: false }),
     rows: (f) => ROWS.map((i) => plugin(f, i)),
     rowKey: (r) => r.id,
     identifiers: [],

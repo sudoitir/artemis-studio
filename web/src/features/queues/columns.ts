@@ -12,7 +12,7 @@ export function pausedLabel(r: QueueView): string {
  * depth, consumers and the state go next, and the secondary counts are the first to be hidden when
  * the table is narrow.
  *
- * Every column fits a 1280 px window beside the expanded navigation (ADR-0163), so the columns are
+ * Every column fits a 1280 px window beside the expanded navigation (ADR-0164), so the columns are
  * compact rather than hidden: a count is as wide as its figures, its header a short label with the full
  * name on hover, and a routing type is in lower case, the way the address picker writes it.
  */

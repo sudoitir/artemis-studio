@@ -46,7 +46,7 @@ function Source({
  * same way.
  *
  * Pause and the colour scheme are here too, so every header control is reachable from the keyboard
- * without a hotkey of its own (ADR-0052, ADR-0118), and so is the table density (ADR-0161).
+ * without a hotkey of its own (ADR-0052, ADR-0118), and so is the table density (ADR-0162).
  */
 export function CommandPalette() {
   const navigate = useNavigate();

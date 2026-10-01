@@ -7,7 +7,7 @@ import { DataTable } from './DataTable.tsx';
 import type { Column } from './columns.ts';
 
 /**
- * The column-width cases that needed a real layout (ADR-0116, replaced by ADR-0160). In jsdom they
+ * The column-width cases that needed a real layout (ADR-0116, replaced by ADR-0161). In jsdom they
  * mocked `scrollWidth` and so passed while the browser did something else; here Chromium lays the
  * table out with the bundled typefaces, and the widths are measured, not set.
  */

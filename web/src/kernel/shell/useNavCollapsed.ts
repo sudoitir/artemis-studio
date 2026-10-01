@@ -1,7 +1,7 @@
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 
 /**
- * Below this inline size the navigation is its icon rail, whatever the viewer chose (ADR-0163).
+ * Below this inline size the navigation is its icon rail, whatever the viewer chose (ADR-0164).
  * A rem threshold, so it follows browser zoom: a 1280px window zoomed to 200% is 640 CSS pixels
  * wide and crosses it, while a device class never does.
  */

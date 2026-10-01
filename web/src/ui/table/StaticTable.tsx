@@ -60,7 +60,7 @@ function StaticRowView<T>({
 const StaticRow = memo(StaticRowView) as typeof StaticRowView;
 
 /**
- * The small, read-only renderer of `DataTable` (ADR-0159): a native `<table>` through Mantine's
+ * The small, read-only renderer of `DataTable` (ADR-0160): a native `<table>` through Mantine's
  * `Table`, with tabular figures, a header that sticks to the page, and the same column model and
  * solver as the grid. Not virtualised, so cells hold natively focusable controls and the keyboard
  * needs no grid model. `DataTable` switches to the grid above 200 rows.
