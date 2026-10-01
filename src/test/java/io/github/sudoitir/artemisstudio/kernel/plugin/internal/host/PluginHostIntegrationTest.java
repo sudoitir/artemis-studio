@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -486,6 +487,18 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         } finally {
             fillerIds.forEach(installs::deleteById);
         }
+    }
+
+    @Test
+    void aPeerThatCannotStartAPluginLeavesItsSharedRowAlone() throws Exception {
+        String id = "peer-" + UUID.randomUUID().toString().substring(0, 8);
+        seedInstalledRow(id, upload(emptyPlugin(id)));
+        // Active elsewhere, with a descriptor this replica cannot read.
+        jdbc.update("UPDATE plugin_install SET status = 'active', descriptor = '{}' WHERE id = ?", id);
+
+        host.reconcileRuntimes();
+
+        assertThat(installs.findById(id).orElseThrow().status()).isEqualTo(PluginInstallStatus.ACTIVE);
     }
 
     /** Seeds a {@code plugin_install} row directly, without running an activation — for the

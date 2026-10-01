@@ -58,6 +58,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import javax.sql.DataSource;
@@ -357,7 +358,7 @@ public class PluginHost implements SmartLifecycle {
             try {
                 descriptors.put(e.getId(), parseStoredDescriptor(e));
             } catch (RuntimeException corrupt) {
-                store.update(e.getId(), row -> row.fail("Stored descriptor unreadable: " + corrupt.getMessage()));
+                record(e.getId(), step, row -> row.fail("Stored descriptor unreadable: " + corrupt.getMessage()));
             }
         }
         Duration timeout = Duration.ofSeconds(properties.startTimeoutSeconds());
@@ -419,6 +420,19 @@ public class PluginHost implements SmartLifecycle {
         order.add(id);
     }
 
+    /**
+     * Records why a start failed. The shared row belongs to the replica that changed it: a peer that
+     * only follows that change ({@code replica-start}) logs its own failure and leaves the row alone,
+     * so it can never overwrite the outcome the others serve.
+     */
+    private void record(String id, String step, Consumer<PluginInstallEntity> change) {
+        if (REPLICA_START.equals(step)) {
+            log.warn("plugin-lifecycle id={} step={} outcome=failed: this replica could not start it", id, step);
+            return;
+        }
+        store.update(id, change);
+    }
+
     private void startOne(String id, PluginDescriptor descriptor, Duration timeout, Executor executor, String step) {
         if (descriptor == null) {
             return; // its descriptor failed to parse above; already marked failed.
@@ -427,7 +441,7 @@ public class PluginHost implements SmartLifecycle {
         try {
             jarPath = store.materialize(installs.findById(id).orElseThrow().getSha256());
         } catch (Exception e) {
-            store.update(id, row -> row.fail("Artifact unreadable: " + e.getMessage()));
+            record(id, step, row -> row.fail("Artifact unreadable: " + e.getMessage()));
             notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, FAILED);
             return;
         }
@@ -454,7 +468,7 @@ public class PluginHost implements SmartLifecycle {
             notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, SUCCEEDED);
         } catch (TimeoutException _) {
             String reason = "Plugin '%s' did not start within %ds".formatted(id, timeout.toSeconds());
-            store.update(id, row -> row.needsRestart(reason));
+            record(id, step, row -> row.needsRestart(reason));
             notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, FAILED);
             // ponytail: interrupting a virtual thread mid-Spring-refresh does not actually stop it;
             // if it finishes late anyway, close the orphaned runtime instead of leaking it.
@@ -466,7 +480,7 @@ public class PluginHost implements SmartLifecycle {
             });
         } catch (ExecutionException | CompletionException failed) {
             Throwable cause = failed.getCause() != null ? failed.getCause() : failed;
-            store.update(id, row -> row.fail(describeFailure(cause)));
+            record(id, step, row -> row.fail(describeFailure(cause)));
             notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, FAILED);
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
