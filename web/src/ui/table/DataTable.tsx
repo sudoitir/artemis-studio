@@ -76,7 +76,7 @@ export interface GridVariantProps<T> extends DataTableBaseProps<T>, GridOnlyProp
   variant?: 'grid';
 }
 
-export interface StaticVariantProps<T> extends DataTableBaseProps<T> {
+interface StaticVariantProps<T> extends DataTableBaseProps<T> {
   /** A small, read-only set in a native table. Above 200 rows it is drawn as the grid. */
   variant: 'static';
   caption?: ReactNode;

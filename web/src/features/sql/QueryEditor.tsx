@@ -150,8 +150,8 @@ export function QueryEditor({
   // The extensions are built once, so the keymap and completion source close over
   // the first render's callbacks. These refs keep them current without tearing
   // the editor down and losing the cursor on every parent render.
-  const latest = useRef({ onChange, onRun, onCancel, onEscape, queues });
-  latest.current = { onChange, onRun, onCancel, onEscape, queues };
+  const latest = useRef({ value, onChange, onRun, onCancel, onEscape, queues });
+  latest.current = { value, onChange, onRun, onCancel, onEscape, queues };
 
   useEffect(() => {
     if (!host.current) return;
@@ -230,7 +230,7 @@ export function QueryEditor({
     ];
 
     const editor = new EditorView({
-      state: EditorState.create({ doc: value, extensions }),
+      state: EditorState.create({ doc: latest.current.value, extensions }),
       parent: host.current,
     });
     view.current = editor;
@@ -238,8 +238,8 @@ export function QueryEditor({
       editor.destroy();
       view.current = null;
     };
-    // Built once for the editor's lifetime; `value` is synced by the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Built once for the editor's lifetime: it starts from the value at that moment, and later changes
+    // are synced by the effect below.
   }, [labelId, describedBy]);
 
   // An external change to the query — a loaded example, a restored URL — is

@@ -33,7 +33,7 @@
   position: absolute;
   inset-inline: var(--mantine-spacing-sm);
   block-size: 0;
-  border-block-start: 2px solid var(--as-axis);
+  border-block-start: 0.125rem solid var(--as-axis);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -263,7 +263,7 @@ button.node:focus-visible {
 .legendEdge {
   inline-size: 1.125rem;
   block-size: 0;
-  border-block-start: 2px solid var(--as-graph-edge);
+  border-block-start: 0.125rem solid var(--as-graph-edge);
 }
 
 .legendEdge[data-kind='behind'] {
@@ -274,7 +274,7 @@ button.node:focus-visible {
 .legendAxis {
   inline-size: 1.125rem;
   block-size: 0;
-  border-block-start: 2px solid var(--as-axis);
+  border-block-start: 0.125rem solid var(--as-axis);
 }
 
 .empty {

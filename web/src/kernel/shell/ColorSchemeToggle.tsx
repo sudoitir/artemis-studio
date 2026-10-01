@@ -17,7 +17,7 @@ export function ColorSchemeToggle() {
   const Icon = ICONS[scheme];
   return (
     <Tooltip label={label}>
-      <ActionIcon variant="subtle" color="gray" aria-label={label} onClick={toggle}>
+      <ActionIcon variant="subtle" color="graphite" aria-label={label} onClick={toggle}>
         <Icon size={18} aria-hidden />
       </ActionIcon>
     </Tooltip>

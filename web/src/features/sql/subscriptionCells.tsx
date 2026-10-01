@@ -165,7 +165,7 @@ export function DeleteCell({
 
   return (
     <>
-      <Button size="compact-xs" color="red" variant="light" disabled={!canWrite} onClick={() => setConfirming(true)}>
+      <Button size="compact-xs" color="signal" variant="light" disabled={!canWrite} onClick={() => setConfirming(true)}>
         Delete
       </Button>
       <ConfirmDialog

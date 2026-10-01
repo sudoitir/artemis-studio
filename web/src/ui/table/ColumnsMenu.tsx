@@ -5,7 +5,7 @@ import { IconArrowDown, IconArrowUp, IconColumns3 } from '@tabler/icons-react';
 import classes from './DataTable.module.css';
 import type { Density } from './density.ts';
 
-export interface ColumnsMenuEntry {
+interface ColumnsMenuEntry {
   id: string;
   header: string;
   visible: boolean;
@@ -70,7 +70,7 @@ export function ColumnsMenu({
           else buttons.current.delete(`${column.id}:${direction}`);
         }}
         variant="subtle"
-        color="gray"
+        color="graphite"
         size="sm"
         aria-label={`Move ${column.header} ${direction}`}
         disabled={index === 0 || atBound}

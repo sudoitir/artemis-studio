@@ -1,8 +1,9 @@
-import { Alert, Anchor, Text } from '@mantine/core';
+import { Anchor, Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import { useIndexSubscriptions } from './api.ts';
 import { uncapturedAddresses } from './captureCoverage.ts';
+import { Notice } from '../../ui/Notice.tsx';
 
 /**
  * A short nudge where something depends on seeing every message: which of these addresses
@@ -24,7 +25,7 @@ function CoverageHint({
   const missing = uncapturedAddresses(subscriptions.data, addresses);
   if (missing.length === 0) return null;
   return (
-    <Alert color="gray" variant="light" title="Only sampled">
+    <Notice title="Only sampled">
       <Text size="sm">
         {missing.join(', ')} {missing.length === 1 ? 'is' : 'are'} not captured, so {purpose} sees only the messages a
         sample happened to catch. Turn on &ldquo;Capture everything&rdquo; for {missing.length === 1 ? 'it' : 'them'}{' '}
@@ -34,6 +35,6 @@ function CoverageHint({
         </Anchor>
         .
       </Text>
-    </Alert>
+    </Notice>
   );
 }

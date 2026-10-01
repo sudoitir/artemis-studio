@@ -41,7 +41,7 @@ export interface Column<T> {
   description?: string;
 }
 
-export interface KindPreset {
+interface KindPreset {
   /** Bounds in `ch`; a kind without them is as wide as its content. */
   min?: number;
   max?: number;

@@ -85,7 +85,7 @@ export function ShortcutsHelp() {
         <Tooltip label="Keyboard shortcuts (?)" disabled={opened}>
           <ActionIcon
             variant="subtle"
-            color="gray"
+            color="graphite"
             aria-label="Keyboard shortcuts"
             aria-keyshortcuts="Shift+Slash"
             aria-expanded={opened}

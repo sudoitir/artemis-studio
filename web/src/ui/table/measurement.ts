@@ -89,7 +89,7 @@ export interface Metrics {
 /** What the solver assumes before anything is measured, and where there is no layout to measure (jsdom). */
 const DEFAULT_METRICS: Metrics = { ch: 8, mono: 8, pad: 16, select: 40, actions: 44 };
 
-export interface Measurement {
+interface Measurement {
   metrics: Metrics;
   /** The px each column's content needs, padding included and already clamped to its bounds. */
   intrinsic: Record<string, number>;
