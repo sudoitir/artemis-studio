@@ -88,9 +88,11 @@ a slow one.
 
 The editor sits above its results in one workspace. Drag the separator between them,
 or focus it and press **↑** or **↓** (5% a step, 10% with **Shift**), or **Home** and
-**End** for the smallest and largest editor. Studio remembers the split in this browser.
+**End** for the smallest and largest editor. The smallest editor still shows three lines and
+the cost line under them. Studio remembers the split in this browser.
 
-**Run** and **Cancel** sit side by side above the editor. **Ctrl .** (**⌘ .** on a Mac)
+**Run** and **Cancel** sit side by side in the Query toolbar above the workspace, so they stay
+in view however small the editor is. **Ctrl .** (**⌘ .** on a Mac)
 cancels from the editor or from anywhere on the page. Cancelling closes the stream, which
 releases the query on the server and stops every broker read. The rows that had arrived
 stay on screen, and the console says the query was cancelled and that they are not the

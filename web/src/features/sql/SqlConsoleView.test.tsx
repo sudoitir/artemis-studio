@@ -979,12 +979,14 @@ describe('SqlConsoleView workspace split', () => {
     await user.keyboard('{Shift>}{ArrowDown}{/Shift}');
     expect(handle()).toHaveAttribute('aria-valuenow', '51');
 
+    // The smallest editor is the share its floor needs of the measured workspace, never under 20.
     await user.keyboard('{Home}');
-    expect(Number(handle().getAttribute('aria-valuenow'))).toBe(20);
+    const smallest = Number(handle().getAttribute('aria-valuenow'));
+    expect(smallest).toBeGreaterThanOrEqual(20);
     await user.keyboard('{ArrowUp}');
-    expect(Number(handle().getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(0);
+    expect(Number(handle().getAttribute('aria-valuenow'))).toBe(smallest);
     await user.keyboard('{End}');
-    expect(Number(handle().getAttribute('aria-valuenow'))).toBe(75);
+    expect(Number(handle().getAttribute('aria-valuenow'))).toBeLessThanOrEqual(75);
   });
 });
 

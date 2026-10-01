@@ -1,6 +1,6 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { Button, Splitter } from '@mantine/core';
-import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
+import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { CapabilityLedger, useCluster } from '../clusters/index.ts';
@@ -17,7 +17,7 @@ import { costVerdict } from './costVerdict.ts';
 import { HistoryMenu } from './HistoryMenu.tsx';
 import { clearHistory } from './queryHistory.ts';
 import type { QueryError } from './QueryEditor.tsx';
-import { QUEUE_COMPLETION_LIMIT, QueryPane } from './QueryPane.tsx';
+import { QUEUE_COMPLETION_LIMIT, QueryPane, QueryToolbar } from './QueryPane.tsx';
 import { ResultPane } from './ResultPane.tsx';
 import { SyntaxHelp } from './SyntaxHelp.tsx';
 import { useQueryHistory } from './useQueryHistory.ts';
@@ -31,6 +31,21 @@ const SPLIT_KEY = 'as:sql:split';
 const DEFAULT_SPLIT = [36, 64];
 const EDITOR_MIN = 20;
 const RESULTS_MIN = 25;
+
+/**
+ * What each pane must hold, in rem: the editor's pane its label, three lines of query, the key hint and
+ * the cost line, so what a query will read stays in view however far the operator drags; the results a
+ * few rows. The split works in shares, which a screen reader announces as percent, so these become the
+ * share they need of the workspace as measured, and never less than the shares above.
+ */
+const EDITOR_FLOOR_REM = 15;
+const RESULTS_FLOOR_REM = 10;
+
+function shareOf(rem: number, height: number, least: number): number {
+  if (height <= 0) return least;
+  const px = rem * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return Math.max(least, Math.ceil((px / height) * 100));
+}
 
 function validSplit(sizes: unknown): sizes is number[] {
   return (
@@ -85,6 +100,10 @@ export function SqlConsoleView() {
   const search = useSearch({ strict: false }) as { q?: string; live?: boolean };
   const navigate = useNavigate();
   const costId = useId();
+  const toolbar = useRef<HTMLDivElement>(null);
+  const workspace = useElementSize();
+  const editorMin = shareOf(EDITOR_FLOOR_REM, workspace.height, EDITOR_MIN);
+  const resultsMin = Math.min(100 - editorMin, shareOf(RESULTS_FLOOR_REM, workspace.height, RESULTS_MIN));
 
   const [text, setText] = useState(search.q ?? STARTER);
   const [live, setLive] = useState(search.live ?? false);
@@ -189,7 +208,39 @@ export function SqlConsoleView() {
         onClose={() => setOpenRow(null)}
       />
 
-      <div className={classes.frame}>
+      <QueryToolbar
+        toolbarRef={toolbar}
+        text={text}
+        onRun={() => execute()}
+        onCancel={cancel}
+        gate={gate}
+        live={live}
+        onLive={toggleLive}
+        running={running}
+        cancellable={cancellable}
+        history={
+          <>
+            <HistoryMenu
+              history={history}
+              opened={historyOpen}
+              onOpenChange={setHistoryOpen}
+              onLoad={(sql) => {
+                // Loaded, not run. Re-running a fan-out because someone opened a menu is not
+                // something to do on their behalf.
+                setText(sql);
+                setHistoryOpen(false);
+              }}
+              onClear={() => setHistory(clearHistory())}
+            />
+            <Button size="xs" variant="default" onClick={() => setHelpOpen(true)}>
+              Syntax and examples
+            </Button>
+          </>
+        }
+        costId={costId}
+      />
+
+      <div className={classes.frame} ref={workspace.ref}>
         <Splitter
           orientation="vertical"
           className={classes.workspace}
@@ -201,35 +252,14 @@ export function SqlConsoleView() {
           onSizeChange={rememberSplit}
           attributes={{ handle: { 'aria-label': 'Resize the editor and the results' } }}
         >
-          <Splitter.Pane defaultSize={split[0]} min={EDITOR_MIN}>
+          <Splitter.Pane defaultSize={split[0]} min={editorMin}>
             <QueryPane
               text={text}
               onText={setText}
               onRun={() => execute()}
               onCancel={cancel}
-              gate={gate}
-              live={live}
-              onLive={toggleLive}
-              running={running}
-              cancellable={cancellable}
-              history={
-                <>
-                  <HistoryMenu
-                    history={history}
-                    opened={historyOpen}
-                    onOpenChange={setHistoryOpen}
-                    onLoad={(sql) => {
-                      // Loaded, not run. Re-running a fan-out because someone opened a menu is not
-                      // something to do on their behalf.
-                      setText(sql);
-                      setHistoryOpen(false);
-                    }}
-                    onClear={() => setHistory(clearHistory())}
-                  />
-                  <Button size="xs" variant="default" onClick={() => setHelpOpen(true)}>
-                    Syntax and examples
-                  </Button>
-                </>
+              onEscape={() =>
+                toolbar.current?.querySelector<HTMLElement>('button:not(:disabled), input:not(:disabled)')?.focus()
               }
               queueNames={queueNames}
               completionCapped={completionCapped}
@@ -239,7 +269,7 @@ export function SqlConsoleView() {
               queryError={queryErrorOf(plan.error) ?? queryErrorOf(run.error)}
             />
           </Splitter.Pane>
-          <Splitter.Pane defaultSize={split[1]} min={RESULTS_MIN}>
+          <Splitter.Pane defaultSize={split[1]} min={resultsMin}>
             <ResultPane
               clusterId={clusterId}
               run={run}

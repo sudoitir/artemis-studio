@@ -36,6 +36,11 @@
   outline-offset: calc(var(--as-focus-offset) * -1);
 }
 
+/* The hint and the cost line keep their height; the editor above them gives way instead. */
+.fixed {
+  flex: none;
+}
+
 /* The screen-reader announcement of an outcome. Visually hidden, never `display: none`: a hidden live
    region is not announced at all. */
 .announcement {

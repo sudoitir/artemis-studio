@@ -426,6 +426,30 @@ describe.each(SCHEMES)('SQL Console in the %s scheme at 1280 px', (scheme) => {
       await check(container);
     });
 
+    it('keeps Run, Cancel and the cost line in view at the smallest editor', async () => {
+      const { container } = mount(scheme, seeded(ADMIN), QUERY, 700);
+      await settled(container);
+      const separator = await screen.findByRole('separator', { name: 'Resize the editor and the results' });
+      separator.focus();
+      await userEvent.keyboard('{Home}');
+
+      const pane = screen.getByRole('region', { name: 'Query and cost' }).getBoundingClientRect();
+      const inPane = (el: Element) => {
+        const box = el.getBoundingClientRect();
+        return box.top >= pane.top - 1 && box.bottom <= pane.bottom + 1;
+      };
+      const inWindow = (el: Element) => {
+        const box = el.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= window.innerHeight;
+      };
+      expect(inWindow(screen.getByRole('button', { name: 'Run' }))).toBe(true);
+      expect(inWindow(screen.getByRole('button', { name: 'Cancel' }))).toBe(true);
+      const cost = document.getElementById(
+        screen.getByRole('button', { name: 'Run' }).getAttribute('aria-describedby')!,
+      )!;
+      expect(inPane(cost)).toBe(true);
+    });
+
     it('lets both panes scroll by keyboard, so neither is a trap and neither is out of reach', async () => {
       const { container } = mount(scheme, seeded(ADMIN));
       await settled(container);
