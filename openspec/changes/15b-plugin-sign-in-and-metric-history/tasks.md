@@ -36,9 +36,9 @@
 - [x] 7.3 Tests: a plugin-provider user with a required role is sent to enrolment, enrols TOTP, then signs in with password + code; an OIDC user is still not challenged
 
 ## 8. Docs, contract, example
-- [ ] 8.1 `site/src/guide/plugins.md`: "Sign-in providers" (declare, implement, what Studio owns, trust and confirmation, revalidation, MFA) and "Reading metric history" (acting user, background work, not-found answers, `MetricHistory` may be absent when the metrics feature is off: inject `ObjectProvider`)
-- [ ] 8.2 Plugin template: a commented example of `MetricHistory` use in the existing metric example; no sign-in example in the template (it would ship a provider to everyone who copies it)
-- [ ] 8.3 Run japicmp (`./mvnw verify` profile that runs it); bump `Contract.VERSION` (and `CONTRACT` in `web/src/kernel/feature.ts`) only if it flags a break. Commit 7.1's REST rename as breaking (`feat(auth)!:` with `BREAKING CHANGE:` naming `passwordAccount`)
+- [x] 8.1 `site/src/guide/plugins.md`: "Sign-in providers" (declare, implement, what Studio owns, trust and confirmation, revalidation, MFA) and "Reading metric history" (acting user, background work, not-found answers, `MetricHistory` may be absent when the metrics feature is off: inject `ObjectProvider`)
+- [x] 8.2 Plugin template: a commented example of `MetricHistory` use in the existing metric example; no sign-in example in the template (it would ship a provider to everyone who copies it)
+- [x] 8.3 Run japicmp (`./mvnw verify` profile that runs it); bump `Contract.VERSION` (and `CONTRACT` in `web/src/kernel/feature.ts`) only if it flags a break. Commit 7.1's REST rename as breaking (`feat(auth)!:` with `BREAKING CHANGE:` naming `passwordAccount`). Result: `-Papi-check` reports only additions from this change (annotation added, methods added) and one `SseHub` constructor removal that is already on `main` and not touched here; this change breaks nothing in `@PluginApi` types, so `Contract.VERSION` stays 7
 
 ## 9. Finish
 - [ ] 9.1 `just verify` green; Studio run with the test sign-in plugin: login screen with the plugin provider, the enrolment screen for its user, and the plugin review showing `signin-added`, light and dark, plus the degraded health state

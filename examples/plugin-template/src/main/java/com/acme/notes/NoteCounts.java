@@ -37,4 +37,12 @@ public class NoteCounts implements PluginMetricSource {
                 .forEach(row -> counts.put((String) row[0], ((Number) row[1]).doubleValue()));
         return counts;
     }
+
+    // To read this metric's history back, for a trend or a report, inject Studio's MetricHistory (from
+    // io.github.sudoitir.artemisstudio.feature.metrics, as an ObjectProvider, since it is absent when the
+    // metrics feature is off) and name the user the work acts for. The read runs with that user's grants
+    // as they stand now, and answers like an unknown cluster when they have none:
+    //
+    //   MetricSeriesResponse series = metricHistory.readPluginMetric(
+    //           actingUserId, clusterId, "acme-notes:notes", queue, from, to, null);
 }
