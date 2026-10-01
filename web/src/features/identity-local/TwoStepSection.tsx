@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Badge, Button, Group, Loader, Modal, Stack, Text } from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
@@ -22,6 +22,7 @@ import {
 } from './api.ts';
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
 import { SecondFactorEnrolment, type EnrolMethod, type Enrolled } from './SecondFactorEnrolment.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 /** Recovery codes issued at a time (ADR-0143). */
 const CODES_ISSUED = 10;
@@ -43,7 +44,7 @@ const returnTo = () => `${globalThis.location.pathname}${globalThis.location.sea
 export function TwoStepSection() {
   const status = useMfaStatus();
 
-  if (status.isPending) return <Loader size="sm" aria-label="Loading two-step verification" />;
+  if (status.isPending) return <LoadingState variant="inline" label="Loading two-step verification" />;
   if (status.isError) {
     return (
       <Alert color="red" variant="light" title="Could not load two-step verification" role="alert">

@@ -6,7 +6,6 @@ import {
   Collapse,
   CopyButton,
   Group,
-  Loader,
   Modal,
   Stack,
   Text,
@@ -22,6 +21,7 @@ import { useManifest } from '../../kernel/manifest.ts';
 import { useDiagnosticsSummary } from './api.ts';
 import classes from './Diagnostics.module.css';
 import { environmentMarkdown, issueBody, issueUrl, type BugDescription } from './bugReport.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 const EMPTY: BugDescription = { happened: '', expected: '', steps: '' };
 
@@ -123,7 +123,7 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
               <Text size="sm" fw={600}>
                 Environment (included)
               </Text>
-              {summary.isPending && <Loader size={12} aria-label="Reading the environment" />}
+              {summary.isPending && <LoadingState variant="inline" label="Reading the environment" />}
             </Group>
           </UnstyledButton>
           {summary.isError && (

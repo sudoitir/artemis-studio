@@ -183,7 +183,7 @@ describe('SessionsManager, own sessions', () => {
     const person = userEvent.setup();
     renderWithProviders(<SessionsManager />);
 
-    expect(screen.getByLabelText('Loading sessions')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading sessions');
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('The database is down. Check your connection and try again.');
     await person.click(within(alert).getByRole('button', { name: 'Retry' }));

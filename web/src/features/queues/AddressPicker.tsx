@@ -1,11 +1,12 @@
 import type React from 'react';
 import { useMemo, useRef, useState } from 'react';
-import { Chip, Combobox, Group, Loader, Text, TextInput, useCombobox } from '@mantine/core';
+import { Chip, Combobox, Group, Text, TextInput, useCombobox } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import styles from './AddressPicker.module.css';
 
 import { useQueues, type QueueView } from './api.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 const SUGGESTION_LIMIT = 300;
 const ROUTING_TYPES = ['ANYCAST', 'MULTICAST'] as const;
@@ -136,7 +137,7 @@ export function AddressPicker({
               onBlur?.();
             }}
             rightSection={
-              queues.isFetching ? <Loader size={14} aria-label="Loading addresses" /> : <Combobox.Chevron />
+              queues.isFetching ? <LoadingState variant="inline" label="Loading addresses" /> : <Combobox.Chevron />
             }
             rightSectionPointerEvents="none"
             error={error ?? (unknown ? unknownHint : undefined)}

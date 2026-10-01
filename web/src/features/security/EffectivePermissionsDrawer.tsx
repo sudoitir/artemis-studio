@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Badge, Button, Drawer, Loader, Stack, Table, Text, TextInput } from '@mantine/core';
+import { Alert, Badge, Button, Drawer, Stack, Table, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
 import { useEffectivePermissions, type EffectivePermissionView } from './api.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 function scopeLabel(v: EffectivePermissionView): string {
   if (v.scopeType === 'GLOBAL') return 'Global';
@@ -12,7 +13,7 @@ function scopeLabel(v: EffectivePermissionView): string {
 
 /** What stands in for the permissions while they load, fail to load, or the user holds no role. */
 function permissionsNotice(result: ReturnType<typeof useEffectivePermissions>): ReactNode {
-  if (result.isPending) return <Loader size="sm" aria-label="Loading effective permissions" />;
+  if (result.isPending) return <LoadingState variant="inline" label="Loading effective permissions" />;
   if (result.isError) {
     return (
       <Alert color="red" variant="light" title="Could not load the effective permissions" role="alert">
