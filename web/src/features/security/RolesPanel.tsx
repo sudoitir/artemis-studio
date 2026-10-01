@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { ActionIcon, Button, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Button, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
@@ -47,25 +46,11 @@ export function RolesPanel() {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const columns = roleColumns({
-    actions: (r) => (
-      <span className={classes.controls}>
-        <ActionIcon variant="subtle" onClick={() => setEditing(r)} aria-label={`Edit ${r.name}`}>
-          <IconPencil size="1rem" aria-hidden />
-        </ActionIcon>
-        {r.builtin ? null : (
-          <ActionIcon
-            variant="subtle"
-            onClick={() => {
-              setDeleting(r);
-              setDeleteOpen(true);
-            }}
-            aria-label={`Delete ${r.name}`}
-          >
-            <IconTrash size="1rem" aria-hidden />
-          </ActionIcon>
-        )}
-      </span>
-    ),
+    onEdit: setEditing,
+    onDelete: (r) => {
+      setDeleting(r);
+      setDeleteOpen(true);
+    },
   });
 
   const count = roles.data?.length;
@@ -215,6 +200,12 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
   );
 }
 
+function deleteConsequence(role: RoleView): string {
+  const count = role.permissions.length;
+  const permissions = count === 1 ? 'permission' : 'permissions';
+  return `This deletes the role ${role.name} and the ${count} ${permissions} it carries. A role that is still granted to a user cannot be deleted.`;
+}
+
 /** States what deleting a role means before it can be armed, then asks for the role's name. */
 function DeleteRole({
   role,
@@ -250,11 +241,7 @@ function DeleteRole({
       typedName={role?.name}
       pending={remove.isPending}
       confirmLabel="Delete role"
-      consequence={
-        role
-          ? `This deletes the role ${role.name} and the ${role.permissions.length} permission${role.permissions.length === 1 ? '' : 's'} it carries. A role that is still granted to a user cannot be deleted.`
-          : ''
-      }
+      consequence={role ? deleteConsequence(role) : ''}
       onConfirm={() => role && confirm(role)}
     />
   );
@@ -278,7 +265,7 @@ function RoleComparison({ a, b }: Readonly<{ a: RoleView | undefined; b: RoleVie
     );
   }
   return (
-    <div className={classes.pair} role="status">
+    <output className={classes.pair}>
       {[
         { name: a.name, only: diff.onlyA },
         { name: b.name, only: diff.onlyB },
@@ -304,7 +291,7 @@ function RoleComparison({ a, b }: Readonly<{ a: RoleView | undefined; b: RoleVie
           )}
         </Stack>
       ))}
-    </div>
+    </output>
   );
 }
 

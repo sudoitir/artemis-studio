@@ -9,6 +9,9 @@
 /* The outcome takes focus when it replaces the confirm controls, and shows it on the same ring as every control. */
 .outcome {
   min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .outcome:focus-visible {

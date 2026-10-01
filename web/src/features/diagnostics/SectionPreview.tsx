@@ -93,9 +93,9 @@ export function SectionPreview({ section, included }: Readonly<{ section: Sectio
             ) : null
           }
         />
-        <div className={classes.content} role="region" aria-label={`${section.title} contents`} tabIndex={0}>
+        <section className={classes.content} aria-label={`${section.title} contents`} tabIndex={0}>
           {body}
-        </div>
+        </section>
       </Section>
     </div>
   );

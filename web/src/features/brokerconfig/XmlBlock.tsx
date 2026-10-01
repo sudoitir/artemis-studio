@@ -9,8 +9,8 @@ import classes from './XmlBlock.module.css';
  */
 export function XmlBlock({ code, label }: Readonly<{ code: string; label: string }>) {
   return (
-    <div role="region" tabIndex={0} aria-label={label} className={classes.scroller}>
+    <section tabIndex={0} aria-label={label} className={classes.scroller}>
       <InlineCodeHighlight code={code} language="xml" className={classes.code} />
-    </div>
+    </section>
   );
 }

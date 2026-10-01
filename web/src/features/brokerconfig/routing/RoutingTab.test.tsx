@@ -377,7 +377,9 @@ describe('RoutingTab', () => {
       />,
     );
 
-    const notice = (await screen.findByText('Showing a bounded region of the graph')).closest('[role]');
-    expect(notice).toHaveAttribute('role', 'status');
+    await screen.findByText('Showing a bounded region of the graph');
+    expect(screen.getAllByRole('status').map((s) => s.textContent)).toContainEqual(
+      expect.stringContaining('Showing a bounded region of the graph'),
+    );
   });
 });

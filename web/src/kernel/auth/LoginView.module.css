@@ -13,6 +13,7 @@
 
 /* A fact to read before signing in. The words carry the meaning; the edge only repeats it. */
 .notice {
+  display: block;
   border-inline-start: 0.25rem solid var(--as-border-strong);
   padding-block: var(--mantine-spacing-xs);
   padding-inline: var(--mantine-spacing-md) 0;

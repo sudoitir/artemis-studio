@@ -38,7 +38,7 @@ export function ConfirmDialog({
   const theme = useMantineTheme();
   const color = tone === 'danger' ? 'signal' : theme.primaryColor;
   const reasonId = useId();
-  const outcome = useRef<HTMLDivElement>(null);
+  const outcome = useRef<HTMLFieldSetElement>(null);
   const done = result !== undefined && result !== null;
   // The confirm button that held focus is gone: the outcome takes it, so the keyboard stays in the dialog.
   useEffect(() => {
@@ -63,9 +63,9 @@ export function ConfirmDialog({
   if (done) {
     controls = (
       <>
-        <div ref={outcome} role="group" aria-label="Result" tabIndex={-1} className={classes.outcome}>
+        <fieldset ref={outcome} aria-label="Result" tabIndex={-1} className={classes.outcome}>
           {result}
-        </div>
+        </fieldset>
         <Group justify="flex-end">{cancel}</Group>
       </>
     );

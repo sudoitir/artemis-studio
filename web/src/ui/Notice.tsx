@@ -26,8 +26,8 @@ export function Notice({
   /** The body: what it means and what to do. */
   children?: ReactNode;
 }>) {
-  return (
-    <div role={tone === 'danger' ? 'alert' : 'status'} className={classes.notice} data-tone={tone}>
+  const content = (
+    <>
       <StatusBadge tone={tone}>{title}</StatusBadge>
       {children ? (
         <Text size="sm" component="div" className={classes.body}>
@@ -35,6 +35,16 @@ export function Notice({
         </Text>
       ) : null}
       {action ? <div className={classes.action}>{action}</div> : null}
+    </>
+  );
+  // A danger notice interrupts (alert); every other tone is a polite status, which is what <output> is.
+  return tone === 'danger' ? (
+    <div role="alert" className={classes.notice} data-tone={tone}>
+      {content}
     </div>
+  ) : (
+    <output className={classes.notice} data-tone={tone}>
+      {content}
+    </output>
   );
 }

@@ -697,8 +697,8 @@ describe('Administration → Plugins inventory', () => {
   it('explains safe mode, with the reason when there is one', async () => {
     listing([], { safeMode: true, safeModeReason: 'A plugin crashed the last start.' });
     const first = renderPanel();
-    const notice = await screen.findByText('Safe mode: no plugin is running');
-    expect(notice.closest('[role="status"]')).toHaveTextContent('A plugin crashed the last start.');
+    await screen.findByText('Safe mode: no plugin is running');
+    expect(screen.getByRole('status')).toHaveTextContent('A plugin crashed the last start.');
     first.unmount();
 
     listing([], { safeMode: true, safeModeReason: null });

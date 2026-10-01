@@ -92,7 +92,7 @@ function eta(run: Run): string | null {
 function Pipeline({ run, staging }: Readonly<{ run: Run; staging: boolean }>) {
   const held = staging && run.held > 0 && !ACTIVE.has(run.state);
   return (
-    <div className={classes.strip} role="group" aria-label="Transfer pipeline">
+    <fieldset className={classes.strip} aria-label="Transfer pipeline">
       <div className={classes.stage}>
         <Stat
           label="Selected"
@@ -121,7 +121,7 @@ function Pipeline({ run, staging }: Readonly<{ run: Run; staging: boolean }>) {
           <Stat label="Returned to source" value={n(run.returned)} />
         </div>
       ) : null}
-    </div>
+    </fieldset>
   );
 }
 

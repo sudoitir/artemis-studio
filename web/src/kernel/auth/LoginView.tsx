@@ -104,7 +104,7 @@ export function LoginView() {
           />
 
           {sessionEnded ? (
-            <div role="status" className={classes.notice}>
+            <output className={classes.notice}>
               <Text size="sm" className={classes.title}>
                 You were signed out
               </Text>
@@ -112,7 +112,7 @@ export function LoginView() {
                 Your session ended after a period of inactivity, reached its maximum length, or was ended from another
                 device or by an administrator. Sign in again to continue.
               </Text>
-            </div>
+            </output>
           ) : null}
 
           {restart ? (

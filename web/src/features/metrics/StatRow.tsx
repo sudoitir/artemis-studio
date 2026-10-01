@@ -23,11 +23,11 @@ export interface Figure {
 
 export function StatRow({ figures, loading }: Readonly<{ figures: Figure[]; loading: boolean }>) {
   return (
-    <div className={styles.row} role="group" aria-label="Current values">
+    <fieldset className={styles.row} aria-label="Current values">
       {figures.map((figure) => (
         <StatTile key={figure.label} figure={figure} loading={loading} />
       ))}
-    </div>
+    </fieldset>
   );
 }
 
