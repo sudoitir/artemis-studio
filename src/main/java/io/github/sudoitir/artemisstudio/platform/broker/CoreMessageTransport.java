@@ -189,7 +189,7 @@ public class CoreMessageTransport implements MessageTransport {
                     Message message = spec.bodyBase64()
                             ? bytesMessage(session, spec.body())
                             : session.createTextMessage(spec.body());
-                    applyProperties(message, spec.headers());
+                    applyHeaders(session, message, spec.headers());
                     applyProperties(message, spec.properties());
                     int deliveryMode = spec.durable() ? DeliveryMode.PERSISTENT : DeliveryMode.NON_PERSISTENT;
                     try (MessageProducer producer = session.createProducer(queue)) {
@@ -209,6 +209,25 @@ public class CoreMessageTransport implements MessageTransport {
         BytesMessage message = session.createBytesMessage();
         message.writeBytes(Base64.getDecoder().decode(base64 == null ? "" : base64));
         return message;
+    }
+
+    /** The {@link SendNames#HEADERS} as the JMS headers (and JMSX properties) they name. */
+    private static void applyHeaders(Session session, Message message, Map<String, Object> headers)
+            throws JMSException {
+        for (Map.Entry<String, Object> entry : headers.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            String value = entry.getValue().toString();
+            switch (entry.getKey()) {
+                case "correlationId" -> message.setJMSCorrelationID(value);
+                case "type" -> message.setJMSType(value);
+                case "replyTo" -> message.setJMSReplyTo(session.createQueue(value));
+                case "groupId" -> message.setStringProperty("JMSXGroupID", value);
+                case "groupSeq" -> message.setIntProperty("JMSXGroupSeq", Integer.parseInt(value));
+                default -> throw new IllegalArgumentException("Unsupported header '" + entry.getKey() + "'.");
+            }
+        }
     }
 
     private static void applyProperties(Message message, Map<String, Object> props) throws JMSException {

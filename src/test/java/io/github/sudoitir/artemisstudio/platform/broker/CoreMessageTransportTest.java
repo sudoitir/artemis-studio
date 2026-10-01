@@ -195,4 +195,153 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         BrowseResult result = transport.browse(target(), 1, 50, null);
         assertThat(result.page().messages()).hasSize(5);
     }
+
+    @Test
+    void sendOverCoreSetsTheHeadersAsRealJmsHeaders() throws Exception {
+        transport.send(
+                target(),
+                new SendSpec(
+                        3,
+                        true,
+                        "hi",
+                        false,
+                        Map.of(
+                                "correlationId", "corr-1",
+                                "type", "order",
+                                "replyTo", "replies",
+                                "groupId", "g-1",
+                                "groupSeq", 2),
+                        Map.of("orderId", "A-2")));
+
+        var factory = new ActiveMQConnectionFactory(
+                coreUrl() + "?useTopologyForLoadBalancing=false", BROKER_USER, BROKER_PASSWORD);
+        try (Connection conn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
+            conn.start();
+            Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            var browser = session.createBrowser(session.createQueue(queueName), "orderId = 'A-2'");
+            var received = (jakarta.jms.Message) browser.getEnumeration().nextElement();
+            assertThat(received.getJMSCorrelationID()).isEqualTo("corr-1");
+            assertThat(received.getJMSType()).isEqualTo("order");
+            assertThat(received.getJMSReplyTo().toString()).contains("replies");
+            assertThat(received.getStringProperty("JMSXGroupID")).isEqualTo("g-1");
+            assertThat(received.getIntProperty("JMSXGroupSeq")).isEqualTo(2);
+            assertThat(received.getStringProperty("correlationId")).isNull();
+        } finally {
+            factory.close();
+        }
+    }
+
+    private JolokiaMessageTransport jolokiaTransport() {
+        BrokerConnections connections = mock(BrokerConnections.class);
+        when(connections.forCluster(any(), any())).thenReturn(jolokiaClient());
+        when(connections.settingsFor(any()))
+                .thenAnswer(i -> BrokerConnectionSettings.basicAuth(i.getArgument(0), BROKER_USER, BROKER_PASSWORD));
+        return new JolokiaMessageTransport(connections, new MessageBrowser(), new MessageOperations());
+    }
+
+    private TransportTarget jolokiaTarget() {
+        return new TransportTarget(
+                UUID.randomUUID(), UUID.randomUUID(), queueName, queueName, "ANYCAST", jolokiaUrl(), coreUrl());
+    }
+
+    private jakarta.jms.Message browseOne(String orderId) throws Exception {
+        var factory = new ActiveMQConnectionFactory(
+                coreUrl() + "?useTopologyForLoadBalancing=false", BROKER_USER, BROKER_PASSWORD);
+        try (Connection conn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
+            conn.start();
+            Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            var browser = session.createBrowser(session.createQueue(queueName), "orderId = '" + orderId + "'");
+            var message = (jakarta.jms.Message) browser.getEnumeration().nextElement();
+            return message;
+        } finally {
+            factory.close();
+        }
+    }
+
+    /** The test broker has {@code ANONYMOUS_LOGIN=false}: the send goes as the cluster's broker account. */
+    @Test
+    void aPlainSendOverJolokiaSucceedsOnASecuredBroker() throws Exception {
+        jolokiaTransport()
+                .send(jolokiaTarget(), new SendSpec(3, true, "hi", false, Map.of(), Map.of("orderId", "P-1")));
+
+        var received = browseOne("P-1");
+        assertThat(((TextMessage) received).getText()).isEqualTo("hi");
+    }
+
+    @Test
+    void jolokiaHeadersLandAsRealJmsHeaders() throws Exception {
+        jolokiaTransport()
+                .send(
+                        jolokiaTarget(),
+                        new SendSpec(
+                                3,
+                                true,
+                                "hi",
+                                false,
+                                Map.of(
+                                        "correlationId", "corr-2",
+                                        "type", "order",
+                                        "replyTo", "replies",
+                                        "groupId", "g-2",
+                                        "groupSeq", 4),
+                                Map.of("orderId", "A-3")));
+
+        var received = browseOne("A-3");
+        assertThat(received.getJMSCorrelationID()).isEqualTo("corr-2");
+        assertThat(received.getJMSType()).isEqualTo("order");
+        assertThat(received.getJMSReplyTo().toString()).contains("replies");
+        assertThat(received.getStringProperty("JMSXGroupID")).isEqualTo("g-2");
+        assertThat(received.getIntProperty("JMSXGroupSeq")).isEqualTo(4);
+    }
+
+    /** The management operation takes strings only, so over Jolokia a typed property arrives as its text. */
+    @Test
+    void typedPropertiesOverJolokiaArriveAsText() throws Exception {
+        jolokiaTransport()
+                .send(
+                        jolokiaTarget(),
+                        new SendSpec(
+                                3,
+                                true,
+                                "hi",
+                                false,
+                                Map.of(),
+                                Map.of(
+                                        "orderId",
+                                        "T-1",
+                                        "anInt",
+                                        7,
+                                        "aLong",
+                                        8_000_000_000L,
+                                        "aDouble",
+                                        1.5,
+                                        "aBool",
+                                        true)));
+
+        var received = browseOne("T-1");
+        assertThat(received.getStringProperty("anInt")).isEqualTo("7");
+        assertThat(received.getStringProperty("aLong")).isEqualTo("8000000000");
+        assertThat(received.getStringProperty("aDouble")).isEqualTo("1.5");
+        assertThat(received.getStringProperty("aBool")).isEqualTo("true");
+    }
+
+    /** Over Core the same properties keep their types. */
+    @Test
+    void typedPropertiesOverCoreKeepTheirTypes() throws Exception {
+        transport.send(
+                target(),
+                new SendSpec(
+                        3,
+                        true,
+                        "hi",
+                        false,
+                        Map.of(),
+                        Map.of("orderId", "T-2", "anInt", 7, "aLong", 8_000_000_000L, "aDouble", 1.5, "aBool", true)));
+
+        var received = browseOne("T-2");
+        assertThat(received.getIntProperty("anInt")).isEqualTo(7);
+        assertThat(received.getLongProperty("aLong")).isEqualTo(8_000_000_000L);
+        assertThat(received.getDoubleProperty("aDouble")).isEqualTo(1.5);
+        assertThat(received.getBooleanProperty("aBool")).isTrue();
+    }
 }

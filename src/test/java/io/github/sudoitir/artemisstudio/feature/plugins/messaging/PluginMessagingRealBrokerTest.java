@@ -539,6 +539,29 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aSendWithAnInvalidPropertyNameIsRefusedWithTheReason() throws Exception {
+        String queue = queue("SENDBAD");
+        String plugin = activate("sendbad");
+        assertThatThrownBy(() -> messaging(plugin)
+                        .send(new OutboundMessage(
+                                clusterId,
+                                queue,
+                                new byte[0],
+                                true,
+                                Map.of("x-header", "v"),
+                                Map.of(),
+                                false,
+                                operator)))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("Invalid property name 'x-header'");
+        assertThatThrownBy(() -> messaging(plugin)
+                        .send(new OutboundMessage(
+                                clusterId, queue, new byte[0], true, Map.of(), Map.of("JMSType", 1), false, operator)))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("Invalid property name 'JMSType'");
+    }
+
+    @Test
     void sendingNeedsMessageSendAndNeverReachesStudiosOwnAddresses() throws Exception {
         String queue = queue("SENDNO");
         String plugin = activate("sendno");

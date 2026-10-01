@@ -18,14 +18,20 @@ public class MessageOperations {
     private static final String SEND_SIG =
             "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String)";
 
-    /** Enqueue one message on the address MBean. Returns the broker-assigned id, or {@code null}. */
+    /**
+     * Enqueue one message on the address MBean. Returns the broker-assigned id, or {@code null}.
+     * {@code headers} are string properties; {@code user} and {@code password} are the broker account
+     * the message is sent as, empty when the broker has no security. The password is never logged.
+     */
     public String send(
             JolokiaBrokerClient client,
             String addressMbean,
             Map<String, Object> headers,
             int type,
             String body,
-            boolean durable) {
+            boolean durable,
+            String user,
+            String password) {
         JolokiaResponse res = client.single(JolokiaRequest.exec(
                 addressMbean,
                 SEND_SIG,
@@ -33,8 +39,8 @@ public class MessageOperations {
                 type,
                 body == null ? "" : body,
                 durable,
-                "",
-                ""));
+                user,
+                password));
         requireOk(res, "sendMessage");
         JsonNode v = res.value();
         return v == null || v.isNull() ? null : v.asText();
