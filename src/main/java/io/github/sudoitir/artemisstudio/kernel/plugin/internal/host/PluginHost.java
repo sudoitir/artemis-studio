@@ -378,17 +378,38 @@ public class PluginHost implements SmartLifecycle {
      */
     private boolean trustedForRestart(PluginInstallEntity e) {
         if (e.status() != PluginInstallStatus.NEEDS_RESTART
-                || trust.decide(e.getSignerFingerprint(), e.getSignerSubject()).status() == TrustDecision.Status.TRUSTED
-                || trust.allowUnverified()) {
+                || trust.decide(e.getSignerFingerprint(), e.getSignerSubject()).status()
+                        == TrustDecision.Status.TRUSTED) {
             return true;
         }
-        String reason = e.getSignerFingerprint() == null
-                ? "plugin-unsigned: the version waiting for this restart is unsigned, and unverified plugins are not allowed."
-                : "plugin-untrusted: the key %s that signed the version waiting for this restart is no longer trusted."
-                        .formatted(e.getSignerFingerprint());
+        boolean signsUsersIn = signsUsersIn(e);
+        if (trust.allowUnverified() && !signsUsersIn) {
+            return true;
+        }
+        String reason = signsUsersIn
+                ? "plugin-signin-unverified: the version waiting for this restart offers a sign-in, which only a trusted key may sign."
+                : e.getSignerFingerprint() == null
+                        ? "plugin-unsigned: the version waiting for this restart is unsigned, and unverified plugins are not allowed."
+                        : "plugin-untrusted: the key %s that signed the version waiting for this restart is no longer trusted."
+                                .formatted(e.getSignerFingerprint());
         store.update(e.getId(), row -> row.fail(reason));
         log.warn("plugin-lifecycle id={} step=boot-start outcome=failed reason={}", e.getId(), reason);
         return false;
+    }
+
+    /** Whether the stored version declares a sign-in provider; an unreadable descriptor is reported where it is parsed. */
+    private boolean signsUsersIn(PluginInstallEntity e) {
+        try {
+            return !parseStoredDescriptor(e).identityProviders().isEmpty();
+        } catch (RuntimeException _) {
+            return false;
+        }
+    }
+
+    private static String providerIds(PluginDescriptor descriptor) {
+        return descriptor.identityProviders().stream()
+                .map(PluginDescriptor.IdentityProvider::id)
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     /** Dependency-first order: a plugin's {@code requires} on another plugin being started here
@@ -876,6 +897,15 @@ public class PluginHost implements SmartLifecycle {
     private ActivationPlan beginActivation(String sha256, String actor, boolean allowDowngrade, boolean acknowledged) {
         PlanContext ctx = buildPlan(sha256, allowDowngrade);
         ActivationPlan plan = ctx.plan();
+        if (!plan.trust().allowed() && !plan.descriptor().identityProviders().isEmpty()) {
+            throw new PluginRefusedException(
+                    List.of(
+                            new Violation(
+                                    "plugin-signin-unverified",
+                                    "Plugin '%s' offers the sign-in %s, which receives users' passwords, and is not signed by a trusted key."
+                                            .formatted(plan.pluginId(), providerIds(plan.descriptor())),
+                                    "Trust the publisher's key after comparing its fingerprint, or install a build signed by a trusted key. Allowing unverified plugins does not cover a plugin that signs users in.")));
+        }
         if (!plan.trust().allowed()) {
             boolean unsigned = plan.trust().status() == TrustDecision.Status.UNSIGNED;
             throw new PluginRefusedException(
@@ -1405,7 +1435,7 @@ public class PluginHost implements SmartLifecycle {
         boolean compatible =
                 compat != StudioVersion.Compatibility.TOO_OLD && compat != StudioVersion.Compatibility.TOO_NEW;
 
-        TrustPart trustPart = trustOf(report.signer(), existingOpt, previousDescriptor != null, diff);
+        TrustPart trustPart = trustOf(report.signer(), existingOpt, previousDescriptor != null, diff, descriptor);
 
         ActivationPlan plan = new ActivationPlan(
                 pluginId,
@@ -1432,12 +1462,18 @@ public class PluginHost implements SmartLifecycle {
      * confirmed for. Reported, never thrown: {@link #beginActivation} enforces it (design.md §5).
      */
     private TrustPart trustOf(
-            Signer signer, Optional<PluginInstallEntity> existing, boolean update, ContributionDiff diff) {
+            Signer signer,
+            Optional<PluginInstallEntity> existing,
+            boolean update,
+            ContributionDiff diff,
+            PluginDescriptor descriptor) {
         TrustDecision decision = trust.decide(signer);
         String previousFingerprint =
                 existing.map(PluginInstallEntity::getSignerFingerprint).orElse(null);
         boolean signerChanged = previousFingerprint != null && !previousFingerprint.equals(decision.fingerprint());
-        boolean allowed = decision.status() == TrustDecision.Status.TRUSTED || trust.allowUnverified();
+        // A plugin that receives users' passwords is never covered by the unverified allowance (ADR-0153).
+        boolean allowed = decision.status() == TrustDecision.Status.TRUSTED
+                || (trust.allowUnverified() && descriptor.identityProviders().isEmpty());
         List<String> acknowledgements = new ArrayList<>();
         if (update && !diff.permissionsAdded().isEmpty()) {
             acknowledgements.add("permissions-added");
@@ -1447,6 +1483,9 @@ public class PluginHost implements SmartLifecycle {
         }
         if (decision.status() != TrustDecision.Status.TRUSTED && allowed) {
             acknowledgements.add("unverified");
+        }
+        if (!diff.identityProvidersAdded().isEmpty()) {
+            acknowledgements.add("signin-added");
         }
         return new TrustPart(
                 new PlanTrust(
@@ -1568,6 +1607,14 @@ public class PluginHost implements SmartLifecycle {
         Set<String> newTools = newD.mcpTools().stream()
                 .map(PluginDescriptor.McpTool::name)
                 .collect(java.util.stream.Collectors.toSet());
+        Set<String> oldProviders = oldD == null
+                ? Set.of()
+                : oldD.identityProviders().stream()
+                        .map(PluginDescriptor.IdentityProvider::id)
+                        .collect(java.util.stream.Collectors.toSet());
+        Set<String> newProviders = newD.identityProviders().stream()
+                .map(PluginDescriptor.IdentityProvider::id)
+                .collect(java.util.stream.Collectors.toSet());
         return new ContributionDiff(
                 added(newPerms, oldPerms),
                 added(oldPerms, newPerms),
@@ -1576,7 +1623,9 @@ public class PluginHost implements SmartLifecycle {
                 added(newTopics, oldTopics),
                 added(oldTopics, newTopics),
                 added(newTools, oldTools),
-                added(oldTools, newTools));
+                added(oldTools, newTools),
+                added(newProviders, oldProviders),
+                added(oldProviders, newProviders));
     }
 
     private static Set<String> added(Set<String> a, Set<String> b) {

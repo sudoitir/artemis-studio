@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrustHealthIndicator;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.TrustDecision.Status;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.SignInPlugin;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.TestSigningKeys;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -303,6 +304,53 @@ class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
         var report = health.health();
         assertThat(report.getStatus()).isEqualTo(StudioHealth.DEGRADED);
         assertThat(report.getDetails().get("unverified")).asList().contains(id);
+    }
+
+    @Test
+    void anUnsignedSignInPluginIsRefusedEvenWithTheAllowanceOn() throws Exception {
+        trust.setAllowUnverified(true, "test");
+        String id = uniqueId("gate-signin-unsigned");
+        pluginIds.add(id);
+        var inspection = host.inspect(SignInPlugin.jar(id, false).unsigned().build(), "tester");
+        shas.add(inspection.sha256());
+
+        assertThat(inspection.plan().trust().allowed()).isFalse();
+        assertThatThrownBy(() -> host.activateUpload(inspection.sha256(), "tester", true))
+                .isInstanceOfSatisfying(PluginRefusedException.class, e -> {
+                    assertThat(e.violations()).extracting("code").containsExactly("plugin-signin-unverified");
+                    assertThat(e.violations().getFirst().message()).contains(id + ":corp");
+                });
+        assertThat(installs.findById(id)).isEmpty();
+    }
+
+    @Test
+    void aTrustedSignInPluginNeedsConfirmationAndThenActivates() throws Exception {
+        String id = uniqueId("gate-signin");
+        pluginIds.add(id);
+        String sha = upload(SignInPlugin.jar(id, false));
+
+        ActivationPlan plan = host.plan(sha);
+        assertThat(plan.trust().allowed()).isTrue();
+        assertThat(plan.diff().identityProvidersAdded()).containsExactly(id + ":corp");
+        assertThat(plan.acknowledgements()).containsExactly("signin-added");
+        assertRefused(() -> host.activate(sha, "tester", false), "acknowledgement-required");
+        assertThat(installs.findById(id)).isEmpty();
+
+        host.activate(sha, "tester", true);
+        awaitActive(id, sha);
+    }
+
+    @Test
+    void anUpdateThatKeepsTheSameProviderNeedsNoNewConfirmation() throws Exception {
+        String id = uniqueId("gate-signin-keep");
+        pluginIds.add(id);
+        String shaV1 = upload(SignInPlugin.jar(id, false));
+        host.activate(shaV1, "tester", true);
+        awaitActive(id, shaV1);
+
+        String shaV2 = upload(SignInPlugin.jar(id, false).descriptorField("version", "2.0.0"));
+
+        assertThat(host.plan(shaV2).acknowledgements()).isEmpty();
     }
 
     @Test

@@ -140,7 +140,13 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) List<PluginPermissionView> permissions,
             @Schema(requiredMode = REQUIRED) List<String> settingKeys,
             @Schema(requiredMode = REQUIRED) List<String> streamTopics,
-            @Schema(requiredMode = REQUIRED) List<PluginMcpToolView> mcpTools) {}
+            @Schema(requiredMode = REQUIRED) List<PluginMcpToolView> mcpTools,
+            @Schema(requiredMode = REQUIRED) List<PluginIdentityProviderView> identityProviders) {}
+
+    /** A sign-in the plugin offers, which makes the plugin receive the passwords typed for it. */
+    public record PluginIdentityProviderView(
+            @Schema(requiredMode = REQUIRED) String id,
+            @Schema(requiredMode = REQUIRED) String label) {}
 
     public record PluginPermissionView(
             @Schema(requiredMode = REQUIRED) String action,
@@ -167,7 +173,7 @@ public final class PluginAdminViews {
      * @param reversible every pending database change carries a rollback
      * @param missingRequires required plugins or features that are not active; activation is refused
      * @param acknowledgements why activation needs {@code acknowledge=true}: {@code permissions-added},
-     *     {@code signer-changed} or {@code unverified}; activating without it answers 409
+     *     {@code signer-changed}, {@code unverified} or {@code signin-added}; activating without it answers 409
      */
     public record PluginPlanView(
             @Schema(requiredMode = REQUIRED) String pluginId,
@@ -257,7 +263,9 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) List<String> streamTopicsAdded,
             @Schema(requiredMode = REQUIRED) List<String> streamTopicsRemoved,
             @Schema(requiredMode = REQUIRED) List<String> mcpToolsAdded,
-            @Schema(requiredMode = REQUIRED) List<String> mcpToolsRemoved) {}
+            @Schema(requiredMode = REQUIRED) List<String> mcpToolsRemoved,
+            @Schema(requiredMode = REQUIRED) List<String> identityProvidersAdded,
+            @Schema(requiredMode = REQUIRED) List<String> identityProvidersRemoved) {}
 
     /** @param fix what the plugin's author must change; empty when there is nothing to change */
     public record PluginViolationView(

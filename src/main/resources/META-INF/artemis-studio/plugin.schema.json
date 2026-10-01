@@ -103,6 +103,19 @@
         }
       }
     },
+    "identityProviders": {
+      "type": "array",
+      "description": "Username-and-password sign-ins the plugin offers; each needs a PluginCredentialProvider bean. Needs a trusted signer and an acknowledgement at install.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string", "description": "<id>:<name>." },
+          "label": { "type": "string", "minLength": 1, "maxLength": 64, "description": "Shown on the login screen." }
+        }
+      }
+    },
     "settingKeys": { "type": "array", "items": { "type": "string", "description": "Namespaced <id>.<key>." } },
     "streamTopics": { "type": "array", "items": { "type": "string", "description": "<id> or <id>.<topic>." } },
     "mcpTools": {
