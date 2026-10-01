@@ -22,6 +22,10 @@ x-studio: &studio
     ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
     # A plugin that needs a restart restarts its replica; `restart: unless-stopped` starts it again.
     ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+    # Pin plugin publishers' keys here instead of in the UI (ADR-0166; site/src/guide/plugins.md).
+    # Each key needs a name and a PEM certificate or public key; the number is the item's index.
+    # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
+    # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_PEM: ${PUBLISHER_KEY_PEM:?}
     JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}
   restart: unless-stopped
   # Shutdown drains: readiness fails, cluster ownership moves, streams are told to reconnect,

@@ -93,6 +93,10 @@ services:
       # A plugin that needs a restart restarts Studio itself; `restart: unless-stopped` below
       # is what starts it again. Remove both together, never one (ADR-0104).
       ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+      # Pin plugin publishers' keys here instead of in the UI (ADR-0166; site/src/guide/plugins.md).
+      # Each key needs a name and a PEM certificate or public key; the number is the item's index.
+      # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
+      # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_PEM: ${PUBLISHER_KEY_PEM:?}
       # Metaspace is bounded so a plugin that does not unload cleanly fails loudly rather than
       # growing without limit; a restart frees it.
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}

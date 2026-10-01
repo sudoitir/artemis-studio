@@ -19,7 +19,7 @@ import org.springframework.mock.env.MockEnvironment;
 class StudioRestartTest {
 
     private static PluginProperties supervised(Boolean value) {
-        return new PluginProperties(null, false, null, null, null, new PluginProperties.Restart(value));
+        return new PluginProperties(null, false, null, null, null, new PluginProperties.Restart(value), null);
     }
 
     private static StudioRestart restart(
@@ -49,8 +49,8 @@ class StudioRestartTest {
     @Test
     void anUnsupervisedStudioRefusesToStopItself() {
         var exited = new CompletableFuture<Integer>();
-        assertThatThrownBy(() -> restart(supervised(false), new MockEnvironment(), Clock.systemUTC(), exited)
-                        .restart("test"))
+        var restart = restart(supervised(false), new MockEnvironment(), Clock.systemUTC(), exited);
+        assertThatThrownBy(() -> restart.restart("test"))
                 .isInstanceOf(PluginRefusedException.class)
                 .hasMessageContaining("will not stop itself");
         assertThat(exited).isNotDone();

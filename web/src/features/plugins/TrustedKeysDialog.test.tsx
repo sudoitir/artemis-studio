@@ -41,6 +41,7 @@ describe('Trusted keys', () => {
           subject: 'CN=Acme',
           addedAt: new Date().toISOString(),
           addedBy: 'ops',
+          source: 'ADMIN',
         });
         return HttpResponse.json(view.keys[0], { status: 201 });
       }),
@@ -65,7 +66,14 @@ describe('Trusted keys', () => {
   it('removes a key after naming the plugins that become unverified, by keyboard alone', async () => {
     const view: TrustedKeysView = {
       keys: [
-        { fingerprint: ACME, name: 'Acme', subject: 'CN=Acme', addedAt: new Date().toISOString(), addedBy: 'ops' },
+        {
+          fingerprint: ACME,
+          name: 'Acme',
+          subject: 'CN=Acme',
+          addedAt: new Date().toISOString(),
+          addedBy: 'ops',
+          source: 'ADMIN',
+        },
       ],
       allowUnverified: false,
       signedPlugins: { [ACME]: ['acme-notes', 'acme-tools'] },
@@ -101,6 +109,75 @@ describe('Trusted keys', () => {
     await user.click(within(again).getByRole('button', { name: 'Remove Acme' }));
     await waitFor(() => expect(removed).toBe(ACME));
     expect(await screen.findByText('Removed Acme.')).toBeInTheDocument();
+  });
+
+  it('shows a configured key with a disabled Remove whose reason a keyboard reaches', async () => {
+    const view: TrustedKeysView = {
+      keys: [
+        {
+          fingerprint: ACME,
+          name: 'Example Publisher',
+          subject: 'CN=Example Publisher',
+          addedAt: new Date().toISOString(),
+          addedBy: 'configuration',
+          source: 'CONFIGURATION',
+        },
+      ],
+      allowUnverified: false,
+      signedPlugins: {},
+    };
+    let removed = false;
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins/keys', () => HttpResponse.json(view)),
+      http.delete('*/api/v1/admin/plugins/keys/:fingerprint', () => {
+        removed = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<TrustedKeysDialog opened onClose={() => undefined} />);
+
+    expect(await screen.findByText('From configuration')).toBeInTheDocument();
+    const remove = screen.getByRole('button', { name: 'Remove Example Publisher' });
+    expect(remove).toHaveAttribute('aria-disabled', 'true');
+    expect(remove).toHaveAccessibleDescription(
+      'Set by configuration. Remove it from artemis-studio.plugins.trusted-keys and restart Studio.',
+    );
+
+    // The disabled control still takes focus, so its reason is reachable, and activating it does nothing.
+    remove.focus();
+    expect(remove).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('dialog', { name: 'Remove Example Publisher' })).toBeNull();
+    expect(removed).toBe(false);
+  });
+
+  it('shows an administrator-added key without the configuration badge', async () => {
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins/keys', () =>
+        HttpResponse.json({
+          keys: [
+            {
+              fingerprint: ACME,
+              name: 'Acme',
+              subject: 'CN=Acme',
+              addedAt: new Date().toISOString(),
+              addedBy: 'ops',
+              source: 'ADMIN',
+            },
+          ],
+          allowUnverified: false,
+          signedPlugins: {},
+        }),
+      ),
+    );
+    renderWithProviders(<TrustedKeysDialog opened onClose={() => undefined} />);
+
+    const remove = await screen.findByRole('button', { name: 'Remove Acme' });
+    expect(remove).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByText('From configuration')).toBeNull();
   });
 
   it('turns unverified plugins on with a danger note beside the switch', async () => {

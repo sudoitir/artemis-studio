@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.web;
 
+import static io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust.CONFIGURED_KEY;
+
 import io.github.sudoitir.artemisstudio.feature.plugins.PluginAccessDeniedException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginRefusedException;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 class PluginAdminProblemAdvice {
 
     private static final Set<String> CONFLICTS =
-            Set.of("lifecycle-busy", "already-active", "key-exists", "acknowledgement-required");
+            Set.of("lifecycle-busy", "already-active", "key-exists", "acknowledgement-required", CONFIGURED_KEY);
 
     private static HttpStatus statusOf(String firstViolationCode) {
         if ("not-found".equals(firstViolationCode)) {
@@ -37,7 +39,9 @@ class PluginAdminProblemAdvice {
     ProblemDetail onRefused(PluginRefusedException e) {
         String first = e.violations().isEmpty() ? "" : e.violations().getFirst().code();
         HttpStatus status = statusOf(first);
-        ProblemDetail problem = Problems.of(status, "plugin-refused", "Refused", e.getMessage());
+        // A key the configuration pins has its own type, so a client can tell it from any other conflict.
+        String slug = CONFIGURED_KEY.equals(first) ? CONFIGURED_KEY : "plugin-refused";
+        ProblemDetail problem = Problems.of(status, slug, "Refused", e.getMessage());
         problem.setProperty(
                 "violations",
                 e.violations().stream().map(PluginAdminController::violation).toList());

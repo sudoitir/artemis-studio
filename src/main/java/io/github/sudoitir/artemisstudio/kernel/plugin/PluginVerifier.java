@@ -72,7 +72,7 @@ public final class PluginVerifier {
             return 2;
         }
         StudioVersion studioVersion = new StudioVersion(
-                buildProperties(), new PluginProperties(studioVersionOverride, false, null, null, null, null));
+                buildProperties(), new PluginProperties(studioVersionOverride, false, null, null, null, null, null));
         ValidationReport report =
                 new PluginValidator(new PluginDescriptorParser(), studioVersion).validate(jar, Set.of());
 

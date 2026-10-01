@@ -225,12 +225,18 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) boolean signerChanged,
             @Schema(requiredMode = REQUIRED) boolean allowed) {}
 
+    /** @param source {@code CONFIGURATION} when {@code artemis-studio.plugins.trusted-keys} pins it, so the API cannot remove it */
     public record TrustedKeyView(
             @Schema(requiredMode = REQUIRED) String fingerprint,
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) String subject,
             @Schema(requiredMode = REQUIRED) Instant addedAt,
-            @Schema(requiredMode = REQUIRED) String addedBy) {}
+            @Schema(requiredMode = REQUIRED) String addedBy,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    allowableValues = {"ADMIN", "CONFIGURATION"})
+            String source) {}
 
     /** @param signedPlugins fingerprint to the ids of the installed plugins that carry it */
     public record TrustedKeysView(

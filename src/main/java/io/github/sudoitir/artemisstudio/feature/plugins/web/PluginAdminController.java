@@ -423,7 +423,13 @@ public class PluginAdminController {
     }
 
     private static TrustedKeyView key(PluginTrust.TrustedKey k) {
-        return new TrustedKeyView(k.fingerprint(), k.name(), k.subject(), k.addedAt(), k.addedBy());
+        return new TrustedKeyView(
+                k.fingerprint(),
+                k.name(),
+                k.subject(),
+                k.addedAt(),
+                k.addedBy(),
+                k.source().name());
     }
 
     private static PluginPlanView plan(ActivationPlan p) {

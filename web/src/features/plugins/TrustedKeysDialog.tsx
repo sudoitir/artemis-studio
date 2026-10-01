@@ -19,6 +19,10 @@ import { ConfirmAction } from './ConfirmAction.tsx';
 import styles from './Plugins.module.css';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+
+const CONFIGURED_REASON =
+  'Set by configuration. Remove it from artemis-studio.plugins.trusted-keys and restart Studio.';
 
 /**
  * Whose signatures Studio accepts on plugins (ADR-0140), and the one switch that lets unverified
@@ -107,7 +111,10 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
               {data.keys.map((k) => (
                 <Table.Tr key={k.fingerprint}>
                   <Table.Td>
-                    {k.name}
+                    <Group gap="xs" wrap="nowrap">
+                      {k.name}
+                      {k.source === 'CONFIGURATION' ? <StatusBadge tone="info">From configuration</StatusBadge> : null}
+                    </Group>
                     <Text size="xs" c="dimmed">
                       {k.subject}
                     </Text>
@@ -120,18 +127,29 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
                     {new Date(k.addedAt).toLocaleDateString()} by {k.addedBy}
                   </Table.Td>
                   <Table.Td>
+                    {/* A configured key cannot be removed here, so Remove stays visible and focusable, and its reason
+                        is the text its description names (a disabled button takes no focus). */}
                     <Button
                       size="xs"
                       variant="subtle"
                       color="red"
                       aria-label={`Remove ${k.name}`}
+                      data-disabled={k.source === 'CONFIGURATION' ? true : undefined}
+                      aria-disabled={k.source === 'CONFIGURATION' ? true : undefined}
+                      aria-describedby={k.source === 'CONFIGURATION' ? `configured-${k.fingerprint}` : undefined}
                       onClick={() => {
+                        if (k.source === 'CONFIGURATION') return;
                         remove.reset();
                         setRemoving(k);
                       }}
                     >
                       Remove
                     </Button>
+                    {k.source === 'CONFIGURATION' ? (
+                      <Text size="xs" c="dimmed" id={`configured-${k.fingerprint}`}>
+                        {CONFIGURED_REASON}
+                      </Text>
+                    ) : null}
                   </Table.Td>
                 </Table.Tr>
               ))}

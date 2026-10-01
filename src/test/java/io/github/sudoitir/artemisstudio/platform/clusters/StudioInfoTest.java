@@ -28,7 +28,7 @@ class StudioInfoTest {
         ObjectProvider<BuildProperties> noBuildInfo = mock(ObjectProvider.class);
         when(noBuildInfo.getIfAvailable()).thenReturn(null);
         var studioVersion =
-                new StudioVersion(noBuildInfo, new PluginProperties(version, false, null, null, null, null));
+                new StudioVersion(noBuildInfo, new PluginProperties(version, false, null, null, null, null, null));
         return new StudioInfo(studioVersion, clusters, perm);
     }
 

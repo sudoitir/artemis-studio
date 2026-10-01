@@ -10,7 +10,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** Maps {@code plugin_trusted_key} (changeset kernel-plugin-0008): one pinned publisher key. */
+/** Maps {@code plugin_trusted_key} (changesets kernel-plugin-0008 and 0011): one pinned publisher key; {@code source} is ADMIN or CONFIGURATION. */
 @Entity
 @Table(name = "plugin_trusted_key")
 @Getter
@@ -35,6 +35,9 @@ public class TrustedKeyEntity {
 
     @Column(name = "added_by", nullable = false, updatable = false)
     private String addedBy;
+
+    @Column(name = "source", nullable = false, updatable = false)
+    private String source = "ADMIN";
 
     public TrustedKeyEntity(String fingerprint, String name, String subject, byte[] publicKey, String addedBy) {
         this.fingerprint = fingerprint;
