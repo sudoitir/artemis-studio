@@ -17,6 +17,7 @@ import {
 } from '@mantine/core';
 
 import { ConfirmAction } from './ConfirmAction.tsx';
+import { LicenseTab } from './LicenseTab.tsx';
 import {
   useLifecycle,
   usePluginHistory,
@@ -28,7 +29,7 @@ import {
 } from './api.ts';
 import styles from './Plugins.module.css';
 import { UnverifiedBadge } from './UnverifiedBadge.tsx';
-import { STATUS, count } from './words.ts';
+import { STATUS, count, licenseNeedsAction } from './words.ts';
 
 type Pending = LifecycleAction | 'purge' | null;
 
@@ -479,6 +480,17 @@ function Confirmations({
 }
 
 /**
+ * The open tab. A plugin whose license needs someone opens on it; the tab someone picks is kept for
+ * that plugin only, so opening another plugin starts afresh.
+ */
+function useDrawerTab(plugin: PluginView | undefined): [string, (next: string | null) => void] {
+  const [chosen, setChosen] = useState<{ id: string; tab: string } | null>(null);
+  const fallback = licenseNeedsAction(plugin?.license) ? 'license' : 'overview';
+  const tab = chosen?.id === plugin?.id ? chosen?.tab : undefined;
+  return [tab ?? fallback, (next) => plugin && next && setChosen({ id: plugin.id, tab: next })];
+}
+
+/**
  * One plugin, in full (design.md §8), at `?plugin=<id>`: what it is and who put it there, what it
  * adds, what data it keeps, everything done to it, and the actions that change it — each stating
  * what it affects before it can be confirmed.
@@ -496,11 +508,11 @@ export function PluginDrawer({
   onClose: () => void;
   onUpdate: (id: string) => void;
 }>) {
-  const [tab, setTab] = useState<string | null>('overview');
   const [pending, setPending] = useState<Pending>(null);
   const [cascade, setCascade] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [ackMissing, setAckMissing] = useState(false);
+  const [tab, setTab] = useDrawerTab(plugin);
   const lifecycle = useLifecycle();
   const purge = usePurge();
   const history = usePluginHistory(plugin?.id);
@@ -556,6 +568,7 @@ export function PluginDrawer({
         <Tabs value={tab} onChange={setTab}>
           <Tabs.List>
             <Tabs.Tab value="overview">Overview</Tabs.Tab>
+            {plugin.license ? <Tabs.Tab value="license">License</Tabs.Tab> : null}
             <Tabs.Tab value="contributions">Contributions</Tabs.Tab>
             <Tabs.Tab value="data">Data</Tabs.Tab>
             <Tabs.Tab value="history">History</Tabs.Tab>
@@ -565,6 +578,18 @@ export function PluginDrawer({
           <Tabs.Panel value="overview" pt="md">
             <OverviewTab plugin={plugin} info={info} />
           </Tabs.Panel>
+
+          {plugin.license ? (
+            <Tabs.Panel value="license" pt="md">
+              <LicenseTab
+                plugin={plugin}
+                info={info}
+                license={plugin.license}
+                canInstall={canInstall}
+                cannotInstall={cannotInstall}
+              />
+            </Tabs.Panel>
+          ) : null}
 
           <Tabs.Panel value="contributions" pt="md">
             <ContributionsTab plugin={plugin} info={info} />

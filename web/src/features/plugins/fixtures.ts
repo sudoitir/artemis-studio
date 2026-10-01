@@ -16,6 +16,7 @@ export const INFO: PluginInfoView = {
   restartToActivate: false,
   updateUrl: null,
   requires: [],
+  requiresLicense: false,
   contributions: {
     ui: true,
     permissions: [{ action: 'acme-notes:write', description: 'Write notes' }],
@@ -86,6 +87,7 @@ export function plugin(over: Partial<PluginView> = {}): PluginView {
     signerFingerprint: 'AB:CD:EF',
     signerSubject: 'CN=Acme',
     verified: true,
+    license: null,
     info: INFO,
     ...over,
   };

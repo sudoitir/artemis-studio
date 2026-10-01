@@ -36,6 +36,7 @@ class FeatureRegistryPluginTest {
                 new PluginDescriptor.Studio("2026.01.0", null),
                 List.of(),
                 false,
+                false,
                 PluginDescriptor.Activation.AUTO,
                 null,
                 id,

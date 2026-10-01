@@ -23,6 +23,7 @@ public record PluginDescriptor(
         Studio studio,
         List<String> requires,
         boolean ui,
+        Boolean requiresLicense,
         Activation activation,
         String updateUrl,
         String title,
@@ -41,6 +42,11 @@ public record PluginDescriptor(
         mcpTools = mcpTools == null ? List.of() : List.copyOf(mcpTools);
         metrics = metrics == null ? List.of() : List.copyOf(metrics);
         alertRules = alertRules == null ? List.of() : List.copyOf(alertRules);
+    }
+
+    /** Whether the plugin needs a license file; a plugin that does not say needs none. */
+    public boolean isRequiresLicense() {
+        return Boolean.TRUE.equals(requiresLicense);
     }
 
     public record Vendor(String name, String url, String email) {}

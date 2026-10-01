@@ -39,6 +39,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("secret_rotation", "one row per key rotation an operator starts"),
             Map.entry("plugin_artifact", "one row per installed plugin version, removed on uninstall"),
             Map.entry("plugin_install", "one row per installed plugin"),
+            Map.entry("plugin_license", "configuration: at most one 64 KiB file per plugin, deleted when it is purged"),
             Map.entry("plugin_installer", "configuration"),
             Map.entry("plugin_trusted_key", "configuration: one row per trusted publisher key"),
             Map.entry("plugin_trust_policy", "configuration: a single row"),

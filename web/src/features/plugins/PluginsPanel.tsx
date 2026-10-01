@@ -7,12 +7,21 @@ import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
 import { useCheckUpdates, usePlugins, type PluginUpdateView, type PluginView } from './api.ts';
 import { InstallDialog, type Source } from './InstallDialog.tsx';
 import { InstallersDialog } from './InstallersDialog.tsx';
+import { LicenseBadge } from './LicenseBadge.tsx';
 import { TrustedKeysDialog } from './TrustedKeysDialog.tsx';
 import { UnverifiedBadge } from './UnverifiedBadge.tsx';
 import { PluginDrawer } from './PluginDrawer.tsx';
 import styles from './Plugins.module.css';
 import { RestartControl } from './RestartControl.tsx';
-import { GUIDE_URL, STATUS, contributionSummary, needsAttention, tone } from './words.ts';
+import {
+  GUIDE_URL,
+  LICENSE_LABEL,
+  STATUS,
+  contributionSummary,
+  licenseNeedsAction,
+  needsAttention,
+  tone,
+} from './words.ts';
 
 const FIX_LABEL: Record<string, string> = { failed: 'See why', incompatible: 'Update…' };
 
@@ -62,7 +71,15 @@ function pluginColumns(
   updates: Map<string, PluginUpdateView>,
   setSource: (source: Source) => void,
   setSearch: (next: { plugin?: string; upload?: string }) => unknown,
+  showLicense: boolean,
 ): GridColumn<PluginView>[] {
+  const licenseColumn: GridColumn<PluginView> = {
+    id: 'license',
+    header: 'License',
+    width: 190,
+    accessor: (p) => (p.license ? LICENSE_LABEL[p.license.state] : ''),
+    cell: (p) => (p.license ? <LicenseBadge license={p.license} /> : null),
+  };
   return [
     {
       id: 'plugin',
@@ -115,18 +132,28 @@ function pluginColumns(
         );
       },
     },
+    ...(showLicense ? [licenseColumn] : []),
     { id: 'adds', header: 'Adds', accessor: (p) => contributionSummary(p.info) },
     {
       id: 'fix',
       header: '',
       width: 130,
       accessor: () => '',
-      cell: (p) =>
-        needsAttention(p) ? (
+      cell: (p) => {
+        if (needsAttention(p)) {
+          return (
+            <Button size="compact-xs" variant="default" onClick={() => setSearch({ plugin: p.id })}>
+              {FIX_LABEL[p.status] ?? 'Details'}
+            </Button>
+          );
+        }
+        if (!licenseNeedsAction(p.license)) return null;
+        return (
           <Button size="compact-xs" variant="default" onClick={() => setSearch({ plugin: p.id })}>
-            {FIX_LABEL[p.status] ?? 'Details'}
+            {p.license?.state === 'MISSING' ? 'Add license' : 'License'}
           </Button>
-        ) : null,
+        );
+      },
     },
   ];
 }
@@ -297,7 +324,12 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
         <VirtualTable
           label="Plugins"
           storageKey="plugins"
-          columns={pluginColumns(updates, setSource, setSearch)}
+          columns={pluginColumns(
+            updates,
+            setSource,
+            setSearch,
+            rows.some((p) => p.license),
+          )}
           data={rows}
           rowKey={(p) => p.id}
           onRowClick={(p) => setSearch({ plugin: p.id })}

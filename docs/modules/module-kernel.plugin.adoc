@@ -9,6 +9,7 @@
 
 _Event listeners_
 
+* `i.g.s.a.k.p.PluginScopedBeans` (via `i.g.s.a.k.p.PluginLicenseStore`)
 * `i.g.s.a.k.p.internal.host.PluginHost`
 * `i.g.s.a.k.p.PluginBridge` (via `i.g.s.a.k.p.internal.runtime.CoreEventPluginBridge`)
 
@@ -27,10 +28,13 @@ _Others_
 * `i.g.s.a.k.p.internal.trust.PluginTrustHealthIndicator`
 * `i.g.s.a.k.p.internal.validation.PluginValidator`
 |Bean references
-|* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
+|* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 |Events listened to
-|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.p.PluginPurged` 
+* `i.g.s.a.k.r.ReplicaSignal` 
+* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 * `i.g.s.a.k.r.BusResumed` 
 * `i.g.s.a.k.r.ReplicaSignal` 
 * `org.springframework.context.ApplicationEvent` 

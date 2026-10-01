@@ -1,4 +1,4 @@
-import type { PluginInfoView, PluginPlanView, PluginView } from './api.ts';
+import type { PluginInfoView, PluginLicenseView, PluginPlanView, PluginView } from './api.ts';
 
 export const GUIDE_URL = 'https://sudoitir.github.io/artemis-studio/guide/plugins';
 
@@ -100,4 +100,57 @@ export function acknowledgementReasons(plan: PluginPlanView): string[] {
         return reason;
     }
   });
+}
+
+export type LicenseState = PluginLicenseView['state'];
+
+/** A license's state in words: the badge and the tab show this, never a colour alone. */
+export const LICENSE_LABEL: Record<LicenseState, string> = {
+  MISSING: 'No license',
+  UNCHECKED: 'Not checked yet',
+  VALID: 'Licensed',
+  EXPIRING: 'License expiring',
+  EXPIRED: 'License expired',
+  OVER_LIMIT: 'Over its license limit',
+  INVALID: 'License not accepted',
+};
+
+/** Everything but a valid license wants someone to look at it. */
+export function licenseNeedsAction(license: PluginLicenseView | null | undefined): boolean {
+  return !!license && license.state !== 'VALID';
+}
+
+/** What an administrator can do about the state, in one sentence. */
+export function licenseAdvice(state: LicenseState, title: string, vendor: string): string {
+  switch (state) {
+    case 'MISSING':
+      return `${title} needs a license file. Ask ${vendor} for one and upload it here. What ${title} does without one is its own rule, so check its documentation.`;
+    case 'UNCHECKED':
+      return `The file is stored and ${title} has not said what it makes of it yet. If this lasts more than a few minutes, ${title} may not be running.`;
+    case 'VALID':
+      return `${title} accepted this license.`;
+    case 'EXPIRING':
+      return `${title} accepted this license, and it ends soon. Ask ${vendor} for a new one and upload it before then.`;
+    case 'EXPIRED':
+      return `This license has ended. Ask ${vendor} for a new one and upload it here.`;
+    case 'OVER_LIMIT':
+      return `${title} is used beyond what the license allows. Ask ${vendor} for a larger license, or reduce the use.`;
+    default:
+      return `${title} did not accept this file. Check that it is the file ${vendor} issued for ${title}, unchanged, or ask for a new one.`;
+  }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** "in 12 days", "today" or "3 days ago", for a date a license ends. */
+export function expiryNote(expiresAt: string, now: number = Date.now()): string {
+  const ahead = new Date(expiresAt).getTime() - now;
+  if (ahead >= 0) {
+    const days = Math.floor(ahead / DAY_MS);
+    if (days >= 2) return `in ${days} days`;
+    return days === 1 ? 'tomorrow' : 'today';
+  }
+  const days = Math.floor(-ahead / DAY_MS);
+  if (days >= 2) return `${days} days ago`;
+  return days === 1 ? 'yesterday' : 'today';
 }

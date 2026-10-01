@@ -9,6 +9,7 @@ type Schemas = components['schemas'];
 export type PluginsView = Schemas['PluginsView'];
 export type PluginView = Schemas['PluginView'];
 export type PluginInfoView = Schemas['PluginInfoView'];
+export type PluginLicenseView = Schemas['PluginLicenseView'];
 export type PluginPlanView = Schemas['PluginPlanView'];
 export type PluginUploadView = Schemas['PluginUploadView'];
 export type PluginViolationView = Schemas['PluginViolationView'];
@@ -198,5 +199,22 @@ export function useRemoveKey() {
 export function useTrustPolicy() {
   return useInvalidating((allowUnverified: boolean) =>
     request<void>(`${BASE}/trust-policy`, { method: 'PUT', body: JSON.stringify({ allowUnverified }) }),
+  );
+}
+
+/** Sends the license file as the raw request body. Studio stores it as is; the plugin judges it. */
+export function useUploadLicense() {
+  return useInvalidating(({ id, file }: { id: string; file: File }) =>
+    request<PluginLicenseView>(`${BASE}/${encodeURIComponent(id)}/license`, {
+      method: 'PUT',
+      body: file,
+      headers: { 'content-type': 'application/octet-stream' },
+    }),
+  );
+}
+
+export function useRemoveLicense() {
+  return useInvalidating((id: string) =>
+    request<void>(`${BASE}/${encodeURIComponent(id)}/license`, { method: 'DELETE' }),
   );
 }

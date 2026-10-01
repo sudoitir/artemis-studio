@@ -67,6 +67,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "plugin_secret",
                     // Trusted publisher keys and the unverified allowance (ADR-0141, changeset kernel-plugin 0008).
                     "plugin_trust(ed_key|_policy)",
+                    // A plugin's license file and its plugin's verdict (ADR-0153, changeset kernel-plugin 0010).
+                    "plugin_license",
                     "plugin_message_registration",
                     // Plugin metrics (ADR-0113): samples with no broker node (changeset platform-scrape 0002)
                     // and the record of seeded plugin alert rules (changeset feature-alerting 0003).

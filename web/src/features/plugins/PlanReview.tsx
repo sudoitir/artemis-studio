@@ -202,6 +202,9 @@ function CapabilitiesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
           </List.Item>
         ) : null}
         {info.requires.length > 0 ? <List.Item>Depend on {info.requires.join(', ')}.</List.Item> : null}
+        {info.requiresLicense ? (
+          <List.Item>Need a license file, which you upload under its License tab once it is installed.</List.Item>
+        ) : null}
       </List>
     </Section>
   );

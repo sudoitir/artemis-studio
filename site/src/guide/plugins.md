@@ -127,6 +127,36 @@ click.
 Plugins are only ever changed **from a browser session**. API tokens and the MCP endpoint are
 refused, even an installer's.
 
+## Licenses
+
+A plugin that is sold can say it **needs a license**. Studio then shows its license state on the Plugins
+tab, and a **License** tab in the plugin's drawer. Studio stores the file you upload, but it does not read
+it: the plugin decides whether it accepts the file, and tells Studio. A plugin that does not need a license
+shows none.
+
+| State | Meaning |
+| --- | --- |
+| No license | The plugin needs one and none is uploaded. |
+| Not checked yet | A file is stored and the plugin has not said what it makes of it. |
+| Licensed | The plugin accepted it. |
+| License expiring | Accepted, and it ends within 30 days. |
+| License expired | It has ended. |
+| Over its license limit | The plugin is used beyond what the license allows. |
+| License not accepted | The plugin did not accept the file; its note says why. |
+
+- **Upload, replace or remove** a license on the plugin's License tab. Like any change to a plugin, it needs
+  an installer who has signed in within the last five minutes. A license file is at most 64 KB.
+- **What a plugin does** without a license, or once one expires, is its own rule; the plugin's documentation
+  says. Nothing else in Studio is affected, and a plugin that fails while checking its license affects no
+  other plugin.
+- **Health.** While a running plugin that needs a license has none, has one it did not accept, or has one that
+  ends within 30 days, `/actuator/health/studio` reports `pluginLicenses` as `DEGRADED` and names the plugin. It
+  is never part of readiness.
+- **Audit.** Every upload, replacement and removal is recorded with who did it, the plugin, and the file's
+  SHA-256 and size. The content of the file is never recorded.
+- The file is signed by whoever issued it, not secret, so it is stored as is. Anyone who can read Studio's
+  database can read it.
+
 ## Signing and trust
 
 A plugin runs with Studio's own access, so Studio checks **who built it** before anything runs. Every plugin
@@ -438,6 +468,56 @@ class NoteCounts implements PluginMetricSource {
 Studio asks only when an installer chooses **Check for updates**. It downloads the jar without
 following redirects, and refuses it unless it hashes to that `sha256`.
 
+### Licensing
+
+A plugin that needs a license says so in `plugin.json`, and Studio stores the file an administrator uploads
+and shows the plugin's verdict. Studio never reads the file and knows no license scheme: reading it,
+checking it and deciding what an invalid one means are the plugin's.
+
+```json
+"requiresLicense": true
+```
+
+Inject **`PluginLicense`**, which Studio binds to the plugin like `PluginSecrets`:
+
+```java
+@Component
+class Licensing {
+
+    private final PluginLicense license;
+
+    Licensing(PluginLicense license) { this.license = license; }
+
+    /** Runs when the file is uploaded, replaced or removed, on every Studio instance. */
+    @EventListener
+    void onChanged(PluginLicenseChanged changed) {
+        if (!changed.pluginId().equals("acme-notes")) {
+            return;
+        }
+        license.file().ifPresentOrElse(
+                file -> license.report(file.sha256(), judge(file.content())),
+                () -> { /* no license: act as your own rules say */ });
+    }
+}
+```
+
+- **`file()`** is the plugin's own stored file: its `content()`, its `sha256()` and when it was
+  uploaded. It is empty when there is none. A plugin can read only its own file.
+- **`report(sha256, verdict)`** says what the plugin made of that file: a status (`VALID`, `EXPIRED`,
+  `OVER_LIMIT` or `INVALID`), when it ends, who it was issued to, and a short detail for the administrator
+  (such as why a file is invalid). The licensee is cut at 200 characters and the detail at 500. Studio ignores a
+  report whose `sha256` is not the stored file's, so a late report never marks a replaced file valid. Never put the file's content in the
+  detail.
+- **`PluginLicenseChanged`** reaches the plugin on every Studio instance when its file is uploaded,
+  replaced or removed. Every plugin receives it, so compare `pluginId()` with your own. Check your
+  license when the plugin starts and on a timer as well: an expiry is a moment, not an event.
+- Studio shows `Not checked yet` until the plugin reports, and its health degrades after five minutes, so
+  report every file you are given, including one you reject.
+- **`StudioInfo.brokerInstances()`** is the number of broker nodes registered in the installation, a count
+  with no names, for a license that is sized by it.
+- Studio is not affected by a plugin's verdict, and a listener that throws is logged and isolated.
+  Keep a license check cheap and never block on it.
+
 ### Studio facts and shared UI
 
 **`StudioInfo`** (Java) tells a plugin which Studio it runs on, for example to head a file it
@@ -446,6 +526,7 @@ exports:
 - `version()` is the running version, such as `2026.10.1`, and is empty for a development build.
 - `clusterName(clusterId)` is the cluster's display name. It is empty when the current caller holds
   no `cluster:read` on that cluster, exactly as for an id that does not exist.
+- `brokerInstances()` is how many broker nodes the installation manages, backups included. See Licensing above.
 - `clusters()` maps the id of every cluster the current caller holds `cluster:read` on to its
   display name, ordered by name. Use it to let a document name clusters and store their ids. Names
   are not unique, so say so when a name matches more than one.
@@ -492,5 +573,6 @@ runtime), [ADR-0100](/reference/adr/0100-plugin-uis-are-module-federation-remote
 [ADR-0103](/reference/adr/0103-plugin-installer-tier-and-step-up-reauthentication) (who can install),
 [ADR-0104](/reference/adr/0104-studio-restarts-itself-for-plugins-when-supervised) (restarts),
 [ADR-0111](/reference/adr/0111-plugin-scoped-beans-and-plugin-messaging) (messages and secrets)
-and [ADR-0112](/reference/adr/0112-plugin-consumers-set-their-concurrency-on-a-thread-pool-of-their-own)
-(consumer concurrency).
+[ADR-0112](/reference/adr/0112-plugin-consumers-set-their-concurrency-on-a-thread-pool-of-their-own)
+(consumer concurrency) and
+[ADR-0153](/reference/adr/0153-plugins-declare-licenses-studio-stores-them-plugins-judge-them) (licenses).

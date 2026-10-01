@@ -43,6 +43,26 @@ class StudioInfoTest {
     }
 
     @Test
+    void countsEveryBrokerNodeOfEveryClusterWithoutNamingAny() {
+        when(clusters.allNodes())
+                .thenReturn(List.of(
+                        mock(ClusterNode.class),
+                        mock(ClusterNode.class),
+                        mock(ClusterNode.class),
+                        mock(ClusterNode.class),
+                        mock(ClusterNode.class)));
+
+        assertThat(info(null).brokerInstances()).isEqualTo(5);
+    }
+
+    @Test
+    void anInstallationWithNoBrokersHasNone() {
+        when(clusters.allNodes()).thenReturn(List.of());
+
+        assertThat(info(null).brokerInstances()).isZero();
+    }
+
+    @Test
     void namesAClusterTheCallerCanSee() {
         RegisteredCluster cluster = mock(RegisteredCluster.class);
         when(cluster.getName()).thenReturn("payments");
