@@ -11,6 +11,19 @@ const navigateSpy = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => navigateSpy,
+  // A plain anchor that stays on the page: the router is not under test, and the document cannot navigate.
+  Link: ({ children, to, onClick, ...rest }: { children: React.ReactNode; to: string; onClick?: () => void }) => (
+    <a
+      href={to}
+      {...rest}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick?.();
+      }}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 const { RegisterClusterForm } = await import('./RegisterCluster.tsx');
@@ -77,6 +90,24 @@ function preview() {
       ],
     },
   };
+}
+
+/** The refusal for brokers a registered cluster already holds; `visible` is whether the caller may see it. */
+function alreadyRegistered(visible = true) {
+  return HttpResponse.json(
+    {
+      type: 'https://artemis-studio.dev/problems/cluster-already-registered',
+      title: 'These brokers are already registered',
+      status: 409,
+      detail: visible
+        ? 'These brokers are already registered as the cluster "prod-emea" (node artemis-primary:61616). Open that cluster instead, or remove it before registering them again.'
+        : 'These brokers already belong to a registered cluster you do not have access to. Ask someone who can see it to share it with you, or to remove it.',
+      ...(visible
+        ? { existingClusterId: 'c1', existingClusterName: 'prod-emea', overlappingNodes: ['artemis-primary:61616'] }
+        : {}),
+    },
+    { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+  );
 }
 
 afterEach(() => act(() => notifications.clean()));
@@ -156,6 +187,62 @@ describe('RegisterClusterForm', () => {
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
     // Nothing was edited, so the hint must not claim the details changed.
     expect(screen.getByText('The check failed. Fix what it reports above, then check again.')).toBeInTheDocument();
+  });
+
+  it('says which cluster already has the brokers, links to it and will not register them again', async () => {
+    server.use(http.post('*/api/v1/clusters', () => alreadyRegistered()));
+    const done = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm onDone={done} />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    const notice = await screen.findByRole('alert');
+    expect(notice).toHaveTextContent('These brokers are already registered');
+    expect(notice).toHaveTextContent(/as the cluster "prod-emea" \(node artemis-primary:61616\)/);
+    const open = screen.getByRole('link', { name: 'Open prod-emea' });
+    expect(open).toHaveAttribute('href', '/clusters/c1');
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    expect(
+      screen.getByText('These brokers are registered already, so there is nothing to register.'),
+    ).toBeInTheDocument();
+
+    // In the dialog, following the link closes it.
+    await user.click(open);
+    expect(done).toHaveBeenCalled();
+  });
+
+  it('keeps registration refused when another registration of the same brokers won the race', async () => {
+    server.use(
+      http.post('*/api/v1/clusters', ({ request }) =>
+        new URL(request.url).searchParams.get('dryRun') === 'true' ? HttpResponse.json(preview()) : alreadyRegistered(),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText(/^Connected\./);
+    await user.click(screen.getByRole('button', { name: 'Register cluster' }));
+
+    expect(await screen.findByRole('link', { name: 'Open prod-emea' })).toHaveAttribute('href', '/clusters/c1');
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('names no cluster the operator cannot see', async () => {
+    server.use(http.post('*/api/v1/clusters', () => alreadyRegistered(false)));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/a registered cluster you do not have access to/);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
   });
 
   it('lists an operation the brokers are too old for with the release it needs', async () => {

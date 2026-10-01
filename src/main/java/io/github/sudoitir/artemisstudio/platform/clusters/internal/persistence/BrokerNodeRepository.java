@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,4 +18,10 @@ public interface BrokerNodeRepository extends JpaRepository<BrokerNodeEntity, UU
     Optional<BrokerNodeEntity> findByClusterIdAndName(UUID clusterId, String name);
 
     boolean existsByClusterIdAndJolokiaUrlAndIdNot(UUID clusterId, String jolokiaUrl, UUID id);
+
+    /** Every registered node of any cluster that carries one of these NodeIDs (ADR-0167). */
+    List<BrokerNodeEntity> findByArtemisNodeIdIn(Collection<String> artemisNodeIds);
+
+    /** Every registered node with a management URL, for matching URLs by their normal form (ADR-0167). */
+    List<BrokerNodeEntity> findByJolokiaUrlIsNotNull();
 }

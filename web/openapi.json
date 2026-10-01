@@ -28341,6 +28341,21 @@
           },
           "property" : {
             "type" : "string"
+          },
+          "existingClusterId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The registered cluster that already holds the brokers."
+          },
+          "existingClusterName" : {
+            "type" : "string"
+          },
+          "overlappingNodes" : {
+            "type" : "array",
+            "description" : "That cluster's nodes the request names.",
+            "items" : {
+              "type" : "string"
+            }
           }
         }
       },

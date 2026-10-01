@@ -3,14 +3,22 @@ import { flushSync } from 'react-dom';
 import { Button, Collapse, PasswordInput, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 
-import { useCheckConnection, useRegisterCluster, type RegisterClusterRequest, type TopologyView } from './api.ts';
+import {
+  alreadyRegistered,
+  useCheckConnection,
+  useRegisterCluster,
+  type ProblemDetail,
+  type RegisterClusterRequest,
+  type TopologyView,
+} from './api.ts';
 import { useSlot } from '../../kernel/slots.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { Notice } from '../../ui/Notice.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import classes from './Clusters.module.css';
@@ -58,9 +66,11 @@ function blockedReason(
   check: ReturnType<typeof useCheckConnection>,
   checkPassed: boolean,
   stale: boolean,
+  registeredAlready: boolean,
 ): string | null {
   if (!valid) return 'Fill in the fields marked above, then check the connection.';
   if (check.isPending) return 'Checking the connection…';
+  if (registeredAlready) return 'These brokers are registered already, so there is nothing to register.';
   if (checkPassed) return null;
   if (stale) return 'Check the connection again — the details changed since the last check.';
   if (check.isError) return 'The check failed. Fix what it reports above, then check again.';
@@ -71,7 +81,12 @@ function blockedReason(
 function CheckOutcome({
   check,
   register,
-}: Readonly<{ check: ReturnType<typeof useCheckConnection>; register: ReturnType<typeof useRegisterCluster> }>) {
+  onLeave,
+}: Readonly<{
+  check: ReturnType<typeof useCheckConnection>;
+  register: ReturnType<typeof useRegisterCluster>;
+  onLeave?: () => void;
+}>) {
   return (
     <div aria-live="polite" className={classes.form}>
       {check.isSuccess ? (
@@ -80,14 +95,52 @@ function CheckOutcome({
         </Text>
       ) : null}
       {check.isSuccess ? <UntestedVersions topology={check.data.topology} /> : null}
-      {check.isError ? <ErrorState variant="inline" error={check.error} /> : null}
-      {register.isError ? <ErrorState variant="inline" error={register.error} /> : null}
+      {check.isError ? <Failure error={check.error} onLeave={onLeave} /> : null}
+      {register.isError ? <Failure error={register.error} onLeave={onLeave} /> : null}
     </div>
   );
 }
 
-/** The registration form. Rendered inline on the empty state, in a modal after. */
-export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: () => void }>) {
+/** A failed check or registration: brokers that are registered already get their own notice. */
+function Failure({ error, onLeave }: Readonly<{ error: unknown; onLeave?: () => void }>) {
+  const registered = alreadyRegistered(error);
+  return registered ? (
+    <AlreadyRegistered problem={registered} onLeave={onLeave} />
+  ) : (
+    <ErrorState variant="inline" error={error} />
+  );
+}
+
+/**
+ * The brokers already belong to a registered cluster (ADR-0167). Registering them again would show the
+ * same brokers twice, so the form says which cluster has them and links to it; when the operator may not
+ * see that cluster, the server leaves it unnamed and there is no link.
+ */
+function AlreadyRegistered({ problem, onLeave }: Readonly<{ problem: ProblemDetail; onLeave?: () => void }>) {
+  const { existingClusterId: id, existingClusterName: name } = problem;
+  return (
+    <Notice
+      title={problem.title ?? 'These brokers are already registered'}
+      tone="danger"
+      action={
+        id ? (
+          <Link to={`/clusters/${id}`} className={linkClasses.link} onClick={onLeave}>
+            {`Open ${name ?? 'that cluster'}`}
+          </Link>
+        ) : undefined
+      }
+    >
+      {problem.detail}
+    </Notice>
+  );
+}
+
+/**
+ * The registration form. Rendered inline on the empty state, in a modal after. `onDone` is called when
+ * the form has nothing left to do: a cluster was registered, or the operator went to the cluster that
+ * already holds the brokers.
+ */
+export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }>) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [checkedInputs, setCheckedInputs] = useState<string | null>(null);
 
@@ -139,7 +192,10 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
   // registration, where it reads as a broken cluster rather than a typo.
   const checkPassed = check.isSuccess && checkedThis;
   const afterProbe = useSlot('cluster.registration.afterProbe');
-  const registerBlockedReason = blockedReason(valid, check, checkPassed, stale);
+  // Brokers a registered cluster holds stay refused whichever call found it: the check, or a registration
+  // that lost a race with another one. Only a new check of changed details can clear it.
+  const registeredAlready = checkedThis && Boolean(alreadyRegistered(check.error) ?? alreadyRegistered(register.error));
+  const registerBlockedReason = blockedReason(valid, check, checkPassed, stale, registeredAlready);
 
   // Open the advanced fields on their own once a check reveals they'd matter —
   // the operator never has to know they exist until the ledger says so.
@@ -159,6 +215,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
   const checkConnection = form.onSubmit(
     () => {
       setCheckedInputs(inputSignature);
+      register.reset();
       check.mutate(payload());
     },
     (errors) => {
@@ -239,7 +296,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
           </div>
         </Collapse>
 
-        <CheckOutcome check={check} register={register} />
+        <CheckOutcome check={check} register={register} onLeave={onDone} />
 
         {check.isSuccess ? <CapabilityLedger capabilities={check.data.capabilities} /> : null}
 
@@ -260,13 +317,13 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
           </Button>
           <Button
             loading={register.isPending}
-            disabled={!valid || !checkPassed}
+            disabled={!valid || !checkPassed || registeredAlready}
             onClick={() =>
               register.mutate(payload(), {
                 onSuccess: (detail) => {
                   notify.succeeded({ action: REGISTER, subject: `cluster ${detail.name}` });
                   form.reset();
-                  onRegistered?.();
+                  onDone?.();
                   void navigate({ to: `/clusters/${detail.id}/topology` });
                 },
               })

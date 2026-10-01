@@ -20,7 +20,7 @@ export function RegisterClusterDialog({ opened, onClose }: Readonly<{ opened: bo
       scrollAreaComponent={ScrollArea.Autosize}
     >
       <Suspense fallback={<LoadingState label="Loading the registration form" blockSize="24rem" />}>
-        <RegisterClusterForm onRegistered={onClose} />
+        <RegisterClusterForm onDone={onClose} />
       </Suspense>
     </Modal>
   );

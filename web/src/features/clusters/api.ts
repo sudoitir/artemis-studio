@@ -14,6 +14,7 @@ export type EnvironmentView = Schemas['EnvironmentView'];
 export type HealthView = Schemas['HealthView'];
 export type LogicalNodeView = Schemas['LogicalNodeView'];
 export type NodeEndpointView = Schemas['NodeEndpointView'];
+export type ProblemDetail = Schemas['ProblemDetail'];
 export type VersionGateView = Schemas['VersionGateView'];
 export type RegisterClusterRequest = Schemas['RegisterClusterRequest'];
 export type RegisterPreview = Schemas['RegisterPreview'];
@@ -73,6 +74,17 @@ export function useCheckConnection() {
         body: JSON.stringify(body),
       }),
   });
+}
+
+/**
+ * The problem a connection check or a registration answers when its brokers already belong to a
+ * registered cluster (ADR-0167), or null for any other error. It names that cluster when the operator
+ * may see it.
+ */
+export function alreadyRegistered(error: unknown): ProblemDetail | null {
+  return error instanceof ApiError && error.type.endsWith('/cluster-already-registered')
+    ? (error.problem as ProblemDetail)
+    : null;
 }
 
 export function useRegisterCluster() {

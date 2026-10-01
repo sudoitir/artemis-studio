@@ -83,6 +83,13 @@ Sign in, then **Clusters → Add**. You give Studio one seed node's management
 endpoint and its credentials; the rest of the topology is discovered from the
 broker itself. Credentials are encrypted at rest with `ARTEMIS_STUDIO_SECRET_KEY`.
 
+Brokers are registered once. Studio knows a broker by the NodeID it reports, not by the URL you
+typed, so the same broker reached by its IP address, another port or with a trailing slash is still the
+same broker. If any broker the check reaches or discovers already belongs to a registered cluster,
+**Check connection** says which cluster, links to it, and **Register cluster** stays disabled. That holds
+when only some of the brokers overlap, and when two people register the same brokers at the same moment:
+one cluster is created and the other registration is refused the same way.
+
 If a capability is missing — the Core client is not reachable, or a management
 operation is not exposed — Studio tells you which one and shows the exact
 `broker.xml` snippet that enables it, rather than hiding the feature.

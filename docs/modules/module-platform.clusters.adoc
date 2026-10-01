@@ -46,9 +46,9 @@ _Others_
 * `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ScopedGrants` (in Security)
 * `i.g.s.a.k.p.StudioVersion` (in Plugin contract)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
 |Events listened to
 |* `i.g.s.a.k.r.BusResumed` 
 * `i.g.s.a.k.r.BusResumed` 

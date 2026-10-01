@@ -212,6 +212,15 @@ class OpenApiConfig {
         problem.addProperty("retryAfter", new IntegerSchema().format("int32").description("Seconds to wait."));
         problem.addProperty("featureId", new StringSchema());
         problem.addProperty("property", new StringSchema());
+        problem.addProperty(
+                "existingClusterId",
+                new StringSchema()
+                        .format("uuid")
+                        .description("The registered cluster that already holds the brokers."));
+        problem.addProperty("existingClusterName", new StringSchema());
+        problem.addProperty(
+                "overlappingNodes",
+                new ArraySchema().items(new StringSchema()).description("That cluster's nodes the request names."));
         return problem;
     }
 

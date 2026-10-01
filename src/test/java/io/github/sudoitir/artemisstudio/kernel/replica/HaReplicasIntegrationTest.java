@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
+import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -85,22 +86,23 @@ class HaReplicasIntegrationTest {
         jdbc = a.getBean(JdbcTemplate.class);
 
         new AdminAuthenticationExtension().beforeEach(null);
-        ClusterService service = a.getBean(ClusterService.class);
-        for (int i = 0; i < CLUSTERS; i++) {
-            var registered = service.register(new RegisterClusterRequest(
-                    List.of(broker.join()),
-                    "ha-replicas-" + i,
-                    null,
-                    new RegisterClusterRequest.Credentials(
-                            ArtemisIntegrationTest.BROKER_USER, ArtemisIntegrationTest.BROKER_PASSWORD),
-                    null,
-                    null));
-            if (!(registered instanceof Attempt.Ok<ClusterDetail> ok)) {
-                throw new IllegalStateException("could not register the container broker: " + registered);
-            }
-            clusters.add(ok.value().id());
-        }
+        var registered = a.getBean(ClusterService.class)
+                .register(new RegisterClusterRequest(
+                        List.of(broker.join()),
+                        "ha-replicas-0",
+                        null,
+                        new RegisterClusterRequest.Credentials(
+                                ArtemisIntegrationTest.BROKER_USER, ArtemisIntegrationTest.BROKER_PASSWORD),
+                        null,
+                        null));
         new AdminAuthenticationExtension().afterEach(null);
+        if (!(registered instanceof Attempt.Ok<ClusterDetail> ok)) {
+            throw new IllegalStateException("could not register the container broker: " + registered);
+        }
+        clusters.add(ok.value().id());
+        for (int i = 1; i < CLUSTERS; i++) {
+            clusters.add(copyOf(ok.value().id(), "ha-replicas-" + i));
+        }
 
         await("the only replica owns every cluster")
                 .atMost(Duration.ofSeconds(10))
@@ -136,6 +138,27 @@ class HaReplicasIntegrationTest {
                         // Brief, but far enough apart that the ten clusters on one node stay under its rate limit.
                         "--artemis-studio.scrape.tier-a-interval=2s",
                         "--artemis-studio.scrape.tier-b-interval=4s");
+    }
+
+    /**
+     * Another cluster over the same broker. Studio registers a broker once (ADR-0167), and one broker is what
+     * this test can afford, so the other clusters are copies of the first made in the database: its nodes
+     * with their management URLs, and its credential sealed again for the copy.
+     */
+    private static UUID copyOf(UUID cluster, String name) {
+        UUID copy = jdbc.queryForObject("INSERT INTO cluster (name) VALUES (?) RETURNING id", UUID.class, name);
+        jdbc.update("""
+                INSERT INTO broker_node (cluster_id, name, jolokia_url, core_url, ha_role, discovered)
+                SELECT ?, name, jolokia_url, core_url, ha_role, discovered FROM broker_node WHERE cluster_id = ?
+                """, copy, cluster);
+        jdbc.update(
+                "INSERT INTO broker_credential (cluster_id, kind, username, sealed) VALUES (?, ?, ?, ?)",
+                copy,
+                "JOLOKIA_BASIC",
+                ArtemisIntegrationTest.BROKER_USER,
+                a.getBean(SecretVault.class)
+                        .seal(SecretVault.aad(copy, "JOLOKIA_BASIC"), ArtemisIntegrationTest.BROKER_PASSWORD));
+        return copy;
     }
 
     private static Set<UUID> owned(ConfigurableApplicationContext replica) {

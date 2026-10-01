@@ -17,7 +17,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -70,9 +73,55 @@ public class TopologyDiscovery {
         }
     }
 
+    /**
+     * What the seeds report, read once: one HA read and one topology read per seed. The connection
+     * check and the registration each take one survey and use it for both the identity check and the
+     * topology, so neither asks a broker twice.
+     */
+    public static final class Survey {
+
+        private final List<SeedReading> readings;
+
+        private Survey(List<SeedReading> readings) {
+            this.readings = List.copyOf(readings);
+        }
+
+        /** The NodeIDs every seed reported, its own and its topology view's, and the seeds' URLs (ADR-0167). */
+        ClusterIdentity identity() {
+            Set<String> nodeIds = new TreeSet<>();
+            Set<String> seedUrls = new TreeSet<>();
+            Set<String> unidentified = new TreeSet<>();
+            for (SeedReading r : readings) {
+                String url = ClusterIdentity.normalise(r.jolokiaUrl());
+                seedUrls.add(url);
+                if (r.nodeId() == null) {
+                    unidentified.add(url);
+                } else {
+                    nodeIds.add(r.nodeId());
+                }
+                r.entries().stream()
+                        .map(TopologyEntry::nodeId)
+                        .filter(Objects::nonNull)
+                        .forEach(nodeIds::add);
+            }
+            return new ClusterIdentity(nodeIds, seedUrls, unidentified);
+        }
+    }
+
+    /** Read every seed once; see {@link Survey}. */
+    public Survey survey(List<ProbedSeed> seeds) {
+        return new Survey(readAnswering(seeds));
+    }
+
+    /** Read the seeds, then {@linkplain #discover(UUID, Survey) persist what they report}. */
     @Transactional
     public ClusterTopology discover(UUID clusterId, List<ProbedSeed> seeds) {
-        List<SeedReading> readings = readAnswering(seeds);
+        return discover(clusterId, survey(seeds));
+    }
+
+    @Transactional
+    public ClusterTopology discover(UUID clusterId, Survey survey) {
+        List<SeedReading> readings = survey.readings;
 
         // 1. Connector-named discovered rows from every seed's topology view.
         for (SeedReading r : readings) {
@@ -110,8 +159,8 @@ public class TopologyDiscovery {
      * Reads the brokers, builds the topology entirely in memory, writes nothing,
      * and uses a throwaway evaluator so the real split-brain ratchet is untouched.
      */
-    public ClusterTopology preview(List<ProbedSeed> seeds) {
-        List<SeedReading> readings = seeds.stream().map(TopologyDiscovery::read).toList();
+    public ClusterTopology preview(Survey survey) {
+        List<SeedReading> readings = survey.readings;
         HaStateEvaluator scratch = new HaStateEvaluator();
         Map<String, NodeEndpoint> byName = new LinkedHashMap<>();
 
