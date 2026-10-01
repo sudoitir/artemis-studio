@@ -48,6 +48,8 @@ function show(settles: Settles, toast: Parameters<typeof notifications.show>[0])
  *   <li>Pending and succeeded are announced politely. Failed and partial are announced
  *       assertively and stay until dismissed, because each carries a next step to act on.
  *   <li>A failure states its cause and the next action; both are required.
+ *   <li>A toast that stays until dismissed can be dismissed by the caller with {@link notify.dismiss},
+ *       such as a failure the operator has since fixed by retrying.
  * </ul>
  */
 export const notify = {
@@ -111,5 +113,10 @@ export const notify = {
         style: tone('--as-warning'),
       },
     );
+  },
+
+  /** Closes a toast by the id one of the outcomes returned. */
+  dismiss(id: string) {
+    notifications.hide(id);
   },
 };

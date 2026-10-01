@@ -22,4 +22,19 @@ describe('ShortcutsHelp', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument());
     expect(button).toHaveFocus();
   });
+
+  it('lists each shortcut as an action and its keys, under headings that nest below the popover title', async () => {
+    renderWithProviders(<ShortcutsHelp />);
+    await userEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
+    const popover = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
+
+    expect(within(popover).getByRole('heading', { level: 2, name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    expect(within(popover).getByRole('heading', { level: 3, name: 'Everywhere' })).toBeInTheDocument();
+    expect(within(popover).getByRole('heading', { level: 3, name: 'In a grid' })).toBeInTheDocument();
+    expect(within(popover).queryByRole('table')).not.toBeInTheDocument();
+    const everywhere = within(popover).getByRole('region', { name: 'Everywhere' });
+    const term = within(everywhere).getByText('Search views, clusters and queues');
+    expect(term.tagName).toBe('DT');
+    expect(term.nextElementSibling).toHaveTextContent('⌘KorCtrlK');
+  });
 });

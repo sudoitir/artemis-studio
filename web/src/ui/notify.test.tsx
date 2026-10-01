@@ -71,6 +71,18 @@ describe('notify', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
+  it('dismisses a toast that stays until dismissed, by its id', async () => {
+    mount();
+    let id = '';
+    act(() => {
+      id = notify.failed({ ...notice, cause: 'Node a2 refused the request.', next: 'Try again.' });
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not delete queue "orders"');
+
+    act(() => notify.dismiss(id));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
   it('closes a success by itself', async () => {
     mount();
     vi.useFakeTimers({ shouldAdvanceTime: true });

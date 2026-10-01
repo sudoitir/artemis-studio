@@ -6,6 +6,11 @@ import { ErrorState } from './ErrorState.tsx';
 
 const forbidden = { status: 403, problem: { permission: 'queue:purge' } };
 const invalid = { status: 422, fieldErrors: [{ field: 'name', message: 'must not be blank' }] };
+const broker = {
+  status: 502,
+  brokerErrorKind: 'UNREACHABLE',
+  problem: { detail: 'Connection refused: artemis-1:8161' },
+};
 const server = { status: 500, problem: { requestId: 'req-7f3a', detail: 'The broker timed out.' } };
 
 describe('ErrorState', () => {
@@ -14,10 +19,11 @@ describe('ErrorState', () => {
       ['a forbidden request', forbidden],
       ['an invalid one', invalid],
       ['a server failure', server],
+      ['a broker failure with its detail', broker],
     ])('has no accessibility violations for %s', async (_, error) => {
       const { container } = renderThemed(
         <Frame width={960}>
-          <ErrorState error={error} onRetry={() => {}} />
+          <ErrorState error={error} onRetry={() => {}} actions={<button type="button">Open cluster settings</button>} />
         </Frame>,
         scheme,
       );

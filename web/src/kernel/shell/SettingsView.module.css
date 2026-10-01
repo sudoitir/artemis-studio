@@ -17,6 +17,11 @@
   padding-inline: var(--mantine-spacing-sm);
 }
 
+/* Room between two sections of a group; a group heading keeps its own spacing. */
+.tab + .tab {
+  margin-block-start: var(--mantine-spacing-xs);
+}
+
 .tabLabel {
   text-align: start;
 }

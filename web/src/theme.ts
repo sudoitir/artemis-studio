@@ -1,4 +1,4 @@
-import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from '@mantine/core';
+import { createTheme, Drawer, Modal, type CSSVariablesResolver, type MantineColorsTuple } from '@mantine/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Three-layer tokens (ADR-0157).
@@ -99,6 +99,12 @@ const other = {
 const FONT_FALLBACK = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO_FALLBACK = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
+const dialogTitle = {
+  fontSize: 'var(--mantine-h3-font-size)',
+  fontWeight: 'var(--mantine-h3-font-weight)',
+  lineHeight: 'var(--mantine-h3-line-height)',
+} as const;
+
 export const theme = createTheme({
   primaryColor: 'cobalt',
   // One fill shade in both schemes: Mantine resolves `autoContrast` once, into an inline label colour,
@@ -153,6 +159,18 @@ export const theme = createTheme({
       h5: { fontSize: '0.8125rem', lineHeight: '1.4' },
       h6: { fontSize: '0.75rem', lineHeight: '1.4' },
     },
+  },
+  components: {
+    // Mantine's close button is an icon with no name; every dialog and drawer gets the same one. Its
+    // title is the dialog's heading, so it reads as one: the h3 size and the heading weight.
+    Modal: Modal.extend({
+      defaultProps: { closeButtonProps: { 'aria-label': 'Close' } },
+      styles: { title: dialogTitle },
+    }),
+    Drawer: Drawer.extend({
+      defaultProps: { closeButtonProps: { 'aria-label': 'Close' } },
+      styles: { title: dialogTitle },
+    }),
   },
   other,
 });

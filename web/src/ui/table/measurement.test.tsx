@@ -159,6 +159,16 @@ describe('MiddleTruncate', () => {
     expect(start).toHaveAttribute('data-clip');
     expect(container).toHaveTextContent(text);
   });
+
+  it('is found, and read, as the whole value, with the parts hidden from assistive technology', () => {
+    const text = 'artemis.internal.sf.cluster-1.0f8c2a1e-77aa-4c1d';
+    const { container } = render(<MiddleTruncate text={text} />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    const [start, tail] = [...container.querySelectorAll('span > span')];
+    expect(start).toHaveAttribute('aria-hidden', 'true');
+    expect(tail).toHaveAttribute('aria-hidden', 'true');
+  });
 });
 
 describe('live growth', () => {

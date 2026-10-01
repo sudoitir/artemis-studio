@@ -18,6 +18,7 @@ import './theme.css';
 
 import { installPauseSeam, mountRefetch } from './kernel/api/polling.ts';
 import { FEATURES } from './app/features.ts';
+import { onLoginPage } from './kernel/api/request.ts';
 import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
 import { cssVariablesResolver, theme } from './theme.ts';
@@ -82,8 +83,9 @@ const queryClient = new QueryClient({
 
 // Learn Studio's clock before anything renders a duration. Started outside React
 // so it survives StrictMode's double-mount and is not tied to any one route
-// (`app/time.ts`); it never rejects, so nothing downstream has to handle it.
-startServerTimeSync();
+// (`app/time.ts`); it never rejects, so nothing downstream has to handle it. The sign-in page
+// has no session to ask with: signing in reloads the page, which starts the clock signed in.
+if (!onLoginPage()) startServerTimeSync();
 
 // Plugins are loaded before the router exists, because their routes are part of it (ADR-0100).
 // Nothing here can keep Studio's own screens from loading: every step is bounded, and a failure

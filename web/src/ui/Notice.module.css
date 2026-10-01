@@ -1,0 +1,36 @@
+/* A notice states its tone in words (the badge); the edge repeats it and carries nothing alone. */
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-md);
+  border: 1px solid var(--as-border);
+  border-inline-start: 0.25rem solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+}
+
+.notice[data-tone='warning'] {
+  border-inline-start-color: var(--as-warning);
+}
+
+.notice[data-tone='danger'] {
+  border-inline-start-color: var(--as-danger);
+}
+
+.body {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

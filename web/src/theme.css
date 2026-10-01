@@ -173,11 +173,6 @@
   --xy-background-pattern-lines-color: var(--as-canvas-grid);
   --xy-background-pattern-cross-color: var(--as-canvas-grid);
 
-  /* Request-reply flow state (Phase 5). */
-  --as-rr-in-flight: var(--as-text-dimmed); /* awaiting reply — normal, not a warning */
-  --as-rr-resolved: var(--as-text); /* completed */
-  --as-rr-failed: var(--as-danger); /* timed out / orphaned / responder dropped / orphaned reply */
-
   /* Misc chrome. */
   --as-alert-dot: var(--as-danger);
   --as-palette-bg: var(--mantine-color-default);
@@ -250,6 +245,25 @@
 .mantine-focus-auto:focus-visible {
   outline: var(--as-focus-ring);
   outline-offset: var(--as-focus-offset);
+}
+
+/* Fields. A labelled field keeps room under its input for one line of message, so a validation
+   message appears without moving anything below or beside it; a longer one grows from there. The
+   message is Mantine's error line (its own font size at line height 1.2) plus the gap Mantine opens
+   above it. Toolbar filters carry no messages and keep their compact height. */
+:root {
+  --as-field-message-line: calc((var(--mantine-font-size-sm) - 0.125rem) * 1.2);
+  --as-field-message-h: calc(var(--mantine-spacing-xs) / 2 + var(--as-field-message-line));
+}
+
+.mantine-InputWrapper-root:has(> .mantine-InputWrapper-label):not(:has(> .mantine-InputWrapper-error)):not(
+    [data-as-toolbar] *
+  ) {
+  padding-block-end: var(--as-field-message-h);
+}
+
+.mantine-InputWrapper-error {
+  min-block-size: var(--as-field-message-line);
 }
 
 /* Reduced motion is a token rule: components animate only through the durations, so none needs a

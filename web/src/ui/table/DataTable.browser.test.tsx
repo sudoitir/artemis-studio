@@ -26,6 +26,14 @@ const rows: Q[] = [
   { name: LONG, type: 'ANYCAST', depth: 431 },
 ];
 
+const identifier: Column<Q> = {
+  id: 'name',
+  header: 'Queue',
+  accessor: (r) => r.name,
+  kind: 'identifier',
+  priority: 'essential',
+};
+
 const depth: Column<Q> = { id: 'depth', header: 'Depth', accessor: (r) => r.depth, kind: 'number', priority: 'high' };
 
 /** A text column that is as wide as its content, so its width is the fit and not a share of spare room. */
@@ -179,6 +187,50 @@ describe('DataTable column widths in a real browser', () => {
       const { container } = renderThemed(staticTable(960), scheme);
       await screen.findByRole('table');
       expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it('lays out fixed, so the solved widths hold and a long value is clipped by its column', async () => {
+      const wide = 'q'.repeat(200);
+      renderThemed(
+        <Frame width={960}>
+          <DataTable
+            variant="static"
+            label="Queues"
+            columns={[identifier, depth]}
+            data={[{ name: wide, type: 'ANYCAST', depth: 1 }]}
+            rowKey={(r) => r.name}
+            empty={null}
+          />
+        </Frame>,
+        'light',
+      );
+      const table = await screen.findByRole('table');
+      expect(getComputedStyle(table).tableLayout).toBe('fixed');
+      const frame = table.parentElement!;
+      await settle(() => `${table.getBoundingClientRect().width}`);
+      expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
+      // The identifier keeps its end and gives up its start; it does not widen the column.
+      expect(table.querySelector('tbody th [data-clip]')).not.toBeNull();
+      expect(screen.getByText(wide)).toBeInTheDocument();
+    });
+
+    it.each(SCHEMES)('names and focuses a frame that scrolls sideways, in the %s scheme', async (scheme) => {
+      const { container } = renderThemed(staticTable(120), scheme);
+      const table = await screen.findByRole('table');
+      const frame = table.parentElement!;
+      await settle(() => `${frame.scrollWidth},${frame.clientWidth}`);
+      expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth);
+      expect(screen.getByRole('region', { name: 'Queues, scrollable' })).toBe(frame);
+      expect(frame).toHaveAttribute('tabindex', '0');
+      expect(await axeViolations(container)).toEqual([]);
+    });
+
+    it('is not a stop of its own when it fits', async () => {
+      renderThemed(staticTable(960), 'light');
+      const table = await screen.findByRole('table');
+      await settle(() => `${table.getBoundingClientRect().width}`);
+      expect(table.parentElement).not.toHaveAttribute('tabindex');
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
     });
 
     it('lines each header cell up over its column and fits its box', async () => {

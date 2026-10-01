@@ -175,12 +175,14 @@ async function expectStickyWhenScrolled(view: TableView_, { grid, scroller }: Mo
 /**
  * Whether the last `n` characters of a cell's name are drawn inside the cell rather than clipped by it. The
  * name is the last text of the cell that is long enough to hold them: a figure or a count after it is not.
+ * The whole value a shortened identifier keeps for assistive technology is out of sight, so it is not drawn text.
  */
 function endIsVisible(cell: HTMLElement, n = 8): boolean {
   const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
   let last: Text | null = null;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    if ((node.textContent?.trim().length ?? 0) >= n) last = node as Text;
+    if ((node.textContent?.trim().length ?? 0) >= n && !node.parentElement?.closest('[data-whole]'))
+      last = node as Text;
   }
   if (!last?.textContent) return false;
   const range = document.createRange();

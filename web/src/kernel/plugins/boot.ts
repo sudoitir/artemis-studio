@@ -1,3 +1,4 @@
+import { onLoginPage } from '../api/request.ts';
 import { CONTRACT, type StudioFeature } from '../feature.ts';
 import type { ManifestFeatureView, ManifestView } from '../manifest.ts';
 import { checkPlugin } from './validate.ts';
@@ -116,8 +117,16 @@ export async function loadPlugins(
   return { plugins, failures };
 }
 
-/** Everything the page needs before it builds its router: the manifest, then the plugins it names. */
+/**
+ * Everything the page needs before it builds its router: the manifest, then the plugins it names.
+ * The sign-in page asks for neither, because nobody is signed in to be answered; the sign-in that
+ * follows reloads the page, which then boots signed in (`LoginView`).
+ */
 export async function boot(): Promise<Boot> {
+  if (onLoginPage()) {
+    current = { plugins: [], failures: new Map() };
+    return current;
+  }
   const { manifest, error } = await fetchManifest();
   const loaded = manifest ? await loadPlugins(manifest.features) : { plugins: [], failures: new Map<string, string>() };
   if (manifest && manifest.contract !== CONTRACT) {

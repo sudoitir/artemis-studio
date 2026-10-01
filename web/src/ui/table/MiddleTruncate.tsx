@@ -11,6 +11,9 @@ const TAIL_CHARS = 12;
  * cell's `title` and its reveal panel, and the clipped start stays in the DOM, so it can still be
  * selected and read.
  *
+ * The two parts are hidden from assistive technology and from `getByText`, which read the whole value from
+ * one visually hidden span instead: read in pieces, the parts come out as two words with a space between.
+ *
  * The ellipsis is the tail's own leading mark, shown only while the start is clipped. `text-overflow`
  * would put it right after the last whole character of the start and leave the rest of the start's box
  * empty between it and the tail: a gap of up to one character. Here the start's box ends exactly where
@@ -19,10 +22,12 @@ const TAIL_CHARS = 12;
 export function MiddleTruncate({ text }: Readonly<{ text: string }>) {
   const chars = Array.from(text);
   if (chars.length <= TAIL_CHARS) return <>{text}</>;
-  return <Shortened start={chars.slice(0, -TAIL_CHARS).join('')} tail={chars.slice(-TAIL_CHARS).join('')} />;
+  return (
+    <Shortened text={text} start={chars.slice(0, -TAIL_CHARS).join('')} tail={chars.slice(-TAIL_CHARS).join('')} />
+  );
 }
 
-function Shortened({ start, tail }: Readonly<{ start: string; tail: string }>) {
+function Shortened({ text, start, tail }: Readonly<{ text: string; start: string; tail: string }>) {
   const startRef = useRef<HTMLSpanElement>(null);
   const [clipped, setClipped] = useState(false);
   // Before paint, then whenever the start's box changes size: the ellipsis never shows a frame late.
@@ -37,11 +42,20 @@ function Shortened({ start, tail }: Readonly<{ start: string; tail: string }>) {
   }, [start]);
   return (
     <span className={classes.middle}>
-      <span ref={startRef} data-clip data-clipped={clipped || undefined} className={classes.middleStart}>
+      <span
+        ref={startRef}
+        aria-hidden="true"
+        data-clip
+        data-clipped={clipped || undefined}
+        className={classes.middleStart}
+      >
         {start}
       </span>
-      <span data-ellipsis={clipped || undefined} className={classes.middleTail}>
+      <span aria-hidden="true" data-ellipsis={clipped || undefined} className={classes.middleTail}>
         {tail}
+      </span>
+      <span data-whole className={classes.middleFull}>
+        {text}
       </span>
     </span>
   );

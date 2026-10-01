@@ -409,6 +409,20 @@
   white-space: pre;
 }
 
+/* The whole value for assistive technology, out of sight and out of the layout; a selection or a copy takes
+   the visible parts, not this. */
+.middleFull {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  user-select: none;
+}
+
 /* An empty alternative text keeps the mark out of what assistive technology reads. */
 .middleTail[data-ellipsis]::before {
   content: '…' / '';
