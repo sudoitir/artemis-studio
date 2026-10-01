@@ -1,0 +1,5 @@
+/* Words that say something is wrong take the warning token; the words carry the meaning and the
+   colour only emphasises them. */
+.warn {
+  color: var(--as-warning);
+}

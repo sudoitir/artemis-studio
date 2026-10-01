@@ -5,7 +5,7 @@ export type Verdict = ConsumerHealthView['verdict'];
 
 /**
  * How a verdict is said, in words. The word is the carrier — colour is redundant
- * emphasis and never the only signal (`.claude/rules/20-frontend.md`).
+ * emphasis and never the only signal (the frontend rules, 20-frontend.md).
  *
  * `label` is deliberately short enough for a grid cell; `headline` is what the
  * drawer says, where there is room to be plain.
@@ -41,6 +41,12 @@ export function verdictCopy(verdict: string): VerdictCopy {
   return COPY[verdict] ?? UNKNOWN;
 }
 
+/** The verdict as the plain text a cell shows, copies and is measured by, with its staleness. */
+export function verdictText(row: ConsumerHealthView): string {
+  const { label } = verdictCopy(row.verdict);
+  return row.stale ? `${label} · stale` : label;
+}
+
 /** True where the server could not reach a verdict. Never the same as healthy. */
 export function isUnmeasured(row: ConsumerHealthView): boolean {
   return row.verdict === 'INSUFFICIENT_DATA';
@@ -51,7 +57,7 @@ export function isUnmeasured(row: ConsumerHealthView): boolean {
  *
  * An absent rate is stated, never rendered as `0` — on this screen a zero
  * acknowledgement rate and an unmeasured one mean opposite things and lead to
- * opposite actions (`.claude/rules/20-frontend.md`).
+ * opposite actions (the frontend rules, 20-frontend.md).
  */
 export function formatRate(value: number | null | undefined): string {
   if (value === null || value === undefined) return 'not measured';

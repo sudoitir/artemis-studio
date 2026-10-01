@@ -1,6 +1,7 @@
-import { Anchor, Code, Stack, TagsInput, Text } from '@mantine/core';
+import { Button, Code, Stack, TagsInput, Text } from '@mantine/core';
 
 import { useReplyAddressResolution } from './useReplyAddressResolution.ts';
+import classes from './rr.module.css';
 
 const PREVIEW_LIMIT = 6;
 
@@ -66,7 +67,7 @@ export function ReplyAddressesHelp({ clusterId, value }: Readonly<{ clusterId: s
   const overflow = resolved.length - PREVIEW_LIMIT;
 
   return (
-    <Stack gap={4}>
+    <Stack gap="xs">
       <Text id="reply-addresses-help" size="xs" c="dimmed">
         {value.length === 0 ? (
           <>
@@ -83,12 +84,16 @@ export function ReplyAddressesHelp({ clusterId, value }: Readonly<{ clusterId: s
         )}
       </Text>
       {value.length > 0 && !isError ? (
-        <Text size="xs" c={resolved.length === 0 ? 'orange' : 'dimmed'}>
+        <Text
+          size="xs"
+          c={resolved.length === 0 ? undefined : 'dimmed'}
+          className={resolved.length === 0 ? classes.warn : undefined}
+        >
           {resolvedWords(resolved.length, preview, overflow)}
         </Text>
       ) : null}
       {unmatched.length > 0 && resolved.length > 0 ? (
-        <Text size="xs" c="orange">
+        <Text size="xs" className={classes.warn}>
           Nothing matches {unmatched.map((p) => `"${p}"`).join(', ')} yet.
         </Text>
       ) : null}
@@ -96,9 +101,9 @@ export function ReplyAddressesHelp({ clusterId, value }: Readonly<{ clusterId: s
         <Text size="xs" c="dimmed">
           Could not read this cluster&rsquo;s addresses, so matches are not shown here. Patterns are still saved, and
           the server resolves them.{' '}
-          <Anchor component="button" type="button" size="xs" onClick={retry}>
+          <Button variant="subtle" size="compact-xs" onClick={retry}>
             Retry
-          </Anchor>
+          </Button>
         </Text>
       ) : null}
     </Stack>

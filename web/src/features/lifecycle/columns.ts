@@ -7,12 +7,15 @@ import type { StoreView, TableView } from './api.ts';
 import { TableState } from './cells.tsx';
 import { bytes, count, quotaWords, retentionWords } from './words.ts';
 
-function growth(t: TableView): string {
+/** One table's storage health, one row of the health grid. */
+type HealthRow = TableView;
+
+function growth(t: HealthRow): string {
   if (t.growthBytes == null) return 'unknown';
   return `${t.growthBytes >= 0 ? '+' : ''}${bytes(t.growthBytes)}`;
 }
 
-function partitions(t: TableView): string {
+function partitions(t: HealthRow): string {
   if (!t.partitioned) return 'n/a';
   return t.missingPartitions.length ? `missing ${t.missingPartitions.join(', ')}` : 'ready';
 }
@@ -23,7 +26,7 @@ function partitions(t: TableView): string {
  * table is narrow. The vacuum time is written in the display zone `zone`, which the header states, so a
  * view builds the columns again when the zone changes.
  */
-export function healthColumns(zone: string): Column<TableView>[] {
+export function healthColumns(zone: string): Column<HealthRow>[] {
   return [
     {
       id: 'table',

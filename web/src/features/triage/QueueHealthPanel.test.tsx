@@ -82,6 +82,8 @@ describe('QueueHealthPanel', () => {
 
     renderWithProviders(<QueueHealthPanel clusterId="c1" queueName="orders" />);
 
-    expect(await screen.findByText('Consumer health is unavailable')).toBeInTheDocument();
+    expect(await screen.findByText(/Consumer health is unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

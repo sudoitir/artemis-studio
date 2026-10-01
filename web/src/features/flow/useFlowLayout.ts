@@ -18,12 +18,15 @@ export function useFlowLayout(graph: FlowGraphView | undefined): {
   positions: Positions;
   pending: boolean;
   error: string | null;
+  /** Lays the graph out again after a failure. */
+  retry: () => void;
 } {
   const signature = useMemo(() => (graph ? layoutSignature(graph) : ''), [graph]);
   const latest = useRef(graph);
   latest.current = graph;
   const [state, setState] = useState<{ signature: string; positions: Positions }>({ signature: '', positions: {} });
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const current = latest.current;
@@ -42,7 +45,12 @@ export function useFlowLayout(graph: FlowGraphView | undefined): {
     return () => {
       cancelled = true;
     };
-  }, [signature]);
+  }, [signature, attempt]);
 
-  return { positions: state.positions, pending: state.signature !== signature, error };
+  const retry = () => {
+    setError(null);
+    setAttempt((n) => n + 1);
+  };
+
+  return { positions: state.positions, pending: state.signature !== signature, error, retry };
 }

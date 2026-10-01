@@ -1,10 +1,17 @@
-import { Alert, List, Spoiler, Stack, Text } from '@mantine/core';
+import { useState } from 'react';
+import { Button, List, Stack, Text } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { useRrStats } from './api.ts';
 
 /** Coverage lines shown before the list is folded away — one per traced address. */
 const COVERAGE_VISIBLE = 6;
+
+const CHART_HEIGHT = '17.5rem';
 
 /**
  * p50/p95/p99 per traced address. The sampling caveat and coverage estimate
@@ -13,29 +20,29 @@ const COVERAGE_VISIBLE = 6;
  */
 export function LatencyPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   const stats = useRrStats(clusterId);
+  const [allCoverage, setAllCoverage] = useState(false);
   const addresses = stats.data?.addresses ?? [];
 
   if (stats.isError) {
     return (
-      <Alert color="red" variant="light" title={stats.error.title}>
-        {stats.error.message} — latency could not be read, which is not the same as there being no traced flows.
-      </Alert>
+      <Stack gap="sm">
+        <Text size="sm">Latency could not be read, which is not the same as there being no traced flows.</Text>
+        <ErrorState error={stats.error} onRetry={() => void stats.refetch()} />
+      </Stack>
     );
   }
 
   if (stats.isPending) {
-    return (
-      <Text size="sm" c="dimmed">
-        Loading…
-      </Text>
-    );
+    return <LoadingState label="Loading latency" blockSize={CHART_HEIGHT} />;
   }
 
   if (addresses.length === 0) {
     return (
-      <Text size="sm" c="dimmed">
-        No completed flows yet — latency appears once at least one traced request has been answered.
-      </Text>
+      <EmptyState
+        kind="empty"
+        title="No completed flows yet"
+        description="Latency is the time between a traced request and its reply. It appears once at least one traced request has been answered."
+      />
     );
   }
 
@@ -48,33 +55,40 @@ export function LatencyPanel({ clusterId }: Readonly<{ clusterId: string }>) {
     p95: a.p95Ms ?? undefined,
     p99: a.p99Ms ?? undefined,
   }));
+  const listed = allCoverage ? addresses : addresses.slice(0, COVERAGE_VISIBLE);
 
   return (
     <Stack gap="md">
-      <Alert color="blue" variant="light" title="Sampled, not exhaustive">
-        Latency is measured only on requests Studio happened to observe — a request that completes faster than the
-        sample interval is never seen, which biases these numbers toward slower flows.{' '}
-        <Spoiler
-          maxHeight={COVERAGE_VISIBLE * 22}
-          showLabel={`Show coverage for all ${addresses.length} addresses`}
-          hideLabel="Show fewer"
-        >
-          <List size="xs" spacing={2} mt="xs">
-            {addresses.map((a) => (
-              <List.Item key={a.address}>
-                <Text span size="xs" c="dimmed">
-                  {a.address}:{' '}
-                  {a.coverageRatio != null
-                    ? `~${Math.round(a.coverageRatio * 100)}% of requests observed`
-                    : 'coverage unknown'}
-                </Text>
-              </List.Item>
-            ))}
-          </List>
-        </Spoiler>
-      </Alert>
+      <Section
+        variant="card"
+        headingLevel={3}
+        title="Sampled, not exhaustive"
+        description="Latency is measured only on requests Studio happened to observe — a request that completes faster than the sample interval is never seen, which biases these numbers toward slower flows."
+      >
+        <List size="xs" spacing={2} aria-label="Coverage per address">
+          {listed.map((a) => (
+            <List.Item key={a.address}>
+              {a.address}:{' '}
+              {a.coverageRatio == null
+                ? 'coverage unknown'
+                : `~${Math.round(a.coverageRatio * 100)}% of requests observed`}
+            </List.Item>
+          ))}
+        </List>
+        {addresses.length > COVERAGE_VISIBLE ? (
+          <Button
+            variant="subtle"
+            size="xs"
+            w="fit-content"
+            aria-expanded={allCoverage}
+            onClick={() => setAllCoverage((on) => !on)}
+          >
+            {allCoverage ? 'Show fewer' : `Show coverage for all ${addresses.length} addresses`}
+          </Button>
+        ) : null}
+      </Section>
       <BarChart
-        h={280}
+        h={CHART_HEIGHT}
         data={data}
         dataKey="address"
         // One hue, light to dark: p50/p95/p99 is an ordered magnitude, not three

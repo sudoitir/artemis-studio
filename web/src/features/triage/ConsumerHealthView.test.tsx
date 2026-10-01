@@ -77,6 +77,21 @@ describe('ConsumerHealthView', () => {
     expect(screen.getByText('Stalled')).toBeInTheDocument();
   });
 
+  it('is one page with a single h1, and says it is reading while the rows load', async () => {
+    currentSearch = {};
+    withCluster();
+    server.use(
+      http.get('*/api/v1/clusters/c1/consumer-health', () => HttpResponse.json(page([row({ queueName: 'quiet' })]))),
+    );
+
+    renderWithProviders(<ConsumerHealthView />);
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: 'Consumer health' })).toBeInTheDocument();
+    expect(screen.getByText('Reading queue health…')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing on this page needs attention')).toBeInTheDocument();
+  });
+
   it('distinguishes an unmeasured queue from a healthy one', async () => {
     currentSearch = {};
     withCluster();

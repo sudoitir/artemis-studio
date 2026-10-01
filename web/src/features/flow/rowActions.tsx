@@ -24,7 +24,7 @@ function ShowInFlow({
   return (
     <ActionMenuItem
       label="Show in Flow"
-      icon={<IconChartSankey size={16} aria-hidden />}
+      icon={<IconChartSankey size="1rem" aria-hidden />}
       verdict={focus ? undefined : { kind: 'blocked', reason: reason ?? 'There is nothing to focus the flow on.' }}
       href={focus ? clusterHref(clusterId, 'flow', { focus }) : undefined}
       onSelect={() => focus && navigate({ to: `/clusters/${clusterId}/flow`, search: { focus } as never })}
@@ -64,7 +64,7 @@ export function FocusClient({ clusterId, target }: Readonly<ActionProps<ClientTa
   return (
     <ActionMenuItem
       label="Focus the view on this"
-      icon={<IconChartSankey size={16} aria-hidden />}
+      icon={<IconChartSankey size="1rem" aria-hidden />}
       href={clusterHref(clusterId, 'flow', { focus })}
       onSelect={() => navigate({ to: `/clusters/${clusterId}/flow`, search: { focus } as never })}
     />
@@ -77,7 +77,7 @@ export function ClientConnections({ clusterId, target }: Readonly<ActionProps<Cl
   return (
     <ActionMenuItem
       label="Open its connections"
-      icon={<IconPlugConnected size={16} aria-hidden />}
+      icon={<IconPlugConnected size="1rem" aria-hidden />}
       href={clusterHref(clusterId, 'connections', { q: target.label })}
       onSelect={() => navigate({ to: `/clusters/${clusterId}/connections`, search: { q: target.label } as never })}
     />

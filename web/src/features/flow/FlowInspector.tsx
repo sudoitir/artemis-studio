@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { Button, CloseButton, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, CloseButton, Stack, Text } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
+import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
+import { Section } from '../../ui/Section.tsx';
 import type { FlowEdgeView, FlowGraphView, FlowNodeView } from './api.ts';
 import { edgeText, FAULT_LABELS, formatCount, rateSourceLabel } from './flowFormat.ts';
 import { focusOf } from './flowSearch.ts';
@@ -28,30 +30,34 @@ const ROLE_WORD: Record<string, string> = {
 };
 
 /** What the inspector states about a node, as term and value; each kind contributes what it has. */
-function nodeFacts(node: FlowNodeView): Array<[string, string]> {
-  const facts: Array<[string, string]> = [];
-  if (node.role) facts.push(['What it is', ROLE_WORD[node.role] ?? node.role.toLowerCase()]);
+function nodeFacts(node: FlowNodeView): DescriptionItem[] {
+  const facts: DescriptionItem[] = [];
+  if (node.role) facts.push({ term: 'What it is', value: ROLE_WORD[node.role] ?? node.role.toLowerCase() });
   if (node.kind === 'QUEUE') {
     facts.push(
-      [
-        'Backlog',
-        node.messageCount === null || node.messageCount === undefined
-          ? 'not swept yet'
-          : `${formatCount(node.messageCount)} waiting`,
-      ],
-      [
-        'Consumers',
-        node.consumerCount === null || node.consumerCount === undefined ? 'not swept yet' : String(node.consumerCount),
-      ],
+      {
+        term: 'Backlog',
+        value:
+          node.messageCount === null || node.messageCount === undefined
+            ? 'not swept yet'
+            : `${formatCount(node.messageCount)} waiting`,
+      },
+      {
+        term: 'Consumers',
+        value:
+          node.consumerCount === null || node.consumerCount === undefined
+            ? 'not swept yet'
+            : String(node.consumerCount),
+      },
     );
   }
   if (node.kind === 'ADDRESS' && node.routingTypes?.length)
-    facts.push(['Routing', node.routingTypes.join(', ').toLowerCase()]);
-  if (node.members) facts.push(['Connections', String(node.members)]);
-  if (node.protocols?.length) facts.push(['Protocols', node.protocols.join(', ')]);
-  if (node.hosts?.length) facts.push(['Hosts', node.hosts.join(', ')]);
-  if (node.users?.length) facts.push(['Users', node.users.join(', ')]);
-  if (node.brokerNodes?.length) facts.push(['Seen on', node.brokerNodes.join(', ')]);
+    facts.push({ term: 'Routing', value: node.routingTypes.join(', ').toLowerCase() });
+  if (node.members) facts.push({ term: 'Connections', value: String(node.members) });
+  if (node.protocols?.length) facts.push({ term: 'Protocols', value: node.protocols.join(', ') });
+  if (node.hosts?.length) facts.push({ term: 'Hosts', value: node.hosts.join(', ') });
+  if (node.users?.length) facts.push({ term: 'Users', value: node.users.join(', ') });
+  if (node.brokerNodes?.length) facts.push({ term: 'Seen on', value: node.brokerNodes.join(', ') });
   return facts;
 }
 
@@ -147,28 +153,28 @@ export function FlowInspector({
 
   const flowList = (title: string, edges: FlowEdgeView[], other: (e: FlowEdgeView) => string | undefined) =>
     edges.length === 0 ? null : (
-      <Stack gap={4}>
-        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-          {title}
-        </Text>
-        {edges.map((e) => (
-          <div key={e.id} className={classes.flowRow}>
-            <Text size="sm" truncate title={nodes.get(other(e))?.label}>
-              {nodes.get(other(e))?.label ?? '—'}
-            </Text>
-            <Text size="sm" className={e.faults?.length ? classes.alarm : classes.figure}>
-              {edgeText(e)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {rateSourceLabel(e)}
-              {e.asOf ? ` · ${elapsedLabel(now - Date.parse(e.asOf))} ago` : ''}
-            </Text>
-          </div>
-        ))}
-      </Stack>
+      <Section headingLevel={3} title={title}>
+        <ul className={classes.flowList} aria-label={title}>
+          {edges.map((e) => (
+            <li key={e.id} className={classes.flowRow}>
+              <Text size="sm" truncate title={nodes.get(other(e))?.label}>
+                {nodes.get(other(e))?.label ?? '—'}
+              </Text>
+              <Text size="sm" className={e.faults?.length ? classes.alarm : undefined}>
+                {edgeText(e)}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {rateSourceLabel(e)}
+                {e.asOf ? ` · ${elapsedLabel(now - Date.parse(e.asOf))} ago` : ''}
+              </Text>
+            </li>
+          ))}
+        </ul>
+      </Section>
     );
 
   return (
+    // Escape closes it from anywhere inside, and the caller returns focus to what opened it.
     <aside
       className={classes.inspector}
       aria-label={`Details of ${KIND_WORD[node.kind ?? ''] ?? 'node'} ${node.label}`}
@@ -179,41 +185,26 @@ export function FlowInspector({
         }
       }}
     >
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <div className={classes.inspectorTitle}>
-            <Text size="xs" c="dimmed">
-              {KIND_WORD[node.kind ?? '']}
-            </Text>
-            <Title order={4} className={classes.breakAnywhere}>
-              {node.label}
-            </Title>
-          </div>
-          <CloseButton ref={close} aria-label="Close details" onClick={onClose} />
-        </Group>
-
+      <Section
+        variant="card"
+        headingLevel={3}
+        title={node.label ?? ''}
+        description={KIND_WORD[node.kind ?? '']}
+        actions={<CloseButton ref={close} aria-label="Close details" onClick={onClose} />}
+      >
         {faults.length ? (
           <Text size="sm" fw={600} className={classes.alarm}>
             {faults.join(', ')}
           </Text>
         ) : null}
 
-        {facts.length ? (
-          <dl className={classes.facts}>
-            {facts.map(([term, value]) => (
-              <div key={term} className={classes.fact}>
-                <dt>{term}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
+        {facts.length ? <DescriptionList label="Facts" items={facts} /> : null}
 
         {flowList('Flow in', inbound, (e) => e.source)}
         {flowList('Flow out', outbound, (e) => e.target)}
 
         <InspectorActions node={node} onFocus={onFocus} open={open} />
-      </Stack>
+      </Section>
     </aside>
   );
 }

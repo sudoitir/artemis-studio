@@ -1,49 +1,36 @@
-import { Paper, SimpleGrid, Text } from '@mantine/core';
-
+import { Stat } from '../../ui/Stat.tsx';
 import type { FlowKpis as Kpis } from './api.ts';
-import { formatCount, totalRateLabel } from './flowFormat.ts';
+import { formatCount, formatRate } from './flowFormat.ts';
 import classes from './FlowView.module.css';
 
-interface Tile {
-  label: string;
-  value: string;
-  /** Set only when something is wrong; a healthy tile stays neutral. */
-  alarm?: boolean;
-}
+const MEASURING = 'Still measuring: a rate needs two samples.';
 
-function faultsLabel(faults: number): string {
-  if (faults === 0) return 'none';
-  return `${faults} ${faults === 1 ? 'fault' : 'faults'}`;
-}
+/** A total rate as a figure, or null while it is not known: "Unavailable" with its reason, never 0. */
+const rate = (n: number | null | undefined) => (n === null || n === undefined ? null : formatRate(n));
 
-/** The cluster's current totals, leading the view (metrics spec: a view leads with the current values). */
+/**
+ * The cluster's current totals, leading the view (metrics spec: a view leads with the current
+ * values). The caller names the section; each figure is a `Stat`, so an unknown total is stated.
+ */
 export function FlowKpis({ kpis }: Readonly<{ kpis: Kpis }>) {
   const faults = kpis.faults ?? 0;
-  const tiles: Tile[] = [
-    { label: 'Messages in', value: totalRateLabel(kpis.inRate) },
-    { label: 'Messages out', value: totalRateLabel(kpis.outRate) },
-    { label: 'Backlog', value: `${formatCount(kpis.backlog ?? 0)} waiting` },
-    { label: 'Clients', value: `${formatCount(kpis.clients ?? 0)} connected` },
-    {
-      label: 'Faults',
-      value: faultsLabel(faults),
-      alarm: faults > 0,
-    },
-  ];
   return (
-    <section aria-label="Totals across every path">
-      <SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }} spacing="sm">
-        {tiles.map((tile) => (
-          <Paper key={tile.label} withBorder p="sm" radius="md">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-              {tile.label}
-            </Text>
-            <Text size="lg" fw={600} mt={4} className={tile.alarm ? classes.alarm : classes.figure}>
-              {tile.value}
-            </Text>
-          </Paper>
-        ))}
-      </SimpleGrid>
-    </section>
+    <div className={classes.kpis}>
+      <Stat label="Messages in" value={rate(kpis.inRate)} unit="msg/s" unavailableReason={MEASURING} />
+      <Stat label="Messages out" value={rate(kpis.outRate)} unit="msg/s" unavailableReason={MEASURING} />
+      <Stat label="Backlog" value={formatCount(kpis.backlog ?? 0)} unit="waiting" />
+      <Stat label="Clients" value={formatCount(kpis.clients ?? 0)} unit="connected" />
+      {/* Colour only when something is wrong; the words carry the meaning. */}
+      <Stat
+        label="Faults"
+        value={
+          faults === 0 ? (
+            'none'
+          ) : (
+            <span className={classes.alarm}>{`${faults} ${faults === 1 ? 'fault' : 'faults'}`}</span>
+          )
+        }
+      />
+    </div>
   );
 }

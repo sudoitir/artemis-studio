@@ -1,6 +1,8 @@
-import { Alert, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { FlowBrokerNodeView } from './api.ts';
 
 const TITLES: Record<string, string> = {
@@ -10,6 +12,9 @@ const TITLES: Record<string, string> = {
   ROUTING_UNAVAILABLE: 'could not read its routing',
   FAILED: 'sampling failed',
 };
+
+/** A node that has no counters or routing to read is a fact about it; one that failed to answer is a fault. */
+const FACTS = new Set(['COUNTER_UNAVAILABLE', 'ROUTING_UNAVAILABLE']);
 
 /**
  * Per-node reasons data is missing, stated where the data would be (spec: unreachable is not empty).
@@ -21,28 +26,26 @@ export function BrokerNodeNotices({ nodes }: Readonly<{ nodes: FlowBrokerNodeVie
   if (troubled.length === 0 && truncated.length === 0) return null;
 
   return (
-    <Stack gap="xs">
+    <Stack gap="md">
       {troubled.map((node) => (
-        <Alert
+        <Section
           key={node.nodeId}
-          variant="light"
-          color={node.state === 'COUNTER_UNAVAILABLE' || node.state === 'ROUTING_UNAVAILABLE' ? 'gray' : 'yellow'}
+          variant="card"
           title={`${node.name ?? 'A node'} ${TITLES[node.state ?? 'FAILED'] ?? TITLES.FAILED}`}
+          description={node.message}
+          actions={FACTS.has(node.state ?? '') ? null : <StatusBadge tone="warning">Not sampled</StatusBadge>}
         >
-          <Stack gap="xs">
-            <Text size="sm">{node.message}</Text>
-            {node.brokerXmlSnippet ? <CodeHighlight code={node.brokerXmlSnippet} language="xml" /> : null}
-          </Stack>
-        </Alert>
+          {node.brokerXmlSnippet ? <CodeHighlight code={node.brokerXmlSnippet} language="xml" /> : null}
+        </Section>
       ))}
       {truncated.map((node) => (
-        <Alert key={node.nodeId} variant="light" color="gray" title={`${node.name ?? 'A node'} was partly sampled`}>
+        <Section key={node.nodeId} variant="card" title={`${node.name ?? 'A node'} was partly sampled`}>
           <Text size="sm">
             Read {node.producersSeen} of {node.producersTotal} producers and {node.consumersSeen} of{' '}
             {node.consumersTotal} consumers. Rates cover the sampled clients only. Raise “Rows read per node” in
             Settings to sample more of this node.
           </Text>
-        </Alert>
+        </Section>
       ))}
     </Stack>
   );

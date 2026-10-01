@@ -1,11 +1,17 @@
 import type { ReactNode } from 'react';
-import { Alert, Badge, Drawer, Group, Loader, Stack, Table, Text } from '@mantine/core';
+import { Drawer, Group, Stack, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 
 import { useRrFlow } from './api.ts';
-import { stateColorVar, stateLabel } from './rrState.ts';
+import { FlowStateBadge } from './cells.tsx';
 import type { components } from '../../kernel/api/schema.d.ts';
+import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { RedactionMarks, WithheldNotice } from '../../ui/RedactedValue.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import classes from './rr.module.css';
 
 type RedactionView = components['schemas']['RedactionView'];
 type WithheldView = components['schemas']['WithheldView'];
@@ -26,7 +32,7 @@ function EventDetail({ detail }: Readonly<{ detail: Record<string, unknown> }>) 
     const redactions = Array.isArray(detail.redactions) ? (detail.redactions as RedactionView[]) : [];
     const withheld = Array.isArray(detail.withheld) ? (detail.withheld as WithheldView[]) : [];
     return (
-      <Stack gap={4}>
+      <Stack gap="xs">
         <RedactionMarks redactions={redactions} />
         <WithheldNotice withheld={withheld} />
         <CodeHighlight
@@ -46,119 +52,65 @@ function EventDetail({ detail }: Readonly<{ detail: Record<string, unknown> }>) 
 
 type Flow = NonNullable<ReturnType<typeof useRrFlow>['data']>;
 
-/** One fact about the flow: a dimmed label beside its value. */
-function FactRow({ label, first, children }: Readonly<{ label: string; first?: boolean; children: ReactNode }>) {
-  return (
-    <Table.Tr>
-      <Table.Td w={first ? '35%' : undefined}>
-        <Text size="xs" c="dimmed">
-          {label}
-        </Text>
-      </Table.Td>
-      <Table.Td>{children}</Table.Td>
-    </Table.Tr>
-  );
-}
-
-const Mono = ({ children }: Readonly<{ children: ReactNode }>) => (
-  <Text size="xs" ff="monospace">
-    {children}
-  </Text>
-);
-
-/** Which clock measured the latency is part of the measurement: an OBSERVED figure is the gap between two sample ticks. */
-function LatencyRow({ f }: Readonly<{ f: Flow }>) {
+/** Which clock measured the latency is part of the measurement: an OBSERVED figure is the gap between two sample ticks (ADR-0053). */
+function latencyItem(f: Flow): DescriptionItem {
   const bound = f.latencySource === 'OBSERVED' && f.latencyBoundMs != null ? ` ± ${f.latencyBoundMs}ms` : '';
-  return (
-    <FactRow label="Latency">
-      <Stack gap={2}>
-        <Mono>
-          {f.latencyMs}ms
-          {bound}
-        </Mono>
-        {/* Which clock measured it is part of the measurement: an
-            OBSERVED figure is the gap between two sample ticks and
-            cannot resolve anything shorter (ADR-0053). */}
-        <Text size="xs" c="dimmed">
-          {f.latencySource === 'MESSAGE_TIMESTAMPS'
-            ? 'from the messages’ own timestamps, normalised onto Studio’s clock'
-            : 'observed between sample ticks, so it cannot resolve anything shorter'}
-        </Text>
-      </Stack>
-    </FactRow>
-  );
+  return {
+    term: 'Latency',
+    value: `${f.latencyMs}ms${bound}`,
+    hint:
+      f.latencySource === 'MESSAGE_TIMESTAMPS'
+        ? 'from the messages’ own timestamps, normalised onto Studio’s clock'
+        : 'observed between sample ticks, so it cannot resolve anything shorter',
+  };
 }
 
 /** What the clocks on the two sides claim, when either is ahead of Studio's. */
-function SkewRow({ f }: Readonly<{ f: Flow }>) {
+function skewItem(f: Flow): DescriptionItem {
   const request =
-    f.requestSkewMs != null ? `the request claimed to be produced ${f.requestSkewMs}ms in the future` : '';
+    f.requestSkewMs == null ? '' : `the request claimed to be produced ${f.requestSkewMs}ms in the future`;
   const separator = f.requestSkewMs != null && f.replySkewMs != null ? '; ' : '';
-  const reply = f.replySkewMs != null ? `the reply claimed to be produced ${f.replySkewMs}ms in the future` : '';
-  return (
-    <FactRow label="Clock skew">
-      <Text size="xs" c="orange">
+  const reply = f.replySkewMs == null ? '' : `the reply claimed to be produced ${f.replySkewMs}ms in the future`;
+  return {
+    term: 'Clock skew',
+    value: (
+      <span className={classes.warn}>
         {request}
         {separator}
         {reply}
-      </Text>
-    </FactRow>
-  );
+      </span>
+    ),
+  };
 }
 
 /** When the flow was requested and replied, its deadline and latency, and how it is identified. */
 function FlowFacts({ f }: Readonly<{ f: Flow }>) {
-  return (
-    <Table withRowBorders={false} verticalSpacing={2}>
-      <Table.Tbody>
-        <FactRow label="Requested at" first>
-          <Mono>{f.requestedAt}</Mono>
-        </FactRow>
-        {f.repliedAt ? (
-          <FactRow label="Replied at">
-            <Mono>{f.repliedAt}</Mono>
-          </FactRow>
-        ) : null}
-        {f.deadlineAt ? (
-          <FactRow label="Deadline">
-            <Mono>{f.deadlineAt}</Mono>
-          </FactRow>
-        ) : null}
-        {f.latencyMs != null ? <LatencyRow f={f} /> : null}
-        {f.requestSkewMs != null || f.replySkewMs != null ? <SkewRow f={f} /> : null}
-        {f.correlationId ? (
-          <FactRow label="Correlation id">
-            <Mono>{f.correlationId}</Mono>
-          </FactRow>
-        ) : null}
-        {f.replyDestination ? (
-          <FactRow label="Reply destination">
-            <Mono>{f.replyDestination}</Mono>
-          </FactRow>
-        ) : null}
-      </Table.Tbody>
-    </Table>
-  );
+  const items: DescriptionItem[] = [{ term: 'Requested at', value: f.requestedAt }];
+  if (f.repliedAt) items.push({ term: 'Replied at', value: f.repliedAt });
+  if (f.deadlineAt) items.push({ term: 'Deadline', value: f.deadlineAt });
+  if (f.latencyMs != null) items.push(latencyItem(f));
+  if (f.requestSkewMs != null || f.replySkewMs != null) items.push(skewItem(f));
+  if (f.correlationId) items.push({ term: 'Correlation id', value: f.correlationId });
+  if (f.replyDestination) items.push({ term: 'Reply destination', value: f.replyDestination });
+  return <DescriptionList label="Flow facts" items={items} />;
 }
 
 /** The flow's events in order, each with its detail. */
 function Timeline({ events }: Readonly<{ events: Flow['events'] }>) {
   if (!events || events.length === 0) {
     return (
-      <Text size="xs" c="dimmed">
+      <Text size="sm" c="dimmed">
         No events recorded for this flow.
       </Text>
     );
   }
   return (
-    <Stack gap="xs">
+    <Stack gap="sm">
       {events.map((e) => (
-        <Stack key={e.seq} gap={2}>
+        <Stack key={e.seq} gap="xs">
           <Group gap="xs">
-            <Mono>{e.ts}</Mono>
-            <Badge size="xs" variant="light">
-              {e.kind}
-            </Badge>
+            <Text size="xs">{e.ts}</Text>
+            <StatusBadge>{e.kind}</StatusBadge>
           </Group>
           {e.detail ? <EventDetail detail={e.detail} /> : null}
         </Stack>
@@ -170,36 +122,25 @@ function Timeline({ events }: Readonly<{ events: Flow['events'] }>) {
 /** The flow itself: its state, its facts and its timeline. */
 function FlowContent({ f }: Readonly<{ f: Flow }>) {
   return (
-    <Stack gap="md">
+    <Stack gap="lg">
       <Group gap="xs">
-        <Badge variant="light" style={{ color: stateColorVar(f.state) }}>
-          {stateLabel(f.state)}
-        </Badge>
-        <Badge variant="light" color="gray">
-          {f.replyKind === 'TEMP_QUEUE' ? 'temp reply queue' : 'shared reply queue'}
-        </Badge>
+        <FlowStateBadge state={f.state} />
+        <StatusBadge>{f.replyKind === 'TEMP_QUEUE' ? 'temp reply queue' : 'shared reply queue'}</StatusBadge>
       </Group>
 
       <FlowFacts f={f} />
 
-      <Text size="xs" fw={600} c="dimmed">
-        Timeline
-      </Text>
-      <Timeline events={f.events} />
+      <Section headingLevel={3} title="Timeline">
+        <Timeline events={f.events} />
+      </Section>
     </Stack>
   );
 }
 
 /** What stands in for the flow while it loads or fails to load. */
 function flowNotice(detail: ReturnType<typeof useRrFlow>): ReactNode {
-  if (detail.isPending) return <Loader size="sm" />;
-  if (detail.isError) {
-    return (
-      <Alert color="red" variant="light" title={detail.error.title}>
-        {detail.error.message}
-      </Alert>
-    );
-  }
+  if (detail.isPending) return <LoadingState label="Loading the flow" blockSize="12rem" />;
+  if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />;
   return null;
 }
 
@@ -222,6 +163,7 @@ export function FlowDetail({
       onClose={onClose}
       position="right"
       size="lg"
+      closeButtonProps={{ 'aria-label': 'Close the flow' }}
       title={f ? `Flow on ${f.requestAddress}` : 'Flow'}
     >
       {flowNotice(detail) ?? (f ? <FlowContent f={f} /> : null)}

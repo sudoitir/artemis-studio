@@ -1,6 +1,8 @@
-import { SegmentedControl, Stack } from '@mantine/core';
+import { SegmentedControl } from '@mantine/core';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
+import { Page } from '../../ui/Page.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { HealthTable } from './HealthTable.tsx';
 import { RetentionTable } from './RetentionTable.tsx';
 
@@ -11,7 +13,7 @@ export function DataPanel() {
   const view = search.view === 'health' ? 'health' : 'retention';
 
   return (
-    <Stack gap="md">
+    <Page>
       <SegmentedControl
         w="fit-content"
         aria-label="Data view"
@@ -24,7 +26,15 @@ export function DataPanel() {
           { value: 'health', label: 'Storage health' },
         ]}
       />
-      {view === 'retention' ? <RetentionTable /> : <HealthTable />}
-    </Stack>
+      {view === 'retention' ? (
+        <Section title="Retention and quotas">
+          <RetentionTable />
+        </Section>
+      ) : (
+        <Section title="Storage health">
+          <HealthTable />
+        </Section>
+      )}
+    </Page>
   );
 }

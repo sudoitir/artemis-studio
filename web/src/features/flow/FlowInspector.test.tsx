@@ -319,4 +319,25 @@ describe('FlowInspector other resources', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close details' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('is a card with the node as its heading, its facts as terms and values, and a close control', () => {
+    renderWithProviders(
+      <FlowInspector
+        graph={graph}
+        nodeId="queue:ORDERS.inbound"
+        clusterId="c1"
+        onClose={() => {}}
+        onFocus={() => {}}
+      />,
+    );
+
+    const details = screen.getByRole('complementary', { name: 'Details of Queue ORDERS.inbound' });
+    expect(within(details).getByRole('heading', { level: 3, name: 'ORDERS.inbound' })).toBeInTheDocument();
+    const facts = within(details).getByRole('group', { name: 'Facts' });
+    expect(within(facts).getByText('Backlog')).toBeInTheDocument();
+    expect(within(facts).getByText('1,200 waiting')).toBeInTheDocument();
+    expect(within(details).getByRole('list', { name: 'Flow in' })).toBeInTheDocument();
+    expect(within(details).queryByRole('table')).not.toBeInTheDocument();
+    expect(within(details).getByRole('button', { name: 'Close details' })).toBeInTheDocument();
+  });
 });

@@ -6,7 +6,7 @@ import { EmptyState } from '../../ui/EmptyState.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import type { FlowGraphView, FlowNodeView } from './api.ts';
 import { pathColumns, type PathRow } from './columns.ts';
-import { FAULT_LABELS, RELATION, rateSortValue } from './flowFormat.ts';
+import { FAULT_LABELS, RELATION, rateSortValue, unreachableNodes } from './flowFormat.ts';
 import { focusOf, hasActions } from './flowSearch.ts';
 import { FlowNodeActions } from './rowActions.tsx';
 
@@ -21,18 +21,27 @@ export function FlowTable({
   clusterId,
   graph,
   sort,
+  loading,
+  filtered,
   onSortChange,
   onFocus,
+  onClearFilters,
 }: Readonly<{
   clusterId: string;
   graph: FlowGraphView;
   sort: string | undefined;
+  /** The paths on screen are the ones from before a new choice (a focus, a layer, a limit) was read. */
+  loading: boolean;
+  /** A focus or a layer choice is narrowing the paths. */
+  filtered: boolean;
   onSortChange: (sort: string | undefined) => void;
   onFocus: (focus: string) => void;
+  onClearFilters: () => void;
 }>) {
   const now = useServerNow(5_000);
   const rows = useMemo(() => sortRows(toRows(graph), sort), [graph, sort]);
   const columns = useMemo(() => pathColumns(now), [now]);
+  const unreachable = unreachableNodes(graph);
 
   return (
     <DataTable
@@ -41,6 +50,7 @@ export function FlowTable({
       height="fill"
       columns={columns}
       data={rows}
+      loading={loading}
       sort={sort}
       onSortChange={onSortChange}
       rowKey={rowKey}
@@ -63,11 +73,27 @@ export function FlowTable({
         },
       }}
       empty={
-        <EmptyState
-          kind="empty"
-          title="No paths to list"
-          description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Studio draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
-        />
+        filtered ? (
+          <EmptyState
+            kind="filtered"
+            title="No path matches this focus and these layers"
+            description="Paths exist on this cluster, but none is left once the view is narrowed to the focus and the layers you chose. Clear them to see every shown path again."
+            onClearFilters={onClearFilters}
+          />
+        ) : unreachable.length > 0 ? (
+          <EmptyState
+            kind="unreachable"
+            title="No paths to list, and some nodes did not answer"
+            description="There may be paths here that Studio cannot currently see. These nodes did not answer the last sweep, so this is an incomplete view rather than a cluster with no flow."
+            nodes={unreachable}
+          />
+        ) : (
+          <EmptyState
+            kind="empty"
+            title="No paths to list"
+            description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Studio draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
+          />
+        )
       }
     />
   );

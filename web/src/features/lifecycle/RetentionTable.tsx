@@ -30,7 +30,7 @@ export function RetentionTable() {
       <DataTable
         label="Stores"
         storageKey="data-stores"
-        height="fill"
+        height={{ maxRows: 12 }}
         columns={columns}
         data={stores.data?.stores ?? []}
         rowKey={rowKey}

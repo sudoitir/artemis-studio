@@ -119,8 +119,8 @@ describe('FlowMonitorPane with a queue selected', () => {
     });
     const { onClear, user } = show(graph({ nodes: [q] }), 'q1');
 
-    const region = screen.getByRole('region', { name: 'Queue orders per node' });
-    expect(within(region).getByRole('heading', { name: 'orders' })).toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Queue orders' });
+    expect(within(region).getByRole('heading', { level: 3, name: 'Queue orders' })).toBeInTheDocument();
     expect(within(region).getByText('no consumer, partly deployed, something_new')).toBeInTheDocument();
 
     const statements = within(region).getByRole('list', { name: 'Balance across nodes' });
@@ -160,7 +160,8 @@ describe('FlowMonitorPane with a queue selected', () => {
   it('says it is still breaking the queue down while the graph is the one from before it was asked for', () => {
     show(graph({ nodes: [node({ byNode: [] })] }), 'q1', { pending: true });
 
-    expect(screen.getByRole('status')).toHaveTextContent('Breaking this down per node…');
+    expect(screen.getByRole('status')).toHaveTextContent('Breaking this down per node');
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.queryByRole('grid')).not.toBeInTheDocument();
   });
 
@@ -202,14 +203,14 @@ describe('FlowMonitorPane with a queue selected', () => {
 
     panels = [{ id: 'p', order: 1, Component: () => <p>panel</p> }];
     show(graph({ nodes: [node({ kind: 'ADDRESS', label: 'orders', byNode: [share({})] })] }), 'q1');
-    expect(screen.getByRole('region', { name: 'Address orders per node' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Address orders' })).toBeInTheDocument();
     expect(screen.queryByText('panel')).not.toBeInTheDocument();
   });
 
   it('names a node of an unlisted kind plainly', () => {
     show(graph({ nodes: [node({ kind: undefined, label: 'x', byNode: [] })] }), 'q1');
 
-    expect(screen.getByRole('region', { name: 'Node x per node' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Node x' })).toBeInTheDocument();
   });
 });
 
@@ -247,7 +248,7 @@ describe('FlowMonitorPane with a client selected', () => {
     const g = graph({ nodes: [node({ id: 'p1', kind: 'PRODUCER', label: 'app-1' })], edges: edges as never });
     show(g, 'p1');
 
-    const region = screen.getByRole('region', { name: 'Producing client app-1 per node' });
+    const region = screen.getByRole('region', { name: 'Producing client app-1' });
     const grid = await within(region).findByRole('grid', { name: 'app-1 per node' });
     expect(within(grid).getByRole('columnheader', { name: /Sends\/s/ })).toBeInTheDocument();
     expect(within(grid).getAllByRole('row').length).toBeGreaterThanOrEqual(3);

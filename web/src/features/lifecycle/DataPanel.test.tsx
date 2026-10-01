@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderAppAt, renderWithProviders } from '../../test/render.tsx';
@@ -134,6 +134,80 @@ describe('RetentionTable', () => {
     expect(await screen.findByText(/Use a number and a unit/)).toBeInTheDocument();
   });
 
+  it('keeps a cleared warning threshold out of the request and says what is allowed', async () => {
+    let saved = 0;
+    server.use(
+      signedIn(['data:read', 'data:write']),
+      http.get('*/api/v1/data/stores', () => HttpResponse.json({ stores: [store()] })),
+      http.put('*/api/v1/data/stores/broker-events', () => {
+        saved += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RetentionTable />);
+
+    await user.click(await screen.findByText('Broker events'));
+    const warn = await screen.findByLabelText(/Warn at/);
+    await user.clear(warn);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Enter a whole number from 1 to 100.')).toBeInTheDocument();
+    expect(warn).toHaveFocus();
+    expect(saved).toBe(0);
+  });
+
+  it('says a threshold above 100 is not allowed when its field loses focus', async () => {
+    server.use(
+      signedIn(['data:read', 'data:write']),
+      http.get('*/api/v1/data/stores', () => HttpResponse.json({ stores: [store()] })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RetentionTable />);
+
+    await user.click(await screen.findByText('Broker events'));
+    const warn = await screen.findByLabelText(/Warn at/);
+    await user.clear(warn);
+    await user.type(warn, '250');
+    await user.tab();
+
+    expect(await screen.findByText('Enter a whole number from 1 to 100.')).toBeInTheDocument();
+  });
+
+  it('focuses the first wrong field when saving, and keeps the dialog open', async () => {
+    server.use(
+      signedIn(['data:read', 'data:write']),
+      http.get('*/api/v1/data/stores', () => HttpResponse.json({ stores: [store()] })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RetentionTable />);
+
+    await user.click(await screen.findByText('Broker events'));
+    const retention = await screen.findByLabelText(/Retention/);
+    await user.clear(retention);
+    await user.type(retention, 'soon');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText(/Use a number and a unit/)).toBeInTheDocument();
+    expect(retention).toHaveFocus();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('closes the dialog and announces the saved policy', async () => {
+    server.use(
+      signedIn(['data:read', 'data:write']),
+      http.get('*/api/v1/data/stores', () => HttpResponse.json({ stores: [store()] })),
+      http.put('*/api/v1/data/stores/broker-events', () => new HttpResponse(null, { status: 204 })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RetentionTable />);
+
+    await user.click(await screen.findByText('Broker events'));
+    await user.click(await screen.findByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('tells a reader without data:write why the stores cannot be edited', async () => {
     server.use(
       signedIn(['data:read']),
@@ -178,7 +252,7 @@ describe('HealthTable states', () => {
 
     expect(await screen.findByText('No table statistics yet')).toBeInTheDocument();
     expect(screen.getByText(/size, growth, dead rows, vacuum and partitions/)).toBeInTheDocument();
-    expect(screen.getByRole('grid', { name: 'Tables' })).toHaveAttribute('aria-rowcount', '1');
+    expect(screen.getByRole('table', { name: 'Tables' })).toBeInTheDocument();
   });
 
   it('states the cause when the health cannot be read, and offers to try again', async () => {
@@ -201,7 +275,8 @@ describe('Administration → Data', () => {
     const user = userEvent.setup();
     const { router } = renderAppAt('/admin?tab=data&view=health');
 
-    expect(await screen.findByRole('grid', { name: 'Tables' })).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Tables' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Storage health' })).toBeInTheDocument();
 
     await user.click(screen.getByText('Retention'));
     expect(await screen.findByRole('grid', { name: 'Stores' })).toBeInTheDocument();

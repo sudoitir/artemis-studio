@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -103,5 +103,35 @@ describe('TracingDiagnostics', () => {
     renderWithProviders(<TracingDiagnostics clusterId="c1" />);
 
     expect(await screen.findByText(/Studio.s own host/)).toBeInTheDocument();
+  });
+
+  it('lists what the sampler did for each traced address in a table, with its heading level under the section', async () => {
+    server.use(http.get('*/api/v1/clusters/c1/rr/diagnostics', () => HttpResponse.json(diagnostics())));
+    renderWithProviders(<TracingDiagnostics clusterId="c1" />);
+
+    const table = await screen.findByRole('table', { name: 'What the sampler did for each traced address' });
+    expect(within(table).getByRole('rowheader', { name: 'orders.request' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /here is what Studio did/ })).toBeInTheDocument();
+  });
+
+  it('says it cannot say why when the diagnostics cannot be read, with the cause and a retry', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/rr/diagnostics', () => HttpResponse.json({ title: 'Down' }, { status: 503 })),
+    );
+    renderWithProviders(<TracingDiagnostics clusterId="c1" />);
+
+    expect(await screen.findByText(/cannot say why there are no flows/)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('opens the ADR in a new tab with a link that is underlined, not told apart by colour alone', async () => {
+    server.use(http.get('*/api/v1/clusters/c1/rr/diagnostics', () => HttpResponse.json(diagnostics())));
+    renderWithProviders(<TracingDiagnostics clusterId="c1" />);
+
+    const link = await screen.findByRole('link', { name: 'ADR-0030' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.className).toMatch(/link/);
   });
 });

@@ -10,10 +10,12 @@ import {
   useStore,
   useStoreApi,
 } from '@xyflow/react';
-import { Alert, Loader, Text } from '@mantine/core';
+import { Stack, Text, useComputedColorScheme } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
 
 import { AnchoredMenu } from '../../ui/AnchoredMenu.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import type { MenuAnchor } from '../../ui/table/menuAnchor.ts';
 import type { FlowGraphView } from './api.ts';
 import { FlowCanvasContext, type FlowCanvasState } from './canvasContext.ts';
@@ -186,6 +188,8 @@ export function FlowCanvas({
   const layout = useFlowLayout(graph);
   const wrapper = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+  // The canvas takes the computed scheme, so its controls and minimap follow the page, not the browser.
+  const colorMode = useComputedColorScheme('dark', { getInitialValueInEffect: false });
   const [hovered, setHovered] = useState<string | null>(null);
   const [showText, setShowText] = useState(true);
   const [visible, setVisible] = useState(true);
@@ -252,9 +256,10 @@ export function FlowCanvas({
   return (
     <div>
       {layout.error ? (
-        <Alert color="red" variant="light" title="The graph could not be laid out" mb="xs">
-          {layout.error} The table still lists every shown path.
-        </Alert>
+        <Stack gap="xs" mb="md">
+          <Text size="sm">The graph could not be laid out. The table still lists every shown path.</Text>
+          <ErrorState error={new Error(layout.error)} onRetry={layout.retry} />
+        </Stack>
       ) : null}
       <div
         ref={wrapper}
@@ -264,8 +269,8 @@ export function FlowCanvas({
         }}
       >
         {!laidOut ? (
-          <div className={classes.overlay} aria-busy="true" aria-label="Laying out the graph">
-            <Loader size="sm" />
+          <div className={classes.overlay}>
+            <LoadingState label="Laying out the graph" />
           </div>
         ) : null}
         <FlowCanvasContext.Provider value={context}>
@@ -275,6 +280,7 @@ export function FlowCanvas({
               edges={model.edges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
+              colorMode={colorMode}
               minZoom={0.15}
               maxZoom={1.6}
               nodesDraggable={false}
@@ -318,7 +324,7 @@ export function FlowCanvas({
             }}
           />
         ) : (
-          <Text size="sm" c="dimmed" px="sm" py={6}>
+          <Text size="sm" c="dimmed" px="sm" py="xs">
             Nothing to open for this node.
           </Text>
         )}
