@@ -13,6 +13,14 @@ describe('normaliseSeeds', () => {
     ]);
   });
 
+  it("keeps a port typed as the scheme's default instead of replacing it with 8161", () => {
+    expect(normaliseSeeds('broker-1:80 https://broker-2:443/console/jolokia [::1]:80')).toEqual([
+      { original: 'broker-1:80', url: 'http://broker-1/console/jolokia' },
+      { original: 'https://broker-2:443/console/jolokia', url: 'https://broker-2/console/jolokia' },
+      { original: '[::1]:80', url: 'http://[::1]/console/jolokia' },
+    ]);
+  });
+
   it('splits on newlines, commas, semicolons, and whitespace', () => {
     const result = normaliseSeeds('broker-1\nbroker-2, broker-3; broker-4 broker-5');
     expect(result.map((s) => s.original)).toEqual(['broker-1', 'broker-2', 'broker-3', 'broker-4', 'broker-5']);
