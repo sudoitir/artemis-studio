@@ -34,6 +34,11 @@ export interface RouteSpec {
   filter?: string;
   /** Also capture it as the read-only account, for the permission-denied state. */
   forbidden?: boolean;
+  /**
+   * Statuses the route answers on purpose: a signed-out page probes the session and is refused, a
+   * stale link asks for a run nothing has. The browser logs them, and they are not findings.
+   */
+  expectedStatus?: number[];
 }
 
 /** Every list answers in this envelope (ADR-0149). */
@@ -91,7 +96,7 @@ const SETTINGS_TABS = [
 export const ROUTES: RouteSpec[] = [
   // The shell
   { area: 'shell', id: 'home', path: '/', data: [paged('/clusters')] },
-  stateless('shell', 'login', '/login', { auth: 'none' }),
+  stateless('shell', 'login', '/login', { auth: 'none', expectedStatus: [401] }),
   {
     area: 'shell',
     id: 'account',
@@ -194,6 +199,7 @@ export const ROUTES: RouteSpec[] = [
     id: 'bulk-run-unknown',
     path: cluster('bulk/00000000-0000-0000-0000-000000000000'),
     data: [{ path: cluster('bulk/runs/*') }],
+    expectedStatus: [404],
   },
   { area: 'transfer', id: 'transfers', path: cluster('transfers'), data: [paged(cluster('transfers/runs'))] },
   {
@@ -201,6 +207,7 @@ export const ROUTES: RouteSpec[] = [
     id: 'transfer-run-unknown',
     path: cluster('transfers/00000000-0000-0000-0000-000000000000'),
     data: [{ path: cluster('transfers/runs/*') }],
+    expectedStatus: [404],
   },
   { area: 'sql', id: 'sql', path: cluster('sql'), data: [paged(cluster('sql/index'))] },
   listing('resources', 'addresses', 'addresses'),

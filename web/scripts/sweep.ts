@@ -211,6 +211,8 @@ async function settle(page: Page, state: State) {
 
 interface Capture {
   area: string;
+  /** How many times the capture was taken again because the machine's network changed under it. */
+  retries?: number;
   id: string;
   path: string;
   width: Width;
@@ -294,7 +296,9 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
 
     // The answers the sweep gave, and the 403s a read-only account is meant to get, are not findings.
     const expected = (r: { url: string; status?: number }) =>
-      answered.has(r.url) || (state === 'forbidden' && r.status === 403);
+      answered.has(r.url) ||
+      (state === 'forbidden' && r.status === 403) ||
+      (r.status !== undefined && (route.expectedStatus ?? []).includes(r.status));
     result.failedRequests = failed.filter((r) => !expected(r));
     const expectedUrls = new Set(failed.filter(expected).map((r) => r.url));
     result.consoleErrors = consoleErrors
@@ -336,6 +340,12 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
   return result;
 }
 
+/** A capture spoiled by the capture machine's network changing under it, not by the console. */
+function networkChanged(result: Capture): boolean {
+  const text = JSON.stringify([result.consoleErrors, result.failedRequests]);
+  return text.includes('ERR_NETWORK_CHANGED');
+}
+
 async function clusterId(browser: Browser): Promise<string> {
   const context = await browser.newContext({ storageState: await sessionOf('admin') });
   const response = await context.request.get(`${BASE}/api/v1/clusters?size=500`);
@@ -364,7 +374,13 @@ async function main() {
   const queue = [...jobs];
   const worker = async () => {
     for (let job = queue.shift(); job; job = queue.shift()) {
-      const result = await capture(await contextOf(job), job, cluster);
+      let result = await capture(await contextOf(job), job, cluster);
+      // The capture machine's own network changing (Docker adding an interface) aborts the page's
+      // requests with ERR_NETWORK_CHANGED. That says nothing about the console, so such a capture is
+      // taken again, up to twice, and the retry is recorded.
+      for (let retry = 1; retry <= 2 && networkChanged(result); retry++) {
+        result = { ...(await capture(await contextOf(job), job, cluster)), retries: retry };
+      }
       captures.push(result);
       console.log(`${result.ok ? 'ok  ' : 'FAIL'} ${result.png}${result.ok ? '' : `  ${result.failures.join(', ')}`}`);
     }
