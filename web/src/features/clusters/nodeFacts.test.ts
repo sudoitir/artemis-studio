@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LogicalNodeView, NodeEndpointView, TopologyView } from './api.ts';
-import { allNodeFacts, lastSeenWords, nodeFacts, pairVerdict } from './nodeFacts.ts';
+import { allNodeFacts, lastSeenWords, nodeFacts, pairVerdict, withoutTrailingStops } from './nodeFacts.ts';
 
 function endpoint(over: Partial<NodeEndpointView> = {}): NodeEndpointView {
   return {
@@ -204,6 +204,21 @@ describe('nodeFacts: version, address, origin and the sentence', () => {
         'e1',
       ).sentence,
     ).toContain('Stopped. No pair (standalone). Artemis 2.31.2, unsupported release: older than Studio supports.');
+  });
+});
+
+describe('withoutTrailingStops', () => {
+  it('drops every full stop at the end and only those', () => {
+    expect(withoutTrailingStops('Live, serving.')).toBe('Live, serving');
+    expect(withoutTrailingStops('Wait...')).toBe('Wait');
+    expect(withoutTrailingStops('v2.44.0')).toBe('v2.44.0');
+    expect(withoutTrailingStops('a. b')).toBe('a. b');
+    expect(withoutTrailingStops('')).toBe('');
+    expect(withoutTrailingStops('...')).toBe('');
+  });
+
+  it('stays fast on a long run of full stops', () => {
+    expect(withoutTrailingStops(`x${'.'.repeat(200_000)}y${'.'.repeat(200_000)}`)).toBe(`x${'.'.repeat(200_000)}y`);
   });
 });
 

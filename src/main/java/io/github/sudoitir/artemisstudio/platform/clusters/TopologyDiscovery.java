@@ -117,11 +117,15 @@ public class TopologyDiscovery {
     /** Read the seeds, then {@linkplain #discover(UUID, Survey) persist what they report}. */
     @Transactional
     public ClusterTopology discover(UUID clusterId, List<ProbedSeed> seeds) {
-        return discover(clusterId, survey(seeds));
+        return persist(clusterId, survey(seeds));
     }
 
     @Transactional
     public ClusterTopology discover(UUID clusterId, Survey survey) {
+        return persist(clusterId, survey);
+    }
+
+    private ClusterTopology persist(UUID clusterId, Survey survey) {
         List<SeedReading> readings = survey.readings;
 
         // 1. Connector-named discovered rows from every seed's topology view.

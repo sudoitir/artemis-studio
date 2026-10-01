@@ -2,6 +2,13 @@ import { Ago } from '../../kernel/time/Ago.tsx';
 import type { Column } from '../../ui/table/index.ts';
 import { lastSeenWords, type NodeFacts } from './nodeFacts.ts';
 
+/** The version, with its flag in brackets when it has one. */
+function versionCell(facts: NodeFacts): string {
+  if (!facts.version) return 'Unknown';
+  const flag = facts.versionFlag ? ` (${facts.versionFlag})` : '';
+  return `${facts.version}${flag}`;
+}
+
 const NOT_REPORTED = 'Not reported';
 
 /**
@@ -47,7 +54,7 @@ export function topologyColumns(now: number): Column<NodeFacts>[] {
     {
       id: 'version',
       header: 'Version',
-      accessor: (f) => (f.version ? `${f.version}${f.versionFlag ? ` (${f.versionFlag})` : ''}` : 'Unknown'),
+      accessor: versionCell,
       kind: 'status',
       priority: 'low',
       sortKey: 'version',

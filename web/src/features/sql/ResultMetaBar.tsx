@@ -12,6 +12,42 @@ function sourceLabel(fromIndex: boolean, captured: boolean): string {
   return captured ? 'from the index — captured' : 'from the index — sampled';
 }
 
+function IndexProvenance({ captured }: Readonly<{ captured: boolean }>) {
+  return (
+    <Notice title={captured ? 'Captured rows' : 'Sampled rows'}>
+      {captured
+        ? 'These rows were captured: a divert copied every message the address routed into a queue Studio drains, so a message that was consumed immediately is still here. A message may have been consumed since it was captured — "verify on broker", on any row, asks a broker whether it is still there.'
+        : 'These rows are what Studio observed while sampling these queues. A message may have been consumed since it was seen, and one that arrived and left between two samples was never indexed at all.'}
+    </Notice>
+  );
+}
+
+function BoundsNotice({ bounds }: Readonly<{ bounds: NonNullable<SqlResultView['boundsReached']> }>) {
+  if (bounds.length === 0) return null;
+  return (
+    <Notice title="Stopped early" tone="warning">
+      <ul className={classes.statements}>
+        {bounds.map((bound, i) => (
+          <li key={`${bound.kind}-${i}`}>{boundWords(bound)}</li>
+        ))}
+      </ul>
+    </Notice>
+  );
+}
+
+function ResultNotices({ notices }: Readonly<{ notices: NonNullable<SqlResultView['notices']> }>) {
+  if (notices.length === 0) return null;
+  return (
+    <Notice title="About this result" tone={notices.some((n) => noticeWords(n).tone) ? 'warning' : 'neutral'}>
+      <ul className={classes.statements}>
+        {notices.map((notice, i) => (
+          <li key={`${notice.kind}-${i}`}>{noticeWords(notice).text}</li>
+        ))}
+      </ul>
+    </Notice>
+  );
+}
+
 /**
  * One line about the result, with everything true about it behind a disclosure.
  *
@@ -68,31 +104,9 @@ export function ResultMetaBar({
 
       <Collapse expanded={open}>
         <Stack gap={6} className={classes.detail}>
-          {fromIndex ? (
-            <Notice title={captured ? 'Captured rows' : 'Sampled rows'}>
-              {captured
-                ? 'These rows were captured: a divert copied every message the address routed into a queue Studio drains, so a message that was consumed immediately is still here. A message may have been consumed since it was captured — "verify on broker", on any row, asks a broker whether it is still there.'
-                : 'These rows are what Studio observed while sampling these queues. A message may have been consumed since it was seen, and one that arrived and left between two samples was never indexed at all.'}
-            </Notice>
-          ) : null}
-          {bounds.length > 0 ? (
-            <Notice title="Stopped early" tone="warning">
-              <ul className={classes.statements}>
-                {bounds.map((bound, i) => (
-                  <li key={`${bound.kind}-${i}`}>{boundWords(bound)}</li>
-                ))}
-              </ul>
-            </Notice>
-          ) : null}
-          {notices.length > 0 ? (
-            <Notice title="About this result" tone={notices.some((n) => noticeWords(n).tone) ? 'warning' : 'neutral'}>
-              <ul className={classes.statements}>
-                {notices.map((notice, i) => (
-                  <li key={`${notice.kind}-${i}`}>{noticeWords(notice).text}</li>
-                ))}
-              </ul>
-            </Notice>
-          ) : null}
+          {fromIndex ? <IndexProvenance captured={captured} /> : null}
+          <BoundsNotice bounds={bounds} />
+          <ResultNotices notices={notices} />
           <Text size="xs" c="dimmed">
             {rowCount.toLocaleString()} row{rowCount === 1 ? '' : 's'} in view.
           </Text>

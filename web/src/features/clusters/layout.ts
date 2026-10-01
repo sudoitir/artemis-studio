@@ -348,7 +348,8 @@ export function layout(topology: TopologyView, health: HealthView): TopologyLayo
       const row = Math.floor(i / DENSE_COLUMNS);
       const box = collapsedNode(logical, column * COL_W, row * DENSE_ROW_H);
       nodes.push(box);
-      (columns[column] ??= []).push(box.id);
+      columns[column] ??= [];
+      columns[column].push(box.id);
     });
     return { nodes, edges, summary, dense, logicalCount, columns };
   }

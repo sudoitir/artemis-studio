@@ -43,8 +43,9 @@ export function TopologyView() {
   const topology = useTopology(clusterId);
   const health = useHealth(clusterId);
 
-  const setSearch: SetSearch = (patch) =>
-    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
+  const setSearch: SetSearch = (patch) => {
+    void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
+  };
   const failure = failureOf(topology) ?? failureOf(health);
   const view = search.view ?? 'graph';
 

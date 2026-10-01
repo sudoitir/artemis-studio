@@ -134,7 +134,7 @@ class RegisterOnceRealBrokerTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void anotherUrlOfTheSameBrokerIsRefused() throws Exception {
+    void anotherUrlOfTheSameBrokerIsRefused() {
         UUID first = registered(request("first", ArtemisIntegrationTest.jolokiaUrl()));
 
         assertThatThrownBy(() -> service.register(request("alias", aliasOfThePrimary())))

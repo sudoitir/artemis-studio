@@ -208,6 +208,27 @@ function announcementOf(run: SqlRun, verdict: Verdict | null): string {
   return verdict?.text ?? '';
 }
 
+/** Before any row has arrived: the run is under way, or it has not started. */
+function NoRows({ status }: Readonly<{ status: SqlRun['status'] }>) {
+  if (status === 'running') return <LoadingState label="Running query" blockSize="6rem" />;
+  return (
+    <EmptyState
+      kind="empty"
+      title="No results yet"
+      description="Run the query to see its rows here. The cost line under the editor says what it will read first."
+    />
+  );
+}
+
+/** The panel for a run that ended badly: failed, lost or cancelled. */
+function OutcomeNotice({ run, onRunAgain }: Readonly<{ run: SqlRun; onRunAgain: () => void }>) {
+  const { status, error, rows } = run;
+  if (status === 'failed' && error) return <QueryFailure error={error} onRunAgain={onRunAgain} />;
+  if (status === 'disconnected') return <Disconnected onRunAgain={onRunAgain} />;
+  if (status === 'cancelled') return <Cancelled rowCount={rows.length} />;
+  return null;
+}
+
 /**
  * The verdict on the run and the rows: announced, and every outcome stated (failed, cancelled,
  * disconnected, tailing, empty). It is a named, focusable region because it scrolls when the notices above
@@ -226,24 +247,10 @@ export function ResultPane({
   onRunAgain: () => void;
   onStopTail: () => void;
 }>) {
-  const { result, rows, status, error } = run;
+  const { result, rows, status } = run;
   const tailing = status === 'tailing';
   const verdict = result ? verdictFor(result, rows.length) : null;
   const hasRows = result !== null || rows.length > 0;
-
-  let idle = null;
-  if (!hasRows) {
-    idle =
-      status === 'running' ? (
-        <LoadingState label="Running query" blockSize="6rem" />
-      ) : (
-        <EmptyState
-          kind="empty"
-          title="No results yet"
-          description="Run the query to see its rows here. The cost line under the editor says what it will read first."
-        />
-      );
-  }
 
   return (
     <section className={classes.region} aria-label="Results" tabIndex={0}>
@@ -253,9 +260,7 @@ export function ResultPane({
         {announcementOf(run, verdict)}
       </div>
 
-      {status === 'failed' && error ? <QueryFailure error={error} onRunAgain={onRunAgain} /> : null}
-      {status === 'disconnected' ? <Disconnected onRunAgain={onRunAgain} /> : null}
-      {status === 'cancelled' ? <Cancelled rowCount={rows.length} /> : null}
+      <OutcomeNotice run={run} onRunAgain={onRunAgain} />
 
       {tailing ? (
         <LiveTailBanner
@@ -301,7 +306,7 @@ export function ResultPane({
           />
         </Stack>
       ) : (
-        idle
+        <NoRows status={status} />
       )}
     </section>
   );

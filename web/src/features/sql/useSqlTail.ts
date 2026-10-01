@@ -148,7 +148,8 @@ export function useSqlTail(clusterId: string): SqlRun {
     }
     // While tailing, the newest row goes to the top: an operator watching a live feed is watching
     // the head of it, not scrolling to find it.
-    const newest = batch.reverse();
+    const newest = [...batch];
+    newest.reverse();
     if (pausedRef.current) {
       // Bounded the same way the visible list is: a long pause must not become an unbounded buffer.
       held.current = [...newest, ...held.current].slice(0, MAX_TAIL_ROWS);
