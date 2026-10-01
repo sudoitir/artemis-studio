@@ -3,7 +3,10 @@ import { Button, Switch, Text } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useMetrics, type MetricSeries } from './api.ts';
-import { useServerNow } from '../../kernel/time/time.ts';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+
+import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { rangeSpec, type MetricRange } from './ranges.ts';
 import { RangePicker } from './RangePicker.tsx';
 import { ChartPanel } from '../../kernel/metrics/ChartPanel.tsx';
@@ -65,12 +68,20 @@ function QueueScope({ split }: Readonly<{ split: boolean }>) {
  * What the window is, in one line that is always present: so the line is there while the first read
  * is pending, and the charts beneath it do not move when a note arrives.
  */
+dayjs.extend(duration);
+
+/** A bucket width as the console writes durations ("5m"), from the ISO-8601 step the server sends ("PT5M"). */
+function bucketLabel(step: string): string {
+  return elapsedLabel(dayjs.duration(step).asMilliseconds());
+}
+
 function windowNote(pending: boolean, data: { truncated?: boolean; step?: string } | undefined): string {
   if (pending) return 'Reading the window…';
   if (data?.truncated) {
-    return `Window adjusted: the requested resolution or range was wider than this cluster's retention or sampling cadence allows, so the charts show the ${data.step} bucket Studio actually used.`;
+    // One line at desktop widths, so the toolbar keeps its height and the charts below do not move.
+    return `Window adjusted to ${bucketLabel(data.step ?? '')} buckets, the finest this cluster's retention allows.`;
   }
-  return data?.step ? `Each point is a ${data.step} bucket.` : '';
+  return data?.step ? `Each point is a ${bucketLabel(data.step)} bucket.` : '';
 }
 
 /** A table cell in the unit of its column: depth as a count, consumers exactly, the rest as rates. */

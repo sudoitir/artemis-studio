@@ -76,7 +76,7 @@ export function FreshnessBar() {
     <Group gap="xs" wrap="nowrap" className={styles.bar}>
       <StateAnnouncement state={state} />
       <span className={styles.dot} data-state={state} aria-hidden="true" />
-      <Text size="xs" c="dimmed" className={styles.label}>
+      <Text size="xs" c="dimmed" className={`${styles.label} ${styles.state}`}>
         {label}
         {state === 'paused' && pending ? ' · new data available' : null}
       </Text>

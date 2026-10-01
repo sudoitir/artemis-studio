@@ -95,7 +95,7 @@ describe('MetricsView', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Metrics' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 2, name: 'This window as a table' })).toBeInTheDocument();
-    expect(await screen.findByText('Each point is a PT1M bucket.')).toBeInTheDocument();
+    expect(await screen.findByText('Each point is a 1m bucket.')).toBeInTheDocument();
 
     const toggle = screen.getByRole('button', { name: 'Show this window as a table' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -128,7 +128,9 @@ describe('MetricsView', () => {
     renderWithProviders(<MetricsView />);
 
     expect(screen.getByText('Reading the window…')).toBeInTheDocument();
-    expect(await screen.findByText(/Window adjusted: .* the PT5M bucket Studio actually used\./)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Window adjusted to 5m buckets, the finest this cluster's retention allows."),
+    ).toBeInTheDocument();
   });
 
   it('advances a relative window, and leaves an absolute one alone', async () => {
