@@ -1,9 +1,11 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
@@ -48,10 +50,14 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
     /** A fresh client + mock server answering, in order: search broker, HA read, listNetworkTopology. */
     private ProbedSeed seed(String topologyFixture) {
+        return seed("ha-read-primary.json", topologyFixture);
+    }
+
+    private ProbedSeed seed(String haFixture, String topologyFixture) {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo(SEED_URL)).andRespond(json("search-broker.json"));
-        server.expect(requestTo(SEED_URL)).andRespond(json("ha-read-primary.json"));
+        server.expect(requestTo(SEED_URL)).andRespond(json(haFixture));
         server.expect(requestTo(SEED_URL)).andRespond(json(topologyFixture));
         return new ProbedSeed(SEED_URL, new JolokiaBrokerClient(builder.build(), SEED_URL, mapper));
     }
@@ -100,6 +106,17 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
         assertThat(topology.nodes()).hasSize(1);
         assertThat(topology.nodes().get(0).endpoints()).hasSize(2);
         assertThat(topology.unmanaged()).extracting(NodeEndpoint::name).containsExactly("artemis-backup:61616");
+    }
+
+    @Test
+    void aSeedWhoseHaReadFailedInsideAnOkResponseIsNotTakenForAStoppedBroker() {
+        UUID clusterId = newCluster();
+
+        assertThatThrownBy(() -> discovery.discover(
+                        clusterId, List.of(seed("ha-read-instance-not-found.json", "topology.json"))))
+                .isInstanceOf(BrokerConnectionException.class);
+
+        assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).isEmpty();
     }
 
     @Test

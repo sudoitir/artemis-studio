@@ -4,7 +4,9 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.bool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxedBool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
@@ -205,7 +207,12 @@ public class TopologyDiscovery {
     }
 
     private static SeedReading read(ProbedSeed seed) {
-        JsonNode ha = seed.client().readBrokerAttributes(HA_ATTRS).value();
+        JolokiaResponse response = seed.client().readBrokerAttributes(HA_ATTRS);
+        if (!response.ok()) {
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "HA read failed: " + response.failure());
+        }
+        JsonNode ha = response.value();
         JsonNode topology = seed.client().execOnBrokerParsed("listNetworkTopology()");
 
         List<TopologyEntry> entries = new ArrayList<>();

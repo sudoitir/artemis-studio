@@ -115,8 +115,7 @@ public class JolokiaBrokerClient {
     public JsonNode parsed(JolokiaResponse entry) {
         if (!entry.ok()) {
             throw new BrokerConnectionException(
-                    BrokerConnectionException.Kind.BAD_RESPONSE,
-                    "Batch entry failed: " + (entry.error() != null ? entry.error() : "status " + entry.status()));
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "Batch entry failed: " + entry.failure());
         }
         return entry.valueParsed(mapper);
     }
@@ -199,8 +198,7 @@ public class JolokiaBrokerClient {
         if (!response.ok()) {
             throw new BrokerConnectionException(
                     BrokerConnectionException.Kind.BAD_RESPONSE,
-                    "Operation " + operation + " failed: "
-                            + (response.error() != null ? response.error() : "status " + response.status()));
+                    "Operation " + operation + " failed: " + response.failure());
         }
         return response.valueParsed(mapper);
     }

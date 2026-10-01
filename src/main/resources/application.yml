@@ -95,13 +95,12 @@ spring:
 
   task:
     scheduling:
-      # The tiered scrape scheduler (ADR-0015) runs three overlapping tiers plus a
-      # limiter refill and an SSE heartbeat. Give it its own small pool so a slow
-      # tick never starves the others; per-node fan-out inside a tier is on
-      # virtual threads.
+      # The scheduled jobs (the limiter refill, the SSE heartbeat, the events flush and the
+      # rest) share this small pool. The scrape tiers (ADR-0015) have a pool of their own, so
+      # broker I/O never delays them; per-node fan-out inside a tier is on virtual threads.
       pool:
         size: 4
-      thread-name-prefix: scrape-
+      thread-name-prefix: jobs-
 
 springdoc:
   paths-to-exclude: /api/v1/p/**,/api/v1/clusters/*/p/**

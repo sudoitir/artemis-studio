@@ -42,6 +42,11 @@ public record JolokiaResponse(
         return status == 200 && error == null;
     }
 
+    /** Why this entry failed, for a message. */
+    public String failure() {
+        return error != null ? error : "status " + status;
+    }
+
     /**
      * One attribute's value, whichever shape Jolokia answered a {@code read} in.
      *

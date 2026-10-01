@@ -184,7 +184,7 @@ public class BrokerNodeEntity implements ClusterNode {
         this.splitBrain = status;
     }
 
-    /** A failed scrape: record it without disturbing the last-known-good HA state. */
+    /** An unanswered tier-A probe: record it without disturbing the last-known-good HA state. */
     public void recordError(Instant seenAt, String error) {
         this.lastSeenAt = seenAt;
         this.lastError = error;

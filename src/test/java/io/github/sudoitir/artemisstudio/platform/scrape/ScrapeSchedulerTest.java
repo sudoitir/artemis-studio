@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -51,6 +50,7 @@ class ScrapeSchedulerTest {
 
     private static final String GOOD = "http://good:8161/console/jolokia";
     private static final String BAD = "http://bad:8161/console/jolokia";
+    private static final String STALLED = "http://stalled:8161/console/jolokia";
 
     private final JsonMapper mapper = new JsonMapper();
 
@@ -216,27 +216,83 @@ class ScrapeSchedulerTest {
     }
 
     @Test
-    void aTierAPassForAClusterIsSkippedWhileAnotherIsRunningForIt() throws Exception {
+    void aStalledNodeDoesNotDelayTheProbeOfItsSiblings() throws Exception {
+        UUID clusterId = UUID.randomUUID();
         ClusterEntity cluster = cluster("c");
-        java.util.concurrent.CountDownLatch inside = new java.util.concurrent.CountDownLatch(1);
+        BrokerNodeEntity stalled = node(clusterId, "stalled", STALLED);
+        BrokerNodeEntity healthy = node(clusterId, "healthy", GOOD);
         java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
         when(clusters.owned()).thenReturn(List.of(cluster));
-        when(clusters.nodes(cluster.getId())).thenAnswer(call -> {
-            inside.countDown();
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(stalled, healthy));
+        when(connections.forCluster(cluster.getId(), STALLED)).thenAnswer(call -> {
             release.await();
-            return List.of();
+            return client("search-broker.json", "ha-read-primary.json");
         });
-        scheduler.onDutyAcquired(new ClusterDutyAcquired(cluster.getId()));
-        assertThat(inside.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "ha-read-primary.json", "ha-read-primary.json"));
+        try {
+            scheduler.tierA();
+            scheduler.tierA();
+
+            verify(persist).applyTierA(eq(healthy.getId()), any(), eq(1L));
+            verify(persist).applyTierA(eq(healthy.getId()), any(), eq(2L));
+            verify(connections, times(1)).forCluster(cluster.getId(), STALLED);
+        } finally {
+            release.countDown();
+        }
+        verify(persist, timeout(5000)).applyTierA(eq(stalled.getId()), any(), eq(1L));
+    }
+
+    @Test
+    void aTierAReadThatFailedInsideAnOkResponseLeavesTheNodeAsItWas() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "ha-read-instance-not-found.json"));
 
         scheduler.tierA();
-        release.countDown();
 
-        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
-        verify(clusters, times(1)).nodes(cluster.getId());
-        verify(eventPublisher, after(300).times(1)).publishEvent(any(ScrapeTierCompleted.class));
-        scheduler.tierA();
-        verify(eventPublisher, times(2)).publishEvent(any(ScrapeTierCompleted.class));
+        verify(persist, never()).applyTierA(any(), any(), anyLong());
+        verify(persist, never()).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aFailedQueueListingLeavesTheNodeReachable() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues-failed.json"))
+                .thenReturn(client("search-broker.json", "list-queues-failed.json"));
+
+        scheduler.tierB();
+        scheduler.tierC();
+
+        verify(upsert, never()).upsertBatch(any());
+        verify(persist, never()).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aFailureToPersistWhatWasScrapedLeavesTheNodeReachable() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues.json"));
+        doThrow(new IllegalStateException("database down")).when(upsert).upsertBatch(any());
+
+        scheduler.tierB();
+
+        verify(upsert).upsertBatch(any());
+        verify(persist, never()).recordNodeError(any(), anyString());
     }
 
     @Test
