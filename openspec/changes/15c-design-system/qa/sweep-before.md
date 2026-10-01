@@ -30,13 +30,13 @@ Machine checks from the baseline sweep (`npm run sweep -- --label before`), by s
 - Where: admin (data), alerting (rules), flow
 - Evidence: `securitypolicyviolation` script-src blocked `eval` on these routes.
 - Fix: find the code that evaluates strings (a dependency or our own) and replace it, or load it so it does not need eval; never loosen the CSP.
-- Status: open
+- Status: fixed (the violation came from the sweep's own string predicate: `page.waitForFunction` with a string evaluates it with `eval` inside the page, which the CSP blocks. `web/scripts/sweep.ts` now polls with `page.evaluate` and a function, which the DevTools protocol runs outside the page's policy, so the console itself never evaluated a string)
 
 ### sweep-7 [S3 · reliability · page] The sign-in page asks for signed-in data
 - Where: shell (login)
 - Evidence: `/api/v1/auth/me` is expected to be 401 there, but `/api/v1/manifest` and `/api/v1/time` are requested and refused with 401, logging console errors.
 - Fix: do not request signed-in data before sign-in.
-- Status: open
+- Status: fixed (on `/login` the page reads no manifest (`boot()` in `kernel/plugins/boot.ts` returns without a request) and does not start the server time sync (`main.tsx`); signing in reloads the page, which then starts both signed in. `LoginView` already reloaded after a sign-in that started on the sign-in page, and `LoginView.test.tsx` runs it through the real `boot()` on `/login`; `boot.test.ts` asserts that no manifest request is made there)
 
 ### sweep-8 [S3 · performance · base] The main bundle has chunks over 500 kB
 - Where: the production build (`vite build` warning)
