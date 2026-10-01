@@ -23,7 +23,7 @@
   padding-block: var(--mantine-spacing-sm);
   padding-inline: var(--mantine-spacing-md);
   border-block-end: 1px solid var(--as-border);
-  border-inline-start: 3px solid transparent;
+  border-inline-start: 0.1875rem solid transparent;
 }
 
 .section:last-child {
@@ -56,8 +56,8 @@
 }
 
 .sectionButton:focus-visible {
-  outline: 2px solid var(--mantine-primary-color-filled);
-  outline-offset: 2px;
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
   border-radius: var(--mantine-radius-sm);
 }
 
@@ -66,6 +66,8 @@
 }
 
 .content {
+  block-size: 32.5rem;
+  overflow: auto;
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
   background: var(--as-canvas-sunken);
@@ -84,13 +86,25 @@
 .mask {
   background: color-mix(in srgb, var(--as-warning) 22%, transparent);
   color: var(--as-text);
-  border-radius: 2px;
-  padding-inline: 2px;
+  border-radius: var(--mantine-radius-xs);
+  padding-inline: 0.125rem;
   font-weight: 600;
 }
 
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  color: var(--as-text-dimmed);
+}
+
+.intro {
+  max-inline-size: 45rem;
+}
+
+.empty {
+  padding: var(--mantine-spacing-md);
 }
 
 .footer {

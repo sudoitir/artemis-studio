@@ -1,8 +1,13 @@
-import { ActionIcon, CopyButton, Group, Input, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Code, CopyButton, Group, Stack, Text, TextInput } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconCopy } from '@tabler/icons-react';
 
 import { branding } from '../../branding.ts';
+import { notify } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import classes from './McpConnectionPanel.module.css';
+
+const COPY = { verb: 'Copy', past: 'Copied', progressive: 'Copying' } as const;
 
 /**
  * How to point an MCP client at this instance (ADR-0045, ADR-0046).
@@ -31,40 +36,38 @@ export function McpConnectionPanel() {
   );
 
   return (
-    <Stack gap="sm">
+    <Stack gap="md">
       <Text size="sm" c="dimmed">
         {branding.productName} speaks the Model Context Protocol, so an assistant can read your clusters and run the
         same guarded operations you can — never more than the key's permissions allow.
       </Text>
 
       <Group align="flex-end">
-        <TextInput
-          label="Endpoint"
-          value={endpoint}
-          readOnly
-          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
-          style={{ flex: 1 }}
-        />
+        <TextInput className={classes.endpoint} label="Endpoint" value={endpoint} readOnly />
         <CopyButton value={endpoint}>
           {({ copy }) => (
-            <ActionIcon size="lg" variant="default" onClick={copy} aria-label="Copy endpoint">
-              <IconCopy size={16} />
-            </ActionIcon>
+            <Button
+              variant="default"
+              leftSection={<IconCopy size="1rem" aria-hidden />}
+              onClick={() => {
+                copy();
+                notify.succeeded({ action: COPY, subject: 'the endpoint' });
+              }}
+            >
+              Copy endpoint
+            </Button>
           )}
         </CopyButton>
       </Group>
 
-      <div>
-        <Input.Label mb={4}>Client configuration</Input.Label>
+      <Section title="Client configuration" headingLevel={3}>
         <CodeHighlight code={config} language="json" />
-      </div>
+      </Section>
 
       <Text size="xs" c="dimmed">
         Create a key above, choose the permissions it should carry, and paste its value in place of{' '}
-        <Text component="span" ff="monospace" size="xs">
-          &lt;your-api-key&gt;
-        </Text>
-        . Mutations dry-run by default and destructive ones need an explicit confirmation.
+        <Code>&lt;your-api-key&gt;</Code>. Mutations dry-run by default and destructive ones need an explicit
+        confirmation.
       </Text>
     </Stack>
   );

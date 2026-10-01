@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Alert, Anchor, Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { useMemo, useRef, useState } from 'react';
+import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { useClusters } from '../clusters/index.ts';
@@ -11,10 +11,14 @@ import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useOrphans, useReturnOrphan, useTransferRuns, type OrphanView, type TransferRunView } from './api.ts';
 import { transferColumns } from './columns.ts';
+import classes from './TransfersView.module.css';
 import { plural } from './words.ts';
 
 /**
@@ -28,41 +32,50 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   const { can, loading } = useCan();
   const [chosen, setChosen] = useState<OrphanView | null>(null);
   const [queue, setQueue] = useState('');
+  const [queueError, setQueueError] = useState<string | undefined>();
+  const queueRef = useRef<HTMLInputElement>(null);
   const gate = gateFor(can('message:move', clusterId), 'Move or retry messages', undefined, loading);
+
+  const checkQueue = () => {
+    const problem = queue.trim() ? undefined : 'Name the queue the messages go back to.';
+    setQueueError(problem);
+    return problem === undefined;
+  };
 
   // Not being able to look is not the same as nothing being there, and is said rather than hidden.
   if (query.isError) {
     return (
-      <Alert variant="light" title="Could not check for stranded staging queues">
-        {query.error.message} If a transfer was interrupted, its messages may still be held on a broker. Open this
-        screen again once the cluster answers.
-      </Alert>
+      <Section
+        title="Staging queues with no run"
+        description="Studio could not check for them. If a transfer was interrupted, its messages may still be held on a broker."
+      >
+        <ErrorState variant="inline" error={query.error} onRetry={() => void query.refetch()} />
+      </Section>
     );
   }
   // Nothing stranded is the normal case, and says nothing.
   if (!query.data || query.data.length === 0) return null;
 
   return (
-    <Stack gap="xs">
-      <Title order={4}>Staging queues with no run</Title>
-      <Text size="sm">
-        These hold messages a transfer took off a queue before Studio lost the run. Nothing is lost: return each one to
-        the queue the messages came from, and Studio removes the staging queue afterwards.
-      </Text>
+    <Section
+      title="Staging queues with no run"
+      description="These hold messages a transfer took off a queue before Studio lost the run. Nothing is lost: return each one to the queue the messages came from, and Studio removes the staging queue afterwards."
+    >
       {query.data.map((orphan) => (
         <Group key={`${orphan.nodeId}:${orphan.stagingQueue}`} gap="sm">
-          <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Text size="sm" className={classes.figures}>
             {orphan.stagingQueue} on {orphan.nodeName} —{' '}
             {orphan.depth == null ? 'depth unknown' : plural(orphan.depth, 'message')}
           </Text>
           <CapabilityGate verdict={gate} what="returning these messages">
             <Button
               size="xs"
-              variant="light"
+              variant="default"
               disabled={gate.kind === 'blocked'}
               onClick={() => {
                 returnOrphan.reset();
                 setQueue('');
+                setQueueError(undefined);
                 setChosen(orphan);
               }}
             >
@@ -99,31 +112,42 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
               label="Return them to"
               description="The queue the transfer took them from."
               value={queue}
-              onChange={setQueue}
+              onChange={(v) => {
+                setQueue(v);
+                if (v.trim()) setQueueError(undefined);
+              }}
+              onBlur={checkQueue}
+              error={queueError}
+              inputRef={queueRef}
               unknownHint="No queue by that name on this cluster. Check it before returning messages to it."
             />
             {returnOrphan.isError ? (
-              <Alert variant="light" title={returnOrphan.error.title} role="alert">
-                {returnOrphan.error.message} Nothing was returned.
-              </Alert>
+              <Stack gap="xs">
+                <ErrorState error={returnOrphan.error} />
+                <Text size="sm">Nothing was returned.</Text>
+              </Stack>
             ) : null}
             <ConfirmByTyping
               token={chosen.stagingQueue}
               label={`Type the staging queue's name, "${chosen.stagingQueue}", to confirm`}
               confirmLabel="Return the messages"
               loading={returnOrphan.isPending}
-              disabled={queue.trim() === '' || returnOrphan.isPending}
-              onConfirm={() =>
+              disabled={returnOrphan.isPending}
+              onConfirm={() => {
+                if (!checkQueue()) {
+                  queueRef.current?.focus();
+                  return;
+                }
                 returnOrphan.mutate(
                   { nodeId: chosen.nodeId, stagingQueue: chosen.stagingQueue, targetQueue: queue.trim() },
                   { onSuccess: () => setChosen(null) },
-                )
-              }
+                );
+              }}
             />
           </Stack>
         ) : null}
       </Modal>
-    </Stack>
+    </Section>
   );
 }
 
@@ -148,10 +172,11 @@ export function TransfersView() {
 
   return (
     <Page fill>
-      <Stack gap="sm">
-        <Title order={3}>Message transfers</Title>
-        <Orphans clusterId={clusterId} />
-      </Stack>
+      <PageHeader
+        title="Message transfers"
+        description="Messages moved or copied between queues on other nodes or clusters, newest first, each with its outcome."
+      />
+      <Orphans clusterId={clusterId} />
       <DataTable
         label="Transfers"
         storageKey="transfers"
@@ -167,9 +192,9 @@ export function TransfersView() {
             title="No transfers yet"
             description="A transfer moves or copies messages from a queue to a queue on another node or another cluster, after a preview that checks the target can accept them. None has been run from or to this cluster yet. Select messages on the Messages screen to start one."
             action={
-              <Anchor component={Link} to={`/clusters/${clusterId}/queues`} size="sm">
+              <Link to={`/clusters/${clusterId}/queues`} className={linkClasses.link}>
                 Go to Queues
-              </Anchor>
+              </Link>
             }
           />
         }

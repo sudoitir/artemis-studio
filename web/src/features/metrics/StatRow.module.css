@@ -1,4 +1,30 @@
-/* A difference between tiles has to be visible without reading digits. */
-.value {
+/* The figures an operator arrives for: as many per row as fit, each tile holding a Stat and the
+   movement beneath it. */
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--mantine-spacing-sm);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+  padding: var(--mantine-spacing-sm);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+}
+
+/* One line tall whether the movement is known, unknown or still loading, so the tile never resizes. */
+.movement {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-block-size: calc(var(--mantine-font-size-xs) * var(--mantine-line-height-xs));
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  line-height: var(--mantine-line-height-xs);
   font-variant-numeric: tabular-nums;
 }

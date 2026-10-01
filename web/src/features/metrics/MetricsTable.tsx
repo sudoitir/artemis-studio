@@ -1,9 +1,18 @@
-import { Table, Text } from '@mantine/core';
+import { useMemo } from 'react';
 
 import type { MetricSeries } from './api.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
-import { formatInZone, mergeByTimestamp } from '../../kernel/metrics/axis.ts';
-import styles from './StatRow.module.css';
+import { mergeByTimestamp } from '../../kernel/metrics/axis.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { bucketColumns, type BucketMetric, type BucketRow } from './columns.ts';
+
+const rowKey = (row: BucketRow) => String(row.ts);
+
+/** A metric of the window with its series, which may be absent when nothing was sampled. */
+export interface WindowMetric extends BucketMetric {
+  series: MetricSeries | undefined;
+}
 
 /**
  * The displayed window as rows.
@@ -13,50 +22,44 @@ import styles from './StatRow.module.css';
  * that brings someone to this page is almost always about now.
  */
 export function MetricsTable({
-  columns,
+  metrics,
   format,
 }: Readonly<{
-  columns: Array<{ name: string; label: string; series: MetricSeries | undefined }>;
+  metrics: WindowMetric[];
   format: (name: string, value: number) => string;
 }>) {
-  const rows = mergeByTimestamp(columns.map((c) => ({ name: c.name, series: c.series }))).reverse();
-  // Timestamps below are formatted in the display zone, read from module state.
-  useDisplayZone();
-
-  if (rows.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No buckets in this window.
-      </Text>
-    );
-  }
+  // Timestamps below are formatted in the display zone, which the columns are built again for.
+  const zone = useDisplayZone();
+  const rows = useMemo(
+    () => mergeByTimestamp(metrics.map((m) => ({ name: m.name, series: m.series }))).reverse(),
+    [metrics],
+  );
+  const columns = useMemo(
+    () =>
+      bucketColumns(
+        metrics.map(({ name, label }) => ({ name, label })),
+        format,
+        zone,
+      ),
+    [metrics, format, zone],
+  );
 
   return (
-    <Table.ScrollContainer minWidth={480} mah="24rem" type="native">
-      <Table stickyHeader highlightOnHover>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Bucket</Table.Th>
-            {columns.map((c) => (
-              <Table.Th key={c.name} ta="end">
-                {c.label}
-              </Table.Th>
-            ))}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) => (
-            <Table.Tr key={row.ts}>
-              <Table.Td className={styles.value}>{formatInZone(row.ts, 'MMM D HH:mm:ss')}</Table.Td>
-              {columns.map((c) => (
-                <Table.Td key={c.name} ta="end" className={styles.value}>
-                  {row[c.name] === undefined ? '—' : format(c.name, row[c.name])}
-                </Table.Td>
-              ))}
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable
+      variant="static"
+      label="Metric buckets"
+      storageKey="metrics.buckets"
+      height={{ maxRows: 12 }}
+      columns={columns}
+      data={rows}
+      rowKey={rowKey}
+      empty={
+        <EmptyState
+          kind="empty"
+          title="No buckets in this window"
+          description="A bucket exists once the metric has been sampled in it. Widen the range, or wait for the next sample."
+        />
+      }
+    />
   );
 }

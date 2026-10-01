@@ -1,6 +1,6 @@
-import { Group, Paper, SimpleGrid, Text } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight, IconMinus } from '@tabler/icons-react';
 
+import { Stat } from '../../ui/Stat.tsx';
 import styles from './StatRow.module.css';
 
 /**
@@ -11,7 +11,7 @@ import styles from './StatRow.module.css';
  * dangerous version: on this page a zero ingress rate and an unsampled ingress
  * rate mean entirely different things and lead to opposite actions.
  */
-export interface Stat {
+export interface Figure {
   label: string;
   unit: string;
   /** Current value, or `null` when nothing recent enough exists to state one. */
@@ -21,41 +21,31 @@ export interface Stat {
   format: (value: number) => string;
 }
 
-export function StatRow({ stats }: Readonly<{ stats: Stat[] }>) {
+export function StatRow({ figures, loading }: Readonly<{ figures: Figure[]; loading: boolean }>) {
   return (
-    <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
-      {stats.map((stat) => (
-        <StatTile key={stat.label} stat={stat} />
+    <div className={styles.row} role="group" aria-label="Current values">
+      {figures.map((figure) => (
+        <StatTile key={figure.label} figure={figure} loading={loading} />
       ))}
-    </SimpleGrid>
+    </div>
   );
 }
 
-function StatTile({ stat }: Readonly<{ stat: Stat }>) {
-  const { label, unit, value, since, format } = stat;
+function StatTile({ figure, loading }: Readonly<{ figure: Figure; loading: boolean }>) {
+  const { label, unit, value, since, format } = figure;
   const delta = value !== null && since !== null ? value - since : null;
 
   return (
-    <Paper withBorder p="sm" radius="md">
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-        {label}
-      </Text>
-      {value === null ? (
-        <Text size="lg" c="dimmed" mt={4}>
-          Not sampled
-        </Text>
-      ) : (
-        <Group gap="xs" align="baseline" mt={4} wrap="nowrap">
-          <Text size="xl" fw={600} className={styles.value}>
-            {format(value)}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {unit}
-          </Text>
-        </Group>
-      )}
-      <Delta delta={delta} format={format} />
-    </Paper>
+    <div className={styles.tile}>
+      <Stat
+        label={label}
+        value={value === null ? null : format(value)}
+        unit={unit}
+        unavailableReason="Not sampled recently enough to state a value."
+        loading={loading}
+      />
+      <Delta delta={loading ? undefined : delta} format={format} />
+    </div>
   );
 }
 
@@ -68,25 +58,20 @@ function movement(flat: boolean, delta: number) {
 /**
  * Movement across the window. The direction is a word and an arrow, never the
  * colour alone — and it carries no colour at all, because a rising queue depth is
- * not by itself something wrong.
+ * not by itself something wrong. `undefined` is "still loading": the line is held, empty.
  */
-function Delta({ delta, format }: Readonly<{ delta: number | null; format: (value: number) => string }>) {
-  if (delta === null) {
-    return (
-      <Text size="xs" c="dimmed" mt={2}>
-        no comparison in this window
-      </Text>
-    );
-  }
+function Delta({ delta, format }: Readonly<{ delta: number | null | undefined; format: (value: number) => string }>) {
+  if (delta === undefined) return <div className={styles.movement} />;
+  if (delta === null) return <div className={styles.movement}>no comparison in this window</div>;
   const flat = Math.abs(delta) < Number.EPSILON;
   const { Icon, word } = movement(flat, delta);
   return (
-    <Group gap={4} mt={2} wrap="nowrap">
-      <Icon size={14} aria-hidden="true" />
-      <Text size="xs" c="dimmed" className={styles.value}>
+    <div className={styles.movement}>
+      <Icon size="0.875rem" aria-hidden="true" />
+      <span>
         {word}
         {flat ? '' : ` ${format(Math.abs(delta))}`} over the window
-      </Text>
-    </Group>
+      </span>
+    </div>
   );
 }

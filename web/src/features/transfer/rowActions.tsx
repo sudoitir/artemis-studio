@@ -29,7 +29,7 @@ export function TransferQueueMessages({ clusterId, target, host }: Readonly<Acti
   return (
     <ActionMenuItem
       label="Transfer messages…"
-      icon={<IconTransfer size={16} aria-hidden />}
+      icon={<IconTransfer size="1rem" aria-hidden />}
       verdict={gate}
       onExplain={(verdict) => host.explain(verdict, 'transferring these messages')}
       onSelect={() =>

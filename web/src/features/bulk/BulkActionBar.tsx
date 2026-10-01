@@ -48,7 +48,6 @@ export function BulkActionBar({ clusterId, selection, count, clear }: Readonly<S
             <Button
               size="xs"
               variant="light"
-              color={op.destructive ? 'red' : undefined}
               disabled={gate.kind === 'blocked'}
               onClick={() => {
                 setOperation(each);

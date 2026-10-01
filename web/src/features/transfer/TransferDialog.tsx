@@ -1,17 +1,5 @@
 import { useRef, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Code,
-  Group,
-  Modal,
-  SegmentedControl,
-  Select,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Button, Checkbox, Code, Group, Modal, SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useCluster, useClusters } from '../clusters/index.ts';
@@ -21,6 +9,11 @@ import type { MessageSelection } from '../../kernel/slots.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
 import {
   useTransferExecute,
   useTransferPreview,
@@ -75,6 +68,12 @@ function confirmWords(run: TransferRunView): string {
   return `${MODE[run.mode].verb} ${run.estimate == null ? 'messages' : plural(run.estimate, 'message')}`;
 }
 
+/** What the start toast names: "the move of 1,200 messages". */
+function startedSubject(run: TransferRunView): string {
+  const what = run.estimate == null ? 'the selected messages' : plural(run.estimate, 'message');
+  return `the ${MODE[run.mode].verb.toLowerCase()} of ${what}`;
+}
+
 /** Whether the target can accept the transfer, in one sentence. */
 function acceptanceWords(refused: boolean, warnings: number): string {
   if (refused) return 'The target cannot accept this transfer. The reasons are below; nothing will run.';
@@ -97,9 +96,11 @@ function blastRadius(run: TransferRunView, clusterName: (id: string) => string):
     : `Copy ${what} ${where}. The source queue is unchanged.`;
 }
 
-const GROUPS: { kind: Finding['kind']; title: string; tone?: string }[] = [
-  { kind: 'REFUSE', title: 'Refused', tone: 'var(--as-danger)' },
-  { kind: 'WARN', title: 'Needs your acknowledgement', tone: 'var(--as-warning)' },
+const START = { verb: 'Start', past: 'Started', progressive: 'Starting' } as const;
+
+const GROUPS: { kind: Finding['kind']; title: string }[] = [
+  { kind: 'REFUSE', title: 'Refused' },
+  { kind: 'WARN', title: 'Needs your acknowledgement' },
   { kind: 'UNKNOWN', title: 'Could not be checked, so not counted as passing' },
 ];
 
@@ -170,10 +171,11 @@ function DestinationForm({
   return (
     <Stack gap="sm">
       {noSourceNode ? (
-        <Alert color="yellow" variant="light" title="No source node to read from" role="alert">
-          No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait for a
-          node to come back, then open this again.
-        </Alert>
+        <EmptyState
+          kind="empty"
+          title="No source node to read from"
+          description="No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait for a node to come back, then open this again."
+        />
       ) : null}
       {redistribute ? (
         <Text size="sm">
@@ -181,7 +183,7 @@ function DestinationForm({
         </Text>
       ) : (
         <>
-          <Stack gap={4}>
+          <Stack gap="xs">
             <Text size="sm" fw={500} id="transfer-mode">
               Mode
             </Text>
@@ -294,12 +296,9 @@ function FindingsPanel({
         const rows = findings.filter((f) => f.kind === group.kind);
         if (rows.length === 0) return null;
         return (
-          <Stack key={group.kind} gap="xs">
-            <Title order={5} style={{ color: group.tone }}>
-              {group.title}
-            </Title>
+          <Section key={group.kind} title={group.title} headingLevel={3}>
             {rows.map((f) => (
-              <Stack key={f.code} gap={4}>
+              <Stack key={f.code} gap="xs">
                 {f.kind === 'WARN' ? (
                   <Checkbox
                     label={f.words}
@@ -312,38 +311,37 @@ function FindingsPanel({
                 <Snippet snippet={f.snippet} />
               </Stack>
             ))}
-          </Stack>
+          </Section>
         );
       })}
 
       {data.notes.length > 0 ? (
-        <Stack gap={4}>
-          <Title order={5}>Good to know</Title>
+        <Section title="Good to know" headingLevel={3}>
           {data.notes.map((n) => (
             <Text key={n} size="sm">
               {n}
             </Text>
           ))}
-        </Stack>
+        </Section>
       ) : null}
 
       {!refused && data.overCap ? (
-        <Alert color="yellow" variant="light" title="Over the safety cap">
-          {overCapWords(data)} Typing the queue name below overrides the cap for this run, and the override is recorded
-          in the audit log.
-        </Alert>
+        <Section title="Over the safety cap" headingLevel={3} variant="card">
+          <Text size="sm">
+            {overCapWords(data)} Typing the queue name below overrides the cap for this run, and the override is
+            recorded in the audit log.
+          </Text>
+        </Section>
       ) : null}
 
       {execute.isError ? (
-        <Alert color="red" variant="light" title={execute.error.title} role="alert">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">{execute.error.message}</Text>
-            <Text size="sm">Nothing was run. Preview again to confirm the transfer as it is now.</Text>
-            <Button size="xs" variant="light" onClick={onPreviewAgain}>
-              Preview again
-            </Button>
-          </Stack>
-        </Alert>
+        <Stack gap="sm" align="flex-start">
+          <ErrorState error={execute.error} />
+          <Text size="sm">Nothing was run. Preview again to confirm the transfer as it is now.</Text>
+          <Button size="xs" variant="default" onClick={onPreviewAgain}>
+            Preview again
+          </Button>
+        </Stack>
       ) : null}
 
       {refused ? null : (
@@ -518,6 +516,7 @@ export function TransferDialog({
       {
         onSuccess: (run) => {
           close();
+          notify.succeeded({ action: START, subject: startedSubject(run) });
           void navigate({ to: `/clusters/${clusterId}/transfers/${run.id}` });
           onStarted();
         },
@@ -584,20 +583,16 @@ export function TransferDialog({
 
         <div aria-live="polite">
           {preview.isPending ? (
-            <Text size="sm" c="dimmed">
-              Reading the source and checking the target…
-            </Text>
+            <LoadingState label="Reading the source and checking the target" blockSize="6rem" />
           ) : null}
           {preview.isError ? (
-            <Alert color="red" variant="light" title={preview.error.title} role="alert">
-              <Stack gap="xs" align="flex-start">
-                <Text size="sm">{preview.error.message}</Text>
-                <Text size="sm">Nothing was moved. Change the destination, or preview again.</Text>
-              </Stack>
-            </Alert>
+            <Stack gap="sm" align="flex-start">
+              <ErrorState error={preview.error} />
+              <Text size="sm">Nothing was moved. Change the destination, or preview again.</Text>
+            </Stack>
           ) : null}
           {data ? (
-            <Stack gap={4}>
+            <Stack gap="xs">
               <Text size="sm" fw={600}>
                 {blastRadius(data, clusterName)}
               </Text>

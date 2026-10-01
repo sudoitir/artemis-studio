@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
@@ -118,6 +119,8 @@ function deletePreview(): BulkRunDetailView {
     ],
   };
 }
+
+afterEach(() => act(() => notifications.clean()));
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -249,7 +252,7 @@ describe('BulkPreviewDialog', () => {
     expect(alert).toHaveTextContent('Invalid request');
     expect(alert).toHaveTextContent('One or more fields are invalid.');
 
-    await user.click(within(alert).getByRole('button', { name: 'Preview again' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Preview again' }));
     await waitFor(() => expect(calls).toBe(2));
   });
 
@@ -271,9 +274,10 @@ describe('BulkPreviewDialog', () => {
 
     const dialog = await openPreview(user);
     const alert = await within(dialog).findByRole('alert');
-    expect(alert).toHaveTextContent('Bulk run refused');
+    expect(alert).toHaveTextContent('Some values are not valid');
+    expect(alert).toHaveTextContent('140 queues matched; a bulk run is capped at 100 queues');
     expect(alert).toHaveTextContent('Narrow the selection.');
-    expect(within(alert).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
   });
 
   it('says nothing ran when the plan changed (409), and offers a fresh preview', async () => {
@@ -300,8 +304,8 @@ describe('BulkPreviewDialog', () => {
 
     const alert = await within(dialog).findByRole('alert');
     expect(alert).toHaveTextContent('This is not the plan that was previewed.');
-    expect(alert).toHaveTextContent('Nothing was run.');
-    expect(within(alert).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Nothing was run\./)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
   });
 
   it('states the blast radius, says what is unknown, and lists the refused queue', async () => {
@@ -380,7 +384,127 @@ describe('BulkPreviewDialog', () => {
   });
 });
 
+const RUNNING = () =>
+  http.get('*/api/v1/clusters/c1/bulk/runs/r1', () =>
+    HttpResponse.json({
+      run: run({ status: 'RUNNING', total: 3, succeeded: 1, startedAt: '2026-09-21T10:01:00Z' }),
+      items: [item({ status: 'SUCCEEDED' }), item({ ordinal: 1, queueName: 'orders.b', status: 'RUNNING' })],
+    }),
+  );
+
 describe('BulkRunView', () => {
+  it('is one page with a single h1, and sections below it', async () => {
+    server.use(meHandler(), RUNNING());
+    renderWithProviders(<BulkRunView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Delete 3 queues' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'Outcome' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Queues' })).toBeInTheDocument();
+  });
+
+  it('holds the page header while the run loads, then says why it could not be read, with a retry', async () => {
+    let calls = 0;
+    server.use(
+      meHandler(),
+      http.get('*/api/v1/clusters/c1/bulk/runs/r1', () => {
+        calls += 1;
+        return HttpResponse.json({ title: 'Not Found', detail: 'Bulk run r1 does not exist.' }, { status: 404 });
+      }),
+    );
+    renderWithProviders(<BulkRunView />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Bulk run' })).toBeInTheDocument();
+    expect(screen.getByText('Loading the run')).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Not found');
+    expect(alert).toHaveTextContent('Bulk run r1 does not exist.');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(calls).toBeGreaterThan(0);
+  });
+
+  it('retries a failed read from the error state', async () => {
+    let calls = 0;
+    server.use(
+      meHandler(),
+      http.get('*/api/v1/clusters/c1/bulk/runs/r1', () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ title: 'Error', detail: 'The cluster did not answer.' }, { status: 503 })
+          : HttpResponse.json({ run: run({ status: 'SUCCEEDED', total: 1, succeeded: 1 }), items: [item()] });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<BulkRunView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Delete 1 queue' })).toBeInTheDocument();
+  });
+
+  it('confirms before stopping a run, keeps the control busy, and announces the outcome', async () => {
+    let stopped = 0;
+    server.use(
+      meHandler(),
+      RUNNING(),
+      http.post('*/api/v1/clusters/c1/bulk/runs/r1/stop', () => {
+        stopped += 1;
+        return HttpResponse.json(run({ status: 'STOPPED' }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Notifications />
+        <BulkRunView />
+      </>,
+    );
+
+    const trigger = await screen.findByRole('button', { name: 'Stop run' });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    trigger.focus();
+    await user.keyboard('{Enter}');
+
+    const dialog = await screen.findByRole('dialog', { name: 'Stop this run?' });
+    expect(dialog).toHaveTextContent('every queue after it is cancelled');
+    expect(stopped).toBe(0);
+
+    // Escape dismisses it, and focus returns to the control that opened it.
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Stop run' })).toHaveFocus());
+
+    await user.click(screen.getByRole('button', { name: 'Stop run' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Stop run' }));
+    await waitFor(() => expect(stopped).toBe(1));
+    expect(await screen.findByText('Stopped this run')).toBeInTheDocument();
+  });
+
+  it('says why a stop failed and what to do next', async () => {
+    server.use(
+      meHandler(),
+      RUNNING(),
+      http.post('*/api/v1/clusters/c1/bulk/runs/r1/stop', () =>
+        HttpResponse.json({ title: 'Conflict', detail: 'The run already finished.' }, { status: 409 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Notifications />
+        <BulkRunView />
+      </>,
+    );
+
+    const trigger = await screen.findByRole('button', { name: 'Stop run' });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Stop run' }));
+
+    const failure = await screen.findByText('Could not stop this run');
+    expect(failure).toBeInTheDocument();
+    expect(screen.getByText(/The run already finished\. Reload to see how far the run got/)).toBeInTheDocument();
+  });
+
   it('states and announces a partial outcome with its counts', async () => {
     server.use(
       meHandler(),

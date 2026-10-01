@@ -1,0 +1,4 @@
+/* Counts that change as the run goes: tabular digits make a difference between refreshes visible. */
+.figures {
+  font-variant-numeric: tabular-nums;
+}

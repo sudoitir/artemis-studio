@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { Anchor, Title } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useBulkRuns, type BulkRunView } from './api.ts';
 import { runColumns } from './columns.ts';
@@ -21,7 +22,10 @@ export function BulkRunsView() {
 
   return (
     <Page fill>
-      <Title order={3}>Bulk runs</Title>
+      <PageHeader
+        title="Bulk runs"
+        description="Pauses, resumes, purges and deletes applied to many queues at once, newest first, each with its outcome."
+      />
       <DataTable
         label="Bulk runs"
         storageKey="bulk.runs"
@@ -37,9 +41,9 @@ export function BulkRunsView() {
             title="No bulk runs yet"
             description="A bulk run pauses, resumes, purges or deletes many queues at once, one queue at a time, after a preview you confirm. Nothing has been run on this cluster yet. Select queues on the Queues screen to start one, and it is listed here with its outcome."
             action={
-              <Anchor component={Link} to={`/clusters/${clusterId}/queues`} size="sm">
+              <Link to={`/clusters/${clusterId}/queues`} className={linkClasses.link}>
                 Go to Queues
-              </Anchor>
+              </Link>
             }
           />
         }

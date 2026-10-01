@@ -69,13 +69,13 @@ export function QueueHistoryPanels({
           History
         </Button>
       </Group>
-      <Stack gap={4}>
+      <Stack gap="xs">
         <Text size="xs" fw={600} c="dimmed">
           Depth · last hour
         </Text>
         <DepthChart series={byName('messageCount')} range={DRAWER_RANGE} from={fromMs} to={toMs} syncId={syncId} />
       </Stack>
-      <Stack gap={4}>
+      <Stack gap="xs">
         <Text size="xs" fw={600} c="dimmed">
           Throughput · last hour
         </Text>

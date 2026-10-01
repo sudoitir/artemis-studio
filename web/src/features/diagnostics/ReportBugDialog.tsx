@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Button,
   Code,
   Collapse,
@@ -13,7 +12,6 @@ import {
   TextInput,
   UnstyledButton,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconChevronDown, IconChevronRight, IconCopy, IconExternalLink } from '@tabler/icons-react';
 
 import { branding } from '../../branding.ts';
@@ -21,7 +19,11 @@ import { useManifest } from '../../kernel/manifest.ts';
 import { useDiagnosticsSummary } from './api.ts';
 import classes from './Diagnostics.module.css';
 import { environmentMarkdown, issueBody, issueUrl, type BugDescription } from './bugReport.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify } from '../../ui/notify.ts';
+
+const COPY = { verb: 'Copy', past: 'Copied', progressive: 'Copying' } as const;
 
 const EMPTY: BugDescription = { happened: '', expected: '', steps: '' };
 
@@ -66,11 +68,18 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
     }
     const link = issueUrl(branding.projectUrl, title.trim(), body);
     if (!link.bodyInUrl) {
-      await navigator.clipboard.writeText(body);
-      notifications.show({
-        title: 'The report is on your clipboard',
-        message: 'It is too long for a link. Paste it into the issue that just opened.',
-      });
+      // The issue opens either way: a refused clipboard write must not leave the button doing nothing.
+      try {
+        await navigator.clipboard.writeText(body);
+        notify.succeeded({ action: COPY, subject: 'the report to your clipboard; paste it into the issue that opens' });
+      } catch {
+        notify.failed({
+          action: COPY,
+          subject: 'the report',
+          cause: 'The browser did not allow Studio to write to your clipboard.',
+          next: 'Use "Copy as Markdown" in this dialog, then paste the report into the issue that opens.',
+        });
+      }
     }
     window.open(link.url, '_blank', 'noopener,noreferrer');
   };
@@ -112,14 +121,18 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
           onChange={set('steps')}
         />
 
-        <Stack gap={6}>
+        <Stack gap="xs">
           <UnstyledButton
             onClick={() => setShowEnvironment((v) => !v)}
             aria-expanded={showEnvironment}
             aria-controls="bug-environment"
           >
-            <Group gap={6}>
-              {showEnvironment ? <IconChevronDown size={14} aria-hidden /> : <IconChevronRight size={14} aria-hidden />}
+            <Group gap="xs">
+              {showEnvironment ? (
+                <IconChevronDown size="0.875rem" aria-hidden />
+              ) : (
+                <IconChevronRight size="0.875rem" aria-hidden />
+              )}
               <Text size="sm" fw={600}>
                 Environment (included)
               </Text>
@@ -127,12 +140,13 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
             </Group>
           </UnstyledButton>
           {summary.isError && (
-            <Alert color="yellow" variant="light" p="xs">
+            <Stack gap="xs">
+              <ErrorState variant="inline" error={summary.error} />
               <Text size="xs">
-                {branding.productShortName} could not report its versions ({summary.error.message}). The report says
-                &ldquo;unknown&rdquo; for them; add them by hand if you know them.
+                {branding.productShortName} could not report its versions. The report says &ldquo;unknown&rdquo; for
+                them; add them by hand if you know them.
               </Text>
-            </Alert>
+            </Stack>
           )}
           <Collapse expanded={showEnvironment} id="bug-environment">
             <Code block className={classes.environment}>
@@ -142,18 +156,18 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
         </Stack>
 
         <Group justify="space-between" align="center" wrap="nowrap">
-          <Text size="xs" c="dimmed" maw={300}>
+          <Text size="xs" c="dimmed" maw="20rem">
             Opens github.com in a new tab. Nothing is sent until you submit the issue there.
           </Text>
           <Group gap="xs" wrap="nowrap">
             <CopyButton value={markdown}>
               {({ copied, copy }) => (
-                <Button variant="default" leftSection={<IconCopy size={14} aria-hidden />} onClick={copy}>
+                <Button variant="default" leftSection={<IconCopy size="0.875rem" aria-hidden />} onClick={copy}>
                   {copied ? 'Copied' : 'Copy as Markdown'}
                 </Button>
               )}
             </CopyButton>
-            <Button leftSection={<IconExternalLink size={14} aria-hidden />} onClick={() => void open()}>
+            <Button leftSection={<IconExternalLink size="0.875rem" aria-hidden />} onClick={() => void open()}>
               Open on GitHub
             </Button>
           </Group>

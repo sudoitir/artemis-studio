@@ -1,7 +1,9 @@
 import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
-import { Badge, Button, Code, CopyButton, Group, ScrollArea, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Button, Code, CopyButton, Text, TextInput } from '@mantine/core';
 import { IconCopy, IconSearch } from '@tabler/icons-react';
 
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { SectionView } from './api.ts';
 import classes from './Diagnostics.module.css';
 
@@ -34,13 +36,13 @@ export function SectionPreview({ section, included }: Readonly<{ section: Sectio
   let body: ReactNode;
   if (section.content.trim() === '') {
     body = (
-      <Text size="sm" c="dimmed" p="md">
+      <Text size="sm" className={classes.empty}>
         This section is empty.
       </Text>
     );
   } else if (shown.length === 0) {
     body = (
-      <Text size="sm" c="dimmed" p="md">
+      <Text size="sm" className={classes.empty}>
         No line contains &ldquo;{find.trim()}&rdquo;.{' '}
         <Button variant="subtle" size="compact-xs" onClick={() => setFind('')}>
           Clear the search
@@ -48,51 +50,53 @@ export function SectionPreview({ section, included }: Readonly<{ section: Sectio
       </Text>
     );
   } else {
-    body = (
-      <pre className={classes.text} aria-label={`${section.title} contents`}>
-        {withMasks(shown.join('\n'))}
-      </pre>
-    );
+    body = <pre className={classes.text}>{withMasks(shown.join('\n'))}</pre>;
   }
 
   return (
-    <Stack gap="sm" className={classes.preview}>
-      <Group justify="space-between" wrap="nowrap">
-        <Group gap="xs" wrap="nowrap">
-          <Title order={4}>{section.title}</Title>
-          <Code>{section.fileName}</Code>
-          {!included && (
-            <Badge variant="outline" color="gray">
-              Excluded
-            </Badge>
-          )}
-        </Group>
-        <CopyButton value={section.content}>
-          {({ copied, copy }) => (
-            <Button size="compact-sm" variant="default" leftSection={<IconCopy size={14} aria-hidden />} onClick={copy}>
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
-          )}
-        </CopyButton>
-      </Group>
-      <TextInput
-        aria-label={`Find in ${section.title}`}
-        placeholder={`Find in ${section.title.toLowerCase()}`}
-        leftSection={<IconSearch size={14} aria-hidden />}
-        value={find}
-        onChange={(e) => setFind(e.currentTarget.value)}
-        rightSectionWidth={120}
-        rightSection={
-          query ? (
-            <Text size="xs" c="dimmed" className={classes.num} aria-live="polite">
-              {shown.length} of {lines.length} lines
-            </Text>
-          ) : null
+    <div className={classes.preview}>
+      <Section
+        title={section.title}
+        headingLevel={3}
+        description={<Code>{section.fileName}</Code>}
+        actions={
+          <>
+            {!included && <StatusBadge>Excluded</StatusBadge>}
+            <CopyButton value={section.content}>
+              {({ copied, copy }) => (
+                <Button
+                  size="compact-sm"
+                  variant="default"
+                  leftSection={<IconCopy size="0.875rem" aria-hidden />}
+                  onClick={copy}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              )}
+            </CopyButton>
+          </>
         }
-      />
-      <ScrollArea h={520} className={classes.content} type="auto" offsetScrollbars>
-        {body}
-      </ScrollArea>
-    </Stack>
+      >
+        <TextInput
+          label={`Find in ${section.title}`}
+          placeholder="A word or phrase"
+
+          leftSection={<IconSearch size="0.875rem" aria-hidden />}
+          value={find}
+          onChange={(e) => setFind(e.currentTarget.value)}
+          rightSectionWidth="7.5rem"
+          rightSection={
+            query ? (
+              <Text size="xs" className={`${classes.hint} ${classes.num}`} aria-live="polite">
+                {shown.length} of {lines.length} lines
+              </Text>
+            ) : null
+          }
+        />
+        <div className={classes.content} role="region" aria-label={`${section.title} contents`} tabIndex={0}>
+          {body}
+        </div>
+      </Section>
+    </div>
   );
 }

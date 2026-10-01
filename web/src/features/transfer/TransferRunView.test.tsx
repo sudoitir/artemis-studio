@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
@@ -18,13 +19,20 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 
 const { TransferRunView } = await import('./TransferRunView.tsx');
 
+afterEach(() => act(() => notifications.clean()));
+
 function show(over: Partial<Run>, permissions?: string[]) {
   server.use(
     meHandler(permissions),
     ...clusterHandlers(),
     http.get('*/api/v1/clusters/c1/transfers/runs/r1', () => HttpResponse.json(run(over))),
   );
-  return renderWithProviders(<TransferRunView />);
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <TransferRunView />
+    </>,
+  );
 }
 
 const state = () => screen.findByRole('status', { name: 'Transfer state' });
@@ -77,6 +85,40 @@ describe('TransferRunView states in words', () => {
     expect(await state()).toHaveTextContent(sentence);
   });
 
+  it('is one page with a single h1 and its sections below it', async () => {
+    show({ state: 'RUNNING', held: 5, notes: ['Messages keep their order.'] });
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Move 1,200 messages' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    for (const name of ['State', 'Where each end stands', 'Good to know']) {
+      expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument();
+    }
+  });
+
+  it('holds the page header while the run loads and when it cannot be read, with a retry', async () => {
+    let calls = 0;
+    server.use(
+      meHandler(),
+      ...clusterHandlers(),
+      http.get('*/api/v1/clusters/c1/transfers/runs/r1', () => {
+        calls += 1;
+        return calls === 1
+          ? problem(503, 'upstream', 'Unavailable', 'The cluster did not answer.')
+          : HttpResponse.json(run({ state: 'SUCCEEDED' }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<TransferRunView />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Transfer' })).toBeInTheDocument();
+    expect(screen.getByText('Loading the transfer')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('The cluster did not answer.');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Move 1,200 messages' })).toBeInTheDocument();
+  });
+
   it('shows a loading placeholder, then explains why a run could not be loaded', async () => {
     server.use(
       meHandler(),
@@ -107,7 +149,7 @@ describe('TransferRunView figures', () => {
     expect(
       screen.getByText(/By admin, started .+, selecting messages up to .+, with the safety cap overridden/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '← All transfers' })).toHaveAttribute('href', '/clusters/c1/transfers');
+    expect(screen.getByRole('link', { name: 'All transfers' })).toHaveAttribute('href', '/clusters/c1/transfers');
   });
 
   it('says how many messages it will move is unknown when the preview could not count, and names a cluster it cannot look up', async () => {
@@ -118,7 +160,7 @@ describe('TransferRunView figures', () => {
     expect(screen.getByText(/By admin, selecting messages up to/)).toBeInTheDocument();
     expect(screen.queryByText(/, started /)).toBeNull();
     // An unknown size is stated, never shown as zero, and no progress bar pretends otherwise.
-    expect(screen.getByText('unknown')).toBeInTheDocument();
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
     expect(screen.getByText(/How far along this is cannot be shown/)).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
@@ -225,11 +267,11 @@ describe('TransferRunView figures', () => {
 
   it('marks staged messages that nothing is moving as needing attention, but not while it runs', async () => {
     const first = show({ state: 'STOPPED', held: 5 });
-    expect((await screen.findByText('Held in staging')).parentElement).toHaveAttribute('data-tone', 'warning');
+    expect((await screen.findByText('Held in staging')).closest('[data-tone]')).toHaveAttribute('data-tone', 'warning');
     first.unmount();
 
     show({ state: 'RUNNING', held: 5 });
-    expect((await screen.findByText('Held in staging')).parentElement).not.toHaveAttribute('data-tone');
+    expect((await screen.findByText('Held in staging')).closest('[data-tone]')).toBeNull();
   });
 
   it('shows the cause and the snippet that fixes it, and every note', async () => {
@@ -295,6 +337,7 @@ describe('TransferRunView commands', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Stop' }));
     await waitFor(() => expect(stopped).toBe(1));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Stopped this transfer')).toBeInTheDocument();
   });
 
   it('keeps running when the stop dialog is dismissed, and words a copy without staging', async () => {
@@ -306,7 +349,7 @@ describe('TransferRunView commands', () => {
     expect(dialog).toHaveTextContent('Nothing is lost: the run can be resumed later.');
     expect(dialog).not.toHaveTextContent('staging');
 
-    await user.click(within(dialog).getByRole('button', { name: 'Keep running' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
@@ -334,6 +377,7 @@ describe('TransferRunView commands', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Resume' }));
     await waitFor(() => expect(resumed).toBe(1));
+    expect(await screen.findByText('Resumed this transfer')).toBeInTheDocument();
   });
 
   it('says a command that failed did nothing further, with its cause', async () => {
@@ -347,8 +391,10 @@ describe('TransferRunView commands', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Resume' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Conflict');
-    expect(alert).toHaveTextContent('The run is already running. The run is as shown above; nothing further was done.');
+    expect(alert).toHaveTextContent('Could not resume this transfer');
+    expect(alert).toHaveTextContent(
+      'The run is already running. The run is as shown on this page; nothing further was done.',
+    );
   });
 
   it('keeps the return dialog open and armed only by the typed source name, then closes it once sent', async () => {
@@ -365,6 +411,7 @@ describe('TransferRunView commands', () => {
     await user.type(within(dialog).getByRole('textbox'), 'orders');
     await user.click(within(dialog).getByRole('button', { name: 'Return 1 message' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Returned the held messages to the source')).toBeInTheDocument();
   });
 });
 

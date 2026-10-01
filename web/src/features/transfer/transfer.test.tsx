@@ -251,8 +251,8 @@ describe('TransferDialog', () => {
 
     const alert = await within(dialog).findByRole('alert');
     expect(alert).toHaveTextContent('This is not the plan that was previewed.');
-    expect(alert).toHaveTextContent('Nothing was run.');
-    expect(within(alert).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Nothing was run\./)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
   });
 
   it('states a refused preview and leaves the destination to change', async () => {
@@ -273,7 +273,7 @@ describe('TransferDialog', () => {
 
     const alert = await within(dialog).findByRole('alert');
     expect(alert).toHaveTextContent('No cluster with that id');
-    expect(alert).toHaveTextContent('Nothing was moved.');
+    expect(within(dialog).getByText(/Nothing was moved\./)).toBeInTheDocument();
   });
 
   it('takes focus, closes on Escape and hands focus back to the button that opened it', async () => {
@@ -360,7 +360,7 @@ describe('TransferRunView', () => {
     expect(within(dialog).getByText(/900 messages now, goes back on orders/)).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Return 900 messages' })).toBeDisabled();
 
-    await user.type(within(dialog).getByRole('textbox', { name: /Type the source queue's name/ }), 'orders');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Type "orders" to confirm' }), 'orders');
     await user.click(within(dialog).getByRole('button', { name: 'Return 900 messages' }));
     await waitFor(() => expect(returned).toBe(1));
   });
@@ -385,6 +385,73 @@ describe('TransferRunView', () => {
 });
 
 describe('TransfersView', () => {
+  it('is one page with a single h1 and the stranded-staging section below it', async () => {
+    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'studio.transfer.r9', depth: null };
+    server.use(
+      meHandler(),
+      ...clusterHandlers(),
+      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json(paged([run({ state: 'SUCCEEDED' })]))),
+      http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json(paged([orphan]))),
+    );
+    renderWithProviders(<TransfersView />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Message transfers' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Staging queues with no run' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    // An unknown depth is stated, never shown as zero.
+    expect(screen.getByText(/studio\.transfer\.r9 on node-a — depth unknown/)).toBeInTheDocument();
+  });
+
+  it('says it could not check for stranded staging, and offers to retry', async () => {
+    let calls = 0;
+    server.use(
+      meHandler(),
+      ...clusterHandlers(),
+      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json(paged([run({ state: 'SUCCEEDED' })]))),
+      http.get('*/api/v1/clusters/c1/transfers/orphans', () => {
+        calls += 1;
+        return problem(503, 'upstream', 'Unavailable', 'The cluster did not answer.');
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<TransfersView />);
+
+    const section = (await screen.findByRole('heading', { name: 'Staging queues with no run' })).closest('section');
+    expect(section).toHaveTextContent('If a transfer was interrupted, its messages may still be held on a broker.');
+    const before = calls;
+    await user.click(await within(section as HTMLElement).findByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(calls).toBeGreaterThan(before));
+  });
+
+  it('asks for the queue to return to, beside its field, instead of leaving the button dead', async () => {
+    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'studio.transfer.r9', depth: 42 };
+    const bodies: unknown[] = [];
+    server.use(
+      meHandler(),
+      ...clusterHandlers(),
+      http.get('*/api/v1/clusters/c1/transfers/runs', () => HttpResponse.json(paged([run({ state: 'SUCCEEDED' })]))),
+      http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json(paged([orphan]))),
+      http.post('*/api/v1/clusters/c1/transfers/orphans/return', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ stagingQueue: 'studio.transfer.r9', returned: 42, remaining: 0, removed: true });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<TransfersView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Return to…' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(
+      within(dialog).getByRole('textbox', { name: /Type the staging queue's name/ }),
+      'studio.transfer.r9',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Return the messages' }));
+
+    expect(await within(dialog).findByText('Name the queue the messages go back to.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /Return them to/ })).toHaveFocus();
+    expect(bodies).toHaveLength(0);
+  });
+
   it('teaches what a transfer is when there are none', async () => {
     server.use(
       meHandler(),

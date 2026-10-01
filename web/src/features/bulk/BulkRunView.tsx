@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Anchor, Button, Group, Modal, Progress, Skeleton, Stack, Text, Title } from '@mantine/core';
+import { Button, Group, Progress, Stack, Text } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -7,9 +7,17 @@ import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { notify } from '../../ui/notify.ts';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import {
   useBulkRun,
@@ -18,8 +26,14 @@ import {
   type BulkRunView as Run,
   type LifecycleOutcomeView,
 } from './api.ts';
+import classes from './BulkRunView.module.css';
 import { itemColumns } from './columns.ts';
 import { OPERATIONS, plural, runStatus } from './words.ts';
+
+const STOP = { verb: 'Stop', past: 'Stopped', progressive: 'Stopping' } as const;
+
+/** What the page says before the run has loaded, so the header holds its two lines when it arrives. */
+const ABOUT = "One bulk run: its status, how far it has got and each queue's outcome.";
 
 /** An acted-on queue's per-node result, in the single-queue command's shape. */
 function outcomeOf(item: BulkItemView, run: Run): LifecycleOutcomeView | null {
@@ -49,8 +63,6 @@ function counts(run: Run): string {
 
 const TONE_COLOR = { danger: 'var(--as-danger)', warning: 'var(--as-warning)' } as const;
 
-const toneColor = (tone: 'warning' | 'danger' | undefined) => (tone ? TONE_COLOR[tone] : undefined);
-
 const TERMINAL = new Set<Run['status']>(['SUCCEEDED', 'PARTIAL', 'FAILED', 'STOPPED', 'INTERRUPTED']);
 
 const rowKey = (i: BulkItemView) => i.queueName;
@@ -68,13 +80,15 @@ function QueueDetail({
   onHide: () => void;
 }>) {
   return (
-    <Stack gap="xs">
-      <Group justify="space-between">
-        <Title order={5}>{item.queueName}</Title>
+    <Section
+      title={item.queueName}
+      headingLevel={3}
+      actions={
         <Button size="xs" variant="subtle" onClick={onHide}>
           Hide node detail
         </Button>
-      </Group>
+      }
+    >
       {outcome ? (
         <NodeOutcomeSummary outcome={outcome} destructive={destructive} />
       ) : (
@@ -84,7 +98,7 @@ function QueueDetail({
             : 'This queue has not been acted on, so there is no per-node result.'}
         </Text>
       )}
-    </Stack>
+    </Section>
   );
 }
 
@@ -104,11 +118,17 @@ export function BulkRunView() {
   const destructive = query.data ? OPERATIONS[query.data.run.operation].destructive : false;
   const columns = useMemo(() => itemColumns(destructive, setOpen), [destructive]);
 
-  if (query.isError) {
-    return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
-  }
   if (!query.data) {
-    return <Skeleton height={160} />;
+    return (
+      <Page>
+        <PageHeader title="Bulk run" description={ABOUT} />
+        {query.isError ? (
+          <ErrorState error={query.error} onRetry={() => void query.refetch()} />
+        ) : (
+          <LoadingState label="Loading the run" blockSize="16rem" />
+        )}
+      </Page>
+    );
   }
 
   const { run, items } = query.data;
@@ -120,110 +140,119 @@ export function BulkRunView() {
   // The server re-checks; this only explains. Offered while grants load.
   const stopGate = gateFor(can(op.permission, clusterId), op.permissionLabel, undefined, loading);
 
+  const stopRun = () => {
+    const pendingId = notify.pending({ action: STOP, subject: 'this run' });
+    stop.mutate(undefined, {
+      onSuccess: () => notify.succeeded({ action: STOP, subject: 'this run', pendingId }),
+      onError: (error) =>
+        notify.failed({
+          action: STOP,
+          subject: 'this run',
+          pendingId,
+          cause: error.message,
+          next: 'Reload to see how far the run got, then try again.',
+        }),
+      onSettled: () => setStopOpen(false),
+    });
+  };
+
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={2}>
-          <Title order={3}>
-            {op.verb} {plural(run.total, 'queue')}
-          </Title>
-          <Text size="xs" c="dimmed">
+    <Page>
+      <PageHeader
+        title={`${op.verb} ${plural(run.total, 'queue')}`}
+        description={
+          <>
             Started by {run.username}
             {run.startedAt ? ` at ${absoluteLabel(run.startedAt)}` : ''}
             {run.continueOnFailure ? ', continuing past failures' : ', stopping at the first failure'}
             {run.overrideCap ? ', with the safety cap overridden' : ''}
-          </Text>
-        </Stack>
-        <Group gap="xs">
-          {run.auditEventId != null ? (
-            <Anchor
-              component={Link}
-              to={`/clusters/${clusterId}/audit`}
-              // The untyped router cannot type another feature's search; `QueueHistoryPanels` does the same.
-              search={{ parentId: run.auditEventId } as never}
-              size="sm"
-            >
-              Audit trail for this run
-            </Anchor>
-          ) : null}
-          {run.status === 'RUNNING' ? (
-            <CapabilityGate verdict={stopGate} what="stopping this run">
-              <Button
-                size="xs"
-                variant="light"
-                color="red"
-                disabled={stopGate.kind === 'blocked'}
-                onClick={() => setStopOpen(true)}
+          </>
+        }
+        actions={
+          <>
+            {run.auditEventId != null ? (
+              <Link
+                to={`/clusters/${clusterId}/audit`}
+                // The untyped router cannot type another feature's search; `QueueHistoryPanels` does the same.
+                search={{ parentId: run.auditEventId } as never}
+                className={linkClasses.link}
               >
-                Stop run
-              </Button>
-            </CapabilityGate>
-          ) : null}
-        </Group>
-      </Group>
-
-      {/* Announced as it changes; the terminal outcome is what a screen-reader user waits for. */}
-      <div role="status" aria-live="polite" aria-label="Run outcome">
-        <Text size="sm" fw={600} c={toneColor(status.tone)}>
-          {TERMINAL.has(run.status) ? `This run finished. ${status.text}.` : `${status.text}.`}
-        </Text>
-        <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {counts(run)}.
-        </Text>
-        {run.error ? <Text size="sm">{run.error}</Text> : null}
-      </div>
-
-      {/* The theme honours reduced motion, so the bar's transition drops out for those who ask. */}
-      <Progress
-        aria-label="Queues settled"
-        value={run.total === 0 ? 0 : (done / run.total) * 100}
-        color={toneColor(status.tone)}
-      />
-
-      {stop.isError ? (
-        <Alert color="red" variant="light" title={stop.error.title} role="alert">
-          {stop.error.message}
-        </Alert>
-      ) : null}
-
-      <DataTable
-        label="Queues in this run"
-        storageKey="bulk.run"
-        height={{ maxRows: 12 }}
-        columns={columns}
-        data={items}
-        rowKey={rowKey}
-        empty={
-          <EmptyState
-            kind="empty"
-            title="No queues in this run"
-            description="A run acts on the queues frozen at its preview. This one froze none, so nothing was or will be acted on. Start a new run from the Queues screen with a selection."
-          />
+                Audit trail for this run
+              </Link>
+            ) : null}
+            {run.status === 'RUNNING' ? (
+              <CapabilityGate verdict={stopGate} what="stopping this run">
+                <Button
+                  size="xs"
+                  variant="default"
+                  disabled={stopGate.kind === 'blocked'}
+                  onClick={() => setStopOpen(true)}
+                >
+                  Stop run
+                </Button>
+              </CapabilityGate>
+            ) : null}
+          </>
         }
       />
 
-      {opened ? (
-        <QueueDetail item={opened} outcome={openedOutcome} destructive={op.destructive} onHide={() => setOpen(null)} />
-      ) : null}
-
-      <Modal opened={stopOpen} onClose={() => setStopOpen(false)} title="Stop this run?">
-        <Stack gap="sm">
-          <Text size="sm">
-            The queue being acted on now finishes; every queue after it is cancelled and left as it is. What has already
-            been done is not undone.
-          </Text>
-          <Group justify="flex-end">
-            <Button
-              size="xs"
-              color="red"
-              loading={stop.isPending}
-              onClick={() => stop.mutate(undefined, { onSettled: () => setStopOpen(false) })}
-            >
-              Stop run
-            </Button>
+      <Section title="Outcome">
+        {/* Announced as it changes; the terminal outcome is what a screen-reader user waits for. */}
+        <Stack gap="xs" role="status" aria-live="polite" aria-label="Run outcome">
+          <Group gap="sm">
+            <StatusBadge tone={status.tone}>{status.text}</StatusBadge>
+            {TERMINAL.has(run.status) ? <Text size="sm">This run finished.</Text> : null}
           </Group>
+          <Text size="sm" className={classes.figures}>
+            {counts(run)}.
+          </Text>
+          {run.error ? <Text size="sm">{run.error}</Text> : null}
         </Stack>
-      </Modal>
-    </Stack>
+
+        {/* The theme honours reduced motion, so the bar's transition drops out for those who ask. */}
+        <Progress
+          aria-label="Queues settled"
+          value={run.total === 0 ? 0 : (done / run.total) * 100}
+          color={status.tone ? TONE_COLOR[status.tone] : undefined}
+        />
+      </Section>
+
+      <Section title="Queues">
+        <DataTable
+          label="Queues in this run"
+          storageKey="bulk.run"
+          height={{ maxRows: 12 }}
+          columns={columns}
+          data={items}
+          rowKey={rowKey}
+          empty={
+            <EmptyState
+              kind="empty"
+              title="No queues in this run"
+              description="A run acts on the queues frozen at its preview. This one froze none, so nothing was or will be acted on. Start a new run from the Queues screen with a selection."
+            />
+          }
+        />
+
+        {opened ? (
+          <QueueDetail
+            item={opened}
+            outcome={openedOutcome}
+            destructive={op.destructive}
+            onHide={() => setOpen(null)}
+          />
+        ) : null}
+      </Section>
+
+      <ConfirmDialog
+        opened={stopOpen}
+        onClose={() => setStopOpen(false)}
+        title="Stop this run?"
+        consequence="The queue being acted on now finishes; every queue after it is cancelled and left as it is. What has already been done is not undone."
+        confirmLabel="Stop run"
+        pending={stop.isPending}
+        onConfirm={stopRun}
+      />
+    </Page>
   );
 }
