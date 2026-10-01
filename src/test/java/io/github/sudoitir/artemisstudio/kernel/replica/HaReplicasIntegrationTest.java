@@ -208,12 +208,12 @@ class HaReplicasIntegrationTest {
         long twoReplicasCalls = managementCalls(a, WINDOW);
 
         assertThat(oneReplicaCalls).as("calls of one replica alone").isGreaterThan(20);
-        // Duplicated scraping would double the count. The tiers are fixed-delay loops over a replica's own
-        // clusters, so two replicas with half the clusters each finish a loop sooner and fit a few more passes
-        // into the window on a slow machine (about 1.3x in CI); the bound leaves room for that, not for 2x.
+        // Duplicated scraping would at least double the count. The tiers are fixed-delay loops over a replica's
+        // own clusters, so two replicas with half the clusters each finish a loop sooner and fit more passes into
+        // the window; CI has measured 1.3x to 1.51x. The bound sits between that and the 2x duplication makes.
         assertThat(twoReplicasCalls)
                 .as("calls of two replicas together, one alone made %d", oneReplicaCalls)
-                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.5));
+                .isLessThanOrEqualTo((long) (oneReplicaCalls * 1.8));
     }
 
     @Test
