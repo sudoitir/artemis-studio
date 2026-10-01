@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.Contract;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.StudioVersion;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorParser;
@@ -179,6 +180,12 @@ class PluginValidatorTest {
     @Test
     void contractMismatch() throws Exception {
         var jar = validPlugin("acme-notes").descriptorField("contract", 999);
+        assertThat(has(validate(jar), "contract-mismatch")).isTrue();
+    }
+
+    @Test
+    void pluginBuiltForThePreviousContractIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes").descriptorField("contract", Contract.VERSION - 1);
         assertThat(has(validate(jar), "contract-mismatch")).isTrue();
     }
 

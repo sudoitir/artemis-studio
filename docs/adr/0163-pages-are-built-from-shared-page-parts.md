@@ -38,7 +38,7 @@ We will build every page from one set of parts in `web/src/ui/`, all exported by
   code.
 - **SDK.** `VirtualTable` and `GridColumn` are removed; `DataTable` (ADR-0160), `Column`,
   `ColumnKind`, `RowMenu` and every part above are added; the `pine` colour is removed (ADR-0158).
-- **The extension contract goes up by one** (`Contract.VERSION` and the SDK's `CONTRACT`, 7 to 8).
+- **The extension contract goes up by one** (`Contract.VERSION` and the SDK's `CONTRACT`, 8 to 9).
   The SDK is a shared singleton that plugins import at runtime. Without the bump, an installed plugin
   that imports `VirtualTable` would pass validation, because its contract number still matches, and
   then crash when its page renders. With the bump, it is refused at load with the existing "built for
@@ -53,7 +53,7 @@ We will build every page from one set of parts in `web/src/ui/`, all exported by
   content will take, on every page and in every plugin that uses the parts.
 - Heading structure is correct by construction, and assistive technology can navigate by heading.
 - A fix to a part is a fix to every page.
-- Every plugin built for contract 7 stops loading until it is rebuilt against the new SDK. That is
+- Every plugin built for contract 8 stops loading until it is rebuilt against the new SDK. That is
   the intended failure: a clear refusal instead of a crash at render. The breaking-change note in the
   SDK commit gives the migration: `VirtualTable` to `DataTable`, `width` to `kind`, `priority`, `min`
   and `max`, `compact` to `height={{ maxRows }}`, `emptyLabel` to `empty={<EmptyState … />}`, a

@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
-import { useCan } from '@artemis-studio/plugin-sdk';
+import { useMemo, useState } from 'react';
+import { Button, Stack, Textarea } from '@mantine/core';
+import { DataTable, EmptyState, ErrorState, Section, useCan, type Column } from '@artemis-studio/plugin-sdk';
 
-import { ID, useAddNote, useDeleteNote, useQueueNotes } from './api.ts';
+import { ID, useAddNote, useDeleteNote, useQueueNotes, type Note } from './api.ts';
 
 /** The notes on one queue, and — for someone allowed to — a way to add one. */
 export function NotesList({ clusterId, queue }: { clusterId: string; queue: string }) {
@@ -13,53 +13,84 @@ export function NotesList({ clusterId, queue }: { clusterId: string; queue: stri
   const [body, setBody] = useState('');
   const canWrite = can(`${ID}:write`, clusterId);
 
-  return (
-    <Stack gap="xs">
-      {notes.isError ? <Text size="sm">Notes could not be loaded: {notes.error.message}</Text> : null}
-      {notes.data?.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No notes on {queue} yet. A note is for the next operator: why this queue is odd, who owns it.
-        </Text>
-      ) : null}
-      {notes.data?.map((note) => (
-        <Group key={note.id} justify="space-between" align="flex-start" wrap="nowrap">
-          <Stack gap={0}>
-            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
-              {note.body}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {note.author}, {new Date(note.createdAt).toLocaleString()}
-            </Text>
-          </Stack>
-          {canWrite ? (
-            <Button size="compact-xs" variant="subtle" loading={remove.isPending && remove.variables === note.id} onClick={() => remove.mutate(note.id)}>
-              Delete
-            </Button>
-          ) : null}
-        </Group>
-      ))}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          add.mutate(body, { onSuccess: () => setBody('') });
-        }}
-      >
-        <Stack gap={4}>
-          <Textarea
-            label="Add a note"
-            value={body}
-            onChange={(e) => setBody(e.currentTarget.value)}
-            autosize
-            minRows={2}
-            disabled={!canWrite}
-            description={canWrite ? undefined : `Adding notes needs the ${ID}:write permission on this cluster.`}
-            error={add.error?.message}
-          />
-          <Button type="submit" size="xs" w="fit-content" loading={add.isPending} disabled={!canWrite}>
-            Add note
+  const columns = useMemo<Column<Note>[]>(() => {
+    const cols: Column<Note>[] = [
+      { id: 'note', header: 'Note', accessor: (n) => n.body, kind: 'text', priority: 'essential', wrap: true },
+      { id: 'author', header: 'By', accessor: (n) => n.author, kind: 'text', priority: 'high' },
+      {
+        id: 'createdAt',
+        header: 'Added',
+        accessor: (n) => new Date(n.createdAt).toLocaleString(),
+        kind: 'time',
+        priority: 'high',
+      },
+    ];
+    if (canWrite) {
+      cols.push({
+        id: 'actions',
+        header: 'Actions',
+        accessor: () => 'Delete',
+        kind: 'status',
+        priority: 'essential',
+        cell: (n) => (
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            aria-label={`Delete the note by ${n.author}`}
+            loading={remove.isPending && remove.variables === n.id}
+            onClick={() => remove.mutate(n.id)}
+          >
+            Delete
           </Button>
-        </Stack>
-      </form>
+        ),
+      });
+    }
+    return cols;
+  }, [canWrite, remove]);
+
+  return (
+    <Stack gap="md">
+      <DataTable
+        variant="static"
+        label={`Notes on ${queue}`}
+        columns={columns}
+        data={notes.data ?? []}
+        rowKey={(n) => n.id}
+        loading={notes.isPending}
+        height={{ maxRows: 8 }}
+        empty={
+          <EmptyState
+            kind="empty"
+            title={`No notes on ${queue}`}
+            description="A note is for the next operator: why this queue is odd, who owns it."
+          />
+        }
+        error={notes.isError ? <ErrorState error={notes.error} onRetry={() => void notes.refetch()} /> : undefined}
+      />
+      <Section title="Add a note" headingLevel={3}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            add.mutate(body, { onSuccess: () => setBody('') });
+          }}
+        >
+          <Stack gap="xs">
+            <Textarea
+              aria-label="Note"
+              value={body}
+              onChange={(e) => setBody(e.currentTarget.value)}
+              autosize
+              minRows={2}
+              disabled={!canWrite}
+              description={canWrite ? undefined : `Adding notes needs the ${ID}:write permission on this cluster.`}
+              error={add.error?.message}
+            />
+            <Button type="submit" size="xs" w="fit-content" loading={add.isPending} disabled={!canWrite}>
+              Add note
+            </Button>
+          </Stack>
+        </form>
+      </Section>
     </Stack>
   );
 }

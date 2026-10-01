@@ -44,7 +44,7 @@ import {
   type DiagramNode,
 } from './diagram.ts';
 import classes from './DiagramView.module.css';
-import { anchorBelow, clampToViewport, type MenuAnchor } from './menuAnchor.ts';
+import { anchorBelow, clampToViewport, type MenuAnchor } from './table/menuAnchor.ts';
 
 export type { DiagramAction, DiagramChoice, DiagramEdge, DiagramNode };
 

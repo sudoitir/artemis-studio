@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Menu, Portal } from '@mantine/core';
 
 import classes from './ActionMenu.module.css';
-import type { MenuAnchor } from './menuAnchor.ts';
+import type { MenuAnchor } from './table/menuAnchor.ts';
 
 /**
  * One controlled menu opened at a point rather than from a trigger it wraps (ADR-0107). A grid
