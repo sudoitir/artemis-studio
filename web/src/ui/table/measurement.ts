@@ -142,6 +142,11 @@ interface MeasurementInput<T> {
   density: string;
   /** Whether the viewer is in the table, so live growth must wait. */
   isBusy: () => boolean;
+  /**
+   * Whether the table has a width, so its Measurer has a layout to read. A table inside a hidden tab
+   * has none; it is measured when it is first shown, never from a read that saw nothing.
+   */
+  shown: boolean;
 }
 
 interface MeasurementResult {
@@ -165,6 +170,7 @@ export function useMeasurement<T>({
   data,
   density,
   isBusy,
+  shown,
 }: Readonly<MeasurementInput<T>>): MeasurementResult {
   const rootRef = useRef<HTMLDivElement>(null);
   const [measurement, setMeasurement] = useState(NOT_MEASURED);
@@ -191,19 +197,22 @@ export function useMeasurement<T>({
   const columnKey = columns
     .map((c) => [c.id, c.header, c.short, c.kind, c.badge, c.min, c.max, c.sortKey ? 1 : 0].join(':'))
     .join('|');
-  const key = `${columnKey}#${density}#${fontsEpoch}#${refitEpoch}`;
+  // The headers are measured on their own, so an empty table still gives each column its width; the
+  // first rows, a table becoming visible and the other triggers each measure again.
+  const key = `${columnKey}#${density}#${fontsEpoch}#${refitEpoch}#${data.length > 0}`;
 
   const measuredKey = useRef<string>(undefined);
   const grownFor = useRef(data);
   const lastGrowth = useRef(0);
   useLayoutEffect(() => {
-    if (data.length === 0 || measuredKey.current === key) return;
+    if (!shown || measuredKey.current === key) return;
+    const next = readMeasurement(rootRef.current, idsRef.current);
+    if (!next || next === NOT_MEASURED) return;
     measuredKey.current = key;
     grownFor.current = data;
-    const next = readMeasurement(rootRef.current, idsRef.current);
-    if (next) setMeasurement(next);
+    setMeasurement(next);
     lastGrowth.current = Date.now();
-  }, [data, key]);
+  }, [data, key, shown]);
 
   useEffect(() => {
     const fonts = document.fonts;

@@ -123,6 +123,7 @@ describe('readMeasurement', () => {
           data: rows(2, (i) => (i === 0 ? 'queue' : 'a-longer-queue')),
           density: 'compact',
           isBusy: () => false,
+          shown: true,
         });
         return (
           <>
@@ -185,10 +186,12 @@ describe('live growth', () => {
   function Probe({
     data,
     busy = false,
+    shown = true,
     onResume,
   }: {
     data: Row[];
     busy?: boolean;
+    shown?: boolean;
     onResume?: (fn: () => void) => void;
   }) {
     const { measurement, measurerProps, resume } = useMeasurement({
@@ -196,6 +199,7 @@ describe('live growth', () => {
       data,
       density: 'compact',
       isBusy: () => busy,
+      shown,
     });
     onResume?.(resume);
     return (
@@ -206,6 +210,20 @@ describe('live growth', () => {
     );
   }
   const width = () => Number(screen.getByRole('status').textContent);
+
+  it('measures the headers of an empty table, so its columns have a width before any row', () => {
+    render(<Probe data={[]} />);
+    // The header 'Name' is 4 characters at 10 px, plus 16 px of padding and 1 px for rounding.
+    expect(width()).toBeGreaterThan(16);
+  });
+
+  it('waits for a hidden table to be shown, then measures it', () => {
+    const data = rows(2, (i) => (i === 0 ? 'queue' : 'a-longer-queue'));
+    const { rerender } = render(<Probe data={data} shown={false} />);
+    expect(screen.getByRole('status').textContent).toBe('');
+    rerender(<Probe data={data} shown />);
+    expect(width()).toBe(14 * 10 + 16 + 1);
+  });
 
   it('widens columns for new rows at most every two seconds', () => {
     const { rerender } = render(<Probe data={rows(2)} />);

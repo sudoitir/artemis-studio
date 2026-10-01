@@ -160,7 +160,13 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
     [],
   );
 
-  const { measurement, measurerProps, refit, resume } = useMeasurement({ columns, data, density, isBusy });
+  const { measurement, measurerProps, refit, resume } = useMeasurement({
+    columns,
+    data,
+    density,
+    isBusy,
+    shown: inlineSize > 0,
+  });
   resumeRef.current = resume;
 
   // ── Which columns, in what order ───────────────────────────────────────────
