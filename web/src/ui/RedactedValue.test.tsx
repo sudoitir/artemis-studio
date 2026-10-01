@@ -39,6 +39,19 @@ describe('RedactedValue', () => {
     expect(screen.getByText('Sensitive: email, shown by your access')).toBeInTheDocument();
   });
 
+  it('never puts the value in an attribute, so a tooltip, a name or a copy cannot carry it', () => {
+    const { container } = renderWithProviders(
+      <GovernedValue value="jane@example.com" redactions={[redaction({ clear: true })]} />,
+    );
+    for (const element of container.querySelectorAll('*')) {
+      for (const attribute of element.getAttributeNames()) {
+        expect(element.getAttribute(attribute)).not.toContain('jane@example.com');
+      }
+    }
+    expect(container.querySelector('[title]')).toBeNull();
+    expect(screen.getByText('jane@example.com')).toBeInTheDocument();
+  });
+
   it('counts repeated redactions of one kind once', () => {
     renderWithProviders(<RedactionMarks redactions={[redaction(), redaction({ path: 'other' })]} />);
     expect(screen.getByText('Masked: email (2)')).toBeInTheDocument();

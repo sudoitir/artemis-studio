@@ -72,7 +72,7 @@ export function NodeOutcomeSummary({
 export interface OutcomeRow {
   key: string;
   name: string;
-  /** A right-aligned figure, when the command has one worth comparing between nodes. */
+  /** An end-aligned figure, when the command has one worth comparing between nodes. */
   count?: string;
   status: string;
   tone?: 'warning' | 'danger';

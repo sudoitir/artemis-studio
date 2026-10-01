@@ -1,12 +1,12 @@
 /* A resource name that is also a link, inside running text or a grid cell: it keeps the text's
    colour (a grid of blue names is noise) and says it is a link with an underline, not with colour
-   alone. */
+   alone. The underline is the strong border step, so it holds 3:1 against the surface. */
 .link {
   color: inherit;
   text-decoration: underline;
-  text-decoration-color: var(--as-border);
+  text-decoration-color: var(--as-border-strong);
   text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-underline-offset: 0.1875rem;
 }
 
 .link:hover {
@@ -14,7 +14,7 @@
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--mantine-primary-color-filled);
-  outline-offset: 1px;
-  border-radius: 2px;
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+  border-radius: var(--mantine-radius-xs);
 }

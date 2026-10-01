@@ -35,6 +35,12 @@ export const codeHighlight = HighlightStyle.define([
   },
 ]);
 
+const squiggle = (colour: string) => ({
+  textDecoration: 'underline wavy',
+  textDecorationColor: colour,
+  textUnderlineOffset: '0.1875rem',
+});
+
 export const codeTheme = EditorView.theme({
   '&': {
     color: 'var(--as-text)',
@@ -43,13 +49,14 @@ export const codeTheme = EditorView.theme({
     borderRadius: 'var(--mantine-radius-md)',
     fontSize: 'var(--mantine-font-size-sm)',
   },
+  // Inside the box, so the editor's own border never clips the ring.
   '&.cm-focused': {
-    outline: '2px solid var(--mantine-primary-color-filled)',
-    outlineOffset: '-1px',
+    outline: 'var(--as-focus-ring)',
+    outlineOffset: 'calc(var(--as-focus-offset) * -1)',
   },
   '.cm-content': {
     fontFamily: 'var(--mantine-font-family-monospace)',
-    padding: '10px 12px',
+    padding: '0.625rem 0.75rem',
     caretColor: 'var(--as-text)',
   },
   '.cm-cursor, .cm-dropCursor': { borderInlineStartColor: 'var(--as-text)' },
@@ -64,7 +71,7 @@ export const codeTheme = EditorView.theme({
   '.cm-activeLine': { backgroundColor: 'var(--as-code-active-line)' },
   // Horizontal overflow scrolls inside the editor, never out of its container.
   '.cm-scroller': { overflow: 'auto' },
-  '.cm-foldGutter .cm-gutterElement': { cursor: 'pointer', paddingInline: '2px' },
+  '.cm-foldGutter .cm-gutterElement': { cursor: 'pointer', paddingInline: '0.125rem' },
   '.cm-foldPlaceholder': {
     backgroundColor: 'var(--as-surface-raised)',
     border: '1px solid var(--as-border)',
@@ -81,9 +88,9 @@ export const codeTheme = EditorView.theme({
   '.cm-selectionMatch': { backgroundColor: 'var(--as-code-active-line)' },
   '.cm-searchMatch': {
     backgroundColor: 'transparent',
-    outline: '1px solid var(--mantine-primary-color-filled)',
+    outline: '1px solid var(--as-accent)',
   },
-  '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'var(--as-grid-row-hover)' },
+  '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'var(--as-selected)' },
   '.cm-panels': {
     backgroundColor: 'var(--as-surface-raised)',
     color: 'var(--as-text)',
@@ -105,7 +112,7 @@ export const codeTheme = EditorView.theme({
   },
   '.cm-placeholder': { color: 'var(--as-text-dimmed)' },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-    backgroundColor: 'var(--as-grid-row-hover)',
+    backgroundColor: 'var(--as-selected)',
   },
   '.cm-tooltip': {
     backgroundColor: 'var(--as-surface-raised)',
@@ -114,8 +121,10 @@ export const codeTheme = EditorView.theme({
     color: 'var(--as-text)',
   },
   '.cm-tooltip-autocomplete ul li[aria-selected]': {
-    backgroundColor: 'var(--mantine-primary-color-filled)',
-    color: 'var(--mantine-color-white)',
+    backgroundColor: 'var(--as-selected)',
+    color: 'var(--as-text)',
+    outline: '1px solid var(--as-accent)',
+    outlineOffset: '-1px',
   },
   '.cm-completionDetail': {
     color: 'var(--as-text-dimmed)',
@@ -125,6 +134,25 @@ export const codeTheme = EditorView.theme({
   // its own, so the colour is redundant emphasis rather than the only signal.
   '.cm-as-error-token': {
     textDecoration: 'underline wavy var(--as-danger)',
-    textUnderlineOffset: '3px',
+    textUnderlineOffset: '0.1875rem',
+  },
+  // The lint layer ships its own marks in fixed colours (a data-URI squiggle, a gutter icon, a bar on
+  // each message). They take the status tokens here, and the gutter marks differ in shape as well as
+  // colour, so a severity is never carried by colour alone.
+  '.cm-lintRange-error': { backgroundImage: 'none', ...squiggle('var(--as-danger)') },
+  '.cm-lintRange-warning': { backgroundImage: 'none', ...squiggle('var(--as-warning)') },
+  '.cm-lintRange-active': { backgroundColor: 'var(--as-selected)' },
+  '.cm-diagnostic-error': { borderInlineStartColor: 'var(--as-danger)' },
+  '.cm-diagnostic-warning': { borderInlineStartColor: 'var(--as-warning)' },
+  '.cm-lintPoint:after': { borderBottomColor: 'var(--as-danger)' },
+  '.cm-lintPoint-warning:after': { borderBottomColor: 'var(--as-warning)' },
+  '.cm-lint-marker-error, .cm-lint-marker-warning, .cm-lint-marker-info': {
+    content: 'none',
+    backgroundColor: 'var(--as-text-dimmed)',
+  },
+  '.cm-lint-marker-error': { backgroundColor: 'var(--as-danger)', borderRadius: '50%' },
+  '.cm-lint-marker-warning': {
+    backgroundColor: 'var(--as-warning)',
+    clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
   },
 });

@@ -1,6 +1,7 @@
 import { Text } from '@mantine/core';
 
 import { absoluteLabel, elapsedLabel } from './time.ts';
+import classes from './Time.module.css';
 
 /**
  * How long ago (or, with `future`, how long from now), in words, with the exact time beneath it so
@@ -10,10 +11,10 @@ export function When({ at, now, future = false }: Readonly<{ at: string; now: nu
   const ms = future ? Date.parse(at) - now : now - Date.parse(at);
   return (
     <>
-      <Text size="sm" component="time" dateTime={at} display="block">
+      <Text size="sm" component="time" className={classes.figures} dateTime={at} display="block">
         {future ? `in ${elapsedLabel(ms)}` : `${elapsedLabel(ms)} ago`}
       </Text>
-      <Text size="xs" c="dimmed">
+      <Text size="xs" c="dimmed" className={classes.figures}>
         {absoluteLabel(at)}
       </Text>
     </>

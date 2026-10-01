@@ -51,7 +51,7 @@ export function AnchoredMenu({
         position="bottom-start"
         offset={2}
         shadow="md"
-        width={260}
+        width="16.25rem"
         returnFocus={false}
         // The anchor is a synthetic point this component keeps inside the viewport, and the grid
         // closes the menu on scroll; "hide when the target leaves the screen" has nothing to add.

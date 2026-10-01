@@ -181,18 +181,29 @@ async function answer(page: Page, route: RouteSpec, mode: Answer, clusterId: str
   );
 }
 
+/**
+ * Whether nothing on the page says it is loading within `timeout`. The check runs through
+ * `page.evaluate`, which the DevTools protocol runs outside the page's Content-Security-Policy.
+ * `page.waitForFunction` with a string predicate evaluates it with `eval` inside the page whenever
+ * the page is still busy at the first look, which the policy blocks, so it was never settled and
+ * the sweep recorded a script-src violation the console does not have.
+ */
+async function idle(page: Page, timeout: number): Promise<boolean> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (!(await page.evaluate(BUSY))) return true;
+    await page.waitForTimeout(100);
+  }
+  return false;
+}
+
 async function settle(page: Page, state: State) {
   await page.waitForLoadState('load');
   if (state === 'loading') {
     await page.waitForTimeout(1500);
     return true;
   }
-  const settled = await page
-    .waitForFunction(`!(${BUSY})`, undefined, { timeout: state === 'error' ? SETTLE_ERROR_MS : SETTLE_MS })
-    .then(
-      () => true,
-      () => false,
-    );
+  const settled = await idle(page, state === 'error' ? SETTLE_ERROR_MS : SETTLE_MS);
   await page.evaluate('document.fonts.ready.then(() => true)');
   await page.waitForTimeout(500);
   return settled;

@@ -32,10 +32,11 @@ export function CapabilityGate({
     return <>{children}</>;
   }
   return (
-    <Popover width={340} position="bottom-end" withArrow shadow="md">
+    <Popover width="21.25rem" position="bottom-end" withArrow shadow="md">
       <Popover.Target>
         {/* The wrapper takes the focus the disabled control cannot. */}
         <UnstyledButton
+          className="mantine-focus-auto"
           aria-label={`Why ${what ?? 'this'} is unavailable`}
           style={{ display: 'inline-flex', cursor: 'help' }}
         >

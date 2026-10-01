@@ -1,0 +1,42 @@
+/* Marks on a governed value: a state in words with an icon, in the hairline outline of StatusBadge.
+   None of them is an error, so none takes a status colour. */
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  max-inline-size: 100%;
+  padding-block: 0.125rem;
+  padding-inline: var(--mantine-spacing-xs);
+  border: 1px solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-sm);
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  line-height: var(--mantine-line-height-xs);
+  overflow-wrap: anywhere;
+}
+
+/* The text the server sent for the value: its marker when masked, the value itself only where the
+   viewer's grant shows it in clear. It is text content only, never an attribute. */
+.value {
+  overflow-wrap: anywhere;
+}
+
+/* Content that was not shown, and why. */
+.withheld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  border: 1px solid var(--as-border);
+  border-inline-start: 0.25rem solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+  padding: var(--mantine-spacing-md);
+}
+
+.withheldTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  font-weight: 600;
+}

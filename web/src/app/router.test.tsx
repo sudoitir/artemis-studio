@@ -52,8 +52,9 @@ describe('the composed route tree', () => {
 
     expect(await screen.findByRole('heading', { name: 'sql is disabled on this installation' })).toBeInTheDocument();
     expect(screen.getByText('artemis-studio.features.sql.enabled=true')).toBeInTheDocument();
-    // The cluster's header, contributed by the clusters feature, still frames the page.
-    expect(await screen.findByRole('heading', { name: 'prod-eu' })).toBeInTheDocument();
+    // The cluster's context strip, contributed by the clusters feature, still frames the page. It is not
+    // a heading: each view's page header is the page's one h1.
+    expect(await screen.findByRole('group', { name: 'Cluster prod-eu' })).toBeInTheDocument();
   });
 
   it('routes a page a feature adds outside any cluster', async () => {

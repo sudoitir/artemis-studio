@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Group, PasswordInput, Stack, Text } from '@mantine/core';
+import { Button, Group, Paper, PasswordInput, Stack, Text } from '@mantine/core';
 
 import { needsReauthentication, useMe, useReauthenticate, type SecondFactorMethod } from './api.ts';
 import { useFreshSignIn } from './freshSignIn.ts';
@@ -25,8 +25,11 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   if (reauth.method === 'REDIRECT' && reauth.startPath) {
     const href = `${reauth.startPath}&returnTo=${encodeURIComponent(returnTo)}`;
     return (
-      <Alert variant="light" title="Confirm it is you">
+      <Paper withBorder p="md">
         <Stack gap="xs">
+          <Text size="sm" fw={600}>
+            Confirm it is you
+          </Text>
           <Text size="sm">
             Sign in again with your identity provider to continue. You come back here, and nothing you reviewed is lost.
           </Text>
@@ -34,7 +37,7 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
             Sign in again
           </Button>
         </Stack>
-      </Alert>
+      </Paper>
     );
   }
 
@@ -94,7 +97,7 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
               setEmpty(false);
             }}
             error={empty ? 'Enter your password.' : failed?.message}
-            w={260}
+            w="16rem"
           />
           <Button type="submit" loading={reauthenticate.isPending}>
             Confirm

@@ -1,0 +1,13 @@
+/* A refused attempt, in words, with the danger token on the edge only (the same edge ErrorState uses). */
+.failure {
+  border-inline-start: 0.25rem solid var(--as-danger);
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-md) 0;
+  overflow-wrap: anywhere;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

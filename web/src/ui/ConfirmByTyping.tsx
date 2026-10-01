@@ -13,7 +13,7 @@ export function ConfirmByTyping({
   confirmLabel,
   loading,
   disabled,
-  color = 'red',
+  color = 'signal',
   onConfirm,
 }: Readonly<{
   token: string;

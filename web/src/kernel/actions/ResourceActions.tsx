@@ -51,7 +51,7 @@ export function ResourceActions<K extends ActionKind>({
 
   if (sections.length === 0) {
     return (
-      <Text size="sm" c="dimmed" px="sm" py={6}>
+      <Text size="sm" c="dimmed" px="sm" py="xs">
         Nothing can be done to this from here.
       </Text>
     );
@@ -73,7 +73,7 @@ export function ResourceActions<K extends ActionKind>({
       {mode === 'navigate' ? (
         <>
           <Menu.Divider />
-          <Text size="xs" c="dimmed" px="sm" py={4} maw="36ch">
+          <Text size="xs" c="dimmed" px="sm" py="xs" maw="36ch">
             This view never changes the broker. Open the resource to act on it, with its confirmation.
           </Text>
         </>

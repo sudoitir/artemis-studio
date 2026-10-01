@@ -25,7 +25,7 @@ describe('a plugin address with no page', () => {
     signedIn();
     renderAppAt('/p/acme-ghost/anything');
     expect(
-      await screen.findByRole('heading', { name: 'No plugin called acme-ghost is installed' }),
+      await screen.findByRole('heading', { level: 1, name: 'No plugin called acme-ghost is installed' }),
     ).toBeInTheDocument();
   });
 
