@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Select,
-  Skeleton,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
+import { Alert, Anchor, Button, Group, Modal, Select, Stack, Text, TextInput, Title } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -20,12 +7,17 @@ import { notifications } from '@mantine/notifications';
 
 import { CapabilityLedger, useCluster } from '../clusters/index.ts';
 import { useMessages, usePurgeQueue, type DryRunView, type MessageSummaryView } from './api.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
+import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { messageColumns } from './columns.ts';
 import { MessageDetailPanel } from './MessageDetailPanel.tsx';
 import { MessageActions } from './MessageActions.tsx';
 import { SendMessage } from './SendMessage.tsx';
-import { absoluteLabel } from '../../kernel/time/time.ts';
+import { useCan } from '../../kernel/auth/useCan.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useSlot, type MessageSelection } from '../../kernel/slots.ts';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
@@ -34,41 +26,19 @@ import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
-const columns: GridColumn<MessageSummaryView>[] = [
-  { id: 'messageId', header: 'Message ID', accessor: (m) => m.messageId, sortKey: undefined, width: 150 },
-  { id: 'timestamp', header: 'Enqueued', accessor: (m) => absoluteLabel(m.timestamp), width: 200 },
-  { id: 'priority', header: 'Prio', accessor: (m) => m.priority, numeric: true, width: 70 },
-  {
-    id: 'durable',
-    header: 'Durable',
-    accessor: (m) => m.durable,
-    cell: (m) => (m.durable ? 'yes' : 'no'),
-    width: 80,
-  },
-  { id: 'size', header: 'Size', accessor: (m) => m.size, numeric: true, width: 90 },
-  { id: 'props', header: 'Props', accessor: (m) => m.propertyCount, numeric: true, width: 70 },
-  {
-    id: 'body',
-    header: 'Body',
-    accessor: (m) => m.bodyPreview ?? '',
-    cell: (m) => (
-      <Group gap={6} wrap="nowrap">
-        <Text size="xs" truncate>
-          {m.bodyPreview ?? (
-            <Text span c="dimmed">
-              (empty)
-            </Text>
-          )}
-        </Text>
-        {m.bodyTruncated ? (
-          <Badge size="xs" color="yellow" variant="light">
-            truncated
-          </Badge>
-        ) : null}
-      </Group>
-    ),
-  },
-];
+const NO_ROWS: MessageSummaryView[] = [];
+
+const messageKey = (m: MessageSummaryView) => String(m.messageId);
+
+/**
+ * Whether the caller may take a message operation here, and why not when they may not. Offered while
+ * grants and the cluster load, and blocked only on a known refusal (non-negotiable #5).
+ */
+function useMessageGate(clusterId: string, permission: string, label: string): GateVerdict {
+  const { can, loading } = useCan();
+  const cluster = useCluster(clusterId);
+  return gateFor(can(permission, clusterId), label, cluster.data?.capabilities.messageIo, loading || cluster.isPending);
+}
 
 /** "12 messages", or why the total is not known. */
 function countLabel(page: { count?: number | null; countUnavailable?: string | null }): string {
@@ -100,28 +70,32 @@ function PurgeQueue({ clusterId, queueName, node }: Readonly<{ clusterId: string
   const [purgePreview, setPurgePreview] = useState<DryRunView | null>(null);
   const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
   const purgeOverCap = purgePreview?.overCap ?? false;
+  const gate = useMessageGate(clusterId, 'queue:purge', 'Purge queues');
 
   return (
     <>
-      <Button
-        size="xs"
-        variant="light"
-        color="red"
-        onClick={() => {
-          setPurgePreview(null);
-          setPurgeFailed(null);
-          setPurgeOpen(true);
-          purge.mutate(
-            { node, dryRun: true },
-            {
-              onSuccess: (r) => setPurgePreview('cap' in r ? r : null),
-              onError: (e) => setPurgeFailed(e.message),
-            },
-          );
-        }}
-      >
-        Purge queue
-      </Button>
+      <CapabilityGate verdict={gate} what="purging this queue">
+        <Button
+          size="xs"
+          variant="light"
+          color="red"
+          disabled={gate.kind === 'blocked'}
+          onClick={() => {
+            setPurgePreview(null);
+            setPurgeFailed(null);
+            setPurgeOpen(true);
+            purge.mutate(
+              { node, dryRun: true },
+              {
+                onSuccess: (r) => setPurgePreview('cap' in r ? r : null),
+                onError: (e) => setPurgeFailed(e.message),
+              },
+            );
+          }}
+        >
+          Purge queue
+        </Button>
+      </CapabilityGate>
       <Modal opened={purgeOpen} onClose={() => setPurgeOpen(false)} title={`Purge ${queueName}?`}>
         <Stack gap="sm">
           {/* An unavailable estimate is stated, never omitted: an absent number reads
@@ -172,6 +146,34 @@ function PurgeQueue({ clusterId, queueName, node }: Readonly<{ clusterId: string
   );
 }
 
+/** Why the grid is empty: the selector, nodes that did not answer, or genuinely nothing in the queue. */
+function MessagesEmpty({
+  filtered,
+  unreachable,
+  onClearSelector,
+}: Readonly<{ filtered: boolean; unreachable: string[]; onClearSelector: () => void }>) {
+  if (filtered) {
+    return (
+      <EmptyState
+        kind="filtered"
+        title="No message matches this selector"
+        description="The selector excludes every message in this queue. Clear it to browse them all."
+        onClearFilters={onClearSelector}
+      />
+    );
+  }
+  if (unreachable.length > 0) {
+    return <EmptyState kind="unreachable" title="No messages could be listed" nodes={unreachable} />;
+  }
+  return (
+    <EmptyState
+      kind="empty"
+      title="This queue has no messages"
+      description="Messages wait in a queue until a consumer takes them. Produce to the queue, or use Send above to add one. Messages here are read over Jolokia as text — faithful binary bodies need the Core client."
+    />
+  );
+}
+
 /**
  * Browse one queue's messages (ADR-0021). Reached from a queue row, not a
  * top-level tab. Node, filter and page are URL-owned (non-negotiable #9);
@@ -186,7 +188,7 @@ export function MessagesView() {
   useFilterShortcut(filterRef);
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
-  useDisplayZone();
+  const zone = useDisplayZone();
   const { clusterId, queueName } = useParams({ strict: false }) as {
     clusterId: string;
     queueName: string;
@@ -195,6 +197,8 @@ export function MessagesView() {
   const navigate = useNavigate();
 
   const cluster = useCluster(clusterId);
+  const sendGate = useMessageGate(clusterId, 'message:send', 'Send messages');
+  const columns = useMemo(() => messageColumns(zone), [zone]);
   const [filter, setFilter] = useState(search.filter ?? '');
   const [debounced] = useDebouncedValue(filter, 250);
   // The open message is in the address, so a link to one message opens it (non-negotiable #9).
@@ -272,9 +276,11 @@ export function MessagesView() {
               {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
             </Text>
           ) : null}
-          <Button size="xs" variant="light" onClick={() => setSendOpen(true)}>
-            Send
-          </Button>
+          <CapabilityGate verdict={sendGate} what="sending a message">
+            <Button size="xs" variant="light" disabled={sendGate.kind === 'blocked'} onClick={() => setSendOpen(true)}>
+              Send
+            </Button>
+          </CapabilityGate>
           <PurgeQueue clusterId={clusterId} queueName={queueName} node={search.node} />
         </Group>
       </Group>
@@ -300,18 +306,7 @@ export function MessagesView() {
     );
   }
 
-  if (messages.isError) {
-    return (
-      <Stack gap="md">
-        {header}
-        <Alert color="red" variant="light" title={messages.error.title}>
-          {messages.error.message}
-        </Alert>
-      </Stack>
-    );
-  }
-
-  const rows = messages.data?.data ?? [];
+  const rows = messages.data?.data ?? NO_ROWS;
   // An unavailable total is stated, never read as zero: the page count is then unknown too.
   const total = messages.data?.count;
   const lastPage = total == null ? null : Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -321,6 +316,14 @@ export function MessagesView() {
   const selection = selectionOf(pickedIds, search.filter);
   // A selector's match count is the preview's to establish; the page's total is the whole queue.
   const selectionTotal = selectionTotalOf(selection, total);
+
+  // A node Studio could not reach contributes no rows, which looks exactly like a queue with none.
+  const unreachable = (cluster.data?.topology.nodes ?? [])
+    .flatMap((n) => n.endpoints)
+    .filter((e) => e.lastError)
+    .map((e) => e.name);
+  // The address follows the field once typing pauses, so clearing the field clears the selector.
+  const clearSelector = () => setFilter('');
 
   const setNode = (node: string | null) =>
     navigate({
@@ -383,46 +386,37 @@ export function MessagesView() {
         onCleared={() => setSelected(new Set())}
       />
 
-      {messages.isPending && rows.length === 0 ? (
-        <Stack gap={4}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} height={30} />
-          ))}
-        </Stack>
-      ) : (
-        <VirtualTable
-          label="Messages"
-          storageKey="messages"
-          columns={columns}
-          data={rows}
-          rowKey={(m) => String(m.messageId)}
-          onRowClick={(m) => setOpenId(String(m.messageId))}
-          selectable
-          selected={selected}
-          onToggleRow={toggleRow}
-          onToggleAll={toggleAll}
-          rowMenu={{
-            label: (m) => `message ${m.messageId}`,
-            render: (m, menu) => (
-              <ResourceActions
-                kind="message"
-                clusterId={clusterId}
-                target={{ queueName, messageId: m.messageId, node: search.node }}
-                restoreFocus={menu.restoreFocus}
-              />
-            ),
-          }}
-          emptyLabel={
-            <Stack gap={4}>
-              <Text fw={600}>No messages match</Text>
-              <Text size="sm">
-                This queue is empty, or your selector excluded every message. Messages here are read over Jolokia as
-                text — faithful binary bodies need the Core client.
-              </Text>
-            </Stack>
-          }
-        />
-      )}
+      <DataTable
+        label="Messages"
+        storageKey="messages"
+        height="fill"
+        columns={columns}
+        data={rows}
+        rowKey={messageKey}
+        loading={messages.isPending}
+        error={
+          messages.isError ? <ErrorState error={messages.error} onRetry={() => void messages.refetch()} /> : undefined
+        }
+        onRowClick={(m) => setOpenId(String(m.messageId))}
+        selectable
+        selected={selected}
+        onToggleRow={toggleRow}
+        onToggleAll={toggleAll}
+        rowMenu={{
+          label: (m) => `message ${m.messageId}`,
+          render: (m, menu) => (
+            <ResourceActions
+              kind="message"
+              clusterId={clusterId}
+              target={{ queueName, messageId: m.messageId, node: search.node }}
+              restoreFocus={menu.restoreFocus}
+            />
+          ),
+        }}
+        empty={
+          <MessagesEmpty filtered={Boolean(search.filter)} unreachable={unreachable} onClearSelector={clearSelector} />
+        }
+      />
 
       <MessageDetailPanel
         clusterId={clusterId}

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Button, Checkbox, Group, Modal, Stack, Switch, Text, Title } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import type { QueueSelection } from '../../kernel/slots.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import {
   useBulkExecute,
   useBulkPreview,
@@ -12,35 +13,12 @@ import {
   type BulkOperation,
   type BulkRunDetailView,
 } from './api.ts';
+import { previewColumns } from './columns.ts';
 import { OPERATIONS, plural } from './words.ts';
 
 const hasProblem = (i: BulkItemView) => i.status === 'REFUSED' || Boolean(i.warning);
 
-function columns(destructive: boolean): GridColumn<BulkItemView>[] {
-  return [
-    { id: 'queue', header: 'Queue', accessor: (i) => i.queueName },
-    ...(destructive
-      ? [
-          {
-            id: 'messages',
-            header: 'Messages',
-            // An unknown figure is stated, never shown as zero.
-            accessor: (i: BulkItemView) => (i.affected == null ? 'unknown' : i.affected.toLocaleString()),
-            numeric: true,
-            width: 110,
-          },
-        ]
-      : []),
-    { id: 'nodes', header: 'Nodes', accessor: (i) => i.nodes.length, numeric: true, width: 80 },
-    {
-      id: 'plan',
-      header: 'Plan',
-      accessor: (i) => (i.status === 'REFUSED' ? 'refused' : 'will act'),
-      width: 100,
-    },
-    { id: 'note', header: 'Reason or warning', accessor: (i) => i.error ?? i.warning ?? '' },
-  ];
-}
+const rowKey = (i: BulkItemView) => i.queueName;
 
 /** What the run would do, as one sentence an operator can check before arming it. */
 function blastRadius(operation: BulkOperation, preview: BulkRunDetailView): string {
@@ -196,6 +174,7 @@ function QueuesInRun({
   onlyProblems: boolean;
   onOnlyProblems: (on: boolean) => void;
 }>) {
+  const columns = useMemo(() => previewColumns(destructive), [destructive]);
   return (
     <Stack gap="xs">
       <Group justify="space-between">
@@ -207,16 +186,28 @@ function QueuesInRun({
           onChange={(e) => onOnlyProblems(e.currentTarget.checked)}
         />
       </Group>
-      <VirtualTable
+      <DataTable
         label="Queues in this run"
         storageKey="bulk.preview"
-        columns={columns(destructive)}
+        height={{ maxRows: 8 }}
+        columns={columns}
         data={shown}
-        rowKey={(i) => i.queueName}
-        emptyLabel={
-          <Text size="sm">
-            {onlyProblems ? 'No queue has a refusal or a warning.' : 'No queue matched the selection.'}
-          </Text>
+        rowKey={rowKey}
+        empty={
+          onlyProblems ? (
+            <EmptyState
+              kind="filtered"
+              title="No queue has a refusal or a warning"
+              description="Every queue in this run will act without a warning. Clear the filter to review the whole set."
+              onClearFilters={() => onOnlyProblems(false)}
+            />
+          ) : (
+            <EmptyState
+              kind="empty"
+              title="No queue matched the selection"
+              description="A run acts on the queues the selection matched when this preview was taken. None matched, so there is nothing to run. Close this and change the selection."
+            />
+          )
         }
       />
     </Stack>

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -92,11 +92,9 @@ describe('EventsView', () => {
     const user = userEvent.setup();
     renderWithProviders(<EventsView />);
 
-    expect(await screen.findByText('CONSUMER_CREATED')).toBeInTheDocument();
     // The grid is virtualised, so the payload lives in a drawer rather than in a
-    // row expanded underneath. Row 1 is the header.
-    const rows = await screen.findAllByRole('row');
-    await user.click(rows[1]);
+    // row expanded underneath.
+    await user.click(await screen.findByRole('gridcell', { name: 'CONSUMER_CREATED' }));
     const update = navigate.mock.calls[0][0].search as (prev: object) => object;
     expect(update({})).toEqual({ event: 1 });
   });
@@ -182,7 +180,7 @@ describe('EventsView', () => {
     );
     renderWithProviders(<EventsView />);
 
-    await screen.findByText(/No broker events recorded yet/);
+    await screen.findByText('No broker events yet');
     await waitFor(() => expect(EventSourceStub.instances.length).toBeGreaterThan(0));
 
     EventSourceStub.emit('events', event({ seq: 99, type: 'SESSION_CREATED', remoteAddress: '10.9.9.9:1' }));
@@ -191,6 +189,57 @@ describe('EventsView', () => {
     // Re-delivering the same seq must not add a second row (remoteAddress is row-only).
     EventSourceStub.emit('events', event({ seq: 99, type: 'SESSION_CREATED', remoteAddress: '10.9.9.9:1' }));
     await waitFor(() => expect(screen.getAllByText('10.9.9.9:1')).toHaveLength(1));
+  });
+
+  it('holds a live event back while the reader is scrolled away from the top, and shows it on return', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([event()]))),
+    );
+    renderWithProviders(<EventsView />);
+
+    const grid = await screen.findByRole('grid', { name: 'Broker events' });
+    await within(grid).findByText('CONSUMER_CREATED');
+    await waitFor(() => expect(EventSourceStub.instances.length).toBeGreaterThan(0));
+    const scroller = grid.parentElement!;
+
+    fireEvent.scroll(scroller, { target: { scrollTop: 200 } });
+    EventSourceStub.emit('events', event({ seq: 99, type: 'SESSION_CREATED', remoteAddress: '10.9.9.9:1' }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(within(grid).queryByText('10.9.9.9:1')).not.toBeInTheDocument();
+
+    fireEvent.scroll(scroller, { target: { scrollTop: 0 } });
+    expect(await within(grid).findByText('10.9.9.9:1')).toBeInTheDocument();
+  });
+
+  it('says a filter excludes every event, and clearing it drops the filters from the address', async () => {
+    search = { type: 'SESSION_CLOSED' };
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<EventsView />);
+
+    expect(await screen.findByText('No event matches these filters')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    const update = navigate.mock.calls.at(-1)![0].search as (prev: object) => object;
+    expect(update({ type: 'SESSION_CLOSED' })).toEqual({ type: undefined, address: undefined, page: undefined });
+  });
+
+  it('names the nodes that did not answer instead of presenting no events as a fact', async () => {
+    const down = cluster('AVAILABLE');
+    down.topology.nodes = [
+      { id: 'n1', endpoints: [{ id: 'e1', name: 'broker-b', lastError: 'connection refused' }] },
+    ] as never;
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(down)),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([]))),
+    );
+    renderWithProviders(<EventsView />);
+
+    expect(await screen.findByText('broker-b could not be reached')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Nodes that could not be reached' })).toHaveTextContent('broker-b');
   });
 
   it('warns when events have been dropped', async () => {

@@ -819,6 +819,9 @@ describe('SqlConsoleView result columns and export', () => {
     navigate.mockReset();
   });
 
+  // The console's own picker comes before the table's, which has a Columns control of its own.
+  const consoleColumns = () => screen.getAllByRole('button', { name: 'Columns' })[0];
+
   async function withRows() {
     mockCluster();
     mockPlan();
@@ -827,7 +830,7 @@ describe('SqlConsoleView result columns and export', () => {
     await run(user);
     emit('row', messageRow(11, 'order, "4471"'));
     emit('done', doneFrame());
-    await screen.findByRole('button', { name: 'Columns' });
+    await screen.findAllByRole('button', { name: 'Columns' });
     return user;
   }
 
@@ -835,7 +838,7 @@ describe('SqlConsoleView result columns and export', () => {
     const user = await withRows();
     expect(await screen.findByRole('columnheader', { name: /Prio/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    await user.click(consoleColumns());
     await user.click(await screen.findByLabelText('Prio'));
 
     await vi.waitFor(() => expect(screen.queryByRole('columnheader', { name: /Prio/ })).not.toBeInTheDocument());
@@ -849,7 +852,7 @@ describe('SqlConsoleView result columns and export', () => {
 
   it('moves a column earlier and later, and leaves the first and last where they are', async () => {
     const user = await withRows();
-    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    await user.click(consoleColumns());
 
     await user.click(await screen.findByLabelText('Move Node earlier'));
     let stored: string[] = JSON.parse(window.localStorage.getItem('artemis-studio.sql.columns')!);
@@ -867,7 +870,7 @@ describe('SqlConsoleView result columns and export', () => {
   it('starts from the columns this browser remembered, ignoring any it does not know', async () => {
     window.localStorage.setItem('artemis-studio.sql.columns', JSON.stringify(['body', 'nonsense', 'node']));
     const user = await withRows();
-    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    await user.click(consoleColumns());
 
     expect(await screen.findByLabelText('Body')).toBeChecked();
     expect(screen.getByLabelText('Node')).toBeChecked();
@@ -881,7 +884,7 @@ describe('SqlConsoleView result columns and export', () => {
   ])('falls back to every column when the remembered ones are %s', async (_name, stored) => {
     window.localStorage.setItem('artemis-studio.sql.columns', stored);
     const user = await withRows();
-    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    await user.click(consoleColumns());
 
     expect(await screen.findByLabelText('Prio')).toBeChecked();
   });

@@ -1,214 +1,167 @@
-import { useEffect, useState, useRef } from 'react';
-import { Alert, Badge, Button, Group, Modal, Skeleton, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Group, Stack, Tabs, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
 import { useBridges, useDiverts, type BridgeView, type DivertView } from './api.ts';
 import type { RoutingSearch } from './feature.ts';
 import { useSlot } from '../../kernel/slots.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Pager } from '../../ui/Pager.tsx';
-import { BrokerXmlRemedy, DeleteDivertAction, CreateDivertAction, DRIFT_SENTENCE } from './DivertActions.tsx';
-import classes from './RoutingView.module.css';
+import { useCluster } from '../clusters/index.ts';
+import { bridgeColumns, divertColumns } from './columns.ts';
+import { CreateDivertAction } from './DivertActions.tsx';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
+const NO_ROWS: never[] = [];
+
+const divertKey = (r: DivertView) => `${r.name}:${r.address}:${r.forwardingAddress}`;
+const bridgeKey = (r: BridgeView) => r.name;
+
 type Tab = 'diverts' | 'bridges';
 
-/**
- * A Studio-created divert's ownership, as a control rather than a hover title: it opens the
- * broker.xml that would make the deployed configuration carry it, reachable from the keyboard.
- */
-function StudioOwned({ divert }: Readonly<{ divert: DivertView }>) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setOpen(true)}>
-        Studio — not in broker.xml
-      </Button>
-      <Modal opened={open} onClose={() => setOpen(false)} title={`"${divert.name}" is not in broker.xml`} size="lg">
-        <Stack gap="sm">
-          <Text size="sm">{DRIFT_SENTENCE}</Text>
-          {divert.brokerXml ? <BrokerXmlRemedy xml={divert.brokerXml} /> : null}
-        </Stack>
-      </Modal>
-    </>
-  );
+/** What an empty bridge list teaches: where a bridge comes from, which depends on the cluster configuration. */
+function bridgesIntro(hasBuilder: boolean): string {
+  return hasBuilder
+    ? 'A bridge forwards a queue to an address on another broker. Declare one on the Builder tab and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'
+    : 'A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Studio.';
 }
 
-/**
- * A divert's direction as one object: source, arrow, destination.
- *
- * <p>The question this view exists to answer is "where does traffic on this
- * address go", and reconstructing that from two separate columns is exactly the
- * work the routing spec says an operator should not have to do. The accessible
- * name spells the relationship out, because the arrow is a glyph.
- */
-function Direction({ from, to }: Readonly<{ from: string; to: string }>) {
-  return (
-    <div className={classes.direction} aria-label={`from ${from} to ${to}`}>
-      <Text size="xs" className={classes.endpoint} title={from}>
-        {from}
-      </Text>
-      <span className={classes.arrow} aria-hidden="true">
-        →
-      </span>
-      <Text size="xs" className={classes.endpoint} title={to}>
-        {to}
-      </Text>
-    </div>
-  );
-}
+const DIVERTS_INTRO =
+  'A divert copies — or, when exclusive, redirects — the messages arriving at one address to another, without the producers knowing. Use Create divert above to add one.';
 
-/** Who created the divert: message capture, an operator through Studio, or nobody Studio knows of. */
-function OwnerCell({ divert: r }: Readonly<{ divert: DivertView }>) {
-  if (r.owner === 'MESSAGE_CAPTURE') {
+/** Why a list has no rows: the filter, nodes that did not answer, or genuinely nothing yet. */
+function ListingEmpty({
+  noun,
+  intro,
+  filtered,
+  unreachable,
+  onClearFilters,
+}: Readonly<{
+  noun: 'divert' | 'bridge';
+  intro: string;
+  filtered: boolean;
+  unreachable: string[];
+  onClearFilters: () => void;
+}>) {
+  if (filtered) {
     return (
-      <Badge size="xs" variant="light" color="gray" title="Serves a message capture subscription">
-        message capture
-      </Badge>
+      <EmptyState
+        kind="filtered"
+        title={`No ${noun} matches this filter`}
+        description={`Clear it to see every ${noun} on the cluster.`}
+        onClearFilters={onClearFilters}
+      />
     );
   }
-  if (r.owner === 'OPERATOR') return <StudioOwned divert={r} />;
+  if (unreachable.length > 0) {
+    return <EmptyState kind="unreachable" title={`No ${noun}s could be listed`} nodes={unreachable} />;
+  }
+  return <EmptyState kind="empty" title={`No ${noun}s yet`} description={intro} />;
+}
+
+/** What the two tables share: where their rows come from and how they fail. */
+interface ListingProps<T> {
+  clusterId: string;
+  rows: T[];
+  q: string | undefined;
+  sort: string | undefined;
+  unreachable: string[];
+  loading: boolean;
+  error: ReactNode;
+  onSort: (sort: string | undefined) => void;
+  onClearFilters: () => void;
+}
+
+function DivertsTable({
+  clusterId,
+  rows,
+  q,
+  sort,
+  unreachable,
+  loading,
+  error,
+  onSort,
+  onClearFilters,
+}: Readonly<ListingProps<DivertView>>) {
+  const columns = useMemo(() => divertColumns(clusterId), [clusterId]);
   return (
-    <Text
-      size="xs"
-      c="dimmed"
-      title="Studio has no record of creating this divert. That is not a claim about where it came from."
-    >
-      not recorded
-    </Text>
+    <DataTable
+      label="Diverts"
+      storageKey="routing.diverts"
+      height="fill"
+      columns={columns}
+      data={rows}
+      sort={sort}
+      onSortChange={onSort}
+      rowKey={divertKey}
+      loading={loading}
+      error={error}
+      rowMenu={{
+        label: (r) => r.name,
+        render: (r, menu) => (
+          <ResourceActions
+            kind="divert"
+            clusterId={clusterId}
+            target={{ name: r.name, snapshot: r }}
+            restoreFocus={menu.restoreFocus}
+          />
+        ),
+      }}
+      empty={
+        <ListingEmpty
+          noun="divert"
+          intro={DIVERTS_INTRO}
+          filtered={Boolean(q)}
+          unreachable={unreachable}
+          onClearFilters={onClearFilters}
+        />
+      }
+    />
   );
 }
 
-/**
- * The columns of the divert view.
- *
- * <p>There is no origin column. Artemis records nothing saying whether a divert
- * came from broker.xml or from a management call, and exposes no way to read
- * configured-but-undeployed diverts, so the product does not guess (ADR-0065).
- * What it can say honestly is which diverts are its own, and it says that.
- */
-function divertColumns(clusterId: string): GridColumn<DivertView>[] {
-  return [
-    { id: 'name', header: 'Name', accessor: (r) => r.name, sortKey: 'name' },
-    {
-      id: 'direction',
-      header: 'Routes',
-      accessor: (r) => `${r.address} ${r.forwardingAddress}`,
-      cell: (r) => <Direction from={r.address} to={r.forwardingAddress} />,
-    },
-    {
-      id: 'exclusive',
-      header: 'Effect',
-      accessor: (r) => (r.exclusive ? 'takes' : 'copies'),
-      width: 150,
-      // In words, never by colour alone: the difference between traffic being
-      // duplicated and traffic being taken away is the most consequential fact
-      // in this table.
-      cell: (r) => (
-        <Text size="xs" title={r.exclusive ? 'Exclusive divert' : 'Non-exclusive divert'}>
-          {r.exclusive ? 'takes the message' : 'copies the message'}
-        </Text>
-      ),
-    },
-    { id: 'filter', header: 'Filter', accessor: (r) => r.filter ?? '', width: 180 },
-    {
-      id: 'owner',
-      header: 'Created by',
-      accessor: (r) => r.owner ?? '',
-      width: 170,
-      cell: (r) => <OwnerCell divert={r} />,
-    },
-    {
-      id: 'nodes',
-      header: 'Nodes',
-      accessor: (r) => `${r.nodesPresent}/${r.nodesTotal}`,
-      width: 90,
-      numeric: true,
-      cell: (r) => (
-        <Text size="xs" title={r.perNode.map((n) => n.nodeName).join(', ')}>
-          {r.nodesPresent}/{r.nodesTotal}
-        </Text>
-      ),
-    },
-    {
-      id: 'action',
-      header: 'Action',
-      accessor: () => '',
-      width: 170,
-      cell: (r) => <DeleteDivertAction clusterId={clusterId} divert={r} />,
-    },
-  ];
+function BridgesTable({
+  rows,
+  q,
+  sort,
+  unreachable,
+  loading,
+  error,
+  onSort,
+  onClearFilters,
+  hasBuilder,
+}: Readonly<Omit<ListingProps<BridgeView>, 'clusterId'> & { hasBuilder: boolean }>) {
+  const columns = useMemo(() => bridgeColumns(), []);
+  return (
+    <DataTable
+      label="Bridges"
+      storageKey="routing.bridges"
+      height="fill"
+      columns={columns}
+      data={rows}
+      sort={sort}
+      onSortChange={onSort}
+      rowKey={bridgeKey}
+      loading={loading}
+      error={error}
+      empty={
+        <ListingEmpty
+          noun="bridge"
+          intro={bridgesIntro(hasBuilder)}
+          filtered={Boolean(q)}
+          unreachable={unreachable}
+          onClearFilters={onClearFilters}
+        />
+      }
+    />
+  );
 }
-
-/** A bridge's state as a sort key and in words: started and connected are different facts. */
-function bridgeState(r: BridgeView): { accessor: string; words: string } {
-  if (r.connected) return { accessor: 'connected', words: 'running and connected' };
-  if (r.started) return { accessor: 'started', words: 'started, not connected to its target' };
-  return { accessor: 'stopped', words: 'not started' };
-}
-
-/** What an empty bridge list says: the filter, or where a bridge comes from. */
-function noBridgesWords(q: string | undefined, hasBuilder: boolean): string {
-  if (q) return 'No bridge matches this filter. Clear it to see every bridge on the cluster.';
-  return hasBuilder
-    ? 'No bridges. A bridge forwards a queue to an address on another broker. Declare one on the Builder tab and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'
-    : 'No bridges. A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Studio.';
-}
-
-/**
- * What the live view of a bridge reports. Declaring, changing and removing one is
- * the declaration's job (ADR-0091), reached on the Builder tab — this
- * table reads every serving node and has no write of its own.
- */
-const BRIDGE_COLUMNS: GridColumn<BridgeView>[] = [
-  { id: 'name', header: 'Name', accessor: (r) => r.name, sortKey: 'name' },
-  {
-    id: 'direction',
-    header: 'Routes',
-    accessor: (r) => `${r.queueName ?? ''} ${r.forwardingAddress ?? ''}`,
-    cell: (r) => (
-      <Direction from={r.queueName ?? '(unnamed queue)'} to={r.forwardingAddress ?? '(the target broker)'} />
-    ),
-  },
-  {
-    id: 'state',
-    header: 'State',
-    accessor: (r) => bridgeState(r).accessor,
-    width: 220,
-    // Started and connected are different facts. A bridge that is started and
-    // cannot reach its target is the state "is this bridge running" is asking
-    // about, and collapsing the two would answer the wrong question.
-    cell: (r) => (
-      <Text size="xs" c={r.started && !r.connected ? undefined : 'dimmed'}>
-        {bridgeState(r).words}
-      </Text>
-    ),
-  },
-  {
-    id: 'pending',
-    header: 'Pending',
-    accessor: (r) => r.messagesPendingAcknowledgement,
-    numeric: true,
-    width: 110,
-  },
-  { id: 'acked', header: 'Acked', accessor: (r) => r.messagesAcknowledged, numeric: true, width: 110 },
-  {
-    id: 'nodes',
-    header: 'Nodes',
-    accessor: (r) => `${r.nodesPresent}/${r.nodesTotal}`,
-    width: 90,
-    numeric: true,
-    cell: (r) => (
-      <Text size="xs" title={r.perNode.map((n) => n.nodeName).join(', ')}>
-        {r.nodesPresent}/{r.nodesTotal}
-      </Text>
-    ),
-  },
-];
 
 /**
  * A cluster's routing: what copies or takes its traffic, what carries it to another broker, and
@@ -262,67 +215,6 @@ export function RoutingView() {
   );
 }
 
-/** The diverts or the bridges as a table, each with its own empty state. */
-function ListingTable({
-  tab,
-  clusterId,
-  rows,
-  search,
-  hasBuilder,
-  onSort,
-}: Readonly<{
-  tab: Tab;
-  clusterId: string;
-  rows: (DivertView | BridgeView)[];
-  search: RoutingSearch;
-  hasBuilder: boolean;
-  onSort: (sort: string | undefined) => void;
-}>) {
-  if (tab === 'diverts') {
-    return (
-      <VirtualTable
-        label="Diverts"
-        storageKey="routing.diverts"
-        columns={divertColumns(clusterId)}
-        data={rows as DivertView[]}
-        sort={search.sort}
-        onSortChange={onSort}
-        rowKey={(r) => `${r.name}:${r.address}:${r.forwardingAddress}`}
-        rowMenu={{
-          label: (r) => r.name,
-          render: (r, menu) => (
-            <ResourceActions
-              kind="divert"
-              clusterId={clusterId}
-              target={{ name: r.name, snapshot: r }}
-              restoreFocus={menu.restoreFocus}
-            />
-          ),
-        }}
-        emptyLabel={
-          <Text size="sm">
-            {search.q
-              ? 'No divert matches this filter. Clear it to see every divert on the cluster.'
-              : 'No diverts. A divert copies — or, when exclusive, redirects — the messages arriving at one address to another, without the producers knowing.'}
-          </Text>
-        }
-      />
-    );
-  }
-  return (
-    <VirtualTable
-      label="Bridges"
-      storageKey="routing.bridges"
-      columns={BRIDGE_COLUMNS}
-      data={rows as BridgeView[]}
-      sort={search.sort}
-      onSortChange={onSort}
-      rowKey={(r) => r.name}
-      emptyLabel={<Text size="sm">{noBridgesWords(search.q, hasBuilder)}</Text>}
-    />
-  );
-}
-
 /** The Diverts or the Bridges tab: one live, filtered, paged listing. */
 function RoutingListing({
   clusterId,
@@ -355,15 +247,25 @@ function RoutingListing({
   const setSearch = (patch: Record<string, unknown>) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
 
-  if (query.isError) {
-    return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
-  }
+  // A node Studio could not reach contributes no rows, which looks exactly like a cluster with none.
+  const cluster = useCluster(clusterId);
+  const unreachable = (cluster.data?.topology.nodes ?? [])
+    .flatMap((n) => n.endpoints)
+    .filter((e) => e.lastError)
+    .map((e) => e.name);
 
-  const rows = query.data?.data ?? [];
+  // The address follows the field once typing pauses, so clearing the field clears the filter.
+  const clearFilters = () => setFilter('');
+  const listing = {
+    q: search.q,
+    sort: search.sort,
+    unreachable,
+    loading: query.isPending,
+    error: query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined,
+    onSort: (sort: string | undefined) => setSearch({ sort, page: undefined }),
+    onClearFilters: clearFilters,
+  };
+
   const total = query.data?.count ?? 0;
 
   return (
@@ -381,21 +283,10 @@ function RoutingListing({
         {tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : null}
       </Group>
 
-      {query.isPending && rows.length === 0 ? (
-        <Stack gap={4}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} height={30} />
-          ))}
-        </Stack>
+      {tab === 'diverts' ? (
+        <DivertsTable clusterId={clusterId} rows={diverts.data?.data ?? NO_ROWS} {...listing} />
       ) : (
-        <ListingTable
-          tab={tab}
-          clusterId={clusterId}
-          rows={rows}
-          search={search}
-          hasBuilder={hasBuilder}
-          onSort={(sort) => setSearch({ sort, page: undefined })}
-        />
+        <BridgesTable rows={bridges.data?.data ?? NO_ROWS} hasBuilder={hasBuilder} {...listing} />
       )}
 
       <Pager

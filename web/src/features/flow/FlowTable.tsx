@@ -1,101 +1,16 @@
 import { useMemo } from 'react';
 import { Text } from '@mantine/core';
 
-import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
-import type { FlowEdgeView, FlowGraphView, FlowNodeView } from './api.ts';
-import { edgeText, FAULT_LABELS, RELATION, rateSortValue, rateSourceLabel } from './flowFormat.ts';
+import { useServerNow } from '../../kernel/time/time.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import type { FlowGraphView, FlowNodeView } from './api.ts';
+import { pathColumns, type PathRow } from './columns.ts';
+import { FAULT_LABELS, RELATION, rateSortValue } from './flowFormat.ts';
 import { focusOf, hasActions } from './flowSearch.ts';
 import { FlowNodeActions } from './rowActions.tsx';
-import classes from './FlowView.module.css';
 
-const KIND: Record<string, string> = {
-  PRODUCER: 'client',
-  ADDRESS: 'address',
-  QUEUE: 'queue',
-  CONSUMER: 'client',
-  REMOTE: 'remote',
-};
-
-interface Row {
-  id: string;
-  edge: FlowEdgeView;
-  from: FlowNodeView | undefined;
-  to: FlowNodeView | undefined;
-  faults: string[];
-}
-
-function pathColumns(now: number): GridColumn<Row>[] {
-  return [
-    {
-      id: 'from',
-      header: 'From',
-      sortKey: 'from',
-      accessor: (r) => r.from?.label,
-      cell: (r) => <NodeName node={r.from} />,
-    },
-    {
-      id: 'relation',
-      header: 'Relation',
-      sortKey: 'relation',
-      width: 120,
-      accessor: (r) => RELATION[r.edge.kind ?? ''],
-    },
-    { id: 'to', header: 'To', sortKey: 'to', accessor: (r) => r.to?.label, cell: (r) => <NodeName node={r.to} /> },
-    {
-      id: 'rate',
-      header: 'Rate',
-      sortKey: 'rate',
-      numeric: true,
-      width: 150,
-      accessor: (r) => edgeText(r.edge),
-      cell: (r) => (
-        <Text size="sm" className={r.edge.stale ? classes.stale : classes.figure}>
-          {edgeText(r.edge)}
-        </Text>
-      ),
-    },
-    {
-      id: 'source',
-      header: 'Rate from',
-      width: 240,
-      accessor: (r) => rateSourceLabel(r.edge),
-      cell: (r) => (
-        <Text size="xs" c="dimmed">
-          {rateSourceLabel(r.edge)}
-          {r.edge.asOf ? ` · ${elapsedLabel(now - Date.parse(r.edge.asOf))} ago` : ''}
-          {r.edge.stale ? ' · stale' : ''}
-        </Text>
-      ),
-    },
-    {
-      id: 'clients',
-      header: 'Clients',
-      sortKey: 'clients',
-      numeric: true,
-      width: 90,
-      accessor: (r) => r.edge.members ?? '',
-      cell: (r) => (
-        <Text size="sm" className={classes.figure}>
-          {r.edge.members ?? ''}
-        </Text>
-      ),
-    },
-    {
-      id: 'faults',
-      header: 'Faults',
-      sortKey: 'faults',
-      width: 150,
-      accessor: (r) => r.faults.join(', '),
-      cell: (r) =>
-        r.faults.length === 0 ? null : (
-          <Text size="sm" fw={600} className={classes.alarm}>
-            {r.faults.join(', ')}
-          </Text>
-        ),
-    },
-  ];
-}
+const rowKey = (r: PathRow) => r.id;
 
 /**
  * The same paths the graph draws, as rows (flow-visualization spec: the table presents the same
@@ -117,16 +32,18 @@ export function FlowTable({
 }>) {
   const now = useServerNow(5_000);
   const rows = useMemo(() => sortRows(toRows(graph), sort), [graph, sort]);
+  const columns = useMemo(() => pathColumns(now), [now]);
 
   return (
-    <VirtualTable
+    <DataTable
       label="Flow paths"
       storageKey="flow.paths"
-      columns={pathColumns(now)}
+      height="fill"
+      columns={columns}
       data={rows}
       sort={sort}
       onSortChange={onSortChange}
-      rowKey={(r) => r.id}
+      rowKey={rowKey}
       onRowClick={(r) => {
         const subject = subjectOf(r);
         const focus = subject ? focusOf(subject) : null;
@@ -139,36 +56,24 @@ export function FlowTable({
           return subject && hasActions(subject) ? (
             <FlowNodeActions clusterId={clusterId} node={subject} restoreFocus={menu.restoreFocus} />
           ) : (
-            <Text size="sm" c="dimmed" px="sm" py={6}>
+            <Text size="sm" c="dimmed" px="sm" py="xs">
               Nothing to open for this path.
             </Text>
           );
         },
       }}
-      emptyLabel={<Text size="sm">No paths to list for this view.</Text>}
+      empty={
+        <EmptyState
+          kind="empty"
+          title="No paths to list"
+          description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Studio draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
+        />
+      }
     />
   );
 }
 
-function NodeName({ node }: Readonly<{ node: FlowNodeView | undefined }>) {
-  if (!node) return null;
-  return (
-    <Text size="sm" truncate title={node.label}>
-      <Text span size="xs" c="dimmed">
-        {KIND[node.kind ?? '']}{' '}
-      </Text>
-      {node.label}
-      {node.members && node.members > 1 ? (
-        <Text span size="xs" c="dimmed">
-          {' '}
-          ×{node.members}
-        </Text>
-      ) : null}
-    </Text>
-  );
-}
-
-function toRows(graph: FlowGraphView): Row[] {
+function toRows(graph: FlowGraphView): PathRow[] {
   const byId = new Map((graph.nodes ?? []).map((n) => [n.id, n]));
   return (graph.edges ?? []).map((edge) => {
     const from = byId.get(edge.source ?? '');
@@ -181,7 +86,7 @@ function toRows(graph: FlowGraphView): Row[] {
 }
 
 /** The resource a row is about: its client, its queue, or the address it diverts to. */
-function subjectOf(row: Row): FlowNodeView | undefined {
+function subjectOf(row: PathRow): FlowNodeView | undefined {
   switch (row.edge.kind) {
     case 'PRODUCE':
     case 'BRIDGE':
@@ -201,11 +106,11 @@ function subjectOf(row: Row): FlowNodeView | undefined {
 }
 
 /** Default: busiest first, unknown rates last. A column sort keeps unknown rates last in both directions. */
-function sortRows(rows: Row[], sort: string | undefined): Row[] {
+function sortRows(rows: PathRow[], sort: string | undefined): PathRow[] {
   const desc = sort ? sort.startsWith('-') : true;
   const field = sort ? sort.replace(/^-/, '') : 'rate';
   const dir = desc ? -1 : 1;
-  const text = (r: Row): string => {
+  const text = (r: PathRow): string => {
     switch (field) {
       case 'from':
         return r.from?.label ?? '';

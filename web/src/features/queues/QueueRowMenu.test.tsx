@@ -111,7 +111,7 @@ describe('the queue row menu (ADR-0107)', () => {
 
     // Into the grid (one tab stop), onto the first queue, and open its menu.
     const grid = screen.getByRole('grid', { name: 'Queues' });
-    within(grid).getAllByText('orders')[0].closest<HTMLElement>('[role="gridcell"]')!.focus();
+    within(grid).getAllByText('orders')[0].closest<HTMLElement>('[role="rowheader"]')!.focus();
     await user.keyboard('{Shift>}{F10}{/Shift}');
     const menu = await screen.findByRole('menu', { name: 'Actions for orders' });
     expect(within(menu).getByText('Destroy')).toBeInTheDocument();

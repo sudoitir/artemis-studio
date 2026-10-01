@@ -1,18 +1,5 @@
-import { useRef, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Drawer,
-  Group,
-  Select,
-  Skeleton,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
+import { useMemo, useRef, useState } from 'react';
+import { Alert, Button, Code, Drawer, Group, Select, Skeleton, Stack, Text, TextInput, Title } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -23,85 +10,21 @@ import { useCan } from '../../kernel/auth/useCan.ts';
 import { useActionHost } from '../../kernel/actions/hostContext.ts';
 import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
 import { Pager } from '../../ui/Pager.tsx';
-import { absoluteLabel } from '../../kernel/time/time.ts';
+import { Toolbar } from '../../ui/Toolbar.tsx';
+import { at, auditColumns } from './columns.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 100;
 
-/** Status word + tone — colour is never the sole signal (non-negotiable #6). */
-function outcome(o: string): { word: string; color: string } {
-  if (o === 'SUCCESS') return { word: 'success', color: 'green' };
-  if (o === 'FAILURE') return { word: 'failure', color: 'red' };
-  return { word: 'pending', color: 'yellow' };
-}
-
 function auditKey(e: AuditEventView): string {
   return `${e.ts}-${e.action}-${e.requestId}`;
 }
-
-function at(e: AuditEventView): string {
-  return absoluteLabel(e.ts);
-}
-
-/**
- * The params and error payload used to expand inline under the row; a
- * virtualised grid has no row to expand under, and the drawer is the better home
- * for a payload that is frequently taller than the viewport.
- */
-const columns: GridColumn<AuditEventView>[] = [
-  { id: 'time', header: 'Time', accessor: at, width: 200 },
-  { id: 'user', header: 'User', accessor: (e) => e.username ?? 'anonymous', width: 160 },
-  {
-    id: 'action',
-    header: 'Action',
-    accessor: (e) => e.action,
-    cell: (e) => (
-      <Text size="xs" ff="monospace">
-        {e.action}
-      </Text>
-    ),
-  },
-  {
-    id: 'target',
-    header: 'Target',
-    accessor: (e) => e.targetName ?? '—',
-    cell: (e) => (
-      <Text size="xs">
-        {e.targetName ?? '—'}
-        {e.dryRun ? (
-          <Text span size="xs" c="dimmed">
-            {' '}
-            · dry run
-          </Text>
-        ) : null}
-      </Text>
-    ),
-  },
-  {
-    id: 'count',
-    header: 'Count',
-    accessor: (e) => e.affectedCount ?? '—',
-    numeric: true,
-    width: 90,
-  },
-  {
-    id: 'outcome',
-    header: 'Outcome',
-    accessor: (e) => outcome(e.outcome).word,
-    width: 110,
-    cell: (e) => {
-      const oc = outcome(e.outcome);
-      return (
-        <Badge size="xs" variant="light" color={oc.color}>
-          {oc.word}
-        </Badge>
-      );
-    },
-  },
-];
 
 function CopyAuditLink({ clusterId, id }: Readonly<{ clusterId: string; id: number }>) {
   const host = useActionHost();
@@ -158,6 +81,7 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
     <Group gap="xs">
       {canListUsers ? (
         <Select
+          label="User"
           placeholder="Any user"
           size="xs"
           w={180}
@@ -180,6 +104,7 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
         />
       )}
       <Select
+        label="Action"
         placeholder="Any action"
         size="xs"
         w={190}
@@ -189,6 +114,7 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
         data={ACTIONS}
       />
       <Select
+        label="Outcome"
         placeholder="Any outcome"
         size="xs"
         w={150}
@@ -201,53 +127,23 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
   );
 }
 
-/** The event table, or what stands in for it while loading, on error, or when nothing matches. */
-function AuditTable({
-  query,
-  rows,
-  clusterId,
-  onOpen,
-}: Readonly<{
-  query: ReturnType<typeof useAudit>;
-  rows: AuditEventView[];
-  clusterId: string;
-  onOpen: (e: AuditEventView) => void;
-}>) {
-  if (query.isError) {
+/** Why the grid is empty: a filter excludes every event, or nothing has been recorded yet. */
+function AuditEmpty({ filtered, onClearFilters }: Readonly<{ filtered: boolean; onClearFilters: () => void }>) {
+  if (filtered) {
     return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
-  }
-  if (query.isPending && rows.length === 0) {
-    return (
-      <Stack gap={4}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <Skeleton key={i} height={28} />
-        ))}
-      </Stack>
-    );
-  }
-  if (rows.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No audit events match. Every message operation, purge and cluster change is recorded here the moment it runs.
-      </Text>
+      <EmptyState
+        kind="filtered"
+        title="No audit event matches these filters"
+        description="Events are recorded on this cluster, but none has this user, action or outcome, or belongs to the run you are looking at. Clear the filters to see them all."
+        onClearFilters={onClearFilters}
+      />
     );
   }
   return (
-    <VirtualTable
-      label="Audit events"
-      storageKey="audit"
-      columns={columns}
-      data={rows}
-      rowKey={auditKey}
-      onRowClick={onOpen}
-      rowMenu={{
-        label: (e) => `${e.action} at ${at(e)}`,
-        render: (e) => <CopyAuditLink clusterId={clusterId} id={e.id} />,
-      }}
+    <EmptyState
+      kind="empty"
+      title="No audit events yet"
+      description="The audit log records every message operation, purge and cluster change the moment it runs, with who did it and how it ended. Nothing has been recorded on this cluster yet; run an operation and it appears here."
     />
   );
 }
@@ -266,18 +162,12 @@ function AuditEventDetail({
     if (offPage.isPending) return <Skeleton height={28} />;
     if (offPage.error?.status === 404) {
       return (
-        <Alert color="blue" variant="light" title="This audit event no longer exists">
+        <Alert variant="light" title="This audit event no longer exists">
           No audit event with this id exists on this cluster. Check the link, or ask whoever shared it to copy it again.
         </Alert>
       );
     }
-    if (offPage.isError) {
-      return (
-        <Alert color="red" variant="light" title={offPage.error.title}>
-          {offPage.error.message}
-        </Alert>
-      );
-    }
+    if (offPage.isError) return <ErrorState error={offPage.error} onRetry={() => void offPage.refetch()} />;
     return null;
   }
   return (
@@ -287,7 +177,7 @@ function AuditEventDetail({
         {selected.dryRun ? ' · dry run' : ''}
       </Text>
       {selected.error ? (
-        <Text size="xs" c="red">
+        <Text size="xs" c="var(--as-danger)">
           {selected.error}
         </Text>
       ) : null}
@@ -325,7 +215,8 @@ function AuditEventDetail({
 export function AuditView() {
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
-  useDisplayZone();
+  const zone = useDisplayZone();
+  const columns = useMemo(() => auditColumns(zone), [zone]);
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as AuditSearch;
   const navigate = useNavigate();
@@ -360,12 +251,19 @@ export function AuditView() {
   const selected = onPage ?? offPage.data ?? null;
   const total = query.data?.count ?? 0;
 
+  // The user field keeps what was typed in it, so clearing the filters starts it afresh.
+  const [filterEpoch, setFilterEpoch] = useState(0);
+  const filtered = Boolean(search.user || search.action || search.outcome || search.parentId != null);
+  const clearFilters = () => {
+    setFilterEpoch((n) => n + 1);
+    void setParam({ user: undefined, action: undefined, outcome: undefined, parentId: undefined });
+  };
+
   return (
-    <Stack gap="sm">
-      {/* The count and position live in the pager, stated once. */}
+    <Page fill>
       <Title order={3}>Audit log</Title>
 
-      <AuditFilters search={search} setParam={setParam} />
+      <Toolbar label="Audit filters" start={<AuditFilters key={filterEpoch} search={search} setParam={setParam} />} />
 
       {search.parentId != null ? (
         <Group gap="xs">
@@ -378,19 +276,38 @@ export function AuditView() {
         </Group>
       ) : null}
 
-      <AuditTable query={query} rows={rows} clusterId={clusterId} onOpen={setOpen} />
-
-      <Pager
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={total}
-        onChange={(next) =>
-          navigate({
-            to: '.',
-            search: (p: Record<string, unknown>) => ({ ...p, page: next > 1 ? next : undefined }),
-          })
-        }
-        label="audit events"
+      <DataTable
+        label="Audit events"
+        storageKey="audit"
+        height="fill"
+        columns={columns}
+        data={rows}
+        rowKey={auditKey}
+        loading={query.isPending}
+        error={query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined}
+        onRowClick={setOpen}
+        toolbar={{
+          // The count and position live in the pager, stated once.
+          end: (
+            <Pager
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onChange={(next) =>
+                navigate({
+                  to: '.',
+                  search: (p: Record<string, unknown>) => ({ ...p, page: next > 1 ? next : undefined }),
+                })
+              }
+              label="audit events"
+            />
+          ),
+        }}
+        rowMenu={{
+          label: (e) => `${e.action} at ${at(e)}`,
+          render: (e) => <CopyAuditLink clusterId={clusterId} id={e.id} />,
+        }}
+        empty={<AuditEmpty filtered={filtered} onClearFilters={clearFilters} />}
       />
 
       <Drawer
@@ -404,6 +321,6 @@ export function AuditView() {
           <AuditEventDetail selected={selected} offPage={offPage} setParam={setParam} />
         )}
       </Drawer>
-    </Stack>
+    </Page>
   );
 }

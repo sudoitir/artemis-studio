@@ -206,7 +206,7 @@ describe('AuditView rows and states', () => {
     renderWithProviders(<AuditView />);
 
     const grid = await screen.findByRole('grid', { name: 'Audit events' });
-    expect(within(grid).getByText('success')).toBeInTheDocument();
+    expect(await within(grid).findByText('success')).toBeInTheDocument();
     expect(within(grid).getByText('pending')).toBeInTheDocument();
     expect(within(grid).getByText(/dry run/)).toBeInTheDocument();
     expect(within(grid).getByText('12')).toBeInTheDocument();
@@ -220,9 +220,27 @@ describe('AuditView rows and states', () => {
     server.use(grants([]), page([]));
     renderWithProviders(<AuditView />);
 
-    expect(await screen.findByText(/No audit events match\. Every message operation/)).toBeInTheDocument();
-    expect(screen.getByText('No audit events')).toBeInTheDocument();
-    expect(screen.queryByRole('grid', { name: 'Audit events' })).not.toBeInTheDocument();
+    expect(await screen.findByText('No audit events yet')).toBeInTheDocument();
+    expect(screen.getByText(/records every message operation, purge and cluster change/)).toBeInTheDocument();
+    // The empty state is beside the grid, never in it: the grid has only its header row.
+    expect(screen.getByRole('grid', { name: 'Audit events' })).toHaveAttribute('aria-rowcount', '1');
+  });
+
+  it('says a filter excludes every event, and clearing it drops every filter from the address', async () => {
+    search = { user: 'ann', outcome: 'FAILURE', parentId: 7 };
+    server.use(grants([]), page([]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    expect(await screen.findByText('No audit event matches these filters')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(nextSearch({ user: 'ann', outcome: 'FAILURE', parentId: 7 })).toEqual({
+      user: undefined,
+      action: undefined,
+      outcome: undefined,
+      parentId: undefined,
+      page: undefined,
+    });
   });
 
   it('states why the log could not be read instead of showing it empty', async () => {
@@ -234,8 +252,8 @@ describe('AuditView rows and states', () => {
     );
     renderWithProviders(<AuditView />);
 
-    expect(await screen.findByText('Audit unavailable')).toBeInTheDocument();
-    expect(screen.getByText('The database did not answer.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('pages back and forth, leaving the page out of the address on the first', async () => {
@@ -375,8 +393,7 @@ describe('AuditView event detail', () => {
     renderWithProviders(<AuditView />);
 
     const dialog = await screen.findByRole('dialog', { name: 'Audit event' });
-    expect(await within(dialog).findByText('Audit unavailable')).toBeInTheDocument();
-    expect(within(dialog).getByText('The database did not answer.')).toBeInTheDocument();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
   });
 
   it('shows a placeholder while an event that is not on the page loads', async () => {

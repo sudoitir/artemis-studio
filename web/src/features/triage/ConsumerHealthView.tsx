@@ -1,83 +1,23 @@
-import { useEffect, useState, useRef } from 'react';
-import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { Text, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useCluster } from '../clusters/index.ts';
 import { useConsumerHealth, type ConsumerHealthView as HealthRow } from './api.ts';
-import { HealthVerdict } from './HealthVerdict.tsx';
+import { consumerHealthColumns } from './columns.ts';
+import { DataTable } from '../../ui/table/index.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
 import { Pager } from '../../ui/Pager.tsx';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
-import { formatRate, trendPhrase } from './verdict.ts';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
-import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
 
-const columns: GridColumn<HealthRow>[] = [
-  {
-    id: 'verdict',
-    header: 'Health',
-    accessor: (r) => r.severity,
-    cell: (r) => <HealthVerdict row={r} />,
-    sortKey: 'severity',
-    width: 150,
-  },
-  {
-    id: 'queueName',
-    header: 'Queue',
-    accessor: (r) => r.queueName,
-    cell: (r) => (
-      <ResourceLink kind="queue" target={{ queueName: r.queueName, address: r.address }}>
-        {r.queueName}
-      </ResourceLink>
-    ),
-    sortKey: 'queueName',
-  },
-  { id: 'address', header: 'Address', accessor: (r) => r.address, sortKey: 'address' },
-  {
-    id: 'depth',
-    header: 'Depth',
-    accessor: (r) => r.depth,
-    numeric: true,
-    sortKey: 'depth',
-    width: 110,
-  },
-  {
-    id: 'consumers',
-    header: 'Consumers',
-    accessor: (r) => r.consumers,
-    numeric: true,
-    sortKey: 'consumers',
-    width: 110,
-  },
-  {
-    id: 'delivering',
-    header: 'In flight',
-    accessor: (r) => r.delivering,
-    numeric: true,
-    sortKey: 'delivering',
-    width: 100,
-  },
-  {
-    // An unmeasured rate reads "not measured", never 0 — on this screen those
-    // two mean opposite things and lead to opposite actions.
-    id: 'ackRate',
-    header: 'Acknowledged',
-    accessor: (r) => r.ackRate ?? -1,
-    cell: (r) => formatRate(r.ackRate),
-    numeric: true,
-    width: 130,
-  },
-  {
-    id: 'trend',
-    header: 'Trend',
-    accessor: (r) => r.depthSlopePerSecond ?? 0,
-    cell: (r) => trendPhrase(r),
-    width: 170,
-  },
-];
+const rowKey = (r: HealthRow) => `${r.address}::${r.queueName}`;
 
 /** How many rows on this page need attention, in words; quiet when the page is empty. */
 function attentionWords(needing: number, rows: number): string {
@@ -86,41 +26,43 @@ function attentionWords(needing: number, rows: number): string {
 }
 
 /** Why the grid is empty: the filter, nodes that did not answer, or genuinely nothing yet. */
-function HealthEmpty({ filterText, unreachable }: Readonly<{ filterText: string | undefined; unreachable: string[] }>) {
+function HealthEmpty({
+  filterText,
+  unreachable,
+  onClearFilter,
+}: Readonly<{ filterText: string | undefined; unreachable: string[]; onClearFilter: () => void }>) {
   if (filterText) {
     return (
-      <Stack gap={4} align="flex-start">
-        <Text fw={600}>No queue matches "{filterText}"</Text>
-        <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
-      </Stack>
+      <EmptyState
+        kind="filtered"
+        title={`No queue matches "${filterText}"`}
+        description="Queues may still exist on this cluster; none of them match this filter."
+        onClearFilters={onClearFilter}
+      />
     );
   }
   if (unreachable.length > 0) {
     return (
-      <Stack gap={4} align="flex-start">
-        <Text fw={600}>
-          {unreachable.length === 1
+      <EmptyState
+        kind="unreachable"
+        title={
+          unreachable.length === 1
             ? `${unreachable[0]} could not be reached`
-            : `${unreachable.length} nodes could not be reached`}
-        </Text>
-        <Text size="sm">
-          There may be queues here that Studio cannot currently see —
-          {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is an
-          incomplete view rather than a healthy cluster.
-          {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
-        </Text>
-      </Stack>
+            : `${unreachable.length} nodes could not be reached`
+        }
+        description={`There may be queues here that Studio cannot currently see. ${
+          unreachable.length === 1 ? 'This node' : 'These nodes'
+        } did not answer the last scrape, so this is an incomplete view rather than a healthy cluster.`}
+        nodes={unreachable}
+      />
     );
   }
   return (
-    <Stack gap={4} align="flex-start">
-      <Text fw={600}>No queues to report on yet</Text>
-      <Text size="sm">
-        Consumer health ranks every queue by whether its consumers are keeping up — whether anything is attached,
-        whether it is acknowledging, and whether the backlog is growing. Queues appear here within a scrape tick of
-        being created.
-      </Text>
-    </Stack>
+    <EmptyState
+      kind="empty"
+      title="No queues to report on yet"
+      description="Consumer health ranks every queue by whether its consumers are keeping up: whether anything is attached, whether it is acknowledging, and whether the backlog is growing. Queues appear here within a scrape tick of being created, so create a queue or produce to an address and check back."
+    />
   );
 }
 
@@ -178,69 +120,76 @@ export function ConsumerHealthView() {
   const setPage = (next: number) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, page: next > 1 ? next : undefined }) });
 
-  if (query.isError) {
-    return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
-  }
-
+  const columns = useMemo(consumerHealthColumns, []);
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
   const needingAttention = rows.filter((r) => r.severity >= 2).length;
   const unmeasured = rows.filter((r) => r.verdict === 'INSUFFICIENT_DATA').length;
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between">
-        <TextInput
-          ref={filterRef}
-          label="Filter queues"
-          placeholder="Queue or address name"
-          value={filter}
-          onChange={(e) => setFilter(e.currentTarget.value)}
-          w={280}
-          size="xs"
-        />
-        {/* Stated in words, and quiet when there is nothing to say. */}
-        <Text size="xs" c="dimmed" role="status">
-          {attentionWords(needingAttention, rows.length)}
-          {unmeasured > 0 ? ` · ${unmeasured} not yet measured` : ''}
-        </Text>
-      </Group>
+    <Page fill>
+      <Toolbar
+        label="Queue filters"
+        start={
+          <TextInput
+            ref={filterRef}
+            label="Filter queues"
+            placeholder="Queue or address name"
+            value={filter}
+            onChange={(e) => setFilter(e.currentTarget.value)}
+            w={280}
+            size="xs"
+          />
+        }
+        end={
+          // Stated in words, and quiet when there is nothing to say.
+          <Text size="xs" c="dimmed" role="status">
+            {attentionWords(needingAttention, rows.length)}
+            {unmeasured > 0 ? ` · ${unmeasured} not yet measured` : ''}
+          </Text>
+        }
+      />
 
-      {query.isPending && rows.length === 0 ? (
-        <Stack gap={4}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} height={30} />
-          ))}
-        </Stack>
-      ) : (
-        <VirtualTable
-          label="Consumer health"
-          storageKey="consumer-health"
-          columns={columns}
-          data={rows}
-          sort={search.sort}
-          onSortChange={setSort}
-          rowKey={(r) => `${r.address}::${r.queueName}`}
-          rowMenu={{
-            label: (r) => r.queueName,
-            render: (r, menu) => (
-              <ResourceActions
-                kind="queue"
-                clusterId={clusterId}
-                target={{ queueName: r.queueName, address: r.address }}
-                restoreFocus={menu.restoreFocus}
-              />
-            ),
-          }}
-          emptyLabel={<HealthEmpty filterText={search.q} unreachable={unreachable} />}
-        />
-      )}
-
-      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />
-    </Stack>
+      <DataTable
+        label="Consumer health"
+        storageKey="consumer-health"
+        height="fill"
+        columns={columns}
+        data={rows}
+        loading={query.isPending}
+        error={query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined}
+        sort={search.sort}
+        onSortChange={setSort}
+        rowKey={rowKey}
+        toolbar={{
+          // The count and position live in the pager, stated once.
+          end: <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />,
+        }}
+        rowMenu={{
+          label: (r) => r.queueName,
+          render: (r, menu) => (
+            <ResourceActions
+              kind="queue"
+              clusterId={clusterId}
+              target={{ queueName: r.queueName, address: r.address }}
+              restoreFocus={menu.restoreFocus}
+            />
+          ),
+        }}
+        empty={
+          <HealthEmpty
+            filterText={search.q}
+            unreachable={unreachable}
+            onClearFilter={() => {
+              setFilter('');
+              void navigate({
+                to: '.',
+                search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
+              });
+            }}
+          />
+        }
+      />
+    </Page>
   );
 }

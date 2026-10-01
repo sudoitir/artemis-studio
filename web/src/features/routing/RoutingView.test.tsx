@@ -126,7 +126,7 @@ describe('RoutingView diverts', () => {
     renderWithProviders(<RoutingView />);
 
     const grid = await screen.findByRole('grid', { name: 'Diverts' });
-    expect(within(grid).getAllByLabelText('from orders to orders.audit')).toHaveLength(3);
+    expect(await within(grid).findAllByLabelText('from orders to orders.audit')).toHaveLength(3);
     expect(within(grid).getByText('takes the message')).toBeInTheDocument();
     expect(within(grid).getAllByText('copies the message')).toHaveLength(2);
     expect(within(grid).getByText('message capture')).toBeInTheDocument();
@@ -160,31 +160,79 @@ describe('RoutingView diverts', () => {
     expect(within(dialog).queryByText(/Add this to broker.xml/)).not.toBeInTheDocument();
   });
 
-  it('teaches what a divert is when there are none, and says a filter emptied the list when one is set', async () => {
+  it('teaches what a divert is when there are none', async () => {
     serve();
-    const { unmount } = renderWithProviders(<RoutingView />);
-    expect(await screen.findByText(/No diverts\. A divert copies/)).toBeInTheDocument();
-    expect(screen.getByText('No diverts')).toBeInTheDocument();
-    unmount();
-
-    search = { q: 'zzz' };
     renderWithProviders(<RoutingView />);
-    expect(
-      await screen.findByText('No divert matches this filter. Clear it to see every divert on the cluster.'),
-    ).toBeInTheDocument();
+
+    expect(await screen.findByText('No diverts yet')).toBeInTheDocument();
+    expect(screen.getByText(/A divert copies — or, when exclusive, redirects/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
   });
 
-  it('states why the diverts could not be read instead of listing none', async () => {
+  it('says a filter emptied the list and clears it from the empty state', async () => {
+    search = { q: 'zzz' };
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<RoutingView />);
+
+    expect(await screen.findByText('No divert matches this filter')).toBeInTheDocument();
+    expect(screen.getByText('Clear it to see every divert on the cluster.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    expect(screen.getByRole('textbox', { name: 'Filter by address or name' })).toHaveValue('');
+    await waitFor(() => expect(navigate).toHaveBeenCalled());
+    expect(lastSearch({ q: 'zzz', page: 2 })).toEqual({ q: undefined, page: undefined });
+  });
+
+  it('names a node that did not answer instead of presenting no diverts as a fact', async () => {
+    serve();
     server.use(
-      http.get('*/api/v1/clusters/c1/diverts', () =>
-        HttpResponse.json({ title: 'Cluster unreachable', detail: 'No node answered.' }, { status: 502 }),
+      http.get('*/api/v1/clusters/c1', () =>
+        HttpResponse.json({
+          id: 'c1',
+          name: 'c1',
+          description: null,
+          topology: { nodes: [{ endpoints: [{ id: 'e1', name: 'backup', lastError: 'connection refused' }] }] },
+          capabilities: {
+            managementRead: AVAILABLE,
+            managementWrite: AVAILABLE,
+            notifications: AVAILABLE,
+            messageIo: AVAILABLE,
+            slowConsumerDetection: AVAILABLE,
+            versionGates: [],
+          },
+          health: { level: 'OK', reasons: [] },
+          environmentId: null,
+        }),
       ),
     );
     renderWithProviders(<RoutingView />);
 
-    expect(await screen.findByText('Cluster unreachable')).toBeInTheDocument();
-    expect(screen.getByText('No node answered.')).toBeInTheDocument();
-    expect(screen.queryByRole('grid', { name: 'Diverts' })).not.toBeInTheDocument();
+    expect(await screen.findByText('No diverts could be listed')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Nodes that could not be reached' })).getByText('backup'),
+    ).toBeVisible();
+    expect(screen.queryByText('No diverts yet')).not.toBeInTheDocument();
+  });
+
+  it('states why the diverts could not be read instead of listing none, and retries', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/clusters/c1/diverts', () => {
+        calls += 1;
+        return HttpResponse.json({ title: 'Cluster unreachable', detail: 'No node answered.' }, { status: 502 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RoutingView />);
+
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(screen.queryByText('No diverts yet')).not.toBeInTheDocument();
+
+    const before = calls;
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(calls).toBeGreaterThan(before));
   });
 
   it('puts the sort in the address and starts again at the first page', async () => {
@@ -243,7 +291,7 @@ describe('RoutingView bridges', () => {
     renderWithProviders(<RoutingView />);
 
     const grid = await screen.findByRole('grid', { name: 'Bridges' });
-    expect(within(grid).getByText('running and connected')).toBeInTheDocument();
+    expect(await within(grid).findByText('running and connected')).toBeInTheDocument();
     expect(within(grid).getByText('started, not connected to its target')).toBeInTheDocument();
     expect(within(grid).getByText('not started')).toBeInTheDocument();
     // A bridge with nothing recorded is named as such rather than left blank.
@@ -275,9 +323,8 @@ describe('RoutingView bridges', () => {
     serve();
     renderWithProviders(<RoutingView />);
 
-    expect(
-      await screen.findByText('No bridge matches this filter. Clear it to see every bridge on the cluster.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('No bridge matches this filter')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
   });
 });
 

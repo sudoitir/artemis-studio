@@ -1,8 +1,10 @@
-import { Alert, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Alert, ColorSwatch, Stack, Text } from '@mantine/core';
 
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
-import { useCluster, type CapabilitiesView } from './api.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { useCluster, useEnvironments, type CapabilitiesView } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import styles from './ClusterHeader.module.css';
 
@@ -15,11 +17,17 @@ function capabilityGaps(caps: CapabilitiesView | undefined): string[] {
 }
 
 /**
- * Above every view of a cluster (`cluster.header`): its identity, the health banner, and a notice
- * for a capability the connection lacks.
+ * Above every view of a cluster (`cluster.header`): a context strip with the cluster's name, its
+ * environment beside the environment's colour, and what is known of its health, then the health banner
+ * and a notice for a capability the connection lacks.
+ *
+ * It holds no heading. Each view's `PageHeader` renders the page's one h1 (ADR-0162), so the cluster
+ * is stated beside it as context, not as a second top-level heading. How current the data is stays
+ * with the shell's freshness indicator, which answers it for every route.
  */
 export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
-  const { data, isPending, isError, error } = useCluster(clusterId);
+  const { data, isPending, isError, error, refetch } = useCluster(clusterId);
+  const environments = useEnvironments();
   // The cluster's name, for the shell's title and breadcrumb (ADR-0109).
   useTitlePart('cluster', data?.name);
 
@@ -34,15 +42,10 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   // returns below so the hook order never depends on the query state.
   const [capsDismissed, dismissCaps] = useDismissedNotice(`capabilities:${clusterId}:${gaps.join(',')}`);
 
-  if (isPending) return <Loader size="sm" />;
-  if (isError) {
-    return (
-      <Alert color="red" variant="light" title={error.title}>
-        {error.message}
-      </Alert>
-    );
-  }
+  if (isPending) return <LoadingState label="Loading the cluster" variant="inline" blockSize="1.5rem" />;
+  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
+  const environment = environments.data?.find((e) => e.id === data.environmentId);
   const nodeCount = data.topology.nodes.reduce((n, node) => n + node.endpoints.length, 0);
   const hasPair = data.topology.nodes.some((n) => n.endpoints.length > 1);
   const meta = [
@@ -54,25 +57,30 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
 
   return (
     <>
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <div className={styles.identity}>
-          <Title order={1} fz="h2">
-            {data.name}
-          </Title>
-          <Text size="sm" c="dimmed">
-            {meta}
+      <div role="group" aria-label={`Cluster ${data.name}`} className={styles.strip}>
+        <Text component="span" size="md" className={styles.name}>
+          {data.name}
+        </Text>
+        {environment ? (
+          <Text component="span" size="sm" className={styles.environment}>
+            <ColorSwatch component="span" color={environment.colour ?? 'var(--as-border)'} size="0.75rem" />
+            {environment.name}
           </Text>
-        </div>
-      </Group>
+        ) : null}
+        <Text component="span" size="sm" className={styles.meta}>
+          {meta}
+        </Text>
+      </div>
 
       {data.health.level !== 'OK' && data.health.notes.length > 0 ? (
         <Alert
-          color={critical ? 'red' : 'yellow'}
-          variant="light"
+          variant="default"
+          className={styles.notice}
+          data-tone={critical ? 'danger' : 'warning'}
           role={critical ? 'alert' : undefined}
           title={critical ? 'Two nodes are live in one pair' : 'Needs attention'}
         >
-          <Stack gap={4}>
+          <Stack gap="xs">
             {data.health.notes.map((n) => (
               <Text key={n} size="sm">
                 {n}
@@ -84,8 +92,7 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
 
       {gaps.length > 0 && !capsDismissed ? (
         <Alert
-          color="gray"
-          variant="light"
+          variant="default"
           title="Some broker capabilities need setup"
           withCloseButton
           closeButtonLabel="Dismiss until you sign out"

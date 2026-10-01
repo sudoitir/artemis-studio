@@ -5,7 +5,7 @@ Machine checks from the baseline sweep (`npm run sweep -- --label before`), by s
 ### sweep-1 [S2 · a11y · page] Contrast below AA
 - Where: alerts (rules), audit, events, messages (DLQ queue), settings (SQL index)
 - Fix: the new token scale; the contrast test covers every token; recheck these routes.
-- Status: open
+- Status: open (audit and events: fixed in the views, no coloured badges, colour-name props or colour-name text left, so every colour is a token; recheck both routes in the after sweep. The other routes belong to their own units)
 
 ### sweep-2 [S2 · a11y · base] ARIA attribute not allowed on its role (`aria-prohibited-attr`)
 - Where: admin (data), flow (map and table), identity-local (enrol second factor), rr (expectations), settings (health, security), account
@@ -24,7 +24,7 @@ Machine checks from the baseline sweep (`npm run sweep -- --label before`), by s
 
 ### sweep-5 [S2 · a11y · page] Focusable element inside an aria-hidden subtree (`aria-hidden-focus`)
 - Where: shell (home)
-- Status: open
+- Status: open (not in the shell's files. On a home with no cluster the page is `RegisterCluster`, whose example cards wrap `TopologyCanvas` in an `aria-hidden` box; React Flow's nodes take focus by default (`nodesFocusable`), so they sit focusable inside it. `TopologyCanvas` should pass `nodesFocusable={interactive}` and `edgesFocusable={interactive}`. Unconfirmed in a browser: the after sweep decides)
 
 ### sweep-6 [S2 · security · base] The CSP blocks an `eval` on some pages
 - Where: admin (data), alerting (rules), flow

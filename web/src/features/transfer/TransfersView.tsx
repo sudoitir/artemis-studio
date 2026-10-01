@@ -1,18 +1,21 @@
-import { useState, type ReactNode } from 'react';
-import { Alert, Anchor, Button, Group, Modal, Skeleton, Stack, Text, Title } from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Alert, Anchor, Button, Group, Modal, Stack, Text, Title } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { useClusters } from '../clusters/index.ts';
 import { AddressPicker } from '../queues/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useOrphans, useReturnOrphan, useTransferRuns, type OrphanView, type TransferRunView } from './api.ts';
-import { MODE, plural, stateWords, toneColor } from './words.ts';
+import { transferColumns } from './columns.ts';
+import { plural } from './words.ts';
 
 /**
  * Staging left on a broker by a run Studio no longer has: the one way messages could strand.
@@ -30,7 +33,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   // Not being able to look is not the same as nothing being there, and is said rather than hidden.
   if (query.isError) {
     return (
-      <Alert color="yellow" variant="light" title="Could not check for stranded staging queues">
+      <Alert variant="light" title="Could not check for stranded staging queues">
         {query.error.message} If a transfer was interrupted, its messages may still be held on a broker. Open this
         screen again once the cluster answers.
       </Alert>
@@ -100,7 +103,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
               unknownHint="No queue by that name on this cluster. Check it before returning messages to it."
             />
             {returnOrphan.isError ? (
-              <Alert color="red" variant="light" title={returnOrphan.error.title} role="alert">
+              <Alert variant="light" title={returnOrphan.error.title} role="alert">
                 {returnOrphan.error.message} Nothing was returned.
               </Alert>
             ) : null}
@@ -108,7 +111,6 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
               token={chosen.stagingQueue}
               label={`Type the staging queue's name, "${chosen.stagingQueue}", to confirm`}
               confirmLabel="Return the messages"
-              color="red"
               loading={returnOrphan.isPending}
               disabled={queue.trim() === '' || returnOrphan.isPending}
               onConfirm={() =>
@@ -125,92 +127,53 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   );
 }
 
-function transferColumns(clusterId: string, clusterName: (id: string) => string): GridColumn<TransferRunView>[] {
-  const end = (run: TransferRunView, which: 'source' | 'target') => {
-    const { queue, nodeName, clusterId: endCluster } = run[which];
-    const where = endCluster === clusterId ? '' : ` (${clusterName(endCluster)})`;
-    return `${queue} on ${nodeName}${where}`;
-  };
-
-  return [
-    {
-      id: 'when',
-      header: 'When',
-      accessor: (r) => absoluteLabel(r.startedAt ?? r.createdAt),
-      // A real link, so each run is reachable from the keyboard.
-      cell: (r) => (
-        <Anchor component={Link} to={`/clusters/${clusterId}/transfers/${r.id}`} size="sm">
-          {absoluteLabel(r.startedAt ?? r.createdAt)}
-        </Anchor>
-      ),
-      width: 210,
-    },
-    { id: 'mode', header: 'Mode', accessor: (r) => MODE[r.mode].verb, width: 80 },
-    { id: 'from', header: 'From', accessor: (r) => end(r, 'source') },
-    { id: 'to', header: 'To', accessor: (r) => end(r, 'target') },
-    { id: 'delivered', header: 'Delivered', accessor: (r) => r.delivered, numeric: true, width: 110 },
-    {
-      id: 'state',
-      header: 'Outcome',
-      accessor: (r) => stateWords(r.state).text,
-      cell: (r) => {
-        const state = stateWords(r.state);
-        return (
-          <Text size="sm" c={toneColor(state.tone)}>
-            {state.text}
-          </Text>
-        );
-      },
-    },
-    { id: 'user', header: 'Run by', accessor: (r) => r.username, width: 160 },
-  ];
-}
-
-/** What stands in for the table while runs load or fail to load. */
-function runsNotice(query: ReturnType<typeof useTransferRuns>): ReactNode {
-  if (query.isError) {
-    return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
-  }
-  return query.data ? null : <Skeleton height={160} />;
-}
+const rowKey = (r: TransferRunView) => r.id;
 
 /** Transfers where this cluster is the source or the target, newest first, and any stranded staging. */
 export function TransfersView() {
-  useDisplayZone();
+  const zone = useDisplayZone();
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const query = useTransferRuns(clusterId);
   const clusters = useClusters();
-  const clusterName = (id: string) => clusters.data?.find((c) => c.id === id)?.name ?? 'another cluster';
+  const clusterList = clusters.data;
+  const columns = useMemo(
+    () =>
+      transferColumns({
+        clusterId,
+        clusterName: (id) => clusterList?.find((c) => c.id === id)?.name ?? 'another cluster',
+        zone,
+      }),
+    [clusterId, clusterList, zone],
+  );
 
   return (
-    <Stack gap="sm">
-      <Title order={3}>Message transfers</Title>
-      <Orphans clusterId={clusterId} />
-      {runsNotice(query) ?? (
-        <VirtualTable
-          label="Transfers"
-          storageKey="transfers"
-          columns={transferColumns(clusterId, clusterName)}
-          data={query.data ?? []}
-          rowKey={(r) => r.id}
-          emptyLabel={
-            <Stack gap={4} align="flex-start">
-              <Text fw={600}>No transfers yet</Text>
-              <Text size="sm">
-                A transfer moves or copies messages from a queue to a queue on another node or another cluster, after a
-                preview that checks the target can accept them. Select messages on the Messages screen to start one.
-              </Text>
+    <Page fill>
+      <Stack gap="sm">
+        <Title order={3}>Message transfers</Title>
+        <Orphans clusterId={clusterId} />
+      </Stack>
+      <DataTable
+        label="Transfers"
+        storageKey="transfers"
+        height="fill"
+        columns={columns}
+        data={query.data ?? []}
+        rowKey={rowKey}
+        loading={query.isPending}
+        error={query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No transfers yet"
+            description="A transfer moves or copies messages from a queue to a queue on another node or another cluster, after a preview that checks the target can accept them. None has been run from or to this cluster yet. Select messages on the Messages screen to start one."
+            action={
               <Anchor component={Link} to={`/clusters/${clusterId}/queues`} size="sm">
                 Go to Queues
               </Anchor>
-            </Stack>
-          }
-        />
-      )}
-    </Stack>
+            }
+          />
+        }
+      />
+    </Page>
   );
 }

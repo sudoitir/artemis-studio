@@ -1,87 +1,57 @@
-import { Alert, Loader, Stack, Text } from '@mantine/core';
+import { useMemo } from 'react';
+import { Stack, Text } from '@mantine/core';
 
-import { absoluteLabel } from '../../kernel/time/time.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useStorageHealth, type TableView } from './api.ts';
-import { bytes, count, nextStep } from './words.ts';
+import { healthColumns } from './columns.ts';
 
-function growth(t: TableView): string {
-  if (t.growthBytes == null) return 'unknown';
-  return `${t.growthBytes >= 0 ? '+' : ''}${bytes(t.growthBytes)}`;
-}
-
-function partitions(t: TableView): string {
-  if (!t.partitioned) return 'n/a';
-  return t.missingPartitions.length ? `missing ${t.missingPartitions.join(', ')}` : 'ready';
-}
+const rowKey = (t: TableView) => `${t.schema}.${t.name}`;
 
 /** Every table's size, growth, dead tuples, vacuum and partitions (data-lifecycle spec). */
 export function HealthTable() {
+  const zone = useDisplayZone();
   const health = useStorageHealth();
+  const columns = useMemo(() => healthColumns(zone), [zone]);
 
-  if (health.isLoading) return <Loader size="sm" aria-label="Loading storage health" />;
-  if (health.error) {
-    return (
-      <Alert color="red" title="Could not read storage health">
-        {health.error.message}. {nextStep(health.error)}
-      </Alert>
-    );
-  }
-
-  const rows = [...(health.data?.tables ?? [])].sort(
-    (a, b) => Number(b.problems.length > 0) - Number(a.problems.length > 0) || b.bytes - a.bytes,
+  const tables = health.data?.tables;
+  const rows = useMemo(
+    () =>
+      [...(tables ?? [])].sort(
+        (a, b) => Number(b.problems.length > 0) - Number(a.problems.length > 0) || b.bytes - a.bytes,
+      ),
+    [tables],
   );
   const unhealthy = rows.filter((t) => t.problems.length > 0).length;
 
-  const columns: GridColumn<TableView>[] = [
-    {
-      id: 'table',
-      header: 'Table',
-      accessor: (t) => (t.schema === 'public' ? t.name : `${t.schema}.${t.name}`),
-    },
-    {
-      id: 'state',
-      header: 'State',
-      accessor: (t) => (t.problems.length ? `Unhealthy: ${t.problems.join('; ')}` : 'Healthy'),
-    },
-    { id: 'size', header: 'Size', width: 100, numeric: true, accessor: (t) => bytes(t.bytes) },
-    { id: 'growth', header: '7-day growth', width: 110, numeric: true, accessor: growth },
-    {
-      id: 'dead',
-      header: 'Dead rows',
-      width: 130,
-      numeric: true,
-      accessor: (t) => `${t.deadPercent}% of ${count(t.rows + t.deadRows)}`,
-    },
-    {
-      id: 'vacuum',
-      header: 'Last vacuum',
-      width: 170,
-      accessor: (t) => (t.lastVacuum ? absoluteLabel(t.lastVacuum) : 'never'),
-    },
-    {
-      id: 'partitions',
-      header: 'Partitions',
-      width: 100,
-      accessor: partitions,
-    },
-  ];
-
   return (
     <Stack gap="sm">
-      <Text size="sm" c="dimmed" aria-live="polite">
-        {unhealthy === 0
-          ? `All ${rows.length} tables are healthy.`
-          : `${unhealthy} of ${rows.length} tables need attention. The Storage health alert rule reports them.`}{' '}
-        Figures are Postgres statistics, so row counts are estimates.
-      </Text>
-      <VirtualTable
+      {tables ? (
+        <Text size="sm" c="dimmed" aria-live="polite">
+          {unhealthy === 0
+            ? `All ${rows.length} tables are healthy.`
+            : `${unhealthy} of ${rows.length} tables need attention. The Storage health alert rule reports them.`}{' '}
+          Figures are Postgres statistics, so row counts are estimates.
+        </Text>
+      ) : null}
+      <DataTable
         label="Tables"
         storageKey="data-health"
+        height="fill"
         columns={columns}
         data={rows}
-        rowKey={(t) => `${t.schema}.${t.name}`}
-        emptyLabel="No table statistics yet. Postgres collects them as tables are used."
+        rowKey={rowKey}
+        loading={health.isLoading}
+        error={health.error ? <ErrorState error={health.error} onRetry={() => void health.refetch()} /> : undefined}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No table statistics yet"
+            description="This lists each table's size, growth, dead rows, vacuum and partitions, read from the statistics Postgres collects as tables are used. It has none for Studio's database yet, so check back once Studio has been running for a while."
+          />
+        }
       />
     </Stack>
   );

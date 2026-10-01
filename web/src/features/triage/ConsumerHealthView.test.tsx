@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -141,7 +141,11 @@ describe('ConsumerHealthView', () => {
 
     renderWithProviders(<ConsumerHealthView />);
 
-    expect(await screen.findByText(/did not answer/)).toBeInTheDocument();
+    // The failure names its cause and offers a retry, and is not reported as an empty cluster.
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('No queues to report on yet')).not.toBeInTheDocument();
   });
 
   it('offers to clear a filter that matched nothing', async () => {

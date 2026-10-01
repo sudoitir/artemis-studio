@@ -9,7 +9,7 @@ Every finding is fixed before this change is archived. Severity: S1 blocks a tas
 - Where: `web/src/kernel/stream/useClusterStream.ts:216`
 - Evidence: Each useClusterStream mount writes the same module-level `current` status through publish(). ClusterLayout.tsx:24 always mounts one stream, and EventsView.tsx:142 mounts a second one while the live feed is on. When EventsView unmounts, or live is switched off (topicKey becomes '' and the effect tears down), cleanup runs publish(null). The header freshness indicator then shows 'no live stream here' even though ClusterLayout's EventSource is still open. It stays wrong until that stream next changes state, which happens only on a failure or a reopen, so it can be minutes. While both streams are mounted they also overwrite each other: one stream's 'reconnecting' can hide the other's 'live', and the reverse.
 - Fix: Make the status store reference-counted or keyed per mount. For example, keep a Map<symbol, StreamStatus>, publish the worst status across it, and have cleanup delete only its own entry. Alternatively, let a secondary stream with an onFrame callback leave the shared status alone.
-- Status: open
+- Status: fixed (each stream owns one entry in the store and the header reads the worst of them; cleanup removes only its own. Two tests in `useClusterStream.test.tsx`: a second stream unmounting leaves the cluster's status, and the worst status wins)
 
 ## Screenshot sweep (before)
 
@@ -20,7 +20,7 @@ Baseline: 830 captures (default state at 1920/1440/1280 in light, dark and syste
 - Where: `web/index.html`, `web/src/main.tsx`
 - Evidence: 195 light captures render dark: the page is forced dark before React and Mantine applies the stored scheme only after mount, so it is lost in a race.
 - Fix: first-paint `boot-prefs.js` resolves the stored or system scheme before React; `defaultColorScheme="auto"`.
-- Status: open
+- Status: fixed (verified: `index.html` loads `boot-prefs.js` synchronously, `main.tsx` passes `defaultColorScheme="auto"`, and `bootPrefs.test.ts` covers stored light, stored dark, auto in both system schemes and a first visit)
 
 ### shell-kernel-ui-sweep-2 [S2 · performance · base] Pages shift as they load
 

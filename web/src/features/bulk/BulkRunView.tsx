@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Anchor, Button, Group, Modal, Progress, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
@@ -7,8 +7,10 @@ import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import {
   useBulkRun,
   useBulkStop,
@@ -16,7 +18,8 @@ import {
   type BulkRunView as Run,
   type LifecycleOutcomeView,
 } from './api.ts';
-import { itemStatus, OPERATIONS, plural, runStatus } from './words.ts';
+import { itemColumns } from './columns.ts';
+import { OPERATIONS, plural, runStatus } from './words.ts';
 
 /** An acted-on queue's per-node result, in the single-queue command's shape. */
 function outcomeOf(item: BulkItemView, run: Run): LifecycleOutcomeView | null {
@@ -50,52 +53,7 @@ const toneColor = (tone: 'warning' | 'danger' | undefined) => (tone ? TONE_COLOR
 
 const TERMINAL = new Set<Run['status']>(['SUCCEEDED', 'PARTIAL', 'FAILED', 'STOPPED', 'INTERRUPTED']);
 
-/** The per-queue table's columns; a queue is a real button, so its node detail is reachable from the keyboard. */
-function itemColumns(destructive: boolean, onOpen: (queueName: string) => void): GridColumn<BulkItemView>[] {
-  return [
-    {
-      id: 'queue',
-      header: 'Queue',
-      accessor: (i) => i.queueName,
-      cell: (i) => (
-        <Anchor
-          component="button"
-          size="sm"
-          aria-label={`Show node detail for ${i.queueName}`}
-          onClick={() => onOpen(i.queueName)}
-        >
-          {i.queueName}
-        </Anchor>
-      ),
-    },
-    {
-      id: 'status',
-      header: 'Outcome',
-      accessor: (i) => itemStatus(i.status).text,
-      cell: (i) => {
-        const s = itemStatus(i.status);
-        return (
-          <Text size="sm" c={toneColor(s.tone)}>
-            {s.text}
-          </Text>
-        );
-      },
-      width: 200,
-    },
-    ...(destructive
-      ? [
-          {
-            id: 'affected',
-            header: 'Messages',
-            accessor: (i: BulkItemView) => (i.affected == null ? 'unknown' : i.affected.toLocaleString()),
-            numeric: true,
-            width: 110,
-          },
-        ]
-      : []),
-    { id: 'note', header: 'Reason', accessor: (i) => i.error ?? i.warning ?? '' },
-  ];
-}
+const rowKey = (i: BulkItemView) => i.queueName;
 
 /** One queue's per-node result, or why it has none. */
 function QueueDetail({
@@ -143,13 +101,11 @@ export function BulkRunView() {
   const { can, loading } = useCan();
   const [open, setOpen] = useState<string | null>(null);
   const [stopOpen, setStopOpen] = useState(false);
+  const destructive = query.data ? OPERATIONS[query.data.run.operation].destructive : false;
+  const columns = useMemo(() => itemColumns(destructive, setOpen), [destructive]);
 
   if (query.isError) {
-    return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
+    return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
   }
   if (!query.data) {
     return <Skeleton height={160} />;
@@ -163,8 +119,6 @@ export function BulkRunView() {
   const openedOutcome = opened ? outcomeOf(opened, run) : null;
   // The server re-checks; this only explains. Offered while grants load.
   const stopGate = gateFor(can(op.permission, clusterId), op.permissionLabel, undefined, loading);
-
-  const columns = itemColumns(op.destructive, setOpen);
 
   return (
     <Stack gap="sm">
@@ -232,12 +186,20 @@ export function BulkRunView() {
         </Alert>
       ) : null}
 
-      <VirtualTable
+      <DataTable
         label="Queues in this run"
         storageKey="bulk.run"
+        height={{ maxRows: 12 }}
         columns={columns}
         data={items}
-        rowKey={(i) => i.queueName}
+        rowKey={rowKey}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No queues in this run"
+            description="A run acts on the queues frozen at its preview. This one froze none, so nothing was or will be acted on. Start a new run from the Queues screen with a selection."
+          />
+        }
       />
 
       {opened ? (

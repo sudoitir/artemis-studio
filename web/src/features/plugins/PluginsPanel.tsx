@@ -1,46 +1,27 @@
-import { useMemo, useState, type DragEvent } from 'react';
-import { Alert, Anchor, Button, FileButton, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { useCallback, useMemo, useState, type DragEvent } from 'react';
+import { Alert, Anchor, Button, FileButton, Group, Stack, Text, Title } from '@mantine/core';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useCheckUpdates, usePlugins, type PluginUpdateView, type PluginView } from './api.ts';
+import { pluginColumns } from './columns.ts';
 import { InstallDialog, type Source } from './InstallDialog.tsx';
 import { InstallersDialog } from './InstallersDialog.tsx';
-import { LicenseBadge } from './LicenseBadge.tsx';
 import { TrustedKeysDialog } from './TrustedKeysDialog.tsx';
-import { UnverifiedBadge } from './UnverifiedBadge.tsx';
 import { PluginDrawer } from './PluginDrawer.tsx';
 import styles from './Plugins.module.css';
 import { RestartControl } from './RestartControl.tsx';
-import {
-  GUIDE_URL,
-  LICENSE_LABEL,
-  STATUS,
-  contributionSummary,
-  licenseNeedsAction,
-  needsAttention,
-  tone,
-} from './words.ts';
-
-const FIX_LABEL: Record<string, string> = { failed: 'See why', incompatible: 'Update…' };
+import { GUIDE_URL, STATUS, needsAttention } from './words.ts';
 
 type PluginsInventory = NonNullable<ReturnType<typeof usePlugins>['data']>;
 
-const TEMPLATE_URL = `${branding.projectUrl}/tree/main/examples/plugin-template`;
+const rowKey = (p: PluginView) => p.id;
 
-function Mark({ plugin }: Readonly<{ plugin: PluginView }>) {
-  const [broken, setBroken] = useState(false);
-  if (plugin.iconUrl && !broken) {
-    // An <img>, never inline SVG: the server also sandboxes the icon (design.md §7).
-    return <img src={plugin.iconUrl} alt="" className={styles.icon} onError={() => setBroken(true)} />;
-  }
-  return (
-    <span className={styles.monogram} aria-hidden>
-      {plugin.info.title.slice(0, 2).toUpperCase()}
-    </span>
-  );
-}
+const TEMPLATE_URL = `${branding.projectUrl}/tree/main/examples/plugin-template`;
 
 /** Why a restart is wanted: plugins waiting for one, ones that did not stop, and versions still in memory. */
 function restartReasonsOf(rows: PluginView[], unreleasedLabels: string[]): string[] {
@@ -67,97 +48,6 @@ function updatesSummary(checked: PluginUpdateView[]): string {
   return available === 0 ? 'Every plugin with an update URL is up to date.' : `${available} update(s) available.`;
 }
 
-function pluginColumns(
-  updates: Map<string, PluginUpdateView>,
-  setSource: (source: Source) => void,
-  setSearch: (next: { plugin?: string; upload?: string }) => unknown,
-  showLicense: boolean,
-): GridColumn<PluginView>[] {
-  const licenseColumn: GridColumn<PluginView> = {
-    id: 'license',
-    header: 'License',
-    width: 190,
-    accessor: (p) => (p.license ? LICENSE_LABEL[p.license.state] : ''),
-    cell: (p) => (p.license ? <LicenseBadge license={p.license} /> : null),
-  };
-  return [
-    {
-      id: 'plugin',
-      header: 'Plugin',
-      accessor: (p) => p.info.title,
-      cell: (p) => (
-        <Group gap="xs" wrap="nowrap">
-          <Mark plugin={p} />
-          <Text size="sm" truncate>
-            {p.info.title}{' '}
-            <Text span size="xs" c="dimmed">
-              {p.info.vendor.name}
-            </Text>
-          </Text>
-          {p.verified ? null : <UnverifiedBadge />}
-        </Group>
-      ),
-    },
-    {
-      id: 'version',
-      header: 'Version',
-      width: 170,
-      accessor: (p) => p.version,
-      cell: (p) => {
-        const update = updates.get(p.id);
-        return (
-          <Text size="sm" className={styles.num}>
-            {p.version}
-            {update?.availableVersion ? (
-              <Anchor component="button" size="xs" ml={6} onClick={() => setSource({ kind: 'update', id: p.id })}>
-                {update.availableVersion} available
-              </Anchor>
-            ) : null}
-          </Text>
-        );
-      },
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      width: 220,
-      accessor: (p) => STATUS[p.status] ?? p.status,
-      cell: (p) => {
-        const t = tone(p);
-        return (
-          <Text size="sm" className={t ? styles[t] : undefined} truncate>
-            {p.stuck ? 'Did not stop cleanly' : (STATUS[p.status] ?? p.status)}
-            {p.status === 'activating' && p.progress ? ` · ${p.progress}` : ''}
-          </Text>
-        );
-      },
-    },
-    ...(showLicense ? [licenseColumn] : []),
-    { id: 'adds', header: 'Adds', accessor: (p) => contributionSummary(p.info) },
-    {
-      id: 'fix',
-      header: '',
-      width: 130,
-      accessor: () => '',
-      cell: (p) => {
-        if (needsAttention(p)) {
-          return (
-            <Button size="compact-xs" variant="default" onClick={() => setSearch({ plugin: p.id })}>
-              {FIX_LABEL[p.status] ?? 'Details'}
-            </Button>
-          );
-        }
-        if (!licenseNeedsAction(p.license)) return null;
-        return (
-          <Button size="compact-xs" variant="default" onClick={() => setSearch({ plugin: p.id })}>
-            {p.license?.state === 'MISSING' ? 'Add license' : 'License'}
-          </Button>
-        );
-      },
-    },
-  ];
-}
-
 /**
  * The plugins inventory (design.md §8). Near-monochrome while everything is well; a plugin that
  * needs someone sorts to the top with its state in words and its fix in its row. The whole panel
@@ -174,8 +64,11 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
   const [keysOpen, setKeysOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const setSearch = (next: { plugin?: string; upload?: string }) =>
-    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...next }), replace: true });
+  const setSearch = useCallback(
+    (next: { plugin?: string; upload?: string }) =>
+      navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...next }), replace: true }),
+    [navigate],
+  );
 
   const updates = useMemo(
     () => new Map((checkUpdates.data ?? []).map((u: PluginUpdateView) => [u.id, u])),
@@ -187,6 +80,17 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
         (a, b) => Number(needsAttention(b)) - Number(needsAttention(a)) || a.info.title.localeCompare(b.info.title),
       ),
     [view],
+  );
+  const showLicense = rows.some((p) => p.license);
+  const columns = useMemo(
+    () =>
+      pluginColumns({
+        updates,
+        onUpdate: (id) => setSource({ kind: 'update', id }),
+        onOpen: (id) => void setSearch({ plugin: id }),
+        showLicense,
+      }),
+    [updates, setSearch, showLicense],
   );
 
   const canInstall = view.canInstall && view.uploadEnabled;
@@ -304,37 +208,38 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
         </Text>
       ) : null}
 
-      {rows.length === 0 ? (
-        <Stack gap="xs" maw={640} py="lg">
-          <Text fw={600}>No plugins yet</Text>
-          <Text size="sm">
-            A plugin is a single <code>.jar</code>. Drop one anywhere on this page, or choose Install plugin; you see
-            everything it will be able to do before anything is installed, and most plugins start without a restart.
-          </Text>
-          <Group gap="md">
-            <Anchor href={GUIDE_URL} target="_blank" rel="noopener noreferrer" size="sm">
-              Build a plugin →
-            </Anchor>
-            <Anchor href={TEMPLATE_URL} target="_blank" rel="noopener noreferrer" size="sm">
-              Start from the template →
-            </Anchor>
-          </Group>
-        </Stack>
-      ) : (
-        <VirtualTable
-          label="Plugins"
-          storageKey="plugins"
-          columns={pluginColumns(
-            updates,
-            setSource,
-            setSearch,
-            rows.some((p) => p.license),
-          )}
-          data={rows}
-          rowKey={(p) => p.id}
-          onRowClick={(p) => setSearch({ plugin: p.id })}
-        />
-      )}
+      <DataTable
+        label="Plugins"
+        storageKey="plugins"
+        height="fill"
+        columns={columns}
+        data={rows}
+        rowKey={rowKey}
+        onRowClick={(p) => setSearch({ plugin: p.id })}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No plugins yet"
+            description={
+              <>
+                A plugin is a single <code>.jar</code>. Drop one anywhere on this page, or choose Install plugin; you
+                see everything it will be able to do before anything is installed, and most plugins start without a
+                restart.
+              </>
+            }
+            action={
+              <>
+                <Anchor href={GUIDE_URL} target="_blank" rel="noopener noreferrer" size="sm">
+                  Build a plugin →
+                </Anchor>
+                <Anchor href={TEMPLATE_URL} target="_blank" rel="noopener noreferrer" size="sm">
+                  Start from the template →
+                </Anchor>
+              </>
+            }
+          />
+        }
+      />
 
       <Text size="xs" c="dimmed" className={styles.num}>
         Database connections: {view.budget.inUse} in use of {view.budget.limit} allowed ({view.budget.maxConnections}{' '}
@@ -366,15 +271,9 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
 export function PluginsPanel() {
   const plugins = usePlugins();
   const view = plugins.data;
-  if (plugins.isPending) return <Loader size="sm" />;
+  if (plugins.isPending) return <LoadingState label="Loading plugins" blockSize="12rem" />;
   if (plugins.isError && !view) {
-    return (
-      <Alert color="red" variant="light" title="Plugins could not be listed">
-        {plugins.error.status === 403
-          ? 'Listing plugins needs the user:admin permission.'
-          : `${plugins.error.message}. The list retries by itself.`}
-      </Alert>
-    );
+    return <ErrorState error={plugins.error} onRetry={() => void plugins.refetch()} />;
   }
   return view ? <PluginsBody view={view} /> : null;
 }
