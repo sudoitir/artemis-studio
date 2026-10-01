@@ -59,7 +59,7 @@ studio_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD || exit 1
 say "registering the demo cluster"
 # Re-registered rather than reused, so a second run cannot inherit a half-built
 # registration from the first.
-existing=$(api GET /clusters | python3 -c 'import json,sys; print(next((c["id"] for c in json.load(sys.stdin) if c["name"]=="demo"), ""))')
+existing=$(api GET "/clusters?size=500" | python3 -c 'import json,sys; print(next((c["id"] for c in json.load(sys.stdin)["data"] if c["name"]=="demo"), ""))')
 if [ -n "$existing" ]; then
   echo "removing the previous registration: $existing"
   api DELETE "/clusters/$existing" >/dev/null
@@ -190,26 +190,6 @@ app artemis-secondary consumer audit-archiver       AUDIT.archive       250
 # Sends and nobody reads: the queue backs up, and Flow marks it "no consumer".
 app artemis-secondary producer notification-service NOTIFICATIONS.email 120
 
-say "driving traffic for ${TRAFFIC_MINUTES} minutes"
-deadline=$(( $(date +%s) + TRAFFIC_MINUTES * 60 ))
-while [ "$(date +%s)" -lt "$deadline" ]; do
-  # Balanced: produced and consumed at roughly the same rate.
-  produce artemis-primary ORDERS.inbound 400 2 &
-  consume artemis-primary ORDERS.inbound 380 &
-  produce artemis-secondary PAYMENTS.capture 200 5 &
-  consume artemis-secondary PAYMENTS.capture 190 &
-  produce artemis-primary SHIPPING.events 120 8 &
-  consume artemis-primary SHIPPING.events 115 &
-
-  # No consumer at all: depth climbs and the two throughput lines diverge, which
-  # is the backlog signal the charts exist to show.
-  produce artemis-secondary NOTIFICATIONS.email 150 6 &
-
-  # Low, steady, never drained — a queue that is simply accumulating.
-  produce artemis-primary AUDIT.trail 40 20 &
-  wait
-done
-
 say "building a dead-letter backlog"
 # Consumed and rolled back past the redelivery limit is how a message really
 # reaches the DLQ; the CLI cannot do that, so these are produced onto the DLQ
@@ -240,7 +220,7 @@ say "seeding governance: environments, a scoped role, and two operators"
 # and a second run must not fail on the 409 the first one's rows now produce.
 ensure() { # collection name-field name body -> id
   local path=$1 field=$2 name=$3 body=$4 found
-  found=$(api GET "$path" | python3 -c "import json,sys; print(next((r['id'] for r in json.load(sys.stdin) if r['$field']=='$name'), ''))")
+  found=$(api GET "$path?size=500" | python3 -c "import json,sys; print(next((r['id'] for r in json.load(sys.stdin)['data'] if r['$field']=='$name'), ''))")
   if [ -n "$found" ]; then echo "$found"; return; fi
   api POST "$path" -d "$body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])'
 }
@@ -272,4 +252,29 @@ api POST "/users/$analyst/grants" -d "{\"roleId\": \"$reader\", \"scopeType\": \
 say "stopping one node, so the topology carries a real warning"
 $COMPOSE stop artemis-secondary-backup
 
-say "done. Studio: $STUDIO — cluster $cluster"
+say "seeded. Studio: $STUDIO — cluster $cluster"
+
+# Last, so the screens above are complete while the traffic runs: a long demo
+# (TRAFFIC_MINUTES in the hours) must not hold the users, the DLQ and the stopped
+# node back until it ends.
+say "driving traffic for ${TRAFFIC_MINUTES} minutes"
+deadline=$(( $(date +%s) + TRAFFIC_MINUTES * 60 ))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  # Balanced: produced and consumed at roughly the same rate.
+  produce artemis-primary ORDERS.inbound 400 2 &
+  consume artemis-primary ORDERS.inbound 380 &
+  produce artemis-secondary PAYMENTS.capture 200 5 &
+  consume artemis-secondary PAYMENTS.capture 190 &
+  produce artemis-primary SHIPPING.events 120 8 &
+  consume artemis-primary SHIPPING.events 115 &
+
+  # No consumer at all: depth climbs and the two throughput lines diverge, which
+  # is the backlog signal the charts exist to show.
+  produce artemis-secondary NOTIFICATIONS.email 150 6 &
+
+  # Low, steady, never drained — a queue that is simply accumulating.
+  produce artemis-primary AUDIT.trail 40 20 &
+  wait
+done
+
+say "done"

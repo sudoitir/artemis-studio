@@ -56,7 +56,7 @@ say "signing in"
 studio_sign_in "$NEW_PASSWORD" || fail "could not sign in to Studio"
 
 say "registering the dev cluster"
-existing=$(api GET /clusters | python3 -c 'import json,sys; print(next((c["id"] for c in json.load(sys.stdin) if c["name"]=="dev"), ""))')
+existing=$(api GET "/clusters?size=500" | python3 -c 'import json,sys; print(next((c["id"] for c in json.load(sys.stdin)["data"] if c["name"]=="dev"), ""))')
 if [ -n "$existing" ]; then api DELETE "/clusters/$existing" >/dev/null; fi
 CLUSTER=$(api POST /clusters -d '{
   "seedUrls": ["http://artemis-primary:8161/console/jolokia", "http://artemis-backup:8161/console/jolokia"],
