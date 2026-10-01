@@ -37,7 +37,7 @@ class EventStreamPublisherTest {
     }
 
     @Test
-    void aSlowLoadDoesNotBlockTheCallerAndBatchesGoOutInOrder() throws Exception {
+    void aSlowLoadDoesNotBlockTheCallerAndBatchesGoOutInOrder() {
         CountDownLatch slow = new CountDownLatch(1);
         when(repository.findBySeqInOrderBySeqAsc(anyList())).thenAnswer(invocation -> {
             List<Long> seqs = invocation.getArgument(0);

@@ -131,13 +131,13 @@ class StudioBusTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aStalledListenerDoesNotKeepTheReaderFromDrainingTheConnection() throws Exception {
+    void aStalledListenerDoesNotKeepTheReaderFromDrainingTheConnection() {
         CountDownLatch stall = new CountDownLatch(1);
         List<Object> handled = new CopyOnWriteArrayList<>();
         StudioBus stalled = new StudioBus(jdbc, mapper, datasource, event -> {
             try {
                 stall.await();
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
             handled.add(event);
@@ -164,11 +164,7 @@ class StudioBusTest extends PostgresIntegrationTest {
     }
 
     private List<Object> sleepAndSnapshot() {
-        try {
-            Thread.sleep(400);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        await().pollDelay(Duration.ofMillis(400)).until(() -> true);
         return List.copyOf(received);
     }
 }

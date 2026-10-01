@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
@@ -13,6 +14,7 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -115,7 +117,7 @@ class EventStreamBusTest extends PostgresIntegrationTest {
             status.setRollbackOnly();
         });
 
-        Thread.sleep(1_000);
+        await().pollDelay(Duration.ofSeconds(1)).until(() -> true);
         ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(onA, atLeast(0)).send(sent.capture());
         // Keep-alives may arrive; an events frame may not.
@@ -131,7 +133,7 @@ class EventStreamBusTest extends PostgresIntegrationTest {
     /** The frames a client was sent. Waits for {@code expected} of them, then a moment more to catch a repeat. */
     private static List<String> frames(SseEmitter emitter, int expected) throws Exception {
         verify(emitter, timeout(5_000).times(expected)).send(any(SseEmitter.SseEventBuilder.class));
-        Thread.sleep(500);
+        await().pollDelay(Duration.ofMillis(500)).until(() -> true);
         ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(emitter, times(expected)).send(sent.capture());
         return sent.getAllValues().stream().map(EventStreamBusTest::render).toList();

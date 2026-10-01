@@ -470,7 +470,7 @@ class TransferRunnerTest {
     }
 
     @Test
-    void aStopFromStudiosOwnShutdownEndsTheSegmentAsInterrupted() throws Exception {
+    void aStopFromStudiosOwnShutdownEndsTheSegmentAsInterrupted() {
         copyOfAll(0L);
         when(background.stopRequested(RUN)).thenReturn(true);
         when(background.stoppedForShutdown(RUN)).thenReturn(true);

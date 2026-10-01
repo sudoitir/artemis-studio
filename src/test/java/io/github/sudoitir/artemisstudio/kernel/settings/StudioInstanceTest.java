@@ -22,7 +22,7 @@ class StudioInstanceTest extends PostgresIntegrationTest {
     StudioInstance running;
 
     @Test
-    void concurrentFirstBootMintsOnce() throws Exception {
+    void concurrentFirstBootMintsOnce() {
         settings.deleteById(StudioInstance.SETTING_KEY);
         CountDownLatch start = new CountDownLatch(1);
         Callable<String> boot = () -> {

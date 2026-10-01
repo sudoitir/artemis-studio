@@ -186,9 +186,9 @@ class BulkRunTest extends BulkTestSupport {
     void aPurgeActsOnceOnEveryHostingNode() {
         queue(nodeA, "orders.1", 3, 0, false);
         queue(nodeB, "orders.1", 4, 0, false);
-        when(messages.purge(eq(clusterId), eq("orders.1"), eq(nodeA), eq(false), eq(false)))
+        when(messages.purge(clusterId, "orders.1", nodeA, false, false))
                 .thenReturn(new Attempt.Ok<>(new MessageService.Outcome.Affected(3, nodeA)));
-        when(messages.purge(eq(clusterId), eq("orders.1"), eq(nodeB), eq(false), eq(false)))
+        when(messages.purge(clusterId, "orders.1", nodeB, false, false))
                 .thenReturn(new Attempt.Ok<>(new MessageService.Outcome.Affected(4, nodeB)));
 
         BulkRunDetailView run = execute(preview(BulkOperation.PURGE, "orders"), false);
@@ -273,8 +273,8 @@ class BulkRunTest extends BulkTestSupport {
         BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
         UUID id = preview.run().id();
 
-        assertThatThrownBy(() -> bulk.execute(clusterId, id, new BulkExecuteRequest("not-the-hash", false, false)))
-                .isInstanceOf(ConflictException.class);
+        var changedPlan = new BulkExecuteRequest("not-the-hash", false, false);
+        assertThatThrownBy(() -> bulk.execute(clusterId, id, changedPlan)).isInstanceOf(ConflictException.class);
 
         jdbc.update("UPDATE bulk_run SET expires_at = now() - interval '1 second' WHERE id = ?", id);
         assertThatThrownBy(() -> execute(preview, false))

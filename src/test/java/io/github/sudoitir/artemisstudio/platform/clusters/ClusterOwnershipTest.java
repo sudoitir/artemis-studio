@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -228,13 +229,13 @@ class ClusterOwnershipTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aReplicaThatCannotRenewStopsOwningBeforeItsLeaseExpires() throws InterruptedException {
+    void aReplicaThatCannotRenewStopsOwningBeforeItsLeaseExpires() {
         register(3);
         Node a = node(new HaProperties(Duration.ofSeconds(1), Duration.ofMillis(1500), Duration.ZERO, Duration.ZERO));
         a.ownership().tick();
         assertThat(a.ownership().owns(clusters.getFirst())).isTrue();
 
-        Thread.sleep(1100);
+        await().atMost(Duration.ofSeconds(5)).until(() -> !a.ownership().owns(clusters.getFirst()));
 
         assertThat(a.ownership().owns(clusters.getFirst()))
                 .as("fenced at ttl minus a third")

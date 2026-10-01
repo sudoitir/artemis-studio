@@ -143,15 +143,17 @@ class ReplicaRegistryTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theHeartbeatThreadKeepsTheReplicaAlive() throws Exception {
+    void theHeartbeatThreadKeepsTheReplicaAlive() {
         own = new ReplicaRegistry(
                 jdbc,
                 new HaProperties(Duration.ofMillis(200), Duration.ofSeconds(1), Duration.ZERO, Duration.ZERO),
                 builds);
         own.start();
-        Thread.sleep(1500);
-
-        assertThat(own.live()).extracting(ReplicaRegistry.Replica::id).contains(own.id());
+        await().during(Duration.ofMillis(1500))
+                .atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertThat(own.live())
+                        .extracting(ReplicaRegistry.Replica::id)
+                        .contains(own.id()));
     }
 
     @Test

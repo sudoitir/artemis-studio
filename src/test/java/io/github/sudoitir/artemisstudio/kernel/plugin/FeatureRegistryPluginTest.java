@@ -105,15 +105,14 @@ class FeatureRegistryPluginTest {
         FeatureRegistry registry = registry(new AtomicReference<>());
         registry.addPlugin(descriptor("acme-a", List.of("shared:action"), List.of(), List.of(), List.of()));
 
-        assertThatThrownBy(() -> registry.addPlugin(
-                        descriptor("acme-b", List.of("shared:action"), List.of(), List.of(), List.of())))
+        var acmeB = descriptor("acme-b", List.of("shared:action"), List.of(), List.of(), List.of());
+        assertThatThrownBy(() -> registry.addPlugin(acmeB))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("shared:action");
 
         // acme-a's own registration must be untouched by acme-b's failed one.
-        assertThatThrownBy(() -> registry.addPlugin(
-                        descriptor("acme-c", List.of("shared:action"), List.of(), List.of(), List.of())))
-                .isInstanceOf(IllegalStateException.class);
+        var acmeC = descriptor("acme-c", List.of("shared:action"), List.of(), List.of(), List.of());
+        assertThatThrownBy(() -> registry.addPlugin(acmeC)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -127,7 +126,8 @@ class FeatureRegistryPluginTest {
                 new MockEnvironment(),
                 event -> {});
 
-        assertThatThrownBy(() -> registry.addPlugin(descriptor("queues", List.of(), List.of(), List.of(), List.of())))
+        var queues = descriptor("queues", List.of(), List.of(), List.of(), List.of());
+        assertThatThrownBy(() -> registry.addPlugin(queues))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("queues");
     }

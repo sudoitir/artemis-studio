@@ -204,13 +204,13 @@ class CaptureReconcilerTest {
                 })
                 .doNothing()
                 .when(tap)
-                .remove(eq(failing), eq(INSTANCE), eq(WANTED));
+                .remove(failing, INSTANCE, WANTED);
 
         // The clean second node must not drop the cluster the first still has an orphan on.
         reconciler.sweepOnStartup();
         reconciler.reconcile();
 
-        verify(tap, times(2)).remove(eq(failing), eq(INSTANCE), eq(WANTED));
+        verify(tap, times(2)).remove(failing, INSTANCE, WANTED);
     }
 
     @Test
@@ -223,7 +223,7 @@ class CaptureReconcilerTest {
         reconciler.sweepOnStartup();
         reconciler.reconcile();
 
-        verify(tap).remove(eq(unanswering), eq(INSTANCE), eq(WANTED));
+        verify(tap).remove(unanswering, INSTANCE, WANTED);
     }
 
     /** The first node's client, which reports {@link #WANTED} as an orphan; the second reports nothing. */
@@ -262,7 +262,7 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void aDivertRemovedOutOfBandIsReinstalledEvenWhileItsDrainIsRunning() throws Exception {
+    void aDivertRemovedOutOfBandIsReinstalledEvenWhileItsDrainIsRunning() {
         // The drain is still attached to its queue, but the divert feeding it is gone: capture
         // would report ACTIVE while recording nothing.
         when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of());
@@ -275,7 +275,7 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void aRefusedTapIsRecordedOnceAndNotRetriedEveryPass() throws Exception {
+    void aRefusedTapIsRecordedOnceAndNotRetriedEveryPass() {
         when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of());
         when(tap.install(any(), eq(INSTANCE), any()))
                 .thenThrow(new CaptureRefusedException("the filter is not valid selector syntax", null));
@@ -289,7 +289,7 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void reinstallRemovesTheSubscriptionsTapsAndInstallsThemAgain() throws Exception {
+    void reinstallRemovesTheSubscriptionsTapsAndInstallsThemAgain() {
         // Installed before the reinstall; gone once it has removed them.
         when(tap.installedNames(any(), eq(INSTANCE)))
                 .thenReturn(List.of(WANTED))

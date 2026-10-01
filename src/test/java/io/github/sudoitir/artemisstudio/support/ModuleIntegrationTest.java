@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportSelector;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.modulith.core.ApplicationModule;
+import org.springframework.modulith.core.JavaPackage;
 import org.springframework.modulith.test.ModuleTestExecution;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -115,7 +116,7 @@ public abstract class ModuleIntegrationTest {
                         execution.getModules().getSharedModules().stream())
                 .flatMap(modules -> modules)
                 .map(ApplicationModule::getBasePackage)
-                .map(basePackage -> basePackage.getName())
+                .map(JavaPackage::getName)
                 .collect(Collectors.toSet());
     }
 

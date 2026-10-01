@@ -171,11 +171,7 @@ class HaReplicasIntegrationTest {
         long before = replicas.stream()
                 .mapToLong(HaReplicasIntegrationTest::managementCalls)
                 .sum();
-        try {
-            Thread.sleep(window);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        await().pollDelay(window).atMost(window.plusSeconds(10)).until(() -> true);
         return replicas.stream()
                         .mapToLong(HaReplicasIntegrationTest::managementCalls)
                         .sum()
@@ -204,10 +200,10 @@ class HaReplicasIntegrationTest {
 
     @Test
     @Order(2)
-    void aSecondReplicaDoesNotAddManagementLoadOnTheBroker() throws InterruptedException {
+    void aSecondReplicaDoesNotAddManagementLoadOnTheBroker() {
         awaitScraped(Instant.now());
         // A cluster changing hands gets an extra tier-A pass on its new owner; measure the steady state.
-        Thread.sleep(SETTLE);
+        await().pollDelay(SETTLE).atMost(SETTLE.plusSeconds(10)).until(() -> true);
 
         long twoReplicasCalls = managementCalls(a, WINDOW);
 

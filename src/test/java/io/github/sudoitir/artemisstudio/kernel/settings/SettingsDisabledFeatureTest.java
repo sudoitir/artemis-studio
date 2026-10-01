@@ -109,7 +109,8 @@ class SettingsDisabledFeatureTest {
 
     @Test
     void anUnknownKeyIsStillAnInvalidValue() {
-        assertThatThrownBy(() -> settings(false).put("bogus.key", "1")).isInstanceOf(IllegalArgumentException.class);
+        var settings = settings(false);
+        assertThatThrownBy(() -> settings.put("bogus.key", "1")).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
