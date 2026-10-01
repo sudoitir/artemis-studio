@@ -3023,8 +3023,10 @@ export interface components {
             lockedUntil?: string | null;
             /** @description The second factors the user has set up: TOTP for an authenticator app and WEBAUTHN for passkeys. Empty when they have none. */
             secondFactors: ("TOTP" | "WEBAUTHN" | "RECOVERY_CODE" | "TRUSTED_DEVICE")[];
-            /** @description The user must hold a second factor: a local account with a role that requires one. */
+            /** @description The user must hold a second factor: a password account with a role that requires one. */
             secondFactorRequired: boolean;
+            /** @description The account signs in with a password a provider checks: a local account, or a plugin's sign-in. Redirect providers' users do not. */
+            passwordAccount: boolean;
             grants: components["schemas"]["GrantSummary"][];
         };
         SetDisabledRequest: {
@@ -3036,7 +3038,7 @@ export interface components {
         RoleRequest: {
             name: string;
             permissions: string[];
-            /** @description Whether local accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA. */
+            /** @description Whether password accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA. */
             requiresMfa: boolean;
         };
         RoleView: {
@@ -3444,6 +3446,7 @@ export interface components {
             settingKeys: string[];
             streamTopics: string[];
             mcpTools: components["schemas"]["PluginMcpToolView"][];
+            identityProviders: components["schemas"]["PluginIdentityProviderView"][];
         };
         PluginDiffView: {
             permissionsAdded: string[];
@@ -3454,6 +3457,12 @@ export interface components {
             streamTopicsRemoved: string[];
             mcpToolsAdded: string[];
             mcpToolsRemoved: string[];
+            identityProvidersAdded: string[];
+            identityProvidersRemoved: string[];
+        };
+        PluginIdentityProviderView: {
+            id: string;
+            label: string;
         };
         PluginInfoView: {
             name: string;
@@ -6780,7 +6789,7 @@ export interface components {
             hasNext: boolean;
         };
         MfaStatusView: {
-            local: boolean;
+            passwordAccount: boolean;
             required: boolean;
             enrolled: boolean;
             totpEnrolled: boolean;

@@ -81,7 +81,8 @@ class LastAdminGuardTest {
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                sessionState);
+                sessionState,
+                () -> List.of());
         adminRole = role(adminRoleId, "ADMIN");
     }
 

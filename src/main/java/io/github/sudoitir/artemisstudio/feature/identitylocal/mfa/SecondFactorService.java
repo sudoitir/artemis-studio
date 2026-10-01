@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.identitylocal.mfa;
 
-import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalModule;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts.Method;
@@ -14,13 +14,15 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The second factors of local accounts as the sign-in path sees them (ADR-0143): TOTP, passkeys and
- * recovery codes. Only accounts of the local provider are ever required to hold one; any other provider
- * does its own multi-factor authentication.
+ * The second factors of password accounts as the sign-in path sees them (ADR-0143): TOTP, passkeys and
+ * recovery codes. Only an account whose provider checks a password, the local provider or a plugin's
+ * sign-in (ADR-0153), is ever required to hold one; a redirect provider does its own multi-factor
+ * authentication.
  */
 @Component
 @RequiredArgsConstructor
@@ -31,6 +33,9 @@ class SecondFactorService implements SecondFactors {
     private final RecoveryCodes recoveryCodes;
     private final TrustedDevices trustedDevices;
     private final UserAccounts accounts;
+    /** Looked up when asked, not injected: the providers include the API-token one, which needs these factors. */
+    private final ObjectProvider<IdentityProviderListing> providers;
+
     private final AuditService audit;
     private final ActorResolver actors;
 
@@ -43,10 +48,16 @@ class SecondFactorService implements SecondFactors {
 
     @Override
     public boolean required(UUID userId) {
+        return passwordAccount(userId) && accounts.holdsMfaRole(userId);
+    }
+
+    /** Whether the account signs in with a password a provider checks: its provider is listed as a credential provider. */
+    boolean passwordAccount(UUID userId) {
         return accounts.byId(userId)
-                        .filter(a -> IdentityLocalModule.PROVIDER_ID.equals(a.providerId()))
-                        .isPresent()
-                && accounts.holdsMfaRole(userId);
+                .map(UserAccounts.Account::providerId)
+                .filter(id -> providers.getObject().providers().stream()
+                        .anyMatch(p -> p.id().equals(id) && IdentityProviderListing.CREDENTIAL.equals(p.kind())))
+                .isPresent();
     }
 
     @Override

@@ -21,6 +21,7 @@ const user = (username: string, lockedUntil: string | null): UserView => ({
   lockedUntil,
   secondFactors: [],
   secondFactorRequired: false,
+  passwordAccount: true,
   grants: [],
 });
 
@@ -112,7 +113,7 @@ describe('UsersPanel two-step verification', () => {
         { ...user('alice', null), secondFactors: ['TOTP', 'WEBAUTHN'] },
         { ...user('bob', null) },
         { ...user('carol', null), secondFactorRequired: true },
-        { ...user('dave', null), providerId: 'okta' },
+        { ...user('dave', null), providerId: 'okta', passwordAccount: false },
       ],
     });
 
@@ -127,6 +128,17 @@ describe('UsersPanel two-step verification', () => {
     );
     // Nothing to reset, nothing offered: the status already says why.
     expect(screen.getAllByRole('button', { name: /^Reset two-step verification of / })).toHaveLength(1);
+  });
+
+  it("treats a plugin sign-in's user like a local one: its required second step is highlighted", async () => {
+    serveUsers({
+      users: [{ ...user('erin', null), providerId: 'acme:corp', secondFactorRequired: true }],
+    });
+
+    renderWithProviders(<UsersPanel />);
+
+    expect(await screen.findByText('Required, not set up')).toBeInTheDocument();
+    expect(screen.queryByText('Managed by their identity provider')).not.toBeInTheDocument();
   });
 
   it('arms the reset only when the username is typed, states its reach, and announces the result', async () => {

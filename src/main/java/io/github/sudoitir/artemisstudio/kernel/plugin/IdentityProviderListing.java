@@ -5,6 +5,12 @@ import java.util.List;
 /** The sign-in providers an installation offers, for its manifest and login screen (ADR-0073). */
 public interface IdentityProviderListing {
 
+    /** {@link Entry#kind()} of a username and password form. */
+    String CREDENTIAL = "CREDENTIAL";
+
+    /** {@link Entry#kind()} of a sign-in action elsewhere. */
+    String REDIRECT = "REDIRECT";
+
     List<Entry> providers();
 
     /**

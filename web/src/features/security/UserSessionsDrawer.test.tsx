@@ -21,6 +21,7 @@ const alice: UserView = {
   lockedUntil: null,
   secondFactors: [],
   secondFactorRequired: false,
+  passwordAccount: true,
   grants: [],
 };
 

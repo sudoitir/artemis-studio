@@ -31,8 +31,8 @@ public class IdentityProviderCatalog implements IdentityProviderListing {
 
     private static Entry entry(IdentityProvider p) {
         return switch (p) {
-            case CredentialIdentityProvider c -> new Entry(c.id(), "CREDENTIAL", c.label(), null);
-            case RedirectIdentityProvider r -> new Entry(r.id(), "REDIRECT", r.label(), r.startPath());
+            case CredentialIdentityProvider c -> new Entry(c.id(), CREDENTIAL, c.label(), null);
+            case RedirectIdentityProvider r -> new Entry(r.id(), REDIRECT, r.label(), r.startPath());
             case BearerIdentityProvider b -> new Entry(b.id(), "BEARER", b.label(), null);
         };
     }

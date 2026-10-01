@@ -22296,7 +22296,11 @@
           },
           "secondFactorRequired" : {
             "type" : "boolean",
-            "description" : "The user must hold a second factor: a local account with a role that requires one."
+            "description" : "The user must hold a second factor: a password account with a role that requires one."
+          },
+          "passwordAccount" : {
+            "type" : "boolean",
+            "description" : "The account signs in with a password a provider checks: a local account, or a plugin's sign-in. Redirect providers' users do not."
           },
           "grants" : {
             "type" : "array",
@@ -22305,7 +22309,7 @@
             }
           }
         },
-        "required" : [ "disabled", "grants", "id", "mustChangePassword", "providerId", "secondFactorRequired", "secondFactors", "username" ]
+        "required" : [ "disabled", "grants", "id", "mustChangePassword", "passwordAccount", "providerId", "secondFactorRequired", "secondFactors", "username" ]
       },
       "SetDisabledRequest" : {
         "type" : "object",
@@ -22341,7 +22345,7 @@
           },
           "requiresMfa" : {
             "type" : "boolean",
-            "description" : "Whether local accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA."
+            "description" : "Whether password accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA."
           }
         },
         "required" : [ "name", "permissions", "requiresMfa" ]
@@ -23404,9 +23408,15 @@
             "items" : {
               "$ref" : "#/components/schemas/PluginMcpToolView"
             }
+          },
+          "identityProviders" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PluginIdentityProviderView"
+            }
           }
         },
-        "required" : [ "mcpTools", "permissions", "settingKeys", "streamTopics", "ui" ]
+        "required" : [ "identityProviders", "mcpTools", "permissions", "settingKeys", "streamTopics", "ui" ]
       },
       "PluginDiffView" : {
         "type" : "object",
@@ -23458,9 +23468,33 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "identityProvidersAdded" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "identityProvidersRemoved" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "mcpToolsAdded", "mcpToolsRemoved", "permissionsAdded", "permissionsRemoved", "settingKeysAdded", "settingKeysRemoved", "streamTopicsAdded", "streamTopicsRemoved" ]
+        "required" : [ "identityProvidersAdded", "identityProvidersRemoved", "mcpToolsAdded", "mcpToolsRemoved", "permissionsAdded", "permissionsRemoved", "settingKeysAdded", "settingKeysRemoved", "streamTopicsAdded", "streamTopicsRemoved" ]
+      },
+      "PluginIdentityProviderView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "label" ]
       },
       "PluginInfoView" : {
         "type" : "object",
@@ -31588,7 +31622,7 @@
       "MfaStatusView" : {
         "type" : "object",
         "properties" : {
-          "local" : {
+          "passwordAccount" : {
             "type" : "boolean"
           },
           "required" : {
@@ -31620,7 +31654,7 @@
             }
           }
         },
-        "required" : [ "enrolled", "local", "passkeys", "recoveryCodesRemaining", "required", "totpEnrolled", "trustedDevices", "webauthn" ]
+        "required" : [ "enrolled", "passkeys", "passwordAccount", "recoveryCodesRemaining", "required", "totpEnrolled", "trustedDevices", "webauthn" ]
       },
       "TrustedDeviceView" : {
         "type" : "object",

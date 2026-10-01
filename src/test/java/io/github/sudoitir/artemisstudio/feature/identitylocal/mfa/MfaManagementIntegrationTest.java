@@ -49,7 +49,7 @@ class MfaManagementIntegrationTest extends AccountIntegrationTest {
         assertThat(count("local_trusted_device", "mm-optional")).isZero();
         assertThat(audited("MFA_REMOVE", "mm-optional")).isEqualTo(1);
         var status = browser.send("GET", "/api/v1/auth/mfa", null).body();
-        assertThat((Boolean) JsonPath.read(status, "$.local")).isTrue();
+        assertThat((Boolean) JsonPath.read(status, "$.passwordAccount")).isTrue();
         assertThat((Boolean) JsonPath.read(status, "$.enrolled")).isFalse();
         assertThat((Integer) JsonPath.read(status, "$.recoveryCodesRemaining")).isZero();
         assertThat((String) JsonPath.read(login(browser(), "mm-optional").body(), "$.status"))

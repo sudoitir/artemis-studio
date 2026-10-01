@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The second factors of local accounts (ADR-0143), as the sign-in path sees them. Implemented by
+ * The second factors of password accounts (ADR-0143), as the sign-in path sees them. Implemented by
  * the identity module that holds the factors; when it is switched off there is no bean and sign-in
  * is password only. The kernel asks the questions and keeps the session state; it never sees a
  * secret.
@@ -18,8 +18,9 @@ public interface SecondFactors {
     boolean enrolled(UUID userId);
 
     /**
-     * Whether the user must hold one: they sign in with the local provider and hold a role that
-     * requires it. A user of any other provider is never required, because that provider does its own MFA.
+     * Whether the user must hold one: their provider checks a password (the local provider, or a
+     * plugin's sign-in, ADR-0153) and they hold a role that requires it. A user of a redirect provider
+     * is never required, because that provider does its own MFA.
      */
     boolean required(UUID userId);
 

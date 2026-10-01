@@ -14,7 +14,7 @@
 
 ## 4. Trust gate (D4)
 - [x] 4.1 `PluginHost.trustOf`: a plugin that declares `identityProviders` is allowed only when `TRUSTED`, regardless of `allowUnverified`; `beginActivation` refuses it as `plugin-signin-unverified` with a reason naming the provider; `trustedForRestart` applies the same rule
-- [ ] 4.2 Acknowledgement `signin-added` when `identityProvidersAdded` is non-empty; `ActivationPlan`/`PluginAdminViews` Javadoc lists it; `web/src/features/plugins/words.ts` explains it ("This plugin will receive the passwords users type to sign in with <labels>")
+- [x] 4.2 Acknowledgement `signin-added` when `identityProvidersAdded` is non-empty; `ActivationPlan`/`PluginAdminViews` Javadoc lists it; `web/src/features/plugins/words.ts` explains it ("This plugin will receive the passwords users type to sign in with <labels>")
 - [x] 4.3 `PluginHandle.verified()`: `PluginHost` hands `PluginRuntime` a check over `PluginTrust.decide` and the install row's signer, evaluated per call
 - [x] 4.4 Tests (`PluginHost`/trust integration test): unsigned sign-in plugin with the allowance on is refused; trusted install without `acknowledge` → 409 with `signin-added`; with it, activates
 
@@ -26,14 +26,14 @@
 - [x] 5.5 `PluginSignInIntegrationTest` (Postgres, signed test plugin via `PluginJarBuilder`): sign-in issues a session and applies a group mapping; wrong password is identical to a local wrong password and counts toward lockout; a username equal to a local admin's becomes `name@<provider>` with only mapped grants; a throwing and a sleeping provider fail like a wrong password, health goes DEGRADED, local sign-in still works, and recovery clears it; deactivate → gone from `/auth/providers` and login fails like a wrong password; key removed → same; undeclared bean refuses activation; step-up through the provider succeeds for the same account only
 
 ## 6. Revocation (D5)
-- [ ] 6.1 `AppUserRepository`: enabled accounts of a provider (subject and id)
-- [ ] 6.2 `PluginIdentityRevalidation` `ScheduledJob` (`plugin-identity-revalidation`, `INSTALLATION`, every 5 min): per attached, verified provider, one `noLongerValid` call through `runInPlugin`, 30 s bound (failure recorded like 5.2); for each returned subject that was asked: end sessions (`SessionTerminator`), revoke API tokens (`PersonalTokens.revokeAllOf`), revoke trusted devices, audit `IDENTITY_REVOKED` with provider and subject; account stays enabled. `ponytail:` note on the single unbatched call
-- [ ] 6.3 Tests: a revoked user's next session request and API token are unauthenticated and the audit row exists; a subject not asked about is ignored; a restored user signs in again into the same account; a provider without the method changes nothing
+- [x] 6.1 `AppUserRepository`: enabled accounts of a provider (subject and id)
+- [x] 6.2 `PluginIdentityRevalidation` `ScheduledJob` (`plugin-identity-revalidation`, `INSTALLATION`, every 5 min): per attached, verified provider, one `noLongerValid` call through `runInPlugin`, 30 s bound (failure recorded like 5.2); for each returned subject that was asked: end sessions (`SessionTerminator`), revoke API tokens (`PersonalTokens.revokeAllOf`), revoke trusted devices, audit `IDENTITY_REVOKED` with provider and subject; account stays enabled. `ponytail:` note on the single unbatched call
+- [x] 6.3 Tests: a revoked user's next session request and API token are unauthenticated and the audit row exists; a subject not asked about is ignored; a restored user signs in again into the same account; a provider without the method changes nothing
 
 ## 7. Second factors for every password account (D7)
-- [ ] 7.1 Backend: `SecondFactorService.required`, `MfaEnrolment.isLocal` → "the account's provider is listed as `CREDENTIAL` by `IdentityProviderListing`"; `SecondFactors` Javadoc; `MfaStatusView.local` → `passwordAccount`; `UserView` gains `passwordAccount`
-- [ ] 7.2 Frontend: `TwoStepSection` reads `passwordAccount`; `UsersPanel.TwoStepStatus` uses `user.passwordAccount`; `PasswordSection` stays local only (copy: "Local accounts only; other accounts change their password where they sign in"); regenerate `schema.d.ts`; update their tests
-- [ ] 7.3 Tests: a plugin-provider user with a required role is sent to enrolment, enrols TOTP, then signs in with password + code; an OIDC user is still not challenged
+- [x] 7.1 Backend: `SecondFactorService.required`, `MfaEnrolment.isLocal` → "the account's provider is listed as `CREDENTIAL` by `IdentityProviderListing`"; `SecondFactors` Javadoc; `MfaStatusView.local` → `passwordAccount`; `UserView` gains `passwordAccount`
+- [x] 7.2 Frontend: `TwoStepSection` reads `passwordAccount`; `UsersPanel.TwoStepStatus` uses `user.passwordAccount`; `PasswordSection` stays local only (copy: "Local accounts only; other accounts change their password where they sign in"); regenerate `schema.d.ts`; update their tests
+- [x] 7.3 Tests: a plugin-provider user with a required role is sent to enrolment, enrols TOTP, then signs in with password + code; an OIDC user is still not challenged
 
 ## 8. Docs, contract, example
 - [ ] 8.1 `site/src/guide/plugins.md`: "Sign-in providers" (declare, implement, what Studio owns, trust and confirmation, revalidation, MFA) and "Reading metric history" (acting user, background work, not-found answers, `MetricHistory` may be absent when the metrics feature is off: inject `ObjectProvider`)

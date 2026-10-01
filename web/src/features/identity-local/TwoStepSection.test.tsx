@@ -14,7 +14,7 @@ const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOSt
 const ahead = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
 
 const OFF: MfaStatusView = {
-  local: true,
+  passwordAccount: true,
   required: false,
   enrolled: false,
   totpEnrolled: false,
@@ -332,7 +332,7 @@ describe('TwoStepSection', () => {
   });
 
   it('leaves two-step verification to the identity provider for a single sign-on account', async () => {
-    serve({ status: { ...OFF, local: false } });
+    serve({ status: { ...OFF, passwordAccount: false } });
     renderWithProviders(<TwoStepSection />);
 
     expect(await screen.findByText(/identity provider, which manages two-step verification/)).toBeInTheDocument();
