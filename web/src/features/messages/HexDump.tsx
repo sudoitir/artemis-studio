@@ -1,5 +1,7 @@
 import { Text } from '@mantine/core';
 
+import classes from './HexDump.module.css';
+
 const BYTES_PER_ROW = 16;
 
 /**
@@ -26,7 +28,15 @@ export function HexDump({ bytes, max = 512 }: Readonly<{ bytes: Uint8Array; max?
 
   return (
     <>
-      <Text component="pre" size="xs" ff="monospace" style={{ margin: 0, overflowX: 'auto', whiteSpace: 'pre' }}>
+      <Text
+        component="pre"
+        size="xs"
+        ff="monospace"
+        className={classes.dump}
+        tabIndex={0}
+        role="region"
+        aria-label="Hex dump of the body"
+      >
         {rows.join('\n')}
       </Text>
       {bytes.length > max ? (

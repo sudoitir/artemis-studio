@@ -1,5 +1,7 @@
 import { Group, Text } from '@mantine/core';
+import { Link } from '@tanstack/react-router';
 
+import linkClasses from '../../ui/InlineLink.module.css';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { MessageSummaryView } from './api.ts';
 
@@ -16,5 +18,14 @@ export function BodyPreview({ message: m }: Readonly<{ message: MessageSummaryVi
       </Text>
       {m.bodyTruncated ? <StatusBadge tone="warning">truncated</StatusBadge> : null}
     </Group>
+  );
+}
+
+/** A dead-letter queue's name, as a link to its messages. */
+export function QueueLink({ clusterId, queueName }: Readonly<{ clusterId: string; queueName: string }>) {
+  return (
+    <Link to={`/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages`} className={linkClasses.link}>
+      {queueName}
+    </Link>
   );
 }

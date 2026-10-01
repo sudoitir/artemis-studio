@@ -1,0 +1,8 @@
+/* The chevron opens a node; a leaf keeps the space, so keys line up whatever their depth. */
+.chevron[data-leaf] {
+  visibility: hidden;
+}
+
+.chevron[data-expanded] {
+  transform: rotate(90deg);
+}

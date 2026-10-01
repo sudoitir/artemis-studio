@@ -44,6 +44,18 @@ describe('AuditView', () => {
     navigate.mockClear();
   });
 
+  it('is one page named Audit log', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/audit', () =>
+        HttpResponse.json({ data: [row()], count: 1, page: 1, pageSize: 100 }),
+      ),
+    );
+    renderWithProviders(<AuditView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Audit log' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('renders the outcome word for a failed row and a click puts it in the address', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/audit', () =>
@@ -54,7 +66,7 @@ describe('AuditView', () => {
     renderWithProviders(<AuditView />);
 
     expect(await screen.findByText('failure')).toBeInTheDocument();
-    await user.click(screen.getAllByText('DELETE_MESSAGES')[0]);
+    await user.click(await screen.findByRole('gridcell', { name: 'DELETE_MESSAGES' }));
     const update = navigate.mock.calls[0][0].search as (prev: object) => object;
     expect(update({})).toEqual({ event: 5 });
   });
@@ -68,9 +80,14 @@ describe('AuditView', () => {
     );
     renderWithProviders(<AuditView />);
 
-    expect(await screen.findByRole('dialog', { name: 'DELETE_MESSAGES' })).toBeInTheDocument();
-    expect(await screen.findByText('broker refused')).toBeInTheDocument();
-    expect(screen.getByText(/req-1/)).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: 'DELETE_MESSAGES' });
+    // The outcome is a word, the error its own term, and the request and source are facts beside them.
+    expect(await within(dialog).findByText('broker refused')).toBeInTheDocument();
+    expect(within(dialog).getByText('Error')).toBeInTheDocument();
+    expect(within(dialog).getByText('failure')).toBeInTheDocument();
+    expect(within(dialog).getByText('req-1')).toBeInTheDocument();
+    expect(within(dialog).getByText('10.0.0.1')).toBeInTheDocument();
+    expect(within(dialog).getByRole('region', { name: 'Audit event parameters' })).toHaveTextContent('"filter":"x"');
   });
 
   it('opens an event that is not on the loaded page by asking for it', async () => {
@@ -361,8 +378,13 @@ describe('AuditView event detail', () => {
     renderWithProviders(<AuditView />);
 
     const dialog = await screen.findByRole('dialog', { name: 'DELETE_MESSAGES' });
-    expect(within(dialog).getByText(/anonymous · no target · dry run/)).toBeInTheDocument();
-    expect(within(dialog).getByText('request — · from —')).toBeInTheDocument();
+    expect(within(dialog).getByText('anonymous')).toBeInTheDocument();
+    expect(within(dialog).getByText('no target')).toBeInTheDocument();
+    expect(within(dialog).getByText('Dry run: nothing was changed.')).toBeInTheDocument();
+    // The request and the source are unknown: each term says so, instead of a blank.
+    expect(within(dialog).getAllByText('—')).toHaveLength(2);
+    expect(within(dialog).queryByText('Error')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('region', { name: 'Audit event parameters' })).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/Show the operation this belongs to/)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/Show the event for each queue/)).not.toBeInTheDocument();
   });

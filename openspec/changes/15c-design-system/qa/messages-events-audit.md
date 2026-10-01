@@ -16,5 +16,5 @@ Every finding is fixed before this change is archived. Severity: S1 blocks a tas
 - Where: `web/src/features/messages/MessageActions.tsx:74`
 - Evidence: The 'By selector…' menu offers move, retry, delete and expire, plus bulk dry-run and execute, with no useCan check. The same actions on rows are gated in rowActions.tsx. An operator who lacks those permissions is offered destructive bulk operations that the server will reject.
 - Fix: Filter the menu items with can() from useCan, as rowActions does.
-- Status: open
+- Status: fixed (every by-selector item and every action on the selection takes its gate from `useActionGate`, the same permission and `managementWrite` check the row actions use. Each stays visible: an item the operator may not use is `aria-disabled`, states the first sentence of its reason and opens the full reason when activated, and a selection action has a "Why?" popover. Offered while grants load. `MessageMutations.test.tsx` asserts both for a read-only operator)
 
