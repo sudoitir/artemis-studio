@@ -23,8 +23,22 @@ const FINGERPRINT = Array.from({ length: 32 }, (_, i) => (i * 7 + 11).toString(1
 const LONG = 'customer-order-fulfilment-backlog-on-the-eu-west-primary-broker-pair-'.repeat(2);
 
 const keys: TrustedKeyView[] = [
-  { fingerprint: FINGERPRINT, name: LONG, subject: `CN=${LONG}`, addedAt: '2026-09-11T10:00:00Z', addedBy: LONG },
-  { fingerprint: 'AB:CD', name: 'Acme', subject: 'CN=Acme', addedAt: '2026-09-11T10:00:00Z', addedBy: 'ops' },
+  {
+    fingerprint: FINGERPRINT,
+    name: LONG,
+    subject: `CN=${LONG}`,
+    addedAt: '2026-09-11T10:00:00Z',
+    addedBy: LONG,
+    source: 'ADMIN',
+  },
+  {
+    fingerprint: 'AB:CD',
+    name: 'Acme',
+    subject: 'CN=Acme',
+    addedAt: '2026-09-11T10:00:00Z',
+    addedBy: 'ops',
+    source: 'CONFIGURATION',
+  },
 ];
 
 const installers: PluginInstallerView[] = [
