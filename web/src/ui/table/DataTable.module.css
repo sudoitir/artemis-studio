@@ -1,0 +1,502 @@
+/* The frame: toolbar, table and state slot, as siblings. `--as-row-h` and `--as-cell-pad` are set on it
+   from the density in use, so a density change reaches the measurer and the rows in the same render. */
+.frame {
+  --as-actions-w: 2.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+
+.frame[data-fill] {
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm);
+}
+
+.toolbarStart,
+.toolbarEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+}
+
+.toolbarEnd {
+  margin-inline-start: auto;
+}
+
+/* The Columns control's space is reserved, so nothing around it moves when a count appears. */
+.columnsButton {
+  min-inline-size: 7.5rem;
+}
+
+.columnsCount {
+  display: inline-block;
+  min-inline-size: 2ch;
+  margin-inline-start: var(--mantine-spacing-xs);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.columnsPanel {
+  min-inline-size: 12rem;
+  max-block-size: 60dvh;
+  overflow: auto;
+}
+
+/* The slot for the refetch bar is always there, so the table does not move when a refetch starts. */
+.progress {
+  block-size: 0.125rem;
+  overflow: hidden;
+}
+
+.refetchBar {
+  display: block;
+  block-size: 100%;
+  inline-size: 30%;
+  background: var(--as-accent);
+  animation: refetch calc(var(--as-duration-slow) * 5) var(--as-ease) infinite;
+}
+
+@keyframes refetch {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(333%);
+  }
+}
+
+.state {
+  padding-block: var(--mantine-spacing-xl);
+}
+
+/* The grid's own viewport: it scrolls in both axes so the page never has to. The gutter is always
+   reserved, so the width the solver reads does not change when a scroll bar appears. */
+.scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  max-block-size: 100dvh;
+  max-inline-size: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.scroll[data-capped] {
+  flex: 0 1 auto;
+  max-block-size: calc(var(--as-row-h) * (var(--as-max-rows) + 1));
+}
+
+/* One track list, declared once as `--as-cols` and consumed by the header row and every body row, so
+   the columns line up by construction. `--as-min-inline` is set only when the tracks overflow: it
+   grows the grid past its viewport so `.scroll` scrolls sideways. */
+.grid {
+  position: relative;
+  inline-size: 100%;
+  min-inline-size: var(--as-min-inline, 0);
+}
+
+.row {
+  --row-tint: transparent;
+  display: grid;
+  grid-template-columns: var(--as-cols);
+  box-sizing: border-box;
+  block-size: var(--as-row-h);
+  border-block-end: 1px solid var(--as-border);
+  background: var(--row-tint);
+}
+
+.headRow {
+  --row-tint: var(--as-grid-header-bg);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--as-z-sticky);
+}
+
+.body {
+  position: relative;
+}
+
+/* Virtualised rows are taken out of flow and placed by `translateY`, so their height has to be
+   exactly the step the virtualiser measures with: the density's row height. */
+.bodyRow {
+  position: absolute;
+  inset-inline: 0;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover,
+.bodyRow[data-menu-open] {
+  --row-tint: var(--as-grid-row-hover);
+}
+
+.bodyRow[data-selected] {
+  --row-tint: var(--as-selected);
+}
+
+/* One line per cell: rows are virtualised against a fixed height. `min-inline-size` defeats the grid
+   item's automatic minimum, without which a long unbroken value widens its own track. */
+.cell {
+  box-sizing: border-box;
+  min-inline-size: 0;
+  padding-inline: var(--as-cell-pad);
+  line-height: var(--as-row-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell[data-end] {
+  text-align: end;
+  color: var(--as-grid-num);
+}
+
+.cell[data-tabular] {
+  font-variant-numeric: tabular-nums;
+}
+
+.cell[data-mono] {
+  font-family: var(--mantine-font-family-monospace);
+}
+
+.cell:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: calc(-1 * var(--as-focus-offset));
+}
+
+.headCell {
+  position: relative;
+  background: var(--as-grid-header-bg);
+  color: var(--as-table-header-text);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+}
+
+/* The select and actions columns hold a block-level control, which `line-height` does not centre:
+   flex does. After `.cell` and `.headCell` so its padding wins. */
+.selectCell,
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.sortButton {
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sortButton:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+/* The arrow's slot is always there, so a header does not change width when it becomes the sort. */
+.sortMark {
+  display: inline-block;
+  inline-size: 1em;
+  margin-inline-start: var(--mantine-spacing-xs);
+  vertical-align: middle;
+}
+
+/* The column resize handle: a strip on the header cell's inline-end border, with a line that shows on
+   hover and while dragging. Hidden from assistive technology; Ctrl+Shift+Arrow is its keyboard
+   equivalent. */
+.resizeHandle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: 0.5rem;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  inset-block: 25%;
+  inset-inline-end: 0;
+  inline-size: 0.125rem;
+  border-radius: var(--mantine-radius-xs);
+  background: transparent;
+}
+
+.headCell:hover .resizeHandle::after {
+  background: var(--as-border-strong);
+}
+
+.resizeHandle:hover::after,
+.resizeHandle[data-active]::after {
+  background: var(--as-accent);
+}
+
+/* Sticky edges, only when the tracks overflow: the select column, the first data column and the
+   actions column stay in view. Each layers the row's tint over an opaque surface, so what scrolls
+   beneath never shows through and a selected or hovered row still looks it. */
+.scroll[data-overflow] .stickyStart,
+.scroll[data-overflow] .stickyFirst,
+.scroll[data-overflow] .stickyEnd {
+  position: sticky;
+  z-index: 1;
+  background: linear-gradient(var(--row-tint), var(--row-tint)), var(--as-surface);
+}
+
+.scroll[data-overflow] .headCell.stickyStart,
+.scroll[data-overflow] .headCell.stickyFirst,
+.scroll[data-overflow] .headCell.stickyEnd {
+  z-index: calc(var(--as-z-sticky) + 1);
+}
+
+.scroll[data-overflow] .stickyStart {
+  inset-inline-start: 0;
+}
+
+.scroll[data-overflow] .stickyFirst {
+  inset-inline-start: var(--as-sticky-first);
+}
+
+.scroll[data-overflow] .stickyEnd {
+  inset-inline-end: 0;
+  overflow: visible;
+}
+
+/* The edge shadows show only while there is more to scroll to: `data-scrolled` and `data-more` are
+   set by an IntersectionObserver over two sentinels, not by a scroll handler. */
+.scroll[data-scrolled] .stickyFirst {
+  box-shadow: var(--as-sticky-shadow);
+}
+
+.scroll[data-more] .stickyEnd::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--as-sticky-shadow);
+  scale: -1 1;
+}
+
+.scroll[data-more] .stickyEnd:dir(rtl)::before {
+  scale: 1 1;
+}
+
+.sentinelStart,
+.sentinelEnd {
+  position: absolute;
+  inset-block-start: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  pointer-events: none;
+}
+
+.sentinelStart {
+  inset-inline-start: 0;
+}
+
+.sentinelEnd {
+  inset-inline-end: 0;
+}
+
+/* Shared full-value panel, portalled to <body> and pinned under the hovered or focused cell. One
+   instance for the whole grid. `--reveal-x` is the distance from the inline-start edge of the
+   viewport, so the panel follows the writing direction and never leaves the window. */
+.reveal {
+  position: fixed;
+  inset-inline-start: var(--reveal-x);
+  z-index: var(--mantine-z-index-popover);
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  max-inline-size: min(22rem, calc(100vi - var(--reveal-x) - 1rem));
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  background: var(--as-surface-raised);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  box-shadow: var(--mantine-shadow-md);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.revealText {
+  overflow-wrap: anywhere;
+  color: var(--as-text);
+  user-select: all;
+}
+
+.revealCopy {
+  flex-shrink: 0;
+  border: 1px solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface);
+  color: var(--as-text);
+  font: inherit;
+  padding: 0.125rem var(--mantine-spacing-sm);
+  cursor: pointer;
+}
+
+.revealCopy:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+/* An identifier shortened in the middle: the start shrinks and ends in an ellipsis, the tail stays. */
+.middle {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.middleStart {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.middleTail {
+  flex: none;
+  white-space: pre;
+}
+
+/* Loading: placeholders in the grid's own tracks, at the density's row height. */
+.skeletonRow {
+  display: grid;
+  grid-template-columns: var(--as-cols);
+  align-items: center;
+  box-sizing: border-box;
+  block-size: var(--as-row-h);
+  border-block-end: 1px solid var(--as-border);
+}
+
+.skeletonTableRow {
+  block-size: var(--as-row-h);
+}
+
+.skeletonBar {
+  display: block;
+  block-size: 0.5em;
+  margin-inline: var(--as-cell-pad);
+  border-radius: var(--mantine-radius-xs);
+  background: var(--as-skeleton);
+  animation: pulse calc(var(--as-duration-slow) * 5) ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.5;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* The static renderer: a native table in the page's own flow, so its header sticks to the page. */
+.staticFrame {
+  position: relative;
+  max-inline-size: 100%;
+}
+
+.staticFrame[data-overflow] {
+  overflow-x: auto;
+}
+
+.staticTable {
+  inline-size: 100%;
+  min-inline-size: var(--as-min-inline, 0);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.staticCell {
+  block-size: var(--as-row-h);
+  padding-block: 0;
+  line-height: var(--mantine-line-height-sm);
+  font-weight: normal;
+  vertical-align: middle;
+}
+
+.staticClip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staticWrapText {
+  padding-block: var(--mantine-spacing-xs);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* The measurer (ADR-0160): inert, zero-size and clipped, so it can never widen the page. */
+.measurer {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 0;
+  block-size: 0;
+  overflow: clip;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.measureGrid {
+  display: grid;
+  inline-size: max-content;
+}
+
+/* Content-box, so the `ch` bounds apply to the value and the padding is added to them. */
+.measureCell {
+  box-sizing: content-box;
+  padding-inline: var(--as-cell-pad);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* The sample is drawn as generated content, not as text nodes, so it is never found as page text. */
+.measureCell::before {
+  content: attr(data-text);
+}
+
+.measureHead {
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.probe {
+  block-size: 0;
+}
