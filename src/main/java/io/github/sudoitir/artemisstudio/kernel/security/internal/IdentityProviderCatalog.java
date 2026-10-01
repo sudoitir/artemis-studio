@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvid
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProvider;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.RedirectIdentityProvider;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,10 +23,13 @@ public class IdentityProviderCatalog implements IdentityProviderListing {
 
     @Override
     public List<Entry> providers() {
+        // The local provider first, whatever order the modules were wired in: the login screen offers the
+        // first credential provider until the user chooses, and a plugin's sign-in must not become the default.
         return contributions.stream()
                 .flatMap(c -> c.providers().stream())
                 .filter(p -> !(p instanceof BearerIdentityProvider))
                 .map(IdentityProviderCatalog::entry)
+                .sorted(Comparator.comparing(e -> !LoginService.DEFAULT_PROVIDER.equals(e.id())))
                 .toList();
     }
 
