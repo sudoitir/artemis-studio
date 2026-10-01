@@ -147,9 +147,9 @@ public class BrokerEventWriter implements BrokerEventSink {
     }
 
     /**
-     * The insert was rolled back on a foreign key: count the events whose cluster or node is gone
-     * as dropped and put the rest back. A rejection with no orphan to blame would repeat for
-     * ever, so then the whole batch is dropped.
+     * The insert was rolled back on a foreign key: drop the events whose cluster or node is gone,
+     * counting those of a cluster that still exists, and put the rest back. A rejection with no
+     * orphan to blame would repeat for ever, so then the whole batch is dropped.
      */
     private void dropOrphans(List<BrokerEvent> batch) {
         Set<UUID> clusters = existing("cluster", batch.stream().map(BrokerEvent::clusterId));
@@ -163,8 +163,11 @@ public class BrokerEventWriter implements BrokerEventSink {
             orphans = kept;
             kept = List.of();
         }
-        orphans.forEach(e ->
-                dropped.computeIfAbsent(e.clusterId(), k -> new AtomicLong()).incrementAndGet());
+        // A deleted cluster has no total to report, and onClusterDeleted may already have removed it.
+        orphans.stream()
+                .filter(e -> clusters.contains(e.clusterId()))
+                .forEach(e -> dropped.computeIfAbsent(e.clusterId(), k -> new AtomicLong())
+                        .incrementAndGet());
         log.warn("Dropped {} broker event(s) that reference a cluster or node that no longer exists", orphans.size());
         requeue(kept);
     }

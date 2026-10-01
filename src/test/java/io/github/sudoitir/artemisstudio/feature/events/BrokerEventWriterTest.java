@@ -181,7 +181,8 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                         Map.of("c", clusterId),
                         String.class))
                 .containsExactly("SESSION_CREATED", "CONSUMER_CLOSED");
-        assertThat(writer.droppedFor(deleted)).isEqualTo(1);
+        // A deleted cluster has no total to report, and a counter made for it now would outlive its deletion signal.
+        assertThat(writer.droppedFor(deleted)).isZero();
         assertThat(writer.droppedFor(clusterId)).isZero();
     }
 
