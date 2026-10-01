@@ -168,3 +168,23 @@ which the oasdiff gate (ADR-0149) will flag: its commit is marked breaking.
 - Revocation is up to 5 minutes behind the source, and pauses while the plugin is stopped.
 - A plugin may name any user as acting user (as in plugin messaging, ADR-0111). Plugins are trusted
   code; the API keeps them honest about whose permissions apply, it does not sandbox them.
+
+## Decisions made while applying
+
+- **`PluginHandle.verified()`** asks `PluginTrust.verified(pluginId)`, which reads the install row's signer
+  and decides on every call, rather than the host handing each runtime a check: the runtime already holds the
+  main context, and a runtime activated outside the host (tests) is simply not verified.
+- **The revalidation job lives in the plugins module.** `kernel.jobs` depends on `kernel.security`, so a job
+  cannot be declared in the security module. `PluginIdentityRevalidation` (public, `kernel.security`) does the
+  work and `feature.plugins.PluginIdentityJobs` schedules it. Each revocation runs in its own transaction, as
+  the system actor; `SessionTerminator.endSessionsOf` became public for it.
+- **`SecondFactorService` finds `IdentityProviderListing` lazily.** The providers include the API-token one,
+  which needs the second factors, so injecting the listing directly is a bean cycle.
+- **Local is listed first.** `IdentityProviderCatalog` sorts the local provider first, so the login screen's
+  default (the first credential provider) is never a plugin's sign-in, whatever order modules were wired in.
+- **`GET /auth/me` gains `providerId`**, so the account page offers Change password only to a local account
+  and tells everyone else where their password is kept. The login screen also says when the list of sign-in
+  methods could not be loaded.
+- **Known limit.** A directory that gives a new subject the username of an existing plugin account whose
+  `name@<provider id>` form is also taken makes the unique constraint fail at provisioning, which surfaces as
+  a conflict rather than a wrong password. Directories that reuse names for different subjects should not.
