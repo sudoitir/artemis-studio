@@ -20,7 +20,7 @@ import { Measurer } from './measure.tsx';
 import { columnSpec, useMeasurement } from './measurement.ts';
 import { StaticTable } from './StaticTable.tsx';
 import { parseSort } from './sort.ts';
-import { RefetchBar, StateSlot } from './TableStates.tsx';
+import { RefetchBar, SKELETON_ROWS, StateSlot } from './TableStates.tsx';
 import {
   orderColumns,
   useTableState,
@@ -337,7 +337,9 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   }));
 
   let slot: ReactNode = null;
-  if (error) slot = <StateSlot>{error}</StateSlot>;
+  // A static table that never had rows shows placeholder rows while it loads; its failure holds their height.
+  if (error)
+    slot = <StateSlot reserveRows={renderStatic && data.length === 0 ? SKELETON_ROWS : undefined}>{error}</StateSlot>;
   else if (data.length === 0 && !loading) slot = <StateSlot>{empty}</StateSlot>;
 
   return (

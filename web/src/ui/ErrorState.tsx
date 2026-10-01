@@ -18,6 +18,9 @@ import { readError } from './errorReading.tsx';
  * credential, a missing permission), the button is left out. `next` replaces the next-step sentence
  * where the caller knows a better one for its screen, and `actions` adds controls beside Retry, such
  * as a link to the page that fixes it.
+ *
+ * <p>`blockSize` keeps the panel at least that tall, so it can take the place of a `LoadingState` of the
+ * same size without pulling what follows up the page when the failure arrives.
  */
 export function ErrorState({
   error,
@@ -25,6 +28,7 @@ export function ErrorState({
   next,
   actions,
   variant = 'block',
+  blockSize,
 }: Readonly<{
   /** The thrown error, typically an `ApiError`; read structurally, so any value is safe. */
   error: unknown;
@@ -36,10 +40,12 @@ export function ErrorState({
   actions?: ReactNode;
   /** `block` is a panel standing in for a view; `inline` is one wrapping line inside a section. */
   variant?: 'block' | 'inline';
+  /** The least height to hold, as a CSS length such as `12rem`: the size of the loading frame this replaces. */
+  blockSize?: string;
 }>) {
   const reading = readError(error);
   return (
-    <div className={classes.root} role="alert" data-variant={variant}>
+    <div className={classes.root} role="alert" data-variant={variant} style={{ minBlockSize: blockSize }}>
       <div className={classes.title}>{reading.title}</div>
       <Text size="sm" component="div" className={classes.text}>
         {reading.cause}

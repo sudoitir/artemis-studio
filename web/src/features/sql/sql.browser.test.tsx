@@ -197,11 +197,11 @@ function page(q: string) {
 }
 
 /** The page in the window's content box, a window tall, as the shell lays it out. */
-function mount(scheme: Scheme, client: QueryClient, q = QUERY) {
+function mount(scheme: Scheme, client: QueryClient, q = QUERY, height = 900) {
   return renderThemed(
     <QueryClientProvider client={client}>
       <FeatureProvider features={[]}>
-        <div style={{ inlineSize: contentWidth(1280), blockSize: 900, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ inlineSize: contentWidth(1280), blockSize: height, display: 'flex', flexDirection: 'column' }}>
           <RouterProvider router={page(q)} />
         </div>
       </FeatureProvider>
@@ -368,6 +368,46 @@ describe.each(SCHEMES)('SQL Console in the %s scheme at 1280 px', (scheme) => {
       const menu = screen.getByRole('button', { name: 'Reset widths' }).closest('[role="dialog"]')!;
       await settle(() => getComputedStyle(menu).opacity);
       expect(await axeViolations(document.body)).toEqual([]);
+    });
+  });
+
+  describe('a pane too short for everything in it', () => {
+    // 200% zoom of a 1280 x 800 window leaves 400 px: the editor pane cannot hold the toolbar, the editor, the
+    // hint and the cost line at once.
+    const SHORT = 400;
+    const edges = () => {
+      const editor = document.querySelector('.cm-editor')!.getBoundingClientRect();
+      const hint = screen.getByText(/Ctrl-Enter runs/).getBoundingClientRect();
+      return { editor, hint };
+    };
+
+    it('keeps the editor its height instead of squeezing it under the lines that follow', async () => {
+      const { container } = mount(scheme, seeded(ADMIN), QUERY, SHORT);
+      await settled(container);
+
+      const { editor, hint } = edges();
+      expect(editor.height).toBeGreaterThanOrEqual(4.5 * 16);
+      expect(editor.bottom).toBeLessThanOrEqual(hint.top);
+    });
+
+    it('moves nothing above the cost line when the estimate arrives with notices', async () => {
+      const client = seeded(ADMIN);
+      const { container } = mount(scheme, client, QUERY, SHORT);
+      await settled(container);
+      const before = edges();
+
+      act(() =>
+        client.setQueryData(
+          keys.sqlPlan('c1', QUERY),
+          plan({ notices: [{ kind: 'CLOCK_OFFSET_UNKNOWN' }, { kind: 'BODY_TRUNCATED' }, { kind: 'TARGET_CAPPED' }] }),
+        ),
+      );
+      await settle(() => String(container.scrollHeight));
+
+      const after = edges();
+      expect(after.editor.top).toBe(before.editor.top);
+      expect(after.editor.height).toBe(before.editor.height);
+      expect(after.hint.top).toBe(before.hint.top);
     });
   });
 

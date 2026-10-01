@@ -88,3 +88,12 @@ Found while building the redesign, and fixed in it. Each has a test that fails w
 - Evidence: the browser tests load the console's own style sheets but not `@xyflow/react/dist/style.css`, which `main.tsx` loads, so a React Flow node is `position: static` and every box lands in normal flow. The Topology browser test imports the style sheet itself. The Flow and diagram browser tests lay out without it, so their geometry assertions do not describe the pane.
 - Fix: the browser setup loads every style sheet `main.tsx` loads (Mantine notifications, spotlight, charts and code highlight, and React Flow), and the Topology test no longer imports its own.
 - Status: fixed
+
+## Sweep findings after the pages
+
+### sql-topology-c1 [S2 · design · page] At 200% zoom the editor is squeezed under the cost line, and the cost line moves when the estimate arrives
+
+- Where: `web/src/features/sql/QueryEditor.module.css`, `web/src/features/sql/QueryPane.tsx` (`sql` zoom light error and empty in the full sweep, CLS 0.032; also zoom default, 0.037)
+- Evidence: in the 640 x 400 layout the editor pane cannot hold the toolbar, editor, hint and cost line. The editor shrank to nothing (`min-block-size: 0`) while CodeMirror kept its own `4.5rem` floor and was drawn over the cost line, which showed as overlapping text. When the plan arrived with its notice the cost line grew by 85 px, the editor gave that back, and the cost line and the hint moved up 84 px.
+- Fix: the editor keeps its floor (its label and `4.5rem` of text, on the host), so a short pane scrolls as a whole by its region instead of overlapping. The hint moved under the editor and the cost line is last in the pane, so an estimate that arrives, or grows with notices, has nothing below it to push.
+- Status: fixed (`sql.browser.test.tsx`, "a pane too short for everything in it": the editor keeps 4.5rem and ends above the hint, and the editor and hint do not move when the estimate arrives with three notices; the first fails without the CSS). The header's freshness badge still moves the header's end by 25 px when its word changes (Offline, Polling, Live), 0.0023 on its own, under the budget; it belongs to the shell, not to this page.

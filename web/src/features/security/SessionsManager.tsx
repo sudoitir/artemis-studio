@@ -17,6 +17,11 @@ interface Outcome {
   failed: boolean;
 }
 
+/** About four rows: the list holds this height for any number of sessions and scrolls past it. */
+const LIST_BLOCK = '12rem';
+/** The list, the button under it (an `xs` button, 1.875rem) and the status line, with the two gaps between them. */
+const FRAME_BLOCK = `calc(${LIST_BLOCK} + 1.875rem + 2 * var(--mantine-spacing-md))`;
+
 const describeSession = (s: AccountSessionView) =>
   `${describeClient(s.userAgent)} at ${s.clientAddress ?? 'an unknown address'}`;
 
@@ -87,10 +92,11 @@ export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
   const sessions = useSessions(userId);
   const ending = useSessionEnding(userId);
 
-  // Holds the height of a row or two, so the list that replaces it does not push what follows down.
-  if (sessions.isPending) return <LoadingState label="Loading sessions" blockSize="6rem" />;
+  // The frame, and the failure that can replace it, hold the height of the list and its button, so nothing
+  // below moves when either arrives.
+  if (sessions.isPending) return <LoadingState label="Loading sessions" blockSize={FRAME_BLOCK} />;
   if (sessions.isError) {
-    return <ErrorState error={sessions.error} onRetry={() => void sessions.refetch()} />;
+    return <ErrorState error={sessions.error} onRetry={() => void sessions.refetch()} blockSize={FRAME_BLOCK} />;
   }
 
   const list = sessions.data;
@@ -172,7 +178,7 @@ function SessionRows({
     );
   }
   return (
-    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'} bounded>
+    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'} bounded blockSize={LIST_BLOCK}>
       {list.map((s) => (
         <Row
           key={s.handle}

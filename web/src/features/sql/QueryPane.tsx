@@ -115,14 +115,16 @@ export function QueryPane({
         error={queryError}
       />
 
-      <ExplainStrip id={costId} verdict={verdict} plan={plan} />
-
       <Text size="xs" c="dimmed">
         ⌘/Ctrl-Enter runs · ⌘/Ctrl-. cancels · Ctrl-Space completes · Escape leaves the editor
         {completionCapped
           ? ` · completion lists the first ${QUEUE_COMPLETION_LIMIT.toLocaleString()} queues on this cluster, not all of them`
           : ''}
       </Text>
+
+      {/* Last in the pane: the estimate arrives after the editor and grows with its notices, and nothing
+          below it is there to be pushed down. */}
+      <ExplainStrip id={costId} verdict={verdict} plan={plan} />
     </section>
   );
 }

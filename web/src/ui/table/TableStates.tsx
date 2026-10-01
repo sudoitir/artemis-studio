@@ -4,7 +4,7 @@ import { VisuallyHidden } from '@mantine/core';
 import classes from './DataTable.module.css';
 
 /** How many placeholder rows a table that is loading shows. */
-const SKELETON_ROWS = 8;
+export const SKELETON_ROWS = 8;
 
 const bars = (count: number) =>
   Array.from({ length: count }, (_, col) => <span key={col} className={classes.skeletonBar} />);
@@ -60,7 +60,20 @@ export function RefetchBar({ active }: Readonly<{ active: boolean }>) {
   );
 }
 
-/** The empty or error content, a sibling of the grid and never a child of it. */
-export function StateSlot({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className={classes.state}>{children}</div>;
+/**
+ * The empty or error content, a sibling of the grid and never a child of it. `reserveRows` keeps it at
+ * least that many rows tall, less the gap the frame puts above it: the height the loading rows had, so
+ * a failure in place of them moves nothing below.
+ */
+export function StateSlot({ children, reserveRows }: Readonly<{ children: ReactNode; reserveRows?: number }>) {
+  return (
+    <div
+      className={classes.state}
+      style={
+        reserveRows ? { minBlockSize: `calc(var(--as-row-h) * ${reserveRows} - var(--mantine-spacing-xs))` } : undefined
+      }
+    >
+      {children}
+    </div>
+  );
 }

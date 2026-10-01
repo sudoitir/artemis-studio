@@ -19,3 +19,12 @@ No confirmed findings.
 - Evidence: Address and Queue take the stretched width; Depth, Consumers, Delivering, Scheduled, Durable, State and Nodes are off-screen behind a horizontal scroll.
 - Fix: DataTable column solver.
 - Status: fixed (queues grid is a DataTable with kind and priority per column and no pixel widths; jsdom tests only, the browser width check is still to run)
+
+## Sweep findings after the pages
+
+### queues-resources-routing-sweep-1 [S3 · test harness · not a product defect] `connections` 1440 light default was recorded as an exception
+
+- Where: `resources/connections` in the full sweep (`.sweep/final`)
+- Evidence: the thrown error was "browserContext.newPage: Target page, context or browser has been closed": the sweep was stopped while that capture was in flight. The route has no failure of its own: the narrowed sweep passes it in every width, scheme and state (default, error, empty).
+- Fix: see shell-kernel-ui-sweep-1 (a stopped sweep no longer records an exception and still writes its report).
+- Status: fixed

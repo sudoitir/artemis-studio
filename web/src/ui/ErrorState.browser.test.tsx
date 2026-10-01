@@ -59,6 +59,16 @@ describe('ErrorState', () => {
     expect(next.top).toBeGreaterThanOrEqual(field.bottom);
   });
 
+  it('holds the height it is given, so it can replace a loading frame of that size without moving the page', () => {
+    renderThemed(
+      <Frame width={960}>
+        <ErrorState error={server} blockSize="20rem" />
+      </Frame>,
+      'light',
+    );
+    expect(screen.getByRole('alert').getBoundingClientRect().height).toBeGreaterThanOrEqual(20 * 16);
+  });
+
   it('wraps on one line inside a section when inline, so it does not take a panel of height', () => {
     renderThemed(
       <Frame width={960}>

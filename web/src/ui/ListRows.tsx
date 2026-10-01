@@ -8,11 +8,18 @@ export function Rows({
   label,
   children,
   bounded = false,
+  blockSize,
 }: Readonly<{
   label: string;
   children: ReactNode;
   /** A list that can grow long scrolls inside a named, focusable region of a fixed height instead of stretching the page. */
   bounded?: boolean;
+  /**
+   * With `bounded`: a height the region always holds, as a CSS length, whatever the number of rows, so a
+   * loading frame of the same size is replaced by the list without moving what follows. Without it the
+   * region is as tall as its rows, up to about eight.
+   */
+  blockSize?: string;
 }>) {
   const list = (
     <ul className={classes.rows} aria-label={label}>
@@ -20,7 +27,7 @@ export function Rows({
     </ul>
   );
   return bounded ? (
-    <section className={classes.bounded} tabIndex={0} aria-label={`${label}, scrollable`}>
+    <section className={classes.bounded} tabIndex={0} aria-label={`${label}, scrollable`} style={{ blockSize }}>
       {list}
     </section>
   ) : (
