@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Group, Stack, Table, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
+
+import { DataTable, type Column } from '../../../ui/table/index.ts';
 
 /**
  * A transformer: the class the broker loads and the properties that configure it.
@@ -20,6 +22,58 @@ export const TRANSFORMER_REACH =
 export interface TransformerValue {
   className: string;
   properties: Record<string, string>;
+}
+
+/** One property of the transformer, as the table draws it. */
+interface PropertyRow {
+  name: string;
+  value: string;
+}
+
+/** The properties table: the name, an input for the value, and the control that drops it. */
+function propertyColumns(value: TransformerValue, onChange: (next: TransformerValue) => void): Column<PropertyRow>[] {
+  const drop = (name: string) => {
+    const next = { ...value.properties };
+    delete next[name];
+    onChange({ ...value, properties: next });
+  };
+  return [
+    { id: 'name', header: 'Property', accessor: (r) => r.name, kind: 'identifier', priority: 'essential', wrap: true },
+    {
+      id: 'value',
+      header: 'Value',
+      accessor: (r) => r.value,
+      cell: (r) => (
+        <TextInput
+          size="xs"
+          aria-label={`Value of transformer property ${r.name}`}
+          value={r.value}
+          onChange={(e) => onChange({ ...value, properties: { ...value.properties, [r.name]: e.currentTarget.value } })}
+        />
+      ),
+      kind: 'text',
+      priority: 'essential',
+      wrap: true,
+    },
+    {
+      id: 'remove',
+      header: 'Remove',
+      accessor: () => '',
+      cell: (r) => (
+        <ActionIcon
+          variant="subtle"
+          size="sm"
+          aria-label={`Remove transformer property ${r.name}`}
+          onClick={() => drop(r.name)}
+        >
+          <IconX size="0.875rem" />
+        </ActionIcon>
+      ),
+      kind: 'status',
+      priority: 'essential',
+      wrap: true,
+    },
+  ];
 }
 
 export function TransformerFields({
@@ -44,12 +98,6 @@ export function TransformerFields({
     setVal('');
   };
 
-  const drop = (k: string) => {
-    const next = { ...value.properties };
-    delete next[k];
-    onChange({ ...value, properties: next });
-  };
-
   return (
     <Stack gap="xs">
       <TextInput
@@ -60,43 +108,15 @@ export function TransformerFields({
       />
 
       {entries.length > 0 ? (
-        <Table fz="xs" verticalSpacing={2}>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Property</Table.Th>
-              <Table.Th>Value</Table.Th>
-              <Table.Th w={40} />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {entries.map(([k, v]) => (
-              <Table.Tr key={k}>
-                <Table.Td>{k}</Table.Td>
-                <Table.Td>
-                  <TextInput
-                    size="xs"
-                    aria-label={`Value of transformer property ${k}`}
-                    value={v}
-                    onChange={(e) =>
-                      onChange({ ...value, properties: { ...value.properties, [k]: e.currentTarget.value } })
-                    }
-                  />
-                </Table.Td>
-                <Table.Td>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    aria-label={`Remove transformer property ${k}`}
-                    onClick={() => drop(k)}
-                  >
-                    <IconX size={14} />
-                  </ActionIcon>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+        <DataTable
+          variant="static"
+          label="Transformer properties"
+          columns={propertyColumns(value, onChange)}
+          data={entries.map(([name, v]) => ({ name, value: v }))}
+          rowKey={(r) => r.name}
+          height={{ maxRows: entries.length }}
+          empty={null}
+        />
       ) : null}
 
       <Group align="flex-end" gap="xs">
@@ -106,7 +126,7 @@ export function TransformerFields({
           size="xs"
           value={key}
           onChange={(e) => setKey(e.currentTarget.value)}
-          style={{ flex: 1 }}
+          flex={1}
         />
         <TextInput
           label="Value"
@@ -119,14 +139,14 @@ export function TransformerFields({
               add();
             }
           }}
-          style={{ flex: 1 }}
+          flex={1}
         />
         <Button variant="default" size="xs" onClick={add}>
           Add property
         </Button>
       </Group>
       {value.className.trim() === '' && entries.length > 0 ? (
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           These properties are not applied while no transformer class is declared.
         </Text>
       ) : null}

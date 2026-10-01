@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Button, Checkbox, Group, Stack, Table, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Checkbox, Group, Text, TextInput } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 
 import type { ConfigCatalogueView, ConfigDeclarationView, ConfigSecuritySettingView } from './api.ts';
 import { keyTaken, removeItem, upsertSecuritySetting } from './document.ts';
+import { Section } from '../../ui/Section.tsx';
 import { EditorDrawer, MATCH_HINT } from './EditorDrawer.tsx';
+import classes from './Configuration.module.css';
 import { useSaveDocument } from './useSaveDocument.ts';
 
 /** What each permission lets a role do, in the words the grid's row states. */
@@ -56,9 +58,9 @@ interface Errors {
 }
 
 /**
- * Edit one security-setting match as a role × permission grid. Each row says in
- * words what its permissions let the role do; the checkboxes are the grid, not
- * the meaning.
+ * Edit one security-setting match as the permissions each role holds. Each role is a group of
+ * checkboxes named in words for what they let it do, so the grid is the editing, not the meaning, and
+ * a match with many roles is read down the page instead of scrolling sideways across twelve columns.
  */
 export function SecuritySettingEditor({
   declaration,
@@ -127,13 +129,7 @@ export function SecuritySettingEditor({
     });
   };
 
-  const toggle = (role: string, type: string, on: boolean) =>
-    setGrid((g) => {
-      const next = new Set(g[role] ?? []);
-      if (on) next.add(type);
-      else next.delete(type);
-      return { ...g, [role]: next };
-    });
+  const hold = (role: string, held: string[]) => setGrid((g) => ({ ...g, [role]: new Set(held) }));
 
   const submit = () => {
     setSubmitted(true);
@@ -172,7 +168,7 @@ export function SecuritySettingEditor({
       hint={submitted && Object.keys(errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
       secondary={
         item ? (
-          <Button variant="subtle" color="red" size="xs" onClick={remove} loading={isPending}>
+          <Button variant="subtle" size="xs" onClick={remove} loading={isPending}>
             Remove from declaration
           </Button>
         ) : null
@@ -207,86 +203,46 @@ export function SecuritySettingEditor({
             }
           }}
           error={errorFor('roles')}
-          style={{ flex: 1 }}
+          flex={1}
         />
-        <Button variant="default" size="xs" onClick={addRole} mb={errorFor('roles') ? 22 : 0}>
+        <Button variant="default" size="xs" onClick={addRole}>
           Add role
         </Button>
       </Group>
 
-      <Text size="xs" c="dimmed">
+      <Text size="sm" c="dimmed">
         <b>view</b> and <b>edit</b> are sent to the broker but it does not report them back over management (measured on
         2.44), so the plan, the verification and the drift check cannot see them. Confirm those two in the broker's own
         configuration.
       </Text>
 
-      {roles.length > 0 ? (
-        <Table.ScrollContainer minWidth={640}>
-          <Table withColumnBorders={false} verticalSpacing={4} fz="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Role</Table.Th>
+      {roles.map((role) => {
+        const held = types.filter((t) => grid[role]?.has(t));
+        return (
+          <Section
+            key={role}
+            variant="card"
+            headingLevel={3}
+            title={role}
+            description={
+              held.length === 0 ? 'may do nothing here' : `may ${held.map((t) => PERMISSION_WORDS[t] ?? t).join(', ')}`
+            }
+            actions={
+              <ActionIcon variant="subtle" size="sm" aria-label={`Remove role ${role}`} onClick={() => dropRole(role)}>
+                <IconX size="0.875rem" />
+              </ActionIcon>
+            }
+          >
+            <Checkbox.Group label={`What ${role} may do`} value={held} onChange={(v) => hold(role, v)}>
+              <div className={classes.permissions}>
                 {types.map((t) => (
-                  <Table.Th key={t} style={{ textAlign: 'center' }}>
-                    {t}
-                  </Table.Th>
+                  <Checkbox key={t} value={t} label={PERMISSION_WORDS[t] ?? t} size="xs" />
                 ))}
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {roles.map((role) => {
-                const held = types.filter((t) => grid[role]?.has(t));
-                return (
-                  <Table.Tr key={role}>
-                    <Table.Td>
-                      <Text size="xs" fw={600}>
-                        {role}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {held.length === 0
-                          ? 'may do nothing here'
-                          : `may ${held.map((t) => PERMISSION_WORDS[t] ?? t).join(', ')}`}
-                      </Text>
-                    </Table.Td>
-                    {types.map((t) => (
-                      <Table.Td key={t} style={{ textAlign: 'center' }}>
-                        <Checkbox
-                          aria-label={`${role} may ${PERMISSION_WORDS[t] ?? t}`}
-                          checked={grid[role]?.has(t) ?? false}
-                          onChange={(e) => toggle(role, t, e.currentTarget.checked)}
-                          size="xs"
-                        />
-                      </Table.Td>
-                    ))}
-                    <Table.Td>
-                      <ActionIcon
-                        variant="subtle"
-                        size="sm"
-                        aria-label={`Remove role ${role}`}
-                        onClick={() => dropRole(role)}
-                      >
-                        <IconX size={14} />
-                      </ActionIcon>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      ) : null}
-
-      <Stack gap={2}>
-        {roles.map((role) => {
-          const held = types.filter((t) => grid[role]?.has(t));
-          return (
-            <Text key={role} size="xs" c="dimmed">
-              {role}: {held.length === 0 ? 'nothing' : held.map((t) => PERMISSION_WORDS[t] ?? t).join(', ')}
-            </Text>
-          );
-        })}
-      </Stack>
+              </div>
+            </Checkbox.Group>
+          </Section>
+        );
+      })}
     </EditorDrawer>
   );
 }

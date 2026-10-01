@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Checkbox, Code, Group, Stack, TagsInput, Text } from '@mantine/core';
-import { CodeHighlight } from '@mantine/code-highlight';
+import { Button, Checkbox, Code, Group, Stack, TagsInput, Text } from '@mantine/core';
 
 import { useDeclareRecommended, type ConfigRecommendationView, type ConfigRecommendationsView } from './api.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { XmlBlock } from './XmlBlock.tsx';
+
+const DECLARE: ActionVerb = { verb: 'Declare', past: 'Declared', progressive: 'Declaring' };
 
 /**
  * What the capability probe found, as configuration the operator can declare in
@@ -58,51 +64,53 @@ export function RecommendedConfiguration({
 
   if (appliable.length === 0 && manual.length === 0) {
     return (
-      <Alert variant="light" color="green" title="Nothing to recommend">
-        <Text size="sm">
-          Every capability this connection was assessed on is available. There is nothing Studio would change.
-        </Text>
-      </Alert>
+      <EmptyState
+        kind="empty"
+        title="Nothing to recommend"
+        description="Every capability this connection was assessed on is available. There is nothing Studio would change."
+      />
     );
   }
 
-  return (
-    <Stack gap="md">
-      {appliable.length > 0 ? (
-        <Stack gap="sm">
-          <Stack gap={2}>
-            <Text size="sm" fw={600}>
-              Studio can apply these
-            </Text>
-            <Text size="xs" c="dimmed">
-              {recommendations.seededFrom
-                ? `Each entry below is the whole setting as ${recommendations.seededFrom} runs it today, with the` +
-                  ' recommended keys changed. A runtime write replaces the entry rather than merging into it, so' +
-                  ' what is listed is exactly what the node will hold afterwards.'
-                : 'No node could be read, so these entries carry only the recommended keys. Applying one would' +
-                  ' replace whatever else the match holds — read a node first if you can.'}
-            </Text>
-          </Stack>
+  const declareNow = () =>
+    declare.mutate(
+      { capabilities: taken, roles },
+      {
+        onSuccess: () => {
+          notify.succeeded({ action: DECLARE, subject: 'the recommended settings as a new revision' });
+          onDeclared?.();
+        },
+      },
+    );
 
+  return (
+    <Stack gap="xl">
+      {appliable.length > 0 ? (
+        <Section
+          title="Studio can apply these"
+          description={
+            recommendations.seededFrom
+              ? `Each entry below is the whole setting as ${recommendations.seededFrom} runs it today, with the` +
+                ' recommended keys changed. A runtime write replaces the entry rather than merging into it, so' +
+                ' what is listed is exactly what the node will hold afterwards.'
+              : 'No node could be read, so these entries carry only the recommended keys. Applying one would' +
+                ' replace whatever else the match holds — read a node first if you can.'
+          }
+        >
           <Checkbox.Group value={taken} onChange={setTaken}>
-            <Stack gap="sm">
+            <Stack gap="md">
               {appliable.map((r) => (
-                <Stack key={r.capability} gap={6}>
+                <Stack key={r.capability} gap="xs">
                   <Checkbox value={r.capability} label={r.title} />
-                  <Text size="xs" c="dimmed" ml="xl">
+                  <Text size="sm" c="dimmed" ml="xl">
                     {r.rationale}
                   </Text>
-                  <Group gap={6} ml="xl" wrap="wrap">
-                    <Text size="xs">
+                  <Group gap="xs" ml="xl" wrap="wrap">
+                    <Text size="sm">
                       {r.section === 'SECURITY_SETTING' ? 'security-setting' : 'address-setting'} <Code>{r.match}</Code>
                     </Text>
                     {r.keys.map((k) => (
-                      // `tt="none"`: a Badge uppercases by default, and
-                      // MANAGEMENTMESSAGEATTRIBUTESIZELIMIT is not a key anyone
-                      // can read back to the broker's own spelling.
-                      <Badge key={k} size="xs" variant="light" tt="none">
-                        {k}
-                      </Badge>
+                      <Code key={k}>{k}</Code>
                     ))}
                   </Group>
 
@@ -129,7 +137,7 @@ export function RecommendedConfiguration({
                   )}
 
                   {r.manualSnippet ? (
-                    <Text size="xs" c="dimmed" ml="xl">
+                    <Text size="sm" c="dimmed" ml="xl">
                       Its verdict only reaches Studio once the broker-plugin below is installed too.
                     </Text>
                   ) : null}
@@ -139,62 +147,47 @@ export function RecommendedConfiguration({
           </Checkbox.Group>
 
           {clusterId ? (
-            <Group gap="xs" align="center">
+            <Group gap="sm" align="center">
               <Button
                 size="xs"
                 loading={declare.isPending}
                 disabled={Boolean(blocked)}
                 aria-disabled={Boolean(blocked)}
-                onClick={() =>
-                  declare.mutate(
-                    { capabilities: taken, roles },
-                    {
-                      onSuccess: () => onDeclared?.(),
-                    },
-                  )
-                }
+                onClick={declareNow}
               >
                 Declare &amp; review the plan
               </Button>
-              <Text size="xs" c="dimmed">
+              <Text size="sm" c="dimmed">
                 {blocked ?? 'Saves a revision. Nothing reaches a broker until you confirm the plan.'}
               </Text>
             </Group>
           ) : (
-            <Text size="xs" c="dimmed">
+            <Text size="sm" c="dimmed">
               {blocked}
             </Text>
           )}
 
-          {declare.isError ? (
-            <Alert color="red" variant="light" title={declare.error.title} role="alert">
-              {declare.error.message}
-            </Alert>
-          ) : null}
-        </Stack>
+          {declare.isError ? <ErrorState error={declare.error} onRetry={declareNow} /> : null}
+        </Section>
       ) : null}
 
       {manual.length > 0 ? (
-        <Stack gap="sm">
-          <Stack gap={2}>
-            <Text size="sm" fw={600}>
-              These still need a broker.xml edit
-            </Text>
-            <Text size="xs" c="dimmed">
-              No management operation writes any of them, so Studio never will. Paste the fragment and restart the
-              broker.
-            </Text>
-          </Stack>
+        <Section
+          title="These still need a broker.xml edit"
+          description="No management operation writes any of them, so Studio never will. Paste the fragment and restart the broker."
+        >
           {manual.map((r) => (
-            <Stack key={`${r.capability}-manual`} gap={4}>
+            <Stack key={`${r.capability}-manual`} gap="xs">
               <Text size="sm">{r.title}</Text>
-              <Text size="xs" c="dimmed">
+              <Text size="sm" c="dimmed">
                 {r.rationale}
               </Text>
-              {r.manualSnippet ? <CodeHighlight code={r.manualSnippet.trimEnd()} language="xml" /> : null}
+              {r.manualSnippet ? (
+                <XmlBlock code={r.manualSnippet.trimEnd()} label={`broker.xml for ${r.title}`} />
+              ) : null}
             </Stack>
           ))}
-        </Stack>
+        </Section>
       ) : null}
     </Stack>
   );
@@ -212,17 +205,17 @@ function ValuePreview({ recommendation, ml }: Readonly<{ recommendation: ConfigR
   });
   if (entries.length === 0) return null;
   return (
-    <Stack gap={2} ml={ml ? 'xl' : undefined}>
+    <Stack gap="xs" ml={ml ? 'xl' : undefined}>
       {entries.map(([key, value]) => (
-        <Group key={key} gap={6} wrap="nowrap">
-          <Text size="xs" c={changed(key) ? undefined : 'dimmed'} fw={changed(key) ? 600 : undefined}>
+        <Group key={key} gap="xs" wrap="wrap">
+          <Text size="sm" c={changed(key) ? undefined : 'dimmed'} fw={changed(key) ? 600 : undefined}>
             {key}
           </Text>
-          <Text size="xs" ff="monospace">
+          <Text size="sm" ff="monospace">
             {String(value)}
           </Text>
           {changed(key) ? null : (
-            <Text size="xs" c="dimmed">
+            <Text size="sm" c="dimmed">
               (unchanged)
             </Text>
           )}

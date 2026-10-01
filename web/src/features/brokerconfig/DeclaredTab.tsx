@@ -1,80 +1,138 @@
-import { Button, Group, Stack, Table, Text } from '@mantine/core';
+import { useMemo } from 'react';
+import { Button, Stack } from '@mantine/core';
 
-import type { ConfigCatalogueView, ConfigDeclarationView } from './api.ts';
+import type {
+  ConfigAddressSettingView,
+  ConfigAddressView,
+  ConfigBridgeView,
+  ConfigCatalogueView,
+  ConfigDeclarationView,
+  ConfigDivertView,
+  ConfigSecuritySettingView,
+} from './api.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import type { GateVerdict } from '../../ui/capabilityGate.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { Section as PageSection } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { AddressEditor } from './AddressEditor.tsx';
 import { AddressSettingEditor } from './AddressSettingEditor.tsx';
+import { declaredColumns, type DeclaredContext, type DeclaredSpec } from './declaredColumns.tsx';
 import { DivertEditor } from './DivertEditor.tsx';
 import { SecuritySettingEditor } from './SecuritySettingEditor.tsx';
 import { BridgeEditor } from './routing/BridgeEditor.tsx';
-import classes from './Configuration.module.css';
-import { KeyValueList } from './KeyValueList.tsx';
-import { addressRows, addressSettingRows, bridgeRows, securitySettingRows } from './pretty.ts';
+import { addressRows, addressSettingRows, bridgeRows, divertRows, securitySettingRows } from './pretty.ts';
 import type { ApplyScope } from './ReviewApplyDrawer.tsx';
-import {
-  SECTION_LABEL,
-  SECTION_TEACHING,
-  findingRows,
-  itemDriftWords,
-  itemFindings,
-  stepIdsFor,
-  type Section,
-} from './words.ts';
+import { SECTION_LABEL, SECTION_TEACHING, stepIdsFor, type Section } from './words.ts';
+
+const addressSpec: DeclaredSpec<ConfigAddressView> = {
+  section: 'addresses',
+  noun: 'address',
+  nameHeader: 'Address',
+  valuesHeader: 'Routing and queues',
+  nameOf: (a) => a.name,
+  rowsOf: addressRows,
+  queueKeysOf: (a) => a.queues.map((q) => q.name),
+  // The address and every queue declared on it: applying the address without its queues would leave
+  // the row half done.
+  scopeOf: (a) => ({
+    label: `address ${a.name}`,
+    stepIds: stepIdsFor([
+      { section: 'ADDRESS', key: a.name },
+      ...a.queues.map((q) => ({ section: 'QUEUE' as const, key: q.name })),
+    ]),
+  }),
+};
+
+const securitySpec: DeclaredSpec<ConfigSecuritySettingView> = {
+  section: 'securitySettings',
+  noun: 'security setting',
+  nameHeader: 'Match',
+  valuesHeader: 'Role: permissions',
+  nameOf: (s) => s.match,
+  rowsOf: securitySettingRows,
+  noRows: 'no roles',
+  scopeOf: (s) => ({
+    label: `security setting ${s.match}`,
+    stepIds: stepIdsFor([{ section: 'SECURITY_SETTING', key: s.match }]),
+  }),
+};
+
+const divertSpec: DeclaredSpec<ConfigDivertView> = {
+  section: 'diverts',
+  noun: 'divert',
+  nameHeader: 'Name',
+  valuesHeader: 'Declared',
+  nameOf: (d) => d.name,
+  rowsOf: divertRows,
+  scopeOf: (d) => ({ label: `divert ${d.name}`, stepIds: stepIdsFor([{ section: 'DIVERT', key: d.name }]) }),
+};
+
+const bridgeSpec: DeclaredSpec<ConfigBridgeView> = {
+  section: 'bridges',
+  noun: 'bridge',
+  nameHeader: 'Name',
+  valuesHeader: 'Declared',
+  nameOf: (b) => b.name,
+  rowsOf: bridgeRows,
+  scopeOf: (b) => ({ label: `bridge ${b.name}`, stepIds: stepIdsFor([{ section: 'BRIDGE', key: b.name }]) }),
+};
 
 /**
- * One declared item's live state, on its own row (ADR-0087 D1): the sentence
- * first — in sync, missing, or differing, with the nodes named — and underneath
- * it the keys that actually differ, declared → observed. Colour is redundant
- * with the words.
+ * One section of the declaration: a table of what is declared beside what the nodes run, or what an
+ * empty section is for, and the control that adds an entry (visible, and disabled with its reason
+ * when the operator may not).
  */
-function LiveState({
-  declaration,
-  section,
-  itemKey,
-  queueKeys,
-  catalogue,
+function DeclaredSection<T>({
+  ctx,
+  spec,
+  items,
+  addLabel,
+  addGate,
+  addDisabled,
 }: Readonly<{
-  declaration: ConfigDeclarationView;
-  section: Section;
-  itemKey: string;
-  /** The queues declared on this address: their findings carry their own name, not this row's. */
-  queueKeys?: string[];
-  catalogue?: ConfigCatalogueView;
+  ctx: DeclaredContext;
+  spec: DeclaredSpec<T>;
+  items: T[];
+  addLabel: string;
+  addGate: GateVerdict;
+  addDisabled: boolean;
 }>) {
-  const { text, tone } = itemDriftWords(declaration, section, itemKey, queueKeys);
-  const found = itemFindings(declaration, section, itemKey, queueKeys);
+  const columns = useMemo(() => declaredColumns(ctx, spec), [ctx, spec]);
+  const n = items.length;
+  const label = SECTION_LABEL[spec.section];
+  const add = (
+    <CapabilityGate verdict={addGate} what={`adding ${spec.noun}`}>
+      <Button variant="default" size="xs" onClick={() => ctx.onEdit(spec.section)} disabled={addDisabled}>
+        {addLabel}
+      </Button>
+    </CapabilityGate>
+  );
   return (
-    <Stack gap={2}>
-      <Text size="xs" className={classes.state} data-tone={tone}>
-        {text}
-      </Text>
-      {found.map(({ nodeName, label, finding }, i) => {
-        // A missing item differs in every key, and "declared → —" repeated down
-        // the whole entry says nothing the sentence above has not already said.
-        // Only a divergence earns its keys.
-        if (finding.kind === 'MISSING') return null;
-        const differing = findingRows(finding, catalogue).filter((r) => r.differs);
-        if (differing.length === 0) return null;
-        return (
-          <div key={`${nodeName}:${i}`} className={classes.kv} data-diff>
-            {differing.map((r) => (
-              <div key={r.key} className={classes.kvRow} data-differs>
-                <span className={classes.kvKey}>
-                  {label}
-                  {r.key}
-                </span>
-                <span className={classes.kvValue}>
-                  <span className={classes.before}>{r.declared}</span>
-                  {' → '}
-                  {r.observed}
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </Stack>
+    <PageSection
+      title={label}
+      description={`${n === 0 ? '' : `${n} declared. `}${SECTION_TEACHING[spec.section]}`}
+      actions={add}
+    >
+      {n === 0 ? (
+        <EmptyState
+          kind="empty"
+          title="None declared"
+          description="Nothing is declared in this section, so the live nodes are not compared on it."
+        />
+      ) : (
+        <DataTable
+          variant="static"
+          label={label}
+          columns={columns}
+          data={items}
+          rowKey={spec.nameOf}
+          storageKey={`brokerconfig.declared.${spec.section}`}
+          height={{ maxRows: n }}
+          empty={null}
+        />
+      )}
+    </PageSection>
   );
 }
 
@@ -113,286 +171,75 @@ export function DeclaredTab({
   const openItemIn = <T,>(section: Section, list: T[], keyOfItem: (item: T) => string): T | null =>
     openSection === section && openItem ? (list.find((i) => keyOfItem(i) === openItem) ?? null) : null;
 
-  // Disabled with the reason on a focusable wrapper, never a hover-only title.
+  const ctx = useMemo<DeclaredContext>(
+    () => ({ declaration, catalogue, canWrite, applyGate, onEdit, onApply }),
+    [declaration, catalogue, canWrite, applyGate, onEdit, onApply],
+  );
+  const addressSettingSpec = useMemo<DeclaredSpec<ConfigAddressSettingView>>(
+    () => ({
+      section: 'addressSettings',
+      noun: 'address setting',
+      nameHeader: 'Match',
+      valuesHeader: 'Declared keys',
+      nameOf: (s) => s.match,
+      rowsOf: (s) => addressSettingRows(s, catalogue),
+      noRows: 'no keys — applying resets the entry to the parent match',
+      scopeOf: (s) => ({
+        label: `address setting ${s.match}`,
+        stepIds: stepIdsFor([{ section: 'ADDRESS_SETTING', key: s.match }]),
+      }),
+    }),
+    [catalogue],
+  );
+
+  // Disabled with the reason on a focusable control, never a hover-only title.
   const writeGate: GateVerdict = canWrite
     ? { kind: 'allowed', uncertain: false }
     : { kind: 'blocked', reason: 'Needs the "Edit declared configuration" permission on this cluster.' };
 
-  const addButton = (section: Section, label: string) => (
-    <CapabilityGate verdict={writeGate}>
-      <Button
-        variant="default"
-        size="xs"
-        onClick={() => onEdit(section, undefined)}
-        disabled={!canWrite || (section === 'addressSettings' && !catalogue)}
-      >
-        {label}
-      </Button>
-    </CapabilityGate>
-  );
-
-  const actions = (section: Section, itemKey: string, name: string, scope: ApplyScope) => (
-    <Group gap={4} justify="flex-end" wrap="nowrap">
-      <Button
-        variant="subtle"
-        size="compact-xs"
-        onClick={() => onEdit(section, itemKey)}
-        aria-label={`${canWrite ? 'Edit' : 'View'} ${name}`}
-      >
-        {canWrite ? 'Edit' : 'View'}
-      </Button>
-      <CapabilityGate verdict={applyGate} what={`applying ${name}`}>
-        <Button
-          variant="subtle"
-          size="compact-xs"
-          onClick={() => onApply(scope)}
-          disabled={applyGate.kind === 'blocked'}
-          aria-label={`Apply ${name}`}
-        >
-          Apply this
-        </Button>
-      </CapabilityGate>
-    </Group>
-  );
-
-  const heading = (section: Section, n: number) => (
-    <Stack gap={2}>
-      <Group gap="sm" align="baseline">
-        <Text size="sm" fw={600}>
-          {SECTION_LABEL[section]}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {n === 0 ? 'none declared' : `${n} declared`}
-        </Text>
-      </Group>
-      <Text size="xs" c="dimmed">
-        {SECTION_TEACHING[section]}
-      </Text>
-    </Stack>
-  );
-
   return (
     <>
-      <Stack gap="lg">
-        <Stack gap="xs">
-          {heading('addresses', doc.addresses.length)}
-          {doc.addresses.length > 0 ? (
-            <Table.ScrollContainer minWidth={760} type="native">
-              <Table fz="xs" verticalSpacing={4} layout="fixed">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w="18%">Address</Table.Th>
-                    <Table.Th w="36%">Routing and queues</Table.Th>
-                    <Table.Th w="30%">On the live nodes</Table.Th>
-                    <Table.Th w={150} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {doc.addresses.map((a) => (
-                    <Table.Tr key={a.name}>
-                      <Table.Td>{a.name}</Table.Td>
-                      <Table.Td>
-                        <KeyValueList rows={addressRows(a)} />
-                      </Table.Td>
-                      <Table.Td>
-                        <LiveState
-                          declaration={declaration}
-                          section="addresses"
-                          itemKey={a.name}
-                          queueKeys={a.queues.map((q) => q.name)}
-                          catalogue={catalogue}
-                        />
-                      </Table.Td>
-                      <Table.Td className={classes.actionCell}>
-                        {actions('addresses', a.name, `address ${a.name}`, {
-                          label: `address ${a.name}`,
-                          // The address and every queue declared on it: applying the
-                          // address without its queues would leave the row half done.
-                          stepIds: stepIdsFor([
-                            { section: 'ADDRESS', key: a.name },
-                            ...a.queues.map((q) => ({ section: 'QUEUE' as const, key: q.name })),
-                          ]),
-                        })}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          ) : null}
-          <div>{addButton('addresses', 'Add address')}</div>
-        </Stack>
-
-        <Stack gap="xs">
-          {heading('addressSettings', doc.addressSettings.length)}
-          {doc.addressSettings.length > 0 ? (
-            <Table.ScrollContainer minWidth={760} type="native">
-              <Table fz="xs" verticalSpacing={4} layout="fixed">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w="18%">Match</Table.Th>
-                    <Table.Th w="36%">Declared keys</Table.Th>
-                    <Table.Th w="30%">On the live nodes</Table.Th>
-                    <Table.Th w={150} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {doc.addressSettings.map((s) => (
-                    <Table.Tr key={s.match}>
-                      <Table.Td>{s.match}</Table.Td>
-                      <Table.Td>
-                        <KeyValueList
-                          rows={addressSettingRows(s, catalogue)}
-                          empty="no keys — applying resets the entry to the parent match"
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <LiveState
-                          declaration={declaration}
-                          section="addressSettings"
-                          itemKey={s.match}
-                          catalogue={catalogue}
-                        />
-                      </Table.Td>
-                      <Table.Td className={classes.actionCell}>
-                        {actions('addressSettings', s.match, `address setting ${s.match}`, {
-                          label: `address setting ${s.match}`,
-                          stepIds: stepIdsFor([{ section: 'ADDRESS_SETTING', key: s.match }]),
-                        })}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          ) : null}
-          <div>{addButton('addressSettings', 'Add address setting')}</div>
-        </Stack>
-
-        <Stack gap="xs">
-          {heading('securitySettings', doc.securitySettings.length)}
-          {doc.securitySettings.length > 0 ? (
-            <Table.ScrollContainer minWidth={760} type="native">
-              <Table fz="xs" verticalSpacing={4} layout="fixed">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w="18%">Match</Table.Th>
-                    <Table.Th w="36%">Role: permissions</Table.Th>
-                    <Table.Th w="30%">On the live nodes</Table.Th>
-                    <Table.Th w={150} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {doc.securitySettings.map((s) => (
-                    <Table.Tr key={s.match}>
-                      <Table.Td>{s.match}</Table.Td>
-                      <Table.Td>
-                        <KeyValueList rows={securitySettingRows(s)} empty="no roles" />
-                      </Table.Td>
-                      <Table.Td>
-                        <LiveState
-                          declaration={declaration}
-                          section="securitySettings"
-                          itemKey={s.match}
-                          catalogue={catalogue}
-                        />
-                      </Table.Td>
-                      <Table.Td className={classes.actionCell}>
-                        {actions('securitySettings', s.match, `security setting ${s.match}`, {
-                          label: `security setting ${s.match}`,
-                          stepIds: stepIdsFor([{ section: 'SECURITY_SETTING', key: s.match }]),
-                        })}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          ) : null}
-          <div>{addButton('securitySettings', 'Add security setting')}</div>
-        </Stack>
-
-        <Stack gap="xs">
-          {heading('diverts', doc.diverts.length)}
-          {doc.diverts.length > 0 ? (
-            <Table.ScrollContainer minWidth={760} type="native">
-              <Table fz="xs" verticalSpacing={4} layout="fixed">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w="16%">Name</Table.Th>
-                    <Table.Th w="28%">Routes</Table.Th>
-                    <Table.Th w="16%">Effect</Table.Th>
-                    <Table.Th w="24%">On the live nodes</Table.Th>
-                    <Table.Th w={150} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {doc.diverts.map((d) => (
-                    <Table.Tr key={d.name}>
-                      <Table.Td>{d.name}</Table.Td>
-                      <Table.Td aria-label={`from ${d.address} to ${d.forwardingAddress}`}>
-                        {d.address} → {d.forwardingAddress}
-                      </Table.Td>
-                      <Table.Td>{d.exclusive ? 'takes the message' : 'copies the message'}</Table.Td>
-                      <Table.Td>
-                        <LiveState declaration={declaration} section="diverts" itemKey={d.name} catalogue={catalogue} />
-                      </Table.Td>
-                      <Table.Td className={classes.actionCell}>
-                        {actions('diverts', d.name, `divert ${d.name}`, {
-                          label: `divert ${d.name}`,
-                          stepIds: stepIdsFor([{ section: 'DIVERT', key: d.name }]),
-                        })}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          ) : null}
-          <div>{addButton('diverts', 'Add divert')}</div>
-        </Stack>
-
-        <Stack gap="xs">
-          {heading('bridges', doc.bridges.length)}
-          {doc.bridges.length > 0 ? (
-            <Table.ScrollContainer minWidth={760} type="native">
-              <Table fz="xs" verticalSpacing={4} layout="fixed">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w="16%">Name</Table.Th>
-                    <Table.Th w="28%">Routes</Table.Th>
-                    <Table.Th w="20%">Declared</Table.Th>
-                    <Table.Th w="24%">On the live nodes</Table.Th>
-                    <Table.Th w={150} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {doc.bridges.map((b) => (
-                    <Table.Tr key={b.name}>
-                      <Table.Td>{b.name}</Table.Td>
-                      <Table.Td aria-label={`from queue ${b.queueName} to address ${b.forwardingAddress}`}>
-                        {b.queueName} → {b.forwardingAddress}
-                      </Table.Td>
-                      <Table.Td>
-                        <KeyValueList rows={bridgeRows(b)} />
-                      </Table.Td>
-                      <Table.Td>
-                        <LiveState declaration={declaration} section="bridges" itemKey={b.name} catalogue={catalogue} />
-                      </Table.Td>
-                      <Table.Td className={classes.actionCell}>
-                        {actions('bridges', b.name, `bridge ${b.name}`, {
-                          label: `bridge ${b.name}`,
-                          stepIds: stepIdsFor([{ section: 'BRIDGE', key: b.name }]),
-                        })}
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          ) : null}
-          <div>{addButton('bridges', 'Add bridge')}</div>
-        </Stack>
+      <Stack gap="xl">
+        <DeclaredSection
+          ctx={ctx}
+          spec={addressSpec}
+          items={doc.addresses}
+          addLabel="Add address"
+          addGate={writeGate}
+          addDisabled={!canWrite}
+        />
+        <DeclaredSection
+          ctx={ctx}
+          spec={addressSettingSpec}
+          items={doc.addressSettings}
+          addLabel="Add address setting"
+          addGate={writeGate}
+          addDisabled={!canWrite || !catalogue}
+        />
+        <DeclaredSection
+          ctx={ctx}
+          spec={securitySpec}
+          items={doc.securitySettings}
+          addLabel="Add security setting"
+          addGate={writeGate}
+          addDisabled={!canWrite}
+        />
+        <DeclaredSection
+          ctx={ctx}
+          spec={divertSpec}
+          items={doc.diverts}
+          addLabel="Add divert"
+          addGate={writeGate}
+          addDisabled={!canWrite}
+        />
+        <DeclaredSection
+          ctx={ctx}
+          spec={bridgeSpec}
+          items={doc.bridges}
+          addLabel="Add bridge"
+          addGate={writeGate}
+          addDisabled={!canWrite}
+        />
       </Stack>
 
       {catalogue ? (

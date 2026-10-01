@@ -6,20 +6,29 @@
  * nothing (frontend rule: presentation).
  *
  * Motion answers the operator only — hover, focus, selection — on elevation, opacity and border,
- * never on anything that encodes data (ADR-0090 D5), and none of it survives reduced motion.
+ * never on anything that encodes data (ADR-0090 D5). Every duration is a token, which the
+ * reduced-motion rule in theme.css sets to zero.
  */
 
+/* The canvas and the inspector wrap by their own sizes: the canvas takes what is left, the
+   inspector keeps a readable width and drops below when the two no longer fit. */
 .builder {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-md);
+  align-items: flex-start;
 }
 
-@media (max-width: 62em) {
-  .builder {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.canvasColumn {
+  flex: 1 1 36rem;
+  min-inline-size: 0;
+}
+
+.layoutError {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  margin-block-end: var(--mantine-spacing-sm);
 }
 
 /* ── frame: toolbar over the sunken canvas ─────────────────────────────── */
@@ -32,12 +41,8 @@
 }
 
 .toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  padding-block: 8px;
-  padding-inline: 10px;
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-md);
   background: var(--as-surface-raised);
   border-block-end: 1px solid var(--as-border);
 }
@@ -45,28 +50,17 @@
 .toolbarGroup {
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.toolbarSpacer {
-  flex: 1;
-}
-
-.divider {
-  inline-size: 1px;
-  block-size: 20px;
-  background: var(--as-border);
-  margin-inline: 2px;
+  gap: var(--mantine-spacing-xs);
 }
 
 .inlineField {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mantine-spacing-sm);
 }
 
 .inlineLabel {
-  font-size: 0.75rem;
+  font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   white-space: nowrap;
 }
@@ -90,7 +84,7 @@
    * fixed subtraction is right on one screen and puts the graph below the fold on the next.
    * `--as-routing-top` is measured on mount and on resize; the fallback is the first paint.
    */
-  block-size: clamp(440px, calc(100dvh - var(--as-routing-top, 300px) - 56px), 920px);
+  block-size: clamp(27.5rem, calc(100dvh - var(--as-routing-top, 18.75rem) - 3.5rem), 57.5rem);
 }
 
 .dots {
@@ -112,13 +106,13 @@
   box-sizing: border-box;
   inline-size: 100%;
   block-size: 100%;
-  padding-block: 8px;
-  padding-inline: 12px;
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-md);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  gap: 3px;
+  gap: 0.1875rem;
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
   background: var(--as-surface-raised);
@@ -128,9 +122,9 @@
   cursor: pointer;
   text-align: start;
   transition:
-    box-shadow 140ms ease-out,
-    border-color 140ms ease-out,
-    opacity 140ms ease-out;
+    box-shadow var(--as-duration-fast) var(--as-ease),
+    border-color var(--as-duration-fast) var(--as-ease),
+    opacity var(--as-duration-fast) var(--as-ease);
 }
 
 .node:hover {
@@ -156,14 +150,14 @@
 }
 
 .node:focus-visible {
-  outline: 2px solid var(--as-text);
-  outline-offset: 3px;
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
 }
 
 .kind {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 0.3125rem;
   font-size: 0.6875rem;
   color: var(--as-text-dimmed);
   white-space: nowrap;
@@ -187,9 +181,9 @@
 .state {
   max-inline-size: 100%;
   padding-block: 0;
-  padding-inline: 6px;
+  padding-inline: var(--mantine-spacing-sm);
   border: 1px solid var(--as-border);
-  border-radius: 999px;
+  border-radius: var(--mantine-radius-xl);
   font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--as-text-dimmed);
@@ -208,12 +202,12 @@
  * focus, and only while the operator may compose.
  */
 .handle {
-  inline-size: 9px;
-  block-size: 9px;
+  inline-size: 0.5625rem;
+  block-size: 0.5625rem;
   background: var(--as-surface-raised);
-  border: 1.5px solid var(--as-text-dimmed);
+  border: 0.125rem solid var(--as-text-dimmed);
   opacity: 0;
-  transition: opacity 140ms ease-out;
+  transition: opacity var(--as-duration-fast) var(--as-ease);
 }
 
 :global(.react-flow__node):hover .handle[data-usable],
@@ -226,13 +220,13 @@
 }
 
 /*
- * The dot is small on purpose; the target is not. Fitted to a dense frame a 9px handle is a few
+ * The dot is small on purpose; the target is not. Fitted to a dense frame the handle is a few
  * screen pixels, so it carries an invisible margin that makes it catchable at any zoom.
  */
 .handle::before {
   content: '';
   position: absolute;
-  inset: -14px;
+  inset: -0.875rem;
   border-radius: 50%;
 }
 
@@ -261,8 +255,8 @@
   stroke-width: 1.25;
   fill: none;
   transition:
-    opacity 140ms ease-out,
-    stroke 140ms ease-out;
+    opacity var(--as-duration-fast) var(--as-ease),
+    stroke var(--as-duration-fast) var(--as-ease);
 }
 
 .edge[data-emphasis='forward'] {
@@ -277,15 +271,15 @@
 .edgeChip {
   position: absolute;
   padding-block: 0;
-  padding-inline: 6px;
+  padding-inline: var(--mantine-spacing-sm);
   border: 1px solid var(--as-border);
-  border-radius: 999px;
+  border-radius: var(--mantine-radius-xl);
   background: var(--as-surface-raised);
   color: var(--as-text-dimmed);
   font-size: 0.6875rem;
   line-height: 1.5;
   pointer-events: none;
-  transition: opacity 140ms ease-out;
+  transition: opacity var(--as-duration-fast) var(--as-ease);
 }
 
 .edgeChip[data-emphasis='forward'] {
@@ -309,8 +303,10 @@
 
 .inspector {
   position: sticky;
-  inset-block-start: 12px;
-  padding: 14px;
+  inset-block-start: var(--mantine-spacing-md);
+  flex: 0 1 20rem;
+  min-inline-size: min(100%, 16rem);
+  padding: var(--mantine-spacing-md);
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
   background: var(--as-surface-raised);
@@ -324,13 +320,4 @@
   color: var(--as-text-dimmed);
   font-size: 0.6875rem;
   margin-block-start: 0.5rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .node,
-  .handle,
-  .edge,
-  .edgeChip {
-    transition: none;
-  }
 }

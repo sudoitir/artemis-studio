@@ -1,87 +1,55 @@
 import { useMemo, useState } from 'react';
-import { Accordion, Alert, Badge, Group, Loader, Select, Stack, Switch, Table, Text, Title } from '@mantine/core';
+import { Accordion, Select, Switch, Text } from '@mantine/core';
 import { useParams } from '@tanstack/react-router';
 
-import { useConfigDiff, type ConfigEntryView, type ConfigSectionView } from './api.ts';
+import { useConfigDiff, type ConfigSectionView } from './api.ts';
 import { useTopology } from '../clusters/index.ts';
-import styles from './ConfigDiffView.module.css';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { diffEntryColumns } from './configDiffColumns.tsx';
+import classes from './ConfigDiffView.module.css';
 
-/** Drift is the only class that is a problem; the other two exist so it stays legible. */
-function classificationBadge(entry: ConfigEntryView) {
-  if (entry.classification === 'EXPECTED') {
+/** One section's keys, side by side: a table, or what its emptiness means. */
+function SectionTable({
+  section,
+  driftOnly,
+  onShowAll,
+}: Readonly<{ section: ConfigSectionView; driftOnly: boolean; onShowAll: () => void }>) {
+  const columns = useMemo(diffEntryColumns, []);
+  if (section.entries.length > 0) {
     return (
-      <Badge size="xs" variant="default" title="Correct by design for two distinct nodes">
-        expected
-      </Badge>
+      <DataTable
+        variant="static"
+        label={`${section.label} configuration of the two nodes`}
+        columns={columns}
+        data={section.entries}
+        rowKey={(e) => e.key}
+        storageKey="brokerconfig.diff"
+        rowClassName={(e) => (e.drift ? classes.drift : undefined)}
+        height={{ maxRows: section.entries.length }}
+        empty={null}
+      />
     );
   }
-  if (entry.classification === 'UNCLASSIFIED') {
-    return (
-      <Badge
-        size="xs"
-        variant="default"
-        title="Not known to be configuration — a runtime counter, or an attribute Studio has not classified"
-      >
-        unclassified
-      </Badge>
-    );
-  }
-  return entry.drift ? (
-    <Badge size="xs" color="yellow" variant="light">
-      drift
-    </Badge>
-  ) : null;
-}
-
-function SectionTable({ entries }: Readonly<{ entries: ConfigEntryView[] }>) {
-  if (entries.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        Nothing to compare in this section.
-      </Text>
-    );
-  }
-  return (
-    <div className={styles.scroll}>
-      <Table withRowBorders={false} verticalSpacing={4} className={styles.table}>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th className={styles.keyCell}>Key</Table.Th>
-            <Table.Th>Left</Table.Th>
-            <Table.Th>Right</Table.Th>
-            <Table.Th className={styles.statusCell}>Status</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {entries.map((e) => (
-            <Table.Tr key={e.key} data-drift={e.drift || undefined}>
-              <Table.Td className={styles.keyCell} title={e.key}>
-                <Text size="xs" ff="monospace">
-                  {e.key}
-                </Text>
-              </Table.Td>
-              <Table.Td className={styles.valueCell}>
-                <Text size="xs" ff="monospace" c={e.left === null ? 'dimmed' : undefined}>
-                  {e.left ?? '—'}
-                </Text>
-              </Table.Td>
-              <Table.Td className={styles.valueCell}>
-                <Text size="xs" ff="monospace" c={e.right === null ? 'dimmed' : undefined}>
-                  {e.right ?? '—'}
-                </Text>
-              </Table.Td>
-              <Table.Td className={styles.statusCell}>
-                {/* The status is a word, never carried by colour alone. */}
-                <Group gap={6} wrap="nowrap">
-                  <Text size="xs">{e.statusWord}</Text>
-                  {classificationBadge(e)}
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </div>
+  // Filtered-empty is not empty: with "Drift only" on, say that, and offer the whole section.
+  return driftOnly ? (
+    <EmptyState
+      kind="filtered"
+      title="No drift in this section"
+      description="Drift only is on, so keys that agree are not listed."
+      onClearFilters={onShowAll}
+    />
+  ) : (
+    <Text size="sm" c="dimmed">
+      Nothing to compare in this section.
+    </Text>
   );
 }
 
@@ -92,87 +60,94 @@ function driftLabel(count: number): string {
   return `${count} drift${count === 1 ? '' : 's'}`;
 }
 
-/** The comparison itself: the pair, why it cannot be compared when it cannot, and the sections. */
-function DiffResult({ data, sections }: Readonly<{ data: DiffData; sections: ConfigSectionView[] }>) {
-  return (
+/** Why the pair cannot be compared: the note, and each side that did not answer with its reason. */
+function NoComparison({ data }: Readonly<{ data: DiffData }>) {
+  const sides = [data.left, data.right];
+  const reasons = (
     <>
-      <Group gap="xs" wrap="wrap">
-        <Title order={4}>
-          {data.left.nodeName} ↔ {data.right.nodeName}
-        </Title>
-        {data.comparable ? (
-          <Badge
-            variant="light"
-            color={data.driftCount > 0 ? 'yellow' : 'gray'}
-            title="Differences in configuration keys, excluding expected and unclassified ones"
-          >
-            {driftLabel(data.driftCount)}
-          </Badge>
-        ) : null}
-        {[data.left, data.right].map((side) =>
-          side.available ? null : (
-            <Badge key={side.nodeId} variant="light" color="red">
-              {side.nodeName} unavailable
-            </Badge>
-          ),
-        )}
-      </Group>
+      {data.note ? <Text size="sm">{data.note}</Text> : null}
+      {sides
+        .filter((s) => s.unavailableReason)
+        .map((s) => (
+          <Text key={s.nodeId} size="sm">
+            <strong>{s.nodeName}:</strong> {s.unavailableReason}
+          </Text>
+        ))}
+    </>
+  );
+  const unreachable = sides.filter((s) => !s.available).map((s) => s.nodeName);
+  // Never a half-diff: when a side is unreachable or answers thinly, say so.
+  return unreachable.length > 0 ? (
+    <EmptyState kind="unreachable" title="No comparison shown" description={reasons} nodes={unreachable} />
+  ) : (
+    <EmptyState kind="empty" title="No comparison shown" description={reasons} />
+  );
+}
 
-      {/* Never a half-diff: when a side is unreachable or answers thinly, say so. */}
-      {!data.comparable ? (
-        <Alert color="yellow" variant="light" title="No comparison shown">
-          <Stack gap={4}>
-            <Text size="sm">{data.note}</Text>
-            {[data.left, data.right]
-              .filter((s) => s.unavailableReason)
-              .map((s) => (
-                <Text key={s.nodeId} size="sm">
-                  <strong>{s.nodeName}:</strong> {s.unavailableReason}
-                </Text>
-              ))}
-          </Stack>
-        </Alert>
-      ) : null}
-
-      {data.comparable && data.note ? (
-        <Text size="xs" c="dimmed">
-          {data.note}
-        </Text>
-      ) : null}
-
+/** The comparison itself: the pair, why it cannot be compared when it cannot, and the sections. */
+function DiffResult({
+  data,
+  sections,
+  driftOnly,
+  onShowAll,
+}: Readonly<{ data: DiffData; sections: ConfigSectionView[]; driftOnly: boolean; onShowAll: () => void }>) {
+  return (
+    <Section
+      title={`${data.left.nodeName} ↔ ${data.right.nodeName}`}
+      description={
+        data.comparable ? (
+          <>
+            <div>Differences in configuration keys, excluding expected and unclassified ones.</div>
+            {data.note ? <div>{data.note}</div> : null}
+          </>
+        ) : undefined
+      }
+      actions={
+        <>
+          {data.comparable ? (
+            <StatusBadge tone={data.driftCount > 0 ? 'warning' : 'neutral'}>{driftLabel(data.driftCount)}</StatusBadge>
+          ) : null}
+          {[data.left, data.right].map((side) =>
+            side.available ? null : (
+              <StatusBadge key={side.nodeId} tone="danger">
+                {`${side.nodeName} unavailable`}
+              </StatusBadge>
+            ),
+          )}
+        </>
+      }
+    >
       {data.comparable ? (
-        <Accordion multiple defaultValue={['broker', 'addressSettings']} variant="separated">
+        <Accordion multiple defaultValue={['broker', 'addressSettings']} variant="separated" order={3}>
           {sections.map((s) => (
             <Accordion.Item key={s.section} value={s.section}>
               <Accordion.Control>
-                <Group gap="xs">
-                  <Text size="sm" fw={600}>
+                <span className={classes.sectionHead}>
+                  <Text size="sm" fw={600} component="span">
                     {s.label}
                   </Text>
-                  <Text size="xs" c="dimmed">
+                  <Text size="sm" c="dimmed" component="span">
                     {s.entries.length} key{s.entries.length === 1 ? '' : 's'}
                   </Text>
-                  {s.driftCount > 0 ? (
-                    <Badge size="xs" color="yellow" variant="light">
-                      {s.driftCount} drift
-                    </Badge>
-                  ) : null}
-                </Group>
+                  {s.driftCount > 0 ? <StatusBadge tone="warning">{`${s.driftCount} drift`}</StatusBadge> : null}
+                </span>
               </Accordion.Control>
               <Accordion.Panel>
-                <SectionTable entries={s.entries} />
+                <SectionTable section={s} driftOnly={driftOnly} onShowAll={onShowAll} />
               </Accordion.Panel>
             </Accordion.Item>
           ))}
         </Accordion>
-      ) : null}
-    </>
+      ) : (
+        <NoComparison data={data} />
+      )}
+    </Section>
   );
 }
 
 /**
- * Broker configuration compared across two nodes (ADR-0043). Drift between a
- * primary and its backup is silent until failover, when it is expensive.
+ * Broker configuration compared across two nodes (ADR-0043). Drift between a primary and its backup is
+ * silent until failover, when it is expensive.
  *
  * The screen's job is to make a clean pair *read* as clean: expected differences
  * (a broker's name, its node-local paths) and unclassified keys (runtime counters)
@@ -203,40 +178,48 @@ export function ConfigDiffView() {
   }, [diff.data, driftOnly]);
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Group gap="xs" align="flex-end">
-          <Select
-            label="Left node"
-            placeholder="Auto"
-            data={nodeOptions}
-            value={left}
-            onChange={setLeft}
-            clearable
-            w={200}
-          />
-          <Select
-            label="Right node"
-            placeholder="Its pair"
-            data={nodeOptions}
-            value={right}
-            onChange={setRight}
-            clearable
-            w={200}
-          />
-        </Group>
-        <Switch label="Drift only" checked={driftOnly} onChange={(e) => setDriftOnly(e.currentTarget.checked)} mb={8} />
-      </Group>
+    <Page>
+      <PageHeader
+        title="Config diff"
+        description="Broker configuration compared across two nodes. Drift between a primary and its backup is silent until failover, when it is expensive."
+      />
 
-      {diff.isPending ? <Loader size="sm" /> : null}
+      <Toolbar
+        label="Nodes to compare"
+        start={
+          <>
+            <Select
+              label="Left node"
+              placeholder="Auto"
+              data={nodeOptions}
+              value={left}
+              onChange={setLeft}
+              clearable
+              w="12.5rem"
+            />
+            <Select
+              label="Right node"
+              placeholder="Its pair"
+              data={nodeOptions}
+              value={right}
+              onChange={setRight}
+              clearable
+              w="12.5rem"
+            />
+          </>
+        }
+        end={<Switch label="Drift only" checked={driftOnly} onChange={(e) => setDriftOnly(e.currentTarget.checked)} />}
+      />
 
-      {diff.isError ? (
-        <Alert color="red" variant="light" title={diff.error.title}>
-          {diff.error.message}
-        </Alert>
+      {topology.isError ? <ErrorState error={topology.error} onRetry={() => void topology.refetch()} /> : null}
+
+      {diff.isPending ? <LoadingState label="Comparing the nodes" blockSize="20rem" /> : null}
+
+      {diff.isError ? <ErrorState error={diff.error} onRetry={() => void diff.refetch()} /> : null}
+
+      {diff.data ? (
+        <DiffResult data={diff.data} sections={sections} driftOnly={driftOnly} onShowAll={() => setDriftOnly(false)} />
       ) : null}
-
-      {diff.data ? <DiffResult data={diff.data} sections={sections} /> : null}
-    </Stack>
+    </Page>
   );
 }

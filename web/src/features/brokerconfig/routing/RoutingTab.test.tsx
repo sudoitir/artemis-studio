@@ -325,4 +325,59 @@ describe('RoutingTab', () => {
     // The credential is a reference; no password is anywhere in what was saved.
     expect(JSON.stringify(saved)).not.toContain('password');
   });
+
+  it("draws the canvas in the console's colour scheme, so its own controls and edges follow it", async () => {
+    const { container } = renderWithProviders(<Harness declaration={routed()} />);
+
+    await element(/^Address orders\.request\./);
+    // The test harness runs the dark scheme; React Flow takes its mode from the same computed scheme.
+    expect(container.querySelector('.react-flow')).toHaveClass('dark');
+    expect(container.querySelector('.react-flow')).not.toHaveClass('light');
+  });
+
+  it('teaches what the builder draws when nothing is declared, and keeps the control that starts it', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Harness
+        declaration={declaration({
+          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [], bridges: [] },
+          nodes: [],
+        })}
+      />,
+    );
+
+    expect(await screen.findByText('Nothing to draw yet')).toBeInTheDocument();
+    expect(screen.getByText(/The builder draws this cluster's declared routing/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add queue' }));
+    expect(await screen.findByRole('dialog', { name: 'New address' })).toBeInTheDocument();
+  });
+
+  it('reads the selected element as terms and values, not as a table or a blob', async () => {
+    renderWithProviders(<Harness declaration={routed()} />);
+
+    fireEvent.click(await element(/^Divert audit-copy\./));
+
+    const declared = await screen.findByRole('group', { name: 'audit-copy as declared' });
+    expect(within(declared).getByText('from').tagName).toBe('DT');
+    expect(within(declared).getByText('orders.request').tagName).toBe('DD');
+    expect(within(declared).getByText('transformer tenant')).toBeInTheDocument();
+  });
+
+  it('says the bounded region as a notice announced politely, not an error', async () => {
+    const addresses = Array.from({ length: 160 }, (_, i) => ({
+      name: `orders.${String(i).padStart(3, '0')}`,
+      routingTypes: ['ANYCAST' as const],
+      queues: [],
+    }));
+    renderWithProviders(
+      <Harness
+        declaration={routed({
+          document: { version: 1, addresses, addressSettings: [], securitySettings: [], diverts: [], bridges: [] },
+        })}
+      />,
+    );
+
+    const notice = (await screen.findByText('Showing a bounded region of the graph')).closest('[role]');
+    expect(notice).toHaveAttribute('role', 'status');
+  });
 });

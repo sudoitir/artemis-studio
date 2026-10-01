@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Alert, Button, Drawer, Group, Stack, Text } from '@mantine/core';
+import { Button, Drawer, Group, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 
 /**
  * The frame every declaration editor shares: a side drawer (keyboard-complete,
@@ -57,15 +58,19 @@ export function EditorDrawer({
         {children}
 
         {error ? (
-          <Alert color="red" variant="light" title={error.title} role="alert">
-            {error.type.endsWith('stale-revision')
-              ? `${error.message} Reload the declaration and make this edit again on top of the newer revision.`
-              : error.message}
-          </Alert>
+          <Stack gap="sm">
+            <ErrorState error={error} />
+            {error.type.endsWith('stale-revision') ? (
+              <Text size="sm">
+                Someone saved while this editor was open. Reload the declaration and make this edit again on top of the
+                newer revision.
+              </Text>
+            ) : null}
+          </Stack>
         ) : null}
 
         <Group justify="space-between" align="center">
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             {hint ?? ''}
           </Text>
           <Group gap="xs">

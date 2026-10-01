@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
-import { Alert, Anchor, Button, Group, List, Stack, Text, Tooltip } from '@mantine/core';
+import { Button, Group, List, Popover, Stack, Text } from '@mantine/core';
 
 import { useAdoptBrokerConfig, type ConfigDeclarationView } from './api.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { WHY_NOT_AUTOMATIC } from './words.ts';
+import classes from './Configuration.module.css';
 import { CountsList } from './XmlDrawers.tsx';
 
 /**
@@ -30,13 +34,13 @@ export function AdoptionSuggestion({
   blockedReason?: string;
 }>) {
   const adopt = useAdoptBrokerConfig(declaration.clusterId);
+  const { mutate: read } = adopt;
   const live = declaration.nodes.filter((n) => n.live);
 
+  // One read on arrival. Re-reading on every render would poll the brokers.
   useEffect(() => {
-    if (live.length > 0) adopt.mutate();
-    // One read on arrival. Re-reading on every render would poll the brokers.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [declaration.clusterId, live.length]);
+    if (live.length > 0) read();
+  }, [declaration.clusterId, live.length, read]);
 
   if (live.length === 0) return null;
 
@@ -49,7 +53,7 @@ export function AdoptionSuggestion({
     : 0;
 
   return (
-    <Alert variant="light" color="gray" title="Adopt what this cluster runs as revision 1">
+    <Section variant="card" title="Adopt what this cluster runs as revision 1">
       <Stack gap="sm">
         <Text size="sm">
           {live.length} live node{live.length === 1 ? '' : 's'} can be read. Adopting declares what they run today, so
@@ -57,26 +61,28 @@ export function AdoptionSuggestion({
           a broker.
         </Text>
 
-        <div aria-live="polite">
-          {adopt.isPending ? <Text size="sm">Reading the live nodes…</Text> : null}
+        {/* The result's room is held while the nodes are read, so what is below the card does not move. */}
+        <div aria-live="polite" className={classes.reading}>
+          {adopt.isPending ? <LoadingState label="Reading the live nodes" blockSize="10rem" /> : null}
           {adopt.isError ? (
-            <Text size="sm">
-              The nodes could not be read: {adopt.error.message} That is not the same as there being nothing to adopt.
-            </Text>
+            <Stack gap="xs">
+              <ErrorState variant="inline" error={adopt.error} onRetry={() => read()} />
+              <Text size="sm">That is not the same as there being nothing to adopt.</Text>
+            </Stack>
           ) : null}
           {result ? (
-            <Stack gap={4}>
+            <Stack gap="xs">
               <Text size="sm" fw={600}>
                 {total} entr{total === 1 ? 'y' : 'ies'} would be declared
               </Text>
               <CountsList current={declaration.document} next={result.document} />
               {result.disagreements.length > 0 ? (
                 <>
-                  <Text size="xs" fw={600} mt={4}>
+                  <Text size="sm" fw={600}>
                     The nodes disagree on {result.disagreements.length} item
                     {result.disagreements.length === 1 ? '' : 's'}
                   </Text>
-                  <List size="xs" spacing={2}>
+                  <List size="sm" spacing="xs">
                     {result.disagreements.map((d) => (
                       <List.Item key={d}>{d}</List.Item>
                     ))}
@@ -88,16 +94,26 @@ export function AdoptionSuggestion({
         </div>
 
         <Group gap="sm">
-          <Button size="xs" onClick={onAdopt} disabled={!canWrite} title={canWrite ? undefined : blockedReason}>
+          <Button size="xs" onClick={onAdopt} disabled={!canWrite}>
             Review and adopt as revision 1
           </Button>
-          <Tooltip label={WHY_NOT_AUTOMATIC} multiline w={340} withArrow>
-            <Anchor component="button" type="button" size="xs" underline="always">
-              Why does Studio not do this for me?
-            </Anchor>
-          </Tooltip>
+          <Popover width="22.5rem" position="bottom-start" withArrow shadow="md">
+            <Popover.Target>
+              <Button variant="subtle" size="compact-sm">
+                Why does Studio not do this for me?
+              </Button>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <Text size="sm">{WHY_NOT_AUTOMATIC}</Text>
+            </Popover.Dropdown>
+          </Popover>
         </Group>
+        {canWrite || !blockedReason ? null : (
+          <Text size="sm" c="dimmed">
+            {blockedReason}
+          </Text>
+        )}
       </Stack>
-    </Alert>
+    </Section>
   );
 }

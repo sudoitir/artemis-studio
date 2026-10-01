@@ -7,6 +7,7 @@ import type {
   ConfigDocumentView,
   ConfigSecuritySettingView,
 } from './api.ts';
+import type { DescriptionItem } from '../../ui/DescriptionList.tsx';
 
 /**
  * Readable renderings of declared values. A declaration is JSON on the wire —
@@ -92,6 +93,9 @@ export interface Row {
   key: string;
   value: string;
 }
+
+/** Rows as the terms and values of a description list. */
+export const asItems = (rows: Row[]): DescriptionItem[] => rows.map((r) => ({ term: r.key, value: r.value }));
 
 /** The rows an item reads as: key beside value, in the order the operator declared them. */
 export function addressSettingRows(item: ConfigAddressSettingView, catalogue?: ConfigCatalogueView): Row[] {

@@ -1,10 +1,15 @@
-import { Anchor, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { useMemo } from 'react';
+import { Text, Tooltip } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
-import type { ConfigCatalogueView, ConfigDeclarationView, ConfigNodeStateView } from './api.ts';
+import type { ConfigCatalogueView, ConfigDeclarationView, ConfigDriftFindingView, ConfigNodeStateView } from './api.ts';
 import { absoluteLabel, elapsedLabel, serverNow, useServerNow } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
-import classes from './Configuration.module.css';
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { DataTable, type Column } from '../../ui/table/index.ts';
 import { findingKindWords, findingRows, nodeStateWords, wireSectionLabel, WIRE_SECTIONS } from './words.ts';
 
 const KIND_ORDER = ['UNDECLARED', 'DIVERGENT_QUEUE', 'DIVERGENT_ADDRESS', 'UNVERIFIABLE', 'NOT_EVALUATED'];
@@ -46,13 +51,20 @@ export function NodesPanel({
 }>) {
   useDisplayZone();
   useServerNow();
-  const onRows = declaredKeys(declaration);
+  const onRows = useMemo(() => declaredKeys(declaration), [declaration]);
 
   return (
-    <Stack gap="md">
-      <Text size="sm" fw={600}>
-        Nodes
-      </Text>
+    <Section
+      title="Nodes"
+      description={
+        <>
+          <Link to={`/clusters/${declaration.clusterId}/config-diff`} className={linkClasses.link}>
+            Config diff
+          </Link>{' '}
+          compares two nodes with each other; this screen compares every node with the declaration.
+        </>
+      }
+    >
       {declaration.nodes.map((node) => (
         <NodeCard
           key={node.nodeId}
@@ -62,19 +74,13 @@ export function NodesPanel({
           onRows={onRows}
         />
       ))}
-      {!declaration.reportUndeclared ? (
-        <Text size="xs" c="dimmed">
+      {declaration.reportUndeclared ? null : (
+        <Text size="sm" c="dimmed">
           Undeclared reporting is off for this cluster: settings and diverts the declaration does not mention are not
           listed. Turn it on from the mode control in the header.
         </Text>
-      ) : null}
-      <Text size="xs" c="dimmed">
-        <Anchor component={Link} to={`/clusters/${declaration.clusterId}/config-diff`} size="xs">
-          Config diff
-        </Anchor>{' '}
-        compares two nodes with each other; this screen compares every node with the declaration.
-      </Text>
-    </Stack>
+      )}
+    </Section>
   );
 }
 
@@ -89,7 +95,7 @@ function SyncEvidence({ node, clusterId }: Readonly<{ node: ConfigNodeStateView;
   if (node.state !== 'IN_SYNC') return null;
   if (!node.basis) {
     return (
-      <Text size="xs" c="dimmed">
+      <Text size="sm" c="dimmed">
         No record of why it agrees.
       </Text>
     );
@@ -102,10 +108,75 @@ function SyncEvidence({ node, clusterId }: Readonly<{ node: ConfigNodeStateView;
     OBSERVED_MATCH: 'Observed to match; Studio has not written to this node',
   }[node.basis];
   return (
-    <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=history`} size="xs">
+    <Link to={`/clusters/${clusterId}/configuration?tab=history`} className={linkClasses.link}>
       {words}
-    </Anchor>
+    </Link>
   );
+}
+
+/** A finding no declared row carries, with the key that makes it unique among its node's. */
+interface LooseFinding {
+  id: string;
+  finding: ConfigDriftFindingView;
+}
+
+/** The node's findings as a table: what is wrong, where, and what the node reports for it. */
+function findingColumns(nodeName: string, catalogue?: ConfigCatalogueView): Column<LooseFinding>[] {
+  return [
+    {
+      id: 'kind',
+      header: 'Finding',
+      accessor: (r) => findingKindWords(r.finding.kind),
+      kind: 'text',
+      priority: 'essential',
+      wrap: true,
+    },
+    {
+      id: 'section',
+      header: 'Section',
+      accessor: (r) => wireSectionLabel(r.finding.section),
+      kind: 'status',
+      priority: 'essential',
+    },
+    {
+      id: 'item',
+      header: 'Item',
+      accessor: (r) => `${r.finding.key ?? '—'} ${r.finding.detail}`,
+      cell: (r) => (
+        <>
+          <div>{r.finding.key ?? '—'}</div>
+          <Text size="sm" c="dimmed">
+            {r.finding.detail}
+          </Text>
+        </>
+      ),
+      kind: 'text',
+      priority: 'essential',
+      wrap: true,
+    },
+    {
+      id: 'observed',
+      header: `On ${nodeName}`,
+      accessor: (r) =>
+        findingRows(r.finding, catalogue)
+          .map((row) => `${row.key} ${row.observed}`)
+          .join(' '),
+      cell: (r) => {
+        const rows = findingRows(r.finding, catalogue);
+        const ordered = [...rows.filter((x) => x.differs), ...rows.filter((x) => !x.differs)];
+        return ordered.length === 0 ? (
+          '—'
+        ) : (
+          <DescriptionList
+            items={ordered.map((x) => ({ term: x.key, value: x.observed === '—' ? x.declared : x.observed }))}
+          />
+        );
+      },
+      kind: 'text',
+      priority: 'essential',
+      wrap: true,
+    },
+  ];
 }
 
 function NodeCard({
@@ -120,78 +191,50 @@ function NodeCard({
   onRows: Set<string>;
 }>) {
   const state = nodeStateWords(node.state);
-  const loose = node.findings.filter((f) => !f.key || !onRows.has(`${f.section}:${f.key}`));
-  const groups = new Map<string, typeof node.findings>();
-  for (const f of loose) {
-    const list = groups.get(f.kind) ?? [];
-    list.push(f);
-    groups.set(f.kind, list);
-  }
-  const kinds = [...groups.keys()].sort((a, b) => KIND_ORDER.indexOf(a) - KIND_ORDER.indexOf(b));
+  const rows = useMemo<LooseFinding[]>(
+    () =>
+      node.findings
+        .filter((f) => !f.key || !onRows.has(`${f.section}:${f.key}`))
+        .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind))
+        .map((finding, i) => ({ id: `${finding.kind}:${finding.section}:${finding.key}:${i}`, finding })),
+    [node.findings, onRows],
+  );
+  const columns = useMemo(() => findingColumns(node.nodeName, catalogue), [node.nodeName, catalogue]);
 
   return (
-    <Stack gap="xs">
-      <div className={classes.nodeLine}>
-        <Text size="sm" fw={600}>
-          {node.nodeName}
-        </Text>
-        <Text size="xs" className={classes.chip} data-tone={state.tone}>
+    <Section
+      headingLevel={3}
+      title={node.nodeName}
+      actions={
+        <StatusBadge tone={state.tone ?? 'neutral'}>
           {node.live ? state.text : 'not live — backups inherit through replication and are not evaluated'}
-        </Text>
-        {node.live && node.evaluatedAt ? (
-          <Tooltip label={absoluteLabel(node.evaluatedAt)} withArrow>
-            <Text size="xs" c="dimmed" tabIndex={0}>
-              {ago(node.evaluatedAt)}
-            </Text>
-          </Tooltip>
-        ) : null}
-        {node.detail ? (
-          <Text size="xs" c="dimmed">
-            {node.detail}
-          </Text>
-        ) : null}
-        <SyncEvidence node={node} clusterId={clusterId} />
-      </div>
-      {kinds.map((kind) => (
-        <Table key={kind} fz="xs" verticalSpacing={4} withTableBorder>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th style={{ width: 160 }}>{findingKindWords(kind)}</Table.Th>
-              <Table.Th>Item</Table.Th>
-              <Table.Th>On {node.nodeName}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {groups.get(kind)!.map((f, i) => {
-              const rows = findingRows(f, catalogue);
-              const ordered = [...rows.filter((r) => r.differs), ...rows.filter((r) => !r.differs)];
-              return (
-                <Table.Tr key={`${f.section}:${f.key}:${i}`}>
-                  <Table.Td>{wireSectionLabel(f.section)}</Table.Td>
-                  <Table.Td>
-                    <Text size="xs">{f.key ?? '—'}</Text>
-                    <Text size="xs" c="dimmed">
-                      {f.detail}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td className={classes.compare}>
-                    <div className={classes.kv} data-diff>
-                      {ordered.length === 0
-                        ? '—'
-                        : ordered.map((r) => (
-                            <div key={r.key} className={classes.kvRow} data-differs={r.differs || undefined}>
-                              <span className={classes.kvKey}>{r.key}</span>
-                              <span className={classes.kvValue}>{r.observed === '—' ? r.declared : r.observed}</span>
-                            </div>
-                          ))}
-                    </div>
-                  </Table.Td>
-                </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
-      ))}
-    </Stack>
+        </StatusBadge>
+      }
+      description={
+        <>
+          {node.live && node.evaluatedAt ? (
+            <Tooltip label={absoluteLabel(node.evaluatedAt)} withArrow>
+              <Text size="sm" component="span" tabIndex={0}>
+                {ago(node.evaluatedAt)}
+              </Text>
+            </Tooltip>
+          ) : null}{' '}
+          {node.detail ?? ''} <SyncEvidence node={node} clusterId={clusterId} />
+        </>
+      }
+    >
+      {rows.length === 0 ? null : (
+        <DataTable
+          variant="static"
+          label={`Findings on ${node.nodeName}`}
+          columns={columns}
+          data={rows}
+          rowKey={(r) => r.id}
+          storageKey="brokerconfig.nodes.findings"
+          height={{ maxRows: rows.length }}
+          empty={null}
+        />
+      )}
+    </Section>
   );
 }

@@ -337,4 +337,36 @@ describe('ApplyResult step tables', () => {
     expect(within(row(/empty step/)).getAllByText('—').length).toBeGreaterThan(0);
     expect(within(row(/unplanned step/)).getAllByText('—').length).toBeGreaterThan(0);
   });
+
+  it('names each node’s steps as a table whose number heads the row, one heading per node', () => {
+    renderWithProviders(<ApplyResult outcome={halted()} clusterId="c1" />);
+
+    const table = screen.getByRole('table', { name: 'Steps on broker-1' });
+    expect(within(table).getByRole('rowheader', { name: '1' })).toBeInTheDocument();
+    for (const header of ['#', 'Step', 'Change', 'Status']) {
+      expect(within(table).getByRole('columnheader', { name: header })).toBeInTheDocument();
+    }
+    // A step's status is a word in its own cell, and its error is under it.
+    expect(within(table).getByText('failed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: /broker-1/ })).toBeInTheDocument();
+  });
+
+  it('draws the before and after of a step as terms and values, with no key and value table', () => {
+    renderWithProviders(<ApplyResult outcome={plan()} />);
+
+    const term = screen.getAllByText('addressFullMessagePolicy')[0];
+    expect(term.tagName).toBe('DT');
+    expect(term.nextElementSibling).toHaveTextContent('PAGE → DROP');
+    expect(screen.getAllByRole('table').every((t) => t.getAttribute('aria-label')?.startsWith('Steps on'))).toBe(true);
+  });
+
+  it('puts the filter’s toggles on buttons, not on text that looks like links', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ApplyResult outcome={twoKeys()} />);
+
+    const toggle = screen.getByRole('button', { name: 'Show the 1 already as declared' });
+    expect(toggle.tagName).toBe('BUTTON');
+    await user.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide the 1 already as declared' })).toBeInTheDocument();
+  });
 });

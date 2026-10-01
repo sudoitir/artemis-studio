@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Select, Stack, Text } from '@mantine/core';
+import { Button, Select, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 
 import type { ConfigAddressView, ConfigDeclarationView } from '../api.ts';
 import { AddressEditor } from '../AddressEditor.tsx';
 import { DivertEditor } from '../DivertEditor.tsx';
 import { CapabilityGate } from '../../../ui/CapabilityGate.tsx';
+import { EmptyState } from '../../../ui/EmptyState.tsx';
 import type { GateVerdict } from '../../../ui/capabilityGate.ts';
+import { Notice } from '../Notice.tsx';
 import type { Section } from '../words.ts';
 import { BridgeEditor, type BridgePrefill } from './BridgeEditor.tsx';
 import { RoutingCanvas, type Compose } from './RoutingCanvas.tsx';
@@ -102,7 +104,7 @@ export function RoutingTab({
       <Button
         variant="default"
         size="xs"
-        leftSection={<IconPlus size={14} stroke={1.75} />}
+        leftSection={<IconPlus size="0.875rem" stroke={1.75} />}
         onClick={addQueue}
         disabled={!canWrite}
       >
@@ -162,16 +164,12 @@ export function RoutingTab({
   if (whole.nodes.length === 0) {
     return (
       <>
-        <Alert variant="light" color="gray" title="Nothing to draw yet">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">
-              The builder draws this cluster's declared routing — addresses, their queues, and the diverts and bridges
-              between them — beside what the brokers report. Nothing is declared yet, and no node has reported anything
-              that is not. Add a queue to start, or adopt what the cluster runs from the Configuration screen.
-            </Text>
-            <div>{addQueueButton}</div>
-          </Stack>
-        </Alert>
+        <EmptyState
+          kind="empty"
+          title="Nothing to draw yet"
+          description="The builder draws this cluster's declared routing — addresses, their queues, and the diverts and bridges between them — beside what the brokers report. Nothing is declared yet, and no node has reported anything that is not. Add a queue to start, or adopt what the cluster runs from the Configuration screen."
+          action={addQueueButton}
+        />
         {editors}
       </>
     );
@@ -182,45 +180,45 @@ export function RoutingTab({
   return (
     <Stack gap="sm">
       {bounded.hidden > 0 ? (
-        <Alert variant="light" color="gray" title="Showing a bounded region of the graph">
-          <Text size="sm">
-            This cluster's routing has {whole.nodes.length} elements, more than the {GRAPH_BOUND} this canvas draws at
-            once. It is showing the {graph.nodes.length} reachable from {anchorName ?? 'the first address'};{' '}
-            {bounded.hidden} elements are not drawn. Every one of them is on the Configuration screen's Declared &amp;
-            live tab. Choose another address to draw the region around in the toolbar.
-          </Text>
-        </Alert>
+        <Notice tone="info" title="Showing a bounded region of the graph">
+          This cluster's routing has {whole.nodes.length} elements, more than the {GRAPH_BOUND} this canvas draws at
+          once. It is showing the {graph.nodes.length} reachable from {anchorName ?? 'the first address'};{' '}
+          {bounded.hidden} elements are not drawn. Every one of them is on the Configuration screen's Declared &amp;
+          live tab. Choose another address to draw the region around in the toolbar.
+        </Notice>
       ) : null}
 
       <div className={classes.builder}>
-        <RoutingCanvas
-          graph={graph}
-          selectedId={selected ?? null}
-          onSelect={(id) => onSearch({ selected: id ?? undefined })}
-          onCompose={compose}
-          canWrite={canWrite}
-          leading={
-            bounded.hidden > 0 ? (
-              <Select
-                label="Draw the region around"
-                size="xs"
-                searchable
-                data={anchors.map((a) => ({ value: a.name, label: a.name }))}
-                value={anchorName}
-                onChange={(v) => onSearch({ anchor: v ?? undefined, selected: undefined })}
-                allowDeselect={false}
-                classNames={{ root: classes.inlineField, label: classes.inlineLabel, wrapper: classes.inlineInput }}
-                w={340}
-              />
-            ) : null
-          }
-          actions={
-            <>
-              {addQueueButton}
-              {reviewButton}
-            </>
-          }
-        />
+        <div className={classes.canvasColumn}>
+          <RoutingCanvas
+            graph={graph}
+            selectedId={selected ?? null}
+            onSelect={(id) => onSearch({ selected: id ?? undefined })}
+            onCompose={compose}
+            canWrite={canWrite}
+            leading={
+              bounded.hidden > 0 ? (
+                <Select
+                  label="Draw the region around"
+                  size="xs"
+                  searchable
+                  data={anchors.map((a) => ({ value: a.name, label: a.name }))}
+                  value={anchorName}
+                  onChange={(v) => onSearch({ anchor: v ?? undefined, selected: undefined })}
+                  allowDeselect={false}
+                  classNames={{ root: classes.inlineField, label: classes.inlineLabel, wrapper: classes.inlineInput }}
+                  w="21.25rem"
+                />
+              ) : null
+            }
+            actions={
+              <>
+                {addQueueButton}
+                {reviewButton}
+              </>
+            }
+          />
+        </div>
         <aside className={classes.inspector} aria-label="Selected element">
           <RoutingInspector
             declaration={declaration}

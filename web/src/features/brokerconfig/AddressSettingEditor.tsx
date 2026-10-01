@@ -11,6 +11,7 @@ import type {
 import { keyTaken, removeItem, upsertAddressSetting } from './document.ts';
 import { EditorDrawer, MATCH_HINT } from './EditorDrawer.tsx';
 import { keyHelp } from './keyHelp.ts';
+import classes from './Configuration.module.css';
 import { KeyHint } from './KeyHint.tsx';
 import { useSaveDocument } from './useSaveDocument.ts';
 
@@ -238,8 +239,8 @@ export function AddressSettingEditor({
     // control of its own (keyboard-reachable) and does not join the field's name.
     const inputContainer = help
       ? (children: ReactNode) => (
-          <Group gap={4} wrap="nowrap" align="center">
-            <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+          <Group gap="xs" wrap="nowrap" align="center">
+            <div className={classes.growField}>{children}</div>
             <KeyHint name={key.xmlName} help={help} />
           </Group>
         )
@@ -315,7 +316,7 @@ export function AddressSettingEditor({
       hint={submitted && Object.keys(errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
       secondary={
         item ? (
-          <Button variant="subtle" color="red" size="xs" onClick={remove} loading={isPending}>
+          <Button variant="subtle" size="xs" onClick={remove} loading={isPending}>
             Remove from declaration
           </Button>
         ) : null
@@ -333,8 +334,8 @@ export function AddressSettingEditor({
       />
 
       {templates.length > 0 ? (
-        <Stack gap={4}>
-          <Text size="xs" fw={600}>
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
             Start from a template
           </Text>
           <Group gap="xs" wrap="wrap">

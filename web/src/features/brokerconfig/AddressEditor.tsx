@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Button, Checkbox, Group, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Checkbox, Group, Input, Select, Switch, Text, TextInput } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 
 import type { ConfigAddressView, ConfigDeclarationView, ConfigQueueView } from './api.ts';
 import { keyTaken, removeItem, upsertAddress } from './document.ts';
+import { Section } from '../../ui/Section.tsx';
 import { EditorDrawer } from './EditorDrawer.tsx';
 import { useSaveDocument } from './useSaveDocument.ts';
 
@@ -118,7 +119,6 @@ export function AddressEditor({
         item ? (
           <Button
             variant="subtle"
-            color="red"
             size="xs"
             onClick={remove}
             loading={isPending}
@@ -151,11 +151,10 @@ export function AddressEditor({
         </Group>
       </Checkbox.Group>
 
-      <Stack gap="xs">
-        <Group justify="space-between">
-          <Text size="sm" fw={600}>
-            Queues
-          </Text>
+      <Section
+        headingLevel={3}
+        title="Queues"
+        actions={
           <Button
             variant="default"
             size="xs"
@@ -168,14 +167,11 @@ export function AddressEditor({
           >
             Add queue
           </Button>
-        </Group>
-        {errorFor('queues') ? (
-          <Text size="xs" c="var(--as-danger)">
-            {errorFor('queues')}
-          </Text>
-        ) : null}
+        }
+      >
+        {errorFor('queues') ? <Input.Error>{errorFor('queues')}</Input.Error> : null}
         {queues.length === 0 ? (
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             No queues declared on this address. An apply creates the address alone.
           </Text>
         ) : null}
@@ -185,7 +181,7 @@ export function AddressEditor({
               label="Queue name"
               value={q.name}
               onChange={(e) => setQueue(i, { name: e.currentTarget.value })}
-              style={{ flex: 1 }}
+              flex={1}
             />
             <Select
               label="Routing"
@@ -193,30 +189,30 @@ export function AddressEditor({
               value={q.routingType}
               onChange={(v) => setQueue(i, { routingType: (v ?? 'ANYCAST') as RoutingType })}
               allowDeselect={false}
-              w={130}
+              w="8.125rem"
             />
             <Switch
               label="Durable"
               checked={q.durable}
               onChange={(e) => setQueue(i, { durable: e.currentTarget.checked })}
-              mb={6}
+              mb="xs"
             />
             <ActionIcon
               variant="subtle"
               aria-label={`Remove queue ${q.name || i + 1} from the declaration`}
               title="Stops Studio checking for it. Nothing on the broker is deleted."
               onClick={() => setQueues((qs) => qs.filter((_, j) => j !== i))}
-              mb={4}
+              mb="xs"
             >
-              <IconX size={14} />
+              <IconX size="0.875rem" />
             </ActionIcon>
           </Group>
         ))}
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           A declared queue is created where missing. One that exists with a different configuration is reported, never
           changed — edit it from the Queues view. Nothing here deletes a queue.
         </Text>
-      </Stack>
+      </Section>
     </EditorDrawer>
   );
 }

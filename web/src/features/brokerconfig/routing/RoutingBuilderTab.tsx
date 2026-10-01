@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Alert, Skeleton, Stack } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
+import { ErrorState } from '../../../ui/ErrorState.tsx';
+import { LoadingState } from '../../../ui/LoadingState.tsx';
 import { useBrokerConfig } from '../api.ts';
 import { useDeclarationGates } from '../gates.ts';
 import { ReviewApplyDrawer, type ApplyScope } from '../ReviewApplyDrawer.tsx';
@@ -34,19 +36,17 @@ export function RoutingBuilderTab({ clusterId }: Readonly<{ clusterId: string }>
 
   if (declaration.isError) {
     return (
-      <Alert color="red" variant="light" title={declaration.error.title}>
-        {declaration.error.message} The builder draws the declaration, so it has nothing to draw until the declaration
-        can be read. The Diverts and Bridges tabs read the brokers directly.
-      </Alert>
+      <Stack gap="sm">
+        <ErrorState error={declaration.error} onRetry={() => void declaration.refetch()} />
+        <Text size="sm" c="dimmed">
+          The builder draws the declaration, so it has nothing to draw until the declaration can be read. The Diverts
+          and Bridges tabs read the brokers directly.
+        </Text>
+      </Stack>
     );
   }
   if (!declaration.data) {
-    return (
-      <Stack gap={4} aria-busy="true" aria-label="Loading the declaration">
-        <Skeleton height={36} />
-        <Skeleton height={420} />
-      </Stack>
-    );
+    return <LoadingState label="Loading the declaration" blockSize="28rem" />;
   }
 
   const d = declaration.data;

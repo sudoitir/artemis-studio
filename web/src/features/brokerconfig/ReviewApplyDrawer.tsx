@@ -1,17 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Drawer,
-  Group,
-  Select,
-  Skeleton,
-  Stack,
-  Switch,
-  Text,
-  VisuallyHidden,
-} from '@mantine/core';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Checkbox, Drawer, Group, Select, Stack, Switch, Text, VisuallyHidden } from '@mantine/core';
 
 import {
   useApplyBrokerConfig,
@@ -19,14 +7,20 @@ import {
   type ConfigApplyRequest,
   type ConfigDeclarationView,
 } from './api.ts';
+import type { ApiError } from '../../kernel/api/request.ts';
 import { useCluster } from '../clusters/index.ts';
 import { clearApplyProgress, useApplyProgress } from './applyProgress.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { ApplyResult } from './ApplyResult.tsx';
 import { ApplyTimeline } from './ApplyTimeline.tsx';
+import { Notice } from './Notice.tsx';
 import classes from './Configuration.module.css';
 import { CONFIG_MANAGED_REASON, hazardClassWords, wireSectionLabel } from './words.ts';
 
@@ -82,7 +76,7 @@ export function ReviewApplyDrawer({
       <div>
         <Stack gap="md">
           {scope?.label ? (
-            <Text size="xs" c="dimmed">
+            <Text size="sm" c="dimmed">
               Scoped to {scope.label} on every targeted node. Everything else this cluster has pending stays pending.
             </Text>
           ) : null}
@@ -174,7 +168,7 @@ function useApplyFlow(declaration: ConfigDeclarationView, scope: ApplyScope | nu
   const [removeUndeclared, setRemoveUndeclared] = useState(false);
   const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<ApiError | null>(null);
   const [moved, setMoved] = useState(false);
 
   const liveNodes = useMemo(() => declaration.nodes.filter((n) => n.live), [declaration.nodes]);
@@ -193,7 +187,7 @@ function useApplyFlow(declaration: ConfigDeclarationView, scope: ApplyScope | nu
     setPlanError(null);
     apply.mutate(
       { body: { ...body(), acknowledgedHazards: [], expectedPlanHash: undefined }, dryRun: true, override: true },
-      { onSuccess: (o) => then(o, previousHash), onError: (e) => setPlanError(e.message) },
+      { onSuccess: (o) => then(o, previousHash), onError: (e) => setPlanError(e) },
     );
   };
 
@@ -208,6 +202,8 @@ function useApplyFlow(declaration: ConfigDeclarationView, scope: ApplyScope | nu
   // Plan when the drawer opens, and again when the targets change. The
   // declaration's own refetches do not re-plan: the hash guards the real run.
   const targetKey = planKey(revision, targets, canary, removeUndeclared, stepIds);
+  const planNow = useRef(runPlan);
+  planNow.current = runPlan;
   useEffect(() => {
     if (!opened || !declaration.declared) return;
     if (noNodes) {
@@ -215,9 +211,8 @@ function useApplyFlow(declaration: ConfigDeclarationView, scope: ApplyScope | nu
       setStage('plan');
       return;
     }
-    runPlan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, declaration.declared, targetKey]);
+    planNow.current();
+  }, [opened, declaration.declared, noNodes, targetKey]);
 
   // A closed drawer holds nothing: the next apply is a new question, and a stale
   // plan behind a closed drawer is the one an operator would confirm by habit.
@@ -347,26 +342,27 @@ function PlanStage({
   return (
     <Stack gap="md">
       {planning ? <Text size="sm">Planning — reading every live node…</Text> : null}
-      {!previewed && apply.isPending ? <Skeleton height={120} /> : null}
+      {!previewed && apply.isPending ? <LoadingState label="Planning the apply" blockSize="8rem" /> : null}
       {planError ? (
-        <Alert color="red" variant="light" title="Could not plan" role="alert">
-          {planError} Fix the declaration and come back; nothing was changed.
-        </Alert>
+        <Stack gap="sm">
+          <ErrorState error={planError} onRetry={flow.runPlan} />
+          <Text size="sm">Fix the declaration and come back; nothing was changed.</Text>
+        </Stack>
       ) : null}
       {moved ? (
-        <Alert color="yellow" variant="light" title="The cluster moved — this is a new plan" role="alert">
+        <Notice alert title="The cluster moved — this is a new plan">
           Something changed on a node between the plan you were reading and the confirmation. The plan below has been
           made again from what the nodes run now; review it, acknowledge its hazards, and continue. Nothing was written.
-        </Alert>
+        </Notice>
       ) : null}
 
       <NodePicker flow={flow} />
 
       {noNodes ? (
-        <Alert color="yellow" variant="light" title="Select at least one node" role="alert">
+        <Notice alert title="Select at least one node">
           No node is selected, so there is nothing to plan. Tick the nodes this apply should write to — an empty
           selection is not a shortcut for all of them.
-        </Alert>
+        </Notice>
       ) : null}
       {previewed ? <PlanBody flow={flow} previewed={previewed} declaration={declaration} scope={scope} /> : null}
     </Stack>
@@ -401,7 +397,7 @@ function NodePicker({ flow }: Readonly<{ flow: Flow }>) {
         value={canary ?? previewed?.plan.canaryNodeId ?? null}
         onChange={setCanary}
         allowDeselect={false}
-        w={200}
+        w="12.5rem"
       />
     </Group>
   );
@@ -459,16 +455,13 @@ function PlanBody({
       />
 
       {previewed.plan.findings.length > 0 ? (
-        <Stack gap={2}>
-          <Text size="sm" fw={600}>
-            Noticed, not acted on
-          </Text>
+        <Section headingLevel={3} title="Noticed, not acted on">
           {previewed.plan.findings.map((f) => (
-            <Text key={`${f.nodeName}:${f.section}:${f.key}:${f.detail}`} size="xs" c="dimmed">
+            <Text key={`${f.nodeName}:${f.section}:${f.key}:${f.detail}`} size="sm" c="dimmed">
               {f.nodeName} · {wireSectionLabel(f.section)} {f.key ?? ''} — {f.detail}
             </Text>
           ))}
-        </Stack>
+        </Section>
       ) : null}
 
       {previewed.overCap ? (
@@ -481,7 +474,9 @@ function PlanBody({
         />
       ) : null}
 
-      <ApplyResult outcome={previewed} />
+      <Section headingLevel={3} title="Plan">
+        <ApplyResult outcome={previewed} />
+      </Section>
 
       {stage === 'plan' ? (
         <Group align="center">
@@ -494,7 +489,7 @@ function PlanBody({
             Continue to confirm
           </Button>
           {previewed.plan.stepCount === 0 ? (
-            <Text size="xs" c="dimmed">
+            <Text size="sm" c="dimmed">
               Nothing to apply: every targeted node already matches revision {flow.revision}.
             </Text>
           ) : null}
@@ -518,7 +513,7 @@ function PlanSummary({
   const { stepCount, hazards } = previewed.plan;
   return (
     <div className={classes.summaryBar}>
-      <Text size="xs">
+      <Text size="sm">
         <b>{stepCount}</b> step{plural(stepCount)} · {targets.length} node{plural(targets.length)} · canary{' '}
         {nodeNameOf(flow, canary ?? previewed.plan.canaryNodeId) ?? 'first live node'}
         {hazards.length > 0
@@ -526,11 +521,11 @@ function PlanSummary({
           : ' · no hazards'}
         {previewed.overCap ? ` · over the step cap of ${previewed.stepCap}` : ''}
       </Text>
-      <Text size="xs" className={classes.state} data-tone={unacknowledged.length > 0 ? 'warning' : undefined}>
+      <StatusBadge tone={unacknowledged.length > 0 ? 'warning' : 'neutral'}>
         {unacknowledged.length > 0
           ? `${unacknowledged.length} High hazard${plural(unacknowledged.length)} to acknowledge`
           : 'nothing written yet'}
-      </Text>
+      </StatusBadge>
     </div>
   );
 }
@@ -549,20 +544,17 @@ function HazardList({
 }>) {
   if (hazards.length === 0) {
     return (
-      <Text size="xs" c="dimmed">
+      <Text size="sm" c="dimmed">
         No hazards.
       </Text>
     );
   }
   return (
-    <Stack gap="xs">
-      <Text size="sm" fw={600}>
-        Hazards ({hazards.length}) — {highCount} High
-      </Text>
+    <Section headingLevel={3} title={`Hazards (${hazards.length}) — ${highCount} High`}>
       {hazards.map((h) => (
         <div key={h.id} className={classes.hazard} data-class={h.hazardClass}>
-          <Text size="xs">
-            <Text component="span" size="xs" fw={600}>
+          <Text size="sm">
+            <Text component="span" size="sm" fw={600}>
               {hazardClassWords(h.hazardClass)}
             </Text>{' '}
             · {h.nodeName} · {wireSectionLabel(h.section)} {h.key} — {h.message}
@@ -570,7 +562,7 @@ function HazardList({
           {h.hazardClass === 'HIGH' ? (
             <Checkbox
               size="xs"
-              mt={4}
+              mt="xs"
               label={`I understand: ${h.kind.toLowerCase().replaceAll('_', ' ')} on ${h.nodeName}`}
               checked={acknowledged.has(h.id)}
               onChange={(e) => {
@@ -586,16 +578,16 @@ function HazardList({
           ) : null}
         </div>
       ))}
-    </Stack>
+    </Section>
   );
 }
 
 /** What the server's refusal of the real run means for the operator, when it has a known cause. */
 function refusalHint(type: string): string {
   if (type.endsWith('plan-changed')) {
-    return ' The cluster moved since this plan was made. Plan again and review it before confirming.';
+    return 'The cluster moved since this plan was made. Plan again and review it before confirming.';
   }
-  return type.endsWith('apply-in-progress') ? ' Wait for it to finish, then plan again.' : '';
+  return type.endsWith('apply-in-progress') ? 'Wait for it to finish, then plan again.' : '';
 }
 
 /** The confirmation: what will be written, what still blocks it, and the typed name that arms it. */
@@ -613,10 +605,7 @@ function ConfirmStage({
   );
   const progress = useApplyProgress();
   return (
-    <Stack gap="sm">
-      <Text size="sm" fw={600}>
-        Confirm
-      </Text>
+    <Section headingLevel={3} title="Confirm">
       <Text size="sm">
         {previewed.plan.stepCount} management write{plural(previewed.plan.stepCount)} on{' '}
         {targets.map((id) => nodeNameOf(flow, id) ?? id).join(', ')}, canary first, halting at the first failure.
@@ -624,19 +613,19 @@ function ConfirmStage({
         settings replace the broker's whole entry for their match.
       </Text>
       {blockers.length > 0 ? (
-        <Stack gap={2}>
+        <Stack gap="xs">
           {blockers.map((b) => (
-            <Text key={b} size="xs" c="dimmed">
+            <Text key={b} size="sm" c="dimmed">
               {b}
             </Text>
           ))}
         </Stack>
       ) : null}
       {apply.isError && apply.variables?.dryRun === false ? (
-        <Alert color="red" variant="light" title={apply.error.title} role="alert">
-          {apply.error.message}
-          {refusalHint(apply.error.type)}
-        </Alert>
+        <Stack gap="sm">
+          <ErrorState error={apply.error} />
+          {refusalHint(apply.error.type) ? <Text size="sm">{refusalHint(apply.error.type)}</Text> : null}
+        </Stack>
       ) : null}
       {running ? <ApplyTimeline progress={progress} /> : null}
       <CapabilityGate verdict={gate}>
@@ -649,14 +638,16 @@ function ConfirmStage({
         />
       </CapabilityGate>
       {gate.kind === 'allowed' && gate.uncertain ? (
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           Whether this connection may write has not been established yet; the broker will say if it refuses.
         </Text>
       ) : null}
-      <Button variant="subtle" size="xs" px={0} onClick={() => flow.setStage('plan')}>
-        Back to the plan
-      </Button>
-    </Stack>
+      <div>
+        <Button variant="subtle" size="compact-sm" onClick={() => flow.setStage('plan')}>
+          Back to the plan
+        </Button>
+      </div>
+    </Section>
   );
 }
 
@@ -669,9 +660,11 @@ function ResultStage({
 }: Readonly<{ flow: Flow; result: ConfigApplyOutcomeView; clusterId: string; onClose: () => void }>) {
   return (
     <Stack gap="md">
-      <ApplyResult outcome={result} clusterId={clusterId} />
+      <Section headingLevel={3} title="Result">
+        <ApplyResult outcome={result} clusterId={clusterId} />
+      </Section>
       {result.outcome === 'HALTED' || result.outcome === 'FAILED' ? (
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           Re-running the same revision converges: matching steps are already as declared, failed and not-attempted ones
           are attempted again.
         </Text>

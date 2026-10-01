@@ -197,4 +197,29 @@ describe('the Routing screen’s Builder tab', () => {
     // The canvas draws it at once, as declared and not yet applied.
     expect(await screen.findByRole('button', { name: /^Queue orders\.spool\./, hidden: true })).toBeInTheDocument();
   }, 20_000);
+
+  it('states why the declaration could not be read, says what the builder needs, and reads it again on retry', async () => {
+    let attempts = 0;
+    server.use(
+      http.get('*/api/v1/clusters/c1/config', () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ title: 'Down', detail: 'The configuration store is not answering.' }, { status: 503 })
+          : HttpResponse.json(routed);
+      }),
+      ...shell(),
+      ...baseHandlers(routed),
+    );
+    const user = userEvent.setup();
+    renderAppAt('/clusters/c1/routing?tab=builder');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The configuration store is not answering.');
+    expect(screen.getByText(/has nothing to draw until the declaration can be read/)).toBeInTheDocument();
+
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(
+      await screen.findByRole('button', { name: /^Address orders\.request\./ }, { timeout: 15_000 }),
+    ).toBeInTheDocument();
+  });
 });

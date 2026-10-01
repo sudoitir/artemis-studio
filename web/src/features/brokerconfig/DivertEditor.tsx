@@ -129,7 +129,7 @@ export function DivertEditor({
       hint={submitted && Object.keys(errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
       secondary={
         item ? (
-          <Button variant="subtle" color="red" size="xs" onClick={remove} loading={isPending}>
+          <Button variant="subtle" size="xs" onClick={remove} loading={isPending}>
             Remove from declaration
           </Button>
         ) : null

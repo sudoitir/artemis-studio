@@ -1,9 +1,10 @@
-import { Progress, Stack, Text } from '@mantine/core';
+import { Group, Progress, Stack, Text } from '@mantine/core';
 
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { ApplyProgress } from './applyProgress.ts';
-import classes from './Configuration.module.css';
 
-const PROGRESS_COLOR = { danger: 'red', warning: 'yellow' } as const;
+/** The bar takes the semantic tone of a phase that is not going well; the phase is also said in words. */
+const PROGRESS_COLOR = { danger: 'var(--as-danger)', warning: 'var(--as-warning)' } as const;
 
 const PHASE: Record<ApplyProgress['phase'], { text: string; tone?: 'warning' | 'danger' }> = {
   APPLYING: { text: 'applying' },
@@ -27,40 +28,36 @@ const PHASE: Record<ApplyProgress['phase'], { text: string; tone?: 'warning' | '
 export function ApplyTimeline({ progress }: Readonly<{ progress: ApplyProgress[] }>) {
   if (progress.length === 0) {
     return (
-      <Text size="sm" aria-live="polite">
+      <Text size="sm" role="status">
         Applying — waiting for the first node to report…
       </Text>
     );
   }
   return (
-    <Stack gap={6} aria-live="polite">
+    <Stack gap="sm" role="status">
       {progress.map((p) => {
         const phase = PHASE[p.phase] ?? { text: p.phase };
         return (
-          <div key={p.nodeId}>
-            <Text size="xs">
-              <Text component="span" size="xs" fw={600}>
+          <Stack key={p.nodeId} gap="xs">
+            <Group gap="sm" align="center">
+              <Text size="sm" fw={600} component="span">
                 {p.nodeName}
                 {p.canary ? ' (canary)' : ''}
-              </Text>{' '}
-              <Text component="span" size="xs" className={classes.state} data-tone={phase.tone}>
-                {phase.text}
               </Text>
+              <StatusBadge tone={phase.tone ?? 'neutral'}>{phase.text}</StatusBadge>
               {p.total > 0 ? (
-                <Text component="span" size="xs" c="dimmed">
-                  {' '}
-                  — step {Math.min(p.done, p.total)} of {p.total}
+                <Text size="sm" c="dimmed" component="span">
+                  step {Math.min(p.done, p.total)} of {p.total}
                 </Text>
               ) : null}
-            </Text>
+            </Group>
             <Progress
               value={p.total === 0 ? 100 : (p.done / p.total) * 100}
               size="xs"
-              mt={2}
               color={phase.tone ? PROGRESS_COLOR[phase.tone] : undefined}
               aria-hidden
             />
-          </div>
+          </Stack>
         );
       })}
     </Stack>

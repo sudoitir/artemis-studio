@@ -1,7 +1,8 @@
 import { useRef, useState, type KeyboardEvent, type Ref } from 'react';
-import { Alert, Button, Combobox, Group, Radio, Stack, Switch, Text, TextInput, useCombobox } from '@mantine/core';
+import { Button, Combobox, Group, Radio, Stack, Switch, Text, TextInput, useCombobox } from '@mantine/core';
 
 import type { ConfigDeclarationView } from './api.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { upsertAddress } from './document.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 import classes from './Configuration.module.css';
@@ -216,7 +217,7 @@ export function ForwardingAddressField({
               required
             />
             <Radio.Group label="Routing type" value={routingType} onChange={(v) => setRoutingType(v as RoutingType)}>
-              <Group gap="lg" mt={4}>
+              <Group gap="lg" mt="xs">
                 <Radio value="ANYCAST" label="Anycast — each message to one consumer" />
                 <Radio value="MULTICAST" label="Multicast — to every subscriber" />
               </Group>
@@ -228,11 +229,15 @@ export function ForwardingAddressField({
               onChange={(e) => setDurable(e.currentTarget.checked)}
             />
             {saveError ? (
-              <Alert color="red" variant="light" title={saveError.title} role="alert">
-                {saveError.type.endsWith('stale-revision')
-                  ? `${saveError.message} Someone saved the declaration while this was open; close the editor and add the queue again on top of their revision.`
-                  : saveError.message}
-              </Alert>
+              <Stack gap="sm">
+                <ErrorState error={saveError} />
+                {saveError.type.endsWith('stale-revision') ? (
+                  <Text size="sm">
+                    Someone saved the declaration while this was open; close the editor and add the queue again on top
+                    of their revision.
+                  </Text>
+                ) : null}
+              </Stack>
             ) : null}
             <Group gap="xs" justify="flex-end">
               <Button variant="default" size="xs" onClick={collapse}>

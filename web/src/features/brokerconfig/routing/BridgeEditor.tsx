@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Button,
   Collapse,
   Group,
@@ -21,10 +20,14 @@ import {
   type ConfigBridgeView,
   type ConfigDeclarationView,
 } from '../api.ts';
+import { ErrorState } from '../../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../../ui/notify.ts';
 import { keyTaken, removeItem, upsertBridge } from '../document.ts';
 import { EditorDrawer } from '../EditorDrawer.tsx';
 import { useSaveDocument } from '../useSaveDocument.ts';
 import { TransformerFields, type TransformerValue } from './TransformerFields.tsx';
+
+const STORE: ActionVerb = { verb: 'Store', past: 'Stored', progressive: 'Storing' };
 
 /** The name a bridge can carry: the broker puts it in a JMX object name. */
 const MANAGEMENT_NAME = /^[^\s,=:*?"\\]*$/;
@@ -275,7 +278,7 @@ export function BridgeEditor({
       hint={submitted && Object.keys(errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
       secondary={
         item ? (
-          <Button variant="subtle" color="red" size="xs" onClick={remove} loading={isPending}>
+          <Button variant="subtle" size="xs" onClick={remove} loading={isPending}>
             Remove from declaration
           </Button>
         ) : null
@@ -376,21 +379,21 @@ export function BridgeEditor({
                 size="xs"
                 value={credentialRef}
                 onChange={(e) => setCredentialRef(e.currentTarget.value)}
-                style={{ flex: 1 }}
+                flex={1}
               />
               <TextInput
                 label="User"
                 size="xs"
                 value={newCredentialUser}
                 onChange={(e) => setNewCredentialUser(e.currentTarget.value)}
-                style={{ flex: 1 }}
+                flex={1}
               />
               <PasswordInput
                 label="Password"
                 size="xs"
                 value={newCredentialPassword}
                 onChange={(e) => setNewCredentialPassword(e.currentTarget.value)}
-                style={{ flex: 1 }}
+                flex={1}
               />
               <Button
                 variant="default"
@@ -403,18 +406,24 @@ export function BridgeEditor({
                       ref: credentialRef.trim(),
                       body: { username: newCredentialUser.trim() || null, password: newCredentialPassword },
                     },
-                    { onSuccess: () => setNewCredentialPassword('') },
+                    {
+                      onSuccess: () => {
+                        setNewCredentialPassword('');
+                        notify.succeeded({ action: STORE, subject: `credential ${credentialRef.trim()}` });
+                      },
+                    },
                   )
                 }
               >
                 Store credential
               </Button>
             </Group>
-            {storeCredential.isError ? (
-              <Alert color="red" variant="light" title={storeCredential.error.title} role="alert">
-                {storeCredential.error.message}
-              </Alert>
-            ) : null}
+            {credentialRef.trim() && newCredentialPassword ? null : (
+              <Text size="sm" c="dimmed">
+                Storing needs a name for the credential and its password.
+              </Text>
+            )}
+            {storeCredential.isError ? <ErrorState variant="inline" error={storeCredential.error} /> : null}
 
             <Switch
               label="Highly available"
