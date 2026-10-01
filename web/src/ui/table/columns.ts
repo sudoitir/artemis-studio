@@ -23,6 +23,11 @@ export interface Column<T> {
   max?: number;
   /** Whether the column shares spare width, overriding the kind's. */
   grow?: boolean;
+  /**
+   * The cell is drawn as a `StatusBadge`, whose padding and border widen it beyond its text, so the
+   * Measurer sizes it with them. Plain-word `status` columns (a type, "yes"/"no") are not badges.
+   */
+  badge?: boolean;
   /** Static table only: wrap the value instead of shortening it. */
   wrap?: boolean;
   /** The `sort` query value this column sorts by, if sortable. */

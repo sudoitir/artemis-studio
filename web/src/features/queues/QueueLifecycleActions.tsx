@@ -7,7 +7,8 @@ import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { appliedEverywhere, NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { appliedEverywhere } from '../../ui/nodeOutcome.ts';
+import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { EditQueueForm } from './EditQueueForm.tsx';
 
 /**

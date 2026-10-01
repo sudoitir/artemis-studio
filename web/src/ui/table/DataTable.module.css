@@ -484,6 +484,17 @@
   content: attr(data-text);
 }
 
+/* A badge column's value is measured with the font, padding and border of a StatusBadge, so the
+   chrome around its word is not clipped. These repeat StatusBadge.module.css, and StatusBadge.test.tsx
+   fails if the two drift apart. */
+.measureCell[data-badge]::before {
+  display: inline-block;
+  padding-inline: var(--mantine-spacing-xs);
+  border: 1px solid transparent;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+}
+
 .measureHead {
   font-size: var(--mantine-font-size-xs);
   font-weight: 600;

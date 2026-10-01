@@ -51,8 +51,7 @@ export function auditColumns(zone: string): Column<AuditEventView>[] {
         return createElement(StatusBadge, { tone, children: word });
       },
       kind: 'status',
-      // The badge has a border and padding of its own beyond its word.
-      min: 11,
+      badge: true,
       priority: 'high',
     },
   ];

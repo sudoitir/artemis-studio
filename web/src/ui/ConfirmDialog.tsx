@@ -53,7 +53,7 @@ export function ConfirmDialog({
             <ConfirmByTyping
               token={typedName}
               confirmLabel={confirmLabel}
-              color={color}
+              tone={tone}
               loading={pending}
               onConfirm={onConfirm}
             />

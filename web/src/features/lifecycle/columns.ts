@@ -38,8 +38,7 @@ export function healthColumns(zone: string): Column<TableView>[] {
       accessor: (t) => (t.problems.length ? `Unhealthy: ${t.problems.join('; ')}` : 'Healthy'),
       cell: (t) => createElement(TableState, { table: t }),
       kind: 'text',
-      // The badge has a border and padding of its own beyond its words.
-      min: 14,
+      badge: true,
       priority: 'high',
     },
     { id: 'size', header: 'Size', accessor: (t) => bytes(t.bytes), kind: 'number', priority: 'high' },

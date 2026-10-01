@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Text } from '@mantine/core';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 
 interface Props {
   pluginId: string;
@@ -13,11 +13,11 @@ interface Props {
  * is replaced by a sentence naming the plugin — or by nothing, where a sentence would not fit —
  * and the screen around it keeps working.
  */
-export class PluginBoundary extends Component<Props, { failed: boolean }> {
-  state = { failed: false };
+export class PluginBoundary extends Component<Props, { error: unknown }> {
+  state: { error: unknown } = { error: null };
 
-  static getDerivedStateFromError() {
-    return { failed: true };
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error ?? new Error('A plugin component threw without a message') };
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
@@ -25,13 +25,16 @@ export class PluginBoundary extends Component<Props, { failed: boolean }> {
   }
 
   render() {
-    if (!this.state.failed) return this.props.children;
+    if (this.state.error === null) return this.props.children;
     if (this.props.quiet) return null;
+    const { error } = this.state;
+    const reason = error instanceof Error ? error.message : String(error);
     return (
-      <Text size="sm" c="dimmed" role="status">
-        The {this.props.pluginId} plugin could not show this part of the screen. The rest of the page is unaffected; an
-        administrator can see the plugin's state under Administration → Plugins.
-      </Text>
+      <ErrorState
+        variant="inline"
+        error={new Error(`The ${this.props.pluginId} plugin could not show this part of the screen: ${reason}`)}
+        onRetry={() => this.setState({ error: null })}
+      />
     );
   }
 }

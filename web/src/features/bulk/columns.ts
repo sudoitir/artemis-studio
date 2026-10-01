@@ -83,8 +83,7 @@ export function itemColumns(destructive: boolean, onOpen: (queueName: string) =>
       accessor: (i) => itemStatus(i.status).text,
       cell: (i) => createElement(ItemOutcome, { item: i }),
       kind: 'status',
-      // The badge has a border and padding of its own beyond its word.
-      min: 12,
+      badge: true,
       priority: 'high',
     },
     ...(destructive ? [messagesColumn('affected')] : []),

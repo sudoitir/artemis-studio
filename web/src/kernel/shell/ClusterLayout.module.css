@@ -3,8 +3,10 @@
 .layout {
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: var(--mantine-spacing-lg);
   min-inline-size: 0;
+  min-block-size: 0;
 }
 
 .context {

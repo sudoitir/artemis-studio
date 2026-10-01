@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Button, Group, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedCallback } from '@mantine/hooks';
 
 import { useCluster } from '../clusters/index.ts';
 import { useQueue, useQueues, type QueueView } from './api.ts';
@@ -207,16 +207,29 @@ export function QueuesView() {
   const navigate = useNavigate();
 
   const [filter, setFilter] = useState(search.q ?? '');
-  const [debounced] = useDebouncedValue(filter, 250);
   const page = search.page ?? 1;
 
-  useEffect(() => {
-    if ((search.q ?? '') === debounced) return;
+  const writeFilter = useDebouncedCallback(
+    (q: string) =>
+      void navigate({
+        to: '.',
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: q || undefined, page: undefined }),
+      }),
+    250,
+  );
+  const typeFilter = (q: string) => {
+    setFilter(q);
+    writeFilter(q);
+  };
+  // Cancelling first: a write still waiting on the debounce would put the old filter back in the address.
+  const clearFilter = () => {
+    writeFilter.cancel();
+    setFilter('');
     void navigate({
       to: '.',
-      search: (prev: Record<string, unknown>) => ({ ...prev, q: debounced || undefined, page: undefined }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
     });
-  }, [debounced, navigate, search.q]);
+  };
 
   const query = useQueues(clusterId, {
     q: search.q,
@@ -292,7 +305,7 @@ export function QueuesView() {
             label="Filter queues"
             placeholder="Queue or address name"
             value={filter}
-            onChange={(e) => setFilter(e.currentTarget.value)}
+            onChange={(e) => typeFilter(e.currentTarget.value)}
             w={280}
             size="xs"
           />
@@ -357,13 +370,7 @@ export function QueuesView() {
             filterText={search.q ?? ''}
             unreachable={unreachable}
             mayCreate={mayCreate}
-            onClearFilter={() => {
-              setFilter('');
-              void navigate({
-                to: '.',
-                search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
-              });
-            }}
+            onClearFilter={clearFilter}
             onCreate={() => setCreateOpen(true)}
           />
         }

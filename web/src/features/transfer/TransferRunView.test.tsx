@@ -373,7 +373,7 @@ describe('TransferRunView permissions', () => {
     show({ state: 'RUNNING' }, ['cluster:read']);
 
     const explain = await screen.findByRole('button', { name: 'Why stopping this transfer is unavailable' });
-    expect(within(explain).getByRole('button', { name: 'Stop' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeDisabled();
     await userEvent.setup().click(explain);
     expect(await screen.findByText(/Move or retry messages/)).toBeInTheDocument();
   });
@@ -384,7 +384,7 @@ describe('TransferRunView permissions', () => {
     ]);
 
     const explain = await screen.findByRole('button', { name: 'Why resuming this transfer is unavailable' });
-    expect(within(explain).getByRole('button', { name: 'Resume' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeDisabled();
     await userEvent.setup().click(explain);
     expect(await screen.findByText(/Send messages/)).toBeInTheDocument();
   });
@@ -394,7 +394,7 @@ describe('TransferRunView permissions', () => {
 
     expect(await screen.findByRole('button', { name: 'Return to source…' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Why returning these messages is unavailable' })).toBeNull();
-    const explain = screen.getByRole('button', { name: 'Why resuming this transfer is unavailable' });
-    expect(within(explain).getByRole('button', { name: 'Resume' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Why resuming this transfer is unavailable' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeDisabled();
   });
 });

@@ -447,7 +447,7 @@ export function AdoptDrawer({
             token={declaration.clusterName}
             label={`Type "${declaration.clusterName}" to record that closing these findings is intended`}
             confirmLabel={`Save as revision ${declaration.revision + 1}`}
-            color="yellow"
+            tone="default"
             loading={isPending}
             disabled={!result}
             onConfirm={() => saveAdoption(declaration.clusterName)}

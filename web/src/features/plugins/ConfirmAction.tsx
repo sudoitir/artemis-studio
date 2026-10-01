@@ -61,7 +61,7 @@ export function ConfirmAction({
           <ConfirmByTyping
             token={typeToConfirm}
             confirmLabel={confirmLabel}
-            color={danger ? 'red' : 'blue'}
+            tone={danger ? 'danger' : 'default'}
             loading={pending}
             disabled={!fresh}
             onConfirm={onConfirm}

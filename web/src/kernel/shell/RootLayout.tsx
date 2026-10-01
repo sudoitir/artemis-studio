@@ -171,7 +171,7 @@ export function RootLayout() {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main id={MAIN_ID}>
+      <AppShell.Main id={MAIN_ID} className={styles.main}>
         <Outlet />
       </AppShell.Main>
 

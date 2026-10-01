@@ -33,6 +33,38 @@ describe('columnSpec', () => {
   });
 });
 
+describe('badge columns', () => {
+  const status: Column<Row> = {
+    id: 'state',
+    header: 'State',
+    accessor: (r) => r.code,
+    kind: 'status',
+    priority: 'high',
+  };
+  const badged: Column<Row> = { ...status, badge: true };
+
+  it('are only the columns that say so, whatever their kind', () => {
+    expect(columnSpec(status).badge).toBe(false);
+    expect(columnSpec(cols[0]).badge).toBe(false);
+    expect(columnSpec({ ...cols[0], badge: true }).badge).toBe(true);
+    expect(columnSpec({ ...status, badge: true }).badge).toBe(true);
+  });
+
+  it('has the Measurer size its values with the badge chrome, and no other column', () => {
+    const fields = [cols[0], badged].map((column) => ({
+      id: column.id,
+      header: column.header,
+      sortable: false,
+      spec: columnSpec(column),
+    }));
+    const { container } = render(
+      <Measurer fields={fields} sample={[['queue-1', 'Healthy']]} rootRef={{ current: null }} />,
+    );
+    const cells = Array.from(container.querySelectorAll('[data-badge]')).map((cell) => cell.getAttribute('data-text'));
+    expect(cells).toEqual(['Healthy']);
+  });
+});
+
 describe('cellText', () => {
   it('is the value as text, and nothing for none', () => {
     expect(cellText('a')).toBe('a');

@@ -35,8 +35,8 @@ describe('Page', () => {
     expect(screen.getByText('content').parentElement).toHaveAttribute('data-fill');
   });
 
-  it('sizes the filling child from the window less the shell header, with no breakpoints', () => {
-    expect(pageCss).toMatch(/100dvh - var\(--app-shell-header-offset/);
-    expect(pageCss).not.toMatch(/@media/);
+  it('grows into the space its flex-column parent leaves, rather than measuring the window', () => {
+    expect(pageCss).toMatch(/\.page\[data-fill\]\s*\{[^}]*flex: 1;[^}]*min-block-size: 0;/);
+    expect(pageCss).not.toMatch(/100dvh|@media/);
   });
 });

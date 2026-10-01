@@ -1,0 +1,7 @@
+/* The gated control and its "Why?" button, side by side and never nested. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

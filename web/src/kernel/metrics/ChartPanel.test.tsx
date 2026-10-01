@@ -29,12 +29,9 @@ describe('ChartPanel', () => {
     expect(screen.getByText('the plot')).toBeInTheDocument();
   });
 
-  it('says a window could not be read, which is not the same as there being nothing in it', () => {
+  it('shows the failure instead of an empty plot', () => {
     panel({ error: new ApiError(403, { title: 'Forbidden', permission: 'metrics:read' }) });
     expect(screen.getByRole('alert')).toHaveTextContent('Your role does not include the metrics:read permission.');
-    // The server's own words stay: ErrorState reads the status, the message says what the server said.
-    expect(screen.getByText(/Forbidden — this window could not be read/)).toBeInTheDocument();
-    expect(screen.getByText(/not the same as there being nothing in it/)).toBeInTheDocument();
     expect(screen.queryByText('the plot')).not.toBeInTheDocument();
   });
 

@@ -21,8 +21,7 @@ export function resultColumns(clusterId: string, zone: string): Column<SqlRowVie
       accessor: (r) => sourceOf(r).word,
       cell: (r) => createElement(SourceBadge, { row: r }),
       kind: 'status',
-      // The badge has a border and padding of its own beyond its word.
-      min: 11,
+      badge: true,
       priority: 'high',
     },
     {

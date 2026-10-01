@@ -311,6 +311,21 @@ describe('QueuesView empty grid', () => {
     expect(screen.getByRole('textbox', { name: 'Filter queues' })).toHaveValue('');
   });
 
+  it('does not write a half-typed filter back after the filter was cleared', async () => {
+    search = { q: 'zzz' };
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<QueuesView />);
+
+    await screen.findByText('No queue matches "zzz"');
+    await user.type(screen.getByRole('textbox', { name: 'Filter queues' }), 'a');
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(nextSearch({ q: 'zzz', page: 2 })).toEqual({ q: undefined, page: undefined });
+  });
+
   it('says one unreachable node makes this an incomplete view rather than an empty cluster', async () => {
     search = {};
     serve({ nodes: [{ endpoints: [{ name: 'node-a', lastError: 'connection refused' }, { name: 'node-b' }] }] });

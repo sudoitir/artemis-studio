@@ -18,3 +18,15 @@
 .skipLink:focus-visible {
   transform: translateY(0);
 }
+
+/* The main area is a column, so a page can grow into the space beside the header. A page that
+   fills (`data-fill`, see Page) makes it exactly the window tall: the document then never scrolls,
+   and the grid inside takes what the content above it leaves. */
+.main {
+  display: flex;
+  flex-direction: column;
+}
+
+.main:has([data-fill]) {
+  block-size: 100dvh;
+}

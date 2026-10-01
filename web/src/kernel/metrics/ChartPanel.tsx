@@ -17,14 +17,7 @@ function chartNotice(
   emptyLabel: string,
 ): React.ReactNode {
   if (error) {
-    return (
-      <Stack gap="xs">
-        <ErrorState error={error} variant="inline" />
-        <Text size="sm" c="dimmed">
-          {error.message} — this window could not be read, which is not the same as there being nothing in it.
-        </Text>
-      </Stack>
-    );
+    return <ErrorState error={error} variant="inline" />;
   }
   if (isPending) return <LoadingState label={`Loading ${title}`} blockSize={CHART_HEIGHT} />;
   if (!isEmpty) return null;

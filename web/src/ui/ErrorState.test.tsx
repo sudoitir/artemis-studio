@@ -24,6 +24,24 @@ describe('ErrorState', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it('does not call a render crash a network failure', async () => {
+    const onRetry = vi.fn();
+    renderWithProviders(
+      <ErrorState error={new TypeError("Cannot read properties of undefined (reading 'name')")} onRetry={onRetry} />,
+    );
+    expect(screen.queryByText('Studio could not be reached')).not.toBeInTheDocument();
+    expect(screen.getByText('An unexpected error occurred in the console')).toBeInTheDocument();
+    expect(screen.getByText("Cannot read properties of undefined (reading 'name')")).toBeInTheDocument();
+    expect(screen.getByText(/reload the page/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it('reads a thrown non-error value as an unexpected error', () => {
+    renderWithProviders(<ErrorState error="boom" />);
+    expect(screen.getByText('An unexpected error occurred in the console')).toBeInTheDocument();
+  });
+
   it('treats status 0 as the network', () => {
     renderWithProviders(<ErrorState error={apiError(0)} />);
     expect(screen.getByText('Studio could not be reached')).toBeInTheDocument();
@@ -98,6 +116,12 @@ describe('ErrorState', () => {
     expect(screen.getByText('Studio failed to complete the request')).toBeInTheDocument();
     expect(screen.getByText('Request id: req-42')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('keeps the server detail beside the request id on a server error', () => {
+    renderWithProviders(<ErrorState error={apiError(500, { detail: 'The journal is full.', requestId: 'req-7' })} />);
+    expect(screen.getByText('The journal is full.')).toBeInTheDocument();
+    expect(screen.getByText('Request id: req-7')).toBeInTheDocument();
   });
 
   it.each([

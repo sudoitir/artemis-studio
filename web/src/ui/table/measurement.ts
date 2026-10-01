@@ -17,6 +17,8 @@ export interface ColumnSpec {
   /** Figures and times: tabular digits. */
   tabular: boolean;
   alignEnd: boolean;
+  /** Drawn as a `StatusBadge`: its padding and border are measured with the text. */
+  badge: boolean;
 }
 
 export function columnSpec<T>(column: Column<T>): ColumnSpec {
@@ -31,6 +33,7 @@ export function columnSpec<T>(column: Column<T>): ColumnSpec {
     textLike: column.kind === 'text' || column.kind === 'identifier' || column.kind === 'code',
     tabular: column.kind === 'number' || column.kind === 'time',
     alignEnd: column.kind === 'number',
+    badge: Boolean(column.badge),
   };
 }
 
@@ -179,7 +182,9 @@ export function useMeasurement<T>({
   const busyRef = useRef(isBusy);
   busyRef.current = isBusy;
 
-  const columnKey = columns.map((c) => [c.id, c.header, c.kind, c.min, c.max, c.sortKey ? 1 : 0].join(':')).join('|');
+  const columnKey = columns
+    .map((c) => [c.id, c.header, c.kind, c.badge, c.min, c.max, c.sortKey ? 1 : 0].join(':'))
+    .join('|');
   const key = `${columnKey}#${density}#${fontsEpoch}#${refitEpoch}`;
 
   const measuredKey = useRef<string>(undefined);

@@ -50,6 +50,7 @@ export const Measurer = memo(function Measurer({ fields, sample, rootRef }: Read
               key={`${r}:${fields[i].id}`}
               className={cellClass(fields[i].spec)}
               data-text={text}
+              data-badge={fields[i].spec.badge || undefined}
               style={boundsOf(fields[i].spec)}
             />
           )),

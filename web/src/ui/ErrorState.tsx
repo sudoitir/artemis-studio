@@ -68,25 +68,45 @@ function seconds(n: number): string {
 }
 
 /**
+ * Whether the request never got an answer: an explicit status 0, or the `TypeError` `fetch` throws
+ * when the network fails (its message differs by browser). Any other `TypeError`, such as a render
+ * crash, is the console's own bug, not the network.
+ */
+function isNetworkFailure(error: unknown, status: number | undefined): boolean {
+  if (status === 0) return true;
+  return error instanceof TypeError && /fetch|network|load failed/i.test(error.message);
+}
+
+/**
  * Reads an error by its shape. An `ApiError` carries `status`, `brokerErrorKind`, `fieldErrors` and
- * the whole problem body as `problem` (`detail`, `permission`, `retryAfter`, `requestId`); anything
- * else, such as a failed fetch, has no status and reads as the network being down.
+ * the whole problem body as `problem` (`detail`, `permission`, `retryAfter`, `requestId`); a failed
+ * fetch reads as the network being down; anything else with no status is an error inside the console.
  */
 function read(error: unknown): Reading {
   const e = isRecord(error) ? error : {};
   const problem = isRecord(e.problem) ? e.problem : {};
-  const status = typeof e.status === 'number' ? e.status : 0;
+  const given = typeof e.status === 'number' ? e.status : undefined;
+  const status = given ?? 0;
   const detail = text(problem.detail);
   const kind = text(e.brokerErrorKind);
   const broker = kind ? BROKER[kind] : undefined;
   if (broker) return broker;
   const retryAfter = typeof problem.retryAfter === 'number' && problem.retryAfter > 0 ? problem.retryAfter : undefined;
   const fields = Array.isArray(e.fieldErrors) ? (e.fieldErrors as Reading['fields']) : undefined;
-  if (status === 0) {
+  if (isNetworkFailure(error, given)) {
     return {
       title: 'Studio could not be reached',
       cause: 'The request got no answer. The network may be down, or Studio may be restarting.',
       next: 'Check your connection, then retry.',
+      retry: true,
+    };
+  }
+  if (given === undefined) {
+    return {
+      title: 'An unexpected error occurred in the console',
+      cause:
+        (error instanceof Error ? text(error.message) : undefined) ?? 'The console failed in a way it did not expect.',
+      next: 'Retry, or reload the page. If it keeps happening, report the message above.',
       retry: true,
     };
   }
@@ -151,7 +171,7 @@ function read(error: unknown): Reading {
   if (status >= 500) {
     return {
       title: 'Studio failed to complete the request',
-      cause: 'An error occurred on the server.',
+      cause: detail ?? 'An error occurred on the server.',
       next: 'Retry. If it keeps happening, report it with the request id.',
       retry: true,
       requestId: text(problem.requestId),

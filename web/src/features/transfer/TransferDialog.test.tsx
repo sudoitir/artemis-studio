@@ -276,7 +276,7 @@ describe('TransferDialog what may not be done', () => {
 
     const dialog = await screen.findByRole('dialog');
     const explain = await within(dialog).findByRole('button', { name: 'Why previewing this transfer is unavailable' });
-    expect(within(explain).getByRole('button', { name: 'Preview' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Preview' })).toBeDisabled();
     await user.click(explain);
     expect(await screen.findByText(/the broker refused a write/)).toBeInTheDocument();
   });
