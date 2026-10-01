@@ -4,10 +4,19 @@
  * the same router roots, the same query cache, the same permission checks. Nothing outside this
  * file is part of the contract; a plugin that reaches past it breaks on the next Studio release.
  */
-import type { ComponentType, ReactElement } from 'react';
+import type { ComponentProps, ComponentType, ReactElement } from 'react';
 
 import type { PluginId, StudioFeature } from '../kernel/feature.ts';
 import { featureView as kernelFeatureView } from '../kernel/routing/roots.ts';
+import { DescriptionList } from '../ui/DescriptionList.tsx';
+import { ErrorState } from '../ui/ErrorState.tsx';
+import { LoadingState } from '../ui/LoadingState.tsx';
+import { Page } from '../ui/Page.tsx';
+import { PageHeader } from '../ui/PageHeader.tsx';
+import { Section } from '../ui/Section.tsx';
+import { Stat } from '../ui/Stat.tsx';
+import { StatusBadge } from '../ui/StatusBadge.tsx';
+import { Toolbar } from '../ui/Toolbar.tsx';
 
 export { CONTRACT } from '../kernel/feature.ts';
 export type {
@@ -55,6 +64,7 @@ export { gateFor, type GateVerdict } from '../ui/capabilityGate.ts';
 export { useMe } from '../kernel/auth/api.ts';
 export { CodeEditor, type CodeDiagnostic, type CodeEditorProps } from '../ui/CodeEditor.tsx';
 export { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
+export { ConfirmDialog, type ConfirmDialogProps } from '../ui/ConfirmDialog.tsx';
 export {
   DiagramView,
   type DiagramAction,
@@ -65,15 +75,36 @@ export {
 } from '../ui/DiagramView.tsx';
 export { NodeOutcomeSummary, OutcomeSummary, type OutcomeRow } from '../ui/NodeOutcomeSummary.tsx';
 export { Pager } from '../ui/Pager.tsx';
-export { VirtualTable, type GridColumn } from '../ui/VirtualTable.tsx';
+export {
+  DataTable,
+  type Column,
+  type ColumnKind,
+  type ColumnPriority,
+  type DataTableProps,
+  type RowMenu,
+} from '../ui/table/index.ts';
+export { type DescriptionItem } from '../ui/DescriptionList.tsx';
+export { EmptyState, type EmptyStateProps } from '../ui/EmptyState.tsx';
 export { MetricChart } from '../kernel/metrics/MetricChart.tsx';
 export { usePluginSeries } from '../kernel/metrics/pluginSeries.ts';
 export { METRIC_RANGES, type MetricRange } from '../kernel/time/ranges.ts';
 /**
- * Shows a notification in Studio's own notification area. Import this, never
+ * Shows a toast in Studio's own notification area, announced through `aria-live`. Import this, never
  * `@mantine/notifications` directly: that is not shared, so a plugin's own copy would show nothing.
  */
-export { notifications as notify } from '@mantine/notifications';
+export { notify, type ActionVerb } from '../ui/notify.ts';
+
+export { DescriptionList, ErrorState, LoadingState, Page, PageHeader, Section, Stat, StatusBadge, Toolbar };
+
+export type PageProps = ComponentProps<typeof Page>;
+export type PageHeaderProps = ComponentProps<typeof PageHeader>;
+export type SectionProps = ComponentProps<typeof Section>;
+export type ToolbarProps = ComponentProps<typeof Toolbar>;
+export type ErrorStateProps = ComponentProps<typeof ErrorState>;
+export type LoadingStateProps = ComponentProps<typeof LoadingState>;
+export type StatusBadgeProps = ComponentProps<typeof StatusBadge>;
+export type StatProps = ComponentProps<typeof Stat>;
+export type DescriptionListProps = ComponentProps<typeof DescriptionList>;
 
 /** A plugin's description of itself: a {@link StudioFeature} whose id is the plugin's own. */
 export interface StudioPlugin extends StudioFeature {

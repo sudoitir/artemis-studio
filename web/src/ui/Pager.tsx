@@ -1,5 +1,7 @@
 import { Button, Group, Text } from '@mantine/core';
 
+import classes from './Pager.module.css';
+
 /**
  * Previous/Next over a server-side page, with the position stated.
  *
@@ -31,7 +33,8 @@ export function Pager({
 
   return (
     <Group justify="space-between" gap="xs">
-      <Text size="xs" c="dimmed">
+      {/* Polite, so a page turned with the keyboard says where it landed. */}
+      <Text size="xs" c="dimmed" className={classes.position} aria-live="polite">
         {total === 0 ? `No ${label}` : `${first}–${last} of ${total} ${label}`}
       </Text>
       {lastPage > 1 ? (

@@ -42,7 +42,8 @@ describe('checkPlugin', () => {
   });
 
   it.each([
-    ['another contract', plugin({ contract: CONTRACT + 1 }), /extension contract/],
+    ['a newer contract', plugin({ contract: CONTRACT + 1 }), /extension contract/],
+    ['an older contract', plugin({ contract: CONTRACT - 1 }), /extension contract/],
     ['another id', plugin({ id: 'acme-other' }), /calls itself/],
     ['nothing exported', undefined, /no default export/],
     [

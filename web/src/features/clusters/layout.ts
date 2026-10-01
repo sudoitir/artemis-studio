@@ -172,6 +172,8 @@ function brokerNode(
   const statusWord = statusWordOf(kind, endpoint);
   const version = endpoint.version ? `, Artemis ${endpoint.version}` : '';
   const versionNote = versionNoteOf(endpoint);
+  const note = versionNote ? `, ${versionNote}` : '';
+  const srSentence = `${endpoint.name}: ${statusWord}${version}${note}.`;
   return {
     id: endpoint.id,
     type: kind === 'unmanaged' ? 'unmanaged' : 'broker',
@@ -180,6 +182,7 @@ function brokerNode(
     position: { x, y },
     draggable: false,
     connectable: false,
+    ariaLabel: srSentence,
     data: {
       name: endpoint.name,
       kind,
@@ -192,7 +195,7 @@ function brokerNode(
       offset,
       unmanaged: kind === 'unmanaged',
       nodeIds: [endpoint.id],
-      srSentence: `${endpoint.name}: ${statusWord}${version}${versionNote ? `, ${versionNote}` : ''}.`,
+      srSentence,
     },
   };
 }
@@ -342,6 +345,9 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
 
   const kind = collapsedKind(axisStatus, serving.length);
   const statusWord = collapsedStatusWord(axisStatus, serving.length, others.length);
+  const srSentence = `Node ${shortId}: ${statusWord}. ${logical.endpoints.length} endpoint${
+    logical.endpoints.length === 1 ? '' : 's'
+  }.`;
 
   return {
     id: `collapsed:${logical.artemisNodeId ?? shortId}`,
@@ -350,6 +356,7 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
     draggable: false,
     connectable: false,
     selectable: false,
+    ariaLabel: srSentence,
     data: {
       name: head?.name ?? shortId,
       kind,
@@ -362,9 +369,7 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
       offset: false,
       unmanaged: false,
       nodeIds: logical.endpoints.map((e) => e.id),
-      srSentence: `Node ${shortId}: ${statusWord}. ${logical.endpoints.length} endpoint${
-        logical.endpoints.length === 1 ? '' : 's'
-      }.`,
+      srSentence,
     },
   };
 }

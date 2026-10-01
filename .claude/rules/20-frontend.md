@@ -81,13 +81,21 @@ the alternative misleads someone in that state.
 
 ## Reuse
 
-- New tabular views use the existing virtualised table, with its paging, sorting,
-  sort announcement and node attribution.
-- Destructive confirmations use `ui/ConfirmByTyping.tsx`.
+- Every table is `ui/table/DataTable`: columns come from a `columns.ts` factory with a `kind` and a
+  `priority`, never pixel widths. The grid renderer is the default, with its paging, sorting, sort
+  announcement and node attribution; `variant="static"` is for a small read-only set.
+- A page is built from the page parts in `ui/`: `Page`, `PageHeader` (the page's only h1),
+  `Section`, `Toolbar`, `EmptyState`, `ErrorState`, `LoadingState`, `StatusBadge`, `Stat` and
+  `DescriptionList`. No `Title order`, no red `Alert` for a failure, no local empty state, and no
+  key and value `Table`.
+- Confirmations use `ui/ConfirmDialog.tsx`; a destructive one gives it `typedName`, which embeds
+  `ui/ConfirmByTyping.tsx`. Toasts go through `ui/notify.ts`, never `notifications.show`.
 - A per-node result uses `ui/NodeOutcomeSummary.tsx`, for the preview *and* the
   result, so what was confirmed and what happened are comparable.
 - DTOs come from `kernel/api/schema.d.ts`, generated. Never hand-written; a feature
   names the ones it uses in its `api.ts`.
+- The SDK (`web/src/sdk/index.ts`) exports these parts for plugins. Its exports are frozen per
+  release: a change to one is a breaking commit with a migration note, and raises the contract.
 
 ## Where code goes
 
@@ -126,6 +134,5 @@ the trigger.
 
 ## Scope
 
-This contract applies to screens as they are touched. Retrofitting the whole
-frontend at once is not the intent — the rule is that a screen you are editing
-comes up to it.
+This contract applies to every screen. A screen that departs from it is a defect, not a
+retrofit to schedule.

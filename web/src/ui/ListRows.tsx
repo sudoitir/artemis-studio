@@ -1,24 +1,25 @@
 import type { ReactNode } from 'react';
-import { Divider, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
+
+import classes from './ListRows.module.css';
 
 /** A list of {@link Row}s, named for assistive technology. */
 export function Rows({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
-    <Stack component="ul" gap={0} m={0} p={0} aria-label={label} style={{ listStyle: 'none' }}>
+    <ul className={classes.rows} aria-label={label}>
       {children}
-    </Stack>
+    </ul>
   );
 }
 
 /** One thing a list holds: what it is, the facts about it beneath, and the action for it at the inline end. */
 export function Row({ title, facts, action }: Readonly<{ title: ReactNode; facts: ReactNode; action: ReactNode }>) {
   return (
-    <li>
-      <Divider />
-      <Group justify="space-between" align="center" wrap="nowrap" py="xs" gap="md">
-        <Stack gap={2}>
+    <li className={classes.row}>
+      <Group justify="space-between" align="center" py="xs" gap="md">
+        <Stack gap={0}>
           {title}
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="dimmed" className={classes.facts}>
             {facts}
           </Text>
         </Stack>

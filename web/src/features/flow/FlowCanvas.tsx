@@ -14,7 +14,7 @@ import { Alert, Loader, Text } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
 
 import { AnchoredMenu } from '../../ui/AnchoredMenu.tsx';
-import type { MenuAnchor } from '../../ui/menuAnchor.ts';
+import type { MenuAnchor } from '../../ui/table/menuAnchor.ts';
 import type { FlowGraphView } from './api.ts';
 import { FlowCanvasContext, type FlowCanvasState } from './canvasContext.ts';
 import { allocateDots } from './edgeEncoding.ts';

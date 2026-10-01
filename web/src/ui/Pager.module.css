@@ -1,0 +1,4 @@
+/* The position reads "101–200 of 1,234": digits keep one width so the sentence does not jitter as pages turn. */
+.position {
+  font-variant-numeric: tabular-nums;
+}

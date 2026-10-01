@@ -5,7 +5,7 @@ import type { FlowNodeView } from './api.ts';
 import { FlowCanvasContext } from './canvasContext.ts';
 import { FAULT_LABELS, formatCount } from './flowFormat.ts';
 import type { FlowNodeData, LaneData } from './flowLayout.ts';
-import { anchorBelow, clampToViewport } from '../../ui/menuAnchor.ts';
+import { anchorBelow, clampToViewport } from '../../ui/table/menuAnchor.ts';
 import classes from './FlowCanvas.module.css';
 
 const KIND_WORD: Record<string, string> = {

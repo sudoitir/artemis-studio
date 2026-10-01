@@ -1,0 +1,38 @@
+/* What a view shows in place of rows. Start-aligned and quiet: it is read, not admired. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-sm);
+  max-inline-size: 36rem;
+  padding-block: var(--mantine-spacing-xl);
+  padding-inline: var(--mantine-spacing-lg);
+  min-inline-size: 0;
+}
+
+.title {
+  font-weight: 600;
+  font-size: var(--mantine-font-size-lg);
+  line-height: var(--mantine-line-height-lg);
+  overflow-wrap: anywhere;
+}
+
+.description {
+  color: var(--as-text-dimmed);
+}
+
+.nodes {
+  margin: 0;
+  padding-inline-start: var(--mantine-spacing-xl);
+  font-family: var(--mantine-font-family-monospace);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  margin-block-start: var(--mantine-spacing-xs);
+}

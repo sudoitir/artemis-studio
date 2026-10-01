@@ -42,7 +42,7 @@ function mockEmptyQueues() {
   server.use(
     http.get(/\/api\/v1\/clusters\/.*\/queues/, () => HttpResponse.json({ data: [], count: 0, page: 1, pageSize: 50 })),
     http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
-    // ClusterRailNav groups clusters by environment (authorization spec).
+    // The cluster switcher groups clusters by environment (authorization spec).
     http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
     // The command palette lists the views of the installation's enabled features.
     manifestHandler(),
@@ -84,7 +84,7 @@ describe('RootLayout sidebar collapse', () => {
     expect(await screen.findByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
   });
 
-  it('keeps collapsed cluster rows reachable by name for a screen reader', async () => {
+  it('keeps the collapsed cluster switcher reachable by name for a screen reader', async () => {
     mockAuthenticated();
     mockEmptyQueues();
     server.use(
@@ -95,7 +95,44 @@ describe('RootLayout sidebar collapse', () => {
     localStorage.setItem('as:nav:collapsed', 'true');
     renderWithProviders(<RootLayout />);
 
-    expect(await screen.findByRole('link', { name: /prod-emea/ })).toBeInTheDocument();
+    // No cluster is open at this address, so the rail's one control says what it is for.
+    expect(await screen.findByRole('button', { name: 'Choose a cluster' })).toBeInTheDocument();
+  });
+});
+
+describe('RootLayout in a narrow window', () => {
+  const originalMatchMedia = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+    navigate.mockClear();
+  });
+
+  /** A window narrower than 64rem, whatever its size in CSS pixels: the threshold follows zoom. */
+  function narrowWindow() {
+    window.matchMedia = ((query: string) => ({
+      ...originalMatchMedia(query),
+      matches: query === '(width < 64rem)',
+    })) as typeof window.matchMedia;
+  }
+
+  it('shows the icon rail whatever was chosen, and says why the toggle does nothing', async () => {
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(
+      http.get('*/api/v1/clusters', () =>
+        HttpResponse.json(paged([{ id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 3 }])),
+      ),
+    );
+    localStorage.setItem('as:nav:collapsed', 'false');
+    narrowWindow();
+    renderWithProviders(<RootLayout />);
+
+    const toggle = await screen.findByRole('button', { name: 'Sidebar stays collapsed in a narrow window' });
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(await screen.findByRole('button', { name: 'Choose a cluster' })).toBeInTheDocument();
+    // The viewer's own choice is kept for when the window is wide again.
+    expect(localStorage.getItem('as:nav:collapsed')).toBe('false');
   });
 });
 

@@ -2,14 +2,14 @@ import { IconSettings } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { SettingsView } from '../../kernel/shell/SettingsView.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { DisplaySection, HealthSection, OperationalSection, SecuritySection } from './sections.tsx';
 
 const settingsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'settings',
-  component: featureView('settings', SettingsView),
+  component: lazyFeatureView('settings', () => import('../../kernel/shell/SettingsView.tsx'), 'SettingsView'),
   // The open tab is a `settings.sections` contribution's id; the page falls back to the first tab for any other.
   validateSearch: (raw: Record<string, unknown>): { tab?: string } =>
     typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {},

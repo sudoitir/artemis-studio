@@ -34,6 +34,12 @@ Project-level scoping:
 
 - `sonar.plsql.file.suffixes=.plsql`: the Liquibase changesets are PostgreSQL. The PL/SQL analyser
   is Oracle's and reports Oracle rules against them (VARCHAR2, CHAR).
+- `typescript:S6819`, `typescript:S6852` and `typescript:S1082` in `web/src/ui/table/GridTable.tsx`
+  only: the data grid is an ARIA grid of divs on CSS-grid tracks (ADR-0020), because native table
+  elements cannot be virtualised. It is one tab stop with roving cell focus set at runtime, and the
+  grid, not each cell or row, handles Enter, Space and the menu keys (ADR-0108, ADR-0160). The rules
+  ask for `<td>`, `<tr>` and `<th>` in place of the grid roles, for a tab stop on every role, and for
+  a key handler beside every click handler.
 
 ## Consequences
 

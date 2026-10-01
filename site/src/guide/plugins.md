@@ -631,10 +631,35 @@ exports:
   - Tab indents. Escape then Tab leaves the editor.
   - Pass `maxHeight` to make it scroll inside itself, or `lineWrapping` to wrap long lines.
   - It validates nothing itself: pass your server's diagnostics by line and column.
-- **`VirtualTable`** columns fit their content and can be resized by the viewer: drag a header's
-  border, double-click it, or press Ctrl+Shift+Left/Right on a focused header. Pass a
-  `storageKey` prefixed with your plugin id (`acme-notes.notes`) to remember each viewer's
-  widths.
+- **`DataTable`** is Studio's one table. Describe each column once (`id`, a required `header`, an
+  `accessor` for its plain value, an optional `cell` renderer, a `kind` and a `priority`) and pass a
+  required `label` that names the table and an `empty` state.
+  - **Columns size themselves.** There are no pixel widths. A `kind` (`text`, `identifier`, `code`,
+    `number`, `time` or `status`) sets a column's bounds and font, and `min`, `max` (in `ch`) and
+    `grow` adjust them. When the columns do not fit, the longest values are shortened first, then
+    `low` and `high` priority columns are hidden (the Columns control says how many), and an
+    `essential` column is never hidden.
+  - **Two renderers.** The default is an interactive grid, always virtualised, with one tab stop and
+    arrow-key movement, selection, a `rowMenu` and resizable columns. `variant="static"` is a native
+    `<table>` for a small read-only set, and becomes the grid above 200 rows.
+  - **States and size.** Pass `loading`, and an `ErrorState` as `error`. `height` is `'fill'` or
+    `{ maxRows }` to be as tall as its rows, up to that many.
+  - **The viewer's choices** (widths, hidden columns, order) are kept when you pass a `storageKey`
+    prefixed with your plugin id (`acme-notes.notes`). The URL owns the sort: pass `sort` and
+    `onSortChange`.
+- **The page parts** are what every Studio page is built from.
+  - `Page` is the frame, and `PageHeader` is the page's one h1, with a description, meta and
+    actions. `Section` is a titled block, plain or as a card, and `Toolbar` is the row of controls
+    above a view.
+  - `EmptyState` is one of three kinds: `empty` (what the resource is, why there is none, and the
+    action that creates one), `filtered` (needs `onClearFilters`) and `unreachable` (needs the
+    `nodes`). `ErrorState` reads an `ApiError` and names the cause and the next step. `LoadingState`
+    holds the space of what it stands for.
+  - `StatusBadge` shows a state in words. `Stat` shows a figure, and `null` reads "Unavailable",
+    never 0. `DescriptionList` shows terms and values.
+  - `ConfirmDialog` confirms an action, and for a removal it asks for the resource's name to be
+    typed. `notify` shows a toast for the outcomes of an action: pending, succeeded, failed and
+    partial.
 - **`DiagramView`** draws boxes and arrows, laid out for you, for example the steps of a workflow.
   - It is read-only. Pass `nodes` (`id`, `label`, optional `kind`, `detail`) and `edges`
     (`source`, `target`, optional `label`, and `dashed` for a secondary path).
@@ -652,6 +677,25 @@ exports:
     - Pass `nodeActions(node)` (`id`, `label`, optional `danger` and `disabledReason`) with
       `onNodeAction(nodeId, actionId)`. A box's actions open from its "⋯", a right-click or
       Shift+F10. Give an action that does not apply a `disabledReason` rather than leaving it out.
+
+### Moving a plugin from contract 8 to 9
+
+Contract 9 replaces `VirtualTable` with the parts above. Studio refuses a plugin built for contract
+8 with "built for extension contract 8", so rebuild it against the new SDK and set
+`<studio.contract>9</studio.contract>` in its `pom.xml`:
+
+- `VirtualTable` becomes `DataTable`, and `GridColumn` becomes `Column`.
+- A column's `width` is gone. Choose its `kind` and `priority`, and `min` and `max` where the
+  defaults do not suit. Every column needs a `kind` and a `priority`.
+- `compact` becomes `height={{ maxRows }}`.
+- `emptyLabel` becomes `empty={<EmptyState … />}`.
+- `label` is required.
+- The widths a viewer had stored are not read: they reset once.
+- The `pine` colour is gone. Use the theme's primary colour.
+- Replace a plugin's own headings, empty states and red alerts with `PageHeader`, `Section`,
+  `EmptyState` and `ErrorState`.
+- `notify` is no longer Mantine's `notifications`: call its `succeeded`, `failed`, `pending` and
+  `partial` instead of `show`.
 
 ## How it works
 

@@ -74,13 +74,7 @@ function NodeMarks({ nodeIds }: Readonly<{ nodeIds: string[] }>) {
 function BrokerNode({ data }: NodeProps) {
   const d = data as BrokerNodeData;
   return (
-    <div
-      className={styles.node}
-      data-kind={d.kind}
-      data-offset={d.offset || undefined}
-      tabIndex={0}
-      aria-label={d.srSentence}
-    >
+    <div className={styles.node} data-kind={d.kind} data-offset={d.offset || undefined}>
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
         {/* Clamped to two lines in CSS so the box keeps its slot; the title
@@ -111,7 +105,7 @@ function UnmanagedNode({ id, data }: NodeProps) {
   const d = data as BrokerNodeData;
   const { addManagementUrl } = useContext(ActionsContext);
   return (
-    <div className={styles.node} data-kind="unmanaged" tabIndex={0} aria-label={d.srSentence}>
+    <div className={styles.node} data-kind="unmanaged">
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
         <span className={styles.name} title={d.address ?? d.name}>
@@ -224,6 +218,8 @@ export function TopologyCanvas({
             fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
             nodesDraggable={false}
             nodesConnectable={false}
+            nodesFocusable={interactive}
+            edgesFocusable={interactive}
             elementsSelectable={false}
             panOnScroll={interactive}
             zoomOnScroll={interactive}

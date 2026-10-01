@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { AppShell, Button, Center, Divider, Group, Kbd, Loader, ScrollArea, Text } from '@mantine/core';
+import { useEffect, useEffectEvent } from 'react';
+import { AppShell, Button, Divider, Group, Kbd, ScrollArea, Text } from '@mantine/core';
 import { spotlight } from '@mantine/spotlight';
 import { IconSearch } from '@tabler/icons-react';
-import { useDocumentTitle, useHotkeys, useReducedMotion } from '@mantine/hooks';
+import { useDocumentTitle, useHotkeys } from '@mantine/hooks';
 import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 
 import styles from './RootLayout.module.css';
@@ -10,6 +10,7 @@ import { branding } from '../../branding.ts';
 import { useMe } from '../auth/api.ts';
 import { usePluginsChanged } from '../plugins/usePluginsChanged.tsx';
 import { useSlot } from '../slots.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
 import { ColorSchemeToggle } from './ColorSchemeToggle.tsx';
 import { CommandPalette } from './CommandPalette.tsx';
@@ -27,20 +28,29 @@ const NAVBAR_ID = 'as-navbar';
 const MAIN_ID = 'as-main';
 const PUBLIC_PATHS = new Set(['/login', '/change-password', '/enrol-second-factor']);
 
+/** The shell's transitions run on the theme's motion tokens, which reduced motion sets to zero. */
+const shellVars = () => ({
+  root: {
+    '--app-shell-transition-duration': 'var(--as-duration-base)',
+    '--app-shell-transition-timing-function': 'var(--as-ease)',
+  },
+});
+
 /**
  * The desktop workspace chrome: a fixed header, the collapsible sidebar (the features' way between
  * clusters, then the open cluster's view nav, ADR-0034), and the routed detail column.
- * Desktop-first — no mobile breakpoint (`breakpoint: 0`).
+ * Desktop-first: no phone or tablet layout (ADR-0164).
  *
- * The sidebar collapses to a 64px icon rail rather than disappearing: `AppShell`'s
+ * The sidebar collapses to an icon rail rather than disappearing: `AppShell`'s
  * own `collapsed` prop removes the navbar's width entirely, which is the wrong
  * shape for a rail that stays present with icons. Animating `navbar.width`
  * instead lets `AppShell` transition both the navbar and the `Main` offset in
- * lockstep under one `transitionDuration` (design.md Decision 7).
+ * lockstep under one duration (design.md Decision 7). Both widths are theme
+ * tokens (`--as-nav-w`, `--as-nav-rail-w`), and the rail is also what a window
+ * narrower than 64rem gets (`useNavCollapsed`).
  */
 export function RootLayout() {
-  const { collapsed, toggle } = useNavCollapsed();
-  const reducedMotion = useReducedMotion();
+  const { collapsed, forced, toggle } = useNavCollapsed();
   const { clusterId } = useParams({ strict: false }) as { clusterId?: string };
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,7 +83,9 @@ export function RootLayout() {
 
   // Every place visited feeds the palette's Recent group: a view, or the resource open in it.
   const recentLabel = view?.item ? titleParts.resource || view.item.label : undefined;
-  useEffect(() => {
+  // The search is part of the place (the open queue), but a filter typed into it is not a new place:
+  // the effect event reads it without making it a trigger.
+  const record = useEffectEvent(() => {
     if (!view?.item || !recentLabel) return;
     recordRecent(view.clusterId, {
       label: recentLabel,
@@ -81,9 +93,12 @@ export function RootLayout() {
       to: location.pathname,
       search: (location.search ?? {}) as Record<string, unknown>,
     });
-    // The search is part of the place (the open queue), but a filter typed into it is not a new place.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view?.clusterId, view?.item, recentLabel, location.pathname]);
+  });
+  const recentCluster = view?.clusterId;
+  const recentItem = view?.item;
+  useEffect(() => {
+    record();
+  }, [recentCluster, recentItem, recentLabel, location.pathname]);
 
   useHotkeys([['mod+B', toggle]]);
   useKeySequences();
@@ -95,11 +110,7 @@ export function RootLayout() {
   }
 
   if (me.isLoading) {
-    return (
-      <Center mih="100vh">
-        <Loader />
-      </Center>
-    );
+    return <LoadingState label="Loading Studio" blockSize="100dvh" />;
   }
 
   if (me.isError || me.data?.mustChangePassword || me.data?.secondFactorEnrolmentRequired) {
@@ -110,10 +121,9 @@ export function RootLayout() {
   return (
     <AppShell
       header={{ height: 56 }}
-      navbar={{ width: collapsed ? 64 : 264, breakpoint: 0 }}
+      navbar={{ width: collapsed ? 'var(--as-nav-rail-w)' : 'var(--as-nav-w)', breakpoint: 0 }}
       padding="lg"
-      transitionDuration={reducedMotion ? 0 : 180}
-      transitionTimingFunction="cubic-bezier(0.2, 0, 0, 1)"
+      vars={shellVars}
     >
       <a href={`#${MAIN_ID}`} className={styles.skipLink}>
         Skip to content
@@ -137,11 +147,7 @@ export function RootLayout() {
               size="xs"
               variant="default"
               leftSection={<IconSearch size={14} aria-hidden />}
-              rightSection={
-                <Kbd size="xs" visibleFrom="lg">
-                  ⌘K
-                </Kbd>
-              }
+              rightSection={<Kbd size="xs">⌘K</Kbd>}
               onClick={() => spotlight.open()}
               aria-keyshortcuts="Meta+K Control+K"
             >
@@ -153,9 +159,9 @@ export function RootLayout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar id={NAVBAR_ID} p="md">
+      <AppShell.Navbar id={NAVBAR_ID} p="sm">
         <AppShell.Section>
-          <NavToggle collapsed={collapsed} onToggle={toggle} controls={NAVBAR_ID} />
+          <NavToggle collapsed={collapsed} forced={forced} onToggle={toggle} controls={NAVBAR_ID} />
         </AppShell.Section>
         <AppShell.Section grow component={ScrollArea}>
           {navbar.map(({ id, Component }) => (
@@ -165,7 +171,7 @@ export function RootLayout() {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main id={MAIN_ID}>
+      <AppShell.Main id={MAIN_ID} className={styles.main}>
         <Outlet />
       </AppShell.Main>
 

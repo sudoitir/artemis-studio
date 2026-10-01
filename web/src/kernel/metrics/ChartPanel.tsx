@@ -1,33 +1,27 @@
-import { Alert, Card, Group, Skeleton, Stack, Text } from '@mantine/core';
+import { Card, Group, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../api/request.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 /** Every metric plot is this tall, whatever it is currently able to show. */
-export const CHART_HEIGHT = 220;
+export const CHART_HEIGHT = '13.75rem';
 
 /** What stands in for the plot: the failure, the loading placeholder, or the empty statement. */
 function chartNotice(
+  title: string,
   error: ApiError | null,
   isPending: boolean,
   isEmpty: boolean,
   emptyLabel: string,
 ): React.ReactNode {
   if (error) {
-    return (
-      <Alert color="red" variant="light" title={error.title} h="100%">
-        {error.message} — this window could not be read, which is not the same as there being nothing in it.
-      </Alert>
-    );
+    return <ErrorState error={error} variant="inline" />;
   }
-  if (isPending) return <Skeleton height={CHART_HEIGHT} radius="sm" />;
+  if (isPending) return <LoadingState label={`Loading ${title}`} blockSize={CHART_HEIGHT} />;
   if (!isEmpty) return null;
-  return (
-    <Group h="100%" justify="center">
-      <Text size="sm" c="dimmed" ta="center" maw="32rem">
-        {emptyLabel}
-      </Text>
-    </Group>
-  );
+  return <EmptyState kind="empty" title="Nothing to plot in this window" description={emptyLabel} />;
 }
 
 /**
@@ -76,7 +70,9 @@ export function ChartPanel({
           </Text>
         </Group>
         {note}
-        <div style={{ blockSize: CHART_HEIGHT }}>{chartNotice(error, isPending, isEmpty, emptyLabel) ?? children}</div>
+        <div style={{ blockSize: CHART_HEIGHT }}>
+          {chartNotice(title, error, isPending, isEmpty, emptyLabel) ?? children}
+        </div>
       </Stack>
     </Card>
   );

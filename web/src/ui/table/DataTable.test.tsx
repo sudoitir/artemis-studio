@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Menu } from '@mantine/core';
 import userEvent from '@testing-library/user-event';
 
-import { renderWithProviders } from '../test/render.tsx';
-import { VirtualTable, type GridColumn } from './VirtualTable.tsx';
+import { renderWithProviders } from '../../test/render.tsx';
+import { DataTable, type GridVariantProps } from './DataTable.tsx';
+import type { Column } from './columns.ts';
+import { fakeLayout } from './fakeLayout.ts';
 
 interface Q {
   name: string;
@@ -24,23 +26,32 @@ function markClipped(el: HTMLElement) {
   Object.defineProperty(el, 'clientWidth', { configurable: true, value: 120 });
 }
 
-const columns: GridColumn<Q>[] = [
-  { id: 'name', header: 'Queue', accessor: (r) => r.name, sortKey: 'name' },
-  { id: 'depth', header: 'Depth', accessor: (r) => r.depth, numeric: true, sortKey: 'depth' },
+const columns: Column<Q>[] = [
+  { id: 'name', header: 'Queue', accessor: (r) => r.name, kind: 'text', priority: 'essential', sortKey: 'name' },
+  { id: 'depth', header: 'Depth', accessor: (r) => r.depth, kind: 'number', priority: 'high', sortKey: 'depth' },
 ];
 
-describe('VirtualTable', () => {
+/** `DataTable` with the props every test would otherwise repeat. */
+function Grid<T>(props: Omit<GridVariantProps<T>, 'label' | 'empty'> & { label?: string; empty?: ReactNode }) {
+  return <DataTable<T> label="Table" empty={<p>Nothing to show</p>} {...props} />;
+}
+
+const cellSelector = '[role="gridcell"], [role="rowheader"]';
+
+/** What a table stores for a viewer who set these widths. */
+const state = (widths: Record<string, unknown>) => ({ v: 1, widths, hidden: [], shown: [], order: [] });
+const stored = (widths: Record<string, unknown>) => JSON.stringify(state(widths));
+
+describe('DataTable', () => {
   it('renders a row per datum', () => {
-    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
     expect(screen.getByText('ORDERS')).toBeInTheDocument();
     expect(screen.getByText('SHIPMENTS')).toBeInTheDocument();
     expect(screen.getByText('DLQ')).toBeInTheDocument();
   });
 
   it('shows the empty label when there is no data', () => {
-    renderWithProviders(
-      <VirtualTable columns={columns} data={[]} rowKey={(r) => r.name} emptyLabel="No queues match" />,
-    );
+    renderWithProviders(<Grid columns={columns} data={[]} rowKey={(r) => r.name} empty={<p>No queues match</p>} />);
     expect(screen.getByText('No queues match')).toBeInTheDocument();
   });
 
@@ -51,7 +62,7 @@ describe('VirtualTable', () => {
     function Harness() {
       const [sort, setSort] = useState<string | undefined>(undefined);
       return (
-        <VirtualTable
+        <Grid
           columns={columns}
           data={rows}
           rowKey={(r) => r.name}
@@ -96,7 +107,7 @@ describe('VirtualTable', () => {
       return (
         <>
           <button type="button">before</button>
-          <VirtualTable
+          <Grid
             label="Queues"
             columns={columns}
             data={data}
@@ -118,7 +129,13 @@ describe('VirtualTable', () => {
       );
     }
 
-    const cellOf = (text: string) => screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+    const cellOf = (text: string) => screen.getByText(text).closest(cellSelector) as HTMLElement;
+    /** From the button before the table, past its Columns control, into the grid. */
+    async function enterGrid(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole('button', { name: 'before' }));
+      await user.tab();
+      await user.tab();
+    }
 
     it('is one tab stop, named, entering on the first row', async () => {
       const user = userEvent.setup();
@@ -126,6 +143,8 @@ describe('VirtualTable', () => {
       expect(screen.getByRole('grid', { name: 'Queues' })).toBeInTheDocument();
 
       screen.getByRole('button', { name: 'before' }).focus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Columns' })).toHaveFocus();
       await user.tab();
       expect(cellOf('ORDERS')).toHaveFocus();
       await user.tab();
@@ -137,8 +156,7 @@ describe('VirtualTable', () => {
     it('moves between cells with the arrows, keeping the column', async () => {
       const user = userEvent.setup();
       renderWithProviders(<Harness />);
-      await user.click(screen.getByRole('button', { name: 'before' }));
-      await user.tab();
+      await enterGrid(user);
       await user.keyboard('{ArrowDown}');
       expect(cellOf('SHIPMENTS')).toHaveFocus();
       await user.keyboard('{ArrowRight}');
@@ -154,8 +172,7 @@ describe('VirtualTable', () => {
     it('reaches the header, where Enter sorts', async () => {
       const user = userEvent.setup();
       renderWithProviders(<Harness />);
-      await user.click(screen.getByRole('button', { name: 'before' }));
-      await user.tab();
+      await enterGrid(user);
       await user.keyboard('{ArrowUp}');
       const sortQueue = screen.getByRole('button', { name: /queue/i });
       expect(sortQueue).toHaveFocus();
@@ -167,8 +184,7 @@ describe('VirtualTable', () => {
       const user = userEvent.setup();
       const onRowClick = vi.fn();
       renderWithProviders(<Harness onRowClick={onRowClick} selectable />);
-      await user.click(screen.getByRole('button', { name: 'before' }));
-      await user.tab();
+      await enterGrid(user);
       // With selection on, the grid is still entered on the first value, not on the checkbox.
       expect(cellOf('ORDERS')).toHaveFocus();
       await user.keyboard('{ArrowDown}');
@@ -182,8 +198,7 @@ describe('VirtualTable', () => {
     it('keeps focus on the same row when the data is reordered', async () => {
       const user = userEvent.setup();
       const { rerender } = renderWithProviders(<Harness />);
-      await user.click(screen.getByRole('button', { name: 'before' }));
-      await user.tab();
+      await enterGrid(user);
       await user.keyboard('{ArrowDown}');
       expect(cellOf('SHIPMENTS')).toHaveFocus();
       rerender(<Harness data={[...rows].reverse()} />);
@@ -193,8 +208,7 @@ describe('VirtualTable', () => {
     it('hands focus to a neighbour when the focused row goes away', async () => {
       const user = userEvent.setup();
       const { rerender } = renderWithProviders(<Harness />);
-      await user.click(screen.getByRole('button', { name: 'before' }));
-      await user.tab();
+      await enterGrid(user);
       await user.keyboard('{ArrowDown}');
       rerender(<Harness data={rows.filter((r) => r.name !== 'SHIPMENTS')} />);
       await waitFor(() => expect(cellOf('DLQ')).toHaveFocus());
@@ -205,8 +219,7 @@ describe('VirtualTable', () => {
       const writeText = vi.fn().mockResolvedValue(undefined);
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
       renderWithProviders(<Harness />);
-      await user.click(screen.getByRole('button', { name: 'before' }));
-      await user.tab();
+      await enterGrid(user);
       await user.keyboard('{Control>}c{/Control}');
       expect(writeText).toHaveBeenCalledWith('ORDERS');
       expect(await screen.findByText('Copied ORDERS')).toBeInTheDocument();
@@ -216,7 +229,7 @@ describe('VirtualTable', () => {
   describe('row menu (ADR-0107)', () => {
     function WithMenu({ onDelete = () => {} }: { onDelete?: (name: string) => void }) {
       return (
-        <VirtualTable
+        <Grid
           label="Queues"
           columns={columns}
           data={rows}
@@ -272,13 +285,13 @@ describe('VirtualTable', () => {
     });
 
     function cellOf(text: string) {
-      return screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+      return screen.getByText(text).closest(cellSelector) as HTMLElement;
     }
   });
 
   it('reveals the full value with a copy control when a cell is actually clipped', async () => {
-    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />);
-    const cell = screen.getByText('SHIPMENTS').closest('[role="gridcell"]') as HTMLElement;
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const cell = screen.getByText('SHIPMENTS').closest(cellSelector) as HTMLElement;
 
     // Not clipped yet → focusing it shows nothing.
     fireEvent.focus(cell);
@@ -297,7 +310,7 @@ describe('VirtualTable', () => {
   it('calls onRowClick with the row', async () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
-    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} onRowClick={onRowClick} />);
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} onRowClick={onRowClick} />);
     await user.click(screen.getByText('DLQ'));
     expect(onRowClick).toHaveBeenCalledWith({ name: 'DLQ', depth: 431 });
   });
@@ -312,7 +325,7 @@ describe('VirtualTable', () => {
     }) {
       const [selected, setSelected] = useState<Set<string>>(new Set());
       return (
-        <VirtualTable
+        <Grid
           columns={columns}
           data={rows}
           rowKey={(r) => r.name}
@@ -338,7 +351,7 @@ describe('VirtualTable', () => {
       const onToggleRow = vi.fn();
       const onRowClick = vi.fn();
       renderWithProviders(
-        <VirtualTable
+        <Grid
           columns={columns}
           data={rows}
           rowKey={(r) => r.name}
@@ -388,61 +401,18 @@ describe('VirtualTable', () => {
     });
   });
 
-  describe('column widths (ADR-0116)', () => {
+  describe('column widths (ADR-0161)', () => {
     afterEach(() => {
       localStorage.clear();
       vi.restoreAllMocks();
     });
 
-    it('widens a fixed column whose value needs more than its declared width', () => {
-      vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
-        return (this.textContent ?? '').length * 10;
-      });
-      const typed: GridColumn<Q>[] = [
-        { id: 'name', header: 'Queue', accessor: (r) => r.name },
-        { id: 'type', header: 'T', accessor: () => 'MULTICAST', width: 60 },
-      ];
-      renderWithProviders(<VirtualTable label="Queues" columns={typed} data={rows} rowKey={(r) => r.name} />);
-      expect(screen.getByRole('grid').style.getPropertyValue('--as-cols')).toBe('minmax(180px, 1fr) 92px');
-    });
-
-    const colsOf = () => screen.getByRole('grid').style.getPropertyValue('--as-cols');
-    const long = { name: 'X'.repeat(30), depth: 1 };
-
-    it('fits a free-text column to its widest value, within the cap', () => {
-      // jsdom does no layout: a cell needs ten pixels per character.
-      vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
-        return (this.textContent ?? '').length * 10;
-      });
-      renderWithProviders(
-        <VirtualTable label="Queues" columns={columns} data={[...rows, long]} rowKey={(r) => r.name} />,
-      );
-      expect(colsOf()).toContain('minmax(302px, 1fr)');
-    });
-
-    it('never fits a column below the free-text floor or past the cap', () => {
-      const spy = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (
-        this: HTMLElement,
-      ) {
-        return (this.textContent ?? '').length;
-      });
-      const { unmount } = renderWithProviders(
-        <VirtualTable label="Queues" columns={columns} data={[long]} rowKey={(r) => r.name} />,
-      );
-      expect(colsOf()).toBe('minmax(180px, 1fr) minmax(180px, 1fr)');
-      unmount();
-
-      spy.mockImplementation(function (this: HTMLElement) {
-        return (this.textContent ?? '').length * 100;
-      });
-      renderWithProviders(<VirtualTable label="Queues" columns={columns} data={[long]} rowKey={(r) => r.name} />);
-      expect(colsOf()).toContain('minmax(480px, 1fr)');
-    });
+    const colsOf = () => (screen.getByRole('grid').parentElement as HTMLElement).style.getPropertyValue('--as-cols');
 
     it('resizes a column from its header with Ctrl+Shift+Arrow, announces it and remembers it', async () => {
-      localStorage.setItem('as.grid.queues', JSON.stringify({ name: 200 }));
+      localStorage.setItem('as.table.queues', stored({ name: 200 }));
       renderWithProviders(
-        <VirtualTable
+        <Grid
           label="Queues"
           storageKey="queues"
           columns={columns}
@@ -460,48 +430,48 @@ describe('VirtualTable', () => {
 
       expect(colsOf()).toContain('216px');
       expect(await screen.findByText('Queue column, 216 pixels')).toBeInTheDocument();
-      expect(JSON.parse(localStorage.getItem('as.grid.queues')!)).toEqual({ name: 216 });
+      expect(JSON.parse(localStorage.getItem('as.table.queues')!)).toEqual(state({ name: 216 }));
       // Focus did not move: the grid is still one tab stop on the same header.
       expect(header).toHaveFocus();
     });
 
     it('describes the resize keys on every header', () => {
-      renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+      renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
       for (const header of screen.getAllByRole('columnheader')) {
         expect(header.getAttribute('aria-description')).toMatch(/Ctrl\+Shift\+Left or Right/);
       }
     });
 
     it('ignores stored widths it cannot trust', () => {
-      localStorage.setItem('as.grid.queues', JSON.stringify({ name: 'wide', gone: 300, depth: 1e9 }));
+      localStorage.setItem('as.table.queues', stored({ name: 'wide', gone: 300, depth: 1e9 }));
       renderWithProviders(
-        <VirtualTable label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} />,
+        <Grid label="Queues" storageKey="queues" columns={columns} data={rows} rowKey={(r) => r.name} />,
       );
-      expect(colsOf()).not.toMatch(/(^|\s)\d+px/);
+      expect(colsOf()).toMatch(/^minmax\(/);
 
-      localStorage.setItem('as.grid.other', '{not json');
+      localStorage.setItem('as.table.other', '{not json');
       renderWithProviders(
-        <VirtualTable label="Other" storageKey="other" columns={columns} data={rows} rowKey={(r) => r.name} />,
+        <Grid label="Other" storageKey="other" columns={columns} data={rows} rowKey={(r) => r.name} />,
       );
       expect(screen.getByRole('grid', { name: 'Other' })).toBeInTheDocument();
     });
   });
 });
 
-describe('VirtualTable: cell values', () => {
+describe('DataTable: cell values', () => {
   interface V {
     id: string;
     value: unknown;
   }
-  const vcols: GridColumn<V>[] = [
-    { id: 'id', header: 'Id', accessor: (r) => r.id },
-    { id: 'value', header: 'Value', accessor: (r) => r.value },
+  const vcols: Column<V>[] = [
+    { id: 'id', header: 'Id', accessor: (r) => r.id, kind: 'text', priority: 'essential' },
+    { id: 'value', header: 'Value', accessor: (r) => r.value, kind: 'text', priority: 'high' },
   ];
-  const cellOf = (text: string) => screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+  const cellOf = (text: string) => screen.getByText(text).closest(cellSelector) as HTMLElement;
 
   it('titles a cell with its text or number, and leaves anything else untitled', () => {
     renderWithProviders(
-      <VirtualTable
+      <Grid
         columns={vcols}
         data={[
           { id: 'a', value: 'text' },
@@ -526,14 +496,23 @@ describe('VirtualTable: cell values', () => {
   });
 
   it('draws what a column’s own cell renderer returns', () => {
-    const custom: GridColumn<V>[] = [{ id: 'id', header: 'Id', accessor: (r) => r.id, cell: (r) => <b>{r.id}!</b> }];
-    renderWithProviders(<VirtualTable columns={custom} data={[{ id: 'a', value: 1 }]} rowKey={(r) => r.id} />);
+    const custom: Column<V>[] = [
+      {
+        id: 'id',
+        header: 'Id',
+        accessor: (r) => r.id,
+        kind: 'text',
+        priority: 'essential',
+        cell: (r) => <b>{r.id}!</b>,
+      },
+    ];
+    renderWithProviders(<Grid columns={custom} data={[{ id: 'a', value: 1 }]} rowKey={(r) => r.id} />);
     expect(screen.getByText('a!').tagName).toBe('B');
   });
 });
 
-describe('VirtualTable: pointer resizing', () => {
-  const colsOf = () => screen.getByRole('grid').style.getPropertyValue('--as-cols');
+describe('DataTable: pointer resizing', () => {
+  const colsOf = () => (screen.getByRole('grid').parentElement as HTMLElement).style.getPropertyValue('--as-cols');
   const handleOf = (header: string) =>
     screen
       .getByRole('columnheader', { name: new RegExp(header, 'i') })
@@ -545,12 +524,12 @@ describe('VirtualTable: pointer resizing', () => {
     document.dir = '';
   });
 
-  function mount(over: Partial<Parameters<typeof VirtualTable<Q>>[0]> = {}) {
+  function mount(over: Partial<Parameters<typeof Grid<Q>>[0]> = {}) {
     // jsdom has no layout and no pointer capture: the header is 100px wide.
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 100 } as DOMRect);
     Object.assign(HTMLElement.prototype, { setPointerCapture: vi.fn() });
     return renderWithProviders(
-      <VirtualTable label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} {...over} />,
+      <Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} {...over} />,
     );
   }
 
@@ -564,7 +543,7 @@ describe('VirtualTable: pointer resizing', () => {
     fireEvent.pointerUp(handle, { pointerId: 1 });
 
     expect(handle).not.toHaveAttribute('data-active');
-    expect(JSON.parse(localStorage.getItem('as.grid.q')!)).toEqual({ name: 160 });
+    expect(JSON.parse(localStorage.getItem('as.table.q')!)).toEqual(state({ name: 160 }));
     fireEvent.pointerMove(handle, { clientX: 300, pointerId: 1 });
     expect(colsOf()).toContain('160px');
   });
@@ -595,19 +574,20 @@ describe('VirtualTable: pointer resizing', () => {
     expect(colsOf()).toContain('60px');
   });
 
-  it('fits a column to its content on a double click, without sorting or bubbling', () => {
-    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
-      return (this.textContent ?? '').length * 10;
-    });
+  it('puts a column back to fitting on a double click, without sorting or bubbling', async () => {
+    localStorage.setItem('as.table.q', stored({ name: 200 }));
     const onSortChange = vi.fn();
     mount({ onSortChange });
     const handle = handleOf('queue');
+    expect(colsOf()).toContain('200px');
 
     fireEvent.click(handle);
     expect(onSortChange).not.toHaveBeenCalled();
     fireEvent.doubleClick(handle);
-    // SHIPMENTS is nine characters at ten pixels: 90, and two more for the border.
-    expect(JSON.parse(localStorage.getItem('as.grid.q')!)).toEqual({ name: 92 });
+
+    expect(colsOf()).not.toContain('200px');
+    expect(JSON.parse(localStorage.getItem('as.table.q')!)).toEqual(state({}));
+    expect(await screen.findByText('Queue column fitted to its content')).toBeInTheDocument();
   });
 
   it('shrinks with the right arrow in a right-to-left document', () => {
@@ -619,8 +599,8 @@ describe('VirtualTable: pointer resizing', () => {
   });
 });
 
-describe('VirtualTable: menus, focus and scrolling', () => {
-  const cellOf = (text: string) => screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+describe('DataTable: menus, focus and scrolling', () => {
+  const cellOf = (text: string) => screen.getByText(text).closest(cellSelector) as HTMLElement;
   const scroller = () => screen.getByRole('grid').parentElement as HTMLElement;
 
   afterEach(() => {
@@ -632,7 +612,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockRejectedValue(new Error('denied'));
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
-    renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     cellOf('ORDERS').focus();
     await user.keyboard('{Control>}c{/Control}');
 
@@ -640,7 +620,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
   });
 
   it('leaves the browser’s copy alone when there is no clipboard to write to', async () => {
-    renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     cellOf('ORDERS').focus();
     const notPrevented = fireEvent.keyDown(cellOf('ORDERS'), { key: 'c', ctrlKey: true });
 
@@ -649,7 +629,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
   });
 
   it('closes the revealed value on Escape and on scroll', async () => {
-    renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     const cell = cellOf('SHIPMENTS');
     Object.defineProperty(cell, 'scrollWidth', { configurable: true, value: 800 });
     Object.defineProperty(cell, 'clientWidth', { configurable: true, value: 120 });
@@ -667,9 +647,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
 
   it('reports when the grid’s own scroll leaves and returns to the top', () => {
     const onAtTopChange = vi.fn();
-    renderWithProviders(
-      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} onAtTopChange={onAtTopChange} />,
-    );
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} onAtTopChange={onAtTopChange} />);
     fireEvent.scroll(scroller(), { target: { scrollTop: 120 } });
     expect(onAtTopChange).toHaveBeenLastCalledWith(false);
     fireEvent.scroll(scroller(), { target: { scrollTop: 3 } });
@@ -679,7 +657,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
   it('closes an open row menu when the grid scrolls', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <VirtualTable
+      <Grid
         label="Queues"
         columns={columns}
         data={rows}
@@ -696,7 +674,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
 
   it('swallows the browser’s echo of a context-menu key the grid already handled', async () => {
     renderWithProviders(
-      <VirtualTable
+      <Grid
         label="Queues"
         columns={columns}
         data={rows}
@@ -714,15 +692,22 @@ describe('VirtualTable: menus, focus and scrolling', () => {
   });
 
   it('leaves the browser menu alone in a grid without one, and on a link or a selection', async () => {
-    const linked: GridColumn<Q>[] = [
-      { id: 'name', header: 'Queue', accessor: (r) => r.name, cell: (r) => <a href="#x">{r.name}</a> },
+    const linked: Column<Q>[] = [
+      {
+        id: 'name',
+        header: 'Queue',
+        accessor: (r) => r.name,
+        kind: 'text',
+        priority: 'essential',
+        cell: (r) => <a href="#x">{r.name}</a>,
+      },
     ];
-    const { unmount } = renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const { unmount } = renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
     expect(fireEvent.contextMenu(cellOf('ORDERS'))).toBe(true);
     unmount();
 
     renderWithProviders(
-      <VirtualTable
+      <Grid
         columns={linked}
         data={rows}
         rowKey={(r) => r.name}
@@ -744,7 +729,7 @@ describe('VirtualTable: menus, focus and scrolling', () => {
     function Deleting() {
       const [data, setData] = useState(rows);
       return (
-        <VirtualTable
+        <Grid
           label="Queues"
           columns={columns}
           data={data}
@@ -778,8 +763,8 @@ describe('VirtualTable: menus, focus and scrolling', () => {
   });
 });
 
-describe('VirtualTable: remaining interactions', () => {
-  const cellOf = (text: string) => screen.getByText(text).closest('[role="gridcell"]') as HTMLElement;
+describe('DataTable: remaining interactions', () => {
+  const cellOf = (text: string) => screen.getByText(text).closest(cellSelector) as HTMLElement;
 
   afterEach(() => {
     localStorage.clear();
@@ -788,26 +773,28 @@ describe('VirtualTable: remaining interactions', () => {
   });
 
   it('starts with no stored width when the stored value is not an object', () => {
-    localStorage.setItem('as.grid.q', '5');
-    renderWithProviders(
-      <VirtualTable label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />,
+    localStorage.setItem('as.table.q', '5');
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    expect((screen.getByRole('grid').parentElement as HTMLElement).style.getPropertyValue('--as-cols')).toMatch(
+      /^minmax\(/,
     );
-    expect(screen.getByRole('grid').style.getPropertyValue('--as-cols')).not.toMatch(/(^|\s)\d+px/);
   });
 
   it('keeps a resized width for the visit when there is no storage key', () => {
-    renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     const header = screen.getByRole('columnheader', { name: /queue/i });
     fireEvent.keyDown(header, { key: 'ArrowRight', ctrlKey: true, shiftKey: true });
 
-    expect(screen.getByRole('grid').style.getPropertyValue('--as-cols')).toMatch(/^\d+px /);
-    expect(localStorage).toHaveLength(0);
+    expect((screen.getByRole('grid').parentElement as HTMLElement).style.getPropertyValue('--as-cols')).toMatch(
+      /^\d+px /,
+    );
+    expect(Object.keys(localStorage).filter((key) => key.startsWith('as.table'))).toEqual([]);
   });
 
   it('copies with Cmd+C as well as Ctrl+C, but not with Alt held', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
-    renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     const cell = cellOf('ORDERS');
     cell.focus();
 
@@ -818,8 +805,24 @@ describe('VirtualTable: remaining interactions', () => {
     expect(await screen.findByText('Copied ORDERS')).toBeInTheDocument();
   });
 
+  it('announces the same words a second time', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const cell = cellOf('ORDERS');
+    cell.focus();
+    fireEvent.keyDown(cell, { key: 'c', ctrlKey: true });
+    const status = await screen.findByText('Copied ORDERS');
+    const region = status.closest('[role="status"]') ?? status;
+
+    fireEvent.keyDown(cell, { key: 'c', ctrlKey: true });
+    // The region is emptied first, so the repeat is a change a screen reader announces.
+    await waitFor(() => expect(region).toHaveTextContent(''));
+    await waitFor(() => expect(region).toHaveTextContent('Copied ORDERS'));
+  });
+
   it('does not move the focus for an Alt+arrow, which belongs to the browser', () => {
-    renderWithProviders(<VirtualTable label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     const cell = cellOf('ORDERS');
     cell.focus();
     const notPrevented = fireEvent.keyDown(cell, { key: 'ArrowDown', altKey: true });
@@ -832,7 +835,7 @@ describe('VirtualTable: remaining interactions', () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
-    renderWithProviders(<VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} />);
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
     markClipped(cellOf('SHIPMENTS'));
     fireEvent.focus(cellOf('SHIPMENTS'));
 
@@ -843,9 +846,7 @@ describe('VirtualTable: remaining interactions', () => {
   });
 
   it('draws a selectable grid with no selection given as unselected', () => {
-    renderWithProviders(
-      <VirtualTable columns={columns} data={rows} rowKey={(r) => r.name} selectable onToggleRow={vi.fn()} />,
-    );
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} selectable onToggleRow={vi.fn()} />);
     expect(screen.getByRole('checkbox', { name: 'Select all on this page' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Select row ORDERS' })).not.toBeChecked();
     expect(screen.getAllByRole('row').filter((r) => r.getAttribute('aria-selected') === 'false')).toHaveLength(3);
@@ -855,7 +856,7 @@ describe('VirtualTable: remaining interactions', () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
     renderWithProviders(
-      <VirtualTable
+      <Grid
         label="Queues"
         columns={columns}
         data={rows}
@@ -878,17 +879,17 @@ describe('VirtualTable: remaining interactions', () => {
   it('does not activate a row from a control inside it', async () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
-    const withButton: GridColumn<Q>[] = [
+    const withButton: Column<Q>[] = [
       {
         id: 'name',
         header: 'Queue',
         accessor: (r) => r.name,
+        kind: 'text',
+        priority: 'essential',
         cell: (r) => <button type="button">Open {r.name}</button>,
       },
     ];
-    renderWithProviders(
-      <VirtualTable columns={withButton} data={rows} rowKey={(r) => r.name} onRowClick={onRowClick} />,
-    );
+    renderWithProviders(<Grid columns={withButton} data={rows} rowKey={(r) => r.name} onRowClick={onRowClick} />);
 
     await user.click(screen.getByRole('button', { name: 'Open ORDERS' }));
     expect(onRowClick).not.toHaveBeenCalled();
@@ -900,7 +901,7 @@ describe('VirtualTable: remaining interactions', () => {
     function Emptying() {
       const [data, setData] = useState<Q[]>([rows[0]]);
       return (
-        <VirtualTable
+        <Grid
           label="Queues"
           columns={columns}
           data={data}
@@ -931,5 +932,285 @@ describe('VirtualTable: remaining interactions', () => {
     restore?.();
     // The header row's cell in the column the menu came from.
     await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Actions' })).toHaveFocus());
+  });
+});
+
+describe('DataTable: frame and semantics', () => {
+  it('sizes the grid for assistive technology over the columns it renders', () => {
+    renderWithProviders(
+      <Grid
+        label="Queues"
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.name}
+        selectable
+        rowMenu={{ label: (r) => r.name, render: () => null }}
+      />,
+    );
+    const grid = screen.getByRole('grid', { name: 'Queues' });
+    // The header row counts, so three rows of data make four.
+    expect(grid).toHaveAttribute('aria-rowcount', '4');
+    // Select, Queue, Depth and Actions.
+    expect(grid).toHaveAttribute('aria-colcount', '4');
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toHaveAttribute('aria-colindex', '4');
+    expect(screen.getByRole('rowheader', { name: 'SHIPMENTS' })).toHaveAttribute('aria-colindex', '2');
+    expect(screen.getByRole('gridcell', { name: '431' })).toHaveAttribute('aria-colindex', '3');
+  });
+
+  it('keeps the empty state beside the grid, never inside it', () => {
+    renderWithProviders(
+      <Grid label="Queues" columns={columns} data={[]} rowKey={(r) => r.name} empty={<p>Nothing here yet</p>} />,
+    );
+    const grid = screen.getByRole('grid', { name: 'Queues' });
+    expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
+    expect(grid).not.toContainElement(screen.getByText('Nothing here yet'));
+    expect(grid).toHaveAttribute('aria-rowcount', '1');
+  });
+
+  it('shows the error in place of the empty state, beside the grid', () => {
+    renderWithProviders(
+      <Grid
+        label="Queues"
+        columns={columns}
+        data={[]}
+        rowKey={(r) => r.name}
+        empty={<p>Nothing here yet</p>}
+        error={<p role="alert">Studio could not load the queues</p>}
+      />,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('could not load');
+    expect(screen.queryByText('Nothing here yet')).not.toBeInTheDocument();
+    expect(screen.getByRole('grid')).not.toContainElement(screen.getByRole('alert'));
+  });
+
+  it('shows the header and hidden placeholder rows while the first load runs', () => {
+    renderWithProviders(
+      <Grid
+        label="Queues"
+        columns={columns}
+        data={[]}
+        rowKey={(r) => r.name}
+        loading
+        empty={<p>Nothing here yet</p>}
+      />,
+    );
+    const grid = screen.getByRole('grid', { name: 'Queues' });
+    expect(grid).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Loading Queues')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /queue/i })).toBeInTheDocument();
+    expect(screen.queryByText('Nothing here yet')).not.toBeInTheDocument();
+    // The placeholders are not rows of the grid.
+    expect(screen.getAllByRole('row')).toHaveLength(1);
+    expect(grid).toHaveAttribute('aria-rowcount', '1');
+  });
+
+  it('keeps its rows while it refetches', () => {
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} loading />);
+    expect(screen.getByText('ORDERS')).toBeInTheDocument();
+    expect(screen.queryByText('Loading Queues')).not.toBeInTheDocument();
+  });
+
+  it('announces the sort once the sorted rows have landed', async () => {
+    function Harness({ sort, data }: { sort?: string; data: Q[] }) {
+      return (
+        <Grid label="Queues" columns={columns} data={data} rowKey={(r) => r.name} sort={sort} onSortChange={vi.fn()} />
+      );
+    }
+    const { rerender } = renderWithProviders(<Harness data={rows} />);
+    rerender(<Harness sort="-depth" data={rows} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    rerender(<Harness sort="-depth" data={[...rows].reverse()} />);
+    expect(await screen.findByText('Sorted by Depth, descending')).toBeInTheDocument();
+  });
+
+  it('announces a sort whose rows land in the same render, as cached rows do', async () => {
+    function Harness({ sort, data }: { sort?: string; data: Q[] }) {
+      return (
+        <Grid label="Queues" columns={columns} data={data} rowKey={(r) => r.name} sort={sort} onSortChange={vi.fn()} />
+      );
+    }
+    const { rerender } = renderWithProviders(<Harness data={rows} />);
+    rerender(<Harness sort="-depth" data={[...rows].reverse()} />);
+    expect(await screen.findByText('Sorted by Depth, descending')).toBeInTheDocument();
+  });
+
+  it('keeps the active cell on the nearest column when its own goes away', async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderWithProviders(
+      <Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />,
+    );
+    await user.click(screen.getByText('12'));
+    expect(screen.getByText('12').closest(cellSelector)).toHaveAttribute('tabindex', '0');
+
+    rerender(<Grid label="Queues" columns={[columns[0]]} data={rows} rowKey={(r) => r.name} />);
+    expect(screen.getByText('ORDERS').closest(cellSelector)).toHaveAttribute('tabindex', '0');
+  });
+
+  it('reads the stored state again when its storage key changes', () => {
+    localStorage.setItem('as.table.queues', stored({ name: 200 }));
+    localStorage.setItem('as.table.topics', stored({ name: 320 }));
+    const grid = (key: string) => (
+      <Grid label="Items" storageKey={key} columns={columns} data={rows} rowKey={(r) => r.name} />
+    );
+    const { rerender } = renderWithProviders(grid('queues'));
+    const colsOf = () => (screen.getByRole('grid').parentElement as HTMLElement).style.getPropertyValue('--as-cols');
+    expect(colsOf()).toContain('200px');
+
+    rerender(grid('topics'));
+    expect(colsOf()).toContain('320px');
+    expect(colsOf()).not.toContain('200px');
+  });
+
+  it('puts the caller’s toolbar controls beside its Columns control', () => {
+    renderWithProviders(
+      <Grid
+        label="Queues"
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.name}
+        toolbar={{ start: <button type="button">Filter</button> }}
+      />,
+    );
+    expect(screen.getByRole('group', { name: 'Queues controls' })).toContainElement(
+      screen.getByRole('button', { name: 'Filter' }),
+    );
+    expect(screen.getByRole('button', { name: 'Columns' })).toBeInTheDocument();
+  });
+});
+
+describe('DataTable: columns control', () => {
+  afterEach(() => localStorage.clear());
+
+  it('hides and shows a column, counts it in its name and announces the change', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />);
+
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    // The column that identifies a row cannot be hidden.
+    expect(await screen.findByRole('checkbox', { name: 'Queue' })).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: 'Depth' }));
+
+    expect(screen.queryByRole('columnheader', { name: /depth/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Columns,? ?1 hidden$/ })).toBeInTheDocument();
+    expect(await screen.findByText('1 column hidden')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('as.table.q')!)).toMatchObject({ hidden: ['depth'] });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Depth' }));
+    expect(screen.getByRole('columnheader', { name: /depth/i })).toBeInTheDocument();
+    expect(await screen.findByText('No columns hidden')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('as.table.q')!)).toMatchObject({ hidden: [], shown: ['depth'] });
+  });
+
+  it('switches the density for every table and resets widths', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('as.table.q', stored({ name: 200 }));
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />);
+
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    await user.click(await screen.findByRole('radio', { name: 'Comfortable' }));
+    expect(document.documentElement.dataset.density).toBe('comfortable');
+
+    await user.click(screen.getByRole('button', { name: 'Reset widths' }));
+    expect(JSON.parse(localStorage.getItem('as.table.q')!)).toEqual(state({}));
+    expect(screen.getByRole('button', { name: 'Reset widths' })).toBeDisabled();
+  });
+
+  it('never hides the column that identifies a row, whatever storage says', () => {
+    localStorage.setItem('as.table.q', JSON.stringify({ ...state({}), hidden: ['name', 'depth'] }));
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    expect(screen.getByRole('columnheader', { name: /queue/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /depth/i })).not.toBeInTheDocument();
+  });
+
+  it('orders the columns as the viewer chose', () => {
+    localStorage.setItem('as.table.q', JSON.stringify({ ...state({}), order: ['depth', 'name'] }));
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const names = screen.getAllByRole('columnheader').map((header) => header.textContent);
+    expect(names).toEqual(['Depth', 'Queue']);
+  });
+});
+
+describe('DataTable: the solver in the grid', () => {
+  let restore: () => void = () => {};
+  afterEach(() => {
+    restore();
+    localStorage.clear();
+  });
+
+  const wide: Column<Q>[] = [
+    ...columns,
+    { id: 'consumers', header: 'Consumers', accessor: () => 3, kind: 'number', priority: 'low' },
+  ];
+
+  it('hides the least important columns when they do not fit, and says how many', () => {
+    restore = fakeLayout(260);
+    renderWithProviders(<Grid label="Queues" columns={wide} data={rows} rowKey={(r) => r.name} />);
+
+    expect(screen.getByRole('columnheader', { name: /queue/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /consumers/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hidden/ })).toBeInTheDocument();
+    expect(screen.getByRole('grid')).toHaveAttribute(
+      'aria-colcount',
+      String(screen.getAllByRole('columnheader').length),
+    );
+  });
+
+  it('shows every column when they fit', () => {
+    restore = fakeLayout(1200);
+    renderWithProviders(<Grid label="Queues" columns={wide} data={rows} rowKey={(r) => r.name} />);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Columns' })).toBeInTheDocument();
+  });
+
+  it('keeps a column the viewer chose to show, and scrolls instead', () => {
+    restore = fakeLayout(260);
+    localStorage.setItem('as.table.q', JSON.stringify({ ...state({}), shown: ['consumers', 'depth'] }));
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={wide} data={rows} rowKey={(r) => r.name} />);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+    expect(screen.getByRole('grid').parentElement).toHaveAttribute('data-overflow', 'true');
+  });
+});
+
+describe('DataTable: rendering cost', () => {
+  it('redraws only the row whose selection changed', async () => {
+    const user = userEvent.setup();
+    const draws: Record<string, number> = {};
+    const counted: Column<Q>[] = [
+      {
+        id: 'name',
+        header: 'Queue',
+        accessor: (r) => r.name,
+        kind: 'text',
+        priority: 'essential',
+        cell: (r) => {
+          draws[r.name] = (draws[r.name] ?? 0) + 1;
+          return r.name;
+        },
+      },
+    ];
+    function Harness() {
+      const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+      return (
+        <Grid
+          label="Queues"
+          columns={counted}
+          data={rows}
+          rowKey={(r) => r.name}
+          selectable
+          selected={selected}
+          onToggleRow={(key) => setSelected(new Set([...selected, key]))}
+        />
+      );
+    }
+    renderWithProviders(<Harness />);
+    const before = { ...draws };
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select row SHIPMENTS' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Select row SHIPMENTS' })).toBeChecked();
+    expect(draws.SHIPMENTS).toBeGreaterThan(before.SHIPMENTS);
+    expect(draws.ORDERS).toBe(before.ORDERS);
+    expect(draws.DLQ).toBe(before.DLQ);
   });
 });

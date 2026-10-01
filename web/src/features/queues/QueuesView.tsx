@@ -1,12 +1,16 @@
-import { useEffect, useState, useRef } from 'react';
-import { Alert, Button, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { Button, Group, Text, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedCallback } from '@mantine/hooks';
 
 import { useCluster } from '../clusters/index.ts';
 import { useQueue, useQueues, type QueueView } from './api.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 import { QueueDetailDrawer } from './QueueDetailDrawer.tsx';
 import { CreateQueueForm } from './CreateQueueForm.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -16,79 +20,11 @@ import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
+import { queueColumns } from './columns.ts';
 
 const PAGE_SIZE = 200;
 
 const rowKey = (r: QueueView) => `${r.address}::${r.queueName}::${r.routingType}`;
-
-/** The state cell: blank while running, so a healthy grid stays quiet. */
-function pausedLabel(r: QueueView): string {
-  if (!r.paused) return '';
-  return r.perNode.every((n) => n.paused) ? 'paused' : 'paused on some nodes';
-}
-
-const columns: GridColumn<QueueView>[] = [
-  { id: 'address', header: 'Address', accessor: (r) => r.address, sortKey: 'address' },
-  { id: 'queueName', header: 'Queue', accessor: (r) => r.queueName, sortKey: 'queueName' },
-  { id: 'routingType', header: 'Type', accessor: (r) => r.routingType, width: 96 },
-  {
-    id: 'depth',
-    header: 'Depth',
-    accessor: (r) => r.totalMessageCount,
-    numeric: true,
-    sortKey: 'depth',
-    width: 110,
-  },
-  {
-    id: 'consumers',
-    header: 'Consumers',
-    accessor: (r) => r.totalConsumerCount,
-    numeric: true,
-    sortKey: 'consumers',
-    width: 110,
-  },
-  {
-    id: 'delivering',
-    header: 'Delivering',
-    accessor: (r) => r.totalDeliveringCount,
-    numeric: true,
-    sortKey: 'delivering',
-    width: 110,
-  },
-  {
-    id: 'scheduled',
-    header: 'Scheduled',
-    accessor: (r) => r.totalScheduledCount,
-    numeric: true,
-    sortKey: 'scheduled',
-    width: 110,
-  },
-  {
-    id: 'durable',
-    header: 'Durable',
-    accessor: (r) => r.durable,
-    cell: (r) => (r.durable ? 'yes' : 'no'),
-    width: 90,
-  },
-  {
-    // A paused queue looks identical to an idle one by depth alone — it has a
-    // backlog and no throughput, which is also what a broken consumer looks
-    // like. Carried in words, and blank when there is nothing to say, so a
-    // healthy grid stays quiet.
-    id: 'paused',
-    header: 'State',
-    accessor: (r) => r.paused,
-    cell: pausedLabel,
-    width: 150,
-  },
-  {
-    id: 'nodes',
-    header: 'Nodes',
-    accessor: (r) => `${r.nodesPresent}/${r.nodesTotal}`,
-    numeric: true,
-    width: 90,
-  },
-];
 
 /** What the selection says, in words. */
 function selectionWords(count: number, total: number, matching: string, allMatching: boolean): string {
@@ -118,13 +54,7 @@ function SelectionBar({
   children: React.ReactNode;
 }>) {
   return (
-    <Group
-      gap="sm"
-      justify="space-between"
-      role="region"
-      aria-label="Selected queues"
-      style={{ position: 'sticky', insetBlockStart: 0, zIndex: 2, background: 'var(--as-surface)' }}
-    >
+    <Group gap="sm" justify="space-between" role="region" aria-label="Selected queues">
       <Group gap="xs">
         <Text size="sm" fw={count > 0 ? 600 : undefined}>
           {selectionWords(count, total, matching, allMatching)}
@@ -147,62 +77,63 @@ function SelectionBar({
 
 /** Why the grid is empty: the filter, nodes that did not answer, or genuinely nothing yet. */
 function QueuesEmpty({
-  filtered,
   filterText,
   unreachable,
   mayCreate,
   onClearFilter,
   onCreate,
 }: Readonly<{
-  filtered: boolean;
   filterText: string;
   unreachable: string[];
   mayCreate: boolean;
   onClearFilter: () => void;
   onCreate: () => void;
 }>) {
-  if (filtered) {
+  if (filterText) {
     return (
-      <Stack gap={4} align="flex-start">
-        <Text fw={600}>No queue matches "{filterText}"</Text>
-        <Text size="sm">There may still be queues on this cluster — none of them match this filter.</Text>
-        <Button size="xs" variant="light" onClick={onClearFilter}>
-          Clear the filter
-        </Button>
-      </Stack>
+      <EmptyState
+        kind="filtered"
+        title={`No queue matches "${filterText}"`}
+        description="Queues may still exist on this cluster; none of them match this filter."
+        onClearFilters={onClearFilter}
+      />
     );
   }
   if (unreachable.length > 0) {
     return (
-      <Stack gap={4} align="flex-start">
-        <Text fw={600}>
-          {unreachable.length === 1
+      <EmptyState
+        kind="unreachable"
+        title={
+          unreachable.length === 1
             ? `${unreachable[0]} could not be reached`
-            : `${unreachable.length} nodes could not be reached`}
-        </Text>
-        <Text size="sm">
-          There may be queues here that Studio cannot currently see —
-          {unreachable.length === 1 ? ' this node' : ' these nodes'} did not answer the last scrape, so this is an
-          incomplete view rather than an empty cluster.
-          {unreachable.length > 1 ? ` (${unreachable.join(', ')})` : ''}
-        </Text>
-      </Stack>
+            : `${unreachable.length} nodes could not be reached`
+        }
+        description={`There may be queues here that Studio cannot currently see. ${
+          unreachable.length === 1 ? 'This node' : 'These nodes'
+        } did not answer the last scrape, so this is an incomplete view rather than an empty cluster.`}
+        nodes={unreachable}
+      />
     );
   }
   return (
-    <Stack gap={4} align="flex-start">
-      <Text fw={600}>No queues yet</Text>
-      <Text size="sm">
-        A queue is where messages wait for a consumer. Studio fills this grid from each broker's <code>listQueues</code>
-        {/* The semicolon follows the code with no space. */}; produce to an address or create a queue and it appears
-        here within a scrape tick.
-      </Text>
-      {mayCreate ? (
-        <Button size="xs" variant="light" onClick={onCreate}>
-          Create the first queue
-        </Button>
-      ) : null}
-    </Stack>
+    <EmptyState
+      kind="empty"
+      title="No queues yet"
+      description={
+        <>
+          A queue is where messages wait for a consumer. Studio fills this grid from each broker's{' '}
+          <code>listQueues</code>, so a queue appears here within a scrape tick of being created or of the first message
+          produced to its address.
+        </>
+      }
+      action={
+        mayCreate ? (
+          <Button size="xs" variant="light" onClick={onCreate}>
+            Create the first queue
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -276,16 +207,29 @@ export function QueuesView() {
   const navigate = useNavigate();
 
   const [filter, setFilter] = useState(search.q ?? '');
-  const [debounced] = useDebouncedValue(filter, 250);
   const page = search.page ?? 1;
 
-  useEffect(() => {
-    if ((search.q ?? '') === debounced) return;
+  const writeFilter = useDebouncedCallback(
+    (q: string) =>
+      void navigate({
+        to: '.',
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: q || undefined, page: undefined }),
+      }),
+    250,
+  );
+  const typeFilter = (q: string) => {
+    setFilter(q);
+    writeFilter(q);
+  };
+  // Cancelling first: a write still waiting on the debounce would put the old filter back in the address.
+  const clearFilter = () => {
+    writeFilter.cancel();
+    setFilter('');
     void navigate({
       to: '.',
-      search: (prev: Record<string, unknown>) => ({ ...prev, q: debounced || undefined, page: undefined }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
     });
-  }, [debounced, navigate, search.q]);
+  };
 
   const query = useQueues(clusterId, {
     q: search.q,
@@ -334,6 +278,7 @@ export function QueuesView() {
   const setPage = (next: number) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, page: next > 1 ? next : undefined }) });
 
+  const columns = useMemo(queueColumns, []);
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
 
@@ -350,35 +295,29 @@ export function QueuesView() {
     selection,
   } = useQueueSelection(rows, total, search.q);
 
-  if (query.isError) {
-    return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
-  }
-
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" align="flex-end">
-        <TextInput
-          ref={filterRef}
-          label="Filter queues"
-          placeholder="Queue or address name"
-          value={filter}
-          onChange={(e) => setFilter(e.currentTarget.value)}
-          w={280}
-          size="xs"
-        />
-        <Group gap="xs" align="flex-end">
-          {/* The count and position live in the pager, stated once. */}
+    <Page fill>
+      <Toolbar
+        label="Queue filters"
+        start={
+          <TextInput
+            ref={filterRef}
+            label="Filter queues"
+            placeholder="Queue or address name"
+            value={filter}
+            onChange={(e) => typeFilter(e.currentTarget.value)}
+            w={280}
+            size="xs"
+          />
+        }
+        end={
           <CapabilityGate verdict={createGate} what="creating a queue">
             <Button size="xs" disabled={createGate.kind === 'blocked'} onClick={() => setCreateOpen(true)}>
               New queue
             </Button>
           </CapabilityGate>
-        </Group>
-      </Group>
+        }
+      />
 
       {/* Always mounted, so the first tick does not push the grid down under the cursor. */}
       <SelectionBar
@@ -395,60 +334,50 @@ export function QueuesView() {
         ))}
       </SelectionBar>
 
-      {query.isPending && rows.length === 0 ? (
-        <Stack gap={4}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} height={30} />
-          ))}
-        </Stack>
-      ) : (
-        <VirtualTable
-          label="Queues"
-          storageKey="queues"
-          columns={columns}
-          data={rows}
-          sort={search.sort}
-          onSortChange={setSort}
-          onRowClick={setSelected}
-          rowKey={rowKey}
-          selectable
-          selected={selectedKeys}
-          onToggleRow={toggleRow}
-          onToggleAll={toggleAll}
-          rowMenu={{
-            label: (r) => r.queueName,
-            render: (r, menu) => (
-              <ResourceActions
-                kind="queue"
-                clusterId={clusterId}
-                target={{ queueName: r.queueName, address: r.address, snapshot: r }}
-                restoreFocus={menu.restoreFocus}
-              />
-            ),
-          }}
-          emptyLabel={
-            <QueuesEmpty
-              filtered={Boolean(search.q)}
-              filterText={search.q ?? ''}
-              unreachable={unreachable}
-              mayCreate={mayCreate}
-              onClearFilter={() => {
-                setFilter('');
-                void navigate({
-                  to: '.',
-                  search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
-                });
-              }}
-              onCreate={() => setCreateOpen(true)}
+      <DataTable
+        label="Queues"
+        storageKey="queues"
+        height="fill"
+        columns={columns}
+        data={rows}
+        loading={query.isPending}
+        error={query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined}
+        sort={search.sort}
+        onSortChange={setSort}
+        onRowClick={setSelected}
+        rowKey={rowKey}
+        selectable
+        selected={selectedKeys}
+        onToggleRow={toggleRow}
+        onToggleAll={toggleAll}
+        toolbar={{
+          // The count and position live in the pager, stated once.
+          end: <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />,
+        }}
+        rowMenu={{
+          label: (r) => r.queueName,
+          render: (r, menu) => (
+            <ResourceActions
+              kind="queue"
+              clusterId={clusterId}
+              target={{ queueName: r.queueName, address: r.address, snapshot: r }}
+              restoreFocus={menu.restoreFocus}
             />
-          }
-        />
-      )}
-
-      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />
+          ),
+        }}
+        empty={
+          <QueuesEmpty
+            filterText={search.q ?? ''}
+            unreachable={unreachable}
+            mayCreate={mayCreate}
+            onClearFilter={clearFilter}
+            onCreate={() => setCreateOpen(true)}
+          />
+        }
+      />
 
       <QueueDetailDrawer queue={selected} onClose={() => setSelected(null)} />
       <CreateQueueForm clusterId={clusterId} opened={createOpen} onClose={() => setCreateOpen(false)} />
-    </Stack>
+    </Page>
   );
 }

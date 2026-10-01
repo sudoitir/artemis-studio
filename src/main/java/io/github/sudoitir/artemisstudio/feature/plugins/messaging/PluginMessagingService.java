@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
+import io.github.sudoitir.artemisstudio.platform.broker.SendNames;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import java.time.Clock;
@@ -200,9 +201,18 @@ public class PluginMessagingService implements PluginScopedBeans {
                     throw new RegistrationRefusedException(why);
                 });
         ClusterNode node = servingWithCore(message.clusterId());
-        Map<String, Object> headers = new LinkedHashMap<>();
+        // A plugin's headers are plain string properties; the transport's headers are the JMS ones.
+        Map<String, Object> properties = new LinkedHashMap<>();
         if (message.headers() != null) {
-            headers.putAll(message.headers());
+            properties.putAll(message.headers());
+        }
+        if (message.properties() != null) {
+            properties.putAll(message.properties());
+        }
+        try {
+            SendNames.validate(Map.of(), properties);
+        } catch (IllegalArgumentException e) {
+            throw new RegistrationRefusedException(e.getMessage());
         }
         byte[] body = message.body() == null ? new byte[0] : message.body();
         AuditEvent event = audit.begin(
@@ -231,8 +241,8 @@ public class PluginMessagingService implements PluginScopedBeans {
                                     ? new String(body, java.nio.charset.StandardCharsets.UTF_8)
                                     : Base64.getEncoder().encodeToString(body),
                             !message.text(),
-                            headers,
-                            message.properties()));
+                            Map.of(),
+                            properties));
             audit.succeed(event, 1);
         } catch (RuntimeException e) {
             audit.fail(event, e.getMessage());

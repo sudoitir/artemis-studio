@@ -93,6 +93,16 @@ describe('DiagramView', () => {
     expect(screen.getByText(/^Selected Call a service, reserve/)).toBeInTheDocument();
   });
 
+  it("hands React Flow the scheme Mantine resolved, so its own controls follow the console's", async () => {
+    const { container } = render(
+      <MantineProvider forceColorScheme="light">
+        <DiagramView nodes={nodes} edges={edges} aria-label="Flow orders" />
+      </MantineProvider>,
+    );
+    await screen.findByRole('button', { name: /^Queue, orders/ });
+    expect(container.querySelector('.react-flow')).toHaveClass('light');
+  });
+
   it('marks the selected box as pressed', async () => {
     draw(vi.fn(), 'b');
     expect(await screen.findByRole('button', { name: /charge/ })).toHaveAttribute('aria-pressed', 'true');

@@ -1,7 +1,9 @@
-import { Anchor, Button, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Button, Group } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { useCan } from '../auth/useCan.ts';
 import { useManifest } from '../manifest.ts';
 import { bootState } from './boot.ts';
@@ -56,24 +58,29 @@ export function PluginUnavailable() {
   }
 
   return (
-    <Stack gap="sm" maw={560}>
-      <Title order={2} fz="h3">
-        {heading}
-      </Title>
-      {detail ? <Text size="sm">{detail}</Text> : null}
-      {entry && can('user:admin') ? (
-        <Anchor component={Link} to="/admin" search={{ tab: 'plugins', plugin: entry.id } as never} size="sm">
-          See {title} in Administration → Plugins
+    <Page>
+      <PageHeader title={heading} description={detail} />
+      <Group gap="lg" align="center">
+        {entry?.status === 'active' && loadFailure ? (
+          <Button variant="default" onClick={() => globalThis.location.reload()}>
+            Reload the page
+          </Button>
+        ) : null}
+        {entry && can('user:admin') ? (
+          <Anchor
+            component={Link}
+            to="/admin"
+            search={{ tab: 'plugins', plugin: entry.id } as never}
+            size="sm"
+            underline="always"
+          >
+            See {title} in Administration → Plugins
+          </Anchor>
+        ) : null}
+        <Anchor component={Link} to={clusterId ? `/clusters/${clusterId}` : '/'} size="sm" underline="always">
+          {clusterId ? 'Back to the cluster' : `Back to ${branding.productShortName}`}
         </Anchor>
-      ) : null}
-      {entry?.status === 'active' && loadFailure ? (
-        <Button variant="default" w="fit-content" onClick={() => globalThis.location.reload()}>
-          Reload the page
-        </Button>
-      ) : null}
-      <Anchor component={Link} to={clusterId ? `/clusters/${clusterId}` : '/'} size="sm">
-        {clusterId ? 'Back to the cluster' : `Back to ${branding.productShortName}`}
-      </Anchor>
-    </Stack>
+      </Group>
+    </Page>
   );
 }

@@ -1,6 +1,6 @@
 # ADR-0024: Frontend DOM test harness is Vitest + Testing Library + MSW
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0165](0165-the-ui-is-verified-in-a-real-browser.md))
 - **Date**: 2026-09-04
 - **Deciders**: Mahdi Amirabdollahi
 

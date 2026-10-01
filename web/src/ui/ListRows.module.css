@@ -1,0 +1,15 @@
+/* A list of rows separated by hairlines. The rule is a border, not an <hr>, so a screen reader does not
+   announce a separator between every item. */
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  border-block-start: 1px solid var(--as-border);
+}
+
+.facts {
+  font-variant-numeric: tabular-nums;
+}

@@ -38,7 +38,7 @@ const { MessagesView } = await import('./MessagesView.tsx');
 
 const AVAILABLE = { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null };
 
-function endpoint(id: string, name: string) {
+function endpoint(id: string, name: string, lastError: string | null = null) {
   return {
     id,
     name,
@@ -51,7 +51,7 @@ function endpoint(id: string, name: string) {
     replicaSync: null,
     version: '2.44.0',
     versionSupport: 'SUPPORTED',
-    lastError: null,
+    lastError,
     lastSeenAt: null,
     discovered: false,
     manualOverride: false,
@@ -59,7 +59,22 @@ function endpoint(id: string, name: string) {
   };
 }
 
+/** Who the caller is: everything, unless a test narrows it. */
+function signedInWith(permissions: string[]) {
+  server.use(
+    http.get('*/api/v1/auth/me', () =>
+      HttpResponse.json({
+        id: 'u1',
+        username: 'op',
+        mustChangePassword: false,
+        grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
+      }),
+    ),
+  );
+}
+
 function mockCluster(endpoints: ReturnType<typeof endpoint>[]) {
+  signedInWith(['*']);
   server.use(
     http.get('*/api/v1/clusters/c1', () =>
       HttpResponse.json({
@@ -156,6 +171,64 @@ describe('MessagesView', () => {
     expect(screen.queryByText(/^0 messages/)).not.toBeInTheDocument();
   });
 
+  it('teaches what a queue is when it has no messages, and clears the selector when one emptied it', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    const { unmount } = renderWithProviders(<MessagesView />);
+    expect(await screen.findByText('This queue has no messages')).toBeInTheDocument();
+    expect(screen.getByText(/Messages wait in a queue until a consumer takes them/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+    unmount();
+
+    searchState = { filter: "region = 'eu'" };
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+    expect(await screen.findByText('No message matches this selector')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await vi.waitFor(() => expect(searchState).toMatchObject({ filter: undefined, page: undefined }));
+  });
+
+  it('names a node that did not answer instead of presenting an empty queue', async () => {
+    mockCluster([endpoint('n1', 'primary', 'connection refused')]);
+    renderWithProviders(<MessagesView />);
+
+    expect(await screen.findByText('No messages could be listed')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Nodes that could not be reached' })).getByText('primary'),
+    ).toBeVisible();
+  });
+
+  it('states why the page could not be read, with a retry, in place of the rows', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    server.use(
+      http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () =>
+        HttpResponse.json({ title: 'Cluster unreachable', detail: 'No node answered.' }, { status: 502 }),
+      ),
+    );
+    renderWithProviders(<MessagesView />);
+
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('This queue has no messages')).not.toBeInTheDocument();
+  });
+
+  it('keeps Send and Purge visible but disabled, with the reason, for an operator who may only read', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    signedInWith(['message:read']);
+    const user = userEvent.setup();
+    renderWithProviders(<MessagesView />);
+
+    // The gate wraps the button once the grants say no, so it is looked up again rather than held.
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Purge queue' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Why purging this queue is unavailable' }));
+    expect(await screen.findByText(/You do not have the "Purge queues" permission/)).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Why sending a message is unavailable' }));
+    expect(await screen.findByText(/You do not have the "Send messages" permission/)).toBeInTheDocument();
+  });
+
   it('renders every message of a populated page and opens the one clicked', async () => {
     const summary = (messageId: number, body: string, truncated = false) => ({
       messageId,
@@ -216,7 +289,7 @@ describe('MessagesView', () => {
     expect(within(rows[2]).getByText('order A-2')).toBeInTheDocument();
     expect(within(rows[2]).getByText('truncated')).toBeInTheDocument();
     expect(within(rows[3]).getByText('order A-3')).toBeInTheDocument();
-    expect(screen.queryByText('No messages match')).not.toBeInTheDocument();
+    expect(screen.queryByText('This queue has no messages')).not.toBeInTheDocument();
 
     await user.click(within(rows[2]).getByText('order A-2'));
 

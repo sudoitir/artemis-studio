@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Group, Loader, Stack, Text } from '@mantine/core';
+import { Alert, Badge, Button, Group, Stack, Text } from '@mantine/core';
 
 import { useLogout } from '../../kernel/auth/api.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
@@ -7,6 +7,7 @@ import { Ago } from '../../kernel/time/Ago.tsx';
 import { useEndOtherSessions, useEndSession, useSessions, type AccountSessionView } from './api.ts';
 import { describeClient } from '../../kernel/auth/clientLabel.ts';
 import { Row, Rows } from '../../ui/ListRows.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 interface Outcome {
   text: string;
@@ -83,7 +84,7 @@ export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
   const sessions = useSessions(userId);
   const ending = useSessionEnding(userId);
 
-  if (sessions.isPending) return <Loader size="sm" aria-label="Loading sessions" />;
+  if (sessions.isPending) return <LoadingState variant="inline" label="Loading sessions" />;
   if (sessions.isError) {
     return (
       <Alert color="red" variant="light" title="Could not load the sessions" role="alert">

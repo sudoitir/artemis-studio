@@ -1,7 +1,38 @@
-/* A cluster's name is broker-supplied and can be a long unbroken host string.
-   The flex item has to be allowed to shrink, and the name to break, or it
-   widens the page and slides the routed column under the fixed rail. */
-.identity {
+/* The cluster's context, one wrapping line: name, environment, then what is known of its health. A
+   cluster's name is broker-supplied and can be a long unbroken host string, so it breaks anywhere
+   rather than widening the page. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
   min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.name {
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* The colour is the administrator's own mark for the environment; the name beside it carries the meaning. */
+.environment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.meta {
+  color: var(--as-text-dimmed);
+}
+
+/* A problem or a notice about the cluster. Colour only emphasises: the title says what it is. */
+.notice[data-tone='warning'] {
+  border-color: var(--as-warning);
+}
+
+.notice[data-tone='danger'] {
+  border-color: var(--as-danger);
 }

@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 
-import type { MenuAnchor } from '../../ui/menuAnchor.ts';
+import type { MenuAnchor } from '../../ui/table/menuAnchor.ts';
 
 /** What every node and edge on the flow canvas reads, set once by the canvas. */
 export interface FlowCanvasState {

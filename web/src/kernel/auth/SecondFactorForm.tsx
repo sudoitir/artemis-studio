@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Alert, Anchor, Button, Checkbox, Divider, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Button, Checkbox, Divider, Stack, Text, TextInput } from '@mantine/core';
 import { IconArrowLeft, IconKey } from '@tabler/icons-react';
 
 import { ApiError } from '../api/request.ts';
@@ -11,6 +11,7 @@ import {
   type SecondFactorRequest,
 } from './api.ts';
 import { getPasskey, passkeyFailure, passkeysSupported, PASSKEYS_UNSUPPORTED } from './webauthn.ts';
+import classes from './SecondFactorForm.module.css';
 
 /** The password step starts again, with `message` saying why (`failed`: the reason is an error, not a timeout). */
 export interface Restart {
@@ -140,9 +141,9 @@ export function SecondFactorForm({
         {!passkey.waiting && attempt.notice ? <Text size="sm">{attempt.notice}</Text> : null}
       </div>
       {attempt.failure ? (
-        <Alert color="red" variant="light" role="alert">
+        <Text size="sm" role="alert" className={classes.failure}>
           {attempt.failure}
-        </Alert>
+        </Text>
       ) : null}
 
       <Anchor
@@ -152,9 +153,9 @@ export function SecondFactorForm({
         w="fit-content"
         disabled={busy}
         onClick={onBack}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        className={classes.back}
       >
-        <IconArrowLeft size={14} aria-hidden />
+        <IconArrowLeft size="0.875rem" aria-hidden />
         Back
       </Anchor>
     </Stack>
@@ -349,7 +350,7 @@ function PasskeyButton({
       <Button
         variant={canUse ? 'filled' : 'default'}
         fullWidth
-        leftSection={<IconKey size={16} aria-hidden />}
+        leftSection={<IconKey size="1rem" aria-hidden />}
         loading={waiting}
         disabled={!canUse || disabled}
         aria-describedby={canUse ? undefined : 'passkeys-unsupported'}

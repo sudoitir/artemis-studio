@@ -1,6 +1,7 @@
 /*
  * The SDK diagram (ADR-0117), in the routing canvas's language: a sunken canvas, raised cards,
  * thin quiet lines. Words carry kind and state; colour appears only on a box with a problem.
+ * Durations come from the tokens, which reduced motion sets to zero.
  */
 
 .frame {
@@ -28,8 +29,8 @@
 
 .controls {
   position: absolute;
-  inset-block-start: 8px;
-  inset-inline-end: 8px;
+  inset-block-start: var(--mantine-spacing-sm);
+  inset-inline-end: var(--mantine-spacing-sm);
   z-index: 5;
 }
 
@@ -42,10 +43,10 @@
 
 .more {
   position: absolute;
-  inset-block-start: 4px;
-  inset-inline-end: 4px;
+  inset-block-start: var(--mantine-spacing-xs);
+  inset-inline-end: var(--mantine-spacing-xs);
   opacity: 0;
-  transition: opacity 120ms ease-out;
+  transition: opacity var(--as-duration-fast) var(--as-ease);
 }
 
 .card:hover .more,
@@ -60,20 +61,13 @@
   position: absolute;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--mantine-spacing-xs);
   pointer-events: none;
 }
 
+/* The "+" is a control, so it is never dimmed: its edge and glyph keep 3:1 against the canvas. */
 .insert {
   pointer-events: all;
-  opacity: 0.7;
-  transition: opacity 120ms ease-out;
-}
-
-.insert:hover,
-.insert:focus-visible,
-.insert[aria-expanded='true'] {
-  opacity: 1;
 }
 
 .handle {
@@ -85,14 +79,15 @@
   box-sizing: border-box;
   inline-size: 100%;
   block-size: 100%;
-  padding-block: 6px;
-  padding-inline: 12px;
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-md);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  gap: 2px;
-  border: 1px solid var(--as-border);
+  gap: 0;
+  /* A box is a control, so its edge is the strong one: 3:1 against the canvas. */
+  border: 1px solid var(--as-border-strong);
   border-radius: var(--mantine-radius-md);
   background: var(--as-surface-raised);
   box-shadow: var(--as-elevation-1);
@@ -101,8 +96,8 @@
   cursor: pointer;
   text-align: start;
   transition:
-    box-shadow 140ms ease-out,
-    border-color 140ms ease-out;
+    box-shadow var(--as-duration-fast) var(--as-ease),
+    border-color var(--as-duration-fast) var(--as-ease);
 }
 
 .node:hover {
@@ -111,12 +106,12 @@
 
 .node[data-state='error'] {
   border-color: var(--as-danger);
-  border-inline-start-width: 4px;
+  border-inline-start-width: 0.25rem;
 }
 
 .node[data-state='warning'] {
   border-color: var(--as-warning);
-  border-inline-start-width: 4px;
+  border-inline-start-width: 0.25rem;
 }
 
 .node[data-selected] {
@@ -127,25 +122,25 @@
 }
 
 .node:focus-visible {
-  outline: 2px solid var(--as-text);
-  outline-offset: 3px;
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
 }
 
 .kind {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mantine-spacing-xs);
   max-inline-size: 100%;
-  font-size: 0.6875rem;
+  font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   white-space: nowrap;
 }
 
 .state {
-  padding-inline: 6px;
+  padding-inline: var(--mantine-spacing-xs);
   border: 1px solid currentColor;
-  border-radius: 999px;
-  line-height: 1.4;
+  border-radius: var(--mantine-radius-xl);
+  line-height: var(--mantine-line-height-xs);
   font-weight: 600;
 }
 
@@ -166,13 +161,13 @@
 }
 
 .label {
-  font-size: 0.8125rem;
+  font-size: var(--mantine-font-size-sm);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: var(--mantine-line-height-sm);
 }
 
 .detail {
-  font-size: 0.75rem;
+  font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
 }
 
@@ -188,14 +183,14 @@
 }
 
 .chip {
-  max-inline-size: 200px;
-  padding-inline: 6px;
+  max-inline-size: 12.5rem;
+  padding-inline: var(--mantine-spacing-xs);
   border: 1px solid var(--as-border);
-  border-radius: 999px;
+  border-radius: var(--mantine-radius-xl);
   background: var(--as-surface-raised);
   color: var(--as-text-dimmed);
-  font-size: 0.6875rem;
-  line-height: 1.5;
+  font-size: var(--mantine-font-size-xs);
+  line-height: var(--mantine-line-height-lg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -214,12 +209,4 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .node,
-  .more,
-  .insert {
-    transition: none;
-  }
 }

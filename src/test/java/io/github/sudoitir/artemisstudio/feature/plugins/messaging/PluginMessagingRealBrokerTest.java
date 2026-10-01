@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.plugins.messaging;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal.PluginMessagingReconciler;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
@@ -194,7 +195,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() {
         for (PluginRuntime runtime : active) {
             quietly(runtime::close);
             runtimes.remove(runtime.id());
@@ -278,7 +279,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         }
         assertThat(again).isNotNull();
         assertThat(again.deliveryCount()).isGreaterThanOrEqualTo(2);
-        assertThat(again.headers().get("messageId")).isEqualTo(first.headers().get("messageId"));
+        assertThat(again.headers()).containsEntry("messageId", first.headers().get("messageId"));
         awaitQueueCount(queue, 0);
     }
 
@@ -334,7 +335,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         // Stop the plugin while it holds the first message and the second is still unsettled.
         PluginRuntime runtime = active.getFirst();
         Thread stopping = Thread.ofVirtual().start(runtime::close);
-        Thread.sleep(200);
+        await().atMost(Duration.ofSeconds(10)).until(() -> stopping.getState() != Thread.State.RUNNABLE);
         gate.release(1);
         stopping.join(Duration.ofSeconds(30));
         runtimes.remove(plugin);
@@ -395,10 +396,12 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         for (int i = 0; i < 3; i++) {
             assertThat(MessagingProbe.inbox(plugin).poll(10, TimeUnit.SECONDS)).isNotNull();
         }
-        Thread.sleep(1_000);
-        assertThat(MessagingProbe.inbox(plugin)).isEmpty();
-        assertThat(queueAttribute(queue, "DeliveringCount")).isLessThanOrEqualTo(3);
-        assertThat(queueAttribute(queue, "MessageCount")).isEqualTo(100);
+        // Nothing more arrives, and the broker holds back the rest, for a full second.
+        await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertThat(MessagingProbe.inbox(plugin)).isEmpty();
+            assertThat(queueAttribute(queue, "DeliveringCount")).isLessThanOrEqualTo(3);
+            assertThat(queueAttribute(queue, "MessageCount")).isEqualTo(100);
+        });
 
         gate.release(10_000);
         awaitQueueCount(queue, 0);
@@ -476,15 +479,11 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
                 .getId();
         try {
             captureReconciler.reconcileNow(clusterId);
-            long started = System.nanoTime();
             send(captured, 20, 16);
-            long deadline = started + TimeUnit.SECONDS.toNanos(15);
-            while (capturedCount() < 20 && System.nanoTime() < deadline) {
-                Thread.sleep(100);
-            }
-            assertThat(capturedCount())
-                    .as("copies captured while plugin handlers block")
-                    .isEqualTo(20);
+            await().atMost(Duration.ofSeconds(15))
+                    .untilAsserted(() -> assertThat(capturedCount())
+                            .as("copies captured while plugin handlers block")
+                            .isEqualTo(20));
         } finally {
             gate.release(10_000);
             quietly(() -> indexes.delete(clusterId, subscription));
@@ -495,20 +494,20 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     @Test
     void aConcurrencyOutsideItsRangeIsRefusedWithTheReason() throws Exception {
         String queue = queue("RANGE");
-        String plugin = activate("range");
-        assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 0, operator)))
+        PluginMessaging messaging = messaging(activate("range"));
+        RegistrationSpec none = new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 0, operator);
+        RegistrationSpec tooMany = new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 33, operator);
+        RegistrationSpec tapped = new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, 2, operator);
+        assertThatThrownBy(() -> messaging.register(none))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("1 to 32");
-        assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 33, operator)))
+        assertThatThrownBy(() -> messaging.register(tooMany))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("1 to 32");
-        assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, 2, operator)))
+        assertThatThrownBy(() -> messaging.register(tapped))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("concurrency is 1");
-        assertThat(messaging(plugin).registrations()).isEmpty();
+        assertThat(messaging.registrations()).isEmpty();
     }
 
     // ---- send ----------------------------------------------------------------
@@ -539,25 +538,34 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aSendWithAnInvalidPropertyNameIsRefusedWithTheReason() throws Exception {
+        String queue = queue("SENDBAD");
+        PluginMessaging messaging = messaging(activate("sendbad"));
+        OutboundMessage badHeader = new OutboundMessage(
+                clusterId, queue, new byte[0], true, Map.of("x-header", "v"), Map.of(), false, operator);
+        OutboundMessage badProperty = new OutboundMessage(
+                clusterId, queue, new byte[0], true, Map.of(), Map.of("JMSType", 1), false, operator);
+        assertThatThrownBy(() -> messaging.send(badHeader))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("Invalid property name 'x-header'");
+        assertThatThrownBy(() -> messaging.send(badProperty))
+                .isInstanceOf(RegistrationRefusedException.class)
+                .hasMessageContaining("Invalid property name 'JMSType'");
+    }
+
+    @Test
     void sendingNeedsMessageSendAndNeverReachesStudiosOwnAddresses() throws Exception {
         String queue = queue("SENDNO");
-        String plugin = activate("sendno");
+        PluginMessaging messaging = messaging(activate("sendno"));
         UUID reader = user(Set.of("message:read"));
-        assertThatThrownBy(() -> messaging(plugin)
-                        .send(new OutboundMessage(
-                                clusterId, queue, new byte[0], true, Map.of(), Map.of(), false, reader)))
+        OutboundMessage unauthorised =
+                new OutboundMessage(clusterId, queue, new byte[0], true, Map.of(), Map.of(), false, reader);
+        OutboundMessage reserved = new OutboundMessage(
+                clusterId, "artemis-studio.capture.x", new byte[0], true, Map.of(), Map.of(), false, operator);
+        assertThatThrownBy(() -> messaging.send(unauthorised))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("message:send");
-        assertThatThrownBy(() -> messaging(plugin)
-                        .send(new OutboundMessage(
-                                clusterId,
-                                "artemis-studio.capture.x",
-                                new byte[0],
-                                true,
-                                Map.of(),
-                                Map.of(),
-                                false,
-                                operator)))
+        assertThatThrownBy(() -> messaging.send(reserved))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("reserved");
     }
@@ -654,23 +662,23 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     @Test
     void aRegistrationIsRefusedWithoutThePermissionsItsModeNeeds() throws Exception {
         String queue = queue("DENY");
-        String plugin = activate("deny");
+        PluginMessaging messaging = messaging(activate("deny"));
         UUID nobody = user(Set.of());
         UUID reader = user(Set.of("message:read"));
-        assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, 1, nobody)))
+        RegistrationSpec unreadable = new RegistrationSpec("x", clusterId, queue, RegistrationMode.TAP, 1, nobody);
+        RegistrationSpec unpurgeable = new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 1, reader);
+        RegistrationSpec reserved =
+                new RegistrationSpec("x", clusterId, "artemis-studio.capture.abc", RegistrationMode.TAP, 1, operator);
+        assertThatThrownBy(() -> messaging.register(unreadable))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("message:read");
-        assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec("x", clusterId, queue, RegistrationMode.CONSUME, 1, reader)))
+        assertThatThrownBy(() -> messaging.register(unpurgeable))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("queue:purge");
-        assertThatThrownBy(() -> messaging(plugin)
-                        .register(new RegistrationSpec(
-                                "x", clusterId, "artemis-studio.capture.abc", RegistrationMode.TAP, 1, operator)))
+        assertThatThrownBy(() -> messaging.register(reserved))
                 .isInstanceOf(RegistrationRefusedException.class)
                 .hasMessageContaining("reserved");
-        assertThat(messaging(plugin).registrations()).isEmpty();
+        assertThat(messaging.registrations()).isEmpty();
     }
 
     @Test
@@ -811,12 +819,9 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
         return count == null ? 0 : count;
     }
 
-    private void awaitQueueCount(String queue, long expected) throws InterruptedException {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
-        while (queueCount(queue) != expected && System.nanoTime() < deadline) {
-            Thread.sleep(100);
-        }
-        assertThat(queueCount(queue)).isEqualTo(expected);
+    private void awaitQueueCount(String queue, long expected) {
+        await().atMost(Duration.ofSeconds(20))
+                .untilAsserted(() -> assertThat(queueCount(queue)).isEqualTo(expected));
     }
 
     private List<String> tapQueues() {
@@ -838,7 +843,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     private static void quietly(ThrowingRunnable action) {
         try {
             action.run();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // already gone, or never created
         }
     }

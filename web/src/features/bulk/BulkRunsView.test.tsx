@@ -60,7 +60,7 @@ describe('BulkRunsView', () => {
     renderWithProviders(<BulkRunsView />);
 
     const table = await screen.findByRole('grid', { name: 'Bulk runs' });
-    const links = within(table).getAllByRole('link');
+    const links = await within(table).findAllByRole('link');
     expect(links.map((l) => l.getAttribute('href'))).toEqual(['/clusters/c1/bulk/r1', '/clusters/c1/bulk/r2']);
     expect(within(table).getByText('Delete')).toBeInTheDocument();
     expect(within(table).getByText('Pause')).toBeInTheDocument();
@@ -74,7 +74,10 @@ describe('BulkRunsView', () => {
     renderWithProviders(<BulkRunsView />);
 
     expect(await screen.findByText('No bulk runs yet')).toBeInTheDocument();
+    expect(screen.getByText(/pauses, resumes, purges or deletes many queues at once/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Go to Queues' })).toHaveAttribute('href', '/clusters/c1/queues');
+    // The empty state is beside the grid, never in it: the grid has only its header row.
+    expect(screen.getByRole('grid', { name: 'Bulk runs' })).toHaveAttribute('aria-rowcount', '1');
   });
 
   it('states why the runs could not be loaded instead of showing an empty table', async () => {
@@ -85,8 +88,8 @@ describe('BulkRunsView', () => {
     );
     renderWithProviders(<BulkRunsView />);
 
-    expect(await screen.findByText('Runs unavailable')).toBeInTheDocument();
-    expect(screen.getByText('The cluster did not answer.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.queryByText('No bulk runs yet')).not.toBeInTheDocument();
   });
 });

@@ -13,7 +13,10 @@ describe('ShortcutsHelp', () => {
     await userEvent.click(button);
     const popover = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
     expect(popover).toHaveTextContent('Search views, clusters and queues');
-    expect(within(popover).getByLabelText(/Single-key shortcuts/)).toBeChecked();
+    const toggle = within(popover).getByLabelText(/Single-key shortcuts/);
+    expect(toggle).toBeChecked();
+    // Focus moves into the popover, onto its one control.
+    await waitFor(() => expect(toggle).toHaveFocus());
 
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument());

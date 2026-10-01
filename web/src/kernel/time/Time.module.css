@@ -1,0 +1,4 @@
+/* A moment in words: digits keep one width, so two rows of "3 minutes ago" and "12 minutes ago" line up. */
+.figures {
+  font-variant-numeric: tabular-nums;
+}

@@ -27,12 +27,13 @@ import {
   type Node,
   type NodeProps,
 } from '@xyflow/react';
-import { ActionIcon, Alert, Loader, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Loader, Menu, Tooltip, useComputedColorScheme } from '@mantine/core';
 import { IconDots, IconFocusCentered, IconPlus, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
 import { ActionMenuItem } from './ActionMenuItem.tsx';
 import { AnchoredMenu } from './AnchoredMenu.tsx';
+import { EmptyState } from './EmptyState.tsx';
 import { runLayout } from './graph/elk.ts';
 import {
   layoutSignature,
@@ -43,7 +44,7 @@ import {
   type DiagramNode,
 } from './diagram.ts';
 import classes from './DiagramView.module.css';
-import { anchorBelow, clampToViewport, type MenuAnchor } from './menuAnchor.ts';
+import { anchorBelow, clampToViewport, type MenuAnchor } from './table/menuAnchor.ts';
 
 export type { DiagramAction, DiagramChoice, DiagramEdge, DiagramNode };
 
@@ -54,8 +55,8 @@ export interface DiagramViewProps {
   onSelect?: (id: string) => void;
   /** Which way the arrows run. Default: down. */
   direction?: 'DOWN' | 'RIGHT';
-  /** The frame's height: pixels, or any CSS length such as '100%' to fill a sized parent. Default 480. */
-  height?: number | string;
+  /** The frame's height, as a CSS length such as '100%' to fill a sized parent. Default 30rem. */
+  height?: string;
   /** Names the diagram for screen readers. */
   'aria-label': string;
   /** What can be inserted on an arrow marked `insertable`. With `onInsert`, each such arrow offers them. */
@@ -112,9 +113,8 @@ function useLayout(nodes: DiagramNode[], edges: DiagramEdge[], direction: string
     return () => {
       cancelled = true;
     };
-    // The signature holds everything the layout depends on.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
+    // The signature holds everything the layout depends on, the direction included.
+  }, [signature, direction]);
   return { positions: state.positions, ready: state.signature === signature, error, signature };
 }
 
@@ -258,7 +258,7 @@ const Card = memo(function Card({ id, data }: NodeProps<Node<CardData>>) {
             actions(id, anchorBelow(event.currentTarget), event.currentTarget);
           }}
         >
-          <IconDots size={14} stroke={1.75} />
+          <IconDots size="0.875rem" stroke={1.75} />
         </ActionIcon>
       ) : null}
       <Handle
@@ -333,7 +333,7 @@ const Line = memo(function Line({
                 aria-haspopup="menu"
                 onClick={(event) => insert([id], anchorBelow(event.currentTarget), event.currentTarget)}
               >
-                <IconPlus size={12} stroke={2} />
+                <IconPlus size="0.75rem" stroke={2} />
               </ActionIcon>
             ) : null}
           </div>
@@ -402,7 +402,7 @@ function ViewControls() {
       {controls.map((c) => (
         <Tooltip key={c.label} label={c.label} position="left" withArrow openDelay={300}>
           <ActionIcon variant="default" size="md" aria-label={c.label} onClick={c.run}>
-            <c.icon size={16} stroke={1.75} />
+            <c.icon size="1rem" stroke={1.75} />
           </ActionIcon>
         </Tooltip>
       ))}
@@ -428,7 +428,7 @@ export function DiagramView({
   selectedId = null,
   onSelect,
   direction = 'DOWN',
-  height = 480,
+  height = '30rem',
   'aria-label': ariaLabel,
   insertChoices,
   onInsert,
@@ -436,6 +436,8 @@ export function DiagramView({
   onNodeAction,
 }: Readonly<DiagramViewProps>) {
   const layout = useLayout(nodes, edges, direction);
+  // React Flow's own chrome (controls, minimap, attribution) follows the scheme Mantine resolved.
+  const colorMode = useComputedColorScheme('dark', { getInitialValueInEffect: false });
   const vertical = direction === 'DOWN';
   const order = useMemo(
     () =>
@@ -534,9 +536,11 @@ export function DiagramView({
 
   if (layout.error) {
     return (
-      <Alert color="red" variant="light" title="The diagram could not be laid out">
-        {layout.error}
-      </Alert>
+      <EmptyState
+        kind="empty"
+        title="The diagram could not be laid out"
+        description={`${layout.error.replace(/\.$/, '')}. Reload the page to try again.`}
+      />
     );
   }
 
@@ -551,14 +555,15 @@ export function DiagramView({
         onKeyDown={onKeyDown}
       >
         {!layout.ready ? (
-          <div className={classes.overlay} aria-busy="true" aria-label="Laying out the diagram">
+          <output className={classes.overlay} aria-busy="true" aria-label="Laying out the diagram">
             <Loader size="sm" />
-          </div>
+          </output>
         ) : null}
         <RovingContext.Provider value={roving}>
           <ReactFlow
             nodes={model.nodes}
             edges={model.edges}
+            colorMode={colorMode}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             minZoom={0.2}

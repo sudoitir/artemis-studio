@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { plural } from './plural.ts';
-import { Alert, Group, Skeleton, Stack, Text, TextInput } from '@mantine/core';
+import { TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -17,11 +17,15 @@ import {
   type SessionView,
 } from './api.ts';
 import { type PagedView, type ResourceParams } from '../../kernel/api/paging.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
-import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
+import { DataTable, type Column } from '../../ui/table/index.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
+import { useCluster } from '../clusters/index.ts';
+import { resourceColumns, type ColumnDeps } from './columns.tsx';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
-import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
 import type { ActionKind, ActionTargets } from '../../kernel/actions/types.ts';
 import type { ApiError } from '../../kernel/api/request.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -31,50 +35,14 @@ const PAGE_SIZE = 200;
 
 type Kind = 'addresses' | 'consumers' | 'sessions' | 'connections' | 'producers';
 
-/** What a row action needs that the row itself does not carry. */
-interface RowContext {
-  clusterId: string;
-  /** When the rows on screen were fetched, in epoch ms. A close depends on it. */
-  fetchedAt: number | null;
-}
-
-const LINK_TARGET = {
-  queue: (value: string) => ({ queueName: value }),
-  address: (value: string) => ({ address: value }),
-  connection: (value: string) => ({ connectionId: value, nodeId: '', nodeName: '' }),
-  session: (value: string) => ({ sessionId: value, nodeId: '', nodeName: '' }),
-};
-
-/**
- * A value that names another resource, as a link to it (ADR-0107) — or as plain text when the
- * feature presenting it is disabled, or when the broker gave no value.
- */
-function linked(
-  kind: 'queue' | 'address' | 'connection' | 'session',
-  value: string | null | undefined,
-): React.ReactNode {
-  if (!value) return '';
-  const target = LINK_TARGET[kind](value) as never;
-  return (
-    <ResourceLink kind={kind} target={target}>
-      {value}
-    </ResourceLink>
-  );
-}
-
 interface KindConfig<T> {
   hook: (id: string, p: ResourceParams) => UseQueryResult<PagedView<T>, ApiError>;
-  columns: GridColumn<T>[];
+  columns: (deps: ColumnDeps) => Column<T>[];
   rowKey: (row: T) => string;
   filter: string;
   noun: string;
-  /**
-   * The action this row's finding implies, rendered in a trailing column. Kept
-   * beside the row rather than behind a selection or a detail pane, so the thing
-   * an operator has just been told about and the verb that acts on it are one
-   * click apart.
-   */
-  action?: (row: T, ctx: RowContext) => React.ReactNode;
+  /** What one is and how one comes to exist: what an empty view teaches. */
+  about: string;
   /** The row's menu (ADR-0107): which resource it is, and how the row names itself. */
   menu: RowMenuConfig<T>;
 }
@@ -86,23 +54,6 @@ interface RowMenuConfig<T> {
   label: (row: T) => string;
 }
 
-/** The trailing action column. Fixed width; the action names itself, the header does not. */
-const ACTION_COL = <T,>(render: (row: T, ctx: RowContext) => React.ReactNode, ctx: RowContext): GridColumn<T> => ({
-  id: 'action',
-  header: 'Action',
-  accessor: () => '',
-  cell: (row) => render(row, ctx),
-  width: 90,
-});
-
-const NODE_COL = <T extends { nodeName: string }>(): GridColumn<T> => ({
-  id: 'node',
-  header: 'Node',
-  accessor: (r) => r.nodeName,
-  sortKey: undefined,
-  width: 140,
-});
-
 const CONFIG: {
   addresses: KindConfig<AddressView>;
   consumers: KindConfig<ConsumerView>;
@@ -112,28 +63,26 @@ const CONFIG: {
 } = {
   addresses: {
     hook: useAddresses,
+    columns: resourceColumns.addresses,
     rowKey: (r) => `${r.nodeId}:${r.name}`,
     filter: 'Address name',
     noun: 'address',
+    about:
+      'An address is a named destination that producers send to; the broker routes each message to the queues bound to it. One appears when a queue is created or a producer first sends to it.',
     menu: {
       kind: 'address',
       target: (r) => ({ address: r.name, snapshot: r }),
       label: (r) => r.name,
     },
-    columns: [
-      { id: 'name', header: 'Address', accessor: (r) => r.name, sortKey: 'name' },
-      { id: 'routing', header: 'Routing', accessor: (r) => r.routingTypes ?? '', width: 130 },
-      { id: 'queues', header: 'Queues', accessor: (r) => r.queueCount, numeric: true, width: 100 },
-      { id: 'depth', header: 'Messages', accessor: (r) => r.messageCount, numeric: true, width: 120 },
-      NODE_COL<AddressView>(),
-    ],
-    action: (row, ctx) => <CloseAddressConsumersAction clusterId={ctx.clusterId} address={row.name} />,
   },
   consumers: {
     hook: useConsumers,
+    columns: resourceColumns.consumers,
     rowKey: (r) => `${r.nodeId}:${r.consumerId}`,
     filter: 'Queue name or session id',
     noun: 'consumer',
+    about:
+      'A consumer is a client subscribed to a queue and receiving its messages. There are none while no client is subscribed; one appears as soon as a client subscribes.',
     menu: {
       kind: 'consumer',
       target: (r) => ({
@@ -146,50 +95,15 @@ const CONFIG: {
       }),
       label: (r) => `${r.queueName ?? 'consumer'} (${r.consumerId ?? 'no id'})`,
     },
-    columns: [
-      {
-        id: 'queue',
-        header: 'Queue',
-        accessor: (r) => r.queueName ?? '',
-        cell: (r) => linked('queue', r.queueName),
-        sortKey: 'queue',
-      },
-      { id: 'address', header: 'Address', accessor: (r) => r.address ?? '', cell: (r) => linked('address', r.address) },
-      { id: 'protocol', header: 'Protocol', accessor: (r) => r.protocol ?? '', width: 100 },
-      {
-        id: 'delivered',
-        header: 'Delivered',
-        accessor: (r) => r.messagesDelivered,
-        numeric: true,
-        width: 110,
-      },
-      {
-        id: 'acked',
-        header: 'Acked',
-        accessor: (r) => r.messagesAcknowledged,
-        numeric: true,
-        width: 100,
-      },
-      { id: 'status', header: 'Status', accessor: (r) => r.status ?? '', width: 90 },
-      NODE_COL<ConsumerView>(),
-    ],
-    action: (row, ctx) => (
-      <CloseConnectionAction
-        clusterId={ctx.clusterId}
-        kind="consumer"
-        nodeId={row.nodeId}
-        nodeName={row.nodeName}
-        targetId={row.consumerId ?? ''}
-        rowLabel={row.queueName ?? row.consumerId ?? ''}
-        fetchedAt={ctx.fetchedAt}
-      />
-    ),
   },
   sessions: {
     hook: useSessions,
+    columns: resourceColumns.sessions,
     rowKey: (r) => `${r.nodeId}:${r.sessionId}`,
     filter: 'Session id, connection id or user',
     noun: 'session',
+    about:
+      "A session is a client's unit of work on a connection; it owns that client's producers and consumers. There are none while no client is connected; one appears when a client opens a session.",
     menu: {
       kind: 'session',
       target: (r) => ({
@@ -201,89 +115,29 @@ const CONFIG: {
       }),
       label: (r) => r.sessionId ?? 'session',
     },
-    columns: [
-      { id: 'session', header: 'Session', accessor: (r) => r.sessionId ?? '', sortKey: 'session' },
-      { id: 'user', header: 'User', accessor: (r) => r.user ?? '', width: 120 },
-      {
-        id: 'conn',
-        header: 'Connection',
-        accessor: (r) => r.connectionId ?? '',
-        cell: (r) => linked('connection', r.connectionId),
-        width: 140,
-      },
-      {
-        id: 'consumers',
-        header: 'Consumers',
-        accessor: (r) => r.consumerCount,
-        numeric: true,
-        width: 110,
-      },
-      {
-        id: 'producers',
-        header: 'Producers',
-        accessor: (r) => r.producerCount,
-        numeric: true,
-        width: 110,
-      },
-      NODE_COL<SessionView>(),
-    ],
-    action: (row, ctx) => (
-      <CloseConnectionAction
-        clusterId={ctx.clusterId}
-        kind="session"
-        nodeId={row.nodeId}
-        nodeName={row.nodeName}
-        targetId={row.sessionId ?? ''}
-        rowLabel={row.user ?? row.sessionId ?? ''}
-        fetchedAt={ctx.fetchedAt}
-      />
-    ),
   },
   connections: {
     hook: useConnections,
+    columns: resourceColumns.connections,
     rowKey: (r) => `${r.nodeId}:${r.connectionId}`,
     filter: 'Remote address, client id or connection id',
     noun: 'connection',
+    about:
+      "A connection is a client's network link to a broker node. There are none while no client is connected; one appears when a client connects to a node's acceptor.",
     menu: {
       kind: 'connection',
       target: (r) => ({ nodeId: r.nodeId, nodeName: r.nodeName, connectionId: r.connectionId ?? '', snapshot: r }),
       label: (r) => r.clientId || r.remoteAddress || r.connectionId || 'connection',
     },
-    columns: [
-      {
-        id: 'remote',
-        header: 'Remote address',
-        accessor: (r) => r.remoteAddress ?? '',
-        sortKey: 'remote',
-      },
-      { id: 'protocol', header: 'Protocol', accessor: (r) => r.protocol ?? '', width: 100 },
-      { id: 'client', header: 'Client id', accessor: (r) => r.clientId ?? '', width: 140 },
-      {
-        id: 'sessions',
-        header: 'Sessions',
-        accessor: (r) => r.sessionCount,
-        numeric: true,
-        width: 100,
-      },
-      NODE_COL<ConnectionView>(),
-    ],
-    action: (row, ctx) => (
-      <CloseConnectionAction
-        clusterId={ctx.clusterId}
-        kind="connection"
-        nodeId={row.nodeId}
-        nodeName={row.nodeName}
-        targetId={row.connectionId ?? ''}
-        rowLabel={row.clientId || row.remoteAddress || row.connectionId || ''}
-        fetchedAt={ctx.fetchedAt}
-      />
-    ),
   },
   producers: {
     hook: useProducers,
+    columns: resourceColumns.producers,
     rowKey: (r) => `${r.nodeId}:${r.producerId}`,
     filter: 'Address, producer name or session id',
     noun: 'producer',
+    about:
+      "A producer is a client's sender to an address. There are none while no client holds one open; one appears when a client creates a producer on a session.",
     menu: {
       kind: 'producer',
       target: (r) => ({
@@ -296,21 +150,67 @@ const CONFIG: {
       }),
       label: (r) => r.name || r.address || r.producerId || 'producer',
     },
-    columns: [
-      {
-        id: 'address',
-        header: 'Address',
-        accessor: (r) => r.address ?? '',
-        cell: (r) => linked('address', r.address),
-        sortKey: 'address',
-      },
-      { id: 'name', header: 'Name', accessor: (r) => r.name ?? '' },
-      { id: 'protocol', header: 'Protocol', accessor: (r) => r.protocol ?? '', width: 100 },
-      { id: 'sent', header: 'Sent', accessor: (r) => r.messagesSent, numeric: true, width: 100 },
-      NODE_COL<ProducerView>(),
-    ],
   },
 };
+
+/** The nodes of the cluster whose last scrape failed: rows they would have held are absent, not zero. */
+function useUnreachableNodes(clusterId: string): string[] {
+  const cluster = useCluster(clusterId);
+  return (cluster.data?.topology.nodes ?? [])
+    .flatMap((n) => n.endpoints)
+    .filter((e) => e.lastError)
+    .map((e) => e.name);
+}
+
+/** Why the grid is empty: the filter, nodes that did not answer, or genuinely nothing right now. */
+function ResourceEmpty({
+  noun,
+  about,
+  filterText,
+  unreachable,
+  onClearFilter,
+}: Readonly<{
+  noun: string;
+  about: string;
+  filterText: string;
+  unreachable: string[];
+  onClearFilter: () => void;
+}>) {
+  const nouns = plural(noun);
+  if (filterText) {
+    return (
+      <EmptyState
+        kind="filtered"
+        title={`No ${noun} matches "${filterText}"`}
+        description={`There may still be ${nouns} on this cluster; none of them match this filter.`}
+        onClearFilters={onClearFilter}
+      />
+    );
+  }
+  if (unreachable.length > 0) {
+    return (
+      <EmptyState
+        kind="unreachable"
+        title={
+          unreachable.length === 1
+            ? `${unreachable[0]} could not be reached`
+            : `${unreachable.length} nodes could not be reached`
+        }
+        description={`There may be ${nouns} here that Studio cannot currently see. ${
+          unreachable.length === 1 ? 'This node' : 'These nodes'
+        } did not answer the last scrape, so this is an incomplete view rather than an empty cluster.`}
+        nodes={unreachable}
+      />
+    );
+  }
+  return (
+    <EmptyState
+      kind="empty"
+      title={`No ${nouns} right now`}
+      description={`${about} This view is a live read across every serving node, one request per node per load.`}
+    />
+  );
+}
 
 /** The remaining five cross-node views, all from one column-spec-driven grid (ADR-0017). */
 export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
@@ -344,11 +244,10 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
     page,
     size: PAGE_SIZE,
   });
+  const unreachable = useUnreachableNodes(clusterId);
 
   const fetchedAt = query.dataUpdatedAt > 0 ? query.dataUpdatedAt : null;
-  const columns = config.action
-    ? [...config.columns, ACTION_COL(config.action, { clusterId, fetchedAt })]
-    : config.columns;
+  const columns = useMemo(() => config.columns({ clusterId, fetchedAt }), [config, clusterId, fetchedAt]);
 
   const setSort = (sort: string | undefined) =>
     navigate({
@@ -361,67 +260,67 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
       search: (prev: Record<string, unknown>) => ({ ...prev, page: next > 1 ? next : undefined }),
     });
 
-  if (query.isError) {
-    return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
-    );
-  }
-
   const rows = query.data?.data ?? [];
   const total = query.data?.count ?? 0;
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between">
-        <TextInput
-          ref={filterRef}
-          label={`Filter ${kind}`}
-          placeholder={config.filter}
-          value={filter}
-          onChange={(e) => setFilter(e.currentTarget.value)}
-          w={280}
-          size="xs"
-        />
-      </Group>
+    <Page fill>
+      <Toolbar
+        label={`${kind.charAt(0).toUpperCase() + kind.slice(1)} filters`}
+        start={
+          <TextInput
+            ref={filterRef}
+            label={`Filter ${kind}`}
+            placeholder={config.filter}
+            value={filter}
+            onChange={(e) => setFilter(e.currentTarget.value)}
+            w={280}
+            size="xs"
+          />
+        }
+      />
 
-      {query.isPending && rows.length === 0 ? (
-        <Stack gap={4}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} height={30} />
-          ))}
-        </Stack>
-      ) : (
-        <VirtualTable
-          label={kind.charAt(0).toUpperCase() + kind.slice(1)}
-          storageKey={`resources.${kind}`}
-          columns={columns}
-          data={rows}
-          sort={search.sort}
-          onSortChange={setSort}
-          rowKey={config.rowKey}
-          rowMenu={{
-            label: config.menu.label,
-            render: (row, menu) => (
-              <ResourceActions
-                kind={config.menu.kind}
-                clusterId={clusterId}
-                target={config.menu.target(row)}
-                restoreFocus={menu.restoreFocus}
-              />
-            ),
-          }}
-          emptyLabel={
-            <Text size="sm">
-              No {plural(config.noun)} right now. This view is a live read across every serving node — one request per
-              node per load.
-            </Text>
-          }
-        />
-      )}
-
-      <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={plural(config.noun)} />
-    </Stack>
+      <DataTable
+        label={kind.charAt(0).toUpperCase() + kind.slice(1)}
+        storageKey={`resources.${kind}`}
+        height="fill"
+        columns={columns}
+        data={rows}
+        loading={query.isPending}
+        error={query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined}
+        sort={search.sort}
+        onSortChange={setSort}
+        rowKey={config.rowKey}
+        toolbar={{
+          end: <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={plural(config.noun)} />,
+        }}
+        rowMenu={{
+          label: config.menu.label,
+          render: (row, menu) => (
+            <ResourceActions
+              kind={config.menu.kind}
+              clusterId={clusterId}
+              target={config.menu.target(row)}
+              restoreFocus={menu.restoreFocus}
+            />
+          ),
+        }}
+        empty={
+          <ResourceEmpty
+            noun={config.noun}
+            about={config.about}
+            filterText={search.q ?? ''}
+            unreachable={unreachable}
+            onClearFilter={() => {
+              setFilter('');
+              void navigate({
+                to: '.',
+                search: (prev: Record<string, unknown>) => ({ ...prev, q: undefined, page: undefined }),
+              });
+            }}
+          />
+        }
+      />
+    </Page>
   );
 }

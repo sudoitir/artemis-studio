@@ -30,6 +30,7 @@ Operators repeat the same filters, columns and sort orders on grids every day an
 
 ## Depends on
 - 19-performance-hardening (it reworks the same grids for large lists first)
+- 15c-design-system (its data table keeps the column state, widths, hidden and shown columns and order, that a saved view persists)
 
 ## Execution
 **Inline**: one capability with a small data model and one UI pattern applied to the grids.

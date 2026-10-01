@@ -1,10 +1,13 @@
+import { useMemo } from 'react';
 import { CloseButton, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 
 import { useSlot } from '../../kernel/slots.ts';
 import { METRIC_RANGES, type MetricRange } from '../../kernel/time/ranges.ts';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import type { FlowGraphView, FlowNodeShare, FlowNodeView } from './api.ts';
-import { FAULT_LABELS, formatCount, formatRate } from './flowFormat.ts';
+import { nodeColumns, type NodeRow, type NodeShape } from './columns.ts';
+import { FAULT_LABELS } from './flowFormat.ts';
 import { imbalance } from './imbalance.ts';
 import classes from './FlowView.module.css';
 
@@ -16,104 +19,25 @@ const KIND_WORD: Record<string, string> = {
   REMOTE: 'Remote',
 };
 
-const UNKNOWN = 'unknown';
-const MEASURING = 'measuring…';
-const count = (n: number | null | undefined) => (n === null || n === undefined ? UNKNOWN : formatCount(n));
-// Rates are messages per second, named in the column headers ("In/s"), so the figures fit the pane.
-const rate = (n: number | null | undefined) => (n === null || n === undefined ? MEASURING : formatRate(n));
+const rowKey = (r: NodeRow) => r.nodeId;
 
-/** One row per broker node; `stale` is a node that did not answer, whose figures are unknown, not zero. */
-interface NodeRow {
-  nodeId: string;
-  node: string;
-  messageCount?: number | null;
-  consumerCount?: number | null;
-  inRate?: number | null;
-  outRate?: number | null;
-  stale: boolean;
-}
-
-function figure(value: (r: NodeRow) => string, r: NodeRow) {
+function NodeTable({ label, rows, shape }: Readonly<{ label: string; rows: NodeRow[]; shape: NodeShape }>) {
+  const columns = useMemo(() => nodeColumns(shape), [shape]);
   return (
-    <Text size="sm" className={r.stale ? classes.stale : classes.figure}>
-      {r.stale ? UNKNOWN : value(r)}
-    </Text>
-  );
-}
-
-type Columns = 'resource' | 'producer' | 'consumer';
-
-function nodeColumns(shape: Columns): GridColumn<NodeRow>[] {
-  // The node's state rides in its own cell: a column for it would not fit beside the graph.
-  const columns: GridColumn<NodeRow>[] = [
-    {
-      id: 'node',
-      header: 'Node',
-      accessor: (r) => (r.stale ? `${r.node} (did not answer)` : r.node),
-      cell: (r) => (
-        <Text size="sm" truncate title={r.node}>
-          {r.node}
-          {r.stale ? (
-            <Text span size="xs" className={classes.stale}>
-              {' '}
-              did not answer
-            </Text>
-          ) : null}
-        </Text>
-      ),
-    },
-  ];
-  const inRate: GridColumn<NodeRow> = {
-    id: 'in',
-    header: shape === 'producer' ? 'Sends/s' : 'In/s',
-    numeric: true,
-    width: shape === 'producer' ? 100 : 72,
-    accessor: (r) => rate(r.inRate),
-    cell: (r) => figure((x) => rate(x.inRate), r),
-  };
-  const outRate: GridColumn<NodeRow> = {
-    id: 'out',
-    header: shape === 'consumer' ? 'Receives/s' : 'Out/s',
-    numeric: true,
-    width: shape === 'consumer' ? 116 : 76,
-    accessor: (r) => rate(r.outRate),
-    cell: (r) => figure((x) => rate(x.outRate), r),
-  };
-  if (shape === 'producer') return [...columns, inRate];
-  if (shape === 'consumer') return [...columns, outRate];
-  return [
-    ...columns,
-    {
-      id: 'backlog',
-      header: 'Backlog',
-      numeric: true,
-      width: 84,
-      accessor: (r) => count(r.messageCount),
-      cell: (r) => figure((x) => count(x.messageCount), r),
-    },
-    {
-      id: 'consumers',
-      header: 'Consumers',
-      numeric: true,
-      width: 112,
-      accessor: (r) => count(r.consumerCount),
-      cell: (r) => figure((x) => count(x.consumerCount), r),
-    },
-    inRate,
-    outRate,
-  ];
-}
-
-function NodeTable({ label, rows, shape }: Readonly<{ label: string; rows: NodeRow[]; shape: Columns }>) {
-  return (
-    <VirtualTable
+    <DataTable
       label={label}
       storageKey={`flow.nodes.${shape}`}
-      compact
-      columns={nodeColumns(shape)}
+      height={{ maxRows: 8 }}
+      columns={columns}
       data={rows}
-      rowKey={(r) => r.nodeId}
-      emptyLabel={<Text size="sm">No broker node reported this.</Text>}
+      rowKey={rowKey}
+      empty={
+        <EmptyState
+          kind="empty"
+          title="No broker node has reported"
+          description="Each row is a broker node of this cluster, with what it holds and moves now. Studio lists a node once it has read it, so there is nothing here until the first scrape of a node completes."
+        />
+      }
     />
   );
 }
@@ -162,7 +86,7 @@ function BrokerNodeTotals({ graph, stale }: Readonly<{ graph: FlowGraphView; sta
 
 type Panels = ReturnType<typeof useSlot<'flow.selection.panels'>>;
 
-const SHAPE: Record<string, Columns> = { PRODUCER: 'producer', CONSUMER: 'consumer' };
+const SHAPE: Record<string, NodeShape> = { PRODUCER: 'producer', CONSUMER: 'consumer' };
 
 /** The per-node table with its imbalance statements, or why there is none (still asking, or nothing reports it). */
 function Breakdown({

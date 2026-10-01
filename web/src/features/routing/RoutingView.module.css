@@ -2,14 +2,12 @@
 .direction {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mantine-spacing-xs);
   min-inline-size: 0;
 }
 
 .endpoint {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-inline-size: 0;
 }
 
 /*

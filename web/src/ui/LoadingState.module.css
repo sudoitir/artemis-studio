@@ -1,0 +1,12 @@
+/* The loading frame holds the size it is given, so what arrives in its place does not move the page. */
+
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 0;
+}
+
+.root[data-variant='inline'] {
+  display: inline-flex;
+}

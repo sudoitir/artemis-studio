@@ -1,7 +1,10 @@
-import { Anchor, Code, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Code } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
 
 /**
  * What a disabled feature's address shows (feature-modules spec): that the feature is off on this
@@ -21,24 +24,19 @@ export function FeatureDisabled({
   clusterId?: string;
 }>) {
   return (
-    <Stack gap="sm" maw={560}>
-      <Title order={2} fz="h3">
-        {title} is disabled on this installation
-      </Title>
-      <Text size="sm">
-        This {branding.productShortName} was started with {title} turned off, so its screens, API and assistant tools
-        are not available here. An administrator turns it on by restarting with
-      </Text>
-      <Code block>{property}=true</Code>
-      {clusterId ? (
-        <Anchor component={Link} to={`/clusters/${clusterId}`} size="sm">
-          Back to the cluster
+    <Page>
+      <PageHeader
+        title={`${title} is disabled on this installation`}
+        description={`This ${branding.productShortName} was started with ${title} turned off, so its screens, API and assistant tools are not available here.`}
+      />
+      <Section title="Turn it on" description="An administrator turns it on by restarting with">
+        <Code block>{property}=true</Code>
+      </Section>
+      <div>
+        <Anchor component={Link} to={clusterId ? `/clusters/${clusterId}` : '/'} size="sm" underline="always">
+          {clusterId ? 'Back to the cluster' : `Back to ${branding.productShortName}`}
         </Anchor>
-      ) : (
-        <Anchor component={Link} to="/" size="sm">
-          Back to {branding.productShortName}
-        </Anchor>
-      )}
-    </Stack>
+      </div>
+    </Page>
   );
 }

@@ -208,7 +208,8 @@ describe('Administration → Plugins', () => {
       ),
     );
     renderPanel();
-    expect(await screen.findByRole('status')).toHaveTextContent('1 plugin needs attention: Zeta (failed)');
+    await screen.findByRole('grid', { name: 'Plugins' });
+    expect(screen.getByRole('status')).toHaveTextContent('1 plugin needs attention: Zeta (failed)');
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows[0]).toHaveTextContent('Zeta');
     expect(rows[0]).toHaveTextContent('Failed');
@@ -822,18 +823,21 @@ describe('Administration → Plugins loading and failure', () => {
       me(),
       http.get('*/api/v1/admin/plugins', () => new Promise(() => {})),
     );
-    const { container } = renderPanel();
-    await waitFor(() => expect(container.ownerDocument.querySelector('.mantine-Loader-root')).not.toBeNull());
+    renderPanel();
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading plugins');
     expect(screen.queryByText('No plugins yet')).toBeNull();
   });
 
   it('says listing needs user:admin when it is refused', async () => {
     server.use(
       me(),
-      http.get('*/api/v1/admin/plugins', () => HttpResponse.json({ title: 'Forbidden' }, { status: 403 })),
+      http.get('*/api/v1/admin/plugins', () =>
+        HttpResponse.json({ title: 'Forbidden', permission: 'user:admin' }, { status: 403 }),
+      ),
     );
     renderPanel();
-    expect(await screen.findByText('Plugins could not be listed')).toBeInTheDocument();
-    expect(screen.getByText('Listing plugins needs the user:admin permission.')).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('You are not allowed to do this');
+    expect(alert).toHaveTextContent('Your role does not include the user:admin permission.');
   });
 });

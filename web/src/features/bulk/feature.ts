@@ -2,23 +2,22 @@ import { IconStack2 } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { keys } from './api.ts';
 import { BulkActionBar } from './BulkActionBar.tsx';
-import { BulkRunsView } from './BulkRunsView.tsx';
-import { BulkRunView } from './BulkRunView.tsx';
 import { PurgeQueue } from './rowActions.tsx';
 
 const runsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'bulk',
-  component: featureView('bulk', BulkRunsView),
+  component: lazyFeatureView('bulk', () => import('./BulkRunsView.tsx'), 'BulkRunsView'),
 });
 
 const runRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'bulk/$runId',
-  component: featureView('bulk', BulkRunView),
+  component: lazyFeatureView('bulk', () => import('./BulkRunView.tsx'), 'BulkRunView'),
 });
 
 /** Pause, resume, purge or delete many queues as one previewed, persisted run (ADR-0093). */

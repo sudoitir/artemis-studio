@@ -39,9 +39,10 @@ export interface CodeEditorProps {
   readOnly?: boolean;
   /** The visible label, which is also the editor's accessible name. */
   label: string;
-  minHeight?: number;
-  /** Past this height the editor scrolls inside itself. */
-  maxHeight?: number;
+  /** A CSS length. */
+  minHeight?: string;
+  /** A CSS length; past this height the editor scrolls inside itself. */
+  maxHeight?: string;
   /** Wrap long lines instead of scrolling them sideways. */
   lineWrapping?: boolean;
 }
@@ -75,7 +76,7 @@ export function CodeEditor({
   diagnostics = [],
   readOnly = false,
   label,
-  minHeight = 240,
+  minHeight = '15rem',
   maxHeight,
   lineWrapping = false,
 }: Readonly<CodeEditorProps>) {
@@ -87,6 +88,9 @@ export function CodeEditor({
   // tearing the editor down and losing the cursor on every parent render.
   const latest = useRef(onChange);
   latest.current = onChange;
+  // The same for the document: a rebuilt editor (another language, say) starts from what is current.
+  const latestValue = useRef(value);
+  latestValue.current = value;
   const editable = !readOnly && onChange !== undefined;
 
   useEffect(() => {
@@ -112,10 +116,12 @@ export function CodeEditor({
         'aria-describedby': hintId,
         role: 'textbox',
         'aria-multiline': 'true',
+        // A read-only document is not focusable by itself, and one that scrolls must be reachable by keyboard.
+        ...(editable ? {} : { tabindex: '0' }),
       }),
       EditorView.theme({
-        '.cm-content, .cm-gutter': { minHeight: `${minHeight}px` },
-        ...(maxHeight ? { '&': { maxHeight: `${maxHeight}px` } } : {}),
+        '.cm-content, .cm-gutter': { minHeight },
+        ...(maxHeight ? { '&': { maxHeight } } : {}),
       }),
       codeTheme,
       EditorView.updateListener.of((update) => {
@@ -143,7 +149,7 @@ export function CodeEditor({
       extensions.push(keymap.of([...defaultKeymap, ...searchKeymap, ...foldKeymap]));
     }
     const editor = new EditorView({
-      state: EditorState.create({ doc: value, extensions }),
+      state: EditorState.create({ doc: latestValue.current, extensions }),
       parent: host.current,
     });
     view.current = editor;
@@ -152,7 +158,6 @@ export function CodeEditor({
       view.current = null;
     };
     // Built once per language and mode; `value` and `diagnostics` are synced below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [labelId, hintId, language, editable, minHeight, maxHeight, lineWrapping]);
 
   // An external change (a load, a reset) is pushed in. A change the editor made is

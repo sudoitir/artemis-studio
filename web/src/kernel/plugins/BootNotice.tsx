@@ -4,6 +4,9 @@ import { notifications } from '@mantine/notifications';
 import { branding } from '../../branding.ts';
 import { bootState } from './boot.ts';
 
+// The edge of the toast takes the warning token; the words carry the meaning.
+const WARNING = { '--notification-color': 'var(--as-warning)' };
+
 /**
  * Says once, after the page starts, when it started without something it tried to load: the
  * manifest (plugins are then missing too), or a plugin's screens. Studio's own screens are there
@@ -15,7 +18,7 @@ export function BootNotice() {
     if (manifestError) {
       notifications.show({
         id: 'boot-manifest',
-        color: 'yellow',
+        style: WARNING,
         title: 'Started without plugins',
         message: `The installation manifest could not be read (${manifestError}), so no plugin screens were loaded. Reload to try again.`,
         autoClose: false,
@@ -23,7 +26,7 @@ export function BootNotice() {
     } else if (failures.size > 0) {
       notifications.show({
         id: 'boot-plugins',
-        color: 'yellow',
+        style: WARNING,
         title:
           failures.size === 1
             ? 'A plugin could not show its screens'

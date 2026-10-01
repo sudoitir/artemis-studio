@@ -49,8 +49,8 @@
         <!-- Above Spring Boot 4.1.1's managed Jackson 3.1.5 and 2.21.5, which carry three advisories
              (GHSA-gx83-3vf8-gh7j, GHSA-q4xh-88c3-wmh7, GHSA-wjgm-6hv5-3cvf). Drop once the Boot BOM
              manages 3.1.6 and 2.21.6 or later. -->
-        <jackson-bom.version>3.1.6</jackson-bom.version>
-        <jackson-2-bom.version>2.21.6</jackson-2-bom.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
+        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -111,6 +111,16 @@
         <sonar.javascript.lcov.reportPaths>web/coverage/lcov.info</sonar.javascript.lcov.reportPaths>
         <!-- The changesets are PostgreSQL; the PL/SQL analyser is Oracle's and misreads them. -->
         <sonar.plsql.file.suffixes>.plsql</sonar.plsql.file.suffixes>
+        <!-- The data grid is an ARIA grid of divs on CSS-grid tracks with one roving tab stop (ADR-0020,
+             ADR-0108, ADR-0160); these three rules ask for native table elements and a tab stop on every
+             row, grid and cell. Only GridTable.tsx, only these rules. -->
+        <sonar.issue.ignore.multicriteria>grid1,grid2,grid3</sonar.issue.ignore.multicriteria>
+        <sonar.issue.ignore.multicriteria.grid1.ruleKey>typescript:S6819</sonar.issue.ignore.multicriteria.grid1.ruleKey>
+        <sonar.issue.ignore.multicriteria.grid1.resourceKey>web/src/ui/table/GridTable.tsx</sonar.issue.ignore.multicriteria.grid1.resourceKey>
+        <sonar.issue.ignore.multicriteria.grid2.ruleKey>typescript:S6852</sonar.issue.ignore.multicriteria.grid2.ruleKey>
+        <sonar.issue.ignore.multicriteria.grid2.resourceKey>web/src/ui/table/GridTable.tsx</sonar.issue.ignore.multicriteria.grid2.resourceKey>
+        <sonar.issue.ignore.multicriteria.grid3.ruleKey>typescript:S1082</sonar.issue.ignore.multicriteria.grid3.ruleKey>
+        <sonar.issue.ignore.multicriteria.grid3.resourceKey>web/src/ui/table/GridTable.tsx</sonar.issue.ignore.multicriteria.grid3.resourceKey>
     </properties>
 
     <dependencyManagement>

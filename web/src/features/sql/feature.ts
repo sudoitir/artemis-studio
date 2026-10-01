@@ -2,9 +2,9 @@ import { IconTerminal2 } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { IndexSection } from './sections.tsx';
-import { SqlConsoleView } from './SqlConsoleView.tsx';
 
 /**
  * The SQL Console's navigable state (ADR-0058). The query text is the whole of
@@ -29,7 +29,7 @@ function validateSqlSearch(raw: Record<string, unknown>): SqlSearch {
 const sqlRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'sql',
-  component: featureView('sql', SqlConsoleView),
+  component: lazyFeatureView('sql', () => import('./SqlConsoleView.tsx'), 'SqlConsoleView'),
   validateSearch: validateSqlSearch,
 });
 

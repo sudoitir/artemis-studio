@@ -7,8 +7,8 @@
 /* The state, as a mark rather than a word-sized pill. Live is neutral on
    purpose (theme.css): a working screen looks like every other working screen. */
 .dot {
-  inline-size: 8px;
-  block-size: 8px;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
   border-radius: 50%;
   flex: none;
   background: var(--as-live);
@@ -17,12 +17,13 @@
 .dot[data-state='polling'],
 .dot[data-state='paused'] {
   background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--as-stale);
+  box-shadow: inset 0 0 0 0.125rem var(--as-stale);
 }
 
 .dot[data-state='reconnecting'] {
   background: var(--as-offline);
-  animation: as-freshness-pulse 1.4s ease-in-out infinite;
+  /* Six slow durations, about 1.4s; reduced motion zeroes the duration, so the pulse stops. */
+  animation: as-freshness-pulse calc(var(--as-duration-slow) * 6) var(--as-ease) infinite;
 }
 
 .dot[data-state='offline'] {
@@ -32,12 +33,6 @@
 @keyframes as-freshness-pulse {
   50% {
     opacity: 0.3;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dot[data-state='reconnecting'] {
-    animation: none;
   }
 }
 
@@ -59,15 +54,4 @@
 .elapsed {
   font-variant-numeric: tabular-nums;
   min-inline-size: 8.5rem;
-}
-
-/* Announced, never seen: the polite region carries state transitions only, so
-   the elapsed label ticking every second does not narrate over the operator. */
-.announcement {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }

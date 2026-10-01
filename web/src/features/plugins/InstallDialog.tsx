@@ -196,7 +196,7 @@ function ConfirmStep({
         token={plan.pluginId}
         label={`Type "${plan.pluginId}" to confirm`}
         confirmLabel={actionLabel(plan)}
-        color="blue"
+        tone="default"
         loading={activate.isPending}
         disabled={!fresh || plan.missingRequires.length > 0 || unacknowledged}
         onConfirm={() => activate.mutate({ sha, acknowledge: acknowledged }, { onSuccess: onActivated })}

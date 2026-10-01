@@ -6,6 +6,8 @@ import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 
+import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
+import '@fontsource-variable/atkinson-hyperlegible-mono/index.css';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/spotlight/styles.css';
@@ -18,7 +20,7 @@ import { installPauseSeam, mountRefetch } from './kernel/api/polling.ts';
 import { FEATURES } from './app/features.ts';
 import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
-import { theme } from './theme.ts';
+import { cssVariablesResolver, theme } from './theme.ts';
 import { BootNotice } from './kernel/plugins/BootNotice.tsx';
 import { createAppRouter } from './app/router.ts';
 import { manifestKey } from './kernel/manifest.ts';
@@ -26,6 +28,7 @@ import { boot } from './kernel/plugins/boot.ts';
 // A module is only in Module Federation's shared scope when the host bundle imports it; this is
 // what hands plugin bundles the running Studio's SDK instead of a copy of their own.
 import '@artemis-studio/plugin-sdk';
+import { shouldRetry } from './kernel/api/retry.ts';
 
 /**
  * Shiki, loaded by dynamic `import()` so nothing but the adapter itself is in the
@@ -73,7 +76,7 @@ const shikiAdapter = createShikiAdapter(loadShiki, { forceColorScheme: CODE_THEM
 installPauseSeam();
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch() },
+    queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch(), retry: shouldRetry },
   },
 });
 
@@ -92,7 +95,7 @@ const router = createAppRouter(queryClient, features);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} defaultColorScheme="auto">
       <CodeHighlightAdapterProvider adapter={shikiAdapter}>
         <Notifications position="top-right" />
         <BootNotice />

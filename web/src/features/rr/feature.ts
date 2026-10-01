@@ -3,9 +3,8 @@ import { createRoute } from '@tanstack/react-router';
 
 import { clusterKey } from '../../kernel/api/request.ts';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { FlowsView } from './FlowsView.tsx';
-import { LatencyCard } from './LatencyCard.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView, lazySlot } from '../../kernel/routing/lazy.tsx';
 
 function validateRrSearch(raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -20,7 +19,7 @@ function validateRrSearch(raw: Record<string, unknown>): Record<string, unknown>
 const rrRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'rr',
-  component: featureView('rr', FlowsView),
+  component: lazyFeatureView('rr', () => import('./FlowsView.tsx'), 'FlowsView'),
   validateSearch: validateRrSearch,
 });
 
@@ -41,7 +40,9 @@ export const rrFeature = defineFeature({
     },
   ],
   slots: {
-    'metrics.panels': [{ id: 'rr-latency', order: 10, Component: LatencyCard }],
+    'metrics.panels': [
+      { id: 'rr-latency', order: 10, Component: lazySlot(() => import('./LatencyCard.tsx'), 'LatencyCard') },
+    ],
   },
   streamTopics: {
     rr: ({ clusterId, invalidate }) => invalidate(clusterKey(clusterId, 'rr')),

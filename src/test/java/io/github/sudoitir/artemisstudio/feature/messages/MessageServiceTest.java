@@ -398,7 +398,7 @@ class MessageServiceTest {
     // ---- send -----------------------------------------------------------------------------
 
     private static SendMessageRequest sendRequest() {
-        return new SendMessageRequest(3, true, "{}", null, Map.of("h", 1), Map.of("p", 2));
+        return new SendMessageRequest(3, true, "{}", null, Map.of("correlationId", "c-1"), Map.of("p", 2));
     }
 
     @Test
@@ -412,6 +412,29 @@ class MessageServiceTest {
         verify(audit).succeed(event, 1);
         verify(jolokia, never()).send(any(), any());
         verify(hub, never()).publish(any(UUID.class), anyString());
+    }
+
+    @Test
+    void aSendWithAnInvalidPropertyNameIsRefusedBeforeItIsAudited() {
+        SendMessageRequest bad = new SendMessageRequest(3, true, "{}", null, Map.of(), Map.of("x-long-name", "v"));
+
+        assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, bad, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'x-long-name'");
+        verify(audit, never())
+                .begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), any(Boolean.class));
+        verify(jolokia, never()).send(any(), any());
+    }
+
+    @Test
+    void aSendWithAnUnknownHeaderIsRefusedBeforeItIsAudited() {
+        SendMessageRequest bad = new SendMessageRequest(3, true, "{}", null, Map.of("h", 1), Map.of());
+
+        assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, bad, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported header 'h'");
+        verify(audit, never())
+                .begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), any(Boolean.class));
     }
 
     @Test

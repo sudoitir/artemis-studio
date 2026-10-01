@@ -23,7 +23,9 @@ describe('FeatureGate', () => {
       </FeatureGate>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'sql is disabled on this installation' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'sql is disabled on this installation' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('artemis-studio.features.sql.enabled=true')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to the cluster' })).toHaveAttribute('href', '/clusters/c1');
     expect(screen.queryByText('console')).not.toBeInTheDocument();

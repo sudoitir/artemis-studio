@@ -18,23 +18,31 @@ public class MessageOperations {
     private static final String SEND_SIG =
             "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String)";
 
+    /** A message to enqueue. {@code headers} are string properties. */
+    public record Outgoing(Map<String, Object> headers, int type, String body, boolean durable) {}
+
+    /**
+     * The broker account a message is sent as, empty when the broker has no security. The password
+     * is never logged, so it is not in {@link #toString()}.
+     */
+    public record Sender(String user, String password) {
+        @Override
+        public String toString() {
+            return "Sender[user=" + user + "]";
+        }
+    }
+
     /** Enqueue one message on the address MBean. Returns the broker-assigned id, or {@code null}. */
-    public String send(
-            JolokiaBrokerClient client,
-            String addressMbean,
-            Map<String, Object> headers,
-            int type,
-            String body,
-            boolean durable) {
+    public String send(JolokiaBrokerClient client, String addressMbean, Outgoing message, Sender sender) {
         JolokiaResponse res = client.single(JolokiaRequest.exec(
                 addressMbean,
                 SEND_SIG,
-                headers == null ? Map.of() : headers,
-                type,
-                body == null ? "" : body,
-                durable,
-                "",
-                ""));
+                message.headers() == null ? Map.of() : message.headers(),
+                message.type(),
+                message.body() == null ? "" : message.body(),
+                message.durable(),
+                sender.user(),
+                sender.password()));
         requireOk(res, "sendMessage");
         JsonNode v = res.value();
         return v == null || v.isNull() ? null : v.asText();

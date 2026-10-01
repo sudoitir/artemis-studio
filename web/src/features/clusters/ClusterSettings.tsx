@@ -4,7 +4,7 @@ import { notifications } from '@mantine/notifications';
 
 import { useCluster, useRotateCredentials } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
-import { RegisterClusterButton } from './RegisterCluster.tsx';
+import { RegisterClusterButton } from './RegisterClusterButton.tsx';
 
 /** Settings section: register another cluster. */
 export function RegisterSection() {

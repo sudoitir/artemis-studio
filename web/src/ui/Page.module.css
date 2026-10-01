@@ -1,0 +1,21 @@
+/* The page frame: one column, spaced by the theme's spacing scale. `fill` makes the page grow into
+   the space its flex-column parent has left (the shell's main area, or a cluster's layout) and gives
+   that space to its last child, so a grid or a canvas fills the window without the document
+   scrolling, whatever sits above the page. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-lg);
+  min-inline-size: 0;
+}
+
+.page[data-fill] {
+  flex: 1;
+  min-block-size: 0;
+}
+
+.page[data-fill] > :last-child {
+  flex: 1 1 0;
+  min-block-size: 0;
+}

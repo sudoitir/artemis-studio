@@ -19,9 +19,9 @@
 
 .hint {
   display: block;
-  margin-block-start: 2px;
+  margin-block-start: var(--mantine-spacing-xs);
   font-size: var(--mantine-font-size-xs);
-  line-height: 1.35;
+  line-height: var(--mantine-line-height-xs);
   color: var(--as-text-dimmed);
   white-space: normal;
   max-inline-size: 36ch;

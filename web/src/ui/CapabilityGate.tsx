@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Popover, UnstyledButton } from '@mantine/core';
+import { Button, Popover } from '@mantine/core';
 
 import type { GateVerdict } from './capabilityGate.ts';
+import classes from './CapabilityGate.module.css';
 import { CapabilityReason } from './CapabilityReason.tsx';
 
 /**
@@ -10,9 +11,10 @@ import { CapabilityReason } from './CapabilityReason.tsx';
  * operator that the product cannot do something, when the truth is that this
  * connection is not configured for it.
  *
- * <p>The explanation is a popover on a real focusable button, not a `title` or a
- * hover tooltip, because a disabled control takes no focus and a keyboard user
- * would otherwise have no way to reach the reason at all.
+ * <p>The explanation is a popover on a separate, focusable "Why?" button beside the
+ * disabled control, not a `title` or a hover tooltip, because a disabled control takes
+ * no focus and a keyboard user would otherwise have no way to reach the reason at all.
+ * The two are siblings, never nested: a button inside a button is invalid markup.
  *
  * <p>`what` names the control being explained. A screen with several gated
  * controls otherwise announces the same "Why this is unavailable" for each of
@@ -32,19 +34,18 @@ export function CapabilityGate({
     return <>{children}</>;
   }
   return (
-    <Popover width={340} position="bottom-end" withArrow shadow="md">
-      <Popover.Target>
-        {/* The wrapper takes the focus the disabled control cannot. */}
-        <UnstyledButton
-          aria-label={`Why ${what ?? 'this'} is unavailable`}
-          style={{ display: 'inline-flex', cursor: 'help' }}
-        >
-          <span style={{ pointerEvents: 'none' }}>{children}</span>
-        </UnstyledButton>
-      </Popover.Target>
-      <Popover.Dropdown>
-        <CapabilityReason reason={verdict.reason} snippet={verdict.snippet} />
-      </Popover.Dropdown>
-    </Popover>
+    <span className={classes.root}>
+      {children}
+      <Popover width="21.25rem" position="bottom-end" withArrow shadow="md">
+        <Popover.Target>
+          <Button variant="subtle" size="compact-xs" aria-label={`Why ${what ?? 'this'} is unavailable`}>
+            Why?
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <CapabilityReason reason={verdict.reason} snippet={verdict.snippet} />
+        </Popover.Dropdown>
+      </Popover>
+    </span>
   );
 }

@@ -19,15 +19,16 @@ describe('a plugin component that throws', () => {
       </div>,
     );
     expect(screen.getByText('Studio content')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'The acme-notes plugin could not show this part of the screen',
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The acme-notes plugin could not show this part of the screen: boom',
     );
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('renders nothing where a sentence would not fit', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const Safe = guarded('acme-notes', Broken, true);
     renderWithProviders(<Safe />);
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

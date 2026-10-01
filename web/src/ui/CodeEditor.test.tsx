@@ -35,7 +35,10 @@ describe('CodeEditor', () => {
 
   it('is read-only without a change handler', () => {
     renderWithProviders(<CodeEditor label="Published" language="json" value="{}" />);
-    expect(screen.getByRole('textbox', { name: 'Published' }).getAttribute('contenteditable')).toBe('false');
+    const editor = screen.getByRole('textbox', { name: 'Published' });
+    expect(editor.getAttribute('contenteditable')).toBe('false');
+    // Still reachable by keyboard, so a document that scrolls can be read.
+    expect(editor.tabIndex).toBe(0);
   });
 
   it('maps a 1-based line and column into the document, clamped', () => {

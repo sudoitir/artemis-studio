@@ -1,0 +1,29 @@
+/* A state word in a hairline outline. Only warning and danger take colour, and the word carries the meaning. */
+
+.badge {
+  display: inline-block;
+  max-inline-size: 100%;
+  padding-block: 0.125rem;
+  padding-inline: var(--mantine-spacing-xs);
+  border: 1px solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-sm);
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  line-height: var(--mantine-line-height-xs);
+  overflow-wrap: anywhere;
+}
+
+.badge[data-tone='info'] {
+  color: var(--as-ok);
+}
+
+.badge[data-tone='warning'] {
+  border-color: var(--as-warning);
+  color: var(--as-warning);
+}
+
+.badge[data-tone='danger'] {
+  border-color: var(--as-danger);
+  color: var(--as-danger);
+}

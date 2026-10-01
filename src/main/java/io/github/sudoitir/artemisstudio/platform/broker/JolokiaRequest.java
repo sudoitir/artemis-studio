@@ -37,4 +37,15 @@ public record JolokiaRequest(
     public static JolokiaRequest search(String pattern) {
         return new JolokiaRequest("search", pattern, null, null, null);
     }
+
+    /**
+     * Leaves the arguments out: an {@code exec} can carry a broker password (a message
+     * send passes the user and password the message is created as), so a request that
+     * reaches a log or an exception message must not print them.
+     */
+    @Override
+    public String toString() {
+        return "JolokiaRequest[type=" + type + ", mbean=" + mbean + ", attribute=" + attribute + ", operation="
+                + operation + ", arguments=" + (arguments == null ? "none" : arguments.size() + " withheld") + "]";
+    }
 }

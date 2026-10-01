@@ -1,18 +1,5 @@
 import { useCallback, useMemo, useState, useRef } from 'react';
-import {
-  Alert,
-  Badge,
-  Code,
-  Drawer,
-  Group,
-  Select,
-  Skeleton,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
+import { Alert, Code, Drawer, Group, Select, Skeleton, Stack, Switch, Text, TextInput, Title } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -24,16 +11,22 @@ import { useActionHost } from '../../kernel/actions/hostContext.ts';
 import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { useClusterStream } from '../../kernel/stream/useClusterStream.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
-import { VirtualTable, type GridColumn } from '../../ui/VirtualTable.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 import styles from './EventsView.module.css';
-import { absoluteLabel } from '../../kernel/time/time.ts';
+import { eventColumns, occurredAt, subjectOf } from './columns.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const LIVE_BUFFER_MAX = 500;
 
 const PAGE_SIZE = 100;
+
+const eventKey = (e: BrokerEventView) => String(e.seq);
 
 /** Notification classes seen against the dev pair (broker-management-notes §7). */
 const TYPES = [
@@ -49,58 +42,6 @@ const TYPES = [
   'ADDRESS_REMOVED',
   'MESSAGE_DELIVERED',
   'MESSAGE_EXPIRED',
-];
-
-/** A family word + tone so colour is never the only signal (non-negotiable #6). */
-function family(type: string): { word: string; color: string } {
-  if (type.startsWith('CONSUMER')) return { word: 'consumer', color: 'blue' };
-  if (type.startsWith('SESSION')) return { word: 'session', color: 'grape' };
-  if (type.startsWith('CONNECTION')) return { word: 'connection', color: 'indigo' };
-  if (type.startsWith('BINDING') || type.startsWith('ADDRESS')) return { word: 'binding', color: 'teal' };
-  if (type.startsWith('MESSAGE')) return { word: 'message', color: 'orange' };
-  if (type.startsWith('UNKNOWN')) return { word: 'unknown', color: 'gray' };
-  return { word: 'other', color: 'gray' };
-}
-
-/** UTC, second precision — a broker event's useful comparison is to another one. */
-function occurredAt(e: BrokerEventView): string {
-  return absoluteLabel(e.occurredAt);
-}
-
-function subjectOf(e: BrokerEventView): string {
-  return e.consumerName ?? e.sessionName ?? e.connectionName ?? e.routingName ?? '—';
-}
-
-/**
- * The props payload used to expand inline under its row. A virtualised grid has
- * no row to expand under — and a drawer is the better home anyway: the JSON is
- * frequently taller than the viewport, which an inline `Collapse` handled by
- * pushing every row below it off the screen.
- */
-const columns: GridColumn<BrokerEventView>[] = [
-  { id: 'time', header: 'Time', accessor: occurredAt, width: 200 },
-  {
-    id: 'type',
-    header: 'Type',
-    accessor: (e) => e.type,
-    width: 280,
-    cell: (e) => {
-      const fam = family(e.type);
-      return (
-        <Group gap={6} wrap="nowrap">
-          <Badge size="xs" variant="light" color={fam.color}>
-            {fam.word}
-          </Badge>
-          <Text size="xs" ff="monospace">
-            {e.type}
-          </Text>
-        </Group>
-      );
-    },
-  },
-  { id: 'address', header: 'Address', accessor: (e) => e.address ?? '—' },
-  { id: 'subject', header: 'Subject', accessor: subjectOf },
-  { id: 'remote', header: 'Remote', accessor: (e) => e.remoteAddress ?? '—', width: 180 },
 ];
 
 function CopyEventLink({ clusterId, seq }: Readonly<{ clusterId: string; seq: number }>) {
@@ -148,11 +89,7 @@ function NotificationsUnavailable({ notifications }: Readonly<{ notifications: N
   return (
     <Stack gap="sm">
       <Title order={3}>Events</Title>
-      <Alert
-        color={notifications.status === 'UNKNOWN' ? 'blue' : 'yellow'}
-        variant="light"
-        title="Live events not available"
-      >
+      <Alert variant="light" title="Live events not available">
         {notifications.reason}
       </Alert>
       {notifications.brokerXmlSnippet ? <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" /> : null}
@@ -160,54 +97,41 @@ function NotificationsUnavailable({ notifications }: Readonly<{ notifications: N
   );
 }
 
-/** The event table, or what stands in for it while loading, on error, or when nothing was recorded. */
-function EventsTable({
-  query,
-  rows,
-  clusterId,
-  onOpen,
-}: Readonly<{
-  query: ReturnType<typeof useEvents>;
-  rows: BrokerEventView[];
-  clusterId: string;
-  onOpen: (e: BrokerEventView) => void;
-}>) {
-  if (query.isError) {
+/** Why the grid is empty: the filters, nodes that did not answer, or genuinely nothing recorded yet. */
+function EventsEmpty({
+  filtered,
+  unreachable,
+  onClearFilters,
+}: Readonly<{ filtered: boolean; unreachable: string[]; onClearFilters: () => void }>) {
+  if (filtered) {
     return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message}
-      </Alert>
+      <EmptyState
+        kind="filtered"
+        title="No event matches these filters"
+        description="Events are recorded on this cluster, but none has this type or address. Clear the filters to see them all."
+        onClearFilters={onClearFilters}
+      />
     );
   }
-  if (query.isPending && rows.length === 0) {
+  if (unreachable.length > 0) {
     return (
-      <Stack gap={4}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <Skeleton key={i} height={28} />
-        ))}
-      </Stack>
-    );
-  }
-  if (rows.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No broker events recorded yet. Consumer, session, connection and binding activity on this cluster's brokers
-        shows up here as it happens.
-      </Text>
+      <EmptyState
+        kind="unreachable"
+        title={
+          unreachable.length === 1
+            ? `${unreachable[0]} could not be reached`
+            : `${unreachable.length} nodes could not be reached`
+        }
+        description="Events from a node that does not answer are missing, so this is an incomplete view rather than a quiet cluster."
+        nodes={unreachable}
+      />
     );
   }
   return (
-    <VirtualTable
-      label="Broker events"
-      storageKey="events"
-      columns={columns}
-      data={rows}
-      rowKey={(e) => String(e.seq)}
-      onRowClick={onOpen}
-      rowMenu={{
-        label: (e) => `${e.type} at ${occurredAt(e)}`,
-        render: (e) => <CopyEventLink clusterId={clusterId} seq={e.seq} />,
-      }}
+    <EmptyState
+      kind="empty"
+      title="No broker events yet"
+      description="A broker event is a notification a broker raises when a consumer, session, connection or binding is created or closed. Studio records them as they arrive and keeps them for a limited time, so the first appears here as soon as a client connects or consumes. Leave Live on to watch them as they happen."
     />
   );
 }
@@ -221,19 +145,13 @@ function EventDetail({
     if (offPage.isPending) return <Skeleton height={28} />;
     if (offPage.error?.status === 404) {
       return (
-        <Alert color="blue" variant="light" title="This event no longer exists">
+        <Alert variant="light" title="This event no longer exists">
           Broker events are kept for a limited time, so retention may have removed it, or the link names an event of
           another cluster.
         </Alert>
       );
     }
-    if (offPage.isError) {
-      return (
-        <Alert color="red" variant="light" title={offPage.error.title}>
-          {offPage.error.message}
-        </Alert>
-      );
-    }
+    if (offPage.isError) return <ErrorState error={offPage.error} onRetry={() => void offPage.refetch()} />;
     return null;
   }
   return (
@@ -268,7 +186,8 @@ export function EventsView() {
   useFilterShortcut(filterRef);
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
-  useDisplayZone();
+  const zone = useDisplayZone();
+  const columns = useMemo(() => eventColumns(zone), [zone]);
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as EventsSearch;
   const navigate = useNavigate();
@@ -315,6 +234,27 @@ export function EventsView() {
     [buffer, historyData, page, search.type, debouncedAddress],
   );
 
+  // A live feed prepends rows, which moves the content under a reader who has scrolled away from the
+  // top. Until they return, the grid keeps the rows it had; a new filter or page starts afresh.
+  const holdKey = `${page}|${search.type ?? ''}|${debouncedAddress}`;
+  const [held, setHeld] = useState<{ key: string; rows: BrokerEventView[] } | null>(null);
+  const shown = held?.key === holdKey ? held.rows : rows;
+  const onAtTopChange = (atTop: boolean) =>
+    setHeld((prev) => {
+      if (atTop) return null;
+      return prev?.key === holdKey ? prev : { key: holdKey, rows };
+    });
+
+  const unreachable = (cluster.data?.topology.nodes ?? [])
+    .flatMap((n) => n.endpoints)
+    .filter((e) => e.lastError)
+    .map((e) => e.name);
+  const filtered = Boolean(search.type || debouncedAddress);
+  const clearFilters = () => {
+    setAddress('');
+    void setParam({ type: undefined, address: undefined });
+  };
+
   const onPage = rows.find((e) => e.seq === search.event);
   const offPage = useEvent(clusterId, !onPage ? search.event : undefined);
   const selected = onPage ?? offPage.data ?? null;
@@ -326,58 +266,81 @@ export function EventsView() {
   }
 
   return (
-    <Stack gap="sm">
+    <Page fill>
       <Group justify="space-between" align="flex-end">
         <Title order={3}>Events</Title>
-        <Group gap="md">
-          <Switch size="xs" label="Live" checked={live} onChange={(e) => setLive(e.currentTarget.checked)} />
-        </Group>
+        <Switch size="xs" label="Live" checked={live} onChange={(e) => setLive(e.currentTarget.checked)} />
       </Group>
 
       {dropped > 0 ? (
-        <Alert color="orange" variant="light" title="Some events were dropped">
+        <Alert variant="light" title="Some events were dropped">
           {dropped} notification{dropped === 1 ? ' has' : 's have'} been dropped for this cluster because they arrived
           faster than the write buffer could be flushed. Raise <code>events.buffer-size</code> in settings if this
           persists.
         </Alert>
       ) : null}
 
-      <Group gap="xs">
-        <Select
-          placeholder="Any type"
-          size="xs"
-          w={220}
-          clearable
-          searchable
-          value={search.type ?? null}
-          onChange={(v) => setParam({ type: v || undefined })}
-          data={TYPES}
-        />
-        <TextInput
-          ref={filterRef}
-          label="Filter by address"
-          placeholder="Filter by address"
-          value={address}
-          onChange={(e) => setAddress(e.currentTarget.value)}
-          onBlur={() => setParam({ address: debouncedAddress || undefined })}
-          size="xs"
-          w={220}
-        />
-      </Group>
-
-      <EventsTable query={query} rows={rows} clusterId={clusterId} onOpen={setOpen} />
-
-      <Pager
-        page={page}
-        pageSize={PAGE_SIZE}
-        total={total}
-        onChange={(next) =>
-          navigate({
-            to: '.',
-            search: (p: Record<string, unknown>) => ({ ...p, page: next > 1 ? next : undefined }),
-          })
+      <Toolbar
+        label="Event filters"
+        start={
+          <>
+            <Select
+              label="Filter by type"
+              placeholder="Any type"
+              size="xs"
+              w={220}
+              clearable
+              searchable
+              value={search.type ?? null}
+              onChange={(v) => setParam({ type: v || undefined })}
+              data={TYPES}
+            />
+            <TextInput
+              ref={filterRef}
+              label="Filter by address"
+              placeholder="Filter by address"
+              value={address}
+              onChange={(e) => setAddress(e.currentTarget.value)}
+              onBlur={() => setParam({ address: debouncedAddress || undefined })}
+              size="xs"
+              w={220}
+            />
+          </>
         }
-        label="events"
+      />
+
+      <DataTable
+        label="Broker events"
+        storageKey="events"
+        height="fill"
+        columns={columns}
+        data={shown}
+        rowKey={eventKey}
+        loading={query.isPending}
+        error={query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined}
+        onRowClick={setOpen}
+        onAtTopChange={onAtTopChange}
+        toolbar={{
+          end: (
+            <Pager
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onChange={(next) =>
+                navigate({
+                  to: '.',
+                  search: (p: Record<string, unknown>) => ({ ...p, page: next > 1 ? next : undefined }),
+                })
+              }
+              label="events"
+            />
+          ),
+        }}
+        rowMenu={{
+          label: (e) => `${e.type} at ${occurredAt(e)}`,
+          render: (e) => <CopyEventLink clusterId={clusterId} seq={e.seq} />,
+        }}
+        empty={<EventsEmpty filtered={filtered} unreachable={unreachable} onClearFilters={clearFilters} />}
       />
 
       <Drawer
@@ -389,6 +352,6 @@ export function EventsView() {
       >
         {search.event === undefined ? null : <EventDetail selected={selected} offPage={offPage} />}
       </Drawer>
-    </Stack>
+    </Page>
   );
 }

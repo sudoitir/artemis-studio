@@ -2,10 +2,8 @@ import { IconChartLine } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { MetricsView } from './MetricsView.tsx';
-import { NodeSplitPanels } from './NodeSplitPanels.tsx';
-import { QueueHistoryPanels } from './QueueHistoryPanels.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView, lazySlot } from '../../kernel/routing/lazy.tsx';
 import { METRIC_RANGES, type MetricRange } from './ranges.ts';
 import { OpenQueueHistory } from './rowActions.tsx';
 
@@ -39,7 +37,7 @@ function validateMetricsSearch(raw: Record<string, unknown>): MetricsSearch {
 const metricsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'metrics',
-  component: featureView('metrics', MetricsView),
+  component: lazyFeatureView('metrics', () => import('./MetricsView.tsx'), 'MetricsView'),
   validateSearch: validateMetricsSearch,
 });
 
@@ -61,7 +59,19 @@ export const metricsFeature = defineFeature({
   ],
   slots: {
     'queue.actions': [{ id: 'metrics.history', order: 30, section: 'open', Component: OpenQueueHistory }],
-    'queue.detail.panels': [{ id: 'metrics-queue-history', order: 10, Component: QueueHistoryPanels }],
-    'flow.selection.panels': [{ id: 'metrics.node-split', order: 10, Component: NodeSplitPanels }],
+    'queue.detail.panels': [
+      {
+        id: 'metrics-queue-history',
+        order: 10,
+        Component: lazySlot(() => import('./QueueHistoryPanels.tsx'), 'QueueHistoryPanels'),
+      },
+    ],
+    'flow.selection.panels': [
+      {
+        id: 'metrics.node-split',
+        order: 10,
+        Component: lazySlot(() => import('./NodeSplitPanels.tsx'), 'NodeSplitPanels'),
+      },
+    ],
   },
 });

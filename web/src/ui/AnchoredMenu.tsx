@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Menu, Portal } from '@mantine/core';
 
 import classes from './ActionMenu.module.css';
-import type { MenuAnchor } from './menuAnchor.ts';
+import type { MenuAnchor } from './table/menuAnchor.ts';
 
 /**
  * One controlled menu opened at a point rather than from a trigger it wraps (ADR-0107). A grid
@@ -51,7 +51,7 @@ export function AnchoredMenu({
         position="bottom-start"
         offset={2}
         shadow="md"
-        width={260}
+        width="16.25rem"
         returnFocus={false}
         // The anchor is a synthetic point this component keeps inside the viewport, and the grid
         // closes the menu on scroll; "hide when the target leaves the screen" has nothing to add.

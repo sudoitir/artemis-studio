@@ -2,9 +2,8 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { DlqView } from './DlqView.tsx';
-import { MessagesView } from './MessagesView.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import {
   BrowseQueueMessages,
   CopyMessage,
@@ -38,14 +37,14 @@ function validateMessagesSearch(raw: Record<string, unknown>): MessagesSearch {
 const messagesRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'queues/$queueName/messages',
-  component: featureView('messages', MessagesView),
+  component: lazyFeatureView('messages', () => import('./MessagesView.tsx'), 'MessagesView'),
   validateSearch: validateMessagesSearch,
 });
 
 const dlqRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'dlq',
-  component: featureView('messages', DlqView),
+  component: lazyFeatureView('messages', () => import('./DlqView.tsx'), 'DlqView'),
 });
 
 /** Browsing, sending, moving and deleting messages, and the dead-letter view. */

@@ -189,7 +189,7 @@ function UserRow({
               {g.scopeType !== 'GLOBAL' ? ` (${g.scopeType.toLowerCase()})` : ''}
             </Badge>
           ))}
-          <Badge size="xs" variant="light" color="pine" style={{ cursor: 'pointer' }} onClick={onGrant}>
+          <Badge size="xs" variant="light" style={{ cursor: 'pointer' }} onClick={onGrant}>
             + grant
           </Badge>
         </Group>

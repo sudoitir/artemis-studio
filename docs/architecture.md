@@ -114,11 +114,16 @@ connection settings through `ConnectionSettingsSource`.
 web/src/
   kernel/    contract (feature.ts), manifest, slots, nav groups, routing roots,
              api (request, paging, polling, generated schema), stream, auth, time, shell
-  ui/        shared presentational components (ConfirmByTyping, NodeOutcomeSummary, VirtualTable…)
+  ui/        shared presentational components: the page parts (Page, PageHeader, Section, EmptyState,
+             ErrorState…), table/ (the one DataTable), ConfirmDialog, NodeOutcomeSummary
   features/  one folder per module id: feature.ts, api.ts, views, tests; index.ts for public exports
   app/       the composition root: features.ts and router.ts
   test/      render helpers, the MSW server, manifest fixtures
 ```
+
+Every page is built from the shared page parts in `ui/` and every table is the one `DataTable`
+(ADR-0163, ADR-0160); a plugin uses the same parts through the SDK, whose exports are frozen per
+release.
 
 A feature's `feature.ts` calls `defineFeature` with what it contributes: routes under
 a kernel root, navigation entries in one of the kernel's fixed groups (observe,

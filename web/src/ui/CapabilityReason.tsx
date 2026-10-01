@@ -23,7 +23,7 @@ export function CapabilityReason({
           <Text size="xs" fw={600}>
             Add this to <Code>broker.xml</Code>:
           </Text>
-          <Code block style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>
+          <Code block fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
             {snippet}
           </Code>
         </>

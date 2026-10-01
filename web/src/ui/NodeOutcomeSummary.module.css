@@ -1,20 +1,21 @@
 /* One object, not a list of notifications. The headline states the shape of the
    result so a partial application is apparent before any row is read; the rows
-   hang their state on one right-aligned column, the same scanning pattern as
+   hang their state on one end-aligned column, the same scanning pattern as
    CapabilityLedger. Colour appears only where something is wrong — a fully
    applied command is monochrome, per the house rule. */
 
 .summary {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--mantine-spacing-sm);
 }
 
 .headline {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
 }
 
 .verdict {
@@ -33,7 +34,6 @@
 
 .total {
   color: var(--as-text-dimmed);
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
@@ -44,10 +44,11 @@
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
-  padding-block: 0.4rem;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+  padding-block: var(--mantine-spacing-xs);
   border-block-start: 1px solid var(--as-border);
 }
 
@@ -58,9 +59,10 @@
 
 .state {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.75rem;
-  white-space: nowrap;
+  justify-content: flex-end;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
 }
 
 /* Counts align in a column so a difference between nodes is visible without
@@ -91,7 +93,7 @@
  */
 .error {
   color: var(--as-text-dimmed);
-  padding-block-end: 0.4rem;
+  padding-block-end: var(--mantine-spacing-xs);
   overflow-wrap: anywhere;
 }
 

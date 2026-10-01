@@ -60,7 +60,7 @@ describe('RetentionTable', () => {
     renderWithProviders(<RetentionTable />);
 
     const grid = await screen.findByRole('grid', { name: 'Stores' });
-    expect(within(grid).getByText('Broker events')).toBeInTheDocument();
+    expect(await within(grid).findByText('Broker events')).toBeInTheDocument();
     expect(within(grid).getByText('72 hours')).toBeInTheDocument();
     expect(within(grid).getByText('3.4 MB')).toBeInTheDocument();
   });
@@ -70,6 +70,7 @@ describe('RetentionTable', () => {
     renderWithProviders(<RetentionTable />);
 
     expect(await screen.findByText(/No store is registered/)).toBeInTheDocument();
+    expect(screen.getByText(/A store is a table that grows with use/)).toBeInTheDocument();
   });
 
   it('states the cause when the stores cannot be read', async () => {
@@ -80,7 +81,8 @@ describe('RetentionTable', () => {
     );
     renderWithProviders(<RetentionTable />);
 
-    expect(await screen.findByText('Could not load the stores')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('You are not allowed to do this');
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
   });
 
   it('previews a shorter retention, then shows the server’s range when saving is refused', async () => {
@@ -164,8 +166,28 @@ describe('HealthTable', () => {
     renderWithProviders(<HealthTable />);
 
     expect(await screen.findByText('1 of 2 tables need attention.', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('Unhealthy: no partition for 2026-10-02')).toBeInTheDocument();
+    expect(await screen.findByText('Unhealthy: no partition for 2026-10-02')).toBeInTheDocument();
     expect(screen.getByText('missing 2026-10-02')).toBeInTheDocument();
+  });
+});
+
+describe('HealthTable states', () => {
+  it('teaches what the list holds when Postgres has no statistics yet', async () => {
+    server.use(http.get('*/api/v1/data/health', () => HttpResponse.json({ tables: [] })));
+    renderWithProviders(<HealthTable />);
+
+    expect(await screen.findByText('No table statistics yet')).toBeInTheDocument();
+    expect(screen.getByText(/size, growth, dead rows, vacuum and partitions/)).toBeInTheDocument();
+    expect(screen.getByRole('grid', { name: 'Tables' })).toHaveAttribute('aria-rowcount', '1');
+  });
+
+  it('states the cause when the health cannot be read, and offers to try again', async () => {
+    server.use(http.get('*/api/v1/data/health', () => HttpResponse.json({ title: 'Down' }, { status: 503 })));
+    renderWithProviders(<HealthTable />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText(/tables are healthy/)).not.toBeInTheDocument();
   });
 });
 

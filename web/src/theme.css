@@ -1,67 +1,50 @@
-/* Semantic token layer. Components reference these, never raw values or
-   primitive scale steps directly. Dark is the base; light overrides. */
+/* Semantic token layer (ADR-0157). Components reference these, never raw values or
+   primitive scale steps directly. The primitives are the tuples in theme.ts; the numbers
+   CSS and JavaScript both read (--as-row-h-*, --as-duration-*, --as-z-*, --as-nav-w) come
+   from its cssVariablesResolver. Dark is the base; light overrides.
+   theme.contrast.test.ts measures every text token on every surface in both schemes. */
 
-/* Mantine's stock `dimmed` (dark-2 #828282 on the dark-7 body, gray-6 on the
-   light body) lands at ~4.0:1 and ~3.6:1 — under the WCAG 2.2 AA 4.5:1 floor for
-   body text. Every `<Text c="dimmed">` and, through the semantic layer,
-   --as-text-dimmed / --as-grid-stale / --as-node-backup / --as-chart-axis /
-   --as-rr-in-flight inherit that. Nudge it up to ~5:1 in both schemes, staying
-   on the existing gray ramp (no new literal). Specificity here matches
-   Mantine's scheme selectors, so import order (theme.css last) wins. */
-:root[data-mantine-color-scheme='dark'],
-:host([data-mantine-color-scheme='dark']) {
-  --mantine-color-dimmed: color-mix(in srgb, var(--mantine-color-dark-0) 45%, var(--mantine-color-dark-2));
+/* The fallback faces carry the metrics of the real ones (measured from the font files against Arial
+   and Courier New), so the swap to the bundled face does not move the layout. */
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 100%;
+  ascent-override: 98.4%;
+  descent-override: 31.6%;
+  line-gap-override: 0%;
 }
 
-:root[data-mantine-color-scheme='light'],
-:host([data-mantine-color-scheme='light']) {
-  --mantine-color-dimmed: color-mix(in srgb, var(--mantine-color-gray-7), var(--mantine-color-gray-6));
-}
-
-/* The light scheme's filled red carries a white label at under 4:1 (red-6 3.6:1, red-7 3.85:1). --as-danger is the
-   AA red already measured for text (5.46:1 on white, so 5.46:1 behind a white label). (`html:` outranks the
-   variables Mantine injects at run time.) */
-html:root[data-mantine-color-scheme='light'] {
-  --mantine-color-red-filled: var(--as-danger);
-  --mantine-color-red-filled-hover: color-mix(in srgb, var(--as-danger) 88%, black);
-  /* A red alert's title and icon (see the dark scheme's rule below). */
-  --mantine-color-red-light-color: color-mix(in srgb, var(--as-danger), black 25%);
-}
-
-/* Mantine draws a field's error, red text and a red alert's words in red-7/red-8 steps that measure 3.3-3.4:1 on
-   the card and the page ("Use at least 12 characters." in both schemes). --as-danger is the red already measured
-   for text in each scheme (5.46:1 on white in light, 4.7:1 on the dark card). */
-html:root[data-mantine-color-scheme] {
-  --mantine-color-error: var(--as-danger);
-  --mantine-color-red-text: var(--as-danger);
-}
-
-/* A red alert's title and icon sit on the red tint of its own background, which is lighter than the card:
-   "Not reset" measured 3.83:1 in dark and 4.51:1 in light with --as-danger. Lighter and darker steps clear it. */
-html:root[data-mantine-color-scheme='dark'] {
-  --mantine-color-red-light-color: var(--mantine-color-red-3);
-}
-
-/* A filled button's label is white by default: on pine-5 that is 3.15:1 (and on red-5 2.8:1), under the AA 4.5:1
-   floor. Black measures 6.7:1 and 7.6:1. Mantine sets the label as an inline variable, hence !important. */
-:root[data-mantine-color-scheme='dark'] .mantine-Button-root:is(:not([data-variant]), [data-variant='filled']) {
-  --button-color: var(--mantine-color-black) !important;
+@font-face {
+  font-family: 'Atkinson Hyperlegible Mono Fallback';
+  src: local('Courier New'), local('Liberation Mono');
+  size-adjust: 105.3%;
+  ascent-override: 93.4%;
+  descent-override: 30%;
+  line-gap-override: 0%;
 }
 
 :root {
   --as-surface: var(--mantine-color-body);
   --as-surface-raised: var(--mantine-color-default);
   --as-border: var(--mantine-color-default-border);
+  /* A control's edge and any boundary a reader needs to find: 3:1 against the surface it sits on. */
+  --as-border-strong: var(--mantine-color-dark-4);
   --as-text: var(--mantine-color-text);
   --as-text-dimmed: var(--mantine-color-dimmed);
+  --as-link: var(--mantine-color-anchor);
+
+  /* The one accent: focus, selection, the primary action. */
+  --as-accent: var(--mantine-color-cobalt-4);
+  --as-selected: rgba(134, 162, 255, 0.16);
 
   /* Status semantics. Green is deliberately NOT here: in an ops console green
      is a word, not a brand colour, and "health is the absence of colour"
-     (Phase 1 design, ADR-0005 kept for brand/chrome only). A healthy screen is
-     near-monochrome; colour enters only when something is wrong. */
+     (ADR-0158). A healthy screen is near-monochrome; colour enters only when
+     something is wrong. */
   --as-ok: var(--as-text);
-  --as-warning: var(--mantine-color-yellow-5);
-  --as-danger: var(--mantine-color-red-6);
+  --as-warning: var(--mantine-color-amber-4);
+  --as-danger: var(--mantine-color-signal-4);
 
   /* Data freshness (ADR-0052). Live is a bright neutral mark, not a green pill:
      a screen that is working looks like every other working screen. Colour
@@ -73,37 +56,52 @@ html:root[data-mantine-color-scheme='dark'] {
   /* HA / topology status. */
   --as-node-live: var(--as-text); /* serving — a bright neutral mark, never a green pill */
   --as-node-backup: var(--as-text-dimmed); /* synced standby */
-  --as-node-split-brain: var(--mantine-color-red-6); /* two live in one pair */
-  --as-node-down: var(--mantine-color-yellow-5); /* not started / unreachable */
+  --as-node-split-brain: var(--as-danger); /* two live in one pair */
+  --as-node-down: var(--as-warning); /* not started / unreachable */
   --as-node-unmanaged: var(--as-text-dimmed); /* known, never contacted — neutral, not an error */
 
   /* The identity axis carrying a pair's shared NodeID, in its two states. */
   --as-axis: var(--as-border);
-  --as-axis-broken: var(--mantine-color-yellow-5);
+  --as-axis-broken: var(--as-warning);
 
-  /* Cross-node grid (TanStack Table through Mantine Table). */
+  /* Tables. */
   --as-grid-header-bg: var(--mantine-color-default);
+  --as-table-header-text: var(--as-text-dimmed);
   --as-grid-row-hover: var(--mantine-color-default-hover);
   --as-grid-num: var(--as-text);
   --as-grid-stale: var(--as-text-dimmed);
   /* A row a live tail has just delivered. A tint, not a text colour: it fades out
      on its own, and it is never the only signal that a row is new — the row also
      enters at the head of the table and the tail's counter moves. Low enough alpha
-     that the body text over it keeps its contrast: measured, dimmed text on this
-     tint is 4.56:1 and body text 7.97:1, both over the AA floor. 0.16 was visibly
-     nicer and put dimmed text at 4.21:1, which is not a trade a console makes. */
-  --as-grid-row-fresh: rgba(77, 171, 247, 0.12);
+     that the body text over it keeps its contrast (measured in theme.contrast.test.ts). */
+  --as-grid-row-fresh: rgba(134, 162, 255, 0.12);
+  /* The shadow a sticky column casts on what scrolls beneath it; the row tint is layered over an
+     opaque surface, so the sticky cell never shows what is behind it. */
+  --as-sticky-shadow: 0.375rem 0 0.375rem -0.375rem rgba(0, 0, 0, 0.5);
+  --as-skeleton: var(--mantine-color-dark-5);
+  /* The selection column's width. */
+  --as-select-w: 2.5rem;
+
+  /* Density: compact by default, set on <html> by boot-prefs.js before the first paint. */
+  --as-row-h: var(--as-row-h-compact);
+  --as-cell-pad: var(--as-cell-pad-compact);
+
+  /* Focus. Mantine's own focus ring (.mantine-focus-auto) is pointed at it below. */
+  --as-focus-ring: 0.125rem solid var(--as-accent);
+  --as-focus-offset: 0.125rem;
+
+  /* Motion. Durations come from the theme; reduced motion zeroes them below. */
+  --as-ease: cubic-bezier(0.2, 0, 0, 1);
 
   /* SQL Console editor (CodeMirror). Four token roles, no more — the dialect has
      keywords, strings, numbers and identifiers, and an identifier reads as body
-     text on purpose so the eye lands on what the operator typed, not on syntax.
-     Measured on the dark body: 6.96:1, 9.57:1, 5.12:1. */
-  --as-code-keyword: var(--mantine-color-blue-4);
-  --as-code-string: var(--mantine-color-teal-4);
-  --as-code-number: var(--mantine-color-violet-4);
+     text on purpose so the eye lands on what the operator typed, not on syntax. */
+  --as-code-bg: var(--mantine-color-dark-8);
+  --as-code-keyword: var(--mantine-color-cobalt-4);
+  --as-code-string: var(--mantine-color-cyan-4);
+  --as-code-number: var(--mantine-color-violet-3);
   --as-code-comment: var(--as-text-dimmed);
-  /* Document editor (YAML, JSON): keys, and the rare anchor, alias or tag.
-     Measured on the dark body: 6.78:1 and 5.84:1. */
+  /* Document editor (YAML, JSON): keys, and the rare anchor, alias or tag. */
   --as-code-property: var(--mantine-color-indigo-3);
   --as-code-meta: var(--mantine-color-grape-4);
   /* Read-only code blocks (Shiki's CSS-variables theme, main.tsx) reuse the editor's roles: a key or
@@ -119,26 +117,24 @@ html:root[data-mantine-color-scheme='dark'] {
   --shiki-token-comment: var(--as-code-comment);
   --shiki-token-punctuation: var(--as-text-dimmed);
   --shiki-token-link: var(--as-code-property);
-  /* Half the row-hover tint, so the caret's line is findable without competing
-     with the selection; text keeps the body contrast on it. */
-  --as-code-active-line: color-mix(in srgb, var(--as-grid-row-hover) 50%, transparent);
+  /* The caret's line: findable without competing with the selection; text keeps the body contrast on it. */
+  --as-code-active-line: rgba(232, 234, 240, 0.05);
 
   /* Topology graph (React Flow). */
   --as-graph-node-bg: var(--mantine-color-body);
   --as-graph-edge: var(--as-border);
-  --as-graph-edge-behind: var(--mantine-color-yellow-5);
+  --as-graph-edge-behind: var(--as-warning);
 
   /* Flow graph (ADR-0080). Healthy flow is monochrome: an edge's width and moving
      dots carry the rate, and colour enters only for a fault. Edges sit on the
-     dimmed text step (~5:1 on the body in both schemes, above the 3:1 floor for
-     graphical marks); dots, and a hovered node's border, on the body text step. */
+     dimmed text step (above the 3:1 floor for graphical marks); dots, and a hovered
+     node's border, on the body text step. */
   --as-flow-node-bg: var(--mantine-color-default);
   --as-flow-edge: var(--as-text-dimmed);
   --as-flow-edge-busy: var(--as-text);
   --as-flow-dot: var(--as-text);
-  /* Fault words sit on nodes as small bold text, so the 4.5:1 floor applies. red-6 measures 4.13:1
-     on the node background; red-5 measures 4.89:1 there and 5.59:1 on the canvas. */
-  --as-flow-fault: var(--mantine-color-red-5);
+  /* Fault words sit on nodes as small bold text, so the 4.5:1 floor applies. */
+  --as-flow-fault: var(--as-danger);
   --as-flow-depth: var(--as-text-dimmed);
   --as-flow-lane: var(--as-text-dimmed);
   /* Opacity of what a path emphasis sets aside — faded, never gone (>= 0.2). */
@@ -147,90 +143,123 @@ html:root[data-mantine-color-scheme='dark'] {
      rather than React Flow's own light grey wash. */
   --as-flow-minimap-mask: rgba(0, 0, 0, 0.55);
 
-  /* Elevation (ADR-0094). Two steps, on Mantine's own shadow scale: resting, and lifted under
-     the pointer or when selected. A raised surface means "this is an element you can act on";
-     the border beside it does the separating, so a shadow is never the only edge. */
+  /* Elevation (ADR-0094). Three steps, on the theme's shadow scale: resting, lifted under
+     the pointer or when selected, and overlaying (menus, popovers). A raised surface means
+     "this is an element you can act on"; the border beside it does the separating, so a
+     shadow is never the only edge. */
   --as-elevation-1: var(--mantine-shadow-xs);
   --as-elevation-2: var(--mantine-shadow-sm);
+  --as-elevation-3: var(--mantine-shadow-md);
 
   /* Routing builder canvas (ADR-0094). A sunken surface under raised element cards, with a
      faint dot grid that is decoration only — no contrast floor applies to it, and nothing is
-     encoded in it. Measured on the node card (dark-6 / white): dimmed text 5.3:1 / 5.2:1. */
-  --as-canvas-sunken: color-mix(in srgb, var(--mantine-color-body) 72%, var(--mantine-color-dark-9));
-  --as-canvas-grid: var(--mantine-color-dark-4);
+     encoded in it. */
+  --as-canvas-sunken: var(--mantine-color-dark-8);
+  --as-canvas-grid: var(--mantine-color-dark-5);
   /* Opacity of lines and elements that are not about the selected element — receded, never gone. */
   --as-canvas-recede: 0.3;
+
+  /* The graph libraries' own controls, minimap and background pattern, taken from the same tokens.
+     React Flow reads these ahead of its own per-scheme defaults. */
+  --xy-controls-button-background-color: var(--as-surface-raised);
+  --xy-controls-button-background-color-hover: var(--as-grid-row-hover);
+  --xy-controls-button-color: var(--as-text);
+  --xy-controls-button-color-hover: var(--as-text);
+  --xy-controls-button-border-color: var(--as-border);
+  --xy-minimap-background-color: var(--as-canvas-sunken);
+  --xy-minimap-mask-background-color: var(--as-flow-minimap-mask);
+  --xy-minimap-node-background-color: var(--as-border-strong);
+  --xy-background-pattern-dots-color: var(--as-canvas-grid);
+  --xy-background-pattern-lines-color: var(--as-canvas-grid);
+  --xy-background-pattern-cross-color: var(--as-canvas-grid);
 
   /* Request-reply flow state (Phase 5). */
   --as-rr-in-flight: var(--as-text-dimmed); /* awaiting reply — normal, not a warning */
   --as-rr-resolved: var(--as-text); /* completed */
-  --as-rr-failed: var(--mantine-color-red-6); /* timed out / orphaned / responder dropped / orphaned reply */
+  --as-rr-failed: var(--as-danger); /* timed out / orphaned / responder dropped / orphaned reply */
 
   /* Misc chrome. */
-  --as-alert-dot: var(--mantine-color-red-6);
+  --as-alert-dot: var(--as-danger);
   --as-palette-bg: var(--mantine-color-default);
 
   /* Charts (Phase 6, ADR-0033). Order encodes the house rule: the healthy
      series is the neutral one — colour enters only at --as-chart-4, "look
-     here". Never a raw hex/Mantine shade literal in a chart component. */
+     here". No series is the cobalt accent: --as-chart-2 is its own hue.
+     Never a raw hex/Mantine shade literal in a chart component. */
   --as-chart-grid: var(--as-border);
   --as-chart-axis: var(--as-text-dimmed);
   --as-chart-1: var(--as-text);
-  --as-chart-2: var(--mantine-color-blue-4);
+  --as-chart-2: var(--mantine-color-grape-4);
   --as-chart-3: var(--as-text-dimmed);
   --as-chart-4: var(--as-warning);
   --as-chart-threshold: var(--as-danger);
 
   /* An ordered magnitude — p50 → p95 → p99 — is a sequential ramp, one hue
-     light-to-dark, not three identities. It used to borrow --as-warning and
-     --as-danger, which claimed a slow tail was an error before anyone had
-     decided that it was; status colours stay reserved for status.
+     light-to-dark, not three identities. It is violet, not the accent, so a latency
+     bar never reads as a selection. Status colours stay reserved for status.
      Steps chosen for >= 3:1 against each scheme's surface, measured. */
-  --as-chart-seq-1: var(--mantine-color-blue-6);
-  --as-chart-seq-2: var(--mantine-color-blue-4);
-  --as-chart-seq-3: var(--mantine-color-blue-2);
+  --as-chart-seq-1: var(--mantine-color-violet-5);
+  --as-chart-seq-2: var(--mantine-color-violet-3);
+  --as-chart-seq-3: var(--mantine-color-violet-1);
 }
 
 /* Light overrides. Dark is the base above; only the values that must change for
    a legible light theme are redefined here (non-negotiable #6 keeps colour out
-   of components, so this is the whole surface). */
-/* Status text carried these as yellow-7 (2.13:1 on white) and red-7 (3.84:1),
-   both under the WCAG 2.2 AA 4.5:1 floor for body text — measured, not assumed.
-   No shade of Mantine's yellow or orange ramp reaches 4.5:1 on white at all, so
-   the light-scheme warning cannot be fixed by re-stepping the ramp; it needs a
-   dark amber, which is why this is a literal here rather than a scale reference.
-   Both keep their hue, so a warning still reads as a warning.
-
-   The purely graphical marks below — chart axis, graph edge, alert dot, node
-   state — deliberately stay on the bright ramp: they are not text, the AA text
-   floor does not apply to them, and the darker value reads as muddy at 1-2px. */
+   of components, so this is the whole surface). Amber and signal take their darker
+   step so a warning and a failure keep the 4.5:1 text floor on the light surfaces. */
 :root[data-mantine-color-scheme='light'] {
-  --as-warning: #8f4a00; /* 6.67:1 on white */
-  --as-danger: #c92a2a; /* 5.46:1 on white */
-  --as-node-split-brain: var(--mantine-color-red-7);
-  --as-node-down: var(--mantine-color-yellow-7);
-  --as-axis-broken: var(--mantine-color-yellow-7);
-  --as-graph-edge-behind: var(--mantine-color-yellow-7);
-  --as-alert-dot: var(--mantine-color-red-7);
-  --as-rr-failed: var(--mantine-color-red-7);
-  --as-flow-fault: var(--as-danger); /* #c92a2a: 5.46:1 on white */
+  --as-border-strong: var(--mantine-color-gray-4);
+  --as-accent: var(--mantine-color-cobalt-6);
+  --as-selected: rgba(46, 85, 214, 0.1);
+  --as-warning: var(--mantine-color-amber-6);
+  --as-danger: var(--mantine-color-signal-6);
+  --as-grid-row-fresh: rgba(46, 85, 214, 0.08);
+  --as-sticky-shadow: 0.375rem 0 0.375rem -0.375rem rgba(10, 12, 16, 0.25);
+  --as-skeleton: var(--mantine-color-gray-2);
+  --as-code-bg: var(--mantine-color-gray-0);
+  --as-code-active-line: rgba(26, 31, 39, 0.05);
   --as-flow-minimap-mask: rgba(255, 255, 255, 0.6);
-  --as-canvas-sunken: var(--mantine-color-gray-0);
-  --as-canvas-grid: var(--mantine-color-gray-4);
-  --as-chart-2: var(--mantine-color-blue-7);
-  --as-grid-row-fresh: rgba(28, 126, 214, 0.1);
-  /* Editor tokens are body text, so the AA 4.5:1 floor applies to all three.
-     The dark-scheme steps measure 1.80–3.36:1 on white, so none of them can be
-     reused; these are the first steps down each ramp that clear the floor. */
-  --as-code-keyword: var(--mantine-color-blue-8); /* 5.02:1 on white */
-  --as-code-string: var(--mantine-color-teal-9); /* 5.00:1 on white */
-  --as-code-number: var(--mantine-color-violet-9); /* 7.12:1 on white */
-  --as-code-property: var(--mantine-color-indigo-8); /* 5.67:1 on white */
-  --as-code-meta: var(--mantine-color-grape-8); /* 5.82:1 on white */
+  --as-canvas-sunken: var(--mantine-color-gray-1);
+  --as-canvas-grid: var(--mantine-color-gray-3);
+  --as-chart-2: var(--mantine-color-grape-7);
+  /* Editor tokens are body text, so the AA 4.5:1 floor applies to all of them. The dark-scheme steps
+     do not clear it on a light surface; these are the first steps down each ramp that do. */
+  --as-code-keyword: var(--mantine-color-cobalt-7);
+  --as-code-string: var(--mantine-color-cyan-9);
+  --as-code-number: var(--mantine-color-violet-9);
+  --as-code-property: var(--mantine-color-indigo-8);
+  --as-code-meta: var(--mantine-color-grape-8);
   /* Inverted for a light surface: prominence is darkness here, not brightness. */
-  --as-chart-seq-1: var(--mantine-color-blue-6);
-  --as-chart-seq-2: var(--mantine-color-blue-7);
-  --as-chart-seq-3: var(--mantine-color-blue-9);
+  --as-chart-seq-1: var(--mantine-color-violet-6);
+  --as-chart-seq-2: var(--mantine-color-violet-8);
+  --as-chart-seq-3: var(--mantine-color-violet-9);
+}
+
+/* Density. */
+:root[data-density='compact'] {
+  --as-row-h: var(--as-row-h-compact);
+  --as-cell-pad: var(--as-cell-pad-compact);
+}
+
+:root[data-density='comfortable'] {
+  --as-row-h: var(--as-row-h-comfortable);
+  --as-cell-pad: var(--as-cell-pad-comfortable);
+}
+
+/* Mantine's own focus ring, on the same ring as every other control. */
+.mantine-focus-auto:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+/* Reduced motion is a token rule: components animate only through the durations, so none needs a
+   branch of its own. (`html:root` outranks the variables the theme injects at run time.) */
+@media (prefers-reduced-motion: reduce) {
+  html:root {
+    --as-duration-fast: 0ms;
+    --as-duration-base: 0ms;
+    --as-duration-slow: 0ms;
+  }
 }
 
 html,

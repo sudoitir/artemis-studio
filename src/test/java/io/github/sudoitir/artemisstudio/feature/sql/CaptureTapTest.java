@@ -135,7 +135,7 @@ class CaptureTapTest {
                 .filter(r -> String.valueOf(r.operation()).startsWith("addAddressSettings"))
                 .findFirst()
                 .orElseThrow();
-        assertThat(addressSettings.toString())
+        assertThat(String.valueOf(addressSettings.arguments()))
                 .contains("artemis-studio.capture.abc12345.#")
                 .contains("maxSizeBytes");
     }
@@ -150,7 +150,7 @@ class CaptureTapTest {
         verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
         List<String> removals = requests.getAllValues().stream()
                 .filter(r -> String.valueOf(r.operation()).startsWith("remove"))
-                .map(Object::toString)
+                .map(r -> String.valueOf(r.arguments()))
                 .toList();
         assertThat(removals).isNotEmpty().allSatisfy(r -> assertThat(r).contains("artemis-studio.capture.abc12345.#"));
     }
@@ -161,7 +161,7 @@ class CaptureTapTest {
 
         org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
         verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
-        assertThat(requests.getAllValues().stream().map(Object::toString))
+        assertThat(requests.getAllValues().stream().map(r -> String.valueOf(r.arguments())))
                 .anySatisfy(r -> assertThat(r).contains("artemis-studio.capture.#"));
     }
 

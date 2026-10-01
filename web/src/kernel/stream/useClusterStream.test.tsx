@@ -7,7 +7,7 @@ import { manifestHandler } from '../../test/manifest.ts';
 import { EventSourceStub, server } from '../../test/setup.ts';
 import { CONTRACT, defineFeature, type TopicHandler } from '../feature.ts';
 import { FeatureProvider } from '../FeatureProvider.tsx';
-import { useClusterStream } from './useClusterStream.ts';
+import { useClusterStream, useStreamStatus } from './useClusterStream.ts';
 
 /** Fail the newest stub the way an `EventSource` does: error, then closed. */
 async function failCurrent() {
@@ -107,6 +107,60 @@ describe('useClusterStream', () => {
     }
 
     expect(EventSourceStub.instances).toHaveLength(1);
+  });
+});
+
+describe('useClusterStream shared status', () => {
+  function Wrapper({ children }: { children: ReactNode }) {
+    const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }));
+    return (
+      <QueryClientProvider client={qc}>
+        <FeatureProvider features={[]}>{children}</FeatureProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    EventSourceStub.reset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps the cluster's status when a second stream on the same view unmounts", async () => {
+    const header = renderHook(() => useStreamStatus(), { wrapper: Wrapper });
+    const cluster = renderHook(() => useClusterStream('c1', ['topology']), { wrapper: Wrapper });
+    const feed = renderHook(() => useClusterStream('c1', ['events']), { wrapper: Wrapper });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(header.result.current).toBe('live');
+
+    feed.unmount();
+
+    expect(header.result.current).toBe('live');
+    cluster.unmount();
+    expect(header.result.current).toBeNull();
+  });
+
+  it('reports the worst of the mounted streams', async () => {
+    const header = renderHook(() => useStreamStatus(), { wrapper: Wrapper });
+    const cluster = renderHook(() => useClusterStream('c1', ['topology']), { wrapper: Wrapper });
+    const feed = renderHook(() => useClusterStream('c1', ['events']), { wrapper: Wrapper });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    await act(async () => {
+      EventSourceStub.instances[1]?.onerror?.();
+    });
+    expect(header.result.current).toBe('reconnecting');
+
+    feed.unmount();
+    expect(header.result.current).toBe('live');
+    cluster.unmount();
   });
 });
 

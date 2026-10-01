@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
-  ActionIcon,
   Alert,
   Button,
   Collapse,
   Grid,
   Group,
-  Modal,
   PasswordInput,
-  ScrollArea,
   Stack,
   Text,
   Textarea,
   TextInput,
-  Tooltip,
   UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconPlus } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
 import {
@@ -300,7 +295,6 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
                 register.mutate(payload(), {
                   onSuccess: (detail) => {
                     notifications.show({
-                      color: 'pine',
                       title: 'Cluster registered',
                       message: detail.name,
                     });
@@ -336,45 +330,22 @@ export function EmptyState() {
   );
 }
 
-/** The post-empty affordance: a button that opens the form in a modal. */
-export function RegisterClusterButton({ collapsed }: Readonly<{ collapsed?: boolean }>) {
-  const [open, setOpen] = useState(false);
+/** What the dialog holds: the form, and a note that this adds to the clusters already registered. */
+export function RegisterClusterPanel({ onRegistered }: Readonly<{ onRegistered: () => void }>) {
   const clusters = useClusters();
   const existing = clusters.data?.length ?? 0;
 
   return (
-    <>
-      {collapsed ? (
-        <Tooltip label="Register cluster" position="right" withArrow openDelay={350}>
-          <ActionIcon variant="default" size="md" aria-label="Register cluster" onClick={() => setOpen(true)}>
-            <IconPlus size={18} stroke={1.5} />
-          </ActionIcon>
-        </Tooltip>
-      ) : (
-        <Button variant="default" size="xs" onClick={() => setOpen(true)}>
-          Register cluster
-        </Button>
-      )}
-      <Modal
-        opened={open}
-        onClose={() => setOpen(false)}
-        title="Register cluster"
-        size="xl"
-        centered
-        scrollAreaComponent={ScrollArea.Autosize}
-      >
-        <Stack gap="md">
-          {existing > 0 ? (
-            <Text size="sm" c="dimmed">
-              {existing === 1
-                ? 'One cluster is already registered. This adds another.'
-                : `${existing} clusters are already registered. This adds another.`}
-            </Text>
-          ) : null}
-          <RegisterClusterForm onRegistered={() => setOpen(false)} />
-        </Stack>
-      </Modal>
-    </>
+    <Stack gap="md">
+      {existing > 0 ? (
+        <Text size="sm" c="dimmed">
+          {existing === 1
+            ? 'One cluster is already registered. This adds another.'
+            : `${existing} clusters are already registered. This adds another.`}
+        </Text>
+      ) : null}
+      <RegisterClusterForm onRegistered={onRegistered} />
+    </Stack>
   );
 }
 

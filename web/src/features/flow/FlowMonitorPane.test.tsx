@@ -102,7 +102,8 @@ describe('FlowMonitorPane with nothing selected', () => {
     show(graph({ brokerNodes: [] }), 'gone');
 
     expect(screen.getByText(/The selection is not in the shown paths any more\./)).toBeInTheDocument();
-    expect(await screen.findByText('No broker node reported this.')).toBeInTheDocument();
+    expect(await screen.findByText('No broker node has reported')).toBeInTheDocument();
+    expect(screen.getByText(/until the first scrape of a node completes/)).toBeInTheDocument();
   });
 });
 

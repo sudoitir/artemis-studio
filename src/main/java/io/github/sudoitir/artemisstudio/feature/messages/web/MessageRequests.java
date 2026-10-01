@@ -11,8 +11,12 @@ public final class MessageRequests {
 
     /**
      * A message to enqueue. {@code type} is the Artemis message type int
-     * (3 = text, 4 = bytes); {@code headers} are the well-known JMS headers,
-     * {@code properties} the arbitrary application properties. When
+     * (3 = text, 4 = bytes); {@code headers} are the JMS headers
+     * {@code correlationId}, {@code type}, {@code replyTo} (a queue name), {@code groupId} and
+     * {@code groupSeq}, the names the message detail shows; any other header is refused.
+     * {@code properties} are the application properties, each named by a Java identifier that is not
+     * a selector keyword and does not start with {@code JMS}. Over a Core connection
+     * a property keeps its type; over the management channel it is sent as its text. When
      * {@code bodyBase64} is true and the cluster has a Core connection, the body
      * is base64-decoded and sent as a bytes message; otherwise the body is text.
      */

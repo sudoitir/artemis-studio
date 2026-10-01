@@ -2,6 +2,7 @@ import { Text } from '@mantine/core';
 
 import type { components } from '../kernel/api/schema.d.ts';
 import classes from './NodeOutcomeSummary.module.css';
+import { appliedEverywhere } from './nodeOutcome.ts';
 
 type LifecycleOutcomeView = components['schemas']['LifecycleOutcomeView'];
 type NodeOutcomeView = components['schemas']['NodeOutcomeView'];
@@ -72,7 +73,7 @@ export function NodeOutcomeSummary({
 export interface OutcomeRow {
   key: string;
   name: string;
-  /** A right-aligned figure, when the command has one worth comparing between nodes. */
+  /** An end-aligned figure, when the command has one worth comparing between nodes. */
   count?: string;
   status: string;
   tone?: 'warning' | 'danger';
@@ -178,24 +179,6 @@ function verdictFor(outcome: LifecycleOutcomeView): { text: string; tone?: 'warn
     return { text: `Applied to all ${targets} live nodes · ${skipped} not live`, tone: 'warning' };
   }
   return { text: `Applied to all ${targets} nodes` };
-}
-
-/**
- * Whether the command actually landed on every node it named — the one question a
- * caller asks before treating the resource as changed.
- *
- * <p>Stated positively on purpose. `partial` is false both when everything worked
- * and when nothing did (a cluster with no live node settles nowhere), so a caller
- * that asks "not partial and nothing failed" concludes a delete succeeded against
- * a cluster it never reached.
- */
-// eslint-disable-next-line react-refresh/only-export-components -- a predicate, not a component
-export function appliedEverywhere(outcome: LifecycleOutcomeView): boolean {
-  return (
-    !outcome.dryRun &&
-    outcome.nodes.length > 0 &&
-    outcome.nodes.every((n) => n.status === 'APPLIED' || n.status === 'ALREADY')
-  );
 }
 
 /**

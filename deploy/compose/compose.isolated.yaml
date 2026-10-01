@@ -1,0 +1,38 @@
+# Artemis Studio — ISOLATED overlay: a second stack beside the first.
+#
+#   docker compose -p artemis-studio-qa-<name> \
+#                  -f deploy/compose/compose.dev.yaml \
+#                  -f deploy/compose/compose.isolated.yaml up -d      (or: just qa-up <name> <port>)
+#
+# Layered on the dev stack so a UI sweep can run next to `just dev-up` or `just demo` without
+# touching their ports, containers or volumes (the project name, `-p`, keeps those apart; it
+# overrides `name:` in the base file). Studio is published on 127.0.0.1:${QA_PORT:-18080}. Every
+# broker gets a random loopback host port, which `docker compose port <service> 8161` reports, so
+# scripts/demo-seed.sh still finds them. Postgres is not published at all.
+#
+# `!override` replaces the base file's ports; without it Compose appends to the list and the
+# fixed ports of the base would still be published.
+#
+# The six-node demo estate needs compose.isolated-demo.yaml as well, for the same ports on its
+# extra brokers. Not hardened, not for anywhere public.
+#
+# The session idle timeout is a runtime setting, not configuration, so `just qa-up` raises it
+# through the settings API once Studio is up.
+
+services:
+  postgres:
+    ports: !reset []
+
+  artemis-primary:
+    ports: !override
+      - "127.0.0.1::8161"
+      - "127.0.0.1::61616"
+
+  artemis-backup:
+    ports: !override
+      - "127.0.0.1::8161"
+      - "127.0.0.1::61616"
+
+  studio:
+    ports: !override
+      - "127.0.0.1:${QA_PORT:-18080}:8080"

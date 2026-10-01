@@ -30,7 +30,10 @@ const shared = Object.fromEntries([
 ]);
 
 // The Spring Boot app serves the built SPA from classpath:/static and owns
-// /api/**. In dev, Vite runs standalone on :5173 and proxies API + SSE to :8080.
+// /api/**. In dev, Vite runs standalone on :5173 and proxies API + SSE to :8080, or to the Studio
+// named by STUDIO_API (an isolated QA stack listens on another port).
+const api = process.env.STUDIO_API ?? 'http://localhost:8080';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -42,12 +45,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: api,
         changeOrigin: true,
       },
-      '/actuator': 'http://localhost:8080',
+      '/actuator': api,
       '/plugin-ui': {
-        target: 'http://localhost:8080',
+        target: api,
         changeOrigin: true,
       },
     },
@@ -61,5 +64,16 @@ export default defineConfig({
     outDir: 'dist',
     // Module Federation's bootstrap awaits the shared scope before the app starts.
     target: 'esnext',
+    // Three chunks are over Vite's 500 kB default, each for a reason that splitting would not remove:
+    //  - elk.bundled (about 1.4 MB, the largest, so this limit sits just above it): ELK's single-thread
+    //    build, imported only where there is no Worker (tests, Node). A browser lays out in a worker with
+    //    the small elk-api, so no visitor downloads it;
+    //  - the shared @mantine/core (about 680 kB): every Mantine component, because it is a singleton that
+    //    plugin bundles take from the host rather than bringing their own (see `shared` above);
+    //  - shiki's wasm (about 620 kB): the syntax highlighter's regular-expression engine, imported when a
+    //    code block is first shown.
+    // The limit is not a way to hide the warning for anything else. What a first visit downloads is held to
+    // a budget of its own: `npm run check:bundle` (scripts/bundle-budget.ts).
+    chunkSizeWarningLimit: 1450,
   },
 });

@@ -1,6 +1,7 @@
 import { VisuallyHidden } from '@mantine/core';
 
 import { absoluteLabel, elapsedLabel } from './time.ts';
+import classes from './Time.module.css';
 
 /**
  * A moment in words (or, with `future`, how long from now) inside a `<time>`, with the exact time as text
@@ -11,7 +12,7 @@ export function Ago({ at, now, future = false }: Readonly<{ at: string; now: num
   const exact = absoluteLabel(at);
   return (
     <>
-      <time dateTime={at} title={exact}>
+      <time className={classes.figures} dateTime={at} title={exact}>
         {future ? `in ${elapsedLabel(ms)}` : `${elapsedLabel(ms)} ago`}
       </time>
       <VisuallyHidden component="span"> ({exact})</VisuallyHidden>

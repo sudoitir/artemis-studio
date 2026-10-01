@@ -30,6 +30,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.SendSpec;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
+import io.github.sudoitir.artemisstudio.platform.broker.SendNames;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.governance.ClearViewAudit;
@@ -163,6 +164,7 @@ public class MessageService {
     public Attempt<Outcome> send(
             UUID clusterId, String queueName, UUID nodeId, SendMessageRequest req, boolean dryRun) {
         clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_SEND);
+        SendNames.validate(req.headers(), req.properties());
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         AuditEvent event = begin(
                 "SEND_MESSAGE", queueName, clusterId, resolved.node().getId(), Map.of("type", req.type()), dryRun);

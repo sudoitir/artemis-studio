@@ -13,7 +13,7 @@ export function ConfirmByTyping({
   confirmLabel,
   loading,
   disabled,
-  color = 'red',
+  tone = 'danger',
   onConfirm,
 }: Readonly<{
   token: string;
@@ -21,7 +21,8 @@ export function ConfirmByTyping({
   confirmLabel: string;
   loading?: boolean;
   disabled?: boolean;
-  color?: string;
+  /** `danger` for an action that removes or overwrites (the default here); `default` for one that does not. */
+  tone?: 'default' | 'danger';
   onConfirm: () => void;
 }>) {
   const [typed, setTyped] = useState('');
@@ -36,7 +37,13 @@ export function ConfirmByTyping({
         size="xs"
         autoComplete="off"
       />
-      <Button size="xs" color={color} disabled={!armed} loading={loading} onClick={onConfirm}>
+      <Button
+        size="xs"
+        color={tone === 'danger' ? 'signal' : undefined}
+        disabled={!armed}
+        loading={loading}
+        onClick={onConfirm}
+      >
         {confirmLabel}
       </Button>
     </Stack>

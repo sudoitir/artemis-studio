@@ -48,6 +48,10 @@ logs/
 .claude/settings.local.json
 .ui-review/
 
+# UI sweep captures and saved sessions (web/scripts/sweep.ts)
+web/.sweep/
+web/.vitest/
+
 # Python bytecode (a skill's scripts compile it on first run)
 __pycache__/
 *.pyc

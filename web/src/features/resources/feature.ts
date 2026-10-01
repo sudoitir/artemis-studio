@@ -3,11 +3,11 @@ import { IconAt, IconNetwork, IconPlugConnected, IconSend, IconUsers } from '@ta
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { validateResourceSearch } from '../../kernel/routing/search.ts';
 import { keys } from './api.ts';
 import { ResourcePalette } from './ResourcePalette.tsx';
-import { ResourceView } from './ResourceView.tsx';
 import {
   AddressCloseConsumers,
   AddressCopy,
@@ -36,11 +36,17 @@ const KINDS = [
   { kind: 'producers', label: 'Producers', icon: IconSend, hotkey: 'p' },
 ] as const;
 
+/** One kind's view: the shared `ResourceView`, loaded on first visit and bound to the kind. */
+async function loadKindView(kind: (typeof KINDS)[number]['kind']) {
+  const { ResourceView } = await import('./ResourceView.tsx');
+  return { KindView: () => createElement(ResourceView, { kind }) };
+}
+
 const resourceRoutes = KINDS.map(({ kind }) =>
   createRoute({
     getParentRoute: () => clusterRoute,
     path: kind,
-    component: featureView('resources', () => createElement(ResourceView, { kind })),
+    component: lazyFeatureView('resources', () => loadKindView(kind), 'KindView'),
     validateSearch: validateResourceSearch,
   }),
 );

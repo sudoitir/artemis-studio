@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -139,7 +139,7 @@ describe('QueuesView rows', () => {
     renderWithProviders(<QueuesView />);
 
     const grid = await screen.findByRole('grid', { name: 'Queues' });
-    expect(within(grid).getByText('paused')).toBeInTheDocument();
+    expect(await within(grid).findByText('paused')).toBeInTheDocument();
     expect(within(grid).getByText('paused on some nodes')).toBeInTheDocument();
     expect(within(grid).getByText('no')).toBeInTheDocument();
     expect(within(grid).getAllByText('yes')).toHaveLength(2);
@@ -192,9 +192,12 @@ describe('QueuesView rows', () => {
     );
     renderWithProviders(<QueuesView />);
 
-    expect(await screen.findByText('Listing failed')).toBeInTheDocument();
-    expect(screen.getByText('No node answered.')).toBeInTheDocument();
-    expect(screen.queryByRole('grid', { name: 'Queues' })).not.toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    // The failure stands in place of the rows, not of the view: the filter is still there.
+    expect(screen.getByRole('textbox', { name: 'Filter queues' })).toBeInTheDocument();
+    expect(within(screen.getByRole('grid', { name: 'Queues' })).queryAllByRole('row')).toHaveLength(1);
   });
 });
 
@@ -302,10 +305,30 @@ describe('QueuesView empty grid', () => {
     renderWithProviders(<QueuesView />);
 
     expect(await screen.findByText('No queue matches "zzz"')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear the filter' }));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
 
     expect(nextSearch({ q: 'zzz', page: 2 })).toEqual({ q: undefined, page: undefined });
     expect(screen.getByRole('textbox', { name: 'Filter queues' })).toHaveValue('');
+  });
+
+  it('does not write a half-typed filter back after the filter was cleared', async () => {
+    search = { q: 'zzz' };
+    serve();
+    // Time is driven, not waited for: the filter's debounce has to have expired, however loaded the machine.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<QueuesView />);
+
+    await screen.findByText('No queue matches "zzz"');
+    await user.type(screen.getByRole('textbox', { name: 'Filter queues' }), 'a');
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(nextSearch({ q: 'zzz', page: 2 })).toEqual({ q: undefined, page: undefined });
   });
 
   it('says one unreachable node makes this an incomplete view rather than an empty cluster', async () => {
@@ -314,7 +337,7 @@ describe('QueuesView empty grid', () => {
     renderWithProviders(<QueuesView />);
 
     expect(await screen.findByText('node-a could not be reached')).toBeInTheDocument();
-    expect(screen.getByText(/this node did not answer the last scrape/)).toBeInTheDocument();
+    expect(screen.getByText(/This node did not answer the last scrape/)).toBeInTheDocument();
     expect(screen.queryByText('No queues yet')).not.toBeInTheDocument();
   });
 
@@ -329,8 +352,13 @@ describe('QueuesView empty grid', () => {
     renderWithProviders(<QueuesView />);
 
     expect(await screen.findByText('2 nodes could not be reached')).toBeInTheDocument();
-    expect(screen.getByText(/these nodes did not answer/)).toBeInTheDocument();
-    expect(screen.getByText(/\(node-a, node-b\)/)).toBeInTheDocument();
+    expect(screen.getByText(/These nodes did not answer/)).toBeInTheDocument();
+    const nodes = screen.getByRole('list', { name: 'Nodes that could not be reached' });
+    expect(
+      within(nodes)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['node-a', 'node-b']);
   });
 
   it('teaches what a queue is when there is none, and offers to create the first where allowed', async () => {
