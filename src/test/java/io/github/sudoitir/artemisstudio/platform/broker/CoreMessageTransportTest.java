@@ -244,14 +244,22 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
                 UUID.randomUUID(), UUID.randomUUID(), queueName, queueName, "ANYCAST", jolokiaUrl(), coreUrl());
     }
 
-    private jakarta.jms.Message browseOne(String orderId) throws Exception {
+    /** The sent message, once a browser sees it: a browser's first page can arrive after the send returns. */
+    private jakarta.jms.Message browseOne(String orderId) {
+        return org.awaitility.Awaitility.await("message " + orderId + " to be browsable")
+                .atMost(java.time.Duration.ofSeconds(10))
+                .until(() -> tryBrowse(orderId), java.util.Objects::nonNull);
+    }
+
+    private jakarta.jms.Message tryBrowse(String orderId) throws Exception {
         var factory = new ActiveMQConnectionFactory(
                 coreUrl() + "?useTopologyForLoadBalancing=false", BROKER_USER, BROKER_PASSWORD);
         try (Connection conn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
             conn.start();
             Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
             var browser = session.createBrowser(session.createQueue(queueName), "orderId = '" + orderId + "'");
-            return (jakarta.jms.Message) browser.getEnumeration().nextElement();
+            var messages = browser.getEnumeration();
+            return messages.hasMoreElements() ? (jakarta.jms.Message) messages.nextElement() : null;
         } finally {
             factory.close();
         }
