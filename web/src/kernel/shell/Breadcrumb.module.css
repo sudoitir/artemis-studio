@@ -1,0 +1,4 @@
+/* One line of extra-small text, held whether or not the crumbs are drawn yet. */
+.line {
+  min-block-size: calc(var(--mantine-font-size-xs) * var(--mantine-line-height));
+}

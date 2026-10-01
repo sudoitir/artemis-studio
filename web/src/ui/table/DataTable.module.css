@@ -20,6 +20,8 @@
   justify-content: space-between;
   gap: var(--mantine-spacing-sm);
   min-inline-size: 0;
+  /* The height of an extra-small control, such as the pager, held before it is drawn. */
+  min-block-size: var(--as-control-h-xs);
   margin: 0;
   padding: 0;
   border: 0;
@@ -34,7 +36,8 @@
 }
 
 .toolbarEnd {
-  margin-inline-start: auto;
+  flex: 1 1 auto;
+  justify-content: flex-end;
 }
 
 /* The Columns control's space is reserved, so nothing around it moves when a count appears. */

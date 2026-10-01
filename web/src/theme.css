@@ -252,6 +252,8 @@
    message is Mantine's error line (its own font size at line height 1.2) plus the gap Mantine opens
    above it. Toolbar filters carry no messages and keep their compact height. */
 :root {
+  /* The height of an extra-small Mantine control (Button size xs), for rows that hold its place. */
+  --as-control-h-xs: calc(1.875rem * var(--mantine-scale));
   --as-field-message-line: calc((var(--mantine-font-size-sm) - 0.125rem) * 1.2);
   --as-field-message-h: calc(var(--mantine-spacing-xs) / 2 + var(--as-field-message-line));
 }
@@ -264,6 +266,14 @@
 
 .mantine-InputWrapper-error {
   min-block-size: var(--as-field-message-line);
+}
+
+/* The smallest button is 24px tall, the target size WCAG 2.5.8 asks of a control however much
+   room it has around it; Mantine draws compact-xs at 22px. */
+.mantine-Button-root,
+.mantine-Button-groupSection {
+  --button-height-compact-xs: calc(1.5rem * var(--mantine-scale));
+  --section-height-compact-xs: calc(1.5rem * var(--mantine-scale));
 }
 
 /* Reduced motion is a token rule: components animate only through the durations, so none needs a

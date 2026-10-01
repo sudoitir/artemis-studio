@@ -1,6 +1,6 @@
 /* The height of the extra-small buttons, held whether or not they are drawn (they are only drawn past one page). */
 .pager {
-  min-block-size: calc(1.875rem * var(--mantine-scale));
+  min-block-size: var(--as-control-h-xs);
 }
 
 /* The position reads "101–200 of 1,234": digits keep one width so the sentence does not jitter as pages turn. */

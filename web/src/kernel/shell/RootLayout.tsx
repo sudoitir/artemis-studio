@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent } from 'react';
-import { AppShell, Button, Divider, Group, Kbd, ScrollArea, Text } from '@mantine/core';
+import { AppShell, Button, Divider, Kbd, ScrollArea, Text } from '@mantine/core';
 import { spotlight } from '@mantine/spotlight';
 import { IconSearch } from '@tabler/icons-react';
 import { useDocumentTitle, useHotkeys } from '@mantine/hooks';
@@ -129,15 +129,17 @@ export function RootLayout() {
         Skip to content
       </a>
       <AppShell.Header>
-        <Group h="100%" px="md" gap="xs" justify="space-between">
-          <Group gap="xs">
+        <div className={styles.header}>
+          <div className={styles.headerStart}>
             <img src="/favicon.svg" alt="" width={24} height={24} />
-            <Text fw={600}>{branding.productName}</Text>
+            <Text fw={600} truncate>
+              {branding.productName}
+            </Text>
             {header.map(({ id, Component }) => (
               <Component key={id} />
             ))}
-          </Group>
-          <Group gap="sm" wrap="nowrap">
+          </div>
+          <div className={styles.headerEnd}>
             <FreshnessBar />
             {/* The data's state on the left of the rule, the console's own controls on the right. */}
             <Divider orientation="vertical" />
@@ -155,8 +157,8 @@ export function RootLayout() {
             </Button>
             <ShortcutsHelp />
             <UserMenu me={me.data} />
-          </Group>
-        </Group>
+          </div>
+        </div>
       </AppShell.Header>
 
       <AppShell.Navbar id={NAVBAR_ID} p="sm">
