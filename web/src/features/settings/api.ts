@@ -10,6 +10,7 @@ export type RotationView = Schemas['RotationView'];
 export type StudioHealth = Schemas['StudioHealth'];
 export type JobHealth = Schemas['JobHealth'];
 export type NodeHealth = Schemas['NodeHealth'];
+export type ReplicaHealth = Schemas['ReplicaHealth'];
 export type PoolHealth = Schemas['PoolHealth'];
 
 const SETTINGS_KEY = ['settings'] as const;

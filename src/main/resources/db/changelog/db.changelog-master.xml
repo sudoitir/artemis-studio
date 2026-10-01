@@ -24,6 +24,7 @@
     -->
 
     <include file="db/changelog/kernel/core/changelog.xml"          relativeToChangelogFile="false"/>
+    <include file="db/changelog/kernel/replica/changelog.xml"       relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/security/changelog.xml"      relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/plugin/changelog.xml"        relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/audit/changelog.xml"         relativeToChangelogFile="false"/>
@@ -45,5 +46,6 @@
     <include file="db/changelog/feature/transfer/changelog.xml"     relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/setupreview/changelog.xml"  relativeToChangelogFile="false"/>
     <include file="db/changelog/feature/plugins/changelog.xml"      relativeToChangelogFile="false"/>
+    <include file="db/changelog/feature/diagnostics/changelog.xml"  relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

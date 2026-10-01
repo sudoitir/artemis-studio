@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferLedger;
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunEntity;
 import io.github.sudoitir.artemisstudio.feature.transfer.internal.persistence.TransferRunRepository;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -52,6 +53,9 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
 
     @Autowired
     TransferRecovery recovery;
+
+    @Autowired
+    ReplicaRegistry replicas;
 
     @Autowired
     ClusterRepository clusters;
@@ -196,6 +200,41 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
         assertThat(after.getLastError()).isEqualTo(TransferRecovery.INTERRUPTED);
     }
 
+    @Test
+    void aRunOfALiveReplicaIsLeftAloneAndOneOfAGoneReplicaIsInterrupted() {
+        TransferRunEntity live = preview(TransferMode.MOVE, "live");
+        TransferRunEntity gone = preview(TransferMode.MOVE, "gone");
+        state(live, TransferState.RUNNING);
+        state(gone, TransferState.RUNNING);
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", replicas.id(), live.getId());
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), gone.getId());
+
+        recovery.recover();
+
+        assertThat(runs.findById(live.getId()).orElseThrow().getState()).isEqualTo(TransferState.RUNNING);
+        assertThat(runs.findById(gone.getId()).orElseThrow().getState()).isEqualTo(TransferState.INTERRUPTED);
+    }
+
+    @Test
+    void stoppingARunThatExecutesElsewhereRecordsTheRequestOnTheRunUntilItIsResumed() throws Exception {
+        TransferRunEntity run = preview(TransferMode.MOVE, "elsewhere");
+        state(run, TransferState.RUNNING);
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), run.getId());
+
+        mvc.perform(post("/api/v1/clusters/{c}/transfers/runs/{r}/stop", source, run.getId()))
+                .andExpect(status().isOk());
+
+        assertThat(runs.existsByIdAndStopRequestedAtIsNotNull(run.getId()))
+                .as("a stop whose signal is lost is still on the row")
+                .isTrue();
+        state(run, TransferState.INTERRUPTED);
+        assertThat(runs.transition(run.getId(), TransferState.RESUMABLE, TransferState.RUNNING))
+                .isOne();
+        assertThat(runs.existsByIdAndStopRequestedAtIsNotNull(run.getId()))
+                .as("the resumed segment starts without it")
+                .isFalse();
+    }
+
     // ---- API refusals --------------------------------------------------------------
 
     private ResultActions execute(UUID cluster, TransferRunEntity run, String body) throws Exception {
@@ -294,6 +333,17 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
                         preview(TransferMode.COPY, "orders").getId()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.type").value(endsWith("transfer-run-not-running")));
+    }
+
+    @Test
+    void acceptsTheStopOfARunThatExecutesOnAnotherReplica() throws Exception {
+        TransferRunEntity run = preview(TransferMode.COPY, "elsewhere");
+        state(run, TransferState.RUNNING);
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), run.getId());
+
+        mvc.perform(post("/api/v1/clusters/{c}/transfers/runs/{r}/stop", source, run.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("RUNNING"));
     }
 
     @Test

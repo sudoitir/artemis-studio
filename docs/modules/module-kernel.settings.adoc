@@ -26,6 +26,9 @@ _Others_
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.SessionAuthentication` (in Security)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.a.k.r.StudioBus` (in Replicas)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.ReplicaSignal` 
 |===

@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.FeatureDisabledAdvice;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
@@ -55,6 +56,7 @@ class SettingsDisabledFeatureTest {
                 audit,
                 mock(ActorResolver.class),
                 registry,
+                mock(StudioBus.class),
                 List.of(contribution("scrape", SCRAPE_KEY), contribution("rr", RR_KEY)));
     }
 
@@ -107,7 +109,8 @@ class SettingsDisabledFeatureTest {
 
     @Test
     void anUnknownKeyIsStillAnInvalidValue() {
-        assertThatThrownBy(() -> settings(false).put("bogus.key", "1")).isInstanceOf(IllegalArgumentException.class);
+        var settings = settings(false);
+        assertThatThrownBy(() -> settings.put("bogus.key", "1")).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

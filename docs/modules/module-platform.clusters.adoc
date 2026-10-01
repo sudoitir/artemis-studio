@@ -14,18 +14,21 @@ _Services_
 * `i.g.s.a.p.c.ClusterService`
 * `i.g.s.a.p.c.EnvironmentService`
 
+_Event listeners_
+
+* `i.g.s.a.p.c.ClusterEnvironmentIndex`
+* `i.g.s.a.p.c.ClusterOwnership`
+
 _Others_
 
 * `i.g.s.a.p.c.BrokerCommands`
 * `i.g.s.a.p.c.BrokerNodeMapper` (via `i.g.s.a.p.c.BrokerNodeMapperImpl`)
 * `i.g.s.a.p.c.ClusterDirectory`
-* `i.g.s.a.p.c.ClusterEnvironmentIndex`
 * `i.g.s.a.p.c.ClusterLock`
 * `i.g.s.a.p.c.ClusterSecrets`
 * `i.g.s.a.p.c.ClusterViewMapper` (via `i.g.s.a.p.c.ClusterViewMapperImpl`)
 * `i.g.s.a.p.c.HaStateEvaluator`
 * `i.g.s.a.p.c.NodeStateRecorder`
-* `i.g.s.a.p.c.SplitBrainRegistry`
 * `i.g.s.a.p.c.StudioInfo`
 * `i.g.s.a.p.c.TopologyDiscovery`
 |Bean references
@@ -34,13 +37,23 @@ _Others_
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.SettingsService` (in Settings)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
 * `i.g.s.a.k.s.SecretVault` (in Security)
+* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.a.k.r.HaProperties` (in Replicas)
 * `i.g.s.a.p.b.BrokerClientFactory` (in Broker connectivity)
 * `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
-* `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
 * `i.g.s.a.k.s.ScopedGrants` (in Security)
 * `i.g.s.a.k.p.StudioVersion` (in Plugin contract)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
+|Events listened to
+|* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.a.k.r.DrainStarted` 
+* `i.g.s.a.p.c.ClusterRegistered` 
+* `i.g.s.a.k.r.ReplicaSignal` 
 |===

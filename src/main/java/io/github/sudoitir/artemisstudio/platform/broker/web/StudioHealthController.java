@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.NodeCallHealth;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallHealth.Calls;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeDirectory;
+import io.github.sudoitir.artemisstudio.platform.broker.ReplicaDirectory;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -18,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -27,9 +29,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * {@code GET /api/v1/system/health}: Studio's own jobs, broker calls, connection pool and event streams
- * in one read (operational-health spec). Built from what those already recorded; it calls no broker and
- * keeps no state. A figure that cannot be read is {@code null}, never zero.
+ * {@code GET /api/v1/system/health}: Studio's own jobs, broker calls, connection pool, event streams
+ * and replicas in one read (operational-health spec). Built from what those already recorded; it calls no
+ * broker and keeps no state. A figure that cannot be read is {@code null}, never zero. The jobs, node
+ * figures, pool and stream clients are this replica's own view, and the replicas list says which one that is.
  */
 @RestController
 @RequiredArgsConstructor
@@ -39,6 +42,7 @@ public class StudioHealthController {
 
     private final JobStatuses jobs;
     private final NodeDirectory nodes;
+    private final ReplicaDirectory replicas;
     private final NodeCallHealth calls;
     private final NodeCallLimiter limiter;
     private final MeterRegistry meters;
@@ -117,15 +121,75 @@ public class StudioHealthController {
             @Schema(nullable = true) Integer max,
             @Schema(nullable = true) Integer pending) {}
 
+    /** GONE is derived: the replica never recorded a stop and has not sent a heartbeat within the ttl. */
+    public enum ReplicaState {
+        STARTING,
+        READY,
+        DRAINING,
+        STOPPED,
+        GONE
+    }
+
+    public record OwnedCluster(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(requiredMode = REQUIRED) String name) {}
+
+    public record ReplicaHealth(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(requiredMode = REQUIRED) String host,
+            @Schema(requiredMode = REQUIRED) String version,
+            @Schema(requiredMode = REQUIRED) ReplicaState state,
+            @Schema(requiredMode = REQUIRED) Instant startedAt,
+
+            @Schema(requiredMode = REQUIRED, description = "How long ago it last checked in, by database time.")
+            long heartbeatAgeMillis,
+
+            @Schema(requiredMode = REQUIRED, description = "The clusters it runs broker duties for.")
+            List<OwnedCluster> ownedClusters,
+
+            @Schema(requiredMode = REQUIRED, description = "The replica answering this request.")
+            boolean self,
+
+            @Schema(requiredMode = REQUIRED, description = "The replica is gone or draining.")
+            boolean degraded) {
+
+        static ReplicaHealth of(ReplicaDirectory.KnownReplica r, UUID self) {
+            ReplicaState state = r.gone()
+                    ? ReplicaState.GONE
+                    : ReplicaState.valueOf(r.state().toUpperCase(Locale.ROOT));
+            return new ReplicaHealth(
+                    r.id(),
+                    r.host(),
+                    r.version(),
+                    state,
+                    r.startedAt(),
+                    r.heartbeatAgeMillis(),
+                    r.clusters().stream()
+                            .map(c -> new OwnedCluster(c.id(), c.name()))
+                            .toList(),
+                    r.id().equals(self),
+                    state == ReplicaState.GONE || state == ReplicaState.DRAINING);
+        }
+    }
+
     public record StudioHealth(
             @Schema(requiredMode = REQUIRED) List<JobHealth> jobs,
             @Schema(requiredMode = REQUIRED) List<NodeHealth> nodes,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Every replica seen in the last ten minutes, including stopped and gone ones.")
+            List<ReplicaHealth> replicas,
+
+            @Schema(requiredMode = REQUIRED, description = "The replica that answered; node figures are its view.")
+            UUID answeringReplica,
+
             @Schema(requiredMode = REQUIRED) PoolHealth dbPool,
 
             @Schema(nullable = true, description = "Event stream clients connected to this instance.")
             Integer streamClients,
 
-            @Schema(requiredMode = REQUIRED, description = "Any job or node is degraded.")
+            @Schema(requiredMode = REQUIRED, description = "Any job, node or replica is degraded.")
             boolean degraded) {}
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
@@ -141,9 +205,14 @@ public class StudioHealthController {
                 gauge("hikaricp.connections.idle"),
                 gauge("hikaricp.connections.max"),
                 gauge("hikaricp.connections.pending"));
+        UUID self = replicas.self();
+        List<ReplicaHealth> replicaViews =
+                replicas.replicas().stream().map(r -> ReplicaHealth.of(r, self)).toList();
         boolean degraded = jobViews.stream().anyMatch(JobHealth::degraded)
-                || nodeViews.stream().anyMatch(NodeHealth::degraded);
-        return new StudioHealth(jobViews, nodeViews, pool, gauge("studio.stream.clients"), degraded);
+                || nodeViews.stream().anyMatch(NodeHealth::degraded)
+                || replicaViews.stream().anyMatch(ReplicaHealth::degraded);
+        return new StudioHealth(
+                jobViews, nodeViews, replicaViews, self, pool, gauge("studio.stream.clients"), degraded);
     }
 
     private NodeHealth nodeHealth(NodeDirectory.KnownNode node) {

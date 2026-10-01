@@ -12,8 +12,10 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyReleased;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,6 +61,7 @@ public class CaptureReconciler {
     private final ClusterDirectory nodes;
     private final BrokerConnections connections;
     private final ClusterLock clusterLock;
+    private final ClusterOwnership ownership;
     private final CaptureTap tap;
     private final CaptureConsumer consumers;
     private final CaptureBus bus;
@@ -102,10 +105,22 @@ public class CaptureReconciler {
         reconcile();
     }
 
-    /** Registered with {@code JobScheduler}. One pass per cluster that captures anything. */
+    /** A cluster this replica no longer owns: close its drains so the new owner's can start. */
+    @org.springframework.context.event.EventListener
+    void onDutyReleased(ClusterDutyReleased released) {
+        Thread.startVirtualThread(() -> consumers.stopCluster(released.clusterId()));
+    }
+
+    /** Registered with {@code JobScheduler}. One pass per owned cluster that captures anything. */
     public void reconcile() {
         for (UUID clusterId : capturingClusters()) {
-            reconcileNow(clusterId);
+            if (ownership.owns(clusterId)) {
+                reconcileNow(clusterId);
+            } else {
+                // A pass that raced the release may have started a drain after it: close it here,
+                // or the capture queue's one consumer stays taken and the new owner's drain is refused.
+                consumers.stopCluster(clusterId);
+            }
         }
     }
 

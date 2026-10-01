@@ -250,7 +250,6 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Artemis Core / JMS client: the second broker channel (activemq.notifications,

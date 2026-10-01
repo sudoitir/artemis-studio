@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationEntity;
@@ -19,6 +20,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncod
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import java.time.Instant;
@@ -94,6 +96,15 @@ class RrSamplerTest {
     @SuppressWarnings("unchecked")
     private static Fixture samplerOver(
             List<BrokerNodeEntity> nodes, RrExpectationEntity expectation, CoreMessageTransport transport) {
+        return samplerOver(nodes, expectation, transport, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Fixture samplerOver(
+            List<BrokerNodeEntity> nodes,
+            RrExpectationEntity expectation,
+            CoreMessageTransport transport,
+            boolean owned) {
         RrExpectationRepository expectations = mock(RrExpectationRepository.class);
         when(expectations.findByEnabledTrue()).thenReturn(List.of(expectation));
 
@@ -125,9 +136,21 @@ class RrSamplerTest {
         var captureCoverage = mock(io.github.sudoitir.artemisstudio.feature.sql.CaptureCoverage.class);
         when(coverage.getIfAvailable()).thenReturn(captureCoverage);
 
+        ClusterOwnership ownership = mock(ClusterOwnership.class);
+        when(ownership.owns(CLUSTER)).thenReturn(owned);
+
         return new Fixture(
                 new RrSampler(
-                        expectations, nodeRepo, transport, provider, resolver, clocks, queueTargets, health, coverage),
+                        expectations,
+                        nodeRepo,
+                        ownership,
+                        transport,
+                        provider,
+                        resolver,
+                        clocks,
+                        queueTargets,
+                        health,
+                        coverage),
                 seen,
                 health);
     }
@@ -185,6 +208,19 @@ class RrSamplerTest {
                         "core://two:61616 rr.request",
                         "core://two:61616 rr.reply.a",
                         "core://two:61616 rr.reply.b");
+    }
+
+    @Test
+    void aClusterThisReplicaDoesNotOwnIsNotSampled() {
+        RrExpectationEntity expectation =
+                saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false));
+        CoreMessageTransport transport = mock(CoreMessageTransport.class);
+        Fixture f = samplerOver(List.of(node("broker-1", "core://broker-1:61616")), expectation, transport, false);
+
+        f.sampler().tick();
+
+        verifyNoInteractions(transport);
+        assertThat(f.health().forExpectation(expectation.getId())).isEmpty();
     }
 
     @Test

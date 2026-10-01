@@ -7,6 +7,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import io.github.sudoitir.artemisstudio.app.StudioFeatures;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -18,7 +19,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -28,6 +31,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportSelector;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.modulith.core.ApplicationModule;
+import org.springframework.modulith.core.JavaPackage;
 import org.springframework.modulith.test.ModuleTestExecution;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -56,6 +60,16 @@ public abstract class ModuleIntegrationTest {
     /** Background scraping would call mocked broker beans; no module test relies on it. */
     @MockitoBean
     ScrapeScheduler scrapeScheduler;
+
+    /** The module under test owns every cluster; every cached context is a replica of the same database. */
+    @MockitoBean
+    protected ClusterOwnership clusterOwnership;
+
+    @BeforeEach
+    void ownEveryCluster() {
+        // doReturn, not when(...): the bus thread may call the mock's listener while this stubs it.
+        Mockito.doReturn(true).when(clusterOwnership).owns(ArgumentMatchers.any());
+    }
 
     @Autowired
     ConfigurableApplicationContext context;
@@ -103,7 +117,7 @@ public abstract class ModuleIntegrationTest {
                         execution.getModules().getSharedModules().stream())
                 .flatMap(modules -> modules)
                 .map(ApplicationModule::getBasePackage)
-                .map(basePackage -> basePackage.getName())
+                .map(JavaPackage::getName)
                 .collect(Collectors.toSet());
     }
 

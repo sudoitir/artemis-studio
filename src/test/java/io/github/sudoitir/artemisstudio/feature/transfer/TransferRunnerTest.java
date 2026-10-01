@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -25,6 +26,7 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Trans
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -56,6 +58,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -69,6 +73,7 @@ class TransferRunnerTest {
     private static final UUID RUN = UUID.randomUUID();
     private static final UUID SRC_CLUSTER = UUID.randomUUID();
     private static final UUID TGT_CLUSTER = UUID.randomUUID();
+    private static final UUID REPLICA = UUID.randomUUID();
     private static final int BATCH = 2;
 
     private final JsonMapper json = JsonMapper.builder().build();
@@ -87,6 +92,7 @@ class TransferRunnerTest {
     private SseHub sse;
     private SettingsService settings;
     private BackgroundRuns background;
+    private ReplicaRegistry replicas;
     private ClusterNode sourceNode;
     private ClusterNode targetNode;
     private JolokiaBrokerClient client;
@@ -110,6 +116,7 @@ class TransferRunnerTest {
         sse = mock(SseHub.class);
         settings = mock(SettingsService.class);
         background = mock(BackgroundRuns.class);
+        replicas = mock(ReplicaRegistry.class);
         sourceNode = mock(ClusterNode.class);
         targetNode = mock(ClusterNode.class);
         client = mock(JolokiaBrokerClient.class);
@@ -130,6 +137,9 @@ class TransferRunnerTest {
         when(settings.intValue(TransferSettings.MESSAGES_PER_SECOND)).thenReturn(1_000_000);
         when(settings.intValue(TransferSettings.CAPACITY_THRESHOLD_PERCENT)).thenReturn(90);
         when(settings.duration(TransferSettings.CAPACITY_WAIT)).thenReturn(Duration.ofMinutes(1));
+        when(replicas.id()).thenReturn(REPLICA);
+        when(replicas.heartbeatFresh()).thenReturn(true);
+        when(runs.fence(RUN, REPLICA)).thenReturn(1);
         when(runs.findById(RUN)).thenAnswer(call -> Optional.ofNullable(current));
         doAnswer(call -> {
                     ((Runnable) call.getArgument(2)).run();
@@ -153,7 +163,9 @@ class TransferRunnerTest {
                 sse,
                 settings,
                 background,
-                json);
+                json,
+                replicas,
+                new TransactionTemplate(mock(PlatformTransactionManager.class)));
     }
 
     private TransferRunEntity current;
@@ -277,6 +289,52 @@ class TransferRunnerTest {
 
         assertThat(runner.requestStop(RUN)).isTrue();
         assertThat(runner.requestStop(UUID.randomUUID())).isFalse();
+    }
+
+    // ---- a run that was taken over --------------------------------------------
+
+    @Test
+    void aRunRecoveryInterruptedWhileItExecutedIsNotOverwrittenAndStopsActing() throws Exception {
+        copyOfAll(5L).attachAudit(11L, 12L);
+        when(audit.byId(11L)).thenReturn(Optional.of(mock(AuditEvent.class)));
+        relaying(relayed(3, 300, 1L, 2L, 3L), relayed(2, 200, 4L, 5L), empty());
+        // Recovery marked the run interrupted while the first batch was relaying: the fence finds it so.
+        when(runs.fence(RUN, REPLICA)).thenReturn(0);
+
+        execute();
+
+        verify(link, times(1)).relay(anyInt(), any());
+        verify(runs, never()).save(any());
+        verify(audit, never()).finish(any(), anyBoolean(), anyLong(), any(), any());
+        verify(sse, never()).publish(any(), anyString());
+    }
+
+    @Test
+    void aReplicaWhoseHeartbeatLapsedStopsBeforeTheNextBatch() throws Exception {
+        copyOfAll(5L).attachAudit(11L, 12L);
+        when(audit.byId(11L)).thenReturn(Optional.of(mock(AuditEvent.class)));
+        relaying(relayed(3, 300, 1L, 2L, 3L), empty());
+        when(replicas.heartbeatFresh()).thenReturn(false);
+
+        execute();
+
+        verify(link, never()).relay(anyInt(), any());
+        verify(runs, never()).save(any());
+        verify(audit, never()).finish(any(), anyBoolean(), anyLong(), any(), any());
+    }
+
+    @Test
+    void aStopOnTheRunsRowStopsItBeforeTheNextBatchWhateverTheSignalDid() throws Exception {
+        copyOfAll(5L);
+        relaying(relayed(3, 300, 1L, 2L, 3L), empty());
+        when(runs.existsByIdAndStopRequestedAtIsNotNull(RUN)).thenReturn(true);
+
+        TransferRunEntity run = execute();
+
+        assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
+        assertThat(run.getLastError()).isEqualTo("Stopped by the operator.");
+        verify(link, never()).relay(anyInt(), any());
+        verify(background).requestStop(RUN);
     }
 
     // ---- copy ----------------------------------------------------------------
@@ -409,6 +467,19 @@ class TransferRunnerTest {
         assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
         assertThat(run.getLastError()).isEqualTo("Stopped by the operator.");
         verify(link, never()).relay(anyInt(), any());
+    }
+
+    @Test
+    void aStopFromStudiosOwnShutdownEndsTheSegmentAsInterrupted() {
+        copyOfAll(0L);
+        when(background.stopRequested(RUN)).thenReturn(true);
+        when(background.stoppedForShutdown(RUN)).thenReturn(true);
+
+        TransferRunEntity run = execute();
+
+        assertThat(run.getState()).isEqualTo(TransferState.INTERRUPTED);
+        assertThat(run.getState().resumable()).isTrue();
+        assertThat(run.getLastError()).isEqualTo(TransferRecovery.INTERRUPTED);
     }
 
     @Test
@@ -888,7 +959,7 @@ class TransferRunnerTest {
 
     private TransferRunEntity returning() {
         TransferRunEntity run = moveAcross(SelectionKind.ALL, null);
-        run.begin(TransferState.RETURNING, "alice", null, Instant.now());
+        run.begin(TransferState.RETURNING, "alice", null, null, Instant.now());
         return run;
     }
 

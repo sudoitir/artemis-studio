@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageCaptureNodeRepository;
@@ -20,6 +21,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.time.Instant;
 import java.util.List;
@@ -55,6 +57,7 @@ class CaptureReconcilerTest {
     private AuditService audit;
     private BrokerNodeEntity nodeEntity;
     private BrokerConnections connections;
+    private ClusterOwnership ownership;
 
     @BeforeEach
     void setUp() {
@@ -63,6 +66,8 @@ class CaptureReconcilerTest {
         nodes = mock(ClusterDirectory.class);
         connections = mock(BrokerConnections.class);
         ClusterLock lock = mock(ClusterLock.class);
+        ownership = mock(ClusterOwnership.class);
+        when(ownership.owns(CLUSTER)).thenReturn(true);
         tap = mock(CaptureTap.class);
         consumers = mock(CaptureConsumer.class);
         CaptureBus bus = mock(CaptureBus.class);
@@ -97,6 +102,7 @@ class CaptureReconcilerTest {
                 nodes,
                 connections,
                 lock,
+                ownership,
                 tap,
                 consumers,
                 bus,
@@ -114,6 +120,17 @@ class CaptureReconcilerTest {
 
         verify(tap).install(any(), eq(INSTANCE), any());
         verify(consumers).start(any());
+    }
+
+    @Test
+    void doesNotVisitAClusterThisReplicaDoesNotOwn() throws Exception {
+        when(ownership.owns(CLUSTER)).thenReturn(false);
+
+        reconciler.reconcile();
+
+        verifyNoInteractions(tap);
+        verify(consumers).stopCluster(CLUSTER);
+        verify(consumers, never()).start(any());
     }
 
     @Test
@@ -187,13 +204,13 @@ class CaptureReconcilerTest {
                 })
                 .doNothing()
                 .when(tap)
-                .remove(eq(failing), eq(INSTANCE), eq(WANTED));
+                .remove(failing, INSTANCE, WANTED);
 
         // The clean second node must not drop the cluster the first still has an orphan on.
         reconciler.sweepOnStartup();
         reconciler.reconcile();
 
-        verify(tap, times(2)).remove(eq(failing), eq(INSTANCE), eq(WANTED));
+        verify(tap, times(2)).remove(failing, INSTANCE, WANTED);
     }
 
     @Test
@@ -206,7 +223,7 @@ class CaptureReconcilerTest {
         reconciler.sweepOnStartup();
         reconciler.reconcile();
 
-        verify(tap).remove(eq(unanswering), eq(INSTANCE), eq(WANTED));
+        verify(tap).remove(unanswering, INSTANCE, WANTED);
     }
 
     /** The first node's client, which reports {@link #WANTED} as an orphan; the second reports nothing. */
@@ -245,7 +262,7 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void aDivertRemovedOutOfBandIsReinstalledEvenWhileItsDrainIsRunning() throws Exception {
+    void aDivertRemovedOutOfBandIsReinstalledEvenWhileItsDrainIsRunning() {
         // The drain is still attached to its queue, but the divert feeding it is gone: capture
         // would report ACTIVE while recording nothing.
         when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of());
@@ -258,7 +275,7 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void aRefusedTapIsRecordedOnceAndNotRetriedEveryPass() throws Exception {
+    void aRefusedTapIsRecordedOnceAndNotRetriedEveryPass() {
         when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of());
         when(tap.install(any(), eq(INSTANCE), any()))
                 .thenThrow(new CaptureRefusedException("the filter is not valid selector syntax", null));
@@ -272,7 +289,7 @@ class CaptureReconcilerTest {
     }
 
     @Test
-    void reinstallRemovesTheSubscriptionsTapsAndInstallsThemAgain() throws Exception {
+    void reinstallRemovesTheSubscriptionsTapsAndInstallsThemAgain() {
         // Installed before the reinstall; gone once it has removed them.
         when(tap.installedNames(any(), eq(INSTANCE)))
                 .thenReturn(List.of(WANTED))

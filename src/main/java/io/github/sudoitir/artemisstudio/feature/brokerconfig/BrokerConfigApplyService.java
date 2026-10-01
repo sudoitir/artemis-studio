@@ -40,7 +40,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -92,7 +91,6 @@ public class BrokerConfigApplyService {
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final ClusterLock lock;
-    private final SplitBrainRegistry splitBrain;
     private final ClusterSecrets secrets;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
@@ -233,7 +231,7 @@ public class BrokerConfigApplyService {
 
     private BrokerConfigApplyOutcome run(UUID clusterId, BrokerConfigApplyRequest request) {
         Prepared p = prepare(clusterId, request);
-        preflight(clusterId, p);
+        preflight(p);
         requireRunnable(p, request);
         if (p.plan.stepCount() == 0) {
             return nothingToDo(clusterId, p, request);
@@ -613,7 +611,7 @@ public class BrokerConfigApplyService {
      *       loses.
      * </ul>
      */
-    private void preflight(UUID clusterId, Prepared p) {
+    private void preflight(Prepared p) {
         List<String> notLive = p.plan.nodes().stream()
                 .filter(NodePlan::readable)
                 .filter(n -> !n.steps().isEmpty())
@@ -629,7 +627,7 @@ public class BrokerConfigApplyService {
         }
         List<String> unstable = p.nodes.values().stream()
                 .filter(n -> n.getArtemisNodeId() != null)
-                .filter(n -> splitBrain.statusFor(clusterId, n.getArtemisNodeId()) != SplitBrainStatus.NONE)
+                .filter(n -> n.getSplitBrain() != SplitBrainStatus.NONE)
                 .map(ClusterNode::getName)
                 .distinct()
                 .toList();

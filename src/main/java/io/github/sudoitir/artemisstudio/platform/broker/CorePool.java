@@ -181,6 +181,11 @@ public class CorePool {
                 .sum();
     }
 
+    /** The clusters this holds pools for. */
+    Set<UUID> clusterIds() {
+        return Set.copyOf(keysByCluster.keySet());
+    }
+
     /** Closes and drops every pool for a removed cluster. Wired into {@code ClusterService.delete}. */
     public void forget(UUID clusterId) {
         Set<String> keys = keysByCluster.remove(clusterId);

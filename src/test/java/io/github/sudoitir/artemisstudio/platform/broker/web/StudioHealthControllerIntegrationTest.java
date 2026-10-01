@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
@@ -16,12 +17,15 @@ import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.B
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
@@ -45,8 +49,15 @@ class StudioHealthControllerIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     NodeCallHealth calls;
 
+    @Autowired
+    ReplicaRegistry replicas;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
     private MockMvc mvc;
     private UUID clusterId;
+    private final List<UUID> replicaRows = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -55,6 +66,7 @@ class StudioHealthControllerIntegrationTest extends PostgresIntegrationTest {
 
     @AfterEach
     void cleanUp() {
+        replicaRows.forEach(id -> jdbc.update("DELETE FROM studio_replica WHERE id = ?", id));
         if (clusterId != null) {
             clusters.deleteById(clusterId);
         }
@@ -92,5 +104,53 @@ class StudioHealthControllerIntegrationTest extends PostgresIntegrationTest {
                         .value(org.hamcrest.Matchers.contains(
                                 org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("hunter2")))))
                 .andExpect(jsonPath("$.dbPool.max").isNumber());
+    }
+
+    private void replica(String state, String stopped, String heartbeatAge) {
+        UUID id = UUID.randomUUID();
+        replicaRows.add(id);
+        jdbc.update(
+                "INSERT INTO studio_replica (started_at, heartbeat_at, stopped_at, host, version, state, id)"
+                        + " VALUES (now() - interval '1 day', now() - ?::interval, " + stopped
+                        + ", ?, 'test', ?, ?)",
+                heartbeatAge,
+                "host-" + state + "-" + heartbeatAge.replace(' ', '-'),
+                state,
+                id);
+    }
+
+    @Test
+    void replicasAreListedWithTheirClustersTheAnsweringOneIsMarkedAndAGoneOneIsDegraded() throws Exception {
+        clusterId = clusters.save(new ClusterEntity("owned-" + UUID.randomUUID(), null, null))
+                .getId();
+        jdbc.update(
+                "INSERT INTO cluster_lease (expires_at, replica_id, cluster_id) VALUES (now() + interval '1 minute', ?, ?)",
+                replicas.id(),
+                clusterId);
+        replica("ready", "NULL", "1 minute");
+        replica("draining", "NULL", "1 second");
+        replica("stopped", "now()", "2 minutes");
+        replica("ready", "NULL", "1 hour");
+
+        mvc.perform(get("/api/v1/system/health").with(authentication(callerWith(SettingsPermissions.SETTINGS_READ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answeringReplica").value(replicas.id().toString()))
+                .andExpect(jsonPath("$.degraded").value(true))
+                .andExpect(jsonPath("$.replicas[?(@.self==true)].id")
+                        .value(org.hamcrest.Matchers.contains(replicas.id().toString())))
+                .andExpect(jsonPath("$.replicas[?(@.self==true)].ownedClusters[0].id")
+                        .value(org.hamcrest.Matchers.contains(clusterId.toString())))
+                .andExpect(jsonPath("$.replicas[?(@.host=='host-ready-1-minute')].state")
+                        .value(org.hamcrest.Matchers.contains("GONE")))
+                .andExpect(jsonPath("$.replicas[?(@.host=='host-ready-1-minute')].degraded")
+                        .value(org.hamcrest.Matchers.contains(true)))
+                .andExpect(jsonPath("$.replicas[?(@.host=='host-draining-1-second')].state")
+                        .value(org.hamcrest.Matchers.contains("DRAINING")))
+                .andExpect(jsonPath("$.replicas[?(@.host=='host-stopped-2-minutes')].state")
+                        .value(org.hamcrest.Matchers.contains("STOPPED")))
+                .andExpect(jsonPath("$.replicas[?(@.host=='host-stopped-2-minutes')].degraded")
+                        .value(org.hamcrest.Matchers.contains(false)))
+                .andExpect(
+                        jsonPath("$.replicas[?(@.host=='host-ready-1-hour')]").isEmpty());
     }
 }

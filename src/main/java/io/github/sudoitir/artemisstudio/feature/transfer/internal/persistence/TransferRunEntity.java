@@ -142,6 +142,10 @@ public class TransferRunEntity {
     @Column(name = "operator_id")
     private UUID operatorId;
 
+    /** The replica executing the current segment: recovery leaves the run alone while it is alive (ADR-0152). */
+    @Column(name = "replica_id")
+    private UUID replicaId;
+
     @Column(name = "override_cap", nullable = false)
     private boolean overrideCap;
 
@@ -158,6 +162,14 @@ public class TransferRunEntity {
     /** The {@code broker.xml} that would have prevented {@link #lastError}, where there is one. */
     @Column(name = "error_snippet")
     private String errorSnippet;
+
+    /**
+     * When the operator asked to stop the segment in progress. Set only by
+     * {@link TransferRunRepository#requestStop} and cleared by {@link TransferRunRepository#transition}, never
+     * by the runner's own saves, which would otherwise overwrite it with what they loaded.
+     */
+    @Column(name = "stop_requested_at", updatable = false)
+    private Instant stopRequestedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -229,8 +241,9 @@ public class TransferRunEntity {
     }
 
     /** A segment begins: the first execute, a resume, or a return. */
-    public void begin(TransferState state, String username, UUID operatorId, Instant now) {
+    public void begin(TransferState state, String username, UUID operatorId, UUID replicaId, Instant now) {
         this.state = state;
+        this.replicaId = replicaId;
         this.username = username;
         this.operatorId = operatorId;
         this.lastError = null;

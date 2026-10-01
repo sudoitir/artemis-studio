@@ -11,6 +11,7 @@
 _Event listeners_
 
 * `i.g.s.a.f.s.CaptureReconciler`
+* `i.g.s.a.f.s.MessageIndexCapture`
 
 _Configuration properties_
 
@@ -27,7 +28,6 @@ _Others_
 * `i.g.s.a.f.s.CaptureLoss`
 * `i.g.s.a.f.s.CaptureTap`
 * `i.g.s.a.f.s.IndexQueryExecutor`
-* `i.g.s.a.f.s.MessageIndexCapture`
 * `i.g.s.a.f.s.MessageIndexCoverage`
 * `i.g.s.a.f.s.MessageIndexPartitionMaintainer`
 * `i.g.s.a.f.s.MessageIndexStore`
@@ -47,6 +47,7 @@ _Others_
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
 * `i.g.s.a.p.c.ClusterLock` (in Clusters)
+* `i.g.s.a.p.c.ClusterOwnership` (in Clusters)
 * `i.g.s.a.k.s.StudioInstance` (in Settings)
 * `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.f.q.DivertOperations` (in Queues)
@@ -64,5 +65,7 @@ _Others_
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.p.g.ClearViewAudit` (in Data governance)
 |Events listened to
-|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+|* `i.g.s.a.p.c.ClusterDutyReleased` 
+* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `i.g.s.a.p.c.ClusterDutyReleased` 
 |===

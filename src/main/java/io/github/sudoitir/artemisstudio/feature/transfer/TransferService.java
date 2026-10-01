@@ -20,6 +20,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
@@ -41,7 +42,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ServingNodes;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
@@ -89,7 +89,6 @@ public class TransferService {
     private final TransferRunner runner;
     private final TransferNodes nodes;
     private final ClusterDirectory directory;
-    private final SplitBrainRegistry splitBrain;
     private final CapabilityLedger capabilities;
     private final QueueLocator locator;
     private final MessageOperations messages;
@@ -101,6 +100,7 @@ public class TransferService {
     private final AuditService audit;
     private final SettingsService settings;
     private final ObjectMapper json;
+    private final ReplicaRegistry replicas;
 
     // ---- preview -----------------------------------------------------------
 
@@ -156,8 +156,7 @@ public class TransferService {
                         sameCluster,
                         targetLive,
                         TransferNodes.backup(target),
-                        splitBrain.statusFor(request.targetClusterId(), target.getArtemisNodeId())
-                                == SplitBrainStatus.CRITICAL,
+                        target.getSplitBrain() == SplitBrainStatus.CRITICAL,
                         threshold),
                 targetAddress,
                 request.targetQueue()));
@@ -471,6 +470,7 @@ public class TransferService {
                 TransferState.RUNNING,
                 operator.actor().displayName(),
                 operator.principal().userId(),
+                replicas.id(),
                 Instant.now());
         run.overrideCap(request.override());
         beginAudit(run, operator, AUDIT_ACTION, auditParams(run));
@@ -483,9 +483,16 @@ public class TransferService {
     public TransferRunView stop(UUID clusterId, UUID runId) {
         TransferRunEntity run = load(clusterId, runId);
         requireRunPermissions(run);
-        if (!runner.requestStop(runId)) {
+        boolean here = runner.requestStop(runId);
+        if (!here && !run.getState().active()) {
             throw new ConflictException(
                     "transfer-run-not-running", "This transfer is not running, so there is nothing to stop.");
+        }
+        // Recorded on the run, so a signal that is lost cannot leave it running (ADR-0152).
+        runs.requestStop(runId, Instant.now());
+        if (!here) {
+            // Executing on another replica: every replica hears it at once, the executing one acts.
+            runner.signalStop(runId);
         }
         Operator operator = handoff.capture();
         AuditEvent event = childOf(
@@ -516,6 +523,7 @@ public class TransferService {
                 TransferState.RUNNING,
                 operator.actor().displayName(),
                 operator.principal().userId(),
+                replicas.id(),
                 Instant.now());
         TransferRunEntity resumed = run;
         childOf(previous, () -> {
@@ -547,6 +555,7 @@ public class TransferService {
                 TransferState.RETURNING,
                 operator.actor().displayName(),
                 operator.principal().userId(),
+                replicas.id(),
                 Instant.now());
         TransferRunEntity returning = run;
         AuditEvent event = childOf(

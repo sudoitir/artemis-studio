@@ -130,6 +130,21 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         assertThat(batchAddresses).allSatisfy(addresses -> assertThat(addresses).hasSize(1));
     }
 
+    @Test
+    void stoppingAClusterClosesItsDrainsAndLeavesOthersRunning() throws Exception {
+        String queue = "capture.cluster." + UUID.randomUUID();
+        consumer.start(spec(queue, "ORDER.IN"));
+        assertThat(consumer.isDraining(nodeId, "tap." + queue)).isTrue();
+
+        consumer.stopCluster(UUID.randomUUID());
+        assertThat(consumer.isDraining(nodeId, "tap." + queue))
+                .as("another cluster's stop")
+                .isTrue();
+
+        consumer.stopCluster(clusterId);
+        assertThat(consumer.isDraining(nodeId, "tap." + queue)).isFalse();
+    }
+
     /**
      * A tap on an address that carries a handful of messages an hour would otherwise never reach
      * the acknowledge batch: its copies sat unstored in the drain and unacknowledged on the capture

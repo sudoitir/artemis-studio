@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.diagnostics;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
@@ -50,7 +48,6 @@ import tools.jackson.databind.ObjectMapper;
 public class DiagnosticsService {
 
     static final Duration SNAPSHOT_TTL = Duration.ofMinutes(10);
-    private static final int MAX_SNAPSHOTS = 32;
     private static final String VERSION = "version";
     private static final String STATUS = "status";
     private static final Pattern MASKS = Pattern.compile(Pattern.quote(SecretRedactor.MASK));
@@ -67,7 +64,7 @@ public class DiagnosticsService {
     private final AuditService audit;
     private final ObjectMapper mapper;
     private final Clock clock;
-    private final Cache<UUID, Snapshot> snapshots;
+    private final DiagnosticsSnapshots snapshots;
 
     public DiagnosticsService(
             ObjectProvider<BuildProperties> build,
@@ -81,7 +78,8 @@ public class DiagnosticsService {
             ActorResolver actors,
             AuditService audit,
             ObjectMapper mapper,
-            Clock clock) {
+            Clock clock,
+            DiagnosticsSnapshots snapshots) {
         this.build = build;
         this.settings = settings;
         this.secrets = secrets;
@@ -94,10 +92,7 @@ public class DiagnosticsService {
         this.audit = audit;
         this.mapper = mapper;
         this.clock = clock;
-        this.snapshots = Caffeine.newBuilder()
-                .maximumSize(MAX_SNAPSHOTS)
-                .expireAfterWrite(SNAPSHOT_TTL)
-                .build();
+        this.snapshots = snapshots;
     }
 
     /** One part of a bundle: its text is final and redacted, {@code redactions} counts the masks in it. */
@@ -135,7 +130,7 @@ public class DiagnosticsService {
                 section("logs", "Logs", "logs.txt", DiagnosticsService::logs));
         Snapshot snapshot =
                 new Snapshot(UUID.randomUUID(), actors.resolve().username(), now, now.plus(SNAPSHOT_TTL), sections);
-        snapshots.put(snapshot.id(), snapshot);
+        snapshots.save(snapshot);
         return snapshot;
     }
 
@@ -146,7 +141,7 @@ public class DiagnosticsService {
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.diagnostics.DiagnosticsPermissions).BUNDLE)")
     public Snapshot take(UUID id, List<String> keep) {
         Actor actor = actors.resolve();
-        Snapshot snapshot = snapshots.getIfPresent(id);
+        Snapshot snapshot = snapshots.find(id).orElse(null);
         if (snapshot == null || !snapshot.owner().equals(actor.username())) {
             throw new NotFoundException("Support bundle", id);
         }

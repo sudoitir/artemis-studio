@@ -10,6 +10,7 @@
 _Event listeners_
 
 * `i.g.s.a.p.s.PluginMetrics`
+* `i.g.s.a.p.s.ScrapeScheduler`
 
 _Configuration properties_
 
@@ -25,7 +26,6 @@ _Others_
 * `i.g.s.a.p.s.QueueSnapshotUpsert`
 * `i.g.s.a.p.s.QueueSnapshots`
 * `i.g.s.a.p.s.ScrapeCycle`
-* `i.g.s.a.p.s.ScrapeScheduler`
 * `i.g.s.a.p.s.ScrapeSettings`
 * `i.g.s.a.p.s.StreamSignals`
 * `i.g.s.a.p.s.SweepCursor`
@@ -33,12 +33,14 @@ _Others_
 |* `i.g.s.a.k.s.SettingsService` (in Settings)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.p.c.SplitBrainRegistry` (in Clusters)
-* `i.g.s.a.p.c.ClusterService` (in Clusters)
 * `i.g.s.a.p.c.NodeStateRecorder` (in Clusters)
+* `i.g.s.a.p.c.ClusterOwnership` (in Clusters)
+* `i.g.s.a.p.c.ClusterService` (in Clusters)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 |Events listened to
 |* `i.g.s.a.p.s.ScrapeTierCompleted` 
+* `i.g.s.a.p.c.ClusterDutyAcquired` 
+* `i.g.s.a.p.c.ClusterDutyReleased` 
 |===

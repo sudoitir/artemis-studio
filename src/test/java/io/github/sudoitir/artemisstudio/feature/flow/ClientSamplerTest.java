@@ -26,6 +26,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
@@ -55,6 +56,7 @@ class ClientSamplerTest {
     private final ClusterDirectory directory = mock(ClusterDirectory.class);
     private final BrokerConnections connections = mock(BrokerConnections.class);
     private final ClusterLock lock = mock(ClusterLock.class);
+    private final ClusterOwnership ownership = mock(ClusterOwnership.class);
     private final SettingsService settings = mock(SettingsService.class);
     private final SseHub hub = mock(SseHub.class);
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
@@ -72,7 +74,8 @@ class ClientSamplerTest {
                     ((Runnable) inv.getArgument(2)).run();
                     return true;
                 });
-        sampler = new ClientSampler(store, directory, connections, lock, settings, hub, meters, clock);
+        when(ownership.owns(clusterId)).thenReturn(true);
+        sampler = new ClientSampler(store, directory, connections, lock, ownership, settings, hub, meters, clock);
     }
 
     // ---- fixtures ------------------------------------------------------
@@ -614,6 +617,17 @@ class ClientSamplerTest {
 
         verify(directory).nodes(clusterId);
         verify(lock).runIfHeld(eq(clusterId), eq(ClusterLock.Scope.FLOW_SAMPLE), any(Runnable.class));
+    }
+
+    @Test
+    void aClusterThisReplicaDoesNotOwnIsNotSwept() {
+        UUID other = UUID.randomUUID();
+        when(store.observedClusters(any())).thenReturn(Set.of(clusterId, other));
+
+        sampler.sweepObserved();
+
+        verify(lock).runIfHeld(eq(clusterId), eq(ClusterLock.Scope.FLOW_SAMPLE), any(Runnable.class));
+        verify(lock, never()).runIfHeld(eq(other), any(), any(Runnable.class));
     }
 
     @Test

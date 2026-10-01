@@ -101,12 +101,17 @@ public class BrokerEventService {
                 .toList();
     }
 
-    /** Bounded replay for a reconnecting SSE client (slice 3). */
+    /**
+     * Bounded replay for a reconnecting SSE client: the {@code cap} most recent events after
+     * {@code lastSeq}, oldest first, so the replay runs straight on into live delivery. A client
+     * that missed more is told to resync by the stream.
+     */
     @Transactional(readOnly = true)
     public List<BrokerEventView> since(UUID clusterId, long lastSeq, int cap) {
         return events
-                .findByClusterIdAndSeqGreaterThanOrderBySeqAsc(
+                .findByClusterIdAndSeqGreaterThanOrderBySeqDesc(
                         clusterId, lastSeq, PageRequest.of(0, Math.clamp(cap, 1, 1000)))
+                .reversed()
                 .stream()
                 .map(this::toView)
                 .toList();

@@ -13,6 +13,7 @@ _Others_
 * `i.g.s.a.f.b.BulkRunMapper` (via `i.g.s.a.f.b.BulkRunMapperImpl`)
 |Bean references
 |* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 * `i.g.s.a.f.q.QueueLifecycleService` (in Queues)
 * `i.g.s.a.f.m.MessageService` (in Messages)
 * `i.g.s.a.k.s.OperatorHandoff` (in Security)

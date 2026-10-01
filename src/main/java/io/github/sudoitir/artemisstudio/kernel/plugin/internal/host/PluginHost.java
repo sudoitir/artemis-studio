@@ -27,6 +27,10 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Plugin
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Signer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ValidationReport;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
+import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import jakarta.servlet.ServletContext;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -54,6 +58,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import javax.sql.DataSource;
@@ -88,8 +93,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Slf4j
 public class PluginHost implements SmartLifecycle {
 
-    /** design.md §2: "the previous 3 boots within 15 minutes have no stopped_at" trips safe mode. */
-    private static final int CRASH_LOOP_BOOT_COUNT = 3;
+    /** Three crashes of any replica within 15 minutes trip safe mode (ADR-0152, after design.md §2). */
+    private static final int CRASH_LOOP_CRASH_COUNT = 3;
 
     private static final Duration CRASH_LOOP_WINDOW = Duration.ofMinutes(15);
 
@@ -97,6 +102,7 @@ public class PluginHost implements SmartLifecycle {
     private static final String FAILED = "failed";
     private static final String SUCCEEDED = "succeeded";
     private static final String BOOT_START = "boot-start";
+    private static final String REPLICA_START = "replica-start";
     private static final String LISTENER_THREW = "Plugin lifecycle listener {} threw for plugin '{}'";
 
     private final PluginStore store;
@@ -118,6 +124,8 @@ public class PluginHost implements SmartLifecycle {
     private final PluginProperties properties;
     private final StudioRestart restart;
     private final PluginTrust trust;
+    private final ReplicaRegistry replicas;
+    private final StudioBus bus;
 
     /**
      * One lifecycle operation at a time, Studio-wide (design.md §7: "at most one activation in
@@ -128,7 +136,6 @@ public class PluginHost implements SmartLifecycle {
     private final Semaphore busy = new Semaphore(1);
 
     private volatile boolean running;
-    private volatile Long currentBootId;
     private volatile boolean safeMode;
     private volatile String safeModeReason;
 
@@ -151,7 +158,9 @@ public class PluginHost implements SmartLifecycle {
             PlatformTransactionManager transactionManager,
             PluginProperties properties,
             StudioRestart restart,
-            PluginTrust trust) {
+            PluginTrust trust,
+            ReplicaRegistry replicas,
+            StudioBus bus) {
         this.store = store;
         this.validator = validator;
         this.migrations = migrations;
@@ -171,6 +180,8 @@ public class PluginHost implements SmartLifecycle {
         this.properties = properties;
         this.restart = restart;
         this.trust = trust;
+        this.replicas = replicas;
+        this.bus = bus;
     }
 
     // ---- SmartLifecycle: boot, shutdown, safe mode (design.md §2, task 6.8) -----------------------
@@ -201,8 +212,9 @@ public class PluginHost implements SmartLifecycle {
 
     /**
      * The boot sequence itself, public so a test can trigger it directly instead of waiting for a
-     * real {@code ApplicationReadyEvent} (this session's tests seed {@code studio_boot} rows first
-     * and then call this to prove the crash-loop and safe-mode decisions).
+     * real {@code ApplicationReadyEvent} (this session's tests seed {@code studio_replica} rows first
+     * and then call this to prove the crash-loop and safe-mode decisions). However it ends, this
+     * replica is ready afterwards: the boot sequence is part of what readiness waits for.
      */
     public void runStartupSequence() {
         busy.acquireUninterruptibly();
@@ -210,24 +222,20 @@ public class PluginHost implements SmartLifecycle {
             startup();
         } finally {
             busy.release();
+            replicas.markReady();
         }
     }
 
     private void startup() {
-        jdbc.update("DELETE FROM studio_boot WHERE started_at < now() - interval '1 day'");
-        long bootId =
-                jdbc.queryForObject("INSERT INTO studio_boot (started_at) VALUES (now()) RETURNING id", Long.class);
-        currentBootId = bootId;
-
         boolean forced = properties.safeMode();
-        boolean crashLoop = !forced && isCrashLoop(bootId);
+        boolean crashLoop = !forced && replicas.crashesSince(CRASH_LOOP_WINDOW) >= CRASH_LOOP_CRASH_COUNT;
         if (forced || crashLoop) {
             safeMode = true;
             safeModeReason = forced
                     ? "Safe mode is forced by artemis-studio.plugins.safe-mode=true."
                     : "Studio stopped uncleanly %d times in the last %d minutes; no plugin was started."
-                            .formatted(CRASH_LOOP_BOOT_COUNT, CRASH_LOOP_WINDOW.toMinutes());
-            log.warn("plugin-boot id={} safeMode=true reason=\"{}\"", bootId, safeModeReason);
+                            .formatted(CRASH_LOOP_CRASH_COUNT, CRASH_LOOP_WINDOW.toMinutes());
+            log.warn("plugin-boot replica={} safeMode=true reason=\"{}\"", replicas.id(), safeModeReason);
             return;
         }
         safeMode = false;
@@ -236,20 +244,6 @@ public class PluginHost implements SmartLifecycle {
         failStaleActivatingRows();
         checkCompatibility();
         startActiveRowsAtBoot();
-    }
-
-    private boolean isCrashLoop(long bootId) {
-        List<java.sql.Timestamp> stoppedAts = jdbc.query(
-                """
-                SELECT stopped_at FROM studio_boot
-                WHERE id <> ? AND started_at > now() - ?::interval
-                ORDER BY started_at DESC LIMIT ?
-                """,
-                (rs, rowNum) -> rs.getTimestamp("stopped_at"),
-                bootId,
-                CRASH_LOOP_WINDOW.toMinutes() + " minutes",
-                CRASH_LOOP_BOOT_COUNT);
-        return stoppedAts.size() == CRASH_LOOP_BOOT_COUNT && stoppedAts.stream().allMatch(java.util.Objects::isNull);
     }
 
     /** design.md §4: an {@code activating} row survives only if something else still holds its
@@ -348,16 +342,23 @@ public class PluginHost implements SmartLifecycle {
      * the rest. Studio is already serving before this runs, so a failure here never blocks it.
      */
     private void startActiveRowsAtBoot() {
-        List<PluginInstallEntity> rows = installs.findAll().stream()
-                .filter(e -> STARTS_AT_BOOT.contains(e.status()))
-                .filter(this::trustedForRestart)
-                .toList();
+        startRows(
+                installs.findAll().stream()
+                        .filter(e -> STARTS_AT_BOOT.contains(e.status()))
+                        .toList(),
+                BOOT_START);
+    }
+
+    /** Starts {@code candidates} dependency-first, each bounded by the start timeout, reporting under {@code step}. */
+    private void startRows(List<PluginInstallEntity> candidates, String step) {
+        List<PluginInstallEntity> rows =
+                candidates.stream().filter(this::trustedForRestart).toList();
         Map<String, PluginDescriptor> descriptors = new LinkedHashMap<>();
         for (PluginInstallEntity e : rows) {
             try {
                 descriptors.put(e.getId(), parseStoredDescriptor(e));
             } catch (RuntimeException corrupt) {
-                store.update(e.getId(), row -> row.fail("Stored descriptor unreadable: " + corrupt.getMessage()));
+                record(e.getId(), step, row -> row.fail("Stored descriptor unreadable: " + corrupt.getMessage()));
             }
         }
         Duration timeout = Duration.ofSeconds(properties.startTimeoutSeconds());
@@ -365,7 +366,7 @@ public class PluginHost implements SmartLifecycle {
         // plugin that hangs past its timeout would hang the boot sequence with it.
         Executor executor = task -> Thread.ofVirtual().name("plugin-start").start(task);
         for (String id : startOrder(descriptors)) {
-            startOneAtBoot(id, descriptors.get(id), timeout, executor);
+            startOne(id, descriptors.get(id), timeout, executor, step);
         }
     }
 
@@ -419,7 +420,20 @@ public class PluginHost implements SmartLifecycle {
         order.add(id);
     }
 
-    private void startOneAtBoot(String id, PluginDescriptor descriptor, Duration timeout, Executor executor) {
+    /**
+     * Records why a start failed. The shared row belongs to the replica that changed it: a peer that
+     * only follows that change ({@code replica-start}) logs its own failure and leaves the row alone,
+     * so it can never overwrite the outcome the others serve.
+     */
+    private void record(String id, String step, Consumer<PluginInstallEntity> change) {
+        if (REPLICA_START.equals(step)) {
+            log.warn("plugin-lifecycle id={} step={} outcome=failed: this replica could not start it", id, step);
+            return;
+        }
+        store.update(id, change);
+    }
+
+    private void startOne(String id, PluginDescriptor descriptor, Duration timeout, Executor executor, String step) {
         if (descriptor == null) {
             return; // its descriptor failed to parse above; already marked failed.
         }
@@ -427,8 +441,8 @@ public class PluginHost implements SmartLifecycle {
         try {
             jarPath = store.materialize(installs.findById(id).orElseThrow().getSha256());
         } catch (Exception e) {
-            store.update(id, row -> row.fail("Artifact unreadable: " + e.getMessage()));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, FAILED);
+            record(id, step, row -> row.fail("Artifact unreadable: " + e.getMessage()));
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, FAILED);
             return;
         }
         CompletableFuture<PluginRuntime> future = CompletableFuture.supplyAsync(
@@ -447,12 +461,15 @@ public class PluginHost implements SmartLifecycle {
                 return;
             }
             registry.set(id, new Active(runtime));
-            store.update(id, row -> row.transitionTo(PluginInstallStatus.ACTIVE));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, SUCCEEDED);
+            if (BOOT_START.equals(step)) {
+                // Another replica's start changes nothing in the shared row.
+                store.update(id, row -> row.transitionTo(PluginInstallStatus.ACTIVE));
+            }
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, SUCCEEDED);
         } catch (TimeoutException _) {
             String reason = "Plugin '%s' did not start within %ds".formatted(id, timeout.toSeconds());
-            store.update(id, row -> row.needsRestart(reason));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, FAILED);
+            record(id, step, row -> row.needsRestart(reason));
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, FAILED);
             // ponytail: interrupting a virtual thread mid-Spring-refresh does not actually stop it;
             // if it finishes late anyway, close the orphaned runtime instead of leaking it.
             future.whenComplete((runtime, error) -> {
@@ -463,10 +480,82 @@ public class PluginHost implements SmartLifecycle {
             });
         } catch (ExecutionException | CompletionException failed) {
             Throwable cause = failed.getCause() != null ? failed.getCause() : failed;
-            store.update(id, row -> row.fail(describeFailure(cause)));
-            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, BOOT_START, FAILED);
+            record(id, step, row -> row.fail(describeFailure(cause)));
+            notifyListeners(id, descriptor.version(), descriptor.version(), null, SYSTEM_ACTOR, step, FAILED);
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    // ---- reconcile with the other replicas (ADR-0152) --------------------------------------------
+
+    /** The statuses whose runtime must not run, on any replica. The others are left as they are. */
+    private static final Set<PluginInstallStatus> NOT_RUNNING =
+            Set.of(PluginInstallStatus.DISABLED, PluginInstallStatus.UNINSTALLED, PluginInstallStatus.INCOMPATIBLE);
+
+    /** Another replica changed a plugin's state: bring this one's runtimes in line, off the bus thread. */
+    @EventListener(condition = "#signal.kind() == 'plugins'")
+    void onSignal(ReplicaSignal signal) {
+        reconcileInBackground();
+    }
+
+    /** The bus was down: a plugin may have changed in the gap. */
+    @EventListener
+    void onBusResumed(BusResumed resumed) {
+        reconcileInBackground();
+    }
+
+    private void reconcileInBackground() {
+        Thread.ofVirtual().name("plugin-reconcile").start(() -> {
+            try {
+                reconcileRuntimes();
+            } catch (RuntimeException e) {
+                log.warn("Reconciling plugin runtimes with plugin_install failed", e);
+            }
+        });
+    }
+
+    /**
+     * Makes this replica's runtimes match the {@code plugin_install} rows: starts an {@code active}
+     * plugin that is not running here, or runs another artifact than the row names, and stops one
+     * whose row is disabled, uninstalled, incompatible or gone. Every other status, such as
+     * {@code activating}, {@code needs_restart} and {@code failed}, is left as it is. It compares what
+     * is wanted with what runs, so the replica that made the change, which already runs it, does
+     * nothing, and a repeated signal does nothing either. Waits for any lifecycle operation of this
+     * replica first.
+     */
+    public void reconcileRuntimes() {
+        busy.acquireUninterruptibly();
+        try {
+            if (!running || safeMode) {
+                return;
+            }
+            Map<String, PluginInstallEntity> rows = new LinkedHashMap<>();
+            installs.findAll().forEach(e -> rows.put(e.getId(), e));
+            for (String id : registry.activeIds()) {
+                PluginInstallEntity row = rows.get(id);
+                if (row == null || NOT_RUNNING.contains(row.status())) {
+                    activeRuntime(id).ifPresent(this::closeRuntime);
+                    registry.remove(id);
+                    log.info("plugin-lifecycle id={} step=replica-stop outcome=succeeded", id);
+                }
+            }
+            Map<String, PluginRuntime> replaced = new LinkedHashMap<>();
+            List<PluginInstallEntity> toStart = rows.values().stream()
+                    .filter(e -> e.status() == PluginInstallStatus.ACTIVE)
+                    .filter(e -> activeRuntime(e.getId())
+                            .map(r -> !r.sha256().equals(e.getSha256()))
+                            .orElse(true))
+                    .toList();
+            toStart.forEach(e -> activeRuntime(e.getId()).ifPresent(r -> replaced.put(e.getId(), r)));
+            startRows(toStart, REPLICA_START);
+            replaced.forEach((id, old) -> {
+                if (activeRuntime(id).filter(now -> now != old).isPresent()) {
+                    closeRuntime(old);
+                }
+            });
+        } finally {
+            busy.release();
         }
     }
 
@@ -494,10 +583,6 @@ public class PluginHost implements SmartLifecycle {
                 }
                 registry.remove(id);
             });
-        }
-        Long bootId = currentBootId;
-        if (bootId != null) {
-            jdbc.update("UPDATE studio_boot SET stopped_at = now() WHERE id = ?", bootId);
         }
     }
 
@@ -1222,6 +1307,7 @@ public class PluginHost implements SmartLifecycle {
             events.publishEvent(new PluginPurged(id));
             jdbc.update("DELETE FROM studio_setting WHERE key LIKE ?", id + ".%");
             installs.deleteById(id);
+            bus.publish(new ReplicaSignal("plugins", id));
         });
         store.garbageCollect();
         log.info(

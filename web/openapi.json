@@ -13745,6 +13745,14 @@
             "default" : "topology,health,queues"
           }
         }, {
+          "name" : "lastEventId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
           "name" : "Last-Event-ID",
           "in" : "header",
           "required" : false,
@@ -27105,6 +27113,19 @@
         },
         "required" : [ "clusterId", "degraded", "name" ]
       },
+      "OwnedCluster" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ]
+      },
       "PoolHealth" : {
         "type" : "object",
         "properties" : {
@@ -27126,6 +27147,50 @@
           }
         }
       },
+      "ReplicaHealth" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "host" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "STARTING", "READY", "DRAINING", "STOPPED", "GONE" ]
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "heartbeatAgeMillis" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "How long ago it last checked in, by database time."
+          },
+          "ownedClusters" : {
+            "type" : "array",
+            "description" : "The clusters it runs broker duties for.",
+            "items" : {
+              "$ref" : "#/components/schemas/OwnedCluster"
+            }
+          },
+          "self" : {
+            "type" : "boolean",
+            "description" : "The replica answering this request."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "The replica is gone or draining."
+          }
+        },
+        "required" : [ "degraded", "heartbeatAgeMillis", "host", "id", "ownedClusters", "self", "startedAt", "state", "version" ]
+      },
       "StudioHealth" : {
         "type" : "object",
         "properties" : {
@@ -27141,6 +27206,18 @@
               "$ref" : "#/components/schemas/NodeHealth"
             }
           },
+          "replicas" : {
+            "type" : "array",
+            "description" : "Every replica seen in the last ten minutes, including stopped and gone ones.",
+            "items" : {
+              "$ref" : "#/components/schemas/ReplicaHealth"
+            }
+          },
+          "answeringReplica" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The replica that answered; node figures are its view."
+          },
           "dbPool" : {
             "$ref" : "#/components/schemas/PoolHealth"
           },
@@ -27151,10 +27228,10 @@
           },
           "degraded" : {
             "type" : "boolean",
-            "description" : "Any job or node is degraded."
+            "description" : "Any job, node or replica is degraded."
           }
         },
-        "required" : [ "dbPool", "degraded", "jobs", "nodes" ]
+        "required" : [ "answeringReplica", "dbPool", "degraded", "jobs", "nodes", "replicas" ]
       },
       "SseEmitter" : {
         "type" : "object",

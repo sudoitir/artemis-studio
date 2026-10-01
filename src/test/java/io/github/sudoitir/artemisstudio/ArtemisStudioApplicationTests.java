@@ -27,6 +27,7 @@ class ArtemisStudioApplicationTests {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         // base64 of 32 bytes — SecretVault refuses to start without it.
         registry.add("artemis-studio.secret-key", () -> "YXJ0ZW1pcy1zdHVkaW8tdGVzdC1rZXktMzJieXRlcyE=");
+        registry.add("artemis-studio.ha.drain-delay", () -> "0s");
     }
 
     @Test

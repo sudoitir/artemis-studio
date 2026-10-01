@@ -7,6 +7,7 @@ import {
   type JobHealth,
   type NodeHealth,
   type PoolHealth,
+  type ReplicaHealth,
   type StudioHealth as Health,
 } from './api.ts';
 
@@ -16,6 +17,14 @@ const JOB_STATES: Record<JobHealth['status'], string> = {
   OK: 'Last run succeeded',
   FAILING: 'Last run failed',
   NEVER_RUN: 'Not run yet',
+};
+
+const REPLICA_STATES: Record<ReplicaHealth['state'], { label: string; detail?: string }> = {
+  STARTING: { label: 'Starting' },
+  READY: { label: 'Ready' },
+  DRAINING: { label: 'Draining', detail: 'Shutting down; takes no new requests' },
+  STOPPED: { label: 'Stopped' },
+  GONE: { label: 'Gone', detail: 'No heartbeat; presumed crashed' },
 };
 
 /** State goes in words; the colour only underlines a problem. */
@@ -118,6 +127,79 @@ function JobsTable({ jobs, now }: Readonly<{ jobs: JobHealth[]; now: number }>) 
   );
 }
 
+function ReplicasTable({ replicas }: Readonly<{ replicas: ReplicaHealth[] }>) {
+  if (replicas.length === 0) {
+    return (
+      <Text size="sm">
+        No replicas have checked in recently. Each Studio process registers itself here once it starts.
+      </Text>
+    );
+  }
+  return (
+    <Table aria-label="Replicas">
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Replica</Table.Th>
+          <Table.Th>Version</Table.Th>
+          <Table.Th>State</Table.Th>
+          <Table.Th ta="end">Last heartbeat</Table.Th>
+          <Table.Th>Clusters owned</Table.Th>
+          <Table.Th w="1%">Health</Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {replicas.map((r) => (
+          <Table.Tr key={r.id}>
+            <Table.Td style={{ whiteSpace: 'nowrap' }}>
+              <Text size="sm">
+                {r.host}
+                {r.self ? (
+                  <Badge variant="outline" color="gray" ms="xs">
+                    This replica
+                  </Badge>
+                ) : null}
+              </Text>
+              <Text size="xs" c="dimmed" style={numeric}>
+                {r.id.slice(0, 8)}
+              </Text>
+            </Table.Td>
+            <Table.Td style={{ whiteSpace: 'nowrap' }}>{r.version}</Table.Td>
+            <Table.Td>
+              <Text size="sm">{REPLICA_STATES[r.state].label}</Text>
+              {REPLICA_STATES[r.state].detail ? (
+                <Text size="xs" c="dimmed">
+                  {REPLICA_STATES[r.state].detail}
+                </Text>
+              ) : null}
+            </Table.Td>
+            <Table.Td ta="end" style={numeric}>
+              {elapsedLabel(r.heartbeatAgeMillis)} ago
+            </Table.Td>
+            <Table.Td>
+              {r.ownedClusters.length > 0 ? (
+                r.ownedClusters.map((c) => c.name).join(', ')
+              ) : (
+                <Text size="sm" c="dimmed">
+                  None
+                </Text>
+              )}
+            </Table.Td>
+            <Table.Td>
+              {r.state === 'STOPPED' ? (
+                <Text size="sm" c="dimmed">
+                  Not running
+                </Text>
+              ) : (
+                <Verdict degraded={r.degraded} />
+              )}
+            </Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
 function NodesTable({ nodes, now }: Readonly<{ nodes: NodeHealth[]; now: number }>) {
   if (nodes.length === 0) {
     return (
@@ -203,6 +285,7 @@ function PoolTable({ pool, streamClients }: Readonly<{ pool: PoolHealth; streamC
 
 function Loaded({ health }: Readonly<{ health: Health }>) {
   const now = useServerNow(5_000);
+  const answering = health.replicas.find((r) => r.id === health.answeringReplica)?.host;
   return (
     <Stack gap="lg">
       <Paper withBorder p="md">
@@ -212,27 +295,38 @@ function Loaded({ health }: Readonly<{ health: Health }>) {
         <Verdict degraded={health.degraded} />
         <Text size="sm" c="dimmed" mt="xs">
           {health.degraded
-            ? 'A job has stalled or a broker node is failing; the rows marked Degraded say which.'
+            ? 'A job has stalled, a broker node is failing, or a replica is gone or draining; the rows marked Degraded say which.'
             : 'Every job is on schedule and every broker node answered its latest call.'}
         </Text>
       </Paper>
+      <Stack gap="xs">
+        <Text fw={600}>Replicas</Text>
+        <ReplicasTable replicas={health.replicas} />
+      </Stack>
       <Stack gap="xs">
         <Text fw={600}>Background jobs</Text>
         <JobsTable jobs={health.jobs} now={now} />
       </Stack>
       <Stack gap="xs">
         <Text fw={600}>Broker nodes</Text>
+        <Text size="sm" c="dimmed">
+          Call figures are as seen from this replica{answering ? ` (${answering})` : ''}; another replica may see a node
+          differently.
+        </Text>
         <NodesTable nodes={health.nodes} now={now} />
       </Stack>
       <Stack gap="xs">
         <Text fw={600}>Resources</Text>
+        <Text size="sm" c="dimmed">
+          The database pool and the open event streams are this replica&rsquo;s own.
+        </Text>
         <PoolTable pool={health.dbPool} streamClients={health.streamClients} />
       </Stack>
     </Stack>
   );
 }
 
-/** Studio's own health: jobs, broker calls, the database pool and event streams, polled by the query. */
+/** Studio's own health: replicas, jobs, broker calls, the database pool and event streams, polled by the query. */
 export function StudioHealth() {
   const health = useStudioHealth();
 

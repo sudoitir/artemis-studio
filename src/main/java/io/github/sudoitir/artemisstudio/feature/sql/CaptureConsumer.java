@@ -225,6 +225,21 @@ public class CaptureConsumer {
         });
     }
 
+    /**
+     * Stop every drain on a cluster, storing and acknowledging what each holds: this replica no
+     * longer owns the cluster, and the capture queue admits one consumer, so the new owner's drain
+     * can only start once these are closed.
+     */
+    public void stopCluster(UUID clusterId) {
+        running.entrySet().removeIf(entry -> {
+            if (!entry.getValue().spec.clusterId().equals(clusterId)) {
+                return false;
+            }
+            entry.getValue().close();
+            return true;
+        });
+    }
+
     /** Close everything this holds open. Called at its shutdown phase. */
     public void closeAll() {
         running.values().forEach(Drain::close);

@@ -2,18 +2,22 @@ package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -33,13 +37,13 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
     ObjectMapper mapper;
 
     @Autowired
-    BrokerEventRepository repository;
-
-    @Autowired
     ObjectProvider<BrokerEventPublisher> publisher;
 
     @Autowired
     EventsProperties properties;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     private final UUID clusterId = UUID.randomUUID();
     private BrokerEventWriter writer;
@@ -49,7 +53,7 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
         jdbc.update(
                 "INSERT INTO cluster (id, name) VALUES (:id, :name)",
                 Map.of("id", clusterId, "name", "writer-" + clusterId));
-        writer = new BrokerEventWriter(jdbc, mapper, repository, publisher, null, properties);
+        writer = new BrokerEventWriter(jdbc, mapper, publisher, null, properties);
     }
 
     @AfterEach
@@ -102,8 +106,10 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                 .batchUpdate(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.any(
-                                org.springframework.jdbc.core.namedparam.SqlParameterSource[].class));
-        BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, repository, publisher, null, properties);
+                                org.springframework.jdbc.core.namedparam.SqlParameterSource[].class),
+                        org.mockito.ArgumentMatchers.any(org.springframework.jdbc.support.KeyHolder.class),
+                        org.mockito.ArgumentMatchers.any(String[].class));
+        BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, publisher, null, properties);
         flaky.accept(event("CONSUMER_CREATED"));
         flaky.accept(event("SESSION_CREATED"));
 
@@ -119,6 +125,27 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                         Map.of("c", clusterId),
                         String.class))
                 .containsExactly("CONSUMER_CREATED", "SESSION_CREATED");
+    }
+
+    @Test
+    void thePublisherGetsOnlyItsOwnRows() {
+        List<String> published = new ArrayList<>();
+        ObjectProvider<BrokerEventPublisher> capturing = Mockito.mock();
+        Mockito.when(capturing.getIfAvailable())
+                .thenReturn((seqs, batch) -> batch.forEach(e -> published.add(e.type())));
+        BrokerEventWriter capturingWriter = new BrokerEventWriter(jdbc, mapper, capturing, null, properties);
+        TransactionTemplate tx = new TransactionTemplate(transactions);
+        capturingWriter.accept(event("CONSUMER_CREATED"));
+        capturingWriter.accept(event("SESSION_CREATED"));
+
+        tx.executeWithoutResult(status -> {
+            capturingWriter.flush();
+            // Another writer's row lands in the same window; it is not ours to publish.
+            writer.accept(event("BINDING_ADDED"));
+            writer.flush();
+        });
+
+        assertThat(published).containsExactly("CONSUMER_CREATED", "SESSION_CREATED");
     }
 
     @Test

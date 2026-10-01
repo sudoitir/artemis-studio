@@ -1,0 +1,84 @@
+# Artemis Studio — high-availability reference stack.
+#
+#   docker compose -f deploy/compose/compose.ha.yaml --env-file .env up -d
+#
+# Two Studio replicas behind HAProxy, on one Postgres. The replicas are stateless: sessions,
+# settings and cluster ownership live in the database, and stream events reach every
+# replica through it, so the load balancer needs no sticky sessions. Each registered cluster
+# is polled by one replica at a time (site/src/guide/high-availability.md).
+#
+# Uses the same .env as compose.prod.yaml (deploy/compose/.env.example). Postgres here is a
+# single container: its availability is yours to provide (managed Postgres, Patroni, ...).
+
+name: artemis-studio-ha
+
+x-studio: &studio
+  image: ${STUDIO_IMAGE:-sudoit1/artemis-studio:dev}
+  environment:
+    ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+    ARTEMIS_STUDIO_DB_USER: ${DB_USER}
+    ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
+    ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
+    ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
+    # A plugin that needs a restart restarts its replica; `restart: unless-stopped` starts it again.
+    ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+    JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}
+  restart: unless-stopped
+  # Shutdown drains: readiness fails, cluster ownership moves, streams are told to reconnect,
+  # and running bulk operations get 20 s to finish. Keep this above 45 s.
+  stop_grace_period: 60s
+  healthcheck:
+    test: ["CMD-SHELL", "curl -sf http://localhost:8080/readyz || exit 1"]
+    interval: 5s
+    timeout: 3s
+    retries: 3
+    start_period: 120s
+  deploy:
+    resources:
+      limits:
+        memory: 2g
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${DB_NAME:?}
+      POSTGRES_USER: ${DB_USER:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+    # Each replica holds its pool plus one listening connection. Tuning as in compose.prod.yaml.
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB", "-c", "timezone=UTC"]
+    volumes:
+      - pgdata:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  studio-1:
+    <<: *studio
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Starts once studio-1 is ready, so schema migrations run once.
+  studio-2:
+    <<: *studio
+    depends_on:
+      studio-1:
+        condition: service_healthy
+
+  lb:
+    image: haproxy:3.2-alpine
+    volumes:
+      - ./ha/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
+    depends_on:
+      studio-1:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

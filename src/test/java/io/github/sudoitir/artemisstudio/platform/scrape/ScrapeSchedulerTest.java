@@ -1,11 +1,14 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,9 +21,10 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionExceptio
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyAcquired;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDutyReleased;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import java.io.IOException;
@@ -77,17 +81,22 @@ class ScrapeSchedulerTest {
     @Mock
     org.springframework.context.ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership ownership;
+
     ScrapeCycle scrapeCycle;
     SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
 
     @BeforeEach
     void setUp() {
-        scrapeCycle = new ScrapeCycle(new SplitBrainRegistry());
+        when(ownership.owns(any())).thenReturn(true);
+        scrapeCycle = new ScrapeCycle(persist);
         sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
                 settings,
                 clusters,
+                ownership,
                 clusterService,
                 connections,
                 scrapeCycle,
@@ -95,7 +104,7 @@ class ScrapeSchedulerTest {
                 sweepCursor,
                 upsert,
                 metrics,
-                new StreamSignals(new SseHub()),
+                new StreamSignals(org.mockito.Mockito.mock(SseHub.class)),
                 coreSubscriptions,
                 eventPublisher,
                 new JobStatuses(
@@ -168,7 +177,7 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity a = node(clusterId, "a", GOOD);
         BrokerNodeEntity b = node(clusterId, "b", GOOD);
 
-        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.owned()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(a, b));
         when(connections.forCluster(cluster.getId(), GOOD))
                 .thenReturn(client("search-broker.json", "ha-read-primary.json"))
@@ -181,13 +190,86 @@ class ScrapeSchedulerTest {
     }
 
     @Test
+    void tiersAAndBLeaveAClusterThisReplicaDoesNotOwnAlone() {
+        when(clusters.owned()).thenReturn(List.of());
+        when(clusters.clusters()).thenReturn(List.of(cluster("c")));
+
+        scheduler.tierA();
+        scheduler.tierB();
+
+        verify(connections, never()).forCluster(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void takingAClusterOverScrapesItAtOnce() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity a = node(clusterId, "a", GOOD);
+        when(clusters.nodes(any())).thenReturn(List.of(a));
+        when(connections.forCluster(any(), any())).thenReturn(client("search-broker.json", "ha-read-primary.json"));
+
+        scheduler.onDutyAcquired(new ClusterDutyAcquired(cluster.getId()));
+
+        verify(persist, timeout(5000)).applyTierA(any(), any(), eq(1L));
+        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
+    }
+
+    @Test
+    void aTierAPassForAClusterIsSkippedWhileAnotherIsRunningForIt() throws Exception {
+        ClusterEntity cluster = cluster("c");
+        java.util.concurrent.CountDownLatch inside = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenAnswer(call -> {
+            inside.countDown();
+            release.await();
+            return List.of();
+        });
+        scheduler.onDutyAcquired(new ClusterDutyAcquired(cluster.getId()));
+        assertThat(inside.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        scheduler.tierA();
+        release.countDown();
+
+        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
+        verify(clusters, times(1)).nodes(cluster.getId());
+        verify(eventPublisher, after(300).times(1)).publishEvent(any(ScrapeTierCompleted.class));
+        scheduler.tierA();
+        verify(eventPublisher, times(2)).publishEvent(any(ScrapeTierCompleted.class));
+    }
+
+    @Test
+    void losingAClusterDropsItsSubscriptionsCycleAndSignals() {
+        UUID clusterId = UUID.randomUUID();
+        scrapeCycle.next(clusterId);
+
+        scheduler.onDutyReleased(new ClusterDutyReleased(clusterId));
+
+        assertThat(scrapeCycle.current(clusterId)).isZero();
+        verify(coreSubscriptions, timeout(5000)).forget(clusterId);
+    }
+
+    @Test
+    void aClusterLostWhileATierARanLeavesNoSubscriptionBehind() {
+        ClusterEntity cluster = cluster("c");
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(any())).thenReturn(List.of());
+        when(ownership.owns(any())).thenReturn(false);
+
+        scheduler.tierA();
+
+        verify(coreSubscriptions).forget(cluster.getId());
+    }
+
+    @Test
     void aFailingNodeIsRecordedAndDoesNotAbortItsSiblings() {
         UUID clusterId = UUID.randomUUID();
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity good = node(clusterId, "good", GOOD);
         BrokerNodeEntity bad = node(clusterId, "bad", BAD);
 
-        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.owned()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(bad, good));
         when(connections.forCluster(cluster.getId(), BAD))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
@@ -209,7 +291,7 @@ class ScrapeSchedulerTest {
         BrokerNodeEntity nodeA = node(clusterAId, "na", BAD);
         BrokerNodeEntity nodeB = node(clusterBId, "nb", GOOD);
 
-        when(clusters.clusters()).thenReturn(List.of(clusterA, clusterB));
+        when(clusters.owned()).thenReturn(List.of(clusterA, clusterB));
         when(clusters.nodes(clusterA.getId())).thenReturn(List.of(nodeA));
         when(clusters.nodes(clusterB.getId())).thenReturn(List.of(nodeB));
         when(connections.forCluster(clusterA.getId(), BAD))

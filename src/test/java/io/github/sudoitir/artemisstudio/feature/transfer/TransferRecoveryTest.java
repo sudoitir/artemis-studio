@@ -12,9 +12,14 @@ import io.github.sudoitir.artemisstudio.platform.broker.StagingQueues;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /** 5.11: a run cut off by Studio stopping is interrupted and resumable; a staging queue no run knows is orphaned. */
 class TransferRecoveryTest extends TransferTestSupport {
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     /** Studio's process ending: nothing after it runs, not even the run's own bookkeeping. */
     private static final class ProcessDied extends Error {
@@ -40,6 +45,8 @@ class TransferRecoveryTest extends TransferTestSupport {
                 .as("the run's thread is gone, its row not updated")
                 .isEqualTo(TransferState.RUNNING);
 
+        // The replica that was executing it is gone.
+        jdbc.update("UPDATE transfer_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), run.id());
         recovery.recover();
         TransferRunView interrupted = get(run);
         assertThat(interrupted.state()).isEqualTo(TransferState.INTERRUPTED);

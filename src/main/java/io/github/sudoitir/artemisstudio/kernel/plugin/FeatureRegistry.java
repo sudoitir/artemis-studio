@@ -1,14 +1,19 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.http.server.PathContainer;
@@ -51,7 +56,10 @@ public class FeatureRegistry implements PluginBridge {
      */
     private final Map<String, PluginHandle> owners = new HashMap<>();
 
-    private volatile String manifestVersion = UUID.randomUUID().toString();
+    /** Version of each active plugin, written with {@link #plugins}; what {@link #manifestVersion} hashes. */
+    private final AtomicReference<Map<String, String>> pluginVersions = new AtomicReference<>(Map.of());
+
+    private volatile String manifestVersion = manifestVersionOf(Map.of());
 
     public FeatureRegistry(InstalledFeatures installed, Environment environment, ApplicationEventPublisher events) {
         this.events = events;
@@ -160,6 +168,9 @@ public class FeatureRegistry implements PluginBridge {
         Map<String, FeatureDescriptor> next = new LinkedHashMap<>(plugins);
         next.put(asFeature.id(), asFeature);
         plugins = Map.copyOf(next);
+        Map<String, String> nextVersions = new HashMap<>(pluginVersions.get());
+        nextVersions.put(asFeature.id(), descriptor.version());
+        pluginVersions.set(Map.copyOf(nextVersions));
         rollManifestVersion();
     }
 
@@ -171,17 +182,36 @@ public class FeatureRegistry implements PluginBridge {
         Map<String, FeatureDescriptor> next = new LinkedHashMap<>(plugins);
         next.remove(pluginId);
         plugins = Map.copyOf(next);
+        Map<String, String> nextVersions = new HashMap<>(pluginVersions.get());
+        nextVersions.remove(pluginId);
+        pluginVersions.set(Map.copyOf(nextVersions));
         rollManifestVersion();
     }
 
-    /** Changes whenever the active plugin set changes — a client polls this to detect a stale manifest. */
+    /**
+     * Changes whenever the active plugin set changes — a client polls this to detect a stale manifest.
+     * A hash of the active {@code id@version} set, so replicas that run the same plugins agree on it.
+     */
     public String manifestVersion() {
         return manifestVersion;
     }
 
     private void rollManifestVersion() {
-        manifestVersion = UUID.randomUUID().toString();
+        manifestVersion = manifestVersionOf(pluginVersions.get());
         events.publishEvent(new PluginsChanged(manifestVersion));
+    }
+
+    private static String manifestVersionOf(Map<String, String> versions) {
+        String set = versions.entrySet().stream()
+                .map(e -> e.getKey() + "@" + e.getValue())
+                .sorted()
+                .collect(Collectors.joining("\n"));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(set.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest, 0, 8);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 
     private static FeatureDescriptor toFeatureDescriptor(PluginDescriptor d) {

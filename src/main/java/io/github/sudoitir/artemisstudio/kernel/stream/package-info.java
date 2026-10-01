@@ -8,6 +8,7 @@
             "kernel.jobs",
             "kernel.plugin",
             "kernel.plugin :: descriptor",
+            "kernel.replica",
             "kernel.security",
             "kernel.settings"
         })

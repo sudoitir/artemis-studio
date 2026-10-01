@@ -2,7 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.triage;
 
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
+import io.github.sudoitir.artemisstudio.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.artemisstudio.support.ModuleIntegrationTest;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
@@ -15,9 +15,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 class TriageModuleTest extends ModuleIntegrationTest {
 
-    /** The scrape cycle, in a direct dependency, records split-brain state in the clusters module. */
+    /** The scrape cycle, in a direct dependency, persists each node's split-brain verdict through the clusters module. */
     @MockitoBean
-    SplitBrainRegistry splitBrain;
+    NodeStateRecorder nodeStateRecorder;
 
     /** The scrape module's queue locator lists a cluster's nodes... */
     @MockitoBean

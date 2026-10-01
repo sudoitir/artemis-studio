@@ -16,6 +16,8 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessageService;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
@@ -50,6 +52,12 @@ class BulkRunTest extends BulkTestSupport {
 
     @Autowired
     BulkRecovery recovery;
+
+    @Autowired
+    ReplicaRegistry replicas;
+
+    @Autowired
+    BackgroundRuns background;
 
     private final List<String> seen = new CopyOnWriteArrayList<>();
 
@@ -178,9 +186,9 @@ class BulkRunTest extends BulkTestSupport {
     void aPurgeActsOnceOnEveryHostingNode() {
         queue(nodeA, "orders.1", 3, 0, false);
         queue(nodeB, "orders.1", 4, 0, false);
-        when(messages.purge(eq(clusterId), eq("orders.1"), eq(nodeA), eq(false), eq(false)))
+        when(messages.purge(clusterId, "orders.1", nodeA, false, false))
                 .thenReturn(new Attempt.Ok<>(new MessageService.Outcome.Affected(3, nodeA)));
-        when(messages.purge(eq(clusterId), eq("orders.1"), eq(nodeB), eq(false), eq(false)))
+        when(messages.purge(clusterId, "orders.1", nodeB, false, false))
                 .thenReturn(new Attempt.Ok<>(new MessageService.Outcome.Affected(4, nodeB)));
 
         BulkRunDetailView run = execute(preview(BulkOperation.PURGE, "orders"), false);
@@ -265,8 +273,8 @@ class BulkRunTest extends BulkTestSupport {
         BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
         UUID id = preview.run().id();
 
-        assertThatThrownBy(() -> bulk.execute(clusterId, id, new BulkExecuteRequest("not-the-hash", false, false)))
-                .isInstanceOf(ConflictException.class);
+        var changedPlan = new BulkExecuteRequest("not-the-hash", false, false);
+        assertThatThrownBy(() -> bulk.execute(clusterId, id, changedPlan)).isInstanceOf(ConflictException.class);
 
         jdbc.update("UPDATE bulk_run SET expires_at = now() - interval '1 second' WHERE id = ?", id);
         assertThatThrownBy(() -> execute(preview, false))
@@ -311,7 +319,10 @@ class BulkRunTest extends BulkTestSupport {
         BulkRunDetailView done = execute(preview(BulkOperation.PAUSE, "orders"), false);
         UUID id = done.run().id();
         // Rewind it to what a crash while the second queue was in flight leaves behind.
-        jdbc.update("UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL WHERE id = ?", id);
+        jdbc.update(
+                "UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL, replica_id = ? WHERE id = ?",
+                UUID.randomUUID(),
+                id);
         jdbc.update("UPDATE bulk_run_item SET status = 'RUNNING' WHERE run_id = ? AND ordinal = 1", id);
         jdbc.update("UPDATE bulk_run_item SET status = 'PENDING' WHERE run_id = ? AND ordinal > 1", id);
         jdbc.update(
@@ -330,5 +341,174 @@ class BulkRunTest extends BulkTestSupport {
                         BulkItemStatus.CANCELLED);
         assertThat(run.items().get(1).error()).contains("check the broker");
         assertThat(auditOutcome(done.run().auditEventId())).isEqualTo("FAILURE");
+    }
+
+    @Test
+    void recoveryLeavesALiveReplicasRunAloneAndInterruptsAGoneReplicasRun() {
+        fourQueues();
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenReturn(ok(NodeStatus.APPLIED));
+        UUID id = execute(preview(BulkOperation.PAUSE, "orders"), false).run().id();
+        assertThat(jdbc.queryForObject("SELECT replica_id FROM bulk_run WHERE id = ?", UUID.class, id))
+                .as("the run records the replica that executed it")
+                .isEqualTo(replicas.id());
+        jdbc.update("UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL WHERE id = ?", id);
+
+        recovery.recover();
+        assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.RUNNING);
+
+        jdbc.update("UPDATE bulk_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), id);
+        recovery.recover();
+        assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
+    }
+
+    @Test
+    void aRunInterruptedByRecoveryWhileItExecutesIsNotOverwrittenAndStops() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                // Another replica's recovery finds this run orphaned while its second queue is in flight.
+                jdbc.update("UPDATE bulk_run SET replica_id = ? WHERE id = ?", UUID.randomUUID(), runId[0]);
+                recovery.recover();
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+
+        bulk.execute(clusterId, runId[0], new BulkExecuteRequest(preview.run().planHash(), false, false));
+        await(() -> !background.isActive(runId[0]));
+
+        BulkRunDetailView run = bulk.get(clusterId, runId[0]);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
+        assertThat(run.run().error()).as("what recovery wrote").contains("It was not resumed");
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.UNKNOWN,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(seen).as("no queue is touched after the takeover").containsExactly("orders.1", "orders.2");
+        assertThat(jdbc.queryForObject(
+                        "SELECT outcome_detail IS NULL FROM audit_event WHERE id = ?",
+                        Boolean.class,
+                        run.run().auditEventId()))
+                .as("the audit event is left as recovery wrote it")
+                .isTrue();
+    }
+
+    /** Waits for what another thread has yet to do, such as a signal travelling through the database. */
+    private static void await(java.util.function.BooleanSupplier condition) {
+        Instant deadline = Instant.now().plus(Duration.ofSeconds(10));
+        while (!condition.getAsBoolean()) {
+            if (Instant.now().isAfter(deadline)) {
+                throw new AssertionError("The condition was not met in time");
+            }
+            java.util.concurrent.locks.LockSupport.parkNanos(10_000_000);
+        }
+    }
+
+    @Test
+    void aStopSignalFromAnotherReplicaReachesTheExecutingRun() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                // What a stop request on a replica that is not executing the run does: tell every replica.
+                background.signalStop(runId[0]);
+                await(() -> background.stopRequested(runId[0]));
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+
+        BulkRunDetailView run = execute(preview, false);
+
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.STOPPED);
+    }
+
+    @Test
+    void aStopWhoseSignalWasLostStillStopsTheRun() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                // What a stop on another replica leaves when its signal never arrives here: the row alone.
+                jdbc.update("UPDATE bulk_run SET stop_requested_at = now() WHERE id = ?", runId[0]);
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+
+        BulkRunDetailView run = execute(preview, false);
+
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.STOPPED);
+    }
+
+    @Test
+    void stoppingARunThatExecutesElsewhereIsAcceptedAndOneThatIsNotRunningIsRefused() {
+        queue(nodeA, "orders.1", 1, 0, false);
+        UUID running = preview(BulkOperation.PAUSE, "orders").run().id();
+        jdbc.update("UPDATE bulk_run SET status = 'RUNNING', replica_id = ? WHERE id = ?", UUID.randomUUID(), running);
+        UUID previewed = preview(BulkOperation.RESUME, "orders").run().id();
+
+        assertThat(bulk.stop(clusterId, running).status()).isEqualTo(BulkRunStatus.RUNNING);
+        assertThat(jdbc.queryForObject(
+                        "SELECT stop_requested_at IS NOT NULL FROM bulk_run WHERE id = ?", Boolean.class, running))
+                .as("the stop is on the run, not only in a signal")
+                .isTrue();
+        assertThatThrownBy(() -> bulk.stop(clusterId, previewed)).isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void shutdownStopsARunThatOutlastsTheGraceAndRecordsItInterruptedWithItsProgress() {
+        fourQueues();
+        UUID[] runId = new UUID[1];
+        when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
+            String q = call.getArgument(1);
+            seen.add(q);
+            if (q.equals("orders.2")) {
+                await(() -> background.stoppedForShutdown(runId[0]));
+            }
+            return ok(NodeStatus.APPLIED);
+        });
+        BulkRunDetailView preview = preview(BulkOperation.PAUSE, "orders");
+        runId[0] = preview.run().id();
+        bulk.execute(clusterId, runId[0], new BulkExecuteRequest(preview.run().planHash(), false, false));
+        await(() -> seen.contains("orders.2"));
+
+        background.stopForShutdown(Duration.ZERO);
+
+        BulkRunDetailView run = awaitFinished(runId[0]);
+        assertThat(statuses(run))
+                .containsExactly(
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.SUCCEEDED,
+                        BulkItemStatus.CANCELLED,
+                        BulkItemStatus.CANCELLED);
+        assertThat(run.run().status()).isEqualTo(BulkRunStatus.INTERRUPTED);
+        assertThat(run.run().succeeded()).isEqualTo(2);
+        assertThat(run.run().error()).contains("Studio shut down");
+        assertThat(auditOutcome(run.run().auditEventId())).isEqualTo("FAILURE");
     }
 }

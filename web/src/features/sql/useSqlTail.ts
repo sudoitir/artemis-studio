@@ -34,6 +34,10 @@ export function rowKey(row: SqlRowView): string {
  * - `disconnected` — the stream dropped. The query is *not* silently restarted:
  *   reconnecting would re-run a fan-out the operator did not ask for a second
  *   time, and would write a second audit record for one intent.
+ *
+ * A server that is shutting down sends `reconnect` first, which is the one exception: the
+ * operator did not drop the stream, so the same query is run again on another replica (a new
+ * ticket, a new stream, and the rows start over) instead of reporting a disconnect.
  */
 export type RunStatus = 'idle' | 'running' | 'done' | 'tailing' | 'failed' | 'disconnected';
 
@@ -245,6 +249,13 @@ export function useSqlTail(clusterId: string): SqlRun {
         settled = true;
         setError(new ApiError(typeof problem.status === 'number' ? problem.status : 500, problem));
         setStatus('failed');
+      });
+
+      stream.addEventListener('reconnect', () => {
+        // The ticket was single use and the run lives on this replica, so run it again.
+        if (settled) return;
+        stream.close();
+        setRequest((prev) => (prev ? { ...prev, nonce: prev.nonce + 1 } : prev));
       });
 
       stream.onerror = () => {

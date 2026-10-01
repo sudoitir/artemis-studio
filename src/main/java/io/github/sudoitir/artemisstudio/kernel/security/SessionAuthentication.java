@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.InitialInstallers;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionTerminator;
 import jakarta.servlet.http.HttpServletRequest;
@@ -84,6 +86,7 @@ public class SessionAuthentication {
     private final SessionLifetimes lifetimes;
     private final FindByIndexNameSessionRepository<? extends Session> store;
     private final ApplicationEventPublisher events;
+    private final StudioBus bus;
 
     /**
      * Start of a password login: forget any earlier signed-in context, its facts and every pending
@@ -353,7 +356,7 @@ public class SessionAuthentication {
         if (session != null) {
             String id = session.getId();
             session.invalidate();
-            events.publishEvent(new SessionEnded(id));
+            bus.publish(new ReplicaSignal("session-ended", id));
         }
         reissueCsrfToken(request, response);
     }

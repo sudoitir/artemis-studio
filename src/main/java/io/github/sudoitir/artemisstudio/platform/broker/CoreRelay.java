@@ -140,6 +140,11 @@ public class CoreRelay {
         }
     }
 
+    /** The clusters this holds relay connections for. */
+    Set<UUID> clusterIds() {
+        return Set.copyOf(keysByCluster.keySet());
+    }
+
     /** Close a removed cluster's relay connections. */
     public void forget(UUID clusterId) {
         Set<String> keys = keysByCluster.remove(clusterId);

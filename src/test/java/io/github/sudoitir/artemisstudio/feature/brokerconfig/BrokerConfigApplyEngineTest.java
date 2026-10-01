@@ -55,7 +55,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.CapabilityLedger;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets;
-import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainRegistry;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -105,7 +104,6 @@ class BrokerConfigApplyEngineTest {
     private final AuditService audit = mock(AuditService.class);
     private final ActorResolver actors = mock(ActorResolver.class);
     private final ClusterLock lock = mock(ClusterLock.class);
-    private final SplitBrainRegistry splitBrain = mock(SplitBrainRegistry.class);
     private final ClusterSecrets secrets = mock(ClusterSecrets.class);
     private final SseHub hub = mock(SseHub.class);
     private final ObjectMapper mapper = JsonMapper.builder().build();
@@ -138,7 +136,6 @@ class BrokerConfigApplyEngineTest {
                 audit,
                 actors,
                 lock,
-                splitBrain,
                 secrets,
                 hub,
                 mapper);
@@ -170,7 +167,6 @@ class BrokerConfigApplyEngineTest {
                     ((Runnable) invocation.getArgument(2)).run();
                     return true;
                 });
-        when(splitBrain.statusFor(eq(CLUSTER), anyString())).thenReturn(SplitBrainStatus.NONE);
     }
 
     @AfterEach
@@ -186,6 +182,7 @@ class BrokerConfigApplyEngineTest {
         when(node.getName()).thenReturn(name);
         when(node.getActive()).thenReturn(active);
         when(node.getArtemisNodeId()).thenReturn("artemis-" + name);
+        when(node.getSplitBrain()).thenReturn(SplitBrainStatus.NONE);
         when(node.getJolokiaUrl()).thenReturn("http://" + name + ":8161/console/jolokia");
         return node;
     }
@@ -942,7 +939,7 @@ class BrokerConfigApplyEngineTest {
     @Test
     void aSplitBrainClusterIsRefusedBeforeAnyWrite() {
         document = fullDocument();
-        when(splitBrain.statusFor(CLUSTER, "artemis-b-second")).thenReturn(SplitBrainStatus.CRITICAL);
+        when(nodeB.getSplitBrain()).thenReturn(SplitBrainStatus.CRITICAL);
 
         assertThatThrownBy(this::applyConfirmedWithoutPreview)
                 .isInstanceOfSatisfying(

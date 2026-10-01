@@ -8,9 +8,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -24,14 +24,21 @@ import tools.jackson.databind.json.JsonMapper;
  * UI polls, and limiting it would only break the console.
  */
 @Component
-@RequiredArgsConstructor
 class TokenRequestLimitFilter extends OncePerRequestFilter {
 
     private final SettingsService settings;
     private final TokenUsage usage;
     private final JsonMapper json;
-    private final RequestLimiter tokenWindows = new RequestLimiter();
-    private final RequestLimiter userWindows = new RequestLimiter();
+    private final RequestLimiter tokenWindows;
+    private final RequestLimiter userWindows;
+
+    TokenRequestLimitFilter(SettingsService settings, TokenUsage usage, JsonMapper json, JdbcTemplate jdbc) {
+        this.settings = settings;
+        this.usage = usage;
+        this.json = json;
+        this.tokenWindows = new RequestLimiter(jdbc);
+        this.userWindows = new RequestLimiter(jdbc);
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

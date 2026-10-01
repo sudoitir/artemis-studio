@@ -16,9 +16,14 @@ _Others_
 * `i.g.s.a.k.s.StreamSettings`
 * `i.g.s.a.k.s.StreamTopicRegistry`
 |Bean references
-|* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+|* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 |Events listened to
-|* `i.g.s.a.k.s.SessionEnded` 
+|* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.BusFrame` 
+* `i.g.s.a.k.r.ReplicaSignal` 
 * `i.g.s.a.k.s.SessionIdChanged` 
+* `i.g.s.a.k.r.ReplicaSignal` 
 |===

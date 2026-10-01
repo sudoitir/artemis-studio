@@ -70,7 +70,8 @@ class PluginHostIncompatibleIntegrationTest extends PostgresIntegrationTest {
         entity.transitionTo(PluginInstallStatus.ACTIVE);
         installs.save(entity);
 
-        jdbc.update("DELETE FROM studio_boot");
+        jdbc.update(
+                "DELETE FROM studio_replica WHERE stopped_at IS NULL AND heartbeat_at < now() - interval '15 seconds'");
         host.runStartupSequence();
 
         assertThat(host.status(id)).get().satisfies(s -> {

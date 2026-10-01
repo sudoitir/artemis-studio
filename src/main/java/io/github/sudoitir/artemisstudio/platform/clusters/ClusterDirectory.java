@@ -19,6 +19,7 @@ public class ClusterDirectory {
 
     private final ClusterRepository clusters;
     private final BrokerNodeRepository nodes;
+    private final ClusterOwnership ownership;
 
     /** A cluster's nodes, ordered by name. */
     @Transactional(readOnly = true)
@@ -39,6 +40,15 @@ public class ClusterDirectory {
     /** Every registered cluster, ordered by name. */
     @Transactional(readOnly = true)
     public List<RegisteredCluster> clusters() {
+        return registered();
+    }
+
+    /** The registered clusters this replica owns (ADR-0152): the ones its timed broker duties visit. */
+    public List<RegisteredCluster> owned() {
+        return registered().stream().filter(c -> ownership.owns(c.getId())).toList();
+    }
+
+    private List<RegisteredCluster> registered() {
         return List.copyOf(clusters.findAllByOrderByNameAsc());
     }
 

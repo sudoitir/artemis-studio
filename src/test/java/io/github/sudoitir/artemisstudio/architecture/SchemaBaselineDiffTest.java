@@ -54,7 +54,14 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "setup_(review|finding|finding_acceptance)",
                     // Runtime plugins (ADR-0099..0103, changesets kernel-plugin 0001..0006).
                     "plugin_(artifact|install|installer|upload)",
-                    "studio_boot",
+                    // Replicas replace the boot log behind the crash-loop guard (ADR-0152, changesets
+                    // kernel-replica 0001 and kernel-plugin 0009).
+                    "studio_replica",
+                    // Which replica owns a cluster's broker duties (ADR-0152, changeset platform-clusters 0003).
+                    "cluster_lease",
+                    // The split-brain verdict moves onto the node row (ADR-0152, changeset platform-clusters 0004).
+                    "CREATE TABLE broker_node ",
+                    "ck_broker_node_split_brain",
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).
                     "plugin_secret",
@@ -97,7 +104,13 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Text bodies of bytes messages are full-text indexed; binary is body_base64 (ADR-0148,
                     // changeset feature-sql 0005).
                     "ix_message_index_body_fts",
-                    "message_index_default_to_tsvector_idx")
+                    "message_index_default_to_tsvector_idx",
+                    // Support bundle previews shared by the replicas (ADR-0152, changeset feature-diagnostics 0001).
+                    "diagnostics_snapshot",
+                    // Console query references and API request windows shared by the replicas (ADR-0152, changesets
+                    // feature-sql 0006, feature-apitokens 0004).
+                    "sql_query_ticket",
+                    "api_request_window")
             .map(Pattern::compile)
             .toList();
 

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.events.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventWriter;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,17 +15,14 @@ import org.springframework.data.repository.query.Param;
 /** {@code broker_event} read access (ADR-0028). Rows are written by {@link BrokerEventWriter}. */
 public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, Long> {
 
-    /** The just-inserted rows a flush produced, in seq order, for the SSE fan-out. */
-    List<BrokerEventEntity> findBySeqGreaterThanOrderBySeqAsc(long seq);
+    /** The rows a flush inserted, in seq order, for the SSE fan-out. */
+    List<BrokerEventEntity> findBySeqInOrderBySeqAsc(Collection<Long> seqs);
 
     /** One event of a cluster by its seq; empty when it never existed or was reaped. */
     Optional<BrokerEventEntity> findByClusterIdAndSeq(UUID clusterId, Long seq);
 
-    /** Highest seq currently persisted, or empty when the table is empty. */
-    Optional<BrokerEventEntity> findFirstByOrderBySeqDesc();
-
     /** Bounded replay for a reconnecting SSE client (slice 3). */
-    List<BrokerEventEntity> findByClusterIdAndSeqGreaterThanOrderBySeqAsc(UUID clusterId, long seq, Pageable pageable);
+    List<BrokerEventEntity> findByClusterIdAndSeqGreaterThanOrderBySeqDesc(UUID clusterId, long seq, Pageable pageable);
 
     /** The oldest still-retained event's time, for the history API envelope. */
     @Query("select min(e.occurredAt) from BrokerEventEntity e where e.clusterId = :clusterId")

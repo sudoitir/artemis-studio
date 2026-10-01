@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.bulk.internal.persistence;
 
 import io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,4 +34,28 @@ public interface BulkRunRepository extends JpaRepository<BulkRunEntity, UUID> {
     @Transactional
     @Query("update BulkRunEntity r set r.status = :to where r.id = :id and r.status = :from")
     int transition(@Param("id") UUID id, @Param("from") BulkRunStatus from, @Param("to") BulkRunStatus to);
+
+    /**
+     * Record that the operator asked to stop a run that is executing, once: zero when it is not executing
+     * or a stop was already asked. The executing replica reads it, whether or not the signal reaches it.
+     */
+    @Modifying
+    @Transactional
+    @Query("update BulkRunEntity r set r.stopRequestedAt = :now"
+            + " where r.id = :id and r.status = io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus.RUNNING"
+            + " and r.stopRequestedAt is null")
+    int requestStop(@Param("id") UUID id, @Param("now") Instant now);
+
+    boolean existsByIdAndStopRequestedAtIsNotNull(UUID id);
+
+    /**
+     * Take the row lock of a run that is still executing on {@code replica}: one when it is, zero when
+     * recovery or another replica has taken it over. Called at the start of the runner's own transaction,
+     * so what it writes next commits before anything else can change the run, and never after.
+     */
+    @Modifying
+    @Query("update BulkRunEntity r set r.status = r.status"
+            + " where r.id = :id and r.status = io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus.RUNNING"
+            + " and r.replicaId = :replica")
+    int fence(@Param("id") UUID id, @Param("replica") UUID replica);
 }

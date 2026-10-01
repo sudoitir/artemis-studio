@@ -386,6 +386,23 @@ describe('SqlConsoleView', () => {
     expect(EventSourceStub.instances).toHaveLength(1);
   });
 
+  it('runs the query again on a new stream when the server asks to reconnect', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await user.click(await screen.findByRole('switch', { name: /live tail/i }));
+    await run(user, 'Run and tail');
+    emit('done', { nodes: [answered()], boundsReached: [], notices: [], partial: false, plan: plan() });
+
+    act(() => EventSourceStub.emit('reconnect', 0, 0));
+
+    // A new ticket and a new stream, not a "connection lost" the operator has to act on.
+    await vi.waitFor(() => expect(EventSourceStub.instances).toHaveLength(2));
+    expect(EventSourceStub.instances[0].readyState).toBe(2);
+    expect(screen.queryByText(/connection to this query was lost/i)).not.toBeInTheDocument();
+  });
+
   it('offers Verify on an indexed row, and never reports an unsettled read as gone', async () => {
     mockCluster();
     mockPlan(plan({ source: 'INDEX' }));

@@ -1,0 +1,35 @@
+# Failover test overlay for compose.ha.yaml: one Artemis broker for Studio to register, and the load
+# balancer on a port the dev stack does not use. `just ha-failover` runs it with
+# web/scripts/ha-failover.ts, and CI runs the same against the image it builds.
+#
+#   DB_PASSWORD=… SECRET_KEY=… docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env \
+#     -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml up -d --wait
+
+services:
+  # Named and configured as the dev stack's primary: its broker.xml advertises tcp://artemis-primary:61616
+  # to Studio, so the service must keep that name. The backup it names is not started.
+  artemis-primary:
+    image: apache/artemis:2.57.0
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+      ANONYMOUS_LOGIN: "false"
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
+    volumes:
+      - ./artemis/primary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
+    healthcheck:
+      # The image has no curl, so bash speaks HTTP itself (as in compose.dev.yaml).
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22primary%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  # The replicas list names each one by its host; a name beats a container id.
+  studio-1:
+    hostname: studio-1
+  studio-2:
+    hostname: studio-2
+
+  lb:
+    ports: !override
+      - "127.0.0.1:18080:8080"

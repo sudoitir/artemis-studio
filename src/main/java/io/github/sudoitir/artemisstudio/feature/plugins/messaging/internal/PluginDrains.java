@@ -182,6 +182,17 @@ public class PluginDrains {
         });
     }
 
+    /** Stop every drain on a cluster, because this replica no longer owns it. */
+    void stopCluster(UUID clusterId) {
+        running.entrySet().removeIf(e -> {
+            if (!e.getValue().spec.clusterId().equals(clusterId)) {
+                return false;
+            }
+            e.getValue().close();
+            return true;
+        });
+    }
+
     /** Stop every drain delivering to a plugin, before its context closes. */
     void stopPlugin(String pluginId) {
         running.entrySet().removeIf(e -> {

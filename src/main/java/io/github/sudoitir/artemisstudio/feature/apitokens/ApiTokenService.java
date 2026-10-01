@@ -8,6 +8,8 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
@@ -70,6 +72,7 @@ public class ApiTokenService implements PersonalTokens {
     private final ScopeHierarchy environments;
     private final SettingsService settings;
     private final TokenUsage usage;
+    private final StudioBus bus;
     /** Absent when the module holding the factors is off, when nobody is required to hold one. */
     private final Optional<SecondFactors> secondFactors;
 
@@ -197,6 +200,7 @@ public class ApiTokenService implements PersonalTokens {
         if (token.getRevokedAt() == null) {
             token.setRevokedAt(Instant.now());
             tokens.save(token);
+            streamsEnd(token);
         }
         AuditEvent event = audit.begin(
                 actorResolver.resolve(), "TOKEN_REVOKE", RESOURCE, token.getName(), null, null, params, false);
@@ -319,7 +323,13 @@ public class ApiTokenService implements PersonalTokens {
                 .toList();
         live.forEach(t -> t.setRevokedAt(now));
         tokens.saveAll(live);
+        live.forEach(this::streamsEnd);
         return live.size();
+    }
+
+    /** Tells every replica, once this transaction commits, to close the event streams the token opened. */
+    private void streamsEnd(ApiTokenEntity token) {
+        bus.publish(new ReplicaSignal("token-revoked", token.getId().toString()));
     }
 
     /**

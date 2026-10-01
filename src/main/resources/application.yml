@@ -2,6 +2,11 @@ spring:
   application:
     name: artemis-studio
 
+  lifecycle:
+    # Each shutdown phase (ShutdownPhases) gets this long; the web server's graceful shutdown and the
+    # drain wait share it with the other steps.
+    timeout-per-shutdown-phase: 30s
+
   modulith:
     # Only packages with an @ApplicationModule package-info are modules (ADR-0069):
     # kernel.*, platform.* and feature.* each declare one. ModularityTest reads
@@ -126,8 +131,12 @@ management:
         include: health,info,prometheus,metrics,refresh
   endpoint:
     health:
+      # /livez and /readyz on the main port, for a load balancer or orchestrator (ADR-0152).
+      # Readiness adds the replica contributor: ready only once the plugin boot has finished and the
+      # bus listens, and not while draining. Neither probe depends on a broker.
       probes:
         enabled: true
+        add-additional-paths: true
       show-details: when-authorized
       # Studio's own machinery (operational-health spec): jobs, broker calls and
       # notification subscriptions. DEGRADED sits between DOWN and UP and answers 200,
@@ -139,6 +148,8 @@ management:
           down: 503
           out-of-service: 503
       group:
+        readiness:
+          include: readinessState,replica
         studio:
           include: jobs,brokers,subscriptions,permissions,pluginTrust
           show-details: when-authorized
@@ -190,6 +201,17 @@ artemis-studio:
   # to it, and it is the relying party of passkeys (ADR-0143): with it blank passkeys are unavailable,
   # and changing its host strands the passkeys enrolled under the old one. Blank: not set.
   public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
+  # Several Studio replicas on one database (ADR-0152). A replica records a heartbeat from database
+  # time; one whose heartbeat is older than ttl is gone. Keep ttl above two heartbeats.
+  ha:
+    heartbeat: 5s
+    ttl: 15s
+    # A stopping replica reports not ready and keeps serving this long before it closes streams,
+    # so the load balancer has stopped routing to it. Longer than its detection time.
+    drain-delay: 5s
+    # A stopping replica waits this long for its bulk runs and transfers to finish, then stops them
+    # and records them as interrupted with their progress.
+    run-grace: 20s
   scrape:
     # Tiered polling cadence (ADR-0015).
     tier-a-interval: 5s      # HA state + topology + split-brain corroboration
