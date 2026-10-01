@@ -17,6 +17,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useNodesInitialized,
   useReactFlow,
   useStoreApi,
   type NodeProps,
@@ -160,12 +161,17 @@ function BrokerNode({ id, data }: NodeProps) {
 
 const nodeTypes = { broker: BrokerNode, pair: PairGroup };
 
-/** Re-fit when the set of logical nodes changes, so a failover leaves no stale viewport. */
+/**
+ * Re-fit when the set of logical nodes changes, so a failover leaves no stale viewport. Only once React
+ * Flow has measured the boxes: fitting unmeasured ones drew a frame at the wrong zoom, with the boxes over
+ * one another, before the canvas's own first fit corrected it.
+ */
 function RefitOnNodeSetChange({ signature }: Readonly<{ signature: string }>) {
   const flow = useReactFlow();
+  const measured = useNodesInitialized();
   useEffect(() => {
-    void flow.fitView(FIT);
-  }, [flow, signature]);
+    if (measured) void flow.fitView(FIT);
+  }, [flow, signature, measured]);
   return null;
 }
 
