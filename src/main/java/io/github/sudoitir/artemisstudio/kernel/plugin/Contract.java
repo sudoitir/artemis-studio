@@ -7,7 +7,7 @@ package io.github.sudoitir.artemisstudio.kernel.plugin;
  */
 public final class Contract {
 
-    public static final int VERSION = 7;
+    public static final int VERSION = 8;
 
     /** The startup property that enables or disables a feature. */
     public static String enabledProperty(String featureId) {
