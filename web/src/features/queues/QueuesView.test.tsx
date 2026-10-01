@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -314,13 +314,18 @@ describe('QueuesView empty grid', () => {
   it('does not write a half-typed filter back after the filter was cleared', async () => {
     search = { q: 'zzz' };
     serve();
-    const user = userEvent.setup();
+    // Time is driven, not waited for: the filter's debounce has to have expired, however loaded the machine.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderWithProviders(<QueuesView />);
 
     await screen.findByText('No queue matches "zzz"');
     await user.type(screen.getByRole('textbox', { name: 'Filter queues' }), 'a');
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
 
     expect(navigate).toHaveBeenCalledOnce();
     expect(nextSearch({ q: 'zzz', page: 2 })).toEqual({ q: undefined, page: undefined });

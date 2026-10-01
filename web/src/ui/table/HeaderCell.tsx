@@ -38,19 +38,31 @@ export function HeaderCell<T>({
   className,
 }: Readonly<HeaderCellProps<T>>) {
   const spec = columnSpec(column);
+  // An end-aligned column's mark leads its name, so the name ends where the figures below it end.
+  const mark = (
+    <span aria-hidden="true" className={classes.sortMark}>
+      {sorting?.active ? sorting.desc ? <IconArrowDown size="1em" /> : <IconArrowUp size="1em" /> : null}
+    </span>
+  );
+  const label = column.short ?? column.header;
   const name = sorting ? (
-    <button type="button" className={classes.sortButton} onClick={onSort}>
-      {column.header}
-      <span aria-hidden="true" className={classes.sortMark}>
-        {sorting.active ? sorting.desc ? <IconArrowDown size="1em" /> : <IconArrowUp size="1em" /> : null}
-      </span>
+    <button
+      type="button"
+      className={classes.sortButton}
+      aria-label={column.short ? column.header : undefined}
+      onClick={onSort}
+    >
+      {spec.alignEnd ? mark : null}
+      {label}
+      {spec.alignEnd ? null : mark}
     </button>
   ) : (
-    column.header
+    label
   );
   return (
     <Tag
       {...(Tag === 'div' ? { role: 'columnheader' } : { scope: 'col' })}
+      aria-label={column.short ? column.header : undefined}
       aria-sort={ariaSortOf(sorting)}
       aria-colindex={grid?.index}
       aria-description={resize ? 'Ctrl+Shift+Left or Right resizes this column.' : undefined}

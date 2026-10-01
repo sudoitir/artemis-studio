@@ -11,6 +11,10 @@ export function pausedLabel(r: QueueView): string {
  * The queues grid's columns. The address and the queue name identify a row and are never hidden;
  * depth, consumers and the state go next, and the secondary counts are the first to be hidden when
  * the table is narrow.
+ *
+ * Every column fits a 1280 px window beside the expanded navigation (ADR-0163), so the columns are
+ * compact rather than hidden: a count is as wide as its figures, its header a short label with the full
+ * name on hover, and a routing type is in lower case, the way the address picker writes it.
  */
 export function queueColumns(): Column<QueueView>[] {
   return [
@@ -30,10 +34,18 @@ export function queueColumns(): Column<QueueView>[] {
       priority: 'essential',
       sortKey: 'queueName',
     },
-    { id: 'routingType', header: 'Type', accessor: (r) => r.routingType, kind: 'status', priority: 'low' },
+    {
+      id: 'routingType',
+      header: 'Type',
+      accessor: (r) => r.routingType.toLowerCase(),
+      kind: 'status',
+      priority: 'low',
+      description: 'Routing type: anycast delivers each message to one consumer, multicast to all of them',
+    },
     {
       id: 'depth',
       header: 'Depth',
+      description: 'Messages waiting in the queue, on every node',
       accessor: (r) => r.totalMessageCount,
       kind: 'number',
       priority: 'high',
@@ -42,6 +54,8 @@ export function queueColumns(): Column<QueueView>[] {
     {
       id: 'consumers',
       header: 'Consumers',
+      short: 'Cons.',
+      description: 'Consumers attached, on every node',
       accessor: (r) => r.totalConsumerCount,
       kind: 'number',
       priority: 'high',
@@ -50,6 +64,8 @@ export function queueColumns(): Column<QueueView>[] {
     {
       id: 'delivering',
       header: 'Delivering',
+      short: 'Deliv.',
+      description: 'Messages being delivered to consumers now',
       accessor: (r) => r.totalDeliveringCount,
       kind: 'number',
       priority: 'low',
@@ -58,6 +74,8 @@ export function queueColumns(): Column<QueueView>[] {
     {
       id: 'scheduled',
       header: 'Scheduled',
+      short: 'Sched.',
+      description: 'Messages held for a later delivery time',
       accessor: (r) => r.totalScheduledCount,
       kind: 'number',
       priority: 'low',

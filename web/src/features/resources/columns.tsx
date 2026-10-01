@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
-import type { Column } from '../../ui/table/index.ts';
+import { MiddleTruncate, type Column } from '../../ui/table/index.ts';
 import type { AddressView, ConnectionView, ConsumerView, ProducerView, SessionView } from './api.ts';
 import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
 
@@ -21,14 +21,15 @@ const LINK_TARGET = {
 
 /**
  * A value that names another resource, as a link to it (ADR-0107) — or as plain text when the
- * feature presenting it is disabled, or when the broker gave no value.
+ * feature presenting it is disabled, or when the broker gave no value. Its text is shortened in the
+ * middle like any identifier, so names that differ only at the end stay apart.
  */
 function linked(kind: 'queue' | 'address' | 'connection' | 'session', value: string | null | undefined): ReactNode {
   if (!value) return '';
   const target = LINK_TARGET[kind](value) as never;
   return (
     <ResourceLink kind={kind} target={target}>
-      {value}
+      <MiddleTruncate text={value} />
     </ResourceLink>
   );
 }

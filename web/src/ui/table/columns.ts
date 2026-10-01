@@ -13,6 +13,12 @@ export type ColumnPriority = 'essential' | 'high' | 'low';
 export interface Column<T> {
   id: string;
   header: string;
+  /**
+   * What the header cell draws when `header` is too long for the column, which is then as wide as its
+   * figures. `header` stays the column's name: the Columns menu, the announcements and assistive
+   * technology use it, and `description` says what the short label stands for.
+   */
+  short?: string;
   /** The plain value of the cell: what is measured, copied, revealed and put in its `title`. */
   accessor: (row: T) => unknown;
   cell?: (row: T) => ReactNode;

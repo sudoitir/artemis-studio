@@ -172,7 +172,13 @@ export function useMeasurement<T>({
   const [refitEpoch, setRefitEpoch] = useState(0);
 
   const fields = useMemo<MeasureColumn[]>(
-    () => columns.map((c) => ({ id: c.id, header: c.header, sortable: Boolean(c.sortKey), spec: columnSpec(c) })),
+    () =>
+      columns.map((c) => ({
+        id: c.id,
+        header: c.short ?? c.header,
+        sortable: Boolean(c.sortKey),
+        spec: columnSpec(c),
+      })),
     [columns],
   );
   const sample = useMemo(() => sampleRows(columns, data), [columns, data]);
@@ -183,7 +189,7 @@ export function useMeasurement<T>({
   busyRef.current = isBusy;
 
   const columnKey = columns
-    .map((c) => [c.id, c.header, c.kind, c.badge, c.min, c.max, c.sortKey ? 1 : 0].join(':'))
+    .map((c) => [c.id, c.header, c.short, c.kind, c.badge, c.min, c.max, c.sortKey ? 1 : 0].join(':'))
     .join('|');
   const key = `${columnKey}#${density}#${fontsEpoch}#${refitEpoch}`;
 

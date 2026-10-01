@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { MiddleTruncate } from '../../ui/table/MiddleTruncate.tsx';
 import type { BulkItemView, BulkRunView } from './api.ts';
 import { itemStatus, runStatus } from './words.ts';
 
@@ -28,12 +29,11 @@ export function QueueButton({ item, onOpen }: Readonly<{ item: BulkItemView; onO
       component="button"
       type="button"
       size="sm"
-      truncate
       maw="100%"
       aria-label={`Show node detail for ${item.queueName}`}
       onClick={() => onOpen(item.queueName)}
     >
-      {item.queueName}
+      <MiddleTruncate text={item.queueName} />
     </Anchor>
   );
 }

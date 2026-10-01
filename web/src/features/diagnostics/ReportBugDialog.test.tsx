@@ -34,12 +34,17 @@ describe('ReportBugDialog', () => {
     renderAppAt('/');
 
     await user.click(await screen.findByRole('button', { name: 'User menu' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Report a bug…' }));
+    // jsdom has no layout, so every rectangle is empty and Floating UI's `hide` middleware may at any moment
+    // find the menu's trigger scrolled out of view: Mantine then draws the open menu `display: none`. Whether
+    // that has happened by the time the query runs depends on how busy the machine is, so the menu is
+    // queried for what it holds, hidden or not.
+    const item = () => screen.queryByRole('menuitem', { name: 'Report a bug…', hidden: true });
+    await user.click(await screen.findByRole('menuitem', { name: 'Report a bug…', hidden: true }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Report a bug' });
-    await new Promise((r) => setTimeout(r, 400));
+    // The menu is gone once its exit transition has ended: the dialog was open before that, and must still be.
+    await waitFor(() => expect(item()).not.toBeInTheDocument());
     expect(dialog).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: 'Report a bug…' })).not.toBeInTheDocument();
   });
 
   it('fills the environment from Studio and opens the issue only when asked', async () => {

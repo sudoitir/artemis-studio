@@ -5,6 +5,7 @@ import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { BridgeView, DivertView } from './api.ts';
 import { BrokerXmlRemedy, DRIFT_SENTENCE } from './DivertActions.tsx';
 import classes from './RoutingView.module.css';
+import { MiddleTruncate } from '../../ui/table/MiddleTruncate.tsx';
 
 /**
  * A Studio-created divert's ownership, as a control rather than a hover title: it opens the
@@ -39,13 +40,13 @@ function Direction({ from, to }: Readonly<{ from: string; to: string }>) {
   return (
     <div className={classes.direction} aria-label={`from ${from} to ${to}`}>
       <Text size="xs" className={classes.endpoint} title={from}>
-        {from}
+        <MiddleTruncate text={from} />
       </Text>
       <span className={classes.arrow} aria-hidden="true">
         →
       </span>
       <Text size="xs" className={classes.endpoint} title={to}>
-        {to}
+        <MiddleTruncate text={to} />
       </Text>
     </div>
   );

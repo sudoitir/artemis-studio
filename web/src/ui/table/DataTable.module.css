@@ -190,6 +190,11 @@
   font-weight: 600;
 }
 
+/* The figures' colour is for the figures: an end-aligned column's header keeps the header colour. */
+.headCell[data-end] {
+  color: var(--as-table-header-text);
+}
+
 /* The select and actions columns hold a block-level control, which `line-height` does not centre:
    flex does. After `.cell` and `.headCell` so its padding wins. */
 .selectCell,
@@ -225,6 +230,10 @@
   inline-size: 1em;
   margin-inline-start: var(--mantine-spacing-xs);
   vertical-align: middle;
+}
+
+.cell[data-end] .sortMark {
+  margin-inline: 0 var(--mantine-spacing-xs);
 }
 
 /* The column resize handle: a strip on the header cell's inline-end border, with a line that shows on
@@ -366,7 +375,9 @@
   outline-offset: var(--as-focus-offset);
 }
 
-/* An identifier shortened in the middle: the start shrinks and ends in an ellipsis, the tail stays. */
+/* An identifier shortened in the middle: the start shrinks and is clipped at its box, the tail stays. While
+   the start is clipped the tail leads with an ellipsis, and the start fades out over the last character, so
+   a half-drawn glyph never sits against it. */
 .middle {
   display: flex;
   min-inline-size: 0;
@@ -376,13 +387,25 @@
   flex: 0 1 auto;
   min-inline-size: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: pre;
+}
+
+.middleStart[data-clipped] {
+  mask-image: linear-gradient(to right, currentcolor calc(100% - 1ch), transparent);
+}
+
+.middleStart[data-clipped]:dir(rtl) {
+  mask-image: linear-gradient(to left, currentcolor calc(100% - 1ch), transparent);
 }
 
 .middleTail {
   flex: none;
   white-space: pre;
+}
+
+/* An empty alternative text keeps the mark out of what assistive technology reads. */
+.middleTail[data-ellipsis]::before {
+  content: '…' / '';
 }
 
 /* Loading: placeholders in the grid's own tracks, at the density's row height. */
