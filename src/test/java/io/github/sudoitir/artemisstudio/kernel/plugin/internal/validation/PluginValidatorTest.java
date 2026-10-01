@@ -35,7 +35,7 @@ class PluginValidatorTest {
         ObjectProvider<BuildProperties> noBuildInfo = mock(ObjectProvider.class);
         when(noBuildInfo.getIfAvailable()).thenReturn(null);
         var studioVersion = new StudioVersion(
-                noBuildInfo, new PluginProperties(studioVersionOverride, false, null, null, null, null));
+                noBuildInfo, new PluginProperties(studioVersionOverride, false, null, null, null, null, null));
         return new PluginValidator(new PluginDescriptorParser(), studioVersion);
     }
 

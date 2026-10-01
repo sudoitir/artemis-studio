@@ -12,7 +12,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * yet — a username, or {@code <registrationId>:<subject>} for a single-sign-on user (ADR-0103).
  * {@code upload.enabled=false} is the kill switch: nothing new can be installed or updated.
  * {@code restart.supervised} says whether something restarts Studio after it exits; unset, it is
- * true only on Kubernetes (ADR-0104).
+ * true only on Kubernetes (ADR-0104). {@code trustedKeys} pins publisher keys by configuration; each
+ * start reconciles the trusted key table with it (ADR-0166).
  */
 @ConfigurationProperties(prefix = "artemis-studio.plugins")
 public record PluginProperties(
@@ -21,7 +22,8 @@ public record PluginProperties(
         Integer startTimeoutSeconds,
         List<String> initialInstallers,
         Upload upload,
-        Restart restart) {
+        Restart restart,
+        List<TrustedKey> trustedKeys) {
 
     public PluginProperties {
         studioVersionOverride = studioVersionOverride == null ? "" : studioVersionOverride;
@@ -29,9 +31,13 @@ public record PluginProperties(
         initialInstallers = initialInstallers == null ? List.of() : List.copyOf(initialInstallers);
         upload = upload == null ? new Upload(true) : upload;
         restart = restart == null ? new Restart(null) : restart;
+        trustedKeys = trustedKeys == null ? List.of() : List.copyOf(trustedKeys);
     }
 
     public record Upload(boolean enabled) {}
 
     public record Restart(Boolean supervised) {}
+
+    /** {@code pem} is an X.509 certificate or a public key, which is what the key dialog accepts. */
+    public record TrustedKey(String name, String pem) {}
 }

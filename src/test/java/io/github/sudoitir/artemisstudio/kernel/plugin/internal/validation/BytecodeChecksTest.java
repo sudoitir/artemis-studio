@@ -29,7 +29,7 @@ class BytecodeChecksTest {
         ObjectProvider<BuildProperties> noBuildInfo = mock(ObjectProvider.class);
         when(noBuildInfo.getIfAvailable()).thenReturn(null);
         var studioVersion =
-                new StudioVersion(noBuildInfo, new PluginProperties("2026.03.15", false, null, null, null, null));
+                new StudioVersion(noBuildInfo, new PluginProperties("2026.03.15", false, null, null, null, null, null));
         return new PluginValidator(new PluginDescriptorParser(), studioVersion)
                 .validate(jar.build(), Set.of())
                 .violations();

@@ -19,7 +19,7 @@ import org.springframework.mock.env.MockEnvironment;
 class StudioRestartTest {
 
     private static PluginProperties supervised(Boolean value) {
-        return new PluginProperties(null, false, null, null, null, new PluginProperties.Restart(value));
+        return new PluginProperties(null, false, null, null, null, new PluginProperties.Restart(value), null);
     }
 
     private static StudioRestart restart(

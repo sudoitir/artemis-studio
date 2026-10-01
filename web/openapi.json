@@ -26799,9 +26799,13 @@
           },
           "addedBy" : {
             "type" : "string"
+          },
+          "source" : {
+            "type" : "string",
+            "enum" : [ "ADMIN", "CONFIGURATION" ]
           }
         },
-        "required" : [ "addedAt", "addedBy", "fingerprint", "name", "subject" ]
+        "required" : [ "addedAt", "addedBy", "fingerprint", "name", "source", "subject" ]
       },
       "GrantInstallerRequest" : {
         "type" : "object",

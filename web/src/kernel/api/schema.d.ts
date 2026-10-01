@@ -4780,6 +4780,8 @@ export interface components {
             /** Format: date-time */
             addedAt: string;
             addedBy: string;
+            /** @enum {string} */
+            source: "ADMIN" | "CONFIGURATION";
         };
         GrantInstallerRequest: {
             username: string;

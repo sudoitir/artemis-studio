@@ -46,7 +46,7 @@ class PluginAdministrationTest {
         return new PluginAdministration(
                 host,
                 installers,
-                new PluginProperties(null, false, null, null, new PluginProperties.Upload(uploadEnabled), null),
+                new PluginProperties(null, false, null, null, new PluginProperties.Upload(uploadEnabled), null, null),
                 mock(SessionAuthentication.class),
                 mock(UserAccounts.class),
                 audit,

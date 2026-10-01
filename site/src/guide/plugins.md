@@ -168,6 +168,9 @@ removed after signing is refused before anything is stored.
   certificate or public key, which the publisher publishes) and remove them. Each key shows its
   **fingerprint**, the name you gave it, and the plugins it signed. Adding or removing a key needs a fresh
   sign-in, like any plugin change, and is audited.
+- **Keys from configuration.** An installation that is built from files, such as an air-gapped one or one
+  managed by GitOps, pins its publishers' keys in `artemis-studio.plugins.trusted-keys` instead. See
+  [Pin keys by configuration](#pin-keys-by-configuration).
 - **Trust this key.** Upload a plugin from a publisher you have not trusted yet and the review names its key
   by fingerprint and certificate subject. Compare that fingerprint with the one the publisher publishes (on
   their site, in their release notes), tick that you did, and choose **Trust this key**. Studio takes the key
@@ -190,6 +193,52 @@ removed after signing is refused before anything is stored.
 - **Health.** While any installed plugin is unverified, the `studio` health group in
   `/actuator/health/studio` reports **DEGRADED** and names the plugins, so a monitor notices. It returns to
   `UP` when the plugin is updated by a trusted key, its key is trusted again, or it is removed.
+
+### Pin keys by configuration
+
+Each item of `artemis-studio.plugins.trusted-keys` has a `name`, which the Trusted keys dialog shows, and a
+`pem`: the publisher's PEM certificate or public key, the same text you would paste into the dialog.
+
+```yaml
+artemis-studio:
+  plugins:
+    trusted-keys:
+      - name: Example Publisher
+        pem: |
+          -----BEGIN CERTIFICATE-----
+          MIIB...
+          -----END CERTIFICATE-----
+```
+
+As environment variables, with the item's number between underscores, for example in a compose file:
+
+```yaml
+environment:
+  ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
+  ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_PEM: |
+    -----BEGIN CERTIFICATE-----
+    MIIB...
+    -----END CERTIFICATE-----
+```
+
+Studio makes the trusted keys agree with the list every time it starts, **before any installed plugin is
+started**, so a plugin signed by a configured key is trusted on the first boot with it.
+
+- A configured key is added and shows **From configuration**. A key an installer added by hand with the same
+  fingerprint becomes a configured one.
+- **Its Remove is disabled**, and the API refuses with 409 (`configured-key`): change the configuration and
+  restart.
+- Remove a key from the list and restart, and it is no longer trusted. The plugins it signed keep running, show
+  the **Unverified** badge, and the `studio` health group reports **DEGRADED**, as for any removed key. Keys an
+  installer added by hand are never touched.
+- **A bad entry stops Studio from starting**: a missing `name` or `pem`, a key that is not a PEM certificate
+  or public key, or the same key twice. The message names the entry's number (`trusted-keys[1]`) and the
+  reason.
+- Every key it adds or removes is audited as `PLUGIN_KEY_ADD` or `PLUGIN_KEY_REMOVE` by the actor
+  `configuration`, with the fingerprint.
+
+Whoever can change Studio's configuration can trust a publisher this way, without a fresh sign-in. They could
+already run anything in Studio, but treat the list like the rest of your deployment's secrets.
 
 Trust is the key, not the certificate: a publisher who re-issues their certificate for the same key needs
 nothing done. There are no certificate chains, expiry dates or revocation lists, so if a publisher's key is
@@ -233,6 +282,7 @@ than growing without limit.
 | `artemis-studio.plugins.upload.enabled` (`ARTEMIS_STUDIO_PLUGINS_UPLOAD_ENABLED`) | `true` | `false` switches installing and updating off |
 | `artemis-studio.plugins.initial-installers` | — | Who can install while nobody can: usernames or `registration-id:subject` |
 | `artemis-studio.plugins.restart.supervised` (`ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED`) | unset: `true` on Kubernetes | Something starts Studio again after it exits |
+| `artemis-studio.plugins.trusted-keys` (`ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME`, `..._0_PEM`) | none | Publisher keys to trust, each a `name` and a `pem`; see [Pin keys by configuration](#pin-keys-by-configuration) |
 | `artemis-studio.plugins.safe-mode` (`ARTEMIS_STUDIO_PLUGINS_SAFE_MODE`) | `false` | Start without any plugin |
 | `artemis-studio.plugins.start-timeout-seconds` | `60` | How long a plugin gets to start |
 | `artemis-studio.features.plugins.enabled` | `true` | `false` removes the Plugins tab and its API; installed plugins still run |

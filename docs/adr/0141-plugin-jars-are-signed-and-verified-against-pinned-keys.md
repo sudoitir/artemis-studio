@@ -1,6 +1,6 @@
 # ADR-0141: Plugin jars are signed and verified against pinned publisher keys
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0166](0166-trusted-publisher-keys-can-be-pinned-by-configuration.md) (keys from configuration)
 - **Date**: 2026-09-30
 - **Deciders**: Mahdi Amirabdollahi
 

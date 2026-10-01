@@ -20,6 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class PluginTrust {
 
+    /** The configuration list that pins keys, and the refusal code for removing one of them. */
+    public static final String CONFIGURATION_KEY = "artemis-studio.plugins.trusted-keys";
+
+    public static final String CONFIGURED_KEY = "configured-key";
+
     private final TrustedKeyRepository keys;
     private final PluginInstallRepository installs;
     private final JdbcTemplate jdbc;
@@ -30,7 +35,8 @@ public class PluginTrust {
         this.jdbc = jdbc;
     }
 
-    public record TrustedKey(String fingerprint, String name, String subject, Instant addedAt, String addedBy) {}
+    public record TrustedKey(
+            String fingerprint, String name, String subject, Instant addedAt, String addedBy, KeySource source) {}
 
     public TrustDecision decide(Signer signerOrNull) {
         return signerOrNull == null ? decide(null, null) : decide(signerOrNull.fingerprint(), signerOrNull.subject());
@@ -68,10 +74,7 @@ public class PluginTrust {
     }
 
     public List<TrustedKey> keys() {
-        return keys.findAllByOrderByAddedAtAsc().stream()
-                .map(k ->
-                        new TrustedKey(k.getFingerprint(), k.getName(), k.getSubject(), k.getAddedAt(), k.getAddedBy()))
-                .toList();
+        return keys.findAllByOrderByAddedAtAsc().stream().map(PluginTrust::view).toList();
     }
 
     @Transactional
@@ -84,12 +87,50 @@ public class PluginTrust {
         }
         var saved =
                 keys.saveAndFlush(new TrustedKeyEntity(key.fingerprint(), name, key.subject(), key.publicKey(), actor));
-        return new TrustedKey(
-                saved.getFingerprint(), saved.getName(), saved.getSubject(), saved.getAddedAt(), saved.getAddedBy());
+        return view(saved);
     }
 
+    private static TrustedKey view(TrustedKeyEntity k) {
+        return new TrustedKey(
+                k.getFingerprint(),
+                k.getName(),
+                k.getSubject(),
+                k.getAddedAt(),
+                k.getAddedBy(),
+                KeySource.valueOf(k.getSource()));
+    }
+
+    /**
+     * Removes an administrator-added key; {@code false} when there is none. A key the configuration pins is
+     * refused, since the next start would pin it again.
+     */
     @Transactional
     public boolean remove(String fingerprint) {
+        var key = keys.findById(fingerprint);
+        if (key.isPresent() && KeySource.CONFIGURATION.name().equals(key.get().getSource())) {
+            throw new PluginRefusedException(List.of(new Violation(
+                    CONFIGURED_KEY,
+                    "The key " + fingerprint + " is set by " + CONFIGURATION_KEY
+                            + ". Remove it there and restart Studio.",
+                    "Remove it from " + CONFIGURATION_KEY + " and restart Studio")));
+        }
         return keys.deleteByFingerprint(fingerprint) > 0;
+    }
+
+    /**
+     * Pins a key from the configuration: adds it, or makes an existing key (an administrator's, or one
+     * with another name) a configured one under {@code name}. Safe when several replicas start at once.
+     */
+    public void pin(String name, Signer key, String actor) {
+        jdbc.update("""
+                INSERT INTO plugin_trusted_key (fingerprint, name, subject, public_key, added_by, source)
+                VALUES (?, ?, ?, ?, ?, 'CONFIGURATION')
+                ON CONFLICT (fingerprint) DO UPDATE SET name = EXCLUDED.name, source = 'CONFIGURATION'
+                """, key.fingerprint(), name, key.subject(), key.publicKey(), actor);
+    }
+
+    /** Removes a key the configuration no longer pins; an administrator's key with that fingerprint stays. */
+    public void unpin(String fingerprint) {
+        jdbc.update("DELETE FROM plugin_trusted_key WHERE fingerprint = ? AND source = 'CONFIGURATION'", fingerprint);
     }
 }

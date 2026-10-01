@@ -535,6 +535,52 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aConfiguredKeyIsListedAsSuchAndTheApiRefusesToRemoveOrAddItAgain() throws Exception {
+        MockMvc mvc = mvc();
+        UUID[] userId = new UUID[1];
+        MockHttpSession session = installerSession(mvc, userId);
+        String other = TestSigningKeys.OTHER.fingerprint();
+        jdbc.update(
+                """
+                INSERT INTO plugin_trusted_key (fingerprint, name, subject, public_key, added_by, source)
+                VALUES (?, 'Example Publisher', '', ?, 'configuration', 'CONFIGURATION')
+                """, other, TestSigningKeys.OTHER.certificate().getPublicKey().getEncoded());
+
+        mvc.perform(get("/api/v1/admin/plugins/keys").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.keys[?(@.fingerprint=='" + other + "')].source")
+                        .value("CONFIGURATION"))
+                .andExpect(
+                        jsonPath("$.keys[?(@.fingerprint=='" + TestSigningKeys.PUBLISHER.fingerprint() + "')].source")
+                                .value("ADMIN"));
+
+        mvc.perform(delete("/api/v1/admin/plugins/keys/{fp}", other)
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("/configured-key")))
+                .andExpect(
+                        jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("studio.plugins.trusted-keys")))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("restart")));
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM plugin_trusted_key WHERE fingerprint = ?", Integer.class, other))
+                .isEqualTo(1);
+        assertThat(lastAudit("PLUGIN_KEY_REMOVE", userId[0])).containsEntry("outcome", "FAILURE");
+
+        String pem = "-----BEGIN CERTIFICATE-----\n"
+                + java.util.Base64.getMimeEncoder(64, "\n".getBytes())
+                        .encodeToString(TestSigningKeys.OTHER.certificate().getEncoded())
+                + "\n-----END CERTIFICATE-----";
+        mvc.perform(post("/api/v1/admin/plugins/keys")
+                        .session(session)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("name", "Again", "pem", pem))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.violations[0].code").value("key-exists"));
+    }
+
+    @Test
     void aKeyFromAPemNeedsNoUploadAndAnUnsignedUploadYieldsNoKey() throws Exception {
         MockMvc mvc = mvc();
         UUID[] userId = new UUID[1];
