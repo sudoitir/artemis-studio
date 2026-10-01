@@ -1,0 +1,57 @@
+/* A figure with its label above it. The value row has a fixed height, so loading, unavailable and
+   known states occupy the same box. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.label {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-sm);
+  line-height: var(--mantine-line-height-sm);
+  overflow-wrap: anywhere;
+}
+
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mantine-spacing-xs);
+  min-block-size: calc(var(--mantine-font-size-xl) * var(--mantine-line-height-xl));
+  margin: 0;
+  font-size: var(--mantine-font-size-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--mantine-line-height-xl);
+  overflow-wrap: anywhere;
+}
+
+.unit {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 400;
+}
+
+.unavailable {
+  color: var(--as-text-dimmed);
+}
+
+.reason {
+  margin: 0;
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-sm);
+  line-height: var(--mantine-line-height-sm);
+  max-inline-size: 36ch;
+  overflow-wrap: anywhere;
+}
+
+.skeleton {
+  align-self: center;
+  inline-size: 6ch;
+  block-size: 1em;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-skeleton);
+}

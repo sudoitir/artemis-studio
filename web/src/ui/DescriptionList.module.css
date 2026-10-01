@@ -1,0 +1,31 @@
+/* Terms in one column, values in the next. The value track is minmax(0, 1fr) and values break
+   anywhere, so a long identifier wraps inside its column instead of widening the page. */
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.list[data-columns='2'] {
+  grid-template-columns: repeat(2, minmax(0, max-content) minmax(0, 1fr));
+  column-gap: var(--mantine-spacing-lg);
+}
+
+.term {
+  color: var(--as-text-dimmed);
+  overflow-wrap: anywhere;
+}
+
+.value {
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-sm);
+}

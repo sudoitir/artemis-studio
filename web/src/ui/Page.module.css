@@ -1,0 +1,19 @@
+/* The page frame: one column, spaced by the theme's spacing scale. `fill` makes the last child take
+   what is left of the viewport below the app shell's header and inside its padding, so a grid or a
+   canvas fills the window without the page itself scrolling. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-lg);
+  min-inline-size: 0;
+}
+
+.page[data-fill] {
+  min-block-size: calc(100dvh - var(--app-shell-header-offset, 0rem) - 2 * var(--app-shell-padding, 0rem));
+}
+
+.page[data-fill] > :last-child {
+  flex: 1 1 0;
+  min-block-size: 0;
+}

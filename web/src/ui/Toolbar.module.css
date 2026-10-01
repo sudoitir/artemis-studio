@@ -1,0 +1,23 @@
+/* The controls above a view: what acts on the view on the start side, what acts on the page or
+   shows its state on the end side. Both sides wrap by size. */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm) var(--mantine-spacing-lg);
+}
+
+.start,
+.end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  min-inline-size: 0;
+}
+
+.end {
+  margin-inline-start: auto;
+}
