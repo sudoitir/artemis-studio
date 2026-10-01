@@ -326,6 +326,13 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   mark();
   await hold(page, 500);
 
+  // A short query needs a short editor: the separator's Home key gives the editor its smallest size,
+  // so the clip's window has room for the rows the queries find.
+  const separator = page.getByRole('separator', { name: 'Resize the editor and the results' });
+  await separator.focus();
+  await page.keyboard.press('Home');
+  await hold(page, 600);
+
   // Cheap first: the predicate pushes down into a JMS selector, and the cost
   // line says so before anything is run.
   await editor.click();
