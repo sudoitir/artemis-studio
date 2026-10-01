@@ -30,6 +30,7 @@ const INFO = {
   restartToActivate: false,
   updateUrl: null,
   requires: [],
+  requiresLicense: false,
   contributions: {
     ui: true,
     permissions: [{ action: 'acme-notes:write', description: 'Write notes' }],
@@ -58,6 +59,7 @@ function plugin(overrides: Partial<PluginView> = {}): PluginView {
     signerFingerprint: 'AB:CD',
     signerSubject: 'CN=Acme',
     verified: true,
+    license: null,
     info: INFO,
     ...overrides,
   } as PluginView;
@@ -208,6 +210,54 @@ describe('Administration → Plugins', () => {
     expect(rows[0]).toHaveTextContent('Zeta');
     expect(rows[0]).toHaveTextContent('Failed');
     expect(within(rows[0]).getByRole('button', { name: 'See why' })).toBeInTheDocument();
+  });
+
+  it('shows a license state, in words, only on a plugin that needs a license, and offers the fix', async () => {
+    const license = (state: string) => ({
+      state,
+      expiresAt: null,
+      licensee: null,
+      detail: null,
+      uploadedAt: null,
+      uploadedBy: null,
+      reportedAt: null,
+    });
+    server.use(
+      me(),
+      http.get('*/api/v1/admin/plugins', () =>
+        HttpResponse.json(
+          inventory([
+            plugin({ id: 'acme-plain', info: { ...INFO, title: 'Plain' } }),
+            plugin({
+              id: 'acme-fine',
+              info: { ...INFO, title: 'Fine', requiresLicense: true },
+              license: license('VALID') as PluginView['license'],
+            }),
+            plugin({
+              id: 'acme-bare',
+              info: { ...INFO, title: 'Bare', requiresLicense: true },
+              license: license('MISSING') as PluginView['license'],
+            }),
+            plugin({
+              id: 'acme-late',
+              info: { ...INFO, title: 'Late', requiresLicense: true },
+              license: license('EXPIRED') as PluginView['license'],
+            }),
+          ]),
+        ),
+      ),
+    );
+    renderPanel();
+
+    await screen.findByText('Bare');
+    const row = (title: string) => screen.getByText(title, { selector: 'p' }).closest('[role="row"]') as HTMLElement;
+    expect(row('Plain')).not.toHaveTextContent(/licen/i);
+    expect(row('Fine')).toHaveTextContent('Licensed');
+    expect(within(row('Fine')).queryByRole('button')).toBeNull();
+    expect(row('Bare')).toHaveTextContent('No license');
+    expect(within(row('Bare')).getByRole('button', { name: 'Add license' })).toBeInTheDocument();
+    expect(row('Late')).toHaveTextContent('License expired');
+    expect(within(row('Late')).getByRole('button', { name: 'License' })).toBeInTheDocument();
   });
 
   it('lists everything wrong with a jar at once, and stores nothing', async () => {

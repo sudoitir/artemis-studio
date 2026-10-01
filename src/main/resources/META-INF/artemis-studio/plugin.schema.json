@@ -47,6 +47,11 @@
     },
     "requires": { "type": "array", "items": { "type": "string" } },
     "ui": { "type": "boolean" },
+    "requiresLicense": {
+      "type": "boolean",
+      "default": false,
+      "description": "The plugin needs a license file: admins upload one in Admin > Plugins, the plugin reads it and reports whether it is valid."
+    },
     "activation": { "type": "string", "enum": ["AUTO", "RESTART"] },
     "updateUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
     "title": { "type": "string", "minLength": 1 },

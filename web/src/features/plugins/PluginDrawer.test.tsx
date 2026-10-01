@@ -23,6 +23,7 @@ const INFO = {
   restartToActivate: false,
   updateUrl: null,
   requires: [],
+  requiresLicense: false,
   contributions: { ui: true, permissions: [], settingKeys: [], streamTopics: [], mcpTools: [] },
 };
 

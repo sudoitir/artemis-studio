@@ -31,6 +31,15 @@ public class StudioInfo {
         return studioVersion.current().map(Object::toString);
     }
 
+    /**
+     * How many broker instances this installation manages: every node of every registered cluster,
+     * backups included. A count only, with no names, so it is the same for every caller. A plugin may
+     * size a license by it, or anything else.
+     */
+    public int brokerInstances() {
+        return clusters.allNodes().size();
+    }
+
     /** The cluster's display name, when the current caller holds {@code cluster:read} on it. */
     public Optional<String> clusterName(UUID clusterId) {
         if (clusterId == null || !perm.can(clusterId, Permissions.CLUSTER_READ)) {

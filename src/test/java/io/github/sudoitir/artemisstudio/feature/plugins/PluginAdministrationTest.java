@@ -2,12 +2,17 @@ package io.github.sudoitir.artemisstudio.feature.plugins;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.SemVer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
@@ -15,11 +20,14 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.StudioRestar
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -32,6 +40,7 @@ class PluginAdministrationTest {
     private final AuditService audit = mock(AuditService.class);
     private final UUID userId = UUID.randomUUID();
     private final ActorResolver actors = mock(ActorResolver.class);
+    private final PluginLicenseStore licenses = mock(PluginLicenseStore.class);
 
     private PluginAdministration administration(boolean uploadEnabled) {
         return new PluginAdministration(
@@ -46,7 +55,8 @@ class PluginAdministrationTest {
                 new UploadRateLimit(Clock.systemUTC()),
                 new UpdateChecker(JsonMapper.builder().build()),
                 mock(StudioRestart.class),
-                mock(PluginTrust.class));
+                mock(PluginTrust.class),
+                licenses);
     }
 
     @Test
@@ -62,6 +72,43 @@ class PluginAdministrationTest {
                 .extracting(e -> ((PluginAccessDeniedException) e).slug())
                 .isEqualTo("plugin-upload-disabled");
         verifyNoInteractions(host, audit);
+    }
+
+    @Test
+    void aLicenseUploadByANonInstallerIsRefusedAndAuditedWithoutItsContent() {
+        when(installers.isInstaller(userId)).thenReturn(false);
+        when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
+        byte[] secret = "sk-license-content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        assertThatThrownBy(
+                        () -> administration(true).uploadLicense(mock(HttpServletRequest.class), "acme-notes", secret))
+                .isInstanceOf(PluginAccessDeniedException.class);
+
+        verify(audit)
+                .begin(
+                        any(),
+                        eq("PLUGIN_LICENSE_UPLOAD"),
+                        eq("plugin"),
+                        eq("acme-notes"),
+                        any(),
+                        any(),
+                        eq(Map.of("size", secret.length, "sha256", PluginLicenseStore.sha256(secret))),
+                        anyBoolean());
+        verify(audit).fail(any(), any());
+        verifyNoInteractions(licenses);
+    }
+
+    @Test
+    void aLicenseRemovalWithoutAStepUpIsRefusedAndAudited() {
+        when(installers.isInstaller(userId)).thenReturn(true);
+        when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
+        var request = mock(HttpServletRequest.class);
+
+        assertThatThrownBy(() -> administration(true).removeLicense(request, "acme-notes"))
+                .isInstanceOf(ReauthenticationRequiredException.class);
+
+        verify(audit).fail(any(), any());
+        verifyNoInteractions(licenses);
     }
 
     @Test

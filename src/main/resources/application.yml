@@ -151,7 +151,7 @@ management:
         readiness:
           include: readinessState,replica
         studio:
-          include: jobs,brokers,subscriptions,permissions,pluginTrust
+          include: jobs,brokers,subscriptions,permissions,pluginTrust,pluginLicenses
           show-details: when-authorized
   info:
     build:

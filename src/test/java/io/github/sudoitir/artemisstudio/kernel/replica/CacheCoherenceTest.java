@@ -7,6 +7,10 @@ import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
 import io.github.sudoitir.artemisstudio.feature.diagnostics.DiagnosticsService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicense;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseChanged;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
@@ -20,21 +24,26 @@ import io.github.sudoitir.artemisstudio.platform.governance.GovernanceRuleServic
 import io.github.sudoitir.artemisstudio.platform.governance.web.GovernanceRuleViews.RuleRequest;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.PayloadApplicationEvent;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Two replicas, this context (A) and a second one on the same database (B): a change made on A to
@@ -62,6 +71,15 @@ class CacheCoherenceTest extends PostgresIntegrationTest {
 
     @Autowired
     StudioBus busA;
+
+    @Autowired
+    PluginLicenseStore licensesA;
+
+    @Autowired
+    ConfigurableApplicationContext contextA;
+
+    @Autowired
+    JsonMapper json;
 
     @Autowired
     NamedParameterJdbcTemplate jdbc;
@@ -143,6 +161,58 @@ class CacheCoherenceTest extends PostgresIntegrationTest {
         assertThat(diagnosticsB.take(id, List.of("about")).sections())
                 .singleElement()
                 .satisfies(section -> assertThat(section.key()).isEqualTo("about"));
+    }
+
+    @Test
+    void aLicenseUploadedOnOneReplicaIsAnnouncedAndServedOnBoth() {
+        List<PluginLicenseChanged> onA = new CopyOnWriteArrayList<>();
+        List<PluginLicenseChanged> onB = new CopyOnWriteArrayList<>();
+        listen(contextA, onA);
+        listen(other, onB);
+        String id = "acme-coherence-" + Long.toString(System.nanoTime(), 36);
+        String artifact = PluginLicenseStore.sha256(id.getBytes(StandardCharsets.UTF_8));
+        Map<String, Object> descriptor = PluginJarBuilder.defaultDescriptor(id);
+        descriptor.put("requiresLicense", true);
+        jdbc.update(
+                "INSERT INTO plugin_artifact (uploaded_at, size_bytes, sha256, content) VALUES (now(), 1, :sha, :c)",
+                Map.of("sha", artifact, "c", new byte[] {1}));
+        jdbc.update(
+                "INSERT INTO plugin_install (installed_at, updated_at, id, version, vendor, sha256, status, installed_by,"
+                        + " descriptor, schema_changed) VALUES (now(), now(), :id, '1.0.0', 'Acme', :sha, 'active', 'test',"
+                        + " CAST(:d AS jsonb), false)",
+                Map.of("id", id, "sha", artifact, "d", json.writeValueAsString(descriptor)));
+        try {
+            PluginLicenseStore storeB = other.getBean(PluginLicenseStore.class);
+            String sha = licensesA.put(id, "one-file".getBytes(StandardCharsets.UTF_8), "ops");
+
+            await().atMost(WITHIN).untilAsserted(() -> {
+                assertThat(onA).contains(new PluginLicenseChanged(id));
+                assertThat(onB).contains(new PluginLicenseChanged(id));
+            });
+            assertThat(storeB.summary(id).state()).isEqualTo(PluginLicenseStore.State.UNCHECKED);
+
+            // The plugin on the other replica judges the file; the first replica shows the verdict.
+            ((PluginLicense) storeB.beansFor(id).get("pluginLicense"))
+                    .report(sha, new PluginLicense.Verdict(PluginLicense.Status.VALID, null, "Acme Ltd", null));
+            assertThat(licensesA.summary(id).state()).isEqualTo(PluginLicenseStore.State.VALID);
+
+            onB.clear();
+            licensesA.remove(id);
+            await().atMost(WITHIN).untilAsserted(() -> assertThat(onB).contains(new PluginLicenseChanged(id)));
+            assertThat(storeB.summary(id).state()).isEqualTo(PluginLicenseStore.State.MISSING);
+        } finally {
+            jdbc.update("DELETE FROM plugin_license WHERE plugin_id = :id", Map.of("id", id));
+            jdbc.update("DELETE FROM plugin_install WHERE id = :id", Map.of("id", id));
+            jdbc.update("DELETE FROM plugin_artifact WHERE sha256 = :sha", Map.of("sha", artifact));
+        }
+    }
+
+    private static void listen(ConfigurableApplicationContext context, List<PluginLicenseChanged> into) {
+        context.addApplicationListener((ApplicationListener<PayloadApplicationEvent<?>>) event -> {
+            if (event.getPayload() instanceof PluginLicenseChanged changed) {
+                into.add(changed);
+            }
+        });
     }
 
     @Test

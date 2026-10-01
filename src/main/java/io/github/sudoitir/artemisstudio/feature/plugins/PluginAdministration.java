@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.ActivationPlan;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
@@ -62,6 +63,7 @@ public class PluginAdministration {
     private final UpdateChecker updates;
     private final StudioRestart restart;
     private final PluginTrust trust;
+    private final PluginLicenseStore licenses;
 
     /** Why the caller cannot install right now, or empty when they can. */
     public Optional<PluginAccessDeniedException> installBlocker() {
@@ -207,6 +209,29 @@ public class PluginAdministration {
         return audited("PLUGIN_PURGE", id, Map.of("schema", plan.schema()), () -> {
             host.purge(id, actor().username());
             return plan;
+        });
+    }
+
+    // ---- license files (ADR-0153) ---------------------------------------------------------------
+
+    /**
+     * Stores or replaces the plugin's license file. The audit row opens first, so a refusal is
+     * recorded too, with the plugin, the file's hash and its size and never its content.
+     */
+    public void uploadLicense(HttpServletRequest request, String id, byte[] content) {
+        Map<String, Object> params = Map.of("size", content.length, "sha256", PluginLicenseStore.sha256(content));
+        audited("PLUGIN_LICENSE_UPLOAD", id, params, () -> {
+            requireStepUp(request);
+            licenses.put(id, content, actor().username());
+            return null;
+        });
+    }
+
+    public void removeLicense(HttpServletRequest request, String id) {
+        audited("PLUGIN_LICENSE_REMOVE", id, Map.of(), () -> {
+            requireStepUp(request);
+            licenses.remove(id);
+            return null;
         });
     }
 

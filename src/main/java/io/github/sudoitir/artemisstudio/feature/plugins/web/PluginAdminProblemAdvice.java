@@ -24,6 +24,12 @@ class PluginAdminProblemAdvice {
         if ("not-found".equals(firstViolationCode)) {
             return HttpStatus.NOT_FOUND;
         }
+        if ("license-empty".equals(firstViolationCode)) {
+            return HttpStatus.BAD_REQUEST;
+        }
+        if ("license-too-large".equals(firstViolationCode)) {
+            return HttpStatus.CONTENT_TOO_LARGE;
+        }
         return CONFLICTS.contains(firstViolationCode) ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_CONTENT;
     }
 

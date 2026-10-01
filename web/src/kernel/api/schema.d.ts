@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins/{id}/license": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["uploadLicense"];
+        post?: never;
+        delete: operations["removeLicense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plugins/upload": {
         parameters: {
             query?: never;
@@ -3404,6 +3420,19 @@ export interface components {
             boundRuleCount: number;
             health?: components["schemas"]["ChannelHealthView"] | null;
         };
+        PluginLicenseView: {
+            /** @enum {string} */
+            state: "MISSING" | "UNCHECKED" | "VALID" | "EXPIRING" | "EXPIRED" | "OVER_LIMIT" | "INVALID";
+            /** Format: date-time */
+            expiresAt?: string | null;
+            licensee?: string | null;
+            detail?: string | null;
+            /** Format: date-time */
+            uploadedAt?: string | null;
+            uploadedBy?: string | null;
+            /** Format: date-time */
+            reportedAt?: string | null;
+        };
         PluginChangesetView: {
             id: string;
             author: string;
@@ -3438,6 +3467,7 @@ export interface components {
             restartToActivate: boolean;
             updateUrl?: string | null;
             requires: string[];
+            requiresLicense: boolean;
             contributions: components["schemas"]["PluginContributionsView"];
         };
         PluginMcpToolView: {
@@ -6834,6 +6864,7 @@ export interface components {
             signerFingerprint?: string | null;
             signerSubject?: string | null;
             verified: boolean;
+            license?: components["schemas"]["PluginLicenseView"] | null;
             info: components["schemas"]["PluginInfoView"];
         };
         PluginsView: {
@@ -8325,6 +8356,124 @@ export interface operations {
             };
             path: {
                 channelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    uploadLicense: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginLicenseView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    removeLicense: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
             };
             cookie?: never;
         };

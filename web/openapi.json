@@ -2401,6 +2401,189 @@
         }
       }
     },
+    "/api/v1/admin/plugins/{id}/license" : {
+      "put" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "uploadLicense",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginLicenseView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "plugin-admin-controller" ],
+        "operationId" : "removeLicense",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/plugins/upload" : {
       "put" : {
         "tags" : [ "plugin-admin-controller" ],
@@ -23146,6 +23329,37 @@
         },
         "required" : [ "boundRuleCount", "config", "enabled", "hasSecret", "id", "kind", "name" ]
       },
+      "PluginLicenseView" : {
+        "type" : "object",
+        "properties" : {
+          "state" : {
+            "type" : "string",
+            "enum" : [ "MISSING", "UNCHECKED", "VALID", "EXPIRING", "EXPIRED", "OVER_LIMIT", "INVALID" ]
+          },
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "licensee" : {
+            "type" : [ "string", "null" ]
+          },
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "uploadedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "uploadedBy" : {
+            "type" : [ "string", "null" ]
+          },
+          "reportedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "state" ]
+      },
       "PluginChangesetView" : {
         "type" : "object",
         "properties" : {
@@ -23287,11 +23501,14 @@
               "type" : "string"
             }
           },
+          "requiresLicense" : {
+            "type" : "boolean"
+          },
           "contributions" : {
             "$ref" : "#/components/schemas/PluginContributionsView"
           }
         },
-        "required" : [ "contributions", "name", "requires", "restartToActivate", "since", "title", "vendor" ]
+        "required" : [ "contributions", "name", "requires", "requiresLicense", "restartToActivate", "since", "title", "vendor" ]
       },
       "PluginMcpToolView" : {
         "type" : "object",
@@ -31584,6 +31801,13 @@
           },
           "verified" : {
             "type" : "boolean"
+          },
+          "license" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/PluginLicenseView"
+            }, {
+              "type" : "null"
+            } ]
           },
           "info" : {
             "$ref" : "#/components/schemas/PluginInfoView"

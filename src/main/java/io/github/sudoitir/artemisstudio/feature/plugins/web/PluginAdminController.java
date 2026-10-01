@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.Plu
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginDiffView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginInfoView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginInstallerView;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginLicenseView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginMcpToolView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginPermissionView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginPlanView;
@@ -31,6 +32,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventVi
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.ActivationPlan;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
@@ -51,6 +53,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -86,6 +89,7 @@ public class PluginAdminController {
     private final PluginHost host;
     private final StudioRestart restart;
     private final AuditQueryService audit;
+    private final PluginLicenseStore licenses;
 
     @GetMapping
     public PluginsView list() {
@@ -93,6 +97,7 @@ public class PluginAdminController {
         var budget = host.connectionBudget();
         List<PluginSummary> plugins = host.list();
         List<String> unreleased = host.unreleased();
+        Map<String, PluginLicenseStore.Summary> stored = licenses.summaries();
         return new PluginsView(
                 blocker.isEmpty(),
                 blocker.map(e -> new PluginProblemReasonView(e.slug(), e.getMessage()))
@@ -110,12 +115,34 @@ public class PluginAdminController {
                         restart.manualRestartAllowedAt().orElse(null),
                         StudioRestart.MANUAL_COMMAND,
                         unreleased),
-                plugins.stream().map(this::view).toList());
+                plugins.stream()
+                        .map(p -> view(p, stored.getOrDefault(p.id(), PluginLicenseStore.missing())))
+                        .toList());
     }
 
     @GetMapping("/{id}")
     public PluginView get(@PathVariable String id) {
-        return host.status(id).map(this::view).orElseThrow(() -> notFound("No installed plugin '" + id + "'."));
+        return host.status(id)
+                .map(p -> view(p, licenses.summary(id)))
+                .orElseThrow(() -> notFound("No installed plugin '" + id + "'."));
+    }
+
+    /**
+     * Stores or replaces the plugin's license file, sent as the raw request body of at most 64 KiB, and
+     * answers with the license as the plugin's state shows it: unchecked until the plugin reports.
+     */
+    @PutMapping(path = "/{id}/license", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public PluginLicenseView uploadLicense(HttpServletRequest request, @PathVariable String id) throws IOException {
+        // One byte past the limit is enough to tell an oversize body without reading the rest of it.
+        byte[] content = request.getInputStream().readNBytes(PluginLicenseStore.MAX_BYTES + 1);
+        administration.uploadLicense(request, id, content);
+        return license(licenses.summary(id));
+    }
+
+    @DeleteMapping("/{id}/license")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeLicense(HttpServletRequest request, @PathVariable String id) {
+        administration.removeLicense(request, id);
     }
 
     /** The jar is the raw request body — never multipart, so nothing is parsed before this runs. */
@@ -316,7 +343,7 @@ public class PluginAdminController {
 
     // ---- mapping ------------------------------------------------------------------------------
 
-    private PluginView view(PluginSummary s) {
+    private PluginView view(PluginSummary s, PluginLicenseStore.Summary stored) {
         boolean active = s.status() == PluginInstallStatus.ACTIVE;
         return new PluginView(
                 s.id(),
@@ -339,7 +366,13 @@ public class PluginAdminController {
                 s.signerFingerprint(),
                 s.signerSubject(),
                 s.verified(),
+                s.descriptor() != null && s.descriptor().isRequiresLicense() ? license(stored) : null,
                 info(s.descriptor(), s.id(), s.vendor()));
+    }
+
+    private static PluginLicenseView license(PluginLicenseStore.Summary s) {
+        return new PluginLicenseView(
+                s.state(), s.expiresAt(), s.licensee(), s.detail(), s.uploadedAt(), s.uploadedBy(), s.reportedAt());
     }
 
     private static PluginInfoView info(PluginDescriptor d, String id, String vendor) {
@@ -356,6 +389,7 @@ public class PluginAdminController {
                     false,
                     null,
                     List.of(),
+                    false,
                     new PluginContributionsView(false, List.of(), List.of(), List.of(), List.of()));
         }
         return new PluginInfoView(
@@ -371,6 +405,7 @@ public class PluginAdminController {
                 d.activation() == PluginDescriptor.Activation.RESTART,
                 d.updateUrl(),
                 d.requires(),
+                d.isRequiresLicense(),
                 new PluginContributionsView(
                         d.ui(),
                         d.permissions().stream()

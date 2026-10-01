@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.plugins.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -69,6 +70,7 @@ public final class PluginAdminViews {
      * @param dependants active plugins that require this one
      * @param signerFingerprint who signed the installed jar; absent when it was unsigned
      * @param verified the signer is a trusted key right now; removing the key clears it
+     * @param license the plugin's license; absent when the plugin does not declare that it needs one
      */
     public record PluginView(
             @Schema(requiredMode = REQUIRED) String id,
@@ -88,7 +90,29 @@ public final class PluginAdminViews {
             @Schema(nullable = true) String signerFingerprint,
             @Schema(nullable = true) String signerSubject,
             @Schema(requiredMode = REQUIRED) boolean verified,
+            @Schema(nullable = true) PluginLicenseView license,
             @Schema(requiredMode = REQUIRED) PluginInfoView info) {}
+
+    /**
+     * A plugin's license as administrators see it; never the file itself.
+     *
+     * @param state {@code MISSING}: none uploaded; {@code UNCHECKED}: uploaded, the plugin has not said what
+     *     it makes of it yet; {@code EXPIRING}: valid and expires within 30 days; the others are what the
+     *     plugin reported
+     * @param expiresAt when the plugin says the license stops being valid
+     * @param licensee who the plugin says it was issued to
+     * @param detail what the plugin says about it, for example why it is invalid
+     * @param uploadedAt absent while {@code MISSING}
+     * @param reportedAt when the plugin last judged this file; absent while {@code UNCHECKED}
+     */
+    public record PluginLicenseView(
+            @Schema(requiredMode = REQUIRED) PluginLicenseStore.State state,
+            @Schema(nullable = true) Instant expiresAt,
+            @Schema(nullable = true) String licensee,
+            @Schema(nullable = true) String detail,
+            @Schema(nullable = true) Instant uploadedAt,
+            @Schema(nullable = true) String uploadedBy,
+            @Schema(nullable = true) Instant reportedAt) {}
 
     /** What a plugin says about itself, from its descriptor. */
     public record PluginInfoView(
@@ -103,6 +127,7 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) boolean restartToActivate,
             @Schema(nullable = true) String updateUrl,
             @Schema(requiredMode = REQUIRED) List<String> requires,
+            @Schema(requiredMode = REQUIRED) boolean requiresLicense,
             @Schema(requiredMode = REQUIRED) PluginContributionsView contributions) {}
 
     public record PluginVendorView(

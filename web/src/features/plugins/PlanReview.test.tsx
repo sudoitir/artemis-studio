@@ -67,6 +67,15 @@ describe('PlanReview', () => {
     expect(screen.queryByText('What changes')).not.toBeInTheDocument();
   });
 
+  it('says a plugin that needs a license needs one, and a plugin that does not says nothing of it', () => {
+    const { unmount } = renderWithProviders(<PlanReview plan={plan({ info: info({ requiresLicense: true }) })} />);
+    expect(screen.getByText(/Need a license file, which you upload under its License tab/)).toBeVisible();
+    unmount();
+
+    renderWithProviders(<PlanReview plan={plan()} />);
+    expect(screen.queryByText(/license file/)).not.toBeInTheDocument();
+  });
+
   it('lists only what a plugin with no screens, tools or schema actually asks for', () => {
     renderWithProviders(
       <PlanReview
