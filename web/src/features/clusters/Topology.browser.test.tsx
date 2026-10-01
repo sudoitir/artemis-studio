@@ -1,4 +1,3 @@
-import '@xyflow/react/dist/style.css';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
