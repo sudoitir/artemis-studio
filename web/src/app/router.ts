@@ -4,6 +4,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { StudioFeature } from '../kernel/feature.ts';
 import { clusterRoute, pluginClusterFallback, rootRoute, shellRoutes } from '../kernel/routing/roots.ts';
 import { RouteError } from '../kernel/shell/RouteError.tsx';
+import { RouteNotFound } from '../kernel/shell/RouteNotFound.tsx';
 
 /**
  * The route tree: the shell's pages, then each installed feature's routes under the kernel root it
@@ -22,6 +23,7 @@ export function createAppRouter(queryClient: QueryClient, features: StudioFeatur
     context: { queryClient },
     defaultPreload: 'intent',
     defaultErrorComponent: RouteError,
+    defaultNotFoundComponent: RouteNotFound,
     scrollRestoration: true,
   });
 }
