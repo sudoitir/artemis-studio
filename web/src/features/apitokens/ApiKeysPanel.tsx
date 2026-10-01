@@ -85,6 +85,8 @@ export function ApiKeysPanel() {
 
       <DataTable
         variant="static"
+        // A long list scrolls in place, at the height its loading rows had, so the page below holds still.
+        height={{ maxRows: 8 }}
         label="API keys"
         storageKey="apitokens.own"
         columns={columns}

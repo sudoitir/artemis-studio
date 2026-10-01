@@ -4,11 +4,27 @@ import { Group, Stack, Text } from '@mantine/core';
 import classes from './ListRows.module.css';
 
 /** A list of {@link Row}s, named for assistive technology. */
-export function Rows({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
-  return (
+export function Rows({
+  label,
+  children,
+  bounded = false,
+}: Readonly<{
+  label: string;
+  children: ReactNode;
+  /** A list that can grow long scrolls inside a named, focusable region of a fixed height instead of stretching the page. */
+  bounded?: boolean;
+}>) {
+  const list = (
     <ul className={classes.rows} aria-label={label}>
       {children}
     </ul>
+  );
+  return bounded ? (
+    <section className={classes.bounded} tabIndex={0} aria-label={`${label}, scrollable`}>
+      {list}
+    </section>
+  ) : (
+    list
   );
 }
 

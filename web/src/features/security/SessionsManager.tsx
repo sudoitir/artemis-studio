@@ -172,7 +172,7 @@ function SessionRows({
     );
   }
   return (
-    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'}>
+    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'} bounded>
       {list.map((s) => (
         <Row
           key={s.handle}

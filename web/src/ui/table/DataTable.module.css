@@ -474,6 +474,18 @@
   overflow-x: auto;
 }
 
+/* As tall as its header and `--as-max-rows` rows, the height of the loading placeholder. */
+.staticFrame[data-capped] {
+  max-block-size: calc(var(--as-row-h) * (var(--as-max-rows) + 1));
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.staticFrame[role='region']:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
 .staticTable {
   inline-size: 100%;
   min-inline-size: var(--as-min-inline, 0);

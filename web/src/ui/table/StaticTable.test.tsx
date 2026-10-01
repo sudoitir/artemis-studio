@@ -61,6 +61,17 @@ describe('DataTable: static variant', () => {
     expect(screen.getByRole('cell', { name: '12' })).toBeInTheDocument();
   });
 
+  it('scrolls in a named region once it holds more rows than maxRows, and not before', () => {
+    const { unmount } = renderWithProviders(<Static height={{ maxRows: nodes.length }} />);
+    expect(screen.queryByRole('region', { name: /scrollable/ })).not.toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<Static height={{ maxRows: nodes.length - 1 }} />);
+    const region = screen.getByRole('region', { name: 'Nodes, scrollable' });
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(within(region).getByRole('table')).toBeInTheDocument();
+  });
+
   it('names the table by its caption when it has one', () => {
     renderWithProviders(<Static caption="Broker nodes" />);
     expect(screen.getByRole('table', { name: 'Broker nodes' })).toBeInTheDocument();

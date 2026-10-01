@@ -72,21 +72,27 @@ export function StaticTable<T>({ model, caption }: Readonly<{ model: TableModel<
   const wrapRef = useRef<HTMLDivElement>(null);
   useInlineSize(wrapRef, model.onWidth);
   const placeholder = model.loading && data.length === 0;
+  // With `maxRows`, more rows than that scroll inside the frame under a pinned header, so a long list
+  // keeps the height its loading placeholder had and the page below it does not move.
+  const capped = model.maxRows !== undefined && data.length > model.maxRows;
+  const scrolls = model.overflow || capped;
 
   return (
     <div
       ref={wrapRef}
       className={classes.staticFrame}
       data-overflow={model.overflow || undefined}
-      // A frame that scrolls sideways is reachable by keyboard and named, as the grid's scroller is.
-      {...(model.overflow ? { role: 'region', tabIndex: 0, 'aria-label': `${model.label}, scrollable` } : {})}
+      data-capped={capped || undefined}
+      style={capped ? ({ '--as-max-rows': model.maxRows } as CSSProperties) : undefined}
+      // A frame that scrolls is reachable by keyboard and named, as the grid's scroller is.
+      {...(scrolls ? { role: 'region', tabIndex: 0, 'aria-label': `${model.label}, scrollable` } : {})}
     >
       {model.measurer}
       <Table
         layout="fixed"
         tabularNums
         stickyHeader
-        stickyHeaderOffset="var(--app-shell-header-offset, 0rem)"
+        stickyHeaderOffset={capped ? '0rem' : 'var(--app-shell-header-offset, 0rem)'}
         className={classes.staticTable}
         aria-label={caption ? undefined : model.label}
         aria-busy={model.loading || undefined}
