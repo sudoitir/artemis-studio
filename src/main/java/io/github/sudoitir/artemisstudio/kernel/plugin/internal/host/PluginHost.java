@@ -386,12 +386,18 @@ public class PluginHost implements SmartLifecycle {
         if (trust.allowUnverified() && !signsUsersIn) {
             return true;
         }
-        String reason = signsUsersIn
-                ? "plugin-signin-unverified: the version waiting for this restart offers a sign-in, which only a trusted key may sign."
-                : e.getSignerFingerprint() == null
-                        ? "plugin-unsigned: the version waiting for this restart is unsigned, and unverified plugins are not allowed."
-                        : "plugin-untrusted: the key %s that signed the version waiting for this restart is no longer trusted."
-                                .formatted(e.getSignerFingerprint());
+        String reason;
+        if (signsUsersIn) {
+            reason =
+                    "plugin-signin-unverified: the version waiting for this restart offers a sign-in, which only a trusted key may sign.";
+        } else if (e.getSignerFingerprint() == null) {
+            reason =
+                    "plugin-unsigned: the version waiting for this restart is unsigned, and unverified plugins are not allowed.";
+        } else {
+            reason =
+                    "plugin-untrusted: the key %s that signed the version waiting for this restart is no longer trusted."
+                            .formatted(e.getSignerFingerprint());
+        }
         store.update(e.getId(), row -> row.fail(reason));
         log.warn("plugin-lifecycle id={} step=boot-start outcome=failed reason={}", e.getId(), reason);
         return false;

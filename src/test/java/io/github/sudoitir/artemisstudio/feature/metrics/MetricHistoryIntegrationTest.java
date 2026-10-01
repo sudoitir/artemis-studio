@@ -152,8 +152,9 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
                     .singleElement()
                     .satisfies(p -> assertThat(p.value()).isEqualTo(7.0));
         });
-        assertThatThrownBy(() -> history.readPluginMetric(
-                        without, clusterId, pluginId + ":edits", "daily", now.minusSeconds(900), now, null))
+        String metric = pluginId + ":edits";
+        Instant from = now.minusSeconds(900);
+        assertThatThrownBy(() -> history.readPluginMetric(without, clusterId, metric, "daily", from, now, null))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("cluster " + clusterId + " does not exist.");
     }
@@ -177,8 +178,8 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("cluster " + clusterId + " does not exist.");
         assertThatThrownBy(() -> history.read(null, clusterId, query)).isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> history.read(UUID.randomUUID(), clusterId, query))
-                .isInstanceOf(NotFoundException.class);
+        UUID unknown = UUID.randomUUID();
+        assertThatThrownBy(() -> history.read(unknown, clusterId, query)).isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> history.read(reader, otherCluster, query))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("cluster " + otherCluster + " does not exist.");

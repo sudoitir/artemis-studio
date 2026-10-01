@@ -82,7 +82,7 @@ class LastAdminGuardTest {
                 Optional.empty(),
                 Optional.empty(),
                 sessionState,
-                () -> List.of());
+                List::of);
         adminRole = role(adminRoleId, "ADMIN");
     }
 

@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The directory behind a fixture plugin's sign-in provider (compiled inside the test, loaded by its
@@ -48,8 +50,9 @@ public final class SignInProbe {
         Directory directory = of(providerId);
         if (directory.delayMillis > 0) {
             try {
-                Thread.sleep(directory.delayMillis);
-            } catch (InterruptedException e) {
+                // Waits on a latch nobody opens: the delay, ended early only by the caller giving up.
+                new CountDownLatch(1).await(directory.delayMillis, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
                 return Optional.empty();
             }

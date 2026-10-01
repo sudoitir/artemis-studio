@@ -143,15 +143,6 @@ public class PluginSignIn implements PluginBridge, IdentityProviders {
         }
     }
 
-    private void failed(Provider provider, String reason) {
-        failures.put(provider.id(), new Failure(provider.handle().id(), provider.id(), reason, Instant.now()));
-        log.warn("Sign-in provider {} failed: {}", provider.id(), reason);
-    }
-
-    private void succeeded(Provider provider) {
-        failures.remove(provider.id());
-    }
-
     /**
      * One plugin sign-in as a credential provider: the id and label the plugin declared, and the
      * plugin's answer turned into a Studio user.
@@ -170,10 +161,6 @@ public class PluginSignIn implements PluginBridge, IdentityProviders {
             this.bean = bean;
         }
 
-        PluginHandle handle() {
-            return handle;
-        }
-
         @Override
         public String id() {
             return id;
@@ -182,6 +169,15 @@ public class PluginSignIn implements PluginBridge, IdentityProviders {
         @Override
         public String label() {
             return label;
+        }
+
+        private void failed(String reason) {
+            failures.put(id, new Failure(handle.id(), id, reason, Instant.now()));
+            log.warn("Sign-in provider {} failed: {}", id, reason);
+        }
+
+        private void succeeded() {
+            failures.remove(id);
         }
 
         /**
@@ -196,25 +192,23 @@ public class PluginSignIn implements PluginBridge, IdentityProviders {
             }
             String external =
                     username.endsWith("@" + id) ? username.substring(0, username.length() - id.length() - 1) : username;
-            Optional<VerifiedIdentity> answer;
+            VerifiedIdentity identity;
             try {
-                answer = call(handle, () -> bean.authenticate(external, password), AUTHENTICATE_TIMEOUT);
+                Optional<VerifiedIdentity> answer =
+                        call(handle, () -> bean.authenticate(external, password), AUTHENTICATE_TIMEOUT);
+                // A plugin that answers null instead of an Optional fails here, like any other bad answer.
+                identity = answer.orElse(null);
             } catch (RuntimeException e) {
-                failed(this, e.getMessage());
+                failed(e.toString());
                 return Optional.empty();
             }
-            if (answer == null) {
-                failed(this, "answered null instead of an identity or empty");
+            succeeded();
+            if (identity == null) {
                 return Optional.empty();
             }
-            succeeded(this);
-            if (answer.isEmpty()) {
-                return Optional.empty();
-            }
-            VerifiedIdentity identity = answer.get();
             String invalid = invalid(identity);
             if (invalid != null) {
-                failed(this, "answered an invalid identity: " + invalid);
+                failed("answered an invalid identity: " + invalid);
                 return Optional.empty();
             }
             return provisioner.provision(new ExternalIdentity(
@@ -228,10 +222,10 @@ public class PluginSignIn implements PluginBridge, IdentityProviders {
             }
             try {
                 Set<String> revoked = call(handle, () -> bean.noLongerValid(subjects), REVALIDATE_TIMEOUT);
-                succeeded(this);
+                succeeded();
                 return revoked == null ? Set.of() : revoked;
             } catch (RuntimeException e) {
-                failed(this, e.getMessage());
+                failed(e.getMessage());
                 return Set.of();
             }
         }
