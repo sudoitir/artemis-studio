@@ -1,6 +1,6 @@
-import { Anchor } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
+import linkClasses from '../../ui/InlineLink.module.css';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useManifest } from '../../kernel/manifest.ts';
 import styles from './Plugins.module.css';
@@ -25,8 +25,10 @@ export function HeaderIndicator() {
   if (!manifest.safeMode && attention.length === 0) return null;
   const text = manifest.safeMode ? 'Safe mode: plugins stopped' : attentionWords(attention);
   return (
-    <Anchor component={Link} to="/admin" search={{ tab: 'plugins' } as never} size="sm" className={styles.warning}>
-      {text}
-    </Anchor>
+    <span className={styles.warning}>
+      <Link to="/admin" search={{ tab: 'plugins' } as never} className={linkClasses.link}>
+        {text}
+      </Link>
+    </span>
   );
 }

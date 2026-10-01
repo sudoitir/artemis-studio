@@ -91,7 +91,8 @@ describe('the license tab', () => {
     expect(await screen.findByText('Notes accepted this license.')).toBeVisible();
     expect(screen.getByText('Acme Ltd')).toBeVisible();
     expect(screen.getByText(/\(in 200 days\)/)).toBeVisible();
-    expect(screen.getByText('Uploaded').closest('tr')).toHaveTextContent(/by ops/);
+    expect(screen.getByText('Uploaded')).toBeVisible();
+    expect(within(screen.getByRole('tabpanel', { name: 'License' })).getByText(/by ops/)).toBeVisible();
   });
 
   it('warns that an expiring license ends soon', async () => {

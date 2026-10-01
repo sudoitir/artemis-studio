@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -77,6 +78,8 @@ function preview() {
     },
   };
 }
+
+afterEach(() => act(() => notifications.clean()));
 
 describe('RegisterClusterForm', () => {
   it('swaps the canvas from examples to the real discovered topology after a successful check', async () => {
@@ -212,5 +215,63 @@ describe('RegisterClusterForm', () => {
     expect(
       await screen.findByText('Check the connection again — the details changed since the last check.'),
     ).toBeInTheDocument();
+  });
+
+  it('answers an empty press with the message beside the field, focuses it and sends nothing', async () => {
+    let sent = 0;
+    server.use(
+      http.post('*/api/v1/clusters', () => {
+        sent += 1;
+        return HttpResponse.json(preview());
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    const check = screen.getByRole('button', { name: 'Check connection' });
+    expect(check).toBeEnabled();
+    expect(screen.getByText('Fill in the fields marked above, then check the connection.')).toBeInTheDocument();
+    await user.click(check);
+
+    expect(await screen.findByText('Add at least one management URL.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Broker management URLs/)).toHaveFocus();
+    expect(sent).toBe(0);
+  });
+
+  it('focuses the first invalid field of several, in page order', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText('Username'), 'artemis');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByText('Provide both a username and a password, or neither.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Username')).toHaveFocus();
+  });
+
+  it('registers a checked cluster, announces it by name and opens its topology', async () => {
+    server.use(
+      http.post('*/api/v1/clusters', ({ request }) =>
+        new URL(request.url).searchParams.get('dryRun') === 'true'
+          ? HttpResponse.json(preview())
+          : HttpResponse.json({ id: 'c1', name: 'prod-eu' }, { status: 201 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Notifications />
+        <RegisterClusterForm />
+      </>,
+    );
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText('Discovered topology');
+    await user.click(screen.getByRole('button', { name: 'Register cluster' }));
+
+    expect(await screen.findByText('Registered cluster prod-eu')).toBeInTheDocument();
+    expect(navigateSpy).toHaveBeenCalledWith({ to: '/clusters/c1/topology' });
   });
 });

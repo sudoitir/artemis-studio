@@ -1,16 +1,19 @@
 import { useCallback, useMemo, useState, type DragEvent } from 'react';
-import { Alert, Anchor, Button, FileButton, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, FileButton, Text } from '@mantine/core';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useCheckUpdates, usePlugins, type PluginUpdateView, type PluginView } from './api.ts';
 import { pluginColumns } from './columns.ts';
 import { InstallDialog, type Source } from './InstallDialog.tsx';
 import { InstallersDialog } from './InstallersDialog.tsx';
+import { Notice } from './Notice.tsx';
 import { TrustedKeysDialog } from './TrustedKeysDialog.tsx';
 import { PluginDrawer } from './PluginDrawer.tsx';
 import styles from './Plugins.module.css';
@@ -39,6 +42,19 @@ function restartReasonsOf(rows: PluginView[], unreleasedLabels: string[]): strin
         `Stopped versions of ${rows.find((p) => p.id === id)?.info.title ?? id} (${[...versions].join(', ')}) are still in memory; a restart frees it.`,
     ),
   ];
+}
+
+/** What the section says it is, in the page from the first paint. */
+export function PluginsIntro() {
+  return (
+    <>
+      Plugins add screens, assistant tools and data of their own to {branding.productShortName}. A plugin runs inside{' '}
+      {branding.productShortName} with its access, so only install ones you trust.{' '}
+      <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" className={linkClasses.link}>
+        How plugins work
+      </a>
+    </>
+  );
 }
 
 /** The outcome of the update check, in one sentence. */
@@ -115,8 +131,7 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
   const restartReasons = restartReasonsOf(rows, view.restart.unreleased);
 
   return (
-    <Stack
-      gap="md"
+    <div
       className={styles.drop}
       onDragOver={(e) => {
         if (!canInstall) return;
@@ -134,117 +149,113 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
         </div>
       ) : null}
 
-      <Group justify="space-between" align="flex-start">
-        <Stack gap={2}>
-          <Title order={4}>Plugins</Title>
-          <Text size="sm" c="dimmed" maw={640}>
-            Plugins add screens, assistant tools and data of their own to {branding.productShortName}. A plugin runs
-            inside {branding.productShortName} with its access, so only install ones you trust.{' '}
-            <Anchor href={GUIDE_URL} target="_blank" rel="noopener noreferrer" size="sm">
-              How plugins work
-            </Anchor>
-          </Text>
-        </Stack>
-        <Group gap="xs">
-          <FileButton onChange={choose} accept=".jar,application/java-archive">
-            {(props) => (
-              <Button {...props} disabled={!canInstall}>
-                Install plugin…
-              </Button>
-            )}
-          </FileButton>
-          <Button
-            variant="default"
-            disabled={!canInstall}
-            loading={checkUpdates.isPending}
-            onClick={() => checkUpdates.mutate()}
-          >
-            Check for updates
-          </Button>
-          {view.canInstall ? (
-            <Button variant="subtle" onClick={() => setInstallersOpen(true)}>
-              Who can install
+      <Section
+        title="Plugins"
+        description={<PluginsIntro />}
+        actions={
+          <>
+            <FileButton onChange={choose} accept=".jar,application/java-archive">
+              {(props) => (
+                <Button {...props} disabled={!canInstall}>
+                  Install plugin…
+                </Button>
+              )}
+            </FileButton>
+            <Button
+              variant="default"
+              disabled={!canInstall}
+              loading={checkUpdates.isPending}
+              onClick={() => checkUpdates.mutate()}
+            >
+              Check for updates
             </Button>
-          ) : null}
-          <Button
-            variant="subtle"
-            disabled={!view.canInstall}
-            title={view.canInstall ? undefined : 'Only someone who can install plugins can manage trusted keys.'}
-            onClick={() => setKeysOpen(true)}
-          >
-            Trusted keys
-          </Button>
-        </Group>
-      </Group>
-      {!canInstall && cannotInstall ? (
-        <Text size="sm" c="dimmed">
-          {cannotInstall}
-        </Text>
-      ) : null}
-
-      {view.safeMode ? (
-        <Alert variant="light" color="yellow" title="Safe mode: no plugin is running">
-          {view.safeModeReason ?? 'Studio started without plugins.'} Fix or remove the plugin that failed, then restart
-          Studio normally.
-        </Alert>
-      ) : null}
-
-      <RestartControl restart={view.restart} reasons={restartReasons} canAct={view.canInstall} />
-
-      {attention.length > 0 ? (
-        <Text size="sm" className={styles.warning} role="status">
-          {attention.length === 1 ? '1 plugin needs attention' : `${attention.length} plugins need attention`}:{' '}
-          {attention.map((p) => `${p.info.title} (${(STATUS[p.status] ?? p.status).toLowerCase()})`).join(', ')}.
-        </Text>
-      ) : null}
-
-      {checkUpdates.data ? (
-        <Text size="sm" role="status">
-          {updatesSummary(checkUpdates.data)}
-          {checkUpdates.data
-            .filter((u) => u.error)
-            .map((u) => ` ${u.id}: could not check (${u.error}).`)
-            .join('')}
-        </Text>
-      ) : null}
-
-      <DataTable
-        label="Plugins"
-        storageKey="plugins"
-        height="fill"
-        columns={columns}
-        data={rows}
-        rowKey={rowKey}
-        onRowClick={(p) => setSearch({ plugin: p.id })}
-        empty={
-          <EmptyState
-            kind="empty"
-            title="No plugins yet"
-            description={
-              <>
-                A plugin is a single <code>.jar</code>. Drop one anywhere on this page, or choose Install plugin; you
-                see everything it will be able to do before anything is installed, and most plugins start without a
-                restart.
-              </>
-            }
-            action={
-              <>
-                <Anchor href={GUIDE_URL} target="_blank" rel="noopener noreferrer" size="sm">
-                  Build a plugin →
-                </Anchor>
-                <Anchor href={TEMPLATE_URL} target="_blank" rel="noopener noreferrer" size="sm">
-                  Start from the template →
-                </Anchor>
-              </>
-            }
-          />
+            {view.canInstall ? (
+              <Button variant="subtle" onClick={() => setInstallersOpen(true)}>
+                Who can install
+              </Button>
+            ) : null}
+            <Button variant="subtle" disabled={!view.canInstall} onClick={() => setKeysOpen(true)}>
+              Trusted keys
+            </Button>
+          </>
         }
-      />
+      >
+        {!canInstall && cannotInstall ? (
+          <Text size="sm" c="dimmed">
+            {cannotInstall}
+          </Text>
+        ) : null}
+        {view.canInstall ? null : (
+          <Text size="sm" c="dimmed">
+            Only someone who can install plugins can manage trusted keys.
+          </Text>
+        )}
 
-      <Text size="xs" c="dimmed" className={styles.num}>
-        Database connections: {view.budget.inUse} in use of {view.budget.limit} allowed ({view.budget.maxConnections}{' '}
-        maximum; each active plugin uses {view.budget.perPlugin}).
-      </Text>
+        {view.safeMode ? (
+          <Notice title="Safe mode: no plugin is running" tone="warning">
+            {view.safeModeReason ?? 'Studio started without plugins.'} Fix or remove the plugin that failed, then
+            restart Studio normally.
+          </Notice>
+        ) : null}
+
+        <RestartControl restart={view.restart} reasons={restartReasons} canAct={view.canInstall} />
+
+        {attention.length > 0 ? (
+          <Text size="sm" className={styles.warning} role="status">
+            {attention.length === 1 ? '1 plugin needs attention' : `${attention.length} plugins need attention`}:{' '}
+            {attention.map((p) => `${p.info.title} (${(STATUS[p.status] ?? p.status).toLowerCase()})`).join(', ')}.
+          </Text>
+        ) : null}
+
+        {checkUpdates.isError ? <ErrorState error={checkUpdates.error} onRetry={() => checkUpdates.mutate()} /> : null}
+        {checkUpdates.data ? (
+          <Text size="sm" role="status">
+            {updatesSummary(checkUpdates.data)}
+            {checkUpdates.data
+              .filter((u) => u.error)
+              .map((u) => ` ${u.id}: could not check (${u.error}).`)
+              .join('')}
+          </Text>
+        ) : null}
+
+        <DataTable
+          label="Plugins"
+          storageKey="plugins"
+          height="fill"
+          columns={columns}
+          data={rows}
+          rowKey={rowKey}
+          onRowClick={(p) => setSearch({ plugin: p.id })}
+          empty={
+            <EmptyState
+              kind="empty"
+              title="No plugins yet"
+              description={
+                <>
+                  A plugin is a single <code>.jar</code>. Drop one anywhere on this page, or choose Install plugin; you
+                  see everything it will be able to do before anything is installed, and most plugins start without a
+                  restart.
+                </>
+              }
+              action={
+                <>
+                  <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" className={linkClasses.link}>
+                    Build a plugin →
+                  </a>
+                  <a href={TEMPLATE_URL} target="_blank" rel="noopener noreferrer" className={linkClasses.link}>
+                    Start from the template →
+                  </a>
+                </>
+              }
+            />
+          }
+        />
+
+        <Text size="xs" c="dimmed" className={styles.num}>
+          Database connections: {view.budget.inUse} in use of {view.budget.limit} allowed ({view.budget.maxConnections}{' '}
+          maximum; each active plugin uses {view.budget.perPlugin}).
+        </Text>
+      </Section>
 
       <InstallDialog
         source={source}
@@ -263,7 +274,7 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
         onClose={() => setSearch({ plugin: undefined })}
         onUpdate={(id) => setSource({ kind: 'update', id })}
       />
-    </Stack>
+    </div>
   );
 }
 
@@ -271,9 +282,15 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
 export function PluginsPanel() {
   const plugins = usePlugins();
   const view = plugins.data;
-  if (plugins.isPending) return <LoadingState label="Loading plugins" blockSize="12rem" />;
-  if (plugins.isError && !view) {
-    return <ErrorState error={plugins.error} onRetry={() => void plugins.refetch()} />;
-  }
-  return view ? <PluginsBody view={view} /> : null;
+  if (view) return <PluginsBody view={view} />;
+  // The section is in the page before its content, so nothing moves when the inventory arrives.
+  return (
+    <Section title="Plugins" description={<PluginsIntro />}>
+      {plugins.isError ? (
+        <ErrorState error={plugins.error} onRetry={() => void plugins.refetch()} />
+      ) : (
+        <LoadingState label="Loading plugins" blockSize="24rem" />
+      )}
+    </Section>
+  );
 }

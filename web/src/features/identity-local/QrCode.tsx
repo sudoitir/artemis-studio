@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { encode } from 'uqr';
 
+import classes from './Identity.module.css';
+
 /** The quiet zone the QR specification asks for, in modules; a scanner needs it to find the code's edge. */
 const QUIET_ZONE = 4;
 
@@ -9,7 +11,7 @@ const QUIET_ZONE = 4;
  * light field, and an inverted code fails on many of them — so the light quiet zone is part of the picture and
  * stays light on the dark theme. `label` names it for a screen reader; the same secret is offered as text beside it.
  */
-export function QrCode({ value, label, size = 176 }: Readonly<{ value: string; label: string; size?: number }>) {
+export function QrCode({ value, label }: Readonly<{ value: string; label: string }>) {
   const { path, modules } = useMemo(() => {
     const { data, size: modules } = encode(value, { ecc: 'M', border: QUIET_ZONE });
     // One path, a run of dark modules per row, so the markup stays small and the edges stay sharp.
@@ -33,11 +35,9 @@ export function QrCode({ value, label, size = 176 }: Readonly<{ value: string; l
     <svg
       role="img"
       aria-label={label}
-      width={size}
-      height={size}
+      className={classes.qr}
       viewBox={`0 0 ${modules} ${modules}`}
       shapeRendering="crispEdges"
-      style={{ display: 'block', borderRadius: 'var(--mantine-radius-sm)', outline: '1px solid var(--as-border)' }}
     >
       <rect width={modules} height={modules} fill="var(--mantine-color-white)" />
       <path d={path} fill="var(--mantine-color-black)" />

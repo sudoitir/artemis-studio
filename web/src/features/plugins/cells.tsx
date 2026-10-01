@@ -1,6 +1,7 @@
-import { Anchor, Button, Group, Text } from '@mantine/core';
+import { Button, Group, Text } from '@mantine/core';
 
 import type { PluginUpdateView, PluginView } from './api.ts';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { Mark } from './Mark.tsx';
 import { UnverifiedBadge } from './UnverifiedBadge.tsx';
 import { LicenseBadge } from './LicenseBadge.tsx';
@@ -63,9 +64,9 @@ export function versionCell(plugin: PluginView, update: PluginUpdateView | undef
       {update?.availableVersion ? (
         <>
           {' '}
-          <Anchor component="button" size="xs" onClick={() => onUpdate(plugin.id)}>
+          <Button size="compact-xs" variant="subtle" onClick={() => onUpdate(plugin.id)}>
             {update.availableVersion} available
-          </Anchor>
+          </Button>
         </>
       ) : null}
     </span>
@@ -74,8 +75,7 @@ export function versionCell(plugin: PluginView, update: PluginUpdateView | undef
 
 /** A state that needs someone is emphasised; the word carries the meaning, colour only adds to it. */
 export function statusCell(plugin: PluginView) {
-  const t = tone(plugin);
-  return <span className={t ? styles[t] : undefined}>{statusText(plugin)}</span>;
+  return <StatusBadge tone={tone(plugin) ?? 'neutral'}>{statusText(plugin)}</StatusBadge>;
 }
 
 export function fixCell(plugin: PluginView, onOpen: (id: string) => void) {

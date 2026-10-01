@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, Center, Paper, Stack, Text, Title } from '@mantine/core';
+import { Button, Paper } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useLogout, useMe } from '../../kernel/auth/api.ts';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import classes from './Identity.module.css';
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
 import { SecondFactorEnrolment } from './SecondFactorEnrolment.tsx';
 
@@ -27,31 +30,29 @@ export function EnrolSecondFactorView() {
   }, [me.data, navigate]);
 
   return (
-    <Center mih="100vh" bg="var(--as-bg)">
-      <Paper w={560} p="xl" radius="md" withBorder>
-        <Stack gap="lg">
-          <Stack gap={2}>
-            <Title order={3}>Set up two-step verification</Title>
-            <Text size="sm" c="dimmed">
-              Your role requires a second step when you sign in.
-            </Text>
-          </Stack>
+    <main className={classes.screen}>
+      <Paper p="xl" radius="md" withBorder className={classes.wide}>
+        <Page>
+          <PageHeader
+            title="Set up two-step verification"
+            description="Your role requires a second step when you sign in."
+          />
 
           <SecondFactorEnrolment
             methods={['totp', 'passkey']}
             onEnrolled={(done) => (done.recoveryCodes ? setCodes(done.recoveryCodes) : navigate({ to: '/' }))}
           />
 
-          <Anchor
-            component="button"
-            type="button"
-            size="sm"
-            w="fit-content"
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            className={classes.start}
+            loading={logout.isPending}
             onClick={() => logout.mutate(undefined, { onSettled: () => navigate({ to: '/login' }) })}
           >
             Sign out
-          </Anchor>
-        </Stack>
+          </Button>
+        </Page>
       </Paper>
 
       <RecoveryCodesDialog
@@ -61,6 +62,6 @@ export function EnrolSecondFactorView() {
           void navigate({ to: '/' });
         }}
       />
-    </Center>
+    </main>
   );
 }

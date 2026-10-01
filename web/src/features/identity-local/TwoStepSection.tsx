@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Badge, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Button, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
@@ -8,7 +8,10 @@ import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
 import { passkeyUnavailableReason } from '../../kernel/auth/webauthn.ts';
 import { Ago } from '../../kernel/time/Ago.tsx';
 import { useServerNow } from '../../kernel/time/time.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Row, Rows } from '../../ui/ListRows.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import {
   useMfaStatus,
   useRegenerateRecoveryCodes,
@@ -23,6 +26,7 @@ import {
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
 import { SecondFactorEnrolment, type EnrolMethod, type Enrolled } from './SecondFactorEnrolment.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import classes from './Identity.module.css';
 
 /** Recovery codes issued at a time (ADR-0143). */
 const CODES_ISSUED = 10;
@@ -44,19 +48,9 @@ const returnTo = () => `${globalThis.location.pathname}${globalThis.location.sea
 export function TwoStepSection() {
   const status = useMfaStatus();
 
-  if (status.isPending) return <LoadingState variant="inline" label="Loading two-step verification" />;
-  if (status.isError) {
-    return (
-      <Alert color="red" variant="light" title="Could not load two-step verification" role="alert">
-        <Stack gap="xs" align="flex-start">
-          <Text size="sm">{status.error.message} Check your connection and try again.</Text>
-          <Button size="xs" variant="light" onClick={() => void status.refetch()}>
-            Retry
-          </Button>
-        </Stack>
-      </Alert>
-    );
-  }
+  // The frame holds the height of the sections that replace it, so nothing below moves when they arrive.
+  if (status.isPending) return <LoadingState label="Loading two-step verification" blockSize="22rem" />;
+  if (status.isError) return <ErrorState error={status.error} onRetry={() => void status.refetch()} />;
   if (!status.data.passwordAccount) {
     return (
       <Text size="sm" c="dimmed">
@@ -88,8 +82,8 @@ function TwoStep({ status }: Readonly<{ status: MfaStatusView }>) {
   return (
     <Stack gap="lg">
       <Summary status={status} />
-      <TotpBlock status={status} onChange={setPending} />
-      <PasskeysBlock status={status} now={now} onChange={setPending} />
+      <TotpBlock status={status} factors={factors} onChange={setPending} />
+      <PasskeysBlock status={status} factors={factors} now={now} onChange={setPending} />
       <RecoveryCodesBlock status={status} onRegenerate={() => setPending({ kind: 'regenerate' })} />
       <TrustedDevicesBlock devices={devices} trusted={status.trustedDevices} now={now} />
 
@@ -100,7 +94,11 @@ function TwoStep({ status }: Readonly<{ status: MfaStatusView }>) {
           </Text>
         ) : null}
         {!devices.busy && outcome ? (
-          <Text size="sm" c={outcome.failed ? 'red' : 'dimmed'}>
+          <Text
+            size="sm"
+            c={outcome.failed ? undefined : 'dimmed'}
+            className={outcome.failed ? classes.failure : undefined}
+          >
             {outcome.text}
           </Text>
         ) : null}
@@ -139,17 +137,13 @@ function TwoStep({ status }: Readonly<{ status: MfaStatusView }>) {
 
 function Summary({ status }: Readonly<{ status: MfaStatusView }>) {
   return (
-    <Stack gap={4}>
-      <Group gap="xs">
+    <Stack gap="xs">
+      <div className={classes.controls}>
         <Text size="sm" fw={600}>
           Two-step verification is {status.enrolled ? 'on' : 'off'}
         </Text>
-        {status.required ? (
-          <Badge size="sm" variant="default">
-            Required by your role
-          </Badge>
-        ) : null}
-      </Group>
+        {status.required ? <StatusBadge>Required by your role</StatusBadge> : null}
+      </div>
       <Text size="sm" c="dimmed">
         {status.enrolled
           ? 'Signing in asks for a code, a passkey or a recovery code as well as your password.'
@@ -159,14 +153,32 @@ function Summary({ status }: Readonly<{ status: MfaStatusView }>) {
   );
 }
 
-function TotpBlock({ status, onChange }: Readonly<{ status: MfaStatusView; onChange: (next: Pending) => void }>) {
+/** A control that is not available now: it stays, says why through the text it is described by, and does nothing. */
+function unavailable(reason: string | null, describedBy: string) {
+  return reason
+    ? ({ 'data-disabled': true, 'aria-disabled': true, 'aria-describedby': describedBy } as const)
+    : ({} as const);
+}
+
+function TotpBlock({
+  status,
+  factors,
+  onChange,
+}: Readonly<{ status: MfaStatusView; factors: number; onChange: (next: Pending) => void }>) {
+  const blocked = status.totpEnrolled ? removalBlock(factors, status) : null;
   return (
     <Block
       title="Authenticator app"
+      detailId="totp-detail"
       detail={
-        status.totpEnrolled
-          ? 'Set up. Its 6-digit codes complete your sign-in.'
-          : 'Not set up. A 6-digit code from an app on your phone.'
+        status.totpEnrolled ? (
+          <>
+            Set up. Its 6-digit codes complete your sign-in.
+            {blocked ? ` ${blocked}` : ''}
+          </>
+        ) : (
+          'Not set up. A 6-digit code from an app on your phone.'
+        )
       }
       actions={
         status.totpEnrolled ? (
@@ -182,9 +194,11 @@ function TotpBlock({ status, onChange }: Readonly<{ status: MfaStatusView; onCha
             <Button
               size="xs"
               variant="subtle"
-              color="red"
               aria-label="Remove authenticator app"
-              onClick={() => onChange({ kind: 'remove-totp' })}
+              {...unavailable(blocked, 'totp-detail')}
+              onClick={() => {
+                if (!blocked) onChange({ kind: 'remove-totp' });
+              }}
             >
               Remove
             </Button>
@@ -204,25 +218,27 @@ function TotpBlock({ status, onChange }: Readonly<{ status: MfaStatusView; onCha
   );
 }
 
-function passkeysDetailOf(status: MfaStatusView, reason: string | null): string | undefined {
+function passkeysDetailOf(status: MfaStatusView, reason: string | null, blocked: string | null): string | undefined {
   if (reason) return `Not available. ${reason}`;
   if (status.passkeys.length === 0) {
     return 'None yet. A passkey signs you in with your fingerprint, face or screen lock, or a security key.';
   }
-  return undefined;
+  return blocked ?? undefined;
 }
 
 function PasskeysBlock({
   status,
+  factors,
   now,
   onChange,
-}: Readonly<{ status: MfaStatusView; now: number; onChange: (next: Pending) => void }>) {
+}: Readonly<{ status: MfaStatusView; factors: number; now: number; onChange: (next: Pending) => void }>) {
   const reason = passkeyUnavailableReason(status.webauthn);
+  const blocked = removalBlock(factors, status);
   return (
     <Block
       title="Passkeys"
       detailId="passkeys-detail"
-      detail={passkeysDetailOf(status, reason)}
+      detail={passkeysDetailOf(status, reason, blocked)}
       actions={
         <Button
           size="xs"
@@ -257,9 +273,11 @@ function PasskeysBlock({
                 <Button
                   size="xs"
                   variant="subtle"
-                  color="red"
                   aria-label={`Remove passkey ${p.label}`}
-                  onClick={() => onChange({ kind: 'remove-passkey', passkey: p })}
+                  {...unavailable(blocked, 'passkeys-detail')}
+                  onClick={() => {
+                    if (!blocked) onChange({ kind: 'remove-passkey', passkey: p });
+                  }}
                 >
                   Remove
                 </Button>
@@ -279,7 +297,7 @@ function recoveryCodesDetailOf(status: MfaStatusView): ReactNode {
     <>
       {left} of {CODES_ISSUED} left.{' '}
       {left <= CODES_LOW ? (
-        <Text component="span" size="sm" style={{ color: 'var(--as-warning)' }}>
+        <Text component="span" size="sm" className={classes.warning}>
           {left === 0 ? 'You have none left.' : 'You are running low.'} Regenerate them before you are locked out.
         </Text>
       ) : (
@@ -385,16 +403,12 @@ function TrustedDevicesBlock({
             <Row
               key={d.id}
               title={
-                <Group gap="xs" wrap="wrap">
+                <div className={classes.controls}>
                   <Text size="sm" fw={500} title={d.client ?? undefined}>
                     {describeClient(d.client)}
                   </Text>
-                  {d.current ? (
-                    <Badge size="xs" variant="default">
-                      This device
-                    </Badge>
-                  ) : null}
-                </Group>
+                  {d.current ? <StatusBadge>This device</StatusBadge> : null}
+                </div>
               }
               facts={
                 <>
@@ -406,7 +420,6 @@ function TrustedDevicesBlock({
                 <Button
                   size="xs"
                   variant="subtle"
-                  color="red"
                   aria-label={`Revoke ${describeDevice(d)}`}
                   loading={devices.revoking === d.id}
                   disabled={devices.busy}
@@ -470,7 +483,6 @@ function RemoveTotpConfirm({ opened, factors, status, onClose, onDone }: Confirm
       opened={opened}
       title="Remove the authenticator app?"
       consequence={removalConsequence('Its codes stop working.', factors, status)}
-      blocked={removalBlock(factors, status)}
       confirmLabel="Remove authenticator app"
       pending={removeTotp.isPending}
       error={removeTotp.error}
@@ -505,8 +517,8 @@ function RemovePasskeyConfirm({
       opened={passkey !== null}
       title={passkey ? `Remove passkey "${passkey.label}"?` : ''}
       consequence={removalConsequence('You can no longer sign in with it.', factors, status)}
-      blocked={removalBlock(factors, status)}
       confirmLabel="Remove passkey"
+      typedName={passkey?.label}
       pending={removePasskey.isPending}
       error={removePasskey.error}
       onClose={close}
@@ -539,6 +551,7 @@ function RegenerateConfirm({
       title="Regenerate recovery codes?"
       consequence="Your current recovery codes stop working at once. You get 10 new ones, shown once."
       confirmLabel="Regenerate codes"
+      tone="default"
       pending={regenerate.isPending}
       error={regenerate.error}
       onClose={close}
@@ -594,8 +607,8 @@ function Block({
 }>) {
   return (
     <Stack gap="xs">
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <Stack gap={2}>
+      <div className={classes.block}>
+        <Stack gap={0} className={classes.blockText}>
           <Text size="sm" fw={600}>
             {title}
           </Text>
@@ -605,10 +618,8 @@ function Block({
             </Text>
           ) : null}
         </Stack>
-        <Group gap="xs" wrap="nowrap">
-          {actions}
-        </Group>
-      </Group>
+        <div className={classes.controls}>{actions}</div>
+      </div>
       {children}
     </Stack>
   );
@@ -616,14 +627,16 @@ function Block({
 
 /**
  * A confirmation for a change to the account's factors: what it costs first, then a fresh sign-in when the server
- * asks for one, then the button that names the action. A refusal says why, beside it.
+ * asks for one, then the button that names the action. A refusal says why, beside it. A removal that is not
+ * allowed (a role that requires a factor) is refused at its own button, before this opens.
  */
 function ConfirmChange({
   opened,
   title,
   consequence,
-  blocked,
   confirmLabel,
+  typedName,
+  tone = 'danger',
   pending,
   error,
   onClose,
@@ -632,8 +645,10 @@ function ConfirmChange({
   opened: boolean;
   title: string;
   consequence: string;
-  blocked?: string | null;
   confirmLabel: string;
+  /** The name of what is removed, typed to arm the button. */
+  typedName?: string;
+  tone?: 'default' | 'danger';
   pending: boolean;
   error: ApiError | null;
   onClose: () => void;
@@ -641,29 +656,22 @@ function ConfirmChange({
 }>) {
   const refusal = error && !needsReauthentication(error) ? error : null;
   return (
-    <Modal opened={opened} onClose={onClose} title={title}>
-      <Stack gap="md">
-        <Text size="sm">{consequence}</Text>
-        {blocked ? (
-          <Text size="sm" fw={500}>
-            {blocked}
-          </Text>
-        ) : null}
-        <StepUpPrompt error={error} returnTo={returnTo()} />
-        {refusal ? (
-          <Alert color="red" variant="light" role="alert" title="Not done">
-            {refusal.message} {refusal.status === 409 ? '' : 'Try again.'}
-          </Alert>
-        ) : null}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button color="red" loading={pending} disabled={!!blocked} onClick={onConfirm}>
-            {confirmLabel}
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title={title}
+      consequence={
+        <Stack gap="md">
+          <span>{consequence}</span>
+          <StepUpPrompt error={error} returnTo={returnTo()} />
+          {refusal ? <ErrorState variant="inline" error={refusal} /> : null}
+        </Stack>
+      }
+      confirmLabel={confirmLabel}
+      tone={tone}
+      typedName={typedName}
+      pending={pending}
+      onConfirm={onConfirm}
+    />
   );
 }

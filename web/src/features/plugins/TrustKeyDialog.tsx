@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { Checkbox, Code, Stack, Text, TextInput } from '@mantine/core';
 
 import { ConfirmAction } from './ConfirmAction.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useAddKey, type PluginTrustView } from './api.ts';
 import styles from './Plugins.module.css';
+
+const TRUST: ActionVerb = { verb: 'Trust', past: 'Trusted', progressive: 'Trusting' };
 
 /**
  * Trust the key that signed an upload (ADR-0140). The server takes the key from the stored jar, so
@@ -41,6 +44,7 @@ export function TrustKeyDialog({
       { name: name.trim(), upload: sha256 },
       {
         onSuccess: () => {
+          notify.succeeded({ action: TRUST, subject: `the key of ${trust.subject ?? 'this publisher'}` });
           setName('');
           setCompared(false);
           onTrusted();
@@ -66,7 +70,7 @@ export function TrustKeyDialog({
           Every plugin signed with this key will be treated as verified, including future versions, until you remove the
           key under Trusted keys.
         </Text>
-        <Stack gap={2}>
+        <Stack gap="xs">
           <Text size="sm">Fingerprint</Text>
           <Code className={styles.fingerprint}>{trust.fingerprint}</Code>
           <Text size="sm">Certificate subject: {trust.subject ?? 'none'}</Text>

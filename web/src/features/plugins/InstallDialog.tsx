@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, CopyButton, Group, List, Loader, Modal, Stack, Stepper, Text } from '@mantine/core';
+import { Button, CopyButton, Group, List, Modal, Stack, Stepper, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 
 import { request } from '../../kernel/api/request.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import {
   keys,
   useActivateUpload,
@@ -16,7 +18,9 @@ import {
   type PluginViolationView,
 } from './api.ts';
 import { ActivationProgress, type Outcome } from './ActivationProgress.tsx';
+import { Notice, Refusal } from './Notice.tsx';
 import { Acknowledgement, PlanReview } from './PlanReview.tsx';
+import styles from './Plugins.module.css';
 import { TrustKeyDialog } from './TrustKeyDialog.tsx';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
@@ -65,42 +69,38 @@ function InspectStep({
   return (
     <Stack gap="sm" mt="md">
       {inspecting ? (
-        <Text size="sm" aria-live="polite">
-          <Loader size="xs" mr={6} />
-          {inspectingWords(source)}
-        </Text>
+        <div className={styles.progressLine}>
+          <LoadingState variant="inline" label="Inspecting the jar" />
+          <Text size="sm">{inspectingWords(source)}</Text>
+        </div>
       ) : null}
-      {error ? (
-        <Alert variant="light" color="red" title="This jar cannot be installed" role="alert">
+      {error && violations.length === 0 ? (
+        <>
+          <ErrorState variant="inline" error={error} />
+          <Text size="sm">Nothing was stored.</Text>
+        </>
+      ) : null}
+      {violations.length > 0 ? (
+        <Notice title="This jar cannot be installed" tone="danger" alert>
           <Stack gap="xs">
-            {violations.length > 0 ? (
-              <List size="sm" spacing={4}>
-                {violations.map((v) => (
-                  <List.Item key={v.code + v.message}>
-                    {v.message}
-                    {v.fix ? (
-                      <Text size="xs" c="dimmed">
-                        {v.fix}
-                      </Text>
-                    ) : null}
-                  </List.Item>
-                ))}
-              </List>
-            ) : (
-              <Text size="sm">{error.message}</Text>
-            )}
-            {violations.length > 0 ? (
-              <CopyButton value={report(violations)}>
-                {({ copied, copy }) => (
-                  <Button size="xs" variant="default" w="fit-content" onClick={copy}>
-                    {copied ? 'Copied' : 'Copy report for the plugin author'}
-                  </Button>
-                )}
-              </CopyButton>
-            ) : null}
+            <List size="sm" spacing={4}>
+              {violations.map((v) => (
+                <List.Item key={v.code + v.message}>
+                  {v.message}
+                  {v.fix ? <span className={styles.note}> Next: {v.fix}</span> : null}
+                </List.Item>
+              ))}
+            </List>
+            <CopyButton value={report(violations)}>
+              {({ copied, copy }) => (
+                <Button size="xs" variant="default" className={styles.start} onClick={copy}>
+                  {copied ? 'Copied' : 'Copy report for the plugin author'}
+                </Button>
+              )}
+            </CopyButton>
             <Text size="sm">Nothing was stored.</Text>
           </Stack>
-        </Alert>
+        </Notice>
       ) : null}
     </Stack>
   );
@@ -179,18 +179,14 @@ function ConfirmStep({
         {scopeWords(plan)} {interruptionWords(plan)}
       </Text>
       {plan.missingRequires.length > 0 ? (
-        <Text size="sm" c="red">
+        <Text size="sm" className={styles.danger}>
           It requires {plan.missingRequires.join(', ')} first.
         </Text>
       ) : null}
       {needsAcknowledgement ? <Acknowledgement plan={plan} checked={acknowledged} onChange={setAcknowledged} /> : null}
       <StepUp returnTo={returnTo} />
       {activate.error && !needsReauthentication(activate.error) ? (
-        <Alert variant="light" color="red" title="Not activated" role="alert">
-          {violationsOf(activate.error)
-            .map((v) => v.message)
-            .join(' ') || activate.error.message}
-        </Alert>
+        <Refusal error={activate.error} title="Not activated" />
       ) : null}
       <ConfirmByTyping
         token={plan.pluginId}
@@ -300,7 +296,7 @@ export function InstallDialog({
     <Modal
       opened={source !== null}
       onClose={close}
-      size={920}
+      size="57.5rem"
       title={plan ? actionLabel(plan) : 'Install plugin'}
       closeOnClickOutside={step < 2}
       // One Escape closes one layer: while the key dialog is open it closes that, not this.

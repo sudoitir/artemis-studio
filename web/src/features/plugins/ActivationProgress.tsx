@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Code, Loader, Stack, Text, Timeline } from '@mantine/core';
+import { Button, Code, Stack, Text, Timeline } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import type { PluginPlanView } from './api.ts';
+import { Notice } from './Notice.tsx';
+import styles from './Plugins.module.css';
 import { usePlugins } from './api.ts';
 import { STEPS } from './words.ts';
 
@@ -43,20 +46,22 @@ function OutcomeNote({
   const title = plan.info.title;
   if (outcome === 'pending') {
     return (
-      <Text size="sm">
-        <Loader size="xs" mr={6} />
-        Activating {title} {plan.toVersion}. You can close this; it carries on.
-      </Text>
+      <div className={styles.progressLine}>
+        <LoadingState variant="inline" label={`Activating ${title}`} />
+        <Text size="sm">
+          Activating {title} {plan.toVersion}. You can close this; it carries on.
+        </Text>
+      </div>
     );
   }
   if (outcome === 'succeeded') {
     return (
-      <Alert variant="light" title={`${title} ${plan.toVersion} is active`}>
+      <Notice title={`${title} ${plan.toVersion} is active`}>
         <Stack gap="xs">
           {plan.info.contributions.ui ? (
             <>
               <Text size="sm">Reload Studio to load its screens.</Text>
-              <Button w="fit-content" onClick={() => globalThis.location.reload()}>
+              <Button className={styles.start} onClick={() => globalThis.location.reload()}>
                 Reload Studio
               </Button>
             </>
@@ -64,12 +69,12 @@ function OutcomeNote({
             <Text size="sm">It is running; it has no screens of its own.</Text>
           )}
         </Stack>
-      </Alert>
+      </Notice>
     );
   }
   if (outcome === 'failed') {
     return (
-      <Alert variant="light" color="red" title={`${title} ${plan.toVersion} did not start`}>
+      <Notice title={`${title} ${plan.toVersion} did not start`} tone="danger" alert>
         <Stack gap="xs">
           <Text size="sm">{failure ?? 'The server gave no reason.'}</Text>
           {plan.fromVersion && plan.activationClass === 'INSTANT' ? (
@@ -77,27 +82,29 @@ function OutcomeNote({
           ) : null}
           <Text size="sm">Upload a fixed version, or open the plugin's details to retry or remove it.</Text>
         </Stack>
-      </Alert>
+      </Notice>
     );
   }
   if (restart?.supervised || serverDown) {
     return (
-      <Alert variant="light" title="Studio is restarting">
-        <Text size="sm">
-          <Loader size="xs" mr={6} />
-          {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is back, usually
-          under a minute.
-        </Text>
-      </Alert>
+      <Notice title="Studio is restarting">
+        <div className={styles.progressLine}>
+          <LoadingState variant="inline" label="Waiting for Studio to come back" />
+          <Text size="sm">
+            {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is back,
+            usually under a minute.
+          </Text>
+        </div>
+      </Notice>
     );
   }
   return (
-    <Alert variant="light" title={`${title} starts when Studio restarts`}>
+    <Notice title={`${title} starts when Studio restarts`} tone="warning">
       <Stack gap="xs">
         <Text size="sm">Studio cannot restart itself where it runs. Restart it with:</Text>
         <Code block>{restart?.command ?? 'docker compose restart studio'}</Code>
       </Stack>
-    </Alert>
+    </Notice>
   );
 }
 
@@ -135,12 +142,16 @@ export function ActivationProgress({
 
   return (
     <Stack gap="md">
-      <Timeline active={outcome === 'succeeded' ? steps.length : Math.max(current, 0)} bulletSize={18} lineWidth={2}>
+      <Timeline
+        active={outcome === 'succeeded' ? steps.length : Math.max(current, 0)}
+        bulletSize="1.125rem"
+        lineWidth="0.125rem"
+      >
         {steps.map((step, index) => (
           <Timeline.Item
             key={step.key}
             title={step.label}
-            bullet={index < current || outcome === 'succeeded' ? <IconCheck size={12} aria-hidden /> : undefined}
+            bullet={index < current || outcome === 'succeeded' ? <IconCheck size="0.75rem" aria-hidden /> : undefined}
           >
             {index === current && outcome === 'pending' ? (
               <Text size="xs" c="dimmed">

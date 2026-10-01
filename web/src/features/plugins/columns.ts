@@ -51,7 +51,15 @@ export function pluginColumns({ updates, onUpdate, onOpen, showLicense }: Plugin
       kind: 'status',
       priority: 'high',
     },
-    { id: 'status', header: 'Status', accessor: statusText, cell: statusCell, kind: 'status', priority: 'high' },
+    {
+      id: 'status',
+      header: 'Status',
+      accessor: statusText,
+      cell: statusCell,
+      kind: 'status',
+      priority: 'high',
+      badge: true,
+    },
     ...(showLicense
       ? [
           {

@@ -1,4 +1,4 @@
-import { Alert, ColorSwatch, Stack, Text } from '@mantine/core';
+import { Button, ColorSwatch, Stack, Text } from '@mantine/core';
 
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
@@ -6,6 +6,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { useCluster, useEnvironments, type CapabilitiesView, type ClusterDetail } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
+import { Notice } from './Notice.tsx';
 import styles from './ClusterHeader.module.css';
 
 /** The capabilities the connection reports as unavailable. */
@@ -78,12 +79,10 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
       </fieldset>
 
       {data.health.level !== 'OK' && data.health.notes.length > 0 ? (
-        <Alert
-          variant="default"
-          className={styles.notice}
-          data-tone={critical ? 'danger' : 'warning'}
-          role={critical ? 'alert' : undefined}
+        <Notice
           title={critical ? 'Two nodes are live in one pair' : 'Needs attention'}
+          tone={critical ? 'danger' : 'warning'}
+          alert={critical}
         >
           <Stack gap="xs">
             {data.health.notes.map((n) => (
@@ -92,25 +91,22 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
               </Text>
             ))}
           </Stack>
-        </Alert>
+        </Notice>
       ) : null}
 
       {gaps.length > 0 && !capsDismissed ? (
-        <Alert
-          variant="default"
-          title="Some broker capabilities need setup"
-          withCloseButton
-          closeButtonLabel="Dismiss until you sign out"
-          onClose={dismissCaps}
-        >
+        <Notice title="Some broker capabilities need setup" tone="warning">
           <Stack gap="xs">
             <Text size="sm">
               One or more features are limited by this connection. Each row below expands with the reason and the{' '}
               <code>broker.xml</code> change that closes the gap.
             </Text>
             <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />
+            <Button variant="default" size="xs" className={styles.dismiss} onClick={dismissCaps}>
+              Dismiss until you sign out
+            </Button>
           </Stack>
-        </Alert>
+        </Notice>
       ) : null}
     </>
   );

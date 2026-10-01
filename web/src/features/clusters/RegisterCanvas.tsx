@@ -1,5 +1,6 @@
-import { Alert, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 
+import { Notice } from './Notice.tsx';
 import type { RegisterPreview, TopologyView } from './api.ts';
 import { layout } from './layout.ts';
 import { TopologyCanvas } from './TopologyCanvas.tsx';
@@ -33,17 +34,11 @@ function PreviewCanvas({ topology, stale }: Readonly<{ topology: TopologyView; s
   const model = layout(topology, EXAMPLE_HEALTH);
   return (
     <Stack gap="xs">
-      <Alert
-        color={stale ? 'yellow' : undefined}
-        variant="light"
-        title={stale ? 'Changed since you checked' : 'Discovered topology'}
-      >
-        <Text size="sm">
-          {stale
-            ? 'Run Check connection again to preview the current values before registering.'
-            : 'This is what will be saved. Nothing is saved yet.'}
-        </Text>
-      </Alert>
+      <Notice title={stale ? 'Changed since you checked' : 'Discovered topology'} tone={stale ? 'warning' : 'info'}>
+        {stale
+          ? 'Run Check connection again to preview the current values before registering.'
+          : 'This is what will be saved. Nothing is saved yet.'}
+      </Notice>
       <div className={styles.previewCanvas} data-stale={stale || undefined}>
         <TopologyCanvas model={model} interactive={!stale} height="100%" />
       </div>

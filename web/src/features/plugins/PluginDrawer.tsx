@@ -1,21 +1,16 @@
-import { useState } from 'react';
-import {
-  Anchor,
-  Button,
-  Checkbox,
-  Code,
-  CopyButton,
-  Drawer,
-  Group,
-  List,
-  Loader,
-  Stack,
-  Table,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Button, Checkbox, Code, CopyButton, Drawer, Group, List, Stack, Tabs, Text } from '@mantine/core';
 
+import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { absoluteLabel } from '../../kernel/time/time.ts';
+import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { ConfirmAction } from './ConfirmAction.tsx';
 import { LicenseTab } from './LicenseTab.tsx';
 import {
@@ -27,68 +22,104 @@ import {
   type LifecycleAction,
   type PluginView,
 } from './api.ts';
+import { bytes, dataColumns, historyColumns } from './drawerColumns.tsx';
 import styles from './Plugins.module.css';
 import { UnverifiedBadge } from './UnverifiedBadge.tsx';
 import { STATUS, count, licenseNeedsAction } from './words.ts';
 
 type Pending = LifecycleAction | 'purge' | null;
 
-type PluginInfo = NonNullable<PluginView['info']>;
+const VERBS: Record<Exclude<Pending, null>, ActionVerb> = {
+  enable: { verb: 'Enable', past: 'Enabled', progressive: 'Enabling' },
+  rollback: { verb: 'Roll back', past: 'Rolled back', progressive: 'Rolling back' },
+  disable: { verb: 'Disable', past: 'Disabled', progressive: 'Disabling' },
+  uninstall: { verb: 'Uninstall', past: 'Uninstalled', progressive: 'Uninstalling' },
+  purge: { verb: 'Purge', past: 'Purged', progressive: 'Purging' },
+};
 
-function bytes(n: number): string {
-  if (n >= 1024 * 1024 * 1024) return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`;
-  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
-  return `${Math.ceil(n / 1024)} KB`;
-}
+type PluginInfo = NonNullable<PluginView['info']>;
 
 /** Only an `http(s)` vendor link is ever made a link, and it never gets the opener. */
 function VendorLink({ url }: { url: string | null | undefined }) {
   if (!url) return null;
   const safe = /^https?:\/\//i.test(url);
   return safe ? (
-    <Anchor href={url} target="_blank" rel="noopener noreferrer" size="sm">
+    <a href={url} target="_blank" rel="noopener noreferrer" className={linkClasses.link}>
       {url}
-    </Anchor>
+    </a>
   ) : (
     <Text size="sm">{url}</Text>
   );
 }
 
 /** Who signed the jar, and with which key; a key nobody trusts is said to be so. */
-function SignerRows({ plugin }: Readonly<{ plugin: PluginView }>) {
+function signerItems(plugin: PluginView): DescriptionItem[] {
   const fingerprint = plugin.signerFingerprint;
   const trustNote = plugin.verified ? '' : ' (not a trusted key)';
-  return (
-    <>
-      <Table.Tr>
-        <Table.Th>Signed by</Table.Th>
-        <Table.Td>
-          {fingerprint ? `${plugin.signerSubject ?? 'An unnamed certificate'}${trustNote}` : 'Not signed'}
-        </Table.Td>
-      </Table.Tr>
-      {fingerprint ? (
-        <Table.Tr>
-          <Table.Th>Key fingerprint</Table.Th>
-          <Table.Td>
-            <Group gap="xs" wrap="nowrap">
-              <Code className={styles.fingerprint}>{fingerprint}</Code>
-              <CopyButton value={fingerprint}>
-                {({ copied, copy }) => (
-                  <Button size="compact-xs" variant="subtle" onClick={copy} aria-label="Copy fingerprint">
-                    {copied ? 'Copied' : 'Copy'}
-                  </Button>
-                )}
-              </CopyButton>
-            </Group>
-          </Table.Td>
-        </Table.Tr>
-      ) : null}
-    </>
-  );
+  const items: DescriptionItem[] = [
+    {
+      term: 'Signed by',
+      value: fingerprint ? `${plugin.signerSubject ?? 'An unnamed certificate'}${trustNote}` : 'Not signed',
+    },
+  ];
+  if (fingerprint) {
+    items.push({
+      term: 'Key fingerprint',
+      value: (
+        <Group gap="xs" wrap="nowrap">
+          <Code className={styles.fingerprint}>{fingerprint}</Code>
+          <CopyButton value={fingerprint}>
+            {({ copied, copy }) => (
+              <Button size="compact-xs" variant="subtle" onClick={copy} aria-label="Copy fingerprint">
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            )}
+          </CopyButton>
+        </Group>
+      ),
+    });
+  }
+  return items;
 }
 
 /** What the plugin is and who put it there. */
 function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: PluginInfo }>) {
+  useDisplayZone();
+  const items: DescriptionItem[] = [
+    {
+      term: 'Vendor',
+      value: (
+        <Stack gap={0}>
+          <Text size="sm">{info.vendor.name}</Text>
+          <VendorLink url={info.vendor.url} />
+          {info.vendor.email ? <Text size="sm">{info.vendor.email}</Text> : null}
+        </Stack>
+      ),
+    },
+    { term: 'Supports Studio', value: `${info.since}${info.until ? ` to ${info.until}` : ' and later'}` },
+    {
+      term: 'Installed',
+      value: `${absoluteLabel(plugin.installedAt)}${plugin.installedBy ? ` by ${plugin.installedBy}` : ''}`,
+    },
+    ...(plugin.activatedAt ? [{ term: 'Last activated', value: absoluteLabel(plugin.activatedAt) }] : []),
+    {
+      term: 'Artifact sha256',
+      value: (
+        <Group gap="xs" wrap="nowrap">
+          <Code className={styles.num}>{plugin.sha256.slice(0, 16)}…</Code>
+          <CopyButton value={plugin.sha256}>
+            {({ copied, copy }) => (
+              <Button size="compact-xs" variant="subtle" onClick={copy}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            )}
+          </CopyButton>
+        </Group>
+      ),
+    },
+    ...signerItems(plugin),
+    ...(info.license ? [{ term: 'License', value: info.license }] : []),
+  ];
   return (
     <Stack gap="sm">
       <Group gap="xs">
@@ -99,71 +130,13 @@ function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: Plug
         {plugin.verified ? null : <UnverifiedBadge />}
       </Group>
       {info.description ? <Text size="sm">{info.description}</Text> : null}
-      <Table variant="vertical" withTableBorder>
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Th w={160}>Vendor</Table.Th>
-            <Table.Td>
-              <Stack gap={0}>
-                <Text size="sm">{info.vendor.name}</Text>
-                <VendorLink url={info.vendor.url} />
-                {info.vendor.email ? <Text size="sm">{info.vendor.email}</Text> : null}
-              </Stack>
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Th>Supports Studio</Table.Th>
-            <Table.Td>
-              {info.since}
-              {info.until ? ` to ${info.until}` : ' and later'}
-            </Table.Td>
-          </Table.Tr>
-          <Table.Tr>
-            <Table.Th>Installed</Table.Th>
-            <Table.Td>
-              {new Date(plugin.installedAt).toLocaleString()}
-              {plugin.installedBy ? ` by ${plugin.installedBy}` : ''}
-            </Table.Td>
-          </Table.Tr>
-          {plugin.activatedAt ? (
-            <Table.Tr>
-              <Table.Th>Last activated</Table.Th>
-              <Table.Td>{new Date(plugin.activatedAt).toLocaleString()}</Table.Td>
-            </Table.Tr>
-          ) : null}
-          <Table.Tr>
-            <Table.Th>Artifact sha256</Table.Th>
-            <Table.Td>
-              <Group gap="xs" wrap="nowrap">
-                <Code className={styles.num}>{plugin.sha256.slice(0, 16)}…</Code>
-                <CopyButton value={plugin.sha256}>
-                  {({ copied, copy }) => (
-                    <Button size="compact-xs" variant="subtle" onClick={copy}>
-                      {copied ? 'Copied' : 'Copy'}
-                    </Button>
-                  )}
-                </CopyButton>
-              </Group>
-            </Table.Td>
-          </Table.Tr>
-          <SignerRows plugin={plugin} />
-          {info.license ? (
-            <Table.Tr>
-              <Table.Th>License</Table.Th>
-              <Table.Td>{info.license}</Table.Td>
-            </Table.Tr>
-          ) : null}
-        </Table.Tbody>
-      </Table>
+      <DescriptionList items={items} label="About this plugin" />
       {info.changeNotes ? (
-        <>
-          <Title order={4} fz="sm">
-            Change notes
-          </Title>
+        <Section title="Change notes" headingLevel={3}>
           <Text size="sm" className={styles.notes}>
             {info.changeNotes}
           </Text>
-        </>
+        </Section>
       ) : null}
     </Stack>
   );
@@ -209,13 +182,10 @@ function ContributionsTab({ plugin, info }: Readonly<{ plugin: PluginView; info:
 
 /** The schema and tables the plugin keeps, measured. */
 function DataTab({ purgePlan }: Readonly<{ purgePlan: ReturnType<typeof usePurgePlan> }>) {
-  if (purgePlan.isPending) return <Loader size="sm" />;
+  const columns = useMemo(() => dataColumns(), []);
+  if (purgePlan.isPending) return <LoadingState label="Measuring its data" blockSize="8rem" />;
   if (!purgePlan.data) {
-    return (
-      <Text size="sm" c="dimmed">
-        {purgePlan.error ? `Its data could not be measured: ${purgePlan.error.message}` : ''}
-      </Text>
-    );
+    return <ErrorState error={purgePlan.error} onRetry={() => void purgePlan.refetch()} />;
   }
   return (
     <Stack gap="xs">
@@ -223,81 +193,49 @@ function DataTab({ purgePlan }: Readonly<{ purgePlan: ReturnType<typeof usePurge
         Its data lives in schema <Code>{purgePlan.data.schema}</Code>, which only it uses. Figures are estimates from
         table statistics.
       </Text>
-      {purgePlan.data.tables.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No tables.
-        </Text>
-      ) : (
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Table</Table.Th>
-              <Table.Th ta="end">Rows (about)</Table.Th>
-              <Table.Th ta="end">Size</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {purgePlan.data.tables.map((t) => (
-              <Table.Tr key={t.name}>
-                <Table.Td>{t.name}</Table.Td>
-                <Table.Td ta="end" className={styles.num}>
-                  {t.estimatedRows < 0 ? 'not yet counted' : t.estimatedRows.toLocaleString()}
-                </Table.Td>
-                <Table.Td ta="end" className={styles.num}>
-                  {bytes(t.bytes)}
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
+      <DataTable
+        variant="static"
+        label="Tables the plugin keeps"
+        columns={columns}
+        data={purgePlan.data.tables}
+        rowKey={(t) => t.name}
+        storageKey="plugins.data"
+        height={{ maxRows: 12 }}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No tables"
+            description="This plugin keeps no tables of its own, so there is no data of it to purge."
+          />
+        }
+      />
     </Stack>
   );
 }
 
 /** Everything done to the plugin, newest first. */
 function HistoryTab({ history }: Readonly<{ history: ReturnType<typeof usePluginHistory> }>) {
-  if (history.isPending) return <Loader size="sm" />;
-  if ((history.data ?? []).length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        Nothing recorded yet.
-      </Text>
-    );
-  }
+  useDisplayZone();
+  const columns = useMemo(() => historyColumns(), []);
   return (
-    <Table>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>When</Table.Th>
-          <Table.Th>Who</Table.Th>
-          <Table.Th>What</Table.Th>
-          <Table.Th>Outcome</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {(history.data ?? []).map((e) => (
-          <Table.Tr key={e.id}>
-            <Table.Td className={styles.num}>{new Date(e.ts).toLocaleString()}</Table.Td>
-            <Table.Td>{e.username ?? '—'}</Table.Td>
-            <Table.Td>
-              {e.action
-                .replace(/^PLUGIN_/, '')
-                .replaceAll('_', ' ')
-                .toLowerCase()}
-            </Table.Td>
-            <Table.Td>
-              <span className={e.outcome === 'FAILED' ? styles.danger : undefined}>{e.outcome.toLowerCase()}</span>
-              {e.error ? (
-                <Text size="xs" c="dimmed">
-                  {e.error}
-                </Text>
-              ) : null}
-            </Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+    <DataTable
+      variant="static"
+      label="History of the plugin"
+      columns={columns}
+      data={history.data ?? []}
+      rowKey={(e) => String(e.id)}
+      storageKey="plugins.history"
+      height={{ maxRows: 12 }}
+      loading={history.isPending}
+      error={history.isError ? <ErrorState error={history.error} onRetry={() => void history.refetch()} /> : undefined}
+      empty={
+        <EmptyState
+          kind="empty"
+          title="Nothing recorded yet"
+          description="Every install, update, enable, disable and removal of this plugin is recorded here, with who did it."
+        />
+      }
+    />
   );
 }
 
@@ -337,7 +275,7 @@ function ActionsTab({
         </Text>
       ) : null}
       {info.updateUrl && plugin.status !== 'uninstalled' ? (
-        <Button variant="default" w="fit-content" disabled={!canInstall} onClick={() => onUpdate(plugin.id)}>
+        <Button variant="default" className={styles.start} disabled={!canInstall} onClick={() => onUpdate(plugin.id)}>
           Check its update URL for a newer version
         </Button>
       ) : null}
@@ -346,9 +284,8 @@ function ActionsTab({
         .map((a) => (
           <Button
             key={a.key}
-            variant={a.key === 'purge' || a.key === 'uninstall' ? 'outline' : 'default'}
-            color={a.key === 'purge' || a.key === 'uninstall' ? 'red' : undefined}
-            w="fit-content"
+            variant="default"
+            className={styles.start}
             disabled={!canInstall}
             onClick={() => onPick(a.key)}
           >
@@ -457,7 +394,14 @@ function Confirmations({
         danger
         pending={purge.isPending}
         error={purge.error}
-        onConfirm={() => purge.mutate(plugin.id, { onSuccess: onPurged })}
+        onConfirm={() =>
+          purge.mutate(plugin.id, {
+            onSuccess: () => {
+              notify.succeeded({ action: VERBS.purge, subject: `the data of ${info.title}` });
+              onPurged();
+            },
+          })
+        }
       >
         {purgePlan.data ? (
           <Stack gap="xs">
@@ -536,7 +480,12 @@ export function PluginDrawer({
     if (plugin) {
       lifecycle.mutate(
         { id: plugin.id, action, cascade, acknowledge: acknowledged },
-        { onSuccess: () => setPending(null) },
+        {
+          onSuccess: () => {
+            notify.succeeded({ action: VERBS[action], subject: `plugin ${plugin.info.title}` });
+            setPending(null);
+          },
+        },
       );
     }
   };

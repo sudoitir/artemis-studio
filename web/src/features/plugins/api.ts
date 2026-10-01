@@ -47,16 +47,37 @@ function busy(view: PluginsView | undefined): boolean {
   return !!view && (view.restart.restarting || view.plugins.some((p) => p.status === 'activating'));
 }
 
+const FAST_MS = 1_000;
+const QUIET_MS = 30_000;
+
+/**
+ * How soon to ask for the inventory again. While something is changing (a plugin activating or Studio
+ * restarting) it is every second, and a failed poll is then expected. A refusal for lack of the
+ * permission is final, so it stops polling. Any other failure backs off from one second to the quiet
+ * interval, by the failures in a row, so a server that stays down is not asked every second.
+ */
+export function pollInterval(state: {
+  data: PluginsView | undefined;
+  error: ApiError | null;
+  fetchFailureCount: number;
+}): number | false {
+  const { data, error, fetchFailureCount } = state;
+  if (error?.status === 403) return false;
+  if (busy(data)) return FAST_MS;
+  if (error) return Math.min(FAST_MS * 2 ** fetchFailureCount, QUIET_MS);
+  return QUIET_MS;
+}
+
 /**
  * The inventory. Polled every second while a plugin is activating or Studio is restarting, and
- * every 30 seconds otherwise (design.md §8: progress is polled, not streamed). While Studio
- * restarts, a failed poll is expected and simply retried.
+ * every 30 seconds otherwise (design.md §8: progress is polled, not streamed); see {@link pollInterval}
+ * for failures.
  */
 export function usePlugins(): UseQueryResult<PluginsView, ApiError> {
   return useQuery({
     queryKey: keys.list,
     queryFn: () => request<PluginsView>(BASE),
-    refetchInterval: (query) => (busy(query.state.data) || query.state.error ? 1_000 : 30_000),
+    refetchInterval: (query) => pollInterval(query.state),
     retry: (count, error) => error.status !== 403 && count < 3,
   });
 }

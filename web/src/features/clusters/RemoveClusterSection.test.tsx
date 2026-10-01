@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -50,49 +50,76 @@ describe('RemoveClusterSection', () => {
   });
 
   it('states what goes and what stays before the typed name arms the button', async () => {
+    const user = userEvent.setup();
     renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
 
-    expect(await screen.findByRole('button', { name: 'Remove cluster' })).toBeDisabled();
-    expect(screen.getByText(/stored broker credentials/)).toBeInTheDocument();
+    expect(await screen.findByText(/stored broker credentials/)).toBeInTheDocument();
     expect(screen.getByText(/Nothing on the broker changes/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove cluster…' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Remove cluster' });
+    expect(dialog).toHaveTextContent('Nothing on the broker changes');
+    expect(within(dialog).getByRole('button', { name: 'Remove cluster' })).toBeDisabled();
   });
 
-  it('removes the cluster by keyboard alone and leaves it', async () => {
+  it('removes the cluster by keyboard alone, and focus returns to the button when the dialog is dismissed', async () => {
     const user = userEvent.setup();
     const calls = deleteAnswers(204);
     renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
 
-    const input = await screen.findByLabelText('Type "prod-eu" to confirm');
-    await user.click(input);
+    const trigger = await screen.findByRole('button', { name: 'Remove cluster…' });
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    const dialog = await screen.findByRole('dialog', { name: 'Remove cluster' });
+    await vi.waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement));
+
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await vi.waitFor(() => expect(trigger).toHaveFocus());
+
+    await user.keyboard('{Enter}');
+    const again = await screen.findByRole('dialog', { name: 'Remove cluster' });
     await user.keyboard('prod-eu');
     await user.tab();
-    expect(screen.getByRole('button', { name: 'Remove cluster' })).toHaveFocus();
+    expect(within(again).getByRole('button', { name: 'Remove cluster' })).toHaveFocus();
     await user.keyboard('{Enter}');
 
     await vi.waitFor(() => expect(navigateSpy).toHaveBeenCalledWith({ to: '/' }));
     expect(calls).toEqual([CLUSTER]);
   });
 
-  it('states why a failed removal failed and stays', async () => {
+  it('states why a failed removal failed, keeps the dialog open and does not leave', async () => {
     const user = userEvent.setup();
     deleteAnswers(409);
     renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
 
-    await user.type(await screen.findByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
-    await user.click(screen.getByRole('button', { name: 'Remove cluster' }));
+    await user.click(await screen.findByRole('button', { name: 'Remove cluster…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove cluster' });
+    await user.type(within(dialog).getByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove cluster' }));
 
-    expect(await screen.findByText('The cluster was not removed')).toBeInTheDocument();
-    expect(screen.getByText(/It is still registered/)).toBeInTheDocument();
+    expect(await within(dialog).findByText('The cluster is locked by a running transfer.')).toBeInTheDocument();
+    expect(within(dialog).getByText(/It is still registered/)).toBeInTheDocument();
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
-  it('says why removal is unavailable without the permission', async () => {
+  it('says why removal is unavailable without the permission, and leaves the button visible but off', async () => {
     grants(['cluster:read']);
     renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
 
     expect(await screen.findByText(/needs the/)).toBeInTheDocument();
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
-    expect(screen.getByRole('button', { name: 'Remove cluster' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Remove cluster…' })).toBeDisabled();
+  });
+
+  it('holds its place while the cluster loads, and says why when it cannot be read', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/:id', () =>
+        HttpResponse.json({ title: 'Error', detail: 'The cluster store is down.' }, { status: 500 }),
+      ),
+    );
+    renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
+
+    expect(screen.getByText('Loading the cluster')).toBeInTheDocument();
+    expect(await screen.findByText('The cluster store is down.')).toBeInTheDocument();
   });
 });

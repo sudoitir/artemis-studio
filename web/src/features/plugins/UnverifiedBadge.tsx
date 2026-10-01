@@ -1,10 +1,6 @@
-import { Badge } from '@mantine/core';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 
-/** Words carry the meaning; the warning colour is redundant emphasis. */
+/** Words carry the meaning; the warning tone is redundant emphasis. */
 export function UnverifiedBadge() {
-  return (
-    <Badge size="xs" variant="light" color="yellow" c="var(--as-warning)">
-      Unverified
-    </Badge>
-  );
+  return <StatusBadge tone="warning">Unverified</StatusBadge>;
 }

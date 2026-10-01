@@ -1,0 +1,86 @@
+/* A fact the operator must read, in a titled block that says it in words. The badge carries the tone;
+   the edge only repeats it. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-md);
+  border: 1px solid var(--as-border);
+  border-inline-start: 0.25rem solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+}
+
+.notice[data-tone='warning'] {
+  border-inline-start-color: var(--as-warning);
+}
+
+.notice[data-tone='danger'] {
+  border-inline-start-color: var(--as-danger);
+}
+
+.noticeBody {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/* The registration form beside its canvas: two columns that hold at least 22rem, wrapping by size. */
+.register {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+  gap: var(--mantine-spacing-lg);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  min-inline-size: 0;
+}
+
+/* Two fields that belong together, side by side while there is room. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  align-items: start;
+  gap: var(--mantine-spacing-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mantine-spacing-sm);
+}
+
+.reason {
+  margin-inline-end: auto;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+}
+
+/* A form of a settings section: fields that stay a readable width instead of stretching across the page. */
+.settingsForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  max-inline-size: 30rem;
+}
+
+.start {
+  align-self: flex-start;
+}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Anchor, Collapse, Text } from '@mantine/core';
+import { Collapse, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Link } from '@tanstack/react-router';
+import linkClasses from '../../ui/InlineLink.module.css';
 import type { CapabilitiesView, CapabilityView, VersionGateView } from './api.ts';
 import styles from './CapabilityLedger.module.css';
 
@@ -108,9 +109,9 @@ export function CapabilityLedger({
                   {cap.brokerXmlSnippet && clusterId && declarable ? (
                     <Text size="xs" mt="xs">
                       {declarable}{' '}
-                      <Anchor component={Link} to={`/clusters/${clusterId}/configuration?tab=recommended`} size="xs">
+                      <Link to={`/clusters/${clusterId}/configuration?tab=recommended`} className={linkClasses.link}>
                         Declare &amp; apply it
-                      </Anchor>
+                      </Link>
                     </Text>
                   ) : null}
                 </div>

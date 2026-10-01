@@ -28,11 +28,6 @@
   color: var(--as-text-dimmed);
 }
 
-/* A problem or a notice about the cluster. Colour only emphasises: the title says what it is. */
-.notice[data-tone='warning'] {
-  border-color: var(--as-warning);
-}
-
-.notice[data-tone='danger'] {
-  border-color: var(--as-danger);
+.dismiss {
+  align-self: flex-start;
 }

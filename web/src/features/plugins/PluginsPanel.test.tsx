@@ -571,6 +571,14 @@ function listing(plugins: PluginView[], overrides: Partial<PluginsView> = {}) {
 }
 
 describe('Administration → Plugins inventory', () => {
+  it('is one section of the page, headed by a level-two heading, never a second page title', async () => {
+    listing([plugin()]);
+    renderPanel();
+
+    expect(await screen.findByRole('heading', { name: 'Plugins', level: 2 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
   it("shows a plugin's icon, and falls back to a monogram when the icon cannot be loaded", async () => {
     listing([plugin({ iconUrl: '/icons/acme-notes.svg' })]);
     const { container } = renderPanel();
@@ -634,7 +642,7 @@ describe('Administration → Plugins inventory', () => {
     expect(alert).toHaveTextContent('Stopped versions of gone-plugin (2.0.0) are still in memory');
     // A stuck plugin says so in its own row, and both count as needing attention.
     expect(screen.getByRole('row', { name: /Wiki/ })).toHaveTextContent('Did not stop cleanly');
-    expect(screen.getByRole('status')).toHaveTextContent('2 plugins need attention');
+    expect(screen.getByText(/2 plugins need attention/)).toBeVisible();
   });
 
   it('labels each fix by what is wrong and opens the plugin from the row or from its fix', async () => {
@@ -689,8 +697,8 @@ describe('Administration → Plugins inventory', () => {
   it('explains safe mode, with the reason when there is one', async () => {
     listing([], { safeMode: true, safeModeReason: 'A plugin crashed the last start.' });
     const first = renderPanel();
-    const alert = await screen.findByText('Safe mode: no plugin is running');
-    expect(alert.closest('[role="alert"]')).toHaveTextContent('A plugin crashed the last start.');
+    const notice = await screen.findByText('Safe mode: no plugin is running');
+    expect(notice.closest('[role="status"]')).toHaveTextContent('A plugin crashed the last start.');
     first.unmount();
 
     listing([], { safeMode: true, safeModeReason: null });
@@ -759,6 +767,28 @@ describe('Administration → Plugins updates', () => {
     const notes = screen.getByRole('row', { name: /Notes/ });
     await user.click(within(notes).getByRole('button', { name: '1.1.0 available' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('says why an update check failed, and offers to retry it', async () => {
+    listing([plugin()]);
+    let answered = 0;
+    server.use(
+      http.post('*/api/v1/admin/plugins/check-updates', () => {
+        answered += 1;
+        return answered === 1
+          ? HttpResponse.json({ title: 'Bad gateway', detail: 'The update server did not answer.' }, { status: 502 })
+          : HttpResponse.json([{ id: 'acme-notes', currentVersion: '1.0.0', availableVersion: null, error: null }]);
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole('button', { name: 'Check for updates' }));
+    const failure = await screen.findByRole('alert');
+    expect(failure).toHaveTextContent('The update server did not answer.');
+    await user.click(within(failure).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Every plugin with an update URL is up to date.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('keeps update checks disabled when installing is not allowed', async () => {

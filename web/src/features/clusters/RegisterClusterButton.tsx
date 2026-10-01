@@ -1,5 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
-import { Button, Loader, Modal, ScrollArea } from '@mantine/core';
+import { Button, Modal, ScrollArea } from '@mantine/core';
+
+import { LoadingState } from '../../ui/LoadingState.tsx';
 
 /**
  * The registration form and the xyflow canvas it draws come with it, so they load when a dialog is
@@ -20,7 +22,7 @@ export function RegisterClusterDialog({ opened, onClose }: Readonly<{ opened: bo
       centered
       scrollAreaComponent={ScrollArea.Autosize}
     >
-      <Suspense fallback={<Loader size="sm" />}>
+      <Suspense fallback={<LoadingState label="Loading the registration form" blockSize="24rem" />}>
         <RegisterClusterPanel onRegistered={onClose} />
       </Suspense>
     </Modal>

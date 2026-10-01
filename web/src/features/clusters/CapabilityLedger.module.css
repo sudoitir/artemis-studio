@@ -31,7 +31,7 @@
 .row[data-expandable='true']:hover .status,
 .row[data-expandable='true']:focus-visible .status {
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: 0.1875rem;
 }
 
 .label {

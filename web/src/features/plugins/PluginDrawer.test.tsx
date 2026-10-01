@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -69,12 +70,18 @@ function purgePlan(body: unknown, status = 200) {
 }
 
 beforeEach(() => server.use(me(), history()));
+afterEach(() => act(() => notifications.clean()));
 
 function setup(p: PluginView | undefined, props: Partial<Parameters<typeof PluginDrawer>[0]> = {}) {
   const onClose = vi.fn();
   const onUpdate = vi.fn();
   const user = userEvent.setup();
-  renderWithProviders(<PluginDrawer plugin={p} canInstall onClose={onClose} onUpdate={onUpdate} {...props} />);
+  renderWithProviders(
+    <>
+      <Notifications />
+      <PluginDrawer plugin={p} canInstall onClose={onClose} onUpdate={onUpdate} {...props} />
+    </>,
+  );
   return { user, onClose, onUpdate };
 }
 
@@ -232,7 +239,7 @@ describe('PluginDrawer: data', () => {
     const { user } = setup(plugin());
     await tab(user, 'Data');
 
-    expect(await screen.findByText('No tables.')).toBeInTheDocument();
+    expect(await screen.findByText('No tables')).toBeInTheDocument();
   });
 
   it('says why its data could not be measured', async () => {
@@ -240,7 +247,8 @@ describe('PluginDrawer: data', () => {
     const { user } = setup(plugin());
     await tab(user, 'Data');
 
-    expect(await screen.findByText('Its data could not be measured: schema is locked')).toBeInTheDocument();
+    expect(await screen.findByText('schema is locked')).toBeInTheDocument();
+    expect(screen.getByText('Studio failed to complete the request')).toBeInTheDocument();
   });
 });
 
@@ -248,7 +256,7 @@ describe('PluginDrawer: history', () => {
   it('says when nothing is recorded', async () => {
     const { user } = setup(plugin());
     await tab(user, 'History');
-    expect(await screen.findByText('Nothing recorded yet.')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing recorded yet')).toBeInTheDocument();
   });
 
   it('lists what was done, by whom, and how it went, with the error of a failure', async () => {
@@ -393,7 +401,9 @@ describe('PluginDrawer: confirmations', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Disable Notes' });
     await user.click(within(dialog).getByRole('button', { name: 'Disable Notes' }));
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('acme-extras is active. Disable it first.');
+    const refusal = await within(dialog).findByRole('alert');
+    expect(refusal).toHaveTextContent('acme-extras is active.');
+    expect(refusal).toHaveTextContent('Disable it first.');
   });
 
   it('uninstalls only once the id is typed, saying that its data is kept', async () => {
@@ -416,6 +426,7 @@ describe('PluginDrawer: confirmations', () => {
     await user.click(confirm);
 
     await waitFor(() => expect(called).toBe(true));
+    expect(await screen.findByText('Uninstalled plugin Notes')).toBeInTheDocument();
   });
 
   it('retries a failed plugin, naming the version', async () => {

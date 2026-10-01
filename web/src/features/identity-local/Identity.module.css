@@ -1,0 +1,114 @@
+/* A screen that stands alone, outside the console's frame: one card in the middle of the window, as wide
+   as its content needs and no wider than the window, so it needs no breakpoints. */
+.screen {
+  display: grid;
+  place-items: center;
+  min-block-size: 100vh;
+  padding: var(--mantine-spacing-lg);
+}
+
+.card {
+  inline-size: min(100%, 23.75rem);
+}
+
+.wide {
+  inline-size: min(100%, 35rem);
+}
+
+.start {
+  align-self: flex-start;
+}
+
+/* A row of controls that wraps by width. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.warning {
+  color: var(--as-warning);
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The one-time recovery codes: a grid of codes, each on its own line, wrapping by width. */
+.codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--mantine-spacing-xs);
+  margin: 0;
+  padding: var(--mantine-spacing-sm);
+  list-style: none;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-surface-raised);
+}
+
+.end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.secret {
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+}
+
+.secretCode {
+  font-size: var(--mantine-font-size-sm);
+  white-space: pre-wrap;
+}
+
+.qr {
+  display: block;
+  inline-size: 11rem;
+  block-size: 11rem;
+  border-radius: var(--mantine-radius-sm);
+  outline: 1px solid var(--as-border);
+}
+
+/* The authenticator setup: the QR code beside its key, wrapping by width. */
+.setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xl);
+}
+
+.field {
+  inline-size: 100%;
+  max-inline-size: 16rem;
+}
+
+.nameField {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+}
+
+/* A refusal in words, with the danger token on the edge only (the same edge ErrorState uses). */
+.failure {
+  border-inline-start: 0.25rem solid var(--as-danger);
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-md) 0;
+  overflow-wrap: anywhere;
+}
+
+/* A block of the account's two-step section: what it is and its state, with its controls at the inline end,
+   wrapping under the text when there is no room. */
+.block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+}
+
+.blockText {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}

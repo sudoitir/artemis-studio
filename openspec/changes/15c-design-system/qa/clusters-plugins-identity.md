@@ -9,5 +9,5 @@ Every finding is fixed before this change is archived. Severity: S1 blocks a tas
 - Where: `web/src/features/plugins/api.ts:58`
 - Evidence: refetchInterval: (query) => (busy(query.state.data) || query.state.error ? 1_000 : 30_000). Any error sets the interval to 1 s and nothing stops it. The retry option skips 403, but refetchInterval does not. A user without the plugins permission, or a server that keeps returning 5xx, gets a request every second for as long as the panel or HeaderIndicator is mounted. Each poll is a full retry cycle of up to 3 attempts on non-403 errors.
 - Fix: Return false when the error status is 403. For other errors, back off with an interval based on query.state.errorUpdateCount (for example min(1000*2^n, 30000)), and keep the fixed 1 s only while busy(data) or while a restart is known to be in progress.
-- Status: open
+- Status: fixed (`pollInterval` in `plugins/api.ts` returns `false` on a 403 and backs off from 1 s to the quiet 30 s by the failures in a row (`fetchFailureCount`, which a success resets), and stays at 1 s only while a plugin is activating or Studio is restarting; `api.test.ts` covers the quiet, busy, forbidden and backoff cases)
 

@@ -1,7 +1,8 @@
-import { Anchor, Text } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import { useAuthProviders, useMe } from '../../kernel/auth/api.ts';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { TwoStepSection } from './TwoStepSection.tsx';
 
 /**
@@ -19,9 +20,9 @@ export function PasswordSection() {
         <Text size="sm" c="dimmed" mb="sm">
           Local accounts only; other accounts change their password where they sign in.
         </Text>
-        <Anchor component={Link} to="/change-password" size="sm">
+        <Link to="/change-password" className={linkClasses.link}>
           Change password
-        </Anchor>
+        </Link>
       </>
     );
   }
