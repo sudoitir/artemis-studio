@@ -37,15 +37,26 @@ const OFFLINE_AFTER = 3;
  * belongs (ADR-0018). A store sidesteps the ordering entirely, and matches the
  * pause signal in `polling.ts`.
  *
- * `null` means no stream is mounted, which is the truth on every non-cluster
- * route and is rendered as "no live stream here", not as an error.
+ * Every mounted stream owns one entry, and the store reports the worst of them: the cluster's
+ * stream and a view's own live feed can be mounted together, and one tearing down must not
+ * clear, or hide a failure of, the other. `null` means no stream is mounted, which is the truth
+ * on every non-cluster route and is rendered as "no live stream here", not as an error.
  */
+const SEVERITY: Record<StreamStatus, number> = { live: 0, connecting: 1, reconnecting: 2, offline: 3 };
+const owned = new Map<symbol, StreamStatus>();
 let current: StreamStatus | null = null;
 const statusListeners = new Set<() => void>();
 
-function publish(next: StreamStatus | null) {
-  if (current === next) return;
-  current = next;
+/** Set one stream's status, or drop it with `null`, and notify when the worst of them changed. */
+function publish(owner: symbol, next: StreamStatus | null) {
+  if (next === null) owned.delete(owner);
+  else owned.set(owner, next);
+  let worst: StreamStatus | null = null;
+  for (const status of owned.values()) {
+    if (worst === null || SEVERITY[status] > SEVERITY[worst]) worst = status;
+  }
+  if (current === worst) return;
+  current = worst;
   for (const l of statusListeners) l();
 }
 
@@ -126,7 +137,8 @@ export function useClusterStream(
     // A view that asks for no topics opens no stream; the server would answer with its defaults.
     if (topicKey === '') return;
     const wanted = topicKey.split(',');
-    publish('connecting');
+    const owner = Symbol('cluster-stream');
+    publish(owner, 'connecting');
     let failures = 0;
     let lastEventId = '';
     let refetchOnOpen = false;
@@ -148,7 +160,7 @@ export function useClusterStream(
       if (closed) return;
       failures += 1;
       refetchOnOpen = true;
-      publish(failures >= OFFLINE_AFTER ? 'offline' : 'reconnecting');
+      publish(owner, failures >= OFFLINE_AFTER ? 'offline' : 'reconnecting');
       retry = setTimeout(connect, backoff(failures));
     };
 
@@ -160,7 +172,7 @@ export function useClusterStream(
 
       source.onopen = () => {
         failures = 0;
-        publish('live');
+        publish(owner, 'live');
         heard();
         if (refetchOnOpen) {
           refetchOnOpen = false;
@@ -213,7 +225,7 @@ export function useClusterStream(
       if (retry) clearTimeout(retry);
       if (watchdog) clearTimeout(watchdog);
       source?.close();
-      publish(null);
+      publish(owner, null);
     };
   }, [clusterId, topicKey, qc, onFrame]);
 

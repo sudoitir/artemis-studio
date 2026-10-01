@@ -4,22 +4,17 @@
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: 0;
-  z-index: 1000;
-  padding: 8px 12px;
+  z-index: var(--mantine-z-index-max);
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-md);
   background: var(--as-surface-raised);
   color: var(--as-text);
   border: 1px solid var(--as-border);
   border-radius: 0 0 var(--mantine-radius-sm) 0;
   transform: translateY(-110%);
-  transition: transform 150ms ease;
+  transition: transform var(--as-duration-fast) var(--as-ease);
 }
 
 .skipLink:focus-visible {
   transform: translateY(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skipLink {
-    transition: none;
-  }
 }

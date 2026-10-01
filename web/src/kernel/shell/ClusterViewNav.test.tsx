@@ -43,18 +43,15 @@ function mockApi({
 }
 
 describe('ClusterViewNav', () => {
-  it('lists views under their group headings, in the fixed group order', async () => {
+  it('lists views under their group titles, in the fixed group order, with no headings of its own', async () => {
     mockApi();
     renderWithProviders(<ClusterViewNav clusterId="c1" collapsed={false} />);
 
     await screen.findByRole('link', { name: 'Topology' });
-    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
-      'Observe',
-      'Messaging',
-      'Resources',
-      'Configuration',
-      'Activity',
-    ]);
+    const names = ['Observe', 'Messaging', 'Resources', 'Configuration', 'Activity'];
+    expect(screen.getAllByRole('group')).toEqual(names.map((name) => screen.getByRole('group', { name })));
+    // The page's headings are the page's own, starting at its one h1.
+    expect(screen.queryAllByRole('heading')).toHaveLength(0);
     const messaging = screen.getByRole('group', { name: 'Messaging' });
     expect(
       within(messaging)
@@ -67,7 +64,7 @@ describe('ClusterViewNav', () => {
     mockApi({ disabled: ['sql', 'events', 'audit', 'bulk'] });
     renderWithProviders(<ClusterViewNav clusterId="c1" collapsed={false} />);
 
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Activity' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Activity' })).not.toBeInTheDocument());
     expect(screen.queryByRole('link', { name: 'SQL Console' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Queues' })).toBeInTheDocument();
   });

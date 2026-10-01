@@ -99,6 +99,42 @@ describe('RootLayout sidebar collapse', () => {
   });
 });
 
+describe('RootLayout in a narrow window', () => {
+  const originalMatchMedia = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+    navigate.mockClear();
+  });
+
+  /** A window narrower than 64rem, whatever its size in CSS pixels: the threshold follows zoom. */
+  function narrowWindow() {
+    window.matchMedia = ((query: string) => ({
+      ...originalMatchMedia(query),
+      matches: query === '(width < 64rem)',
+    })) as typeof window.matchMedia;
+  }
+
+  it('shows the icon rail whatever was chosen, and says why the toggle does nothing', async () => {
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(
+      http.get('*/api/v1/clusters', () =>
+        HttpResponse.json(paged([{ id: 'c1', name: 'prod-emea', health: 'OK', nodeCount: 3 }])),
+      ),
+    );
+    localStorage.setItem('as:nav:collapsed', 'false');
+    narrowWindow();
+    renderWithProviders(<RootLayout />);
+
+    const toggle = await screen.findByRole('button', { name: 'Sidebar stays collapsed in a narrow window' });
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(await screen.findByRole('link', { name: /prod-emea/ })).toBeInTheDocument();
+    // The viewer's own choice is kept for when the window is wide again.
+    expect(localStorage.getItem('as:nav:collapsed')).toBe('false');
+  });
+});
+
 describe('RootLayout user menu', () => {
   afterEach(() => navigate.mockClear());
 

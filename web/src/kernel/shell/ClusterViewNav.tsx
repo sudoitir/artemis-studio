@@ -9,7 +9,8 @@ import { NavItem } from './NavItem.tsx';
 /**
  * The per-cluster view nav (ADR-0034), grouped (ADR-0070). Each enabled feature contributes its
  * views to one of the kernel's groups; a group with no enabled view is not shown. Expanded, a group
- * has a visible heading; collapsed, a divider, and its heading stays available to a screen reader.
+ * has a visible title; collapsed, a divider, and its title stays available to a screen reader. The title
+ * names its group but is not a heading: the page's headings are the page's own, starting at its one h1.
  * A view the operator lacks the read permission for stays listed and disabled, with the reason:
  * a missing entry would read as a product that cannot do it. Only rendered while a cluster is the
  * active route.
@@ -27,7 +28,7 @@ export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: s
         {groups.map((group) => {
           const headingId = `cluster-views-${group.id}`;
           const heading = (
-            <Text id={headingId} component="h2" className={styles.heading}>
+            <Text id={headingId} component="span" className={styles.heading}>
               {group.label}
             </Text>
           );
@@ -35,7 +36,7 @@ export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: s
             <div key={group.id} role="group" aria-labelledby={headingId} className={styles.group}>
               {collapsed ? (
                 <>
-                  <Divider my={6} />
+                  <Divider my="xs" />
                   <VisuallyHidden>{heading}</VisuallyHidden>
                 </>
               ) : (

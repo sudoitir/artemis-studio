@@ -22,7 +22,7 @@ export function Breadcrumb() {
 
   return (
     <nav aria-label="Breadcrumb">
-      <Breadcrumbs separator="›" separatorMargin={6} fz="xs">
+      <Breadcrumbs separator="›" separatorMargin="xs" fz="xs">
         {crumbs.map((crumb, i) => {
           const last = i === crumbs.length - 1;
           return last || !crumb.to ? (

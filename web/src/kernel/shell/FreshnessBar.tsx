@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Text, Tooltip, VisuallyHidden } from '@mantine/core';
 import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -93,8 +93,7 @@ export function FreshnessBar() {
           screen stays near-monochrome, and paused is not an error. */}
       <Tooltip label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'} withArrow>
         <ActionIcon
-          variant="subtle"
-          color="gray"
+          variant="default"
           className={paused ? styles.pressed : undefined}
           aria-label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'}
           aria-pressed={paused}
@@ -125,8 +124,8 @@ function StateAnnouncement({ state }: Readonly<{ state: FreshnessState }>) {
   }, [state]);
 
   return (
-    <span className={styles.announcement} aria-live="polite" role="status">
+    <VisuallyHidden role="status" aria-live="polite">
       {message}
-    </span>
+    </VisuallyHidden>
   );
 }
