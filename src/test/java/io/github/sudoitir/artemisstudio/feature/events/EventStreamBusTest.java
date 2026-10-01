@@ -2,11 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
@@ -14,6 +11,7 @@ import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -82,8 +80,8 @@ class EventStreamBusTest extends PostgresIntegrationTest {
 
         hubA.publish(clusterId, "queues");
 
-        assertThat(frames(onA, 1)).singleElement().asString().contains("event:queues");
-        assertThat(frames(onB, 1)).singleElement().asString().contains("event:queues");
+        assertThat(frames(onA, "queues", 1)).singleElement().asString().contains("event:queues");
+        assertThat(frames(onB, "queues", 1)).singleElement().asString().contains("event:queues");
     }
 
     @Test
@@ -101,7 +99,7 @@ class EventStreamBusTest extends PostgresIntegrationTest {
                 String.class);
         assertThat(seqs).hasSize(2);
         for (SseEmitter emitter : List.of(onA, onB)) {
-            List<String> frames = frames(emitter, 2);
+            List<String> frames = frames(emitter, "events", 2);
             assertThat(frames.get(0)).contains("event:events", "id:" + seqs.get(0), "CONSUMER_CREATED");
             assertThat(frames.get(1)).contains("event:events", "id:" + seqs.get(1), "SESSION_CREATED");
         }
@@ -118,10 +116,8 @@ class EventStreamBusTest extends PostgresIntegrationTest {
         });
 
         await().pollDelay(Duration.ofSeconds(1)).until(() -> true);
-        ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        verify(onA, atLeast(0)).send(sent.capture());
         // Keep-alives may arrive; an events frame may not.
-        assertThat(sent.getAllValues()).map(EventStreamBusTest::render).noneMatch(f -> f.contains("event:events"));
+        assertThat(sent(onA, "events")).isEmpty();
     }
 
     private SseEmitter subscribe(SseHub hub, String topic) {
@@ -131,12 +127,23 @@ class EventStreamBusTest extends PostgresIntegrationTest {
     }
 
     /** The frames a client was sent. Waits for {@code expected} of them, then a moment more to catch a repeat. */
-    private static List<String> frames(SseEmitter emitter, int expected) throws Exception {
-        verify(emitter, timeout(5_000).times(expected)).send(any(SseEmitter.SseEventBuilder.class));
+    /**
+     * The frames of {@code topic} a client was sent. Waits for {@code expected} of them, then a moment
+     * more to catch a repeat; keep-alive pings that land in between are not counted.
+     */
+    private static List<String> frames(SseEmitter emitter, String topic, int expected) throws IOException {
+        await().atMost(Duration.ofSeconds(5)).until(() -> sent(emitter, topic).size() >= expected);
         await().pollDelay(Duration.ofMillis(500)).until(() -> true);
+        return sent(emitter, topic);
+    }
+
+    private static List<String> sent(SseEmitter emitter, String topic) throws IOException {
         ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
-        verify(emitter, times(expected)).send(sent.capture());
-        return sent.getAllValues().stream().map(EventStreamBusTest::render).toList();
+        verify(emitter, atLeast(0)).send(sent.capture());
+        return sent.getAllValues().stream()
+                .map(EventStreamBusTest::render)
+                .filter(frame -> frame.contains("event:" + topic + "\n"))
+                .toList();
     }
 
     private static String render(SseEmitter.SseEventBuilder builder) {

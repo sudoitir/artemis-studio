@@ -1,7 +1,7 @@
 package io.github.sudoitir.artemisstudio.support;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
@@ -47,7 +47,8 @@ public abstract class PostgresIntegrationTest {
 
     @BeforeEach
     void ownEveryCluster() {
-        when(clusterOwnership.owns(any())).thenReturn(true);
+        // doReturn, not when(...): the bus thread may call the mock's listener while this stubs it.
+        doReturn(true).when(clusterOwnership).owns(any());
     }
 
     /**

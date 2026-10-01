@@ -67,7 +67,8 @@ public abstract class ModuleIntegrationTest {
 
     @BeforeEach
     void ownEveryCluster() {
-        Mockito.when(clusterOwnership.owns(ArgumentMatchers.any())).thenReturn(true);
+        // doReturn, not when(...): the bus thread may call the mock's listener while this stubs it.
+        Mockito.doReturn(true).when(clusterOwnership).owns(ArgumentMatchers.any());
     }
 
     @Autowired
