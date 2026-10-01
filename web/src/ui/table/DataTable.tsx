@@ -213,9 +213,10 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   // The live region is mounted by the first announcement, empty, before its text arrives: a region
   // that exists before it changes is what screen readers announce reliably, and a table nobody
   // announces from adds none.
+  // Cleared before every message, so the same words twice (copying one cell twice) are announced twice.
   const [message, setMessage] = useState<string | null>(null);
   const announce = useCallback((text: string) => {
-    setMessage((prev) => prev ?? '');
+    setMessage('');
     requestAnimationFrame(() => setMessage(text));
   }, []);
 
@@ -228,13 +229,18 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
     );
   }, [hiddenCount, announce]);
 
-  // A sort is announced once the sorted rows have landed: the data changes, with nothing loading.
+  // A sort is announced once the sorted rows have landed: the data differs from the rows shown before
+  // the sort changed, with nothing loading. Rows already cached for that sort land in the same render
+  // as the sort, so the comparison is with the previous render's rows, not this one's.
   const pendingSort = useRef<{ sort: string | undefined; data: T[] } | null>(null);
   const lastSort = useRef(sort);
+  const previousData = useRef(data);
   useEffect(() => {
-    if (lastSort.current === sort) return;
-    lastSort.current = sort;
-    pendingSort.current = { sort, data };
+    if (lastSort.current !== sort) {
+      lastSort.current = sort;
+      pendingSort.current = { sort, data: previousData.current };
+    }
+    previousData.current = data;
   }, [sort, data]);
   useEffect(() => {
     const pending = pendingSort.current;

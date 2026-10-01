@@ -805,6 +805,22 @@ describe('DataTable: remaining interactions', () => {
     expect(await screen.findByText('Copied ORDERS')).toBeInTheDocument();
   });
 
+  it('announces the same words a second time', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const cell = cellOf('ORDERS');
+    cell.focus();
+    fireEvent.keyDown(cell, { key: 'c', ctrlKey: true });
+    const status = await screen.findByText('Copied ORDERS');
+    const region = status.closest('[role="status"]') ?? status;
+
+    fireEvent.keyDown(cell, { key: 'c', ctrlKey: true });
+    // The region is emptied first, so the repeat is a change a screen reader announces.
+    await waitFor(() => expect(region).toHaveTextContent(''));
+    await waitFor(() => expect(region).toHaveTextContent('Copied ORDERS'));
+  });
+
   it('does not move the focus for an Alt+arrow, which belongs to the browser', () => {
     renderWithProviders(<Grid label="Queues" columns={columns} data={rows} rowKey={(r) => r.name} />);
     const cell = cellOf('ORDERS');
@@ -1004,6 +1020,17 @@ describe('DataTable: frame and semantics', () => {
     rerender(<Harness sort="-depth" data={rows} />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
+    rerender(<Harness sort="-depth" data={[...rows].reverse()} />);
+    expect(await screen.findByText('Sorted by Depth, descending')).toBeInTheDocument();
+  });
+
+  it('announces a sort whose rows land in the same render, as cached rows do', async () => {
+    function Harness({ sort, data }: { sort?: string; data: Q[] }) {
+      return (
+        <Grid label="Queues" columns={columns} data={data} rowKey={(r) => r.name} sort={sort} onSortChange={vi.fn()} />
+      );
+    }
+    const { rerender } = renderWithProviders(<Harness data={rows} />);
     rerender(<Harness sort="-depth" data={[...rows].reverse()} />);
     expect(await screen.findByText('Sorted by Depth, descending')).toBeInTheDocument();
   });
