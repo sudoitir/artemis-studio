@@ -23,6 +23,7 @@ function mockAccountApis() {
         id: 'u1',
         username: 'ada',
         mustChangePassword: false,
+        providerId: 'local',
         secondFactorEnrolmentRequired: false,
         grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
         reauthentication: {
@@ -35,7 +36,7 @@ function mockAccountApis() {
     ),
     http.get('*/api/v1/auth/mfa', () =>
       HttpResponse.json({
-        local: true,
+        passwordAccount: true,
         required: false,
         enrolled: false,
         totpEnrolled: false,
