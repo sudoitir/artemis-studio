@@ -19,7 +19,6 @@
     "test:coverage": "vitest run --coverage",
     "shots": "node --experimental-strip-types scripts/shots.ts",
     "demo": "node --experimental-strip-types scripts/demo.ts",
-    "ui-review": "node --experimental-strip-types scripts/ui-review.ts",
     "sweep": "node --experimental-strip-types scripts/sweep.ts"
   },
   "dependencies": {
