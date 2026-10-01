@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.metrics;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -13,8 +14,9 @@ import java.util.List;
  * @param from start of the range
  * @param to end of the range
  * @param requestedStep the bucket width asked for, or null for the server's choice
- * @param splitBy {@link MetricQueryService#SPLIT_BY_NODE} for a per-node breakdown, or null for totals only
+ * @param splitBy {@code NODE} for a per-node breakdown, or null for totals only
  */
+@PluginApi
 public record MetricQuery(
         List<String> metrics,
         String subjectType,

@@ -126,6 +126,8 @@ export function LoginView() {
           ) : (
             <FirstStep
               providers={providers.data}
+              loadFailed={providers.isError}
+              onRetry={() => void providers.refetch()}
               chosen={chosen}
               onProvider={setProvider}
               username={username}
@@ -146,6 +148,8 @@ export function LoginView() {
 /** The password form, when a credential provider exists, and one sign-in action per redirect provider. */
 function FirstStep({
   providers,
+  loadFailed,
+  onRetry,
   chosen,
   onProvider,
   username,
@@ -157,6 +161,8 @@ function FirstStep({
   onSubmit,
 }: Readonly<{
   providers: IdentityProviderView[] | undefined;
+  loadFailed: boolean;
+  onRetry: () => void;
   chosen: string | null;
   onProvider: (provider: string | null) => void;
   username: string;
@@ -173,6 +179,18 @@ function FirstStep({
   const showForm = !listed || credential.length > 0;
   return (
     <>
+      {loadFailed ? (
+        <Alert color="yellow" title="Could not load the sign-in methods" role="alert">
+          <Stack gap="xs" align="flex-start">
+            <Text size="sm">
+              Password sign-in is still offered. Every other way to sign in is missing until this loads.
+            </Text>
+            <Button size="xs" variant="light" onClick={onRetry}>
+              Retry
+            </Button>
+          </Stack>
+        </Alert>
+      ) : null}
       {showForm ? (
         <form onSubmit={onSubmit}>
           <Stack gap="sm">

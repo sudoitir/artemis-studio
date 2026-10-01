@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.metrics.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -11,11 +12,13 @@ public final class MetricViews {
 
     private MetricViews() {}
 
+    @PluginApi
     public record MetricPoint(
             @Schema(requiredMode = REQUIRED) Instant ts,
             @Schema(requiredMode = REQUIRED) double value,
             @Schema(nullable = true) Double peak) {}
 
+    @PluginApi
     public record MetricSeries(
             @Schema(requiredMode = REQUIRED) String metric,
             @Schema(requiredMode = REQUIRED) String kind,
@@ -28,6 +31,7 @@ public final class MetricViews {
      * @param sampled false for a serving node with no sample of the subject in the window: its
      *     series are empty, and that is "not sampled", never zero
      */
+    @PluginApi
     public record MetricNodeSeries(
             @Schema(requiredMode = REQUIRED) String nodeId,
             @Schema(requiredMode = REQUIRED) String nodeName,
@@ -41,6 +45,7 @@ public final class MetricViews {
      * @param splitBy {@code NODE} when the request asked for a split; null otherwise
      * @param byNode each node's series when split; null otherwise
      */
+    @PluginApi
     public record MetricSeriesResponse(
             @Schema(requiredMode = REQUIRED) Instant from,
             @Schema(requiredMode = REQUIRED) Instant to,

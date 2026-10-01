@@ -325,11 +325,17 @@ public class LoginService {
 
     /**
      * The account a failed attempt counts against: the one the provider signs in, so failing local
-     * sign-ins for a single-sign-on user's name cannot lock that user out.
+     * sign-ins for a single-sign-on user's name cannot lock that user out. A plugin provider's account
+     * may carry the provider's qualifier ({@code name@<provider id>}) when the name was taken, so that
+     * one counts for the typed name too.
      */
     private UUID lockableAccount(String providerId, String username) {
         return accounts.byUsername(username)
                 .filter(a -> a.providerId().equals(providerId))
+                .or(() -> DEFAULT_PROVIDER.equals(providerId)
+                        ? Optional.empty()
+                        : accounts.byUsername(username + "@" + providerId)
+                                .filter(a -> a.providerId().equals(providerId)))
                 .map(UserAccounts.Account::id)
                 .orElse(null);
     }

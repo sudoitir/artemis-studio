@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.Plu
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginChangesetView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginContributionsView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginDiffView;
+import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginIdentityProviderView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginInfoView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginInstallerView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.PluginLicenseView;
@@ -390,7 +391,7 @@ public class PluginAdminController {
                     null,
                     List.of(),
                     false,
-                    new PluginContributionsView(false, List.of(), List.of(), List.of(), List.of()));
+                    new PluginContributionsView(false, List.of(), List.of(), List.of(), List.of(), List.of()));
         }
         return new PluginInfoView(
                 d.name(),
@@ -415,6 +416,9 @@ public class PluginAdminController {
                         d.streamTopics(),
                         d.mcpTools().stream()
                                 .map(t -> new PluginMcpToolView(t.name(), t.posture(), t.description()))
+                                .toList(),
+                        d.identityProviders().stream()
+                                .map(i -> new PluginIdentityProviderView(i.id(), i.label()))
                                 .toList()));
     }
 
@@ -443,7 +447,9 @@ public class PluginAdminController {
                         sorted(d.streamTopicsAdded()),
                         sorted(d.streamTopicsRemoved()),
                         sorted(d.mcpToolsAdded()),
-                        sorted(d.mcpToolsRemoved())),
+                        sorted(d.mcpToolsRemoved()),
+                        sorted(d.identityProvidersAdded()),
+                        sorted(d.identityProvidersRemoved())),
                 p.rolesLosingPermission(),
                 p.compatible(),
                 p.missingRequires(),

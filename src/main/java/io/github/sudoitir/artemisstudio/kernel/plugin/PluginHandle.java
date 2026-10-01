@@ -25,6 +25,13 @@ public interface PluginHandle {
     ClassLoader classLoader();
 
     /**
+     * Whether the running version's signer is a trusted key now, asked on every call. A plugin whose
+     * key is removed keeps running (ADR-0141), so a bridge that hands the plugin something only a
+     * verified plugin may have, such as users' passwords, asks this each time.
+     */
+    boolean verified();
+
+    /**
      * The plugin's own beans of a type, by name — not its parents' — for a bridge that looks for a
      * contribution without needing the context itself.
      */

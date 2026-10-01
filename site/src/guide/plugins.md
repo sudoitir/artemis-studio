@@ -182,6 +182,9 @@ removed after signing is refused before anything is stored.
   Trusted keys. It is **off by default**, changing it needs a fresh sign-in and is audited, and every
   activation it allows records `trust=unverified` and the fingerprint in the audit log. Such a plugin shows an
   **Unverified** badge, and needs the same confirmation on activation.
+- **Sign-in plugins.** A plugin that offers a sign-in receives users' passwords, so **Allow unverified
+  plugins** never covers it: it needs a trusted key, and its install or update needs a separate
+  confirmation. See [Sign-in providers](#sign-in-providers).
 - **Removing a key.** Plugins the key signed keep running, so removing a key never takes a plugin down, but
   they show the **Unverified** badge at once, and their next update is refused unless a trusted key signed it.
 - **Health.** While any installed plugin is unverified, the `studio` health group in
@@ -517,6 +520,95 @@ class Licensing {
   with no names, for a license that is sized by it.
 - Studio is not affected by a plugin's verdict, and a listener that throws is logged and isolated.
   Keep a license check cheap and never block on it.
+
+### Sign-in providers
+
+A plugin can offer a username-and-password sign-in, for a corporate directory for example. It answers
+**who the credentials belong to**; everything else on the sign-in path stays Studio's: the login
+throttle, the account lockout, second factors, the session, the audit trail and the group mappings.
+
+**Declare** each provider in `plugin.json`, with the label the login screen shows:
+
+```json
+"identityProviders": [
+  { "id": "acme-notes:corp", "label": "Corporate directory" }
+]
+```
+
+**Answer for it** with one `PluginCredentialProvider` bean per declared id:
+
+```java
+@Component
+class CorporateDirectory implements PluginCredentialProvider {
+    public String id() { return "acme-notes:corp"; }
+
+    public Optional<VerifiedIdentity> authenticate(String username, String password) {
+        return directory.bind(username, password)
+                .map(u -> new VerifiedIdentity(u.uid(), u.login(), u.mail(), u.groups()));
+    }
+
+    // Optional: which of these users has the directory lost? Called about every five minutes.
+    public Set<String> noLongerValid(Set<String> subjects) { return directory.missing(subjects); }
+}
+```
+
+- **What Studio does with the answer.** An account is keyed by the provider id and `subject`, so it
+  must not change for a user. The first sign-in creates the account with `username`; a name another
+  account already has is stored as `name@<provider id>`, and the provider is still asked about plain
+  `name`. Grants come only from **Group mappings** on the provider's groups (or its default role): a
+  provider cannot hand back a user id or grants, and a user matching no mapping is refused.
+- **A wrong password is an empty answer.** It is answered, throttled and counted toward the lockout
+  exactly like a wrong local password. A throw, an answer that is not valid (a blank subject or
+  username, a field over 255 characters, more than 1,000 groups) or no answer within 5 seconds is
+  treated the same, and `/actuator/health/studio` reports **DEGRADED**, naming the provider and the reason,
+  until a call succeeds. Local sign-in never waits on a plugin.
+- **Only a verified plugin may sign users in.** A plugin that declares a provider is installed only
+  when a trusted key signed it, even with **Allow unverified plugins** on. Installing it, or updating
+  it to add a provider, needs a confirmation (`signin-added`) and the review says the plugin will
+  receive the passwords users type. If its key is later removed, the plugin keeps running but its
+  providers stop signing anyone in at once.
+- **Revoking access.** When the provider implements `noLongerValid`, Studio asks it about the enabled
+  accounts of the provider and, for every subject it returns, ends the user's sessions, revokes their
+  API tokens and trusted devices and audits `IDENTITY_REVOKED`. The account stays enabled, so a user
+  restored in the directory signs in again. This pauses while the plugin is stopped, and stopping or
+  updating a plugin does not sign anyone out.
+- **Second factors.** A role that requires a second factor applies to these users like local ones: they
+  enrol at their first sign-in and then give a code after the password. Their password is changed
+  where the directory keeps it, not in Studio.
+- Redirect (OIDC-like) providers, bearer providers and changing Studio's throttling, lockout or
+  session rules are not available to plugins.
+
+### Reading metric history
+
+A plugin that wants the history of Studio's queue metrics, or of metrics plugins publish, injects
+**`MetricHistory`** and names the user it acts for. The read runs as that user's account as it stands
+now, so the cluster check, the permission a plugin metric declares, the retention limit and the
+point cap are exactly those of the metrics API:
+
+```java
+@Component
+class QueueTrend {
+    private final ObjectProvider<MetricHistory> history;
+
+    MetricSeriesResponse depth(UUID actingUserId, UUID clusterId, String queue) {
+        MetricHistory metrics = history.getIfAvailable();
+        if (metrics == null) return null; // the metrics feature is switched off
+        Instant now = Instant.now();
+        return metrics.read(actingUserId, clusterId, new MetricQuery(
+                List.of("messageCount"), "QUEUE", queue, now.minus(Duration.ofHours(6)), now, null, null));
+    }
+}
+```
+
+- **Acting user.** Background work keeps the id of the user who configured it, as message
+  registrations do. `readPluginMetric(actingUserId, clusterId, metric, subject, from, to, step)` reads a
+  plugin metric, including another plugin's when the user holds the permission it declares.
+- **One not-found answer.** A user who is unknown, disabled or without access to the cluster gets the
+  same `NotFoundException` as a cluster that does not exist, so a plugin cannot learn which clusters
+  exist. A grant removed between two reads turns the second into that answer.
+- **Clamped, and says so.** A range older than retention, or a step finer than the data allows, is
+  clamped, and the response has `truncated` set to `true`.
+- `MetricHistory` is absent when the metrics feature is switched off: inject an `ObjectProvider`.
 
 ### Studio facts and shared UI
 

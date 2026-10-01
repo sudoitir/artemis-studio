@@ -23,6 +23,7 @@ export const INFO: PluginInfoView = {
     settingKeys: [],
     streamTopics: [],
     mcpTools: [{ name: 'acme_notes_search', posture: 'read', description: null }],
+    identityProviders: [],
   },
 };
 
@@ -48,6 +49,8 @@ export function plan(over: Partial<PluginPlanView> = {}): PluginPlanView {
       streamTopicsRemoved: [],
       mcpToolsAdded: [],
       mcpToolsRemoved: [],
+      identityProvidersAdded: [],
+      identityProvidersRemoved: [],
     },
     rolesLosingPermission: {},
     compatible: true,

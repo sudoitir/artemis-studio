@@ -329,6 +329,46 @@ class PluginValidatorTest {
     }
 
     @Test
+    void aWellFormedIdentityProviderIsAccepted() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "identityProviders",
+                        List.of(java.util.Map.of("id", "acme-notes:corp", "label", "Corporate directory")));
+        assertThat(validate(jar)).isEmpty();
+    }
+
+    @Test
+    void anIdentityProviderOutsideTheNamespaceIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "identityProviders", List.of(java.util.Map.of("id", "other:corp", "label", "Corporate")));
+        assertThat(has(validate(jar), "identity-provider-id")).isTrue();
+    }
+
+    @Test
+    void anIdentityProviderDeclaredTwiceIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "identityProviders",
+                        List.of(
+                                java.util.Map.of("id", "acme-notes:corp", "label", "One"),
+                                java.util.Map.of("id", "acme-notes:corp", "label", "Two")));
+        assertThat(has(validate(jar), "identity-provider-duplicate")).isTrue();
+    }
+
+    @Test
+    void anIdentityProviderLabelMustBeBetweenOneAndSixtyFourCharacters() throws Exception {
+        for (String label : List.of("", " ", "x".repeat(65))) {
+            var jar = validPlugin("acme-notes")
+                    .descriptorField(
+                            "identityProviders", List.of(java.util.Map.of("id", "acme-notes:corp", "label", label)));
+            assertThat(has(validate(jar), "identity-provider-label"))
+                    .as("label '%s'", label)
+                    .isTrue();
+        }
+    }
+
+    @Test
     void deniedAnnotationScheduled() throws Exception {
         var jar = validPlugin("acme-notes").source("com.acme.acme_notes.Job", """
                         package com.acme.acme_notes;

@@ -22,12 +22,14 @@ _Others_
 * `i.g.s.a.k.s.LoginAttemptLimiter`
 * `i.g.s.a.k.s.OperatorHandoff`
 * `i.g.s.a.k.s.PermissionResolver`
+* `i.g.s.a.k.s.PluginIdentityRevalidation`
 * `i.g.s.a.k.s.ScopedGrants`
 * `i.g.s.a.k.s.SecretKeyState`
 * `i.g.s.a.k.s.SecretRotations`
 * `i.g.s.a.k.s.SecretVault`
 * `i.g.s.a.k.s.SessionAuthentication`
 * `i.g.s.a.k.s.UserAccounts`
+* `i.g.s.a.k.s.IdentityProviders` (via `i.g.s.a.k.s.internal.PluginSignIn`)
 |Bean references
 |* `i.g.s.a.k.r.StudioBus` (in Replicas)
 * `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)

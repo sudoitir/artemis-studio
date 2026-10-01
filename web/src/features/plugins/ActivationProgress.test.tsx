@@ -68,7 +68,14 @@ describe('ActivationProgress', () => {
       <ActivationProgress
         plan={plan({
           info: info({
-            contributions: { ui: false, permissions: [], settingKeys: [], streamTopics: [], mcpTools: [] },
+            contributions: {
+              ui: false,
+              permissions: [],
+              settingKeys: [],
+              streamTopics: [],
+              mcpTools: [],
+              identityProviders: [],
+            },
           }),
         })}
         startedAt={Date.now()}

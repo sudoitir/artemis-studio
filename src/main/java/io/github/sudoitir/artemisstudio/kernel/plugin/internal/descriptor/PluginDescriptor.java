@@ -32,7 +32,8 @@ public record PluginDescriptor(
         List<String> streamTopics,
         List<McpTool> mcpTools,
         List<Metric> metrics,
-        List<AlertRule> alertRules) {
+        List<AlertRule> alertRules,
+        List<IdentityProvider> identityProviders) {
 
     public PluginDescriptor {
         requires = requires == null ? List.of() : List.copyOf(requires);
@@ -42,6 +43,7 @@ public record PluginDescriptor(
         mcpTools = mcpTools == null ? List.of() : List.copyOf(mcpTools);
         metrics = metrics == null ? List.of() : List.copyOf(metrics);
         alertRules = alertRules == null ? List.of() : List.copyOf(alertRules);
+        identityProviders = identityProviders == null ? List.of() : List.copyOf(identityProviders);
     }
 
     /** Whether the plugin needs a license file; a plugin that does not say needs none. */
@@ -117,6 +119,16 @@ public record PluginDescriptor(
             double threshold,
             int forSeconds,
             String severity) {}
+
+    /**
+     * A username-and-password sign-in the plugin offers through a {@code PluginCredentialProvider}
+     * bean (ADR-0156). Declared here so the login screen and the group mappings list it without
+     * calling plugin code, and so the install review can say the plugin will receive passwords.
+     *
+     * @param id {@code <plugin id>:<name>}, the provider id Studio keys accounts and mappings by
+     * @param label what the login screen shows, 1 to 64 characters
+     */
+    public record IdentityProvider(String id, String label) {}
 
     public enum Activation {
         AUTO,

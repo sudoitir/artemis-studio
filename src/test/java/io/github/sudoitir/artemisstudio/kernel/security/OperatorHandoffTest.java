@@ -83,4 +83,41 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
 
         assertThat(handoff.stillHolds(operator, null, "queue:delete")).isFalse();
     }
+
+    @Test
+    void aUserIsActedForAsTheirAccountStandsNow() {
+        Operator operator = handoff.forUser(userId).orElseThrow();
+
+        assertThat(operator.actor().userId()).isEqualTo(userId);
+        assertThat(handoff.stillHolds(operator, null, "queue:delete")).isTrue();
+
+        OperatorFixture.revokeAll(userRoles, userId);
+
+        assertThat(handoff.forUser(userId).orElseThrow().principal().getAuthorities())
+                .isEmpty();
+    }
+
+    @Test
+    void noOperatorForANullUnknownOrDisabledUser() {
+        var user = users.findById(userId).orElseThrow();
+        user.setDisabled(true);
+        users.save(user);
+
+        assertThat(handoff.forUser(null)).isEmpty();
+        assertThat(handoff.forUser(UUID.randomUUID())).isEmpty();
+        assertThat(handoff.forUser(userId)).isEmpty();
+    }
+
+    @Test
+    void callAsReturnsTheValueAndLeavesTheThreadAsItWas() {
+        var before = SecurityContextHolder.getContext().getAuthentication();
+        Operator operator = handoff.forUser(userId).orElseThrow();
+        SecurityContextHolder.clearContext();
+
+        UUID seen = handoff.callAs(operator, () -> actors.resolve().userId());
+
+        assertThat(seen).isEqualTo(userId);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(before).isNotNull();
+    }
 }

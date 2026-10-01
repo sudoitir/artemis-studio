@@ -369,6 +369,7 @@ public class PluginValidator {
         checkStudioRange(descriptor, violations);
         checkNamespaces(descriptor, violations);
         checkMetrics(descriptor, violations);
+        checkIdentityProviders(descriptor, violations);
     }
 
     private void checkId(String id, List<Violation> violations) {
@@ -571,6 +572,38 @@ public class PluginValidator {
                         "Alert rule \"%s\" watches \"%s\", which the plugin does not declare under metrics."
                                 .formatted(rule.key(), rule.metric()),
                         "Point the rule at one of the plugin's declared metrics."));
+            }
+        }
+    }
+
+    /** ADR-0156: sign-in providers are namespaced like metrics, unique, and have a label the login screen can show. */
+    private void checkIdentityProviders(PluginDescriptor descriptor, List<Violation> violations) {
+        String id = descriptor.id();
+        if (id == null) {
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        for (var provider : descriptor.identityProviders()) {
+            String name = provider.id();
+            if (name == null || !METRIC_NAME.matcher(name).matches() || !name.startsWith(id + ":")) {
+                violations.add(new Violation(
+                        "identity-provider-id",
+                        "Identity provider \"%s\" is not a valid id under \"%s:\".".formatted(name, id),
+                        "Name every provider \"%s:<name>\", with lowercase letters, digits, '.' and '_' after the colon."
+                                .formatted(id)));
+            } else if (!seen.add(name)) {
+                violations.add(new Violation(
+                        "identity-provider-duplicate",
+                        "Identity provider \"%s\" is declared twice.".formatted(name),
+                        "Declare each provider once."));
+            }
+            String label = provider.label();
+            if (label == null || label.isBlank() || label.length() > 64) {
+                violations.add(new Violation(
+                        "identity-provider-label",
+                        "Identity provider \"%s\" needs a label of 1 to 64 characters for the login screen."
+                                .formatted(name),
+                        "Give the provider a short label such as \"Corporate directory\"."));
             }
         }
     }

@@ -54,8 +54,15 @@ public final class UserViews {
 
             @Schema(
                     requiredMode = REQUIRED,
-                    description = "The user must hold a second factor: a local account with a role that requires one.")
+                    description =
+                            "The user must hold a second factor: a password account with a role that requires one.")
             boolean secondFactorRequired,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The account signs in with a password a provider checks: a local account, or a "
+                            + "plugin's sign-in. Redirect providers' users do not.")
+            boolean passwordAccount,
 
             @Schema(requiredMode = REQUIRED) List<GrantSummary> grants) {}
 
@@ -65,7 +72,7 @@ public final class UserViews {
 
             @Schema(
                     requiredMode = REQUIRED,
-                    description = "Whether local accounts holding this role need a second factor. "
+                    description = "Whether password accounts holding this role need a second factor. "
                             + "Single sign-on users rely on their identity provider's own MFA.")
             boolean requiresMfa) {}
 

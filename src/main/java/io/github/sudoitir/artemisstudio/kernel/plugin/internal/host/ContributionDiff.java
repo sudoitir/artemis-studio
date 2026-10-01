@@ -15,4 +15,6 @@ public record ContributionDiff(
         Set<String> streamTopicsAdded,
         Set<String> streamTopicsRemoved,
         Set<String> mcpToolsAdded,
-        Set<String> mcpToolsRemoved) {}
+        Set<String> mcpToolsRemoved,
+        Set<String> identityProvidersAdded,
+        Set<String> identityProvidersRemoved) {}

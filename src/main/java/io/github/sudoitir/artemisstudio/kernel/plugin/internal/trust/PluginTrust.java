@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginRefusedException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.TrustedKeyEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.TrustedKeyRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.TrustDecision.Status;
@@ -20,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PluginTrust {
 
     private final TrustedKeyRepository keys;
+    private final PluginInstallRepository installs;
     private final JdbcTemplate jdbc;
 
-    PluginTrust(TrustedKeyRepository keys, JdbcTemplate jdbc) {
+    PluginTrust(TrustedKeyRepository keys, PluginInstallRepository installs, JdbcTemplate jdbc) {
         this.keys = keys;
+        this.installs = installs;
         this.jdbc = jdbc;
     }
 
@@ -40,6 +43,16 @@ public class PluginTrust {
         return keys.findById(fingerprintOrNull)
                 .map(key -> new TrustDecision(Status.TRUSTED, fingerprintOrNull, subject, key.getName()))
                 .orElseGet(() -> new TrustDecision(Status.UNTRUSTED, fingerprintOrNull, subject, null));
+    }
+
+    /**
+     * Whether the installed plugin's signer is a trusted key right now, read from its install row on every
+     * call. A plugin with no install row, or an unsigned one, is not verified.
+     */
+    public boolean verified(String pluginId) {
+        return installs.findById(pluginId)
+                .map(e -> decide(e.getSignerFingerprint(), e.getSignerSubject()).status() == Status.TRUSTED)
+                .orElse(false);
     }
 
     public boolean allowUnverified() {

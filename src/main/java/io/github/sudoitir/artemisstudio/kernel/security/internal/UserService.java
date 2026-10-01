@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
@@ -28,7 +29,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -59,11 +62,15 @@ public class UserService {
     private final Optional<SecondFactors> secondFactors;
     private final Optional<PersonalTokens> personalTokens;
     private final SessionAuthentication sessionState;
+    private final IdentityProviderListing providers;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
     public List<UserView> list() {
-        return users.findAllByOrderByUsername().stream().map(this::toView).toList();
+        Set<String> credential = credentialProviders();
+        return users.findAllByOrderByUsername().stream()
+                .map(u -> toView(u, lockOf(u), credential))
+                .toList();
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -107,7 +114,7 @@ public class UserService {
         lockout.unlock(user.getId(), user.getUsername());
         audit.changed("ACCOUNT_UNLOCK", "user", user.getUsername(), null);
         // The entity still holds the lock it was loaded with; the columns are written by SQL, not through it.
-        return toView(user, null);
+        return toView(user, null, credentialProviders());
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -211,11 +218,23 @@ public class UserService {
     }
 
     private UserView toView(AppUserEntity user) {
-        Instant lock = user.getLockedUntil();
-        return toView(user, lock != null && lock.isAfter(Instant.now()) ? lock : null);
+        return toView(user, lockOf(user), credentialProviders());
     }
 
-    private UserView toView(AppUserEntity user, Instant lockedUntil) {
+    private static Instant lockOf(AppUserEntity user) {
+        Instant lock = user.getLockedUntil();
+        return lock != null && lock.isAfter(Instant.now()) ? lock : null;
+    }
+
+    /** The ids of the providers that check a password: what makes an account a password account. */
+    private Set<String> credentialProviders() {
+        return providers.providers().stream()
+                .filter(p -> IdentityProviderListing.CREDENTIAL.equals(p.kind()))
+                .map(IdentityProviderListing.Entry::id)
+                .collect(Collectors.toSet());
+    }
+
+    private UserView toView(AppUserEntity user, Instant lockedUntil, Set<String> credentialProviders) {
         List<GrantSummary> grants = userRoles.findByIdUserId(user.getId()).stream()
                 .map(ur -> new GrantSummary(
                         roles.findById(ur.getRoleId()).map(RoleEntity::getName).orElse("?"),
@@ -233,6 +252,7 @@ public class UserService {
                 lockedUntil,
                 secondFactors.map(f -> f.enrolledMethods(user.getId())).orElse(List.of()),
                 secondFactors.map(f -> f.required(user.getId())).orElse(false),
+                credentialProviders.contains(user.getProviderId()),
                 grants);
     }
 }

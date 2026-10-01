@@ -21,4 +21,15 @@ public interface AppUserRepository extends JpaRepository<AppUserEntity, UUID> {
     Optional<AppUserEntity> findByProviderIdAndExternalSubject(String providerId, String externalSubject);
 
     List<AppUserEntity> findAllByOrderByUsername();
+
+    /** A provider's accounts that can still sign in, as revalidation needs them (ADR-0156). */
+    interface EnabledAccount {
+        UUID getId();
+
+        String getUsername();
+
+        String getExternalSubject();
+    }
+
+    List<EnabledAccount> findByProviderIdAndDisabledFalse(String providerId);
 }

@@ -390,14 +390,13 @@ function TwoStepStatus({ user, onReset }: Readonly<{ user: UserView; onReset: ()
     f in FACTOR_WORDS ? [FACTOR_WORDS[f as keyof typeof FACTOR_WORDS]] : [],
   );
   const statusId = `two-step-${user.id}`;
-  const local = user.providerId === 'local';
   const nothing = factors.length === 0;
   let status = (
     <Text id={statusId} size="sm">
       {factors.join(', ')}
     </Text>
   );
-  if (!local) {
+  if (!user.passwordAccount) {
     status = (
       <Text id={statusId} size="sm" c="dimmed">
         Managed by their identity provider

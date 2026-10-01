@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.identitylocal.mfa;
 
-import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalModule;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.MfaStatusView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.PasskeyRegisteredView;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.web.MfaViews.PasskeyView;
@@ -68,7 +67,7 @@ public class MfaEnrolment {
         Duration lifetime = trustedDevices.lifetime();
         String cookie = TrustedDeviceCookie.read(request).orElse(null);
         return new MfaStatusView(
-                isLocal(principal),
+                factors.passwordAccount(principal.userId()),
                 factors.required(userId),
                 factors.enrolled(userId),
                 totp.hasActive(userId),
@@ -92,7 +91,7 @@ public class MfaEnrolment {
     @Transactional
     public void revokeTrustedDevice(
             StudioPrincipal principal, UUID deviceId, HttpServletRequest request, HttpServletResponse response) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         String cookie = TrustedDeviceCookie.read(request).orElse(null);
         boolean thisBrowser = trustedDevices.live(principal.userId()).stream()
                 .anyMatch(d -> d.id().equals(deviceId) && TrustedDevices.isCurrent(d, cookie));
@@ -108,7 +107,7 @@ public class MfaEnrolment {
     @Transactional
     public void revokeTrustedDevices(
             StudioPrincipal principal, HttpServletRequest request, HttpServletResponse response) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         trustedDevices.revokeAll(principal.userId(), "revoked by the user");
         TrustedDeviceCookie.clear(request, response);
     }
@@ -124,7 +123,7 @@ public class MfaEnrolment {
     /** The options the browser needs to create a passkey; nothing is kept until {@link #registerPasskey}. */
     @Transactional
     public Map<String, Object> passkeyOptions(StudioPrincipal principal, HttpServletRequest request) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         requirePasskeysAvailable();
         requireStepUpWhenEnrolled(principal, request);
         return passkeys.creationOptions(principal, request);
@@ -141,7 +140,7 @@ public class MfaEnrolment {
             Map<String, Object> credential,
             HttpServletRequest request,
             HttpServletResponse response) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         requirePasskeysAvailable();
         accounts.lock(principal.userId());
         boolean hadFactor = requireStepUpWhenEnrolled(principal, request);
@@ -163,7 +162,7 @@ public class MfaEnrolment {
 
     @Transactional
     public TotpEnrolmentView startTotp(StudioPrincipal principal, HttpServletRequest request) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         requireStepUpWhenEnrolled(principal, request);
         byte[] secret = new byte[SECRET_BYTES];
         random.nextBytes(secret);
@@ -175,7 +174,7 @@ public class MfaEnrolment {
     @Transactional
     public TotpConfirmedView confirmTotp(
             StudioPrincipal principal, String code, HttpServletRequest request, HttpServletResponse response) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         UUID userId = principal.userId();
         accounts.lock(userId);
         boolean hadFactor = requireStepUpWhenEnrolled(principal, request);
@@ -198,7 +197,7 @@ public class MfaEnrolment {
 
     @Transactional
     public RecoveryCodesView regenerateRecoveryCodes(StudioPrincipal principal, HttpServletRequest request) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         if (!requireStepUpWhenEnrolled(principal, request)) {
             throw new ConflictException(
                     "mfa-not-enrolled", "Recovery codes belong to a second factor. Set one up first.");
@@ -227,7 +226,7 @@ public class MfaEnrolment {
     /** Remove one of the caller's passkeys, by the id {@code GET /auth/mfa} lists it under. */
     @Transactional
     public void removePasskey(StudioPrincipal principal, String credentialId, HttpServletRequest request) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         UUID userId = principal.userId();
         boolean theirs = passkeys.of(userId).stream()
                 .anyMatch(p -> p.getCredentialId().toBase64UrlString().equals(credentialId));
@@ -253,7 +252,7 @@ public class MfaEnrolment {
             String missingSlug,
             String missingMessage,
             int remaining) {
-        requireLocalSession(principal);
+        requirePasswordSession(principal);
         if (!sessions.recentlyAuthenticated(request)) {
             throw new ReauthenticationRequiredException();
         }
@@ -274,13 +273,6 @@ public class MfaEnrolment {
         audited(principal, "MFA_REMOVE", Map.of(METHOD, method.name(), "lastFactor", wasLast));
     }
 
-    /** A password-only account of this provider, in a browser session: tokens and other providers do not enrol here. */
-    private boolean isLocal(StudioPrincipal principal) {
-        return accounts.byId(principal.userId())
-                .filter(a -> IdentityLocalModule.PROVIDER_ID.equals(a.providerId()))
-                .isPresent();
-    }
-
     /** A key acts within its narrowed grants; it neither manages nor reads its owner's second factors. */
     private static void requireSession(StudioPrincipal principal) {
         if (principal.tokenName() != null) {
@@ -288,11 +280,12 @@ public class MfaEnrolment {
         }
     }
 
-    private void requireLocalSession(StudioPrincipal principal) {
+    /** A password account (local, or a plugin's sign-in) in a browser session: tokens and redirect providers do not enrol here. */
+    private void requirePasswordSession(StudioPrincipal principal) {
         requireSession(principal);
-        if (!isLocal(principal)) {
+        if (!factors.passwordAccount(principal.userId())) {
             throw new ConflictException(
-                    "mfa-not-local",
+                    "mfa-not-password-account",
                     "Your account signs in through another provider, which manages two-step verification.");
         }
     }

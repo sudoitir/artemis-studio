@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -137,6 +137,32 @@ describe('LoginView', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await vi.waitFor(() => expect(body).toEqual({ provider: 'local', username: 'alice', password: 'secret123' }));
+  });
+
+  it('says when the sign-in methods could not be loaded, keeps the password form and retries', async () => {
+    let healthy = false;
+    server.use(
+      http.get('*/api/v1/auth/providers', () =>
+        healthy
+          ? HttpResponse.json(
+              paged([LOCAL, { id: 'acme:corp', kind: 'CREDENTIAL', label: 'Directory', startPath: null }]),
+            )
+          : HttpResponse.json({ type: 'about:blank', title: 'boom', status: 500 }, { status: 500 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not load the sign-in methods');
+    expect(alert).toHaveTextContent('Password sign-in is still offered');
+    expect(screen.getByLabelText(/Username/)).toBeInTheDocument();
+
+    healthy = true;
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+
+    expect((await screen.findAllByLabelText('Sign in with')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Could not load the sign-in methods')).not.toBeInTheDocument();
   });
 
   it('says the session ended when sent back from a signed-in page, and says nothing on a plain visit', async () => {

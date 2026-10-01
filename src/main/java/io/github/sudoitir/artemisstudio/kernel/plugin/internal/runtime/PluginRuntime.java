@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginBridge;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
 import jakarta.persistence.EntityManagerFactory;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -304,6 +305,11 @@ public final class PluginRuntime implements AutoCloseable {
         @Override
         public ClassLoader classLoader() {
             return classLoader;
+        }
+
+        @Override
+        public boolean verified() {
+            return mainContext.getBean(PluginTrust.class).verified(id);
         }
 
         @Override
