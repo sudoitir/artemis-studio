@@ -256,7 +256,7 @@ describe('TransferDialog what may not be done', () => {
     server.use(meHandler(), ...clusterHandlers(backupOnly));
     open();
 
-    const notice = (await screen.findByText('No source node to read from')).closest('[role="status"]');
+    const notice = await screen.findByRole('region', { name: 'No source node to read from' });
     expect(notice).toHaveTextContent('No node of this cluster is live and managed by Studio now');
     const dialog = screen.getByRole('dialog');
     expect(previewButton(dialog)).toBeDisabled();
