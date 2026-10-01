@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
@@ -83,7 +84,7 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
      */
     private static final Duration PROBE_GRACE = Duration.ofSeconds(1);
 
-    /** Why each node's job last failed, by node and job, so a node that keeps failing the same way is logged once. */
+    /** Why each node's job last failed, by cluster, node and job, so a node that keeps failing the same way is logged once. */
     private final Map<String, String> lastFailures = new ConcurrentHashMap<>();
 
     /** The nodes a tier A probe is running for on this replica. */
@@ -202,22 +203,38 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
 
     /**
      * One tier A pass for one cluster. Each node is probed on its own and never twice at once, so a
-     * node that stalls is skipped until it answers while its siblings are probed every pass. Taking a
-     * cluster over runs a pass at once, which can overlap the scheduled one.
+     * node that stalls is skipped until it answers while its siblings are probed every pass. The
+     * pass waits only {@link #PROBE_GRACE} for its probes; the cycle is judged by the last of its
+     * probes to finish, so a slow node's reading is part of it. Taking a cluster over runs a pass
+     * at once, which can overlap the scheduled one.
      */
     private void tierA(UUID clusterId) {
         long cycle = scrapeCycle.next(clusterId);
-        List<Future<?>> started = manageableNodes(clusterId).stream()
+        List<ClusterNode> targets = manageableNodes(clusterId).stream()
                 .filter(node -> probesInFlight.add(node.getId()))
+                .toList();
+        if (targets.isEmpty()) {
+            completeTierA(clusterId);
+            return;
+        }
+        AtomicInteger pending = new AtomicInteger(targets.size());
+        List<Future<?>> started = targets.stream()
                 .<Future<?>>map(node -> probes.submit(() -> {
                     try {
                         runIsolated(node, "HA read", n -> probe(clusterId, n, cycle));
                     } finally {
                         probesInFlight.remove(node.getId());
+                        if (pending.decrementAndGet() == 0) {
+                            completeTierA(clusterId);
+                        }
                     }
                 }))
                 .toList();
         awaitProbes(started);
+    }
+
+    /** What follows once every probe of a cycle has finished: corroboration, stream signals and subscriptions. */
+    private void completeTierA(UUID clusterId) {
         try {
             List<NodeEndpoint> endpoints = persist.endpoints(clusterId);
             scrapeCycle.corroborate(clusterId, endpoints);
@@ -277,6 +294,7 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
         UUID clusterId = released.clusterId();
         scrapeCycle.forget(clusterId);
         streamSignals.forget(clusterId);
+        lastFailures.keySet().removeIf(key -> key.startsWith(clusterId + "/"));
         Thread.startVirtualThread(() -> coreSubscriptions.forget(clusterId));
     }
 
@@ -328,9 +346,13 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
         try {
             ha = connections.forCluster(clusterId, node.getJolokiaUrl()).readBrokerAttributes(HA_ATTRS);
         } catch (RuntimeException e) {
-            String message =
-                    e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            persist.recordNodeError(node.getId(), message);
+            // Studio held the read back itself, so the node was never asked and nothing is known of it.
+            if (!(e instanceof BrokerConnectionException bce)
+                    || bce.kind() != BrokerConnectionException.Kind.THROTTLED) {
+                String message =
+                        e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                persist.recordNodeError(node.getId(), message);
+            }
             throw e;
         }
         if (!ha.ok()) {
@@ -399,7 +421,7 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
     }
 
     private void runIsolated(ClusterNode node, String jobName, NodeJob job) {
-        String key = node.getId() + "/" + jobName;
+        String key = node.getClusterId() + "/" + node.getId() + "/" + jobName;
         try {
             // The client waits for the node's ceiling before each request it sends (ADR-0076).
             job.run(node);

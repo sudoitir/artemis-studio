@@ -388,6 +388,70 @@ class ScrapeSchedulerTest {
     }
 
     @Test
+    void aProbeStudioHeldBackItselfNeverMarksTheNodeUnreachable() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.THROTTLED));
+
+        scheduler.tierA();
+
+        verify(persist, never()).recordNodeError(any(), anyString());
+        assertThat(warnings()).anyMatch(w -> w.contains("calling this node as fast as"));
+    }
+
+    @Test
+    void aSlowNodesReadStillTakesPartInTheCorroborationOfItsOwnCycle() throws Exception {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity slow = node(clusterId, "slow", STALLED);
+        BrokerNodeEntity healthy = node(clusterId, "healthy", GOOD);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(slow, healthy));
+        when(connections.forCluster(cluster.getId(), STALLED)).thenAnswer(call -> {
+            release.await();
+            return client("search-broker.json", "ha-read-primary.json");
+        });
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "ha-read-primary.json"));
+        try {
+            scheduler.tierA();
+
+            // The pass has moved on, but the cycle is not judged while one of its reads is still out.
+            verify(persist, never()).recordSplitBrain(any(), any());
+            verify(eventPublisher, never()).publishEvent(any(ScrapeTierCompleted.class));
+        } finally {
+            release.countDown();
+        }
+        verify(persist, timeout(5000)).recordSplitBrain(eq(cluster.getId()), any());
+        verify(eventPublisher, timeout(5000)).publishEvent(any(ScrapeTierCompleted.class));
+    }
+
+    @Test
+    void whatWentWrongWithANodeIsLoggedAgainOnceItsClusterHasBeenHandedBackAndForth() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", BAD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), BAD))
+                .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
+
+        scheduler.tierA();
+        scheduler.tierA();
+        assertThat(warnings()).hasSize(1);
+
+        scheduler.onDutyReleased(new ClusterDutyReleased(clusterId));
+        scheduler.tierA();
+
+        assertThat(warnings()).hasSize(2);
+    }
+
+    @Test
     void oneClusterFailingDoesNotStopAnother() {
         UUID clusterAId = UUID.randomUUID();
         UUID clusterBId = UUID.randomUUID();
