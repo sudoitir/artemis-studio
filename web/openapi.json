@@ -26536,6 +26536,10 @@
           "mustChangePassword" : {
             "type" : "boolean"
           },
+          "providerId" : {
+            "type" : "string",
+            "description" : "The provider the account signs in with: local, or the id of another one. Only a local account's password is changed in Studio."
+          },
           "secondFactorEnrolmentRequired" : {
             "type" : "boolean",
             "description" : "The user's role requires two-step verification and they have none: the session may only enrol one until they do."
@@ -26550,7 +26554,7 @@
             "$ref" : "#/components/schemas/ReauthenticationView"
           }
         },
-        "required" : [ "grants", "id", "mustChangePassword", "reauthentication", "secondFactorEnrolmentRequired", "username" ]
+        "required" : [ "grants", "id", "mustChangePassword", "providerId", "reauthentication", "secondFactorEnrolmentRequired", "username" ]
       },
       "ReauthenticationView" : {
         "type" : "object",

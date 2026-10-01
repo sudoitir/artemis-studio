@@ -56,10 +56,12 @@ class PluginSignInIntegrationTest extends SignInPluginIntegrationTest {
         assertThat(alice.status("GET", CONSOLE)).isEqualTo(200);
         var me = alice.send("GET", ME, null);
         assertThat((String) JsonPath.read(me.body(), "$.username")).isEqualTo("alice");
+        assertThat((String) JsonPath.read(me.body(), "$.providerId")).isEqualTo(provider);
         assertThat((List<String>) JsonPath.read(me.body(), "$.grants[*].permissions[*]"))
                 .containsExactly(Permissions.CLUSTER_READ);
         assertThat(account(provider, "uid=alice").getProviderId()).isEqualTo(provider);
-        assertThat(providerIds()).contains(provider);
+        // Local stays first, so the login screen does not make the plugin's sign-in the default.
+        assertThat(providerIds()).startsWith("local").contains(provider);
         var listed = browser().send("GET", "/api/v1/auth/providers", null);
         assertThat((List<String>) JsonPath.read(listed.body(), "$.data[?(@.id=='" + provider + "')].label"))
                 .containsExactly("Corporate directory");

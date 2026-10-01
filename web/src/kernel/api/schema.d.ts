@@ -4685,6 +4685,8 @@ export interface components {
             id: string;
             username: string;
             mustChangePassword: boolean;
+            /** @description The provider the account signs in with: local, or the id of another one. Only a local account's password is changed in Studio. */
+            providerId: string;
             /** @description The user's role requires two-step verification and they have none: the session may only enrol one until they do. */
             secondFactorEnrolmentRequired: boolean;
             grants: components["schemas"]["GrantView"][];

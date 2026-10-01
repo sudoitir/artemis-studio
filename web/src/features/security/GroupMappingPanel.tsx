@@ -22,7 +22,7 @@ export function GroupMappingPanel() {
           {' '}
           spring.security.oauth2.client.registration.*
         </Text>{' '}
-        is set.
+        is set, and so does the sign-in of an installed plugin.
       </Text>
     );
   }

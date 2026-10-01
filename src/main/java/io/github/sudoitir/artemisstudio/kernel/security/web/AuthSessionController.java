@@ -75,6 +75,12 @@ public class AuthSessionController {
 
             @Schema(
                     requiredMode = REQUIRED,
+                    description = "The provider the account signs in with: local, or the id of another one. "
+                            + "Only a local account's password is changed in Studio.")
+            String providerId,
+
+            @Schema(
+                    requiredMode = REQUIRED,
                     description = "The user's role requires two-step verification and they have none: "
                             + "the session may only enrol one until they do.")
             boolean secondFactorEnrolmentRequired,
@@ -293,19 +299,24 @@ public class AuthSessionController {
                         g.scopeId(),
                         g.permissions().stream().sorted().toList()))
                 .toList();
+        String providerId = providerOf(principal);
         return new MeView(
                 principal.userId(),
                 principal.getUsername(),
                 principal.mustChangePassword(),
+                providerId,
                 principal.secondFactorEnrolmentRequired(),
                 grants,
-                reauthentication(principal, req));
+                reauthentication(providerId, req));
     }
 
-    private ReauthenticationView reauthentication(StudioPrincipal principal, HttpServletRequest req) {
-        String providerId = accounts.byId(principal.userId())
+    private String providerOf(StudioPrincipal principal) {
+        return accounts.byId(principal.userId())
                 .map(UserAccounts.Account::providerId)
                 .orElse(LoginService.DEFAULT_PROVIDER);
+    }
+
+    private ReauthenticationView reauthentication(String providerId, HttpServletRequest req) {
         var redirect = providers.providers().stream()
                 .filter(p -> p.id().equals(providerId) && "REDIRECT".equals(p.kind()))
                 .findFirst();
