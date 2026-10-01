@@ -47,11 +47,24 @@
   white-space: nowrap;
 }
 
-/* The state word keeps the width of the longest everyday one ("Polling", "Offline"), so the
-   controls beside it hold still when the stream connects and "Polling" becomes "Live". The rare
-   "Reconnecting…" may still push them; reserving for it left a gap after every "Live". */
+/* The state word keeps the width of the widest everyday one, measured by the browser in the font
+   as rendered: every word sits in the same grid cell and only the current one is visible. The rare
+   "Reconnecting…" may still push the controls; reserving for it left a gap after every "Live". */
 .state {
-  min-inline-size: 7ch;
+  display: inline-grid;
+}
+
+.word,
+.reserve {
+  grid-area: 1 / 1;
+}
+
+.reserve {
+  visibility: hidden;
+}
+
+.reserve::before {
+  content: attr(data-word);
 }
 
 /* The elapsed label changes every second ("updated 9s ago" becomes "10s"), so it
