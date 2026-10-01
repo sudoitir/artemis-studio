@@ -41,16 +41,16 @@ Baseline: 830 captures (default state at 1920/1440/1280 in light, dark and syste
 - Where: `web/index.html` (`#boot-status`)
 - Evidence: a 0.19 layout shift on every route: the placeholder sits in the flow with a 30vh margin, so the body jumps when React replaces it.
 - Fix: take the placeholder out of the flow (fixed, centred over the viewport).
-- Status: open
+- Status: fixed (`#boot-status` keeps its id, role and text and is `position: fixed; inset: 0` with the text centred, so React replacing it shifts nothing)
 
 ### shell-kernel-ui-cls-2 [S2 · design · page] The cluster list pushes the navigation down when it loads
 - Where: `web/src/features/clusters/ClusterRail.tsx` (the `shell.navbar` slot)
 - Evidence: a 0.13 layout shift on every cluster route: the cluster rows and "Register cluster" arrive after the navigation and push it 51 px down; with 12 clusters the navigation starts far below the fold.
 - Fix: a cluster switcher of constant height (current cluster and environment in one row, opening a searchable list with registration), so the navigation never moves and scales to many clusters.
-- Status: open
+- Status: fixed (`ClusterSwitcher` replaces the rail in `shell.navbar`: one box of one height showing the cluster's name, environment with its colour, health in words with an icon and node count, or "Choose a cluster"; it opens a Mantine Combobox with a search, grouped by environment, with "Register cluster" last, and keeps the current view on a switch. Loading, outside a cluster, 1 and 30 clusters, expanded and collapsed are measured at the same height in `ClusterSwitcher.browser.test.tsx`, which also runs axe in both schemes with the list open. The registration form and its xyflow canvas load when the dialog first opens)
 
 ### shell-kernel-ui-react-1 [S2 · reliability · page] setState while rendering
 - Where: `FreshnessBar` updated while `RegisterClusterButton` renders
 - Evidence: React "Cannot update a component while rendering a different component" on cluster routes.
 - Fix: move the update into an effect or derive it.
-- Status: open
+- Status: fixed (the cause was `useFreshness` setting state on every query-cache event, including `added` and `observerResultsUpdated`, which TanStack Query fires while a component renders its `useQuery`. It now syncs only on the events that change what it reads: `updated`, `removed`, `observerAdded`, `observerRemoved`. `ClusterSwitcher.test.tsx` fails with the warning when that filter is removed)

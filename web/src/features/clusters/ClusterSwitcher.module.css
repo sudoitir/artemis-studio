@@ -1,0 +1,184 @@
+/* One box of one height, whatever it holds (loading, a cluster, "Choose a cluster", the rail's monogram):
+   the navigation under it never moves when the clusters arrive. */
+.face {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 3.5rem;
+  padding-block: 0;
+  padding-inline: var(--mantine-spacing-md);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: transparent;
+  color: var(--as-text);
+  font: inherit;
+  text-align: start;
+}
+
+button.face {
+  cursor: pointer;
+}
+
+button.face:hover,
+button.face[aria-expanded='true'] {
+  background: var(--as-surface-raised);
+}
+
+button.face:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+.face[data-collapsed] {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+
+.name {
+  flex: 1;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+.ellipsis {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count,
+.health,
+.environment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--as-text-dimmed);
+  white-space: nowrap;
+}
+
+.count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.environment {
+  min-inline-size: 0;
+  flex-shrink: 1;
+}
+
+.health {
+  flex-shrink: 0;
+}
+
+.health[data-tone='warning'] {
+  color: var(--as-warning);
+}
+
+.health[data-tone='danger'] {
+  color: var(--as-danger);
+}
+
+.icon {
+  flex-shrink: 0;
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+.face .icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--as-text-dimmed);
+}
+
+/* The rail: two letters, bordered in the environment's own colour; the name is the button's label. */
+.monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 0.125rem solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+}
+
+/* The dropdown is the one scrolling box, and the search, which takes the focus, is inside it: a scrolling
+   region the keyboard cannot reach is a defect, and the options themselves take no focus. The search stays
+   at its top and registration at its bottom, so both are in reach however many clusters there are. */
+.dropdown {
+  min-inline-size: 18rem;
+  max-inline-size: 28rem;
+  max-block-size: 24rem;
+  overflow-y: auto;
+}
+
+.search {
+  position: sticky;
+  /* Sticky offsets are from the padding edge: the dropdown's own padding is given back so nothing shows past them. */
+  inset-block-start: calc(var(--combobox-padding) * -1);
+  z-index: 1;
+}
+
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.row {
+  color: var(--as-text);
+}
+
+.row:hover {
+  background: var(--as-surface-raised);
+}
+
+/* The keyboard's cursor: a ring, not Mantine's filled primary, which the dimmed words inside would not read on. */
+.row[data-combobox-selected] {
+  background: var(--as-surface-raised);
+  color: var(--as-text);
+  outline: var(--as-focus-ring);
+  outline-offset: calc(var(--as-focus-offset) * -1);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.register {
+  position: sticky;
+  inset-block-end: calc(var(--combobox-padding) * -1);
+  background: var(--mantine-color-body);
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  margin-block-start: var(--mantine-spacing-xs);
+  border-block-start: 1px solid var(--as-border);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  font-weight: 600;
+}

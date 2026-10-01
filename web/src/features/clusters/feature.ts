@@ -8,7 +8,7 @@ import { keys } from './api.ts';
 import { ClusterHeader } from './ClusterHeader.tsx';
 import { ClusterPalette } from './ClusterPalette.tsx';
 import { RemoveClusterSection } from './RemoveClusterSection.tsx';
-import { ClusterRail } from './ClusterRail.tsx';
+import { ClusterSwitcher } from './ClusterSwitcher.tsx';
 import { CapabilitiesSection, CredentialsSection, RegisterSection } from './ClusterSettings.tsx';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
 
@@ -45,7 +45,7 @@ export const clustersFeature = defineFeature({
   ],
   palette: ClusterPalette,
   slots: {
-    'shell.navbar': [{ id: 'clusters-rail', order: 10, Component: ClusterRail }],
+    'shell.navbar': [{ id: 'clusters-switcher', order: 10, Component: ClusterSwitcher }],
     'home.empty': [
       { id: 'clusters-home', order: 10, Component: lazySlot(() => import('./ClusterHome.tsx'), 'ClusterHome') },
     ],

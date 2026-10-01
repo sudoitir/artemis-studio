@@ -12,6 +12,9 @@ export interface Freshness {
   observed: number;
 }
 
+/** The cache events after which the observed queries read differently. */
+const SYNC_ON: ReadonlySet<string> = new Set(['updated', 'removed', 'observerAdded', 'observerRemoved']);
+
 const EMPTY: Freshness = { lastUpdatedAt: null, isFetching: false, hasError: false, observed: 0 };
 
 function same(a: Freshness, b: Freshness): boolean {
@@ -72,7 +75,12 @@ export function useFreshness(): Freshness {
     };
 
     sync();
-    return cache.subscribe(sync);
+    // Only these events change what `read` reports. The others (`added`, `observerResultsUpdated`,
+    // `observerOptionsUpdated`) fire while a component renders its `useQuery`, and setting state from one
+    // is React's "cannot update a component while rendering a different component".
+    return cache.subscribe((event) => {
+      if (SYNC_ON.has(event.type)) sync();
+    });
   }, [qc]);
 
   return state;
