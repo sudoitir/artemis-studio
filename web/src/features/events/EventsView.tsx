@@ -240,7 +240,10 @@ export function EventsView() {
   const [held, setHeld] = useState<{ key: string; rows: BrokerEventView[] } | null>(null);
   const shown = held?.key === holdKey ? held.rows : rows;
   const onAtTopChange = (atTop: boolean) =>
-    setHeld((prev) => (atTop ? null : prev?.key === holdKey ? prev : { key: holdKey, rows }));
+    setHeld((prev) => {
+      if (atTop) return null;
+      return prev?.key === holdKey ? prev : { key: holdKey, rows };
+    });
 
   const unreachable = (cluster.data?.topology.nodes ?? [])
     .flatMap((n) => n.endpoints)

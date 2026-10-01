@@ -17,11 +17,8 @@ export function NavToggle({
   onToggle: () => void;
   controls: string;
 }>) {
-  const label = forced
-    ? 'Sidebar stays collapsed in a narrow window'
-    : collapsed
-      ? 'Expand sidebar'
-      : 'Collapse sidebar';
+  const action = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  const label = forced ? 'Sidebar stays collapsed in a narrow window' : action;
   return (
     <Tooltip label={forced ? label : `${label} (⌘B)`} position="right">
       <ActionIcon

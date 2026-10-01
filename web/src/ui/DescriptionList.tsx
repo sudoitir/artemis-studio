@@ -33,9 +33,9 @@ export function DescriptionList({
     </dl>
   );
   return label ? (
-    <div role="group" aria-label={label}>
+    <fieldset className={classes.group} aria-label={label}>
       {list}
-    </div>
+    </fieldset>
   ) : (
     list
   );

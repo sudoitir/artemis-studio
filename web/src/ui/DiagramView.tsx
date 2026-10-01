@@ -555,9 +555,9 @@ export function DiagramView({
         onKeyDown={onKeyDown}
       >
         {!layout.ready ? (
-          <div className={classes.overlay} role="status" aria-busy="true" aria-label="Laying out the diagram">
+          <output className={classes.overlay} aria-busy="true" aria-label="Laying out the diagram">
             <Loader size="sm" />
-          </div>
+          </output>
         ) : null}
         <RovingContext.Provider value={roving}>
           <ReactFlow

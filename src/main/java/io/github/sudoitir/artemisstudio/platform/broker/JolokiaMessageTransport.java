@@ -87,11 +87,8 @@ public class JolokiaMessageTransport implements MessageTransport {
         messageOps.send(
                 client,
                 addressMbean,
-                merged,
-                spec.type(),
-                spec.body(),
-                spec.durable(),
-                named ? login.username() : "",
-                named && login.password() != null ? login.password() : "");
+                new MessageOperations.Outgoing(merged, spec.type(), spec.body(), spec.durable()),
+                new MessageOperations.Sender(
+                        named ? login.username() : "", named && login.password() != null ? login.password() : ""));
     }
 }

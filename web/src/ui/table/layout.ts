@@ -94,7 +94,7 @@ export function solveColumns(input: {
   fixed?: number;
 }): SolveResult {
   const { W, cols, prev, fixed = 0 } = input;
-  const all = cols.map(toTrack);
+  const all = cols.map((col, index) => toTrack(col, index));
   const prevHidden = new Set(prev?.hidden);
   const hideable = (t: Track) => t.index > 0 && !t.col.essential && t.col.priority !== 'essential' && !t.col.userShown;
   const hideOrder = (['low', 'high'] as const).flatMap((priority) =>

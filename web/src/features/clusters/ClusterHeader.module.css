@@ -7,6 +7,9 @@
   align-items: baseline;
   gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
   min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .name {

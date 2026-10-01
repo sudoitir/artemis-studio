@@ -1,4 +1,4 @@
-import type { PointerEvent } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 
 import type { Column } from './columns.ts';
@@ -39,9 +39,11 @@ export function HeaderCell<T>({
 }: Readonly<HeaderCellProps<T>>) {
   const spec = columnSpec(column);
   // An end-aligned column's mark leads its name, so the name ends where the figures below it end.
+  let arrow: ReactNode = null;
+  if (sorting?.active) arrow = sorting.desc ? <IconArrowDown size="1em" /> : <IconArrowUp size="1em" />;
   const mark = (
     <span aria-hidden="true" className={classes.sortMark}>
-      {sorting?.active ? sorting.desc ? <IconArrowDown size="1em" /> : <IconArrowUp size="1em" /> : null}
+      {arrow}
     </span>
   );
   const label = column.short ?? column.header;

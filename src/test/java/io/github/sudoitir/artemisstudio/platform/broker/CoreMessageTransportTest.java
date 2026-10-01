@@ -251,8 +251,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
             conn.start();
             Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
             var browser = session.createBrowser(session.createQueue(queueName), "orderId = '" + orderId + "'");
-            var message = (jakarta.jms.Message) browser.getEnumeration().nextElement();
-            return message;
+            return (jakarta.jms.Message) browser.getEnumeration().nextElement();
         } finally {
             factory.close();
         }

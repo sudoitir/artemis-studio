@@ -2,8 +2,6 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -39,11 +37,10 @@ class JolokiaMessageTransportTest {
                                 Map.of("correlationId", "c-1", "type", "order", "groupId", "g"),
                                 Map.of("orderId", "A-1", "n", 7, "ok", true)));
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> sent = ArgumentCaptor.forClass(Map.class);
-        verify(ops)
-                .send(eq(client), anyString(), sent.capture(), anyInt(), eq("hi"), anyBoolean(), eq("bob"), eq("pw"));
-        assertThat(sent.getValue())
+        ArgumentCaptor<MessageOperations.Outgoing> sent = ArgumentCaptor.forClass(MessageOperations.Outgoing.class);
+        verify(ops).send(eq(client), anyString(), sent.capture(), eq(new MessageOperations.Sender("bob", "pw")));
+        assertThat(sent.getValue().body()).isEqualTo("hi");
+        assertThat(sent.getValue().headers())
                 .containsOnly(
                         Map.entry("JMSCorrelationID", "c-1"),
                         Map.entry("JMSType", "order"),
@@ -72,10 +69,9 @@ class JolokiaMessageTransportTest {
                                 Map.of("type", "header-type"),
                                 Map.of("type", "property-type", "groupId", "not-a-group", "JMSXGroupID", "g")));
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> sent = ArgumentCaptor.forClass(Map.class);
-        verify(ops).send(eq(client), anyString(), sent.capture(), anyInt(), eq("hi"), anyBoolean(), eq(""), eq(""));
-        assertThat(sent.getValue())
+        ArgumentCaptor<MessageOperations.Outgoing> sent = ArgumentCaptor.forClass(MessageOperations.Outgoing.class);
+        verify(ops).send(eq(client), anyString(), sent.capture(), eq(new MessageOperations.Sender("", "")));
+        assertThat(sent.getValue().headers())
                 .containsOnly(
                         Map.entry("JMSType", "header-type"),
                         Map.entry("type", "property-type"),

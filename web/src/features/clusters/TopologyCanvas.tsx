@@ -38,9 +38,6 @@ export interface TopologyActionsValue {
 
 const ActionsContext = createContext<TopologyActionsValue>({});
 
-/** Whether the canvas takes focus; a decorative one (the registration example cards) holds nothing focusable. */
-const InteractiveContext = createContext(true);
-
 export function TopologyActions({
   value,
   children,
@@ -76,15 +73,8 @@ function NodeMarks({ nodeIds }: Readonly<{ nodeIds: string[] }>) {
 
 function BrokerNode({ data }: NodeProps) {
   const d = data as BrokerNodeData;
-  const interactive = useContext(InteractiveContext);
   return (
-    <div
-      className={styles.node}
-      data-kind={d.kind}
-      data-offset={d.offset || undefined}
-      tabIndex={interactive ? 0 : undefined}
-      aria-label={d.srSentence}
-    >
+    <div className={styles.node} data-kind={d.kind} data-offset={d.offset || undefined}>
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
         {/* Clamped to two lines in CSS so the box keeps its slot; the title
@@ -114,9 +104,8 @@ function BrokerNode({ data }: NodeProps) {
 function UnmanagedNode({ id, data }: NodeProps) {
   const d = data as BrokerNodeData;
   const { addManagementUrl } = useContext(ActionsContext);
-  const interactive = useContext(InteractiveContext);
   return (
-    <div className={styles.node} data-kind="unmanaged" tabIndex={interactive ? 0 : undefined} aria-label={d.srSentence}>
+    <div className={styles.node} data-kind="unmanaged">
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.head}>
         <span className={styles.name} title={d.address ?? d.name}>
@@ -218,34 +207,32 @@ export function TopologyCanvas({
   return (
     <div>
       <div className={styles.wrapper} style={height ? { blockSize: height } : undefined}>
-        <InteractiveContext.Provider value={interactive}>
-          <ReactFlowProvider>
-            <ReactFlow
-              nodes={model.nodes}
-              edges={model.edges}
-              nodeTypes={nodeTypes}
-              fitView
-              /* React Flow's own default is maxZoom 2, which blows a two-node
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={model.nodes}
+            edges={model.edges}
+            nodeTypes={nodeTypes}
+            fitView
+            /* React Flow's own default is maxZoom 2, which blows a two-node
                cluster up to fill the frame. Never magnify past natural size. */
-              fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
-              nodesDraggable={false}
-              nodesConnectable={false}
-              nodesFocusable={interactive}
-              edgesFocusable={interactive}
-              elementsSelectable={false}
-              panOnScroll={interactive}
-              zoomOnScroll={interactive}
-              /* Only worth its bookkeeping once there is something off-screen to
+            fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            nodesFocusable={interactive}
+            edgesFocusable={interactive}
+            elementsSelectable={false}
+            panOnScroll={interactive}
+            zoomOnScroll={interactive}
+            /* Only worth its bookkeeping once there is something off-screen to
                skip; on a two-node pair it costs more than it saves. */
-              onlyRenderVisibleElements={model.dense}
-              proOptions={proOptions}
-            >
-              <Background variant={undefined} gap={20} />
-              {interactive ? <Controls showInteractive={false} /> : null}
-              <RefitOnNodeSetChange signature={signature} />
-            </ReactFlow>
-          </ReactFlowProvider>
-        </InteractiveContext.Provider>
+            onlyRenderVisibleElements={model.dense}
+            proOptions={proOptions}
+          >
+            <Background variant={undefined} gap={20} />
+            {interactive ? <Controls showInteractive={false} /> : null}
+            <RefitOnNodeSetChange signature={signature} />
+          </ReactFlow>
+        </ReactFlowProvider>
       </div>
       {model.dense ? (
         <Alert color="gray" variant="light" title="Showing reduced detail" mt="xs">

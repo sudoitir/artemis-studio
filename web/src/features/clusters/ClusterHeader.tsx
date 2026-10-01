@@ -4,7 +4,7 @@ import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
-import { useCluster, useEnvironments, type CapabilitiesView } from './api.ts';
+import { useCluster, useEnvironments, type CapabilitiesView, type ClusterDetail } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import styles from './ClusterHeader.module.css';
 
@@ -14,6 +14,17 @@ function capabilityGaps(caps: CapabilitiesView | undefined): string[] {
   return (['managementRead', 'managementWrite', 'messageIo', 'notifications'] as const).filter(
     (k) => caps[k].status === 'UNAVAILABLE',
   );
+}
+
+/** The strip's one-line summary: how many nodes, whether they replicate, and whether they were reached. */
+function clusterMeta({ topology, health }: ClusterDetail): string {
+  const nodeCount = topology.nodes.reduce((n, node) => n + node.endpoints.length, 0);
+  const hasPair = topology.nodes.some((n) => n.endpoints.length > 1);
+  return [
+    `${nodeCount} node${nodeCount === 1 ? '' : 's'}`,
+    hasPair ? 'replication' : 'standalone',
+    health.level === 'UNKNOWN' ? 'not yet contacted' : 'reachable',
+  ].join(' · ');
 }
 
 /**
@@ -46,18 +57,12 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
   const environment = environments.data?.find((e) => e.id === data.environmentId);
-  const nodeCount = data.topology.nodes.reduce((n, node) => n + node.endpoints.length, 0);
-  const hasPair = data.topology.nodes.some((n) => n.endpoints.length > 1);
-  const meta = [
-    `${nodeCount} node${nodeCount === 1 ? '' : 's'}`,
-    hasPair ? 'replication' : 'standalone',
-    data.health.level === 'UNKNOWN' ? 'not yet contacted' : 'reachable',
-  ].join(' · ');
+  const meta = clusterMeta(data);
   const critical = data.health.splitBrain === 'CRITICAL';
 
   return (
     <>
-      <div role="group" aria-label={`Cluster ${data.name}`} className={styles.strip}>
+      <fieldset aria-label={`Cluster ${data.name}`} className={styles.strip}>
         <Text component="span" size="md" className={styles.name}>
           {data.name}
         </Text>
@@ -70,7 +75,7 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
         <Text component="span" size="sm" className={styles.meta}>
           {meta}
         </Text>
-      </div>
+      </fieldset>
 
       {data.health.level !== 'OK' && data.health.notes.length > 0 ? (
         <Alert

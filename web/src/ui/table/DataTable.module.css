@@ -19,6 +19,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--mantine-spacing-sm);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .toolbarStart,
@@ -339,8 +343,10 @@
    viewport, so the panel follows the writing direction and never leaves the window. */
 .reveal {
   position: fixed;
-  inset-inline-start: var(--reveal-x);
+  inset-inline: var(--reveal-x) auto;
   z-index: var(--mantine-z-index-popover);
+  margin: 0;
+  color: var(--as-text);
   display: flex;
   align-items: center;
   gap: var(--mantine-spacing-sm);

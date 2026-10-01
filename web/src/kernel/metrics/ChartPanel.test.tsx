@@ -43,7 +43,7 @@ describe('ChartPanel', () => {
 
   it('states an empty window in words', () => {
     panel({ isEmpty: true });
-    expect(screen.getByRole('status')).toHaveTextContent('No depth samples in this window.');
+    expect(screen.getByRole('region')).toHaveTextContent('No depth samples in this window.');
     expect(screen.queryByText('the plot')).not.toBeInTheDocument();
   });
 });

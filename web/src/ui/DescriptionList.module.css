@@ -1,6 +1,14 @@
 /* Terms in one column, values in the next. The value track is minmax(0, 1fr) and values break
    anywhere, so a long identifier wraps inside its column instead of widening the page. */
 
+/* A fieldset is the native group; the browser's border, padding and shrink-to-content width go. */
+.group {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .list {
   display: grid;
   grid-template-columns: minmax(0, max-content) minmax(0, 1fr);

@@ -11,6 +11,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class SendNamesTest {
 
+    private static final Map<String, Object> NONE = Map.of();
+
     @Test
     void validNamesAndHeadersPass() {
         assertThatCode(() -> SendNames.validate(
@@ -27,7 +29,8 @@ class SendNamesTest {
     @ParameterizedTest
     @ValueSource(strings = {"x-long-name", "has space", "1leading", "dot.ted", ""})
     void aNameThatIsNotAJavaIdentifierIsRefused(String name) {
-        assertThatThrownBy(() -> SendNames.validate(Map.of(), Map.of(name, "v")))
+        Map<String, Object> properties = Map.of(name, "v");
+        assertThatThrownBy(() -> SendNames.validate(NONE, properties))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid property name '" + name + "'")
                 .hasMessageContaining("Java identifier");
@@ -36,7 +39,8 @@ class SendNamesTest {
     @ParameterizedTest
     @ValueSource(strings = {"NULL", "true", "False", "not", "AND", "or", "between", "LIKE", "In", "is", "escape"})
     void aSelectorKeywordIsRefusedInAnyCase(String name) {
-        assertThatThrownBy(() -> SendNames.validate(Map.of(), Map.of(name, "v")))
+        Map<String, Object> properties = Map.of(name, "v");
+        assertThatThrownBy(() -> SendNames.validate(NONE, properties))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'" + name + "'");
     }
@@ -44,7 +48,8 @@ class SendNamesTest {
     @ParameterizedTest
     @ValueSource(strings = {"JMSCorrelationID", "JMSType", "JMSXUserID", "JMS_ACTIVEMQ_x", "JMS"})
     void aJmsPrefixedNameIsRefusedExceptTheGroupOnes(String name) {
-        assertThatThrownBy(() -> SendNames.validate(Map.of(), Map.of(name, "v")))
+        Map<String, Object> properties = Map.of(name, "v");
+        assertThatThrownBy(() -> SendNames.validate(NONE, properties))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'" + name + "'")
                 .hasMessageContaining("JMSXGroupID and JMSXGroupSeq");
@@ -52,7 +57,8 @@ class SendNamesTest {
 
     @Test
     void anUnknownHeaderIsRefusedNamingTheSupportedOnes() {
-        assertThatThrownBy(() -> SendNames.validate(Map.of("priority", 4), Map.of()))
+        Map<String, Object> headers = Map.of("priority", 4);
+        assertThatThrownBy(() -> SendNames.validate(headers, NONE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unsupported header 'priority'. Supported headers:"
                         + " correlationId, type, replyTo, groupId, groupSeq.");
@@ -61,7 +67,8 @@ class SendNamesTest {
     @Test
     void aGroupSeqThatIsNotAnIntegerIsRefused() {
         assertThat(SendNames.HEADERS).contains("groupSeq");
-        assertThatThrownBy(() -> SendNames.validate(Map.of("groupSeq", "two"), Map.of()))
+        Map<String, Object> headers = Map.of("groupSeq", "two");
+        assertThatThrownBy(() -> SendNames.validate(headers, NONE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Header 'groupSeq' must be an integer, got 'two'.");
     }

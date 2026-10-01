@@ -102,7 +102,7 @@
   opacity: 0.75;
 }
 
-.node:focus-visible {
+:global(.react-flow__node):focus-visible > .node {
   outline: 2px solid var(--as-text);
   outline-offset: 2px;
 }

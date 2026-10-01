@@ -14,7 +14,8 @@ export interface PathRow {
 }
 
 function sourceText(edge: FlowEdgeView, now: number): string {
-  return `${rateSourceLabel(edge)}${edge.asOf ? ` · ${elapsedLabel(now - Date.parse(edge.asOf))} ago` : ''}${edge.stale ? ' · stale' : ''}`;
+  const age = edge.asOf ? ` · ${elapsedLabel(now - Date.parse(edge.asOf))} ago` : '';
+  return `${rateSourceLabel(edge)}${age}${edge.stale ? ' · stale' : ''}`;
 }
 
 /**

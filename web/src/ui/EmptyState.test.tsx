@@ -15,7 +15,7 @@ describe('EmptyState', () => {
         action={<button type="button">Create queue</button>}
       />,
     );
-    const status = screen.getByRole('status');
+    const status = screen.getByRole('region', { name: 'No queues' });
     expect(within(status).getByText('No queues')).toBeInTheDocument();
     expect(within(status).getByText(/holds messages for consumers/)).toBeInTheDocument();
     expect(within(status).getByRole('button', { name: 'Create queue' })).toBeInTheDocument();

@@ -8,6 +8,12 @@ interface Props {
   children: ReactNode;
 }
 
+/** What a boundary says of a thrown value: an Error's message, a string as it is, anything else by its kind. */
+function reasonOf(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return typeof error === 'string' ? error : `a ${typeof error} was thrown`;
+}
+
 /**
  * Keeps a plugin's failure to itself (ADR-0100): a plugin component that throws while rendering
  * is replaced by a sentence naming the plugin — or by nothing, where a sentence would not fit —
@@ -28,7 +34,7 @@ export class PluginBoundary extends Component<Props, { error: unknown }> {
     if (this.state.error === null) return this.props.children;
     if (this.props.quiet) return null;
     const { error } = this.state;
-    const reason = error instanceof Error ? error.message : String(error);
+    const reason = reasonOf(error);
     return (
       <ErrorState
         variant="inline"

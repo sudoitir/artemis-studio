@@ -1,5 +1,3 @@
-import { createElement } from 'react';
-
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { AUTO, localZone } from '../../kernel/time/timezone.ts';
 import type { Column } from '../../ui/table/index.ts';
@@ -48,7 +46,7 @@ export function auditColumns(zone: string): Column<AuditEventView>[] {
       accessor: (e) => outcome(e.outcome).word,
       cell: (e) => {
         const { word, tone } = outcome(e.outcome);
-        return createElement(StatusBadge, { tone, children: word });
+        return <StatusBadge tone={tone}>{word}</StatusBadge>;
       },
       kind: 'status',
       badge: true,

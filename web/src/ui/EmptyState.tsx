@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button, Text } from '@mantine/core';
 
 import classes from './EmptyState.module.css';
@@ -19,6 +19,7 @@ import classes from './EmptyState.module.css';
  * is at.
  */
 export function EmptyState(props: EmptyStateProps) {
+  const titleId = useId();
   const { title, action } = props;
   let description: ReactNode;
   let extra: ReactNode = null;
@@ -39,8 +40,12 @@ export function EmptyState(props: EmptyStateProps) {
       break;
   }
   return (
-    <div className={classes.root} role="status" data-kind={props.kind}>
-      <div className={classes.title}>{title}</div>
+    // A region named by its title, announced politely when it replaces the rows: <output> holds only
+    // inline content, and an empty state holds a list and actions.
+    <section className={classes.root} data-kind={props.kind} aria-live="polite" aria-labelledby={titleId}>
+      <div id={titleId} className={classes.title}>
+        {title}
+      </div>
       <Text size="sm" component="div" className={classes.description}>
         {description}
       </Text>
@@ -57,7 +62,7 @@ export function EmptyState(props: EmptyStateProps) {
           {action}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 

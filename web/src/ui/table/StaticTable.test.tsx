@@ -163,6 +163,6 @@ describe('DataTable: static variant', () => {
     const { rerender } = renderWithProviders(<Static columns={counted} />);
     const before = draws.mock.calls.length;
     rerender(<Static columns={counted} />);
-    expect(draws.mock.calls.length).toBe(before);
+    expect(draws.mock.calls).toHaveLength(before);
   });
 });

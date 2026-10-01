@@ -31,13 +31,13 @@ describe('RouteError', () => {
   it('shows the message of a view that crashed and offers to try again', async () => {
     const reset = vi.fn();
     renderWithProviders(<RouteError error={new Error('Cannot read properties of undefined.')} reset={reset} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Cannot read properties of undefined. Try again');
+    expect(screen.getByRole('region')).toHaveTextContent('Cannot read properties of undefined. Try again');
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(reset).toHaveBeenCalledOnce();
   });
 
   it('reads whatever was thrown, even a string', () => {
     renderWithProviders(<RouteError error="plain text" />);
-    expect(screen.getByRole('status')).toHaveTextContent('plain text');
+    expect(screen.getByRole('region')).toHaveTextContent('plain text');
   });
 });

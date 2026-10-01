@@ -348,15 +348,15 @@ function RevealPanel({
   onHide,
 }: Readonly<{
   reveal: Reveal;
-  panelRef: RefObject<HTMLDivElement | null>;
+  panelRef: RefObject<HTMLDialogElement | null>;
   onHide: (e: SyntheticEvent) => void;
 }>) {
   return (
     <Portal>
-      <div
+      <dialog
+        open
         ref={panelRef}
         className={classes.reveal}
-        role="dialog"
         aria-label="Full value"
         style={{ '--reveal-x': `${reveal.x}px`, insetBlockStart: reveal.y } as CSSProperties}
         onPointerLeave={onHide}
@@ -369,7 +369,7 @@ function RevealPanel({
             </button>
           )}
         </CopyButton>
-      </div>
+      </dialog>
     </Portal>
   );
 }
@@ -395,8 +395,8 @@ function useStickyEdges(scrollRef: RefObject<HTMLElement | null>, overflow: bool
     for (const sentinel of scroll.querySelectorAll('[data-sentinel]')) observer.observe(sentinel);
     return () => {
       observer.disconnect();
-      scroll.removeAttribute('data-scrolled');
-      scroll.removeAttribute('data-more');
+      delete scroll.dataset.scrolled;
+      delete scroll.dataset.more;
     };
   }, [scrollRef, overflow]);
 }
@@ -418,6 +418,19 @@ export interface GridOnlyProps<T> {
    * to hold new rows back.
    */
   onAtTopChange?: (atTop: boolean) => void;
+}
+
+/** The scroll container's custom properties: the one track list the header and every row share, and what bounds it. */
+function scrollStyle<T>(model: TableModel<T>, selectable: boolean, hasMenu: boolean): CSSProperties {
+  const tracks = [selectable ? 'var(--as-select-w)' : null, model.template, hasMenu ? 'var(--as-actions-w)' : null]
+    .filter(Boolean)
+    .join(' ');
+  return {
+    '--as-cols': tracks,
+    '--as-min-inline': model.overflow ? `${model.minInline}px` : undefined,
+    '--as-max-rows': model.maxRows,
+    '--as-sticky-first': selectable ? 'var(--as-select-w)' : '0rem',
+  } as CSSProperties;
 }
 
 /**
@@ -484,7 +497,7 @@ export function GridTable<T>({
   // One shared reveal for the whole grid: a clipped cell has no way to show its full value or let
   // you copy it, so on hover/focus of a cell that is actually clipped we anchor a small panel to it.
   // A single instance, not one per cell: safe against the virtualised row count.
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDialogElement>(null);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const openReveal = useCallback((el: HTMLElement) => {
     if (!isClipped(el)) return;
@@ -819,9 +832,6 @@ export function GridTable<T>({
     [menu, closeMenu, restoreFocusTo],
   );
 
-  const tracks = [selectable ? 'var(--as-select-w)' : null, model.template, hasMenu ? 'var(--as-actions-w)' : null]
-    .filter(Boolean)
-    .join(' ');
   const trackCount = colIds.length;
   const placeholder = model.loading && rowCount === 0;
   const actionsCol = colIds.length - 1;
@@ -832,14 +842,7 @@ export function GridTable<T>({
       className={classes.scroll}
       data-overflow={model.overflow || undefined}
       data-capped={model.maxRows === undefined ? undefined : true}
-      style={
-        {
-          '--as-cols': tracks,
-          '--as-min-inline': model.overflow ? `${model.minInline}px` : undefined,
-          '--as-max-rows': model.maxRows,
-          '--as-sticky-first': selectable ? 'var(--as-select-w)' : '0rem',
-        } as CSSProperties
-      }
+      style={scrollStyle(model, selectable, hasMenu)}
       onScroll={(e) => {
         if (reveal && performance.now() > quietScrollUntil.current) setReveal(null);
         if (menu) closeMenu(false);

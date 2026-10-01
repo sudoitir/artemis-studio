@@ -92,7 +92,7 @@ describe('ClusterSwitcher', () => {
     mockApi(SMALL, { latency: 150 });
     renderAppAt('/clusters/c1/queues', [QUEUES]);
 
-    const placeholder = (await screen.findByText('Loading clusters')).closest('[role="status"]');
+    const placeholder = (await screen.findByText('Loading clusters')).closest('output');
     const faceClass = placeholder?.className;
     expect(faceClass).toBeTruthy();
 

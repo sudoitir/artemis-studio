@@ -28,7 +28,7 @@ describe('EmptyState', () => {
 
   it('reads top to bottom from the start edge, in a column no wider than 36rem', () => {
     renderThemed(<Frame width={960}>{KINDS.empty}</Frame>, 'light');
-    const status = screen.getByRole('status').getBoundingClientRect();
+    const status = screen.getByRole('region', { name: 'No queues' }).getBoundingClientRect();
     const title = screen.getByText('No queues').getBoundingClientRect();
     const description = screen.getByText(/A queue holds messages/).getBoundingClientRect();
     const action = screen.getByRole('button', { name: 'Create queue' }).getBoundingClientRect();

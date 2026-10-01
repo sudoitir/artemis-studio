@@ -24,15 +24,14 @@ export function LoadingState({
   inlineSize?: string;
 }>) {
   return (
-    <div
+    <output
       className={classes.root}
-      role="status"
       aria-busy="true"
       data-variant={variant}
       style={{ minBlockSize: blockSize, minInlineSize: inlineSize }}
     >
       <Loader size={variant === 'inline' ? 'xs' : 'sm'} aria-hidden="true" />
       <VisuallyHidden>{label}</VisuallyHidden>
-    </div>
+    </output>
   );
 }

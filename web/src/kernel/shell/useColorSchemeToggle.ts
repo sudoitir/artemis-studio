@@ -18,7 +18,8 @@ export function useColorSchemeToggle() {
   const next = NEXT[colorScheme];
   return useMemo(() => {
     const target = next === 'auto' ? 'system' : next;
-    const label = `Use ${target} theme${colorScheme === 'auto' ? ` (system is ${resolved})` : ''}`;
+    const system = colorScheme === 'auto' ? ` (system is ${resolved})` : '';
+    const label = `Use ${target} theme${system}`;
     return { scheme: colorScheme, toggle: () => setColorScheme(next), label };
   }, [colorScheme, next, resolved, setColorScheme]);
 }

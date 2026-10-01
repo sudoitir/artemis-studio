@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 
 import { DataTable, type Column, type ColumnKind, type ColumnPriority } from '../ui/table/index.ts';
 import { AUTO } from '../kernel/time/timezone.ts';
-import { auditColumns } from '../features/audit/columns.ts';
+import { auditColumns } from '../features/audit/columns.tsx';
 import { bridgeColumns, divertColumns } from '../features/routing/columns.ts';
 import { eventColumns } from '../features/events/columns.ts';
 import { healthColumns, storeColumns } from '../features/lifecycle/columns.ts';

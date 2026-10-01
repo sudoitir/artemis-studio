@@ -63,7 +63,7 @@ export function sampleRows<T>(columns: Column<T>[], data: readonly T[]): string[
     const top: string[] = [];
     for (let i = SAMPLE_ROWS; i < data.length; i++) {
       const text = cellText(column.accessor(data[i]));
-      if (top.length < LONGEST_VALUES || text.length > top[top.length - 1].length) {
+      if (top.length < LONGEST_VALUES || text.length > top.at(-1)!.length) {
         top.push(text);
         top.sort((a, b) => b.length - a.length);
         top.length = Math.min(top.length, LONGEST_VALUES);

@@ -224,9 +224,8 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   useEffect(() => {
     if (lastHidden.current === hiddenCount) return;
     lastHidden.current = hiddenCount;
-    announce(
-      hiddenCount === 0 ? 'No columns hidden' : `${hiddenCount} ${hiddenCount === 1 ? 'column' : 'columns'} hidden`,
-    );
+    const noun = hiddenCount === 1 ? 'column' : 'columns';
+    announce(hiddenCount === 0 ? 'No columns hidden' : `${hiddenCount} ${noun} hidden`);
   }, [hiddenCount, announce]);
 
   // A sort is announced once the sorted rows have landed: the data differs from the rows shown before
@@ -248,7 +247,8 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
     pendingSort.current = null;
     const { field, desc } = parseSort(pending.sort);
     const column = columns.find((c) => c.sortKey === field);
-    announce(column ? `Sorted by ${column.header}, ${desc ? 'descending' : 'ascending'}` : 'Sorting cleared');
+    const direction = desc ? 'descending' : 'ascending';
+    announce(column ? `Sorted by ${column.header}, ${direction}` : 'Sorting cleared');
   }, [data, loading, columns, announce]);
 
   // ── Widths ─────────────────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
         } as CSSProperties
       }
     >
-      <div className={classes.toolbar} role="group" aria-label={`${label} controls`}>
+      <fieldset className={classes.toolbar} aria-label={`${label} controls`}>
         <div className={classes.toolbarStart}>{toolbar?.start}</div>
         <div className={classes.toolbarEnd}>
           {toolbar?.end}
@@ -339,7 +339,7 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
             onResetWidths={() => update(withoutWidths)}
           />
         </div>
-      </div>
+      </fieldset>
       <RefetchBar active={loading && data.length > 0} />
       {renderStatic ? (
         <StaticTable model={model} caption={props.variant === 'static' ? props.caption : undefined} />

@@ -89,7 +89,7 @@ function Face({
 }: Readonly<{ collapsed: boolean; entry?: Entry; loading?: boolean }>) {
   if (loading) {
     return (
-      <div className={styles.face} data-collapsed={collapsed || undefined} role="status">
+      <output className={styles.face} data-collapsed={collapsed || undefined}>
         <VisuallyHidden>Loading clusters</VisuallyHidden>
         {collapsed ? (
           <Skeleton className={styles.monogram} />
@@ -102,7 +102,7 @@ function Face({
             <Skeleton className={styles.icon} />
           </>
         )}
-      </div>
+      </output>
     );
   }
   if (!entry) {
@@ -189,9 +189,11 @@ export function ClusterSwitcher({ collapsed }: Readonly<{ collapsed: boolean }>)
     cluster: current,
     environment: environments.data?.find((environment) => environment.id === current.environmentId) ?? null,
   };
-  const label = entry
-    ? `Switch cluster, now ${entry.cluster.name}, ${entry.environment ? `${entry.environment.name}, ` : ''}${HEALTH[entry.cluster.health].word}`
-    : 'Choose a cluster';
+  let label = 'Choose a cluster';
+  if (entry) {
+    const environment = entry.environment ? `${entry.environment.name}, ` : '';
+    label = `Switch cluster, now ${entry.cluster.name}, ${environment}${HEALTH[entry.cluster.health].word}`;
+  }
 
   function choose(value: string) {
     combobox.closeDropdown();

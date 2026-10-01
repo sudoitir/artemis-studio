@@ -16,7 +16,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
-import { at, auditColumns } from './columns.ts';
+import { at, auditColumns } from './columns.tsx';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
