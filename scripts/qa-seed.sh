@@ -145,9 +145,9 @@ print(json.dumps({
     "type": 3, "durable": True, "body": body,
     "headers": {"correlationId": "corr-" + f"{n:03d}-" + "c" * 400, "replyTo": "reply.to." + "r" * 200, "groupId": "group-" + "g" * 150},
     "properties": {
-        "failure-reason": "Exceeded the redelivery limit after repeated processing errors; " * 8,
-        "original-address": queue,
-        "x-" + "long-property-name-" * 5 + str(n): "v" * 400,
+        "failureReason": "Exceeded the redelivery limit after repeated processing errors; " * 8,
+        "originalAddress": queue,
+        "xLong" + "PropertyName" * 5 + str(n): "v" * 400,
     },
 }))
 PY
