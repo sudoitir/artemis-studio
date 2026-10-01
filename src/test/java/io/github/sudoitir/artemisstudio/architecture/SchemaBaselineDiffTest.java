@@ -62,6 +62,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // The split-brain verdict moves onto the node row (ADR-0152, changeset platform-clusters 0004).
                     "CREATE TABLE broker_node ",
                     "ck_broker_node_split_brain",
+                    // A management URL belongs to one node row (changeset platform-clusters 0005).
+                    "uq_broker_node_cluster_jolokia_url",
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).
                     "plugin_secret",

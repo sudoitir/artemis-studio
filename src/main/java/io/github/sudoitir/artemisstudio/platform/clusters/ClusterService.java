@@ -382,9 +382,9 @@ public class ClusterService {
      * Re-run discovery from every manageable node of a cluster, so a broker that joined
      * after registration appears on its own (ADR-0004, ADR-0119). Called by the scrape
      * scheduler's discovery tier: a system operation, with no permission check and no
-     * audit event per tick, like the tiers' own writes. A node that does not answer is
-     * skipped this round (tier A records its error); a cluster with none is left as it
-     * is until the next tick.
+     * audit event per tick, like the tiers' own writes. Discovery reads each seed on its
+     * own, so a node that does not answer is skipped this round (tier A records its
+     * error) and the others still count.
      */
     public void rediscover(UUID clusterId) {
         List<ProbedSeed> seeds = new ArrayList<>();
@@ -392,13 +392,7 @@ public class ClusterService {
             if (node.getJolokiaUrl() == null) {
                 continue;
             }
-            try {
-                JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-                client.resolveBrokerObjectName();
-                seeds.add(new ProbedSeed(node.getJolokiaUrl(), client));
-            } catch (BrokerConnectionException _) {
-                // Unreachable this round; tier A records its error.
-            }
+            seeds.add(new ProbedSeed(node.getJolokiaUrl(), connections.forCluster(clusterId, node.getJolokiaUrl())));
         }
         if (!seeds.isEmpty()) {
             topologyDiscovery.discover(clusterId, seeds);
