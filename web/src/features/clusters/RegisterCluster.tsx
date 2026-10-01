@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Collapse, PasswordInput, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Button, Collapse, Group, PasswordInput, Radio, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
 import {
@@ -9,19 +12,17 @@ import {
   type RegisterClusterRequest,
   type TopologyView,
 } from './api.ts';
-import type { ApiError } from '../../kernel/api/request.ts';
 import { useSlot } from '../../kernel/slots.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { Notice } from '../../ui/Notice.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import classes from './Clusters.module.css';
-import { Notice } from './Notice.tsx';
 import { normaliseSeeds } from './normaliseSeeds.ts';
 import { RegisterCanvas } from './RegisterCanvas.tsx';
-import type { ExampleShape } from './examples.ts';
-
-/** The field a refusal is about: Mantine marks it `aria-invalid`, or, for a password field, on its wrapper. */
-const INVALID = '[aria-invalid="true"], [data-error] :is(input, textarea)';
+import { SETUPS, type Setup } from './setups.ts';
 
 const EXAMPLE = 'http://broker-1:8161/console/jolokia';
 
@@ -74,23 +75,6 @@ function blockedReason(
   return 'Check the connection first.';
 }
 
-/**
- * A refused check or registration. A broker failure reads as its kind, which names the cause and the
- * next step but not what the broker reported (which address, which version); that follows as its own line.
- */
-function Failure({ error }: Readonly<{ error: ApiError }>) {
-  return (
-    <>
-      <ErrorState variant="inline" error={error} />
-      {error.brokerErrorKind ? (
-        <Text size="sm" role="status">
-          {error.message}
-        </Text>
-      ) : null}
-    </>
-  );
-}
-
 /** What the connection check found, or why it failed, and why registering failed if it did. */
 function CheckOutcome({
   check,
@@ -108,33 +92,28 @@ function CheckOutcome({
         </Text>
       ) : null}
       {check.isSuccess ? <UntestedVersions topology={check.data.topology} /> : null}
-      {check.isError ? <Failure error={check.error} /> : null}
-      {register.isError ? <Failure error={register.error} /> : null}
+      {check.isError ? <ErrorState variant="inline" error={check.error} /> : null}
+      {register.isError ? <ErrorState variant="inline" error={register.error} /> : null}
     </div>
   );
 }
 
 /** The registration form. Rendered inline on the empty state, in a modal after. */
 export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: () => void }>) {
-  const [f, setF] = useState<Fields>(EMPTY);
-  const [touched, setTouched] = useState<Record<keyof Fields, boolean>>({
-    seeds: false,
-    name: false,
-    username: false,
-    password: false,
-    coreUsername: false,
-    corePassword: false,
-    tlsBundle: false,
-  });
-  const [shape, setShape] = useState<ExampleShape | null>(null);
+  const [setup, setSetup] = useState<Setup | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [checkedInputs, setCheckedInputs] = useState<string | null>(null);
-  const [rejected, setRejected] = useState(0);
-  const formRef = useRef<HTMLDivElement>(null);
 
   const check = useCheckConnection();
   const register = useRegisterCluster();
   const navigate = useNavigate();
+
+  const form = useForm<Fields>({
+    initialValues: EMPTY,
+    validateInputOnBlur: true,
+    validate: { seeds: () => seedsIssue, username: () => credIssue, coreUsername: () => coreCredIssue },
+  });
+  const f = form.values;
 
   const normalised = normaliseSeeds(f.seeds);
   const seedList = normalised.map((s) => s.url).filter((u): u is string => u !== null);
@@ -150,9 +129,6 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
     f.corePassword,
     'Provide both a Core username and password, or neither.',
   );
-  const seedsError = touched.seeds ? seedsIssue : null;
-  const credError = touched.username || touched.password ? credIssue : null;
-  const coreCredError = touched.coreUsername || touched.corePassword ? coreCredIssue : null;
 
   const valid = !seedsIssue && !credIssue && !coreCredIssue;
 
@@ -191,24 +167,18 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
     if (gap) setAdvancedOpen(true);
   }, [check.data]);
 
-  // A rejected press shows every field's message and takes the first invalid one into focus.
-  useEffect(() => {
-    if (rejected > 0) formRef.current?.querySelector<HTMLElement>(INVALID)?.focus();
-  }, [rejected]);
-
-  function reject() {
-    setTouched({
-      seeds: true,
-      name: true,
-      username: true,
-      password: true,
-      coreUsername: true,
-      corePassword: true,
-      tlsBundle: true,
-    });
-    if (coreCredIssue) setAdvancedOpen(true);
-    setRejected((n) => n + 1);
-  }
+  // A rejected press shows every field's message and takes the first invalid one into focus. The
+  // advanced fields are opened first when one of them is the problem, so there is something to focus.
+  const checkConnection = form.onSubmit(
+    () => {
+      setCheckedInputs(inputSignature);
+      check.mutate(payload());
+    },
+    (errors) => {
+      if (errors.coreUsername) flushSync(() => setAdvancedOpen(true));
+      focusFirstInvalid(form.getInputNode)(errors);
+    },
+  );
 
   function payload(): RegisterClusterRequest {
     return {
@@ -220,28 +190,42 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
     };
   }
 
-  function field(key: keyof Fields) {
-    return {
-      value: f[key],
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const v = e.currentTarget.value;
-        setF((s) => ({ ...s, [key]: v }));
-      },
-      onBlur: () => setTouched((s) => ({ ...s, [key]: true })),
-    };
-  }
+  const guide = SETUPS.find((s) => s.value === setup);
 
   return (
     <div className={classes.register}>
-      <div className={classes.form} ref={formRef}>
+      <Radio.Group
+        className={classes.span}
+        label="What are you connecting to?"
+        description="Studio discovers the rest from the brokers; this only tells you what to enter."
+        value={setup}
+        onChange={(v) => setSetup(v as Setup)}
+      >
+        <div className={classes.setups}>
+          {SETUPS.map((s) => (
+            <Radio.Card key={s.value} value={s.value} className={classes.setup}>
+              <Group wrap="nowrap" align="flex-start" gap="sm">
+                <Radio.Indicator />
+                <div>
+                  <Text size="sm" fw={600}>
+                    {s.title}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {s.description}
+                  </Text>
+                </div>
+              </Group>
+            </Radio.Card>
+          ))}
+        </div>
+      </Radio.Group>
+      <form className={classes.form} noValidate onSubmit={checkConnection}>
         <Textarea
           label="Broker management URLs"
-          description={`One per line. For example: ${EXAMPLE}`}
-          placeholder={EXAMPLE}
+          description={`${guide ? guide.urls : 'One per line.'} For example: ${EXAMPLE}`}
           autosize
-          minRows={2}
-          error={seedsError}
-          {...field('seeds')}
+          minRows={guide?.rows ?? 2}
+          {...form.getInputProps('seeds')}
         />
         {rewritten.length > 0 ? (
           <Text size="xs" c="dimmed">
@@ -257,13 +241,12 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
         <TextInput
           label="Name"
           description="Optional. Defaults to the first broker's host."
-          placeholder="prod-emea"
-          {...field('name')}
+          {...form.getInputProps('name')}
         />
-        <div className={classes.pair}>
-          <TextInput label="Username" autoComplete="off" error={credError} {...field('username')} />
-          <PasswordInput label="Password" autoComplete="off" {...field('password')} />
-        </div>
+        <FieldRow>
+          <TextInput label="Username" autoComplete="off" {...form.getInputProps('username')} />
+          <PasswordInput label="Password" autoComplete="off" {...form.getInputProps('password')} />
+        </FieldRow>
 
         <Button
           variant="subtle"
@@ -271,25 +254,27 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
           className={classes.start}
           onClick={() => setAdvancedOpen((o) => !o)}
           aria-expanded={advancedOpen}
+          leftSection={
+            advancedOpen ? <IconChevronDown size={16} aria-hidden /> : <IconChevronRight size={16} aria-hidden />
+          }
         >
-          {advancedOpen ? '⌄' : '›'} Advanced — Core protocol and TLS
+          Advanced: Core protocol and TLS
         </Button>
         <Collapse expanded={advancedOpen}>
           <div className={classes.form}>
-            <div className={classes.pair}>
+            <FieldRow>
               <TextInput
                 label="Core username"
                 description="Optional. Defaults to the Jolokia credentials above."
                 autoComplete="off"
-                error={coreCredError}
-                {...field('coreUsername')}
+                {...form.getInputProps('coreUsername')}
               />
-              <PasswordInput label="Core password" autoComplete="off" {...field('corePassword')} />
-            </div>
+              <PasswordInput label="Core password" autoComplete="off" {...form.getInputProps('corePassword')} />
+            </FieldRow>
             <TextInput
               label="TLS bundle"
               description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
-              {...field('tlsBundle')}
+              {...form.getInputProps('tlsBundle')}
             />
           </div>
         </Collapse>
@@ -310,18 +295,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
               {registerBlockedReason}
             </Text>
           ) : null}
-          <Button
-            variant="default"
-            loading={check.isPending}
-            onClick={() => {
-              if (!valid) {
-                reject();
-                return;
-              }
-              setCheckedInputs(inputSignature);
-              check.mutate(payload());
-            }}
-          >
+          <Button type="submit" variant="default" loading={check.isPending}>
             Check connection
           </Button>
           <Button
@@ -331,7 +305,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
               register.mutate(payload(), {
                 onSuccess: (detail) => {
                   notify.succeeded({ action: REGISTER, subject: `cluster ${detail.name}` });
-                  setF(EMPTY);
+                  form.reset();
                   onRegistered?.();
                   void navigate({ to: `/clusters/${detail.id}/topology` });
                 },
@@ -341,8 +315,8 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
             Register cluster
           </Button>
         </div>
-      </div>
-      <RegisterCanvas preview={check.data} stale={stale} shape={shape} onSelectShape={setShape} />
+      </form>
+      <RegisterCanvas preview={check.data} stale={stale} />
     </div>
   );
 }

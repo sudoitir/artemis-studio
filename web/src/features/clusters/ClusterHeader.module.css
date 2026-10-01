@@ -1,6 +1,7 @@
 /* The cluster's context, one wrapping line: name, environment, then what is known of its health. A
    cluster's name is broker-supplied and can be a long unbroken host string, so it breaks anywhere
-   rather than widening the page. */
+   rather than widening the page. It holds the height of one line, which is also the height of its loading
+   state, so the page below does not move when the cluster arrives. */
 .strip {
   display: flex;
   flex-wrap: wrap;
@@ -10,6 +11,7 @@
   margin: 0;
   padding: 0;
   border: 0;
+  min-block-size: calc(var(--mantine-font-size-md) * var(--mantine-line-height-md));
 }
 
 .name {
@@ -26,8 +28,4 @@
 
 .meta {
   color: var(--as-text-dimmed);
-}
-
-.dismiss {
-  align-self: flex-start;
 }

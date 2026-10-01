@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Button, ColorInput, Modal, NumberInput, Stack, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid, serverFieldErrors } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -24,45 +26,17 @@ const DELETE: ActionVerb = { verb: 'Delete', past: 'Deleted', progressive: 'Dele
 /** Environment grouping CRUD (environments spec). Cluster assignment happens from the cluster's own settings. */
 export function EnvironmentsPanel() {
   const environments = useEnvironments();
-  const create = useCreateEnvironment();
-  const update = useUpdateEnvironment();
   const remove = useDeleteEnvironment();
 
   const [editing, setEditing] = useState<EnvironmentView | 'new' | null>(null);
   const [deleting, setDeleting] = useState<EnvironmentView | null>(null);
-  const [name, setName] = useState('');
-  const [colour, setColour] = useState('');
-  const [sortOrder, setSortOrder] = useState(0);
-  const [nameError, setNameError] = useState<string | undefined>();
-  const nameRef = useRef<HTMLInputElement>(null);
 
   const rows = environments.data ?? [];
 
-  const { reset: resetCreate } = create;
-  const { reset: resetUpdate } = update;
   const { reset: resetRemove } = remove;
-  const rowCount = rows.length;
 
-  const openNew = useCallback(() => {
-    resetCreate();
-    setEditing('new');
-    setName('');
-    setColour('');
-    setSortOrder(rowCount);
-    setNameError(undefined);
-  }, [resetCreate, rowCount]);
-
-  const openEdit = useCallback(
-    (env: EnvironmentView) => {
-      resetUpdate();
-      setEditing(env);
-      setName(env.name);
-      setColour(env.colour ?? '');
-      setSortOrder(env.sortOrder);
-      setNameError(undefined);
-    },
-    [resetUpdate],
-  );
+  const openNew = useCallback(() => setEditing('new'), []);
+  const openEdit = useCallback((env: EnvironmentView) => setEditing(env), []);
 
   const askDelete = useCallback(
     (env: EnvironmentView) => {
@@ -74,36 +48,6 @@ export function EnvironmentsPanel() {
 
   // Stable, so the table does not measure its columns again on every render.
   const columns = useMemo(() => environmentColumns(openEdit, askDelete), [openEdit, askDelete]);
-
-  function save() {
-    if (!name.trim()) {
-      setNameError('Give the environment a name.');
-      nameRef.current?.focus();
-      return;
-    }
-    const body = { name: name.trim(), colour: colour || null, sortOrder };
-    const subject = `environment ${body.name}`;
-    if (editing === 'new') {
-      create.mutate(body, {
-        onSuccess: () => {
-          notify.succeeded({ action: CREATE, subject });
-          setEditing(null);
-        },
-      });
-    } else if (editing) {
-      update.mutate(
-        { environmentId: editing.id, body },
-        {
-          onSuccess: () => {
-            notify.succeeded({ action: SAVE, subject });
-            setEditing(null);
-          },
-        },
-      );
-    }
-  }
-
-  const failure = editing === 'new' ? create.error : update.error;
 
   return (
     <Section
@@ -148,47 +92,15 @@ export function EnvironmentsPanel() {
         onClose={() => setEditing(null)}
         title={editing === 'new' ? 'New environment' : `Edit "${editing === null ? '' : editing.name}"`}
       >
-        <form
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            save();
-          }}
-        >
-          <Stack gap="sm">
-            <TextInput
-              ref={nameRef}
-              label="Name"
-              value={name}
-              error={nameError}
-              onChange={(e) => {
-                setName(e.currentTarget.value);
-                setNameError(undefined);
-              }}
-              onBlur={() => setNameError(name.trim() ? undefined : 'Give the environment a name.')}
-              data-autofocus
-              required
-            />
-            <ColorInput
-              label="Colour"
-              description="Optional. Marks the environment beside its name in the cluster list."
-              value={colour}
-              onChange={setColour}
-              format="hex"
-              closeOnColorSwatchClick
-            />
-            <NumberInput
-              label="Sort order"
-              description="Environments are listed from the lowest number up."
-              value={sortOrder}
-              onChange={(v) => setSortOrder(Number(v) || 0)}
-            />
-            {failure ? <ErrorState variant="inline" error={failure} /> : null}
-            <Button type="submit" loading={create.isPending || update.isPending} className={classes.start}>
-              Save
-            </Button>
-          </Stack>
-        </form>
+        {/* Remounted per environment, so the editor never shows a previous one's values. */}
+        {editing === null ? null : (
+          <EnvironmentEditor
+            key={editing === 'new' ? 'new' : editing.id}
+            environment={editing === 'new' ? null : editing}
+            nextOrder={rows.length}
+            onDone={() => setEditing(null)}
+          />
+        )}
       </Modal>
 
       <ConfirmDialog
@@ -219,5 +131,76 @@ export function EnvironmentsPanel() {
         }
       />
     </Section>
+  );
+}
+
+/** The environment form: a name, an optional colour and where it sorts. */
+function EnvironmentEditor({
+  environment,
+  nextOrder,
+  onDone,
+}: Readonly<{ environment: EnvironmentView | null; nextOrder: number; onDone: () => void }>) {
+  const create = useCreateEnvironment();
+  const update = useUpdateEnvironment();
+  const form = useForm<{ name: string; colour: string; sortOrder: number | string }>({
+    initialValues: {
+      name: environment?.name ?? '',
+      colour: environment?.colour ?? '',
+      sortOrder: environment?.sortOrder ?? nextOrder,
+    },
+    validateInputOnBlur: true,
+    validate: { name: (v) => (v.trim() ? null : 'Give the environment a name.') },
+  });
+
+  const save = form.onSubmit((values) => {
+    const body = { name: values.name.trim(), colour: values.colour || null, sortOrder: Number(values.sortOrder) || 0 };
+    const subject = `environment ${body.name}`;
+    const onError = (error: unknown) => form.setErrors(serverFieldErrors(error, ['name']));
+    if (environment === null) {
+      create.mutate(body, {
+        onSuccess: () => {
+          notify.succeeded({ action: CREATE, subject });
+          onDone();
+        },
+        onError,
+      });
+    } else {
+      update.mutate(
+        { environmentId: environment.id, body },
+        {
+          onSuccess: () => {
+            notify.succeeded({ action: SAVE, subject });
+            onDone();
+          },
+          onError,
+        },
+      );
+    }
+  }, focusFirstInvalid(form.getInputNode));
+
+  const failure = environment === null ? create.error : update.error;
+
+  return (
+    <form noValidate onSubmit={save}>
+      <Stack gap="sm">
+        <TextInput label="Name" {...form.getInputProps('name')} data-autofocus required />
+        <ColorInput
+          label="Colour"
+          description="Optional. Marks the environment beside its name in the cluster list."
+          {...form.getInputProps('colour')}
+          format="hex"
+          closeOnColorSwatchClick
+        />
+        <NumberInput
+          label="Sort order"
+          description="Environments are listed from the lowest number up."
+          {...form.getInputProps('sortOrder')}
+        />
+        {failure ? <ErrorState variant="inline" error={failure} /> : null}
+        <Button type="submit" loading={create.isPending || update.isPending} className={classes.start}>
+          Save
+        </Button>
+      </Stack>
+    </form>
   );
 }

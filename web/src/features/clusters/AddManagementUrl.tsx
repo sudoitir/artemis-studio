@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useOverrideNodeUrl, type NodeEndpointView } from './api.ts';
 import classes from './Clusters.module.css';
@@ -24,25 +25,21 @@ export function AddManagementUrl({
   opened: boolean;
   onClose: () => void;
 }>) {
-  const [url, setUrl] = useState('');
-  const [coreUrl, setCoreUrl] = useState('');
-  const [missing, setMissing] = useState(false);
-  const [rejected, setRejected] = useState(0);
-  const urlRef = useRef<HTMLInputElement>(null);
   const override = useOverrideNodeUrl(clusterId);
+  const form = useForm({
+    initialValues: { url: '', coreUrl: '' },
+    validateInputOnBlur: true,
+    validate: {
+      url: (v, values) => (!v.trim() && !values.coreUrl.trim() ? 'Enter a management URL, a Core URL, or both.' : null),
+    },
+    // Either URL answers the message, which sits beside the first.
+    onValuesChange: (values) => {
+      if (values.coreUrl.trim()) form.clearFieldError('url');
+    },
+  });
 
-  // A rejected press takes the first field into focus, where the message is.
-  useEffect(() => {
-    if (rejected > 0) urlRef.current?.focus();
-  }, [rejected]);
-
-  const save = () => {
+  const save = form.onSubmit(({ url, coreUrl }) => {
     if (!endpoint) return;
-    if (!url.trim() && !coreUrl.trim()) {
-      setMissing(true);
-      setRejected((n) => n + 1);
-      return;
-    }
     override.mutate(
       {
         nodeId: endpoint.id,
@@ -52,13 +49,12 @@ export function AddManagementUrl({
       {
         onSuccess: () => {
           notify.succeeded({ action: UPDATE, subject: `the URL of node ${endpoint.coreUrl ?? endpoint.name}` });
-          setUrl('');
-          setCoreUrl('');
+          form.reset();
           onClose();
         },
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <Modal
@@ -67,40 +63,22 @@ export function AddManagementUrl({
       title={endpoint ? `Add a management URL for ${endpoint.coreUrl}` : 'Add a management URL'}
       size="lg"
     >
-      <form
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-      >
+      <form noValidate onSubmit={save}>
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
             Its pair reported <code>{endpoint?.coreUrl}</code>. That is a broker-to-broker connector, not a management
             URL, so Studio cannot reach it yet. Enter the Jolokia URL you can reach this broker on.
           </Text>
           <TextInput
-            ref={urlRef}
             label="Management URL"
             placeholder="http://broker-2:8261/console/jolokia"
-            value={url}
-            error={
-              missing && !url.trim() && !coreUrl.trim() ? 'Enter a management URL, a Core URL, or both.' : undefined
-            }
-            onChange={(e) => {
-              setUrl(e.currentTarget.value);
-              setMissing(false);
-            }}
+            {...form.getInputProps('url')}
           />
           <TextInput
             label="Core URL"
             description="Optional. Set this when the advertised connector is not reachable from Studio (needed for live events)."
             placeholder="tcp://broker-2:61617"
-            value={coreUrl}
-            onChange={(e) => {
-              setCoreUrl(e.currentTarget.value);
-              setMissing(false);
-            }}
+            {...form.getInputProps('coreUrl')}
           />
           {override.isError ? <ErrorState variant="inline" error={override.error} /> : null}
           <div className={classes.actions}>

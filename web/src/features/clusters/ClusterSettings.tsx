@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { Button, PasswordInput, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useCluster, useRotateCredentials } from './api.ts';
@@ -49,21 +51,26 @@ const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
 
 function CredentialRotation({ clusterId, clusterName }: Readonly<{ clusterId: string; clusterName: string }>) {
   const rotate = useRotateCredentials(clusterId);
-  const [kind, setKind] = useState<CredentialKind>('JOLOKIA_BASIC');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [missing, setMissing] = useState<{ username?: string; password?: string }>({});
   const [confirming, setConfirming] = useState(false);
+  const form = useForm<{ kind: CredentialKind; username: string; password: string }>({
+    initialValues: { kind: 'JOLOKIA_BASIC', username: '', password: '' },
+    validateInputOnBlur: true,
+    // Both fields are validated when the button is pressed, and on leaving a field; nothing is disabled silently.
+    validate: {
+      username: (v) => (v.trim() ? null : 'Enter the account name.'),
+      password: (v) => (v ? null : 'Enter the new password.'),
+    },
+  });
+  const { kind, username } = form.values;
   const label = CREDENTIAL_KINDS[kind].label;
 
-  // Both fields are validated when the button is pressed, and on leaving a field; nothing is disabled silently.
-  const problems = () => ({
-    username: username.trim() ? undefined : 'Enter the account name.',
-    password: password ? undefined : 'Enter the new password.',
-  });
+  const submit = form.onSubmit(() => {
+    rotate.reset();
+    setConfirming(true);
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <div className={classes.settingsForm}>
+    <form className={classes.settingsForm} noValidate onSubmit={submit}>
       <div>
         <Text component="label" size="xs" fw={500} display="block" mb="0.25rem" id="credential-kind">
           Account
@@ -72,8 +79,8 @@ function CredentialRotation({ clusterId, clusterName }: Readonly<{ clusterId: st
           size="xs"
           fullWidth
           aria-labelledby="credential-kind"
-          value={kind}
-          onChange={(v) => setKind(v as CredentialKind)}
+          {...form.getInputProps('kind')}
+          onChange={(v) => form.setFieldValue('kind', v === 'CORE' ? 'CORE' : 'JOLOKIA_BASIC')}
           data={(Object.keys(CREDENTIAL_KINDS) as CredentialKind[]).map((k) => ({
             value: k,
             label: CREDENTIAL_KINDS[k].label,
@@ -83,40 +90,9 @@ function CredentialRotation({ clusterId, clusterName }: Readonly<{ clusterId: st
           {CREDENTIAL_KINDS[kind].hint}
         </Text>
       </div>
-      <TextInput
-        label="Username"
-        value={username}
-        error={missing.username}
-        onChange={(e) => {
-          setUsername(e.currentTarget.value);
-          setMissing((m) => ({ ...m, username: undefined }));
-        }}
-        onBlur={() => setMissing((m) => ({ ...m, username: problems().username }))}
-        size="xs"
-      />
-      <PasswordInput
-        label="Password"
-        value={password}
-        error={missing.password}
-        onChange={(e) => {
-          setPassword(e.currentTarget.value);
-          setMissing((m) => ({ ...m, password: undefined }));
-        }}
-        onBlur={() => setMissing((m) => ({ ...m, password: problems().password }))}
-        size="xs"
-      />
-      <Button
-        size="xs"
-        className={classes.start}
-        onClick={() => {
-          const found = problems();
-          setMissing(found);
-          if (!found.username && !found.password) {
-            rotate.reset();
-            setConfirming(true);
-          }
-        }}
-      >
+      <TextInput label="Username" {...form.getInputProps('username')} size="xs" />
+      <PasswordInput label="Password" {...form.getInputProps('password')} size="xs" />
+      <Button type="submit" size="xs" className={classes.start}>
         Save {label.toLowerCase()} credentials…
       </Button>
       <Text size="xs" c="dimmed">
@@ -143,20 +119,19 @@ function CredentialRotation({ clusterId, clusterName }: Readonly<{ clusterId: st
         pending={rotate.isPending}
         onConfirm={() =>
           rotate.mutate(
-            { username, password, kind },
+            { username: form.values.username, password: form.values.password, kind },
             {
               onSuccess: () => {
                 notify.succeeded({ action: SAVE, subject: `${label.toLowerCase()} credentials of ${clusterName}` });
-                setUsername('');
-                setPassword('');
-                setMissing({});
+                form.setValues({ username: '', password: '' });
+                form.clearErrors();
                 setConfirming(false);
               },
             },
           )
         }
       />
-    </div>
+    </form>
   );
 }
 

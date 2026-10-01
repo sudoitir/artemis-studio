@@ -1,37 +1,39 @@
 import { Stack, Text } from '@mantine/core';
 
-import { Notice } from './Notice.tsx';
-import type { RegisterPreview, TopologyView } from './api.ts';
+import { Notice } from '../../ui/Notice.tsx';
+import type { HealthView, RegisterPreview } from './api.ts';
 import { layout } from './layout.ts';
 import { TopologyCanvas } from './TopologyCanvas.tsx';
-import { EXAMPLE_HEALTH, EXAMPLES, type ExampleShape } from './examples.ts';
 import styles from './RegisterCanvas.module.css';
 
-/**
- * Two states in one box, so the page never reflows: example topology cards
- * before a successful check, the operator's real discovered topology after —
- * both drawn by the same `layout()` + `TopologyCanvas` the live cluster screen
- * uses, never a forked visual language.
- */
-export function RegisterCanvas({
-  preview,
-  stale,
-  shape,
-  onSelectShape,
-}: Readonly<{
-  preview: RegisterPreview | undefined;
-  stale: boolean;
-  shape: ExampleShape | null;
-  onSelectShape: (shape: ExampleShape) => void;
-}>) {
-  if (preview) {
-    return <PreviewCanvas topology={preview.topology} stale={stale} />;
-  }
-  return <ExampleCards shape={shape} onSelectShape={onSelectShape} />;
-}
+/** Nothing is registered yet, so no health is known: layout() draws every node as a neutral mark. */
+const UNKNOWN_HEALTH: HealthView = {
+  clusterId: 'preview',
+  level: 'UNKNOWN',
+  liveEndpointNames: [],
+  splitBrain: 'NONE',
+  replicationBehind: false,
+  notes: [],
+};
 
-function PreviewCanvas({ topology, stale }: Readonly<{ topology: TopologyView; stale: boolean }>) {
-  const model = layout(topology, EXAMPLE_HEALTH);
+/**
+ * The topology a passing check discovered, drawn by the same layout() and TopologyCanvas as the
+ * cluster's own Topology page. Before a check, the same box says what will appear in it, so the
+ * dialog never changes size when the check lands.
+ */
+export function RegisterCanvas({ preview, stale }: Readonly<{ preview: RegisterPreview | undefined; stale: boolean }>) {
+  if (!preview) {
+    return (
+      <div className={styles.placeholder}>
+        <Text size="sm" fw={600}>
+          Topology preview
+        </Text>
+        <Text size="sm" c="dimmed">
+          Check connection draws the brokers Studio finds here, before anything is saved.
+        </Text>
+      </div>
+    );
+  }
   return (
     <Stack gap="xs">
       <Notice title={stale ? 'Changed since you checked' : 'Discovered topology'} tone={stale ? 'warning' : 'info'}>
@@ -40,49 +42,7 @@ function PreviewCanvas({ topology, stale }: Readonly<{ topology: TopologyView; s
           : 'This is what will be saved. Nothing is saved yet.'}
       </Notice>
       <div className={styles.previewCanvas} data-stale={stale || undefined}>
-        <TopologyCanvas model={model} interactive={!stale} height="100%" />
-      </div>
-    </Stack>
-  );
-}
-
-function ExampleCards({
-  shape,
-  onSelectShape,
-}: Readonly<{
-  shape: ExampleShape | null;
-  onSelectShape: (shape: ExampleShape) => void;
-}>) {
-  return (
-    <Stack gap="xs">
-      <Text size="sm" c="dimmed">
-        Which of these looks like your setup? These are examples for orientation — nothing is registered until you press
-        Register cluster.
-      </Text>
-      <div className={styles.cards}>
-        {EXAMPLES.map((ex) => {
-          const model = layout(ex.topology, EXAMPLE_HEALTH);
-          return (
-            <button
-              key={ex.shape}
-              type="button"
-              className={styles.card}
-              data-selected={shape === ex.shape || undefined}
-              aria-pressed={shape === ex.shape}
-              onClick={() => onSelectShape(ex.shape)}
-            >
-              <Text size="xs" fw={600}>
-                {ex.title}
-              </Text>
-              <Text size="xs" c="dimmed">
-                Example — not your cluster
-              </Text>
-              <div className={styles.cardCanvas} aria-hidden="true">
-                <TopologyCanvas model={model} interactive={false} height="100%" />
-              </div>
-            </button>
-          );
-        })}
+        <TopologyCanvas model={layout(preview.topology, UNKNOWN_HEALTH)} interactive={!stale} height="100%" />
       </div>
     </Stack>
   );

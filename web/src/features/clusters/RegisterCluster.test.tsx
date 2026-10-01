@@ -82,18 +82,32 @@ function preview() {
 afterEach(() => act(() => notifications.clean()));
 
 describe('RegisterClusterForm', () => {
-  it('swaps the canvas from examples to the real discovered topology after a successful check', async () => {
+  it('swaps the preview placeholder for the real discovered topology after a successful check', async () => {
     server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    expect(screen.getByText('Single broker')).toBeInTheDocument();
+    expect(screen.getByText('Topology preview')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     expect(await screen.findByText('Discovered topology')).toBeInTheDocument();
-    expect(screen.queryByText('Single broker')).not.toBeInTheDocument();
+    expect(screen.queryByText('Topology preview')).not.toBeInTheDocument();
+  });
+
+  it('tells the operator which URLs to enter for the setup they choose', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+    const urls = screen.getByLabelText(/Broker management URLs/);
+    expect(urls).toHaveAccessibleDescription(/^One per line\./);
+
+    await user.click(screen.getByRole('radio', { name: /Primary and backup/ }));
+    expect(screen.getByRole('radio', { name: /Primary and backup/ })).toBeChecked();
+    expect(urls).toHaveAccessibleDescription(/Enter the primary's management URL\. Studio finds its backup/);
+
+    await user.click(screen.getByRole('radio', { name: /Cluster/ }));
+    expect(urls).toHaveAccessibleDescription(/one management URL per broker Studio can reach/);
   });
 
   it('marks the preview stale once the seeds are edited after a check', async () => {

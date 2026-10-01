@@ -1,47 +1,18 @@
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-  gap: var(--mantine-spacing-xs);
-}
-
-.card {
+/* Holds the preview's height, so the dialog does not move when a check lands. */
+.placeholder {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding-block: var(--mantine-spacing-xs);
-  padding-inline: var(--mantine-spacing-sm);
-  border: 1px solid var(--as-border);
-  border-radius: var(--mantine-radius-sm);
-  background: transparent;
-  cursor: pointer;
-  text-align: start;
-  font: inherit;
-  color: var(--as-text);
+  justify-content: center;
+  gap: var(--mantine-spacing-xs);
+  block-size: 20rem;
+  padding: var(--mantine-spacing-lg);
+  border: 1px dashed var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  text-align: center;
 }
 
-.card:hover {
-  background: var(--as-surface-raised);
-}
-
-.card:focus-visible {
-  outline: var(--as-focus-ring);
-  outline-offset: var(--as-focus-offset);
-}
-
-.card[data-selected] {
-  border-color: var(--as-accent);
-}
-
-.cardCanvas {
-  block-size: 7.5rem;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0.85;
-}
-
-/* The preview holds the example cards' height, so the page does not move when a check lands. */
 .previewCanvas {
-  block-size: 16.25rem;
+  block-size: 15rem;
   transition: opacity var(--as-duration-base) var(--as-ease);
 }
 

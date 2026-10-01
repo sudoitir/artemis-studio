@@ -4,9 +4,9 @@ import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { useCluster, useEnvironments, type CapabilitiesView, type ClusterDetail } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
-import { Notice } from './Notice.tsx';
 import styles from './ClusterHeader.module.css';
 
 /** The capabilities the connection reports as unavailable. */
@@ -54,7 +54,14 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   // returns below so the hook order never depends on the query state.
   const [capsDismissed, dismissCaps] = useDismissedNotice(`capabilities:${clusterId}:${gaps.join(',')}`);
 
-  if (isPending) return <LoadingState label="Loading the cluster" variant="inline" blockSize="1.5rem" />;
+  // The strip's own box, holding the line's height, so the page below does not move when the cluster arrives.
+  if (isPending) {
+    return (
+      <div className={styles.strip}>
+        <LoadingState label="Loading the cluster" variant="inline" />
+      </div>
+    );
+  }
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
   const environment = environments.data?.find((e) => e.id === data.environmentId);
@@ -82,7 +89,6 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
         <Notice
           title={critical ? 'Two nodes are live in one pair' : 'Needs attention'}
           tone={critical ? 'danger' : 'warning'}
-          alert={critical}
         >
           <Stack gap="xs">
             {data.health.notes.map((n) => (
@@ -95,16 +101,21 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
       ) : null}
 
       {gaps.length > 0 && !capsDismissed ? (
-        <Notice title="Some broker capabilities need setup" tone="warning">
+        <Notice
+          title="Some broker capabilities need setup"
+          tone="warning"
+          action={
+            <Button variant="default" size="xs" onClick={dismissCaps}>
+              Dismiss until you sign out
+            </Button>
+          }
+        >
           <Stack gap="xs">
             <Text size="sm">
               One or more features are limited by this connection. Each row below expands with the reason and the{' '}
               <code>broker.xml</code> change that closes the gap.
             </Text>
             <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />
-            <Button variant="default" size="xs" className={styles.dismiss} onClick={dismissCaps}>
-              Dismiss until you sign out
-            </Button>
           </Stack>
         </Notice>
       ) : null}

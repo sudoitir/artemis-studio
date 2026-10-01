@@ -14,7 +14,6 @@ export function environmentColumns(onEdit: (e: EnvironmentView) => void, onDelet
       accessor: (e) => e.name,
       kind: 'identifier',
       priority: 'essential',
-      wrap: true,
     },
     {
       id: 'colour',

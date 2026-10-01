@@ -5,7 +5,7 @@ import { axeViolations, contentWidth, Frame, renderThemed, SCHEMES, settle } fro
 import { DataTable } from '../../ui/table/index.ts';
 import type { EnvironmentView } from './api.ts';
 import { environmentColumns } from './environmentColumns.tsx';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 
 /** The environments table as Chromium lays it out with a name as long as an administrator can type, and the notices. */
 
@@ -53,10 +53,12 @@ describe.each(SCHEMES)('cluster parts in the %s scheme', (scheme) => {
         <Notice title="Needs attention" tone="warning">
           Node broker-2 is not reachable.
         </Notice>
-        <Notice title="Two nodes are live in one pair" tone="danger" alert>
+        <Notice title="Two nodes are live in one pair" tone="danger">
           Both nodes are serving.
         </Notice>
-        <Notice title="Discovered topology">This is what will be saved.</Notice>
+        <Notice title="Discovered topology" tone="info">
+          This is what will be saved.
+        </Notice>
       </Frame>,
       scheme,
     );
