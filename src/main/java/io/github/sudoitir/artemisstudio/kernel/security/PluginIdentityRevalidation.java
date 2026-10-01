@@ -36,7 +36,7 @@ public class PluginIdentityRevalidation {
     private final Optional<SecondFactors> secondFactors;
     private final TransactionTemplate transactions;
 
-    /** One pass over every attached, verified provider; a provider that fails is skipped until the next. */
+    /** One pass over every attached, verified provider; a provider or an account that fails is skipped until the next. */
     public void run() {
         // ponytail: one call per provider with every enabled subject; batch the subjects if one ever times out.
         ScopedValue.where(ActorResolver.ON_BEHALF_OF, Actor.system()).run(() -> {
@@ -59,7 +59,16 @@ public class PluginIdentityRevalidation {
         for (String subject : gone) {
             EnabledAccount account = bySubject.get(subject);
             if (account != null) {
-                revoke(provider.id(), account);
+                try {
+                    revoke(provider.id(), account);
+                } catch (RuntimeException e) {
+                    // The transaction rolled back, so the account is retried by the next pass.
+                    log.warn(
+                            "Could not revoke access of {} (no longer valid at {})",
+                            account.getUsername(),
+                            provider.id(),
+                            e);
+                }
             }
         }
     }
