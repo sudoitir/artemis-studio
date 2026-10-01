@@ -45,4 +45,4 @@
 
 ## 11. Finish
 - [x] 11.1 `just verify` green; self-health screenshots (light, dark, empty, error)
-- [ ] 11.2 Review, PR, green CI and Sonar, merge; `/opsx:archive`
+- [x] 11.2 Review, PR, green CI and Sonar, merge; `/opsx:archive`
