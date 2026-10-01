@@ -1,9 +1,19 @@
-import { Badge, Button, Drawer, Group, Stack, Table, Text } from '@mantine/core';
+import { useMemo } from 'react';
+import { Button, Drawer, Group, Stack } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { type QueueView } from './api.ts';
 import { useSlot } from '../../kernel/slots.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { queueNodeColumns } from './columns.ts';
 import { QueueLifecycleActions } from './QueueLifecycleActions.tsx';
+
+type NodeCell = QueueView['perNode'][number];
+
+const nodeKey = (cell: NodeCell) => cell.nodeId;
 
 /**
  * Per-node breakdown for one queue row, its lifecycle actions, a jump into the message browser,
@@ -12,6 +22,7 @@ import { QueueLifecycleActions } from './QueueLifecycleActions.tsx';
 export function QueueDetailDrawer({ queue, onClose }: Readonly<{ queue: QueueView | null; onClose: () => void }>) {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const panels = useSlot('queue.detail.panels');
+  const nodeColumns = useMemo(queueNodeColumns, []);
 
   return (
     <Drawer
@@ -25,17 +36,13 @@ export function QueueDetailDrawer({ queue, onClose }: Readonly<{ queue: QueueVie
         <Stack gap="md">
           <Group gap="xs" justify="space-between">
             <Group gap="xs">
-              <Badge variant="light">{queue.routingType}</Badge>
-              <Badge variant="light" color="gray">
-                {queue.durable ? 'durable' : 'non-durable'}
-              </Badge>
-              <Badge variant="light" color="gray">
-                {queue.nodesPresent}/{queue.nodesTotal} nodes
-              </Badge>
+              <StatusBadge>{queue.routingType.toLowerCase()}</StatusBadge>
+              <StatusBadge>{queue.durable ? 'durable' : 'non-durable'}</StatusBadge>
+              <StatusBadge>{`${queue.nodesPresent}/${queue.nodesTotal} nodes`}</StatusBadge>
             </Group>
             <Button
               size="xs"
-              variant="light"
+              variant="default"
               component={Link}
               to={`/clusters/${clusterId}/queues/${encodeURIComponent(queue.queueName)}/messages`}
               onClick={onClose}
@@ -46,40 +53,23 @@ export function QueueDetailDrawer({ queue, onClose }: Readonly<{ queue: QueueVie
 
           <QueueLifecycleActions clusterId={clusterId} queue={queue} onClose={onClose} />
 
-          {/* A node name is broker-supplied and can be long; the library's own
-              container keeps the overflow in the table rather than the drawer. */}
-          <Table.ScrollContainer minWidth={420} type="native">
-            <Table>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Node</Table.Th>
-                  <Table.Th ta="end">Depth</Table.Th>
-                  <Table.Th ta="end">Consumers</Table.Th>
-                  <Table.Th ta="end">Delivering</Table.Th>
-                  <Table.Th ta="end">Scheduled</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {queue.perNode.map((cell) => (
-                  <Table.Tr key={cell.nodeId}>
-                    <Table.Td>
-                      {cell.nodeName}
-                      {cell.stale ? (
-                        <Text span size="xs" c="dimmed">
-                          {' '}
-                          · stale
-                        </Text>
-                      ) : null}
-                    </Table.Td>
-                    <Table.Td ta="end">{cell.messageCount}</Table.Td>
-                    <Table.Td ta="end">{cell.consumerCount}</Table.Td>
-                    <Table.Td ta="end">{cell.deliveringCount}</Table.Td>
-                    <Table.Td ta="end">{cell.scheduledCount}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+          <Section title="Per node" headingLevel={3}>
+            <DataTable
+              variant="static"
+              label={`${queue.queueName} per node`}
+              columns={nodeColumns}
+              data={queue.perNode}
+              rowKey={nodeKey}
+              height={{ maxRows: 8 }}
+              empty={
+                <EmptyState
+                  kind="empty"
+                  title="No node reported this queue"
+                  description="The last scrape returned no per-node figures for it."
+                />
+              }
+            />
+          </Section>
 
           {panels.map(({ id, Component }) => (
             <Component key={id} clusterId={clusterId} queueName={queue.queueName} onClose={onClose} />

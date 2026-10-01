@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Code, CopyButton, Group, Modal, Stack, Switch, Text, TextInput } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
@@ -12,7 +12,8 @@ import {
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { focusBack } from '../../kernel/actions/focusBack.ts';
 import { useActionHost } from '../../kernel/actions/hostContext.ts';
@@ -40,7 +41,7 @@ export const DRIFT_SENTENCE =
 /** The broker.xml that closes the gap, copyable in one action. */
 export function BrokerXmlRemedy({ xml }: Readonly<{ xml: string }>) {
   return (
-    <Stack gap={4}>
+    <Stack gap="xs">
       <Group justify="space-between" align="center">
         <Text size="xs" fw={600} c="dimmed">
           Add this to broker.xml to make the configuration match
@@ -164,7 +165,7 @@ function CreateOutcome({
     return (
       <Stack gap="sm">
         <NodeOutcomeSummary outcome={result.outcome} />
-        <Alert variant="light" color="yellow" title="Your broker configuration does not know about this">
+        <Alert variant="default" title="Your broker configuration does not know about this">
           <Stack gap="sm">
             <Text size="xs">{DRIFT_SENTENCE}</Text>
             <BrokerXmlRemedy xml={result.brokerXml} />
@@ -178,13 +179,13 @@ function CreateOutcome({
     <Stack gap="sm">
       <NodeOutcomeSummary outcome={preview.outcome} />
       {refused > 0 ? (
-        <Alert color="red" variant="light" title="This divert would be refused">
+        <Alert variant="default" title="This divert would be refused">
           {refused === preview.outcome.nodes.length
             ? 'Every node refuses it, for the reason under each node above. Edit it and preview again.'
             : 'Some nodes refuse it, for the reason under each node above. Creating it anyway applies it only where it is not refused.'}
         </Alert>
       ) : null}
-      <Alert variant="light" color="yellow" title="Before you create this">
+      <Alert variant="default" title="Before you create this">
         <Stack gap="sm">
           <Text size="xs">{DRIFT_SENTENCE}</Text>
           <BrokerXmlRemedy xml={preview.brokerXml} />
@@ -295,7 +296,7 @@ export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }
   return (
     <>
       <CapabilityGate verdict={gate}>
-        <Button size="xs" variant="light" disabled={gate.kind === 'blocked'} onClick={() => setOpen(true)}>
+        <Button size="xs" variant="default" disabled={gate.kind === 'blocked'} onClick={() => setOpen(true)}>
           Create divert
         </Button>
       </CapabilityGate>
@@ -330,9 +331,7 @@ export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }
           ) : null}
 
           {create.isError && create.error.fieldErrors.length === 0 ? (
-            <Alert color="red" variant="light" title={create.error.title}>
-              {create.error.message}
-            </Alert>
+            <ErrorState error={create.error} variant="inline" />
           ) : null}
 
           <CreateOutcome result={result} preview={preview} refused={refused.length} />
@@ -376,8 +375,7 @@ export function DeleteDivertAction({ clusterId, divert }: Readonly<{ clusterId: 
     <CapabilityGate verdict={gate}>
       <Button
         size="compact-xs"
-        variant="subtle"
-        color="red"
+        variant="default"
         disabled={gate.kind === 'blocked'}
         aria-label={`Delete divert ${divert.name}`}
         // Hosted outside the grid (ADR-0107), so a delete that removes this row keeps its outcome.
@@ -393,7 +391,8 @@ export function DeleteDivertAction({ clusterId, divert }: Readonly<{ clusterId: 
 
 /**
  * The delete itself: it opens on the preview of what each node would do, and is armed by typing the
- * divert's name.
+ * divert's name. Until a preview has been taken, and when it could not be, a plain dialog says so
+ * and offers no delete; once the delete has run, the same kind of dialog shows its per-node result.
  */
 export function DeleteDivertDialog({
   clusterId,
@@ -405,15 +404,19 @@ export function DeleteDivertDialog({
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
   const [previewFailed, setPreviewFailed] = useState<string | null>(null);
   const remove = useDeleteDivert(clusterId, divert.name);
+  const { mutate } = remove;
 
-  const takePreview = () => {
+  const takePreview = useCallback(() => {
     setPreview(null);
     setPreviewFailed(null);
-    remove.mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
-  };
+    mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
+  }, [mutate]);
+
+  useEffect(() => {
+    if (opened) takePreview();
+  }, [opened, takePreview]);
 
   const close = () => {
-    if (remove.isPending && preview) return;
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
@@ -421,51 +424,60 @@ export function DeleteDivertDialog({
     onClose();
   };
 
+  const title = `Delete divert "${divert.name}"`;
+  const effect = (
+    <Text size="sm">
+      {divert.exclusive
+        ? `Messages on ${divert.address} stop going to ${divert.forwardingAddress} and resume reaching their original destinations.`
+        : `${divert.forwardingAddress} stops receiving a copy of the messages on ${divert.address}. Traffic on ${divert.address} itself is unaffected.`}
+    </Text>
+  );
+
+  if (preview && !result) {
+    return (
+      <ConfirmDialog
+        opened={opened}
+        onClose={close}
+        title={title}
+        tone="danger"
+        typedName={divert.name}
+        confirmLabel="Delete on every live node"
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate({ dryRun: false }, { onSuccess: setResult })}
+        consequence={
+          <Stack gap="sm">
+            {effect}
+            <div aria-live="polite">
+              <NodeOutcomeSummary outcome={preview} />
+            </div>
+            {remove.isError ? <ErrorState error={remove.error} variant="inline" /> : null}
+          </Stack>
+        }
+      />
+    );
+  }
+
   return (
-    <Modal
-      opened={opened}
-      onClose={close}
-      onEnterTransitionEnd={takePreview}
-      title={`Delete divert "${divert.name}"`}
-      size="lg"
-    >
+    <Modal opened={opened} onClose={close} title={title} size="lg">
       <Stack gap="sm">
-        <Text size="sm">
-          {divert.exclusive
-            ? `Messages on ${divert.address} stop going to ${divert.forwardingAddress} and resume reaching their original destinations.`
-            : `${divert.forwardingAddress} stops receiving a copy of the messages on ${divert.address}. Traffic on ${divert.address} itself is unaffected.`}
-        </Text>
+        {effect}
 
         <div aria-live="polite">
-          {remove.isPending && !preview && !result ? (
+          {remove.isPending && !result ? (
             <Text size="sm" c="dimmed">
               Asking each node what the delete would do…
             </Text>
           ) : null}
           {previewFailed ? (
-            <Alert color="yellow" variant="light" title="The preview could not be taken" role="alert">
+            <Alert variant="default" title="The preview could not be taken" role="alert">
               {previewFailed} Nothing was deleted. Close this and try again once the nodes answer.
             </Alert>
           ) : null}
-          {remove.isError && !previewFailed ? (
-            <Alert color="red" variant="light" title={remove.error.title} role="alert">
-              {remove.error.message}
-            </Alert>
-          ) : null}
-          {result || preview ? <NodeOutcomeSummary outcome={(result ?? preview)!} /> : null}
+          {result ? <NodeOutcomeSummary outcome={result} /> : null}
         </div>
 
-        {preview && !result ? (
-          <ConfirmByTyping
-            token={divert.name}
-            confirmLabel="Delete on every live node"
-            loading={remove.isPending}
-            onConfirm={() => remove.mutate({ dryRun: false }, { onSuccess: setResult })}
-          />
-        ) : null}
-
         <Group justify="flex-end">
-          <Button size="xs" variant="subtle" onClick={close}>
+          <Button size="xs" variant={result ? 'filled' : 'default'} onClick={close}>
             {result ? 'Done' : 'Cancel'}
           </Button>
         </Group>

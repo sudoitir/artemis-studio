@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -139,5 +139,31 @@ describe('ResourceView', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Studio failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+});
+
+describe('ResourceView page structure', () => {
+  it.each([
+    ['addresses', 'Addresses'],
+    ['consumers', 'Consumers'],
+    ['sessions', 'Sessions'],
+    ['connections', 'Connections'],
+    ['producers', 'Producers'],
+  ] as const)('is one page whose single h1 names the %s', async (kind, title) => {
+    serve();
+    renderWithProviders(<ResourceView kind={kind} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('does not say there are no consumers while the first page is still loading', async () => {
+    serve();
+    server.use(http.get('*/api/v1/clusters/c1/consumers', async () => delay('infinite')));
+    renderWithProviders(<ResourceView kind="consumers" />);
+
+    await screen.findByRole('grid', { name: 'Consumers' });
+    expect(screen.queryByText(/^No consumers$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('No consumers right now')).not.toBeInTheDocument();
   });
 });

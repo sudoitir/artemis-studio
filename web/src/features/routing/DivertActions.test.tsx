@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -262,5 +262,49 @@ describe('deleting a divert', () => {
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+});
+
+describe('a divert delete that could not be previewed', () => {
+  it('offers no delete, and says nothing was deleted', async () => {
+    server.use(
+      clusterHandler(),
+      meHandler(),
+      http.delete('*/api/v1/clusters/c1/diverts/audit-copy', () =>
+        HttpResponse.json({ title: 'Preview failed', detail: 'node-a did not answer.' }, { status: 502 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DeleteDivertAction clusterId="c1" divert={DIVERT} />);
+
+    await user.click(await screen.findByRole('button', { name: /^Delete divert/ }));
+    const dialog = await screen.findByRole('dialog');
+
+    expect(await within(dialog).findByText('The preview could not be taken')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Nothing was deleted/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Delete on every live node' })).not.toBeInTheDocument();
+  });
+
+  it('shows the per-node result of a delete that ran, in a dialog of its own', async () => {
+    server.use(
+      clusterHandler(),
+      meHandler(),
+      http.delete('*/api/v1/clusters/c1/diverts/audit-copy', ({ request }) =>
+        HttpResponse.json(outcome(new URL(request.url).searchParams.get('dryRun') === 'true')),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DeleteDivertAction clusterId="c1" divert={DIVERT} />);
+
+    await user.click(await screen.findByRole('button', { name: /^Delete divert/ }));
+    await user.type(await screen.findByRole('textbox', { name: /audit-copy/ }), 'audit-copy');
+    const confirm = screen.getByRole('button', { name: 'Delete on every live node' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    expect(await screen.findByText('Applied to all 1 nodes')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete on every live node' })).not.toBeInTheDocument();
   });
 });

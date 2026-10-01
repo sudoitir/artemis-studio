@@ -26,6 +26,8 @@ import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { queueHref } from './queueHref.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { useQueue, useSetQueuePaused, type LifecycleOutcomeView, type QueueView } from './api.ts';
 import { EditQueueForm } from './EditQueueForm.tsx';
@@ -74,13 +76,9 @@ function WithQueue({
     <Modal opened={opened} onClose={onClose} title={target.queueName}>
       <Stack gap="sm" aria-live="polite">
         {isPending ? (
-          <Text size="sm">Looking the queue up…</Text>
+          <LoadingState label="Looking the queue up" blockSize="4rem" />
         ) : (
-          <Alert
-            color="yellow"
-            variant="light"
-            title={isError ? 'The queue could not be read' : 'The queue is not there'}
-          >
+          <Alert variant="default" title={isError ? 'The queue could not be read' : 'The queue is not there'}>
             {isError
               ? 'Studio could not read the queue list just now. Try again in a moment.'
               : `No queue named ${target.queueName} is on this cluster now. It may have been deleted since this view was loaded.`}
@@ -122,12 +120,7 @@ function PauseQueueDialog({
         </Text>
         <div aria-live="polite">
           {setPaused.isPending ? <Text size="sm">{paused ? 'Resuming' : 'Pausing'} on every live node…</Text> : null}
-          {setPaused.isError ? (
-            <Alert color="red" variant="light" title={setPaused.error.title} role="alert">
-              {setPaused.error.message} Nothing was changed where the request failed; try again, or check the node in
-              Topology.
-            </Alert>
-          ) : null}
+          {setPaused.isError ? <ErrorState error={setPaused.error} variant="inline" /> : null}
           {outcome ? <NodeOutcomeSummary outcome={outcome} /> : null}
         </div>
         <Group justify="flex-end">

@@ -148,7 +148,7 @@ export function AddressPicker({
         <Combobox.Dropdown className={styles.dropdown}>
           <div className={styles.filters}>
             <Chip.Group multiple value={types} onChange={(v) => setTypes(v as RoutingType[])}>
-              <Group gap={6} wrap="nowrap">
+              <Group gap="xs" wrap="nowrap">
                 <Text size="xs" c="dimmed" component="span" id={`${label ?? 'address'}-type-filter`}>
                   Type
                 </Text>

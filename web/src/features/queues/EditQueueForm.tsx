@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Group, Modal, NumberInput, Skeleton, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Group, Modal, NumberInput, Stack, Switch, Text, TextInput } from '@mantine/core';
 
 import {
   useQueueConfiguration,
@@ -9,8 +9,10 @@ import {
   type QueueView,
   type UpdateQueueRequest,
 } from './api.ts';
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
-import classes from './EditQueueForm.module.css';
 
 /**
  * The configuration the nodes agree on, or the first node's when they differ —
@@ -94,7 +96,7 @@ export function EditQueueForm({
     setRingSize(num(current['ring-size']));
     // Seeding is keyed by the values themselves, so an applied update reseeds the
     // form from what the broker now reports rather than from the operator's typing.
-  }, [configuration.dataUpdatedAt, configuration.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [configuration.dataUpdatedAt, current]);
 
   // Only what the operator actually changed is sent. The server reads the queue's
   // current configuration and merges this over it, because the broker's update
@@ -129,39 +131,34 @@ export function EditQueueForm({
       <Stack gap="md">
         {/* Immutable, not disabled — stated as facts about the queue rather than
             as inputs that happen to be switched off. */}
-        <dl className={classes.fixed}>
-          <div className={classes.row}>
-            <dt className={classes.term}>Address</dt>
-            <dd className={classes.value}>{queue.address}</dd>
-          </div>
-          <div className={classes.row}>
-            <dt className={classes.term}>Routing type</dt>
-            <dd className={classes.value}>{queue.routingType}</dd>
-          </div>
-          <div className={classes.row}>
-            <dt className={classes.term}>Durable</dt>
-            <dd className={classes.value}>{queue.durable ? 'yes' : 'no'}</dd>
-          </div>
-        </dl>
+        <DescriptionList
+          label="Fixed for the life of the queue"
+          items={[
+            { term: 'Address', value: queue.address },
+            { term: 'Routing type', value: queue.routingType },
+            { term: 'Durable', value: queue.durable ? 'yes' : 'no' },
+          ]}
+        />
         <Text size="xs" c="dimmed">
           These are fixed for the life of the queue — the broker refuses to change them on a queue that exists. To
           change one, delete this queue and create a new one.
         </Text>
 
         {configuration.isError ? (
-          <Alert color="yellow" variant="light" title="Could not read what this queue runs" role="alert">
-            {configuration.error.message} The fields below start empty; applying one writes it to every live node.
-          </Alert>
+          <>
+            <ErrorState error={configuration.error} variant="inline" onRetry={() => void configuration.refetch()} />
+            <Text size="sm">The fields below start empty; applying one writes it to every live node.</Text>
+          </>
         ) : null}
         {disagreeing.length > 0 ? (
-          <Alert color="yellow" variant="light" title="The nodes do not agree">
+          <Alert variant="default" title="The nodes do not agree">
             {disagreeing.join(', ')} {disagreeing.length === 1 ? 'runs' : 'run'} a different configuration from{' '}
             {seededFrom}. The fields below show {seededFrom}; applying writes them to every live node.
           </Alert>
         ) : null}
 
         {configuration.isPending ? (
-          <Skeleton height={180} />
+          <LoadingState label="Loading what this queue runs" blockSize="18rem" />
         ) : (
           <>
             <TextInput
@@ -201,11 +198,7 @@ export function EditQueueForm({
           </>
         )}
 
-        {update.isError ? (
-          <Alert color="red" variant="light" title={update.error.title} role="alert">
-            {update.error.message}
-          </Alert>
-        ) : null}
+        {update.isError ? <ErrorState error={update.error} variant="inline" /> : null}
 
         <div aria-live="polite">
           {preview ? <NodeOutcomeSummary outcome={preview} /> : null}

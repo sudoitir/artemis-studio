@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Group, Modal, Stack, Text } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
@@ -6,7 +6,8 @@ import { useDeleteQueue, useSetQueuePaused, type LifecycleOutcomeView, type Queu
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { appliedEverywhere } from '../../ui/nodeOutcome.ts';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { EditQueueForm } from './EditQueueForm.tsx';
@@ -34,6 +35,7 @@ export function QueueLifecycleActions({
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const deleteTrigger = useRef<HTMLButtonElement>(null);
   const [pauseOutcome, setPauseOutcome] = useState<LifecycleOutcomeView | null>(null);
 
   const setPaused = useSetQueuePaused(clusterId, queue.queueName);
@@ -60,7 +62,7 @@ export function QueueLifecycleActions({
         <CapabilityGate verdict={pauseGate}>
           <Button
             size="xs"
-            variant="light"
+            variant="default"
             disabled={pauseGate.kind === 'blocked'}
             loading={setPaused.isPending}
             onClick={() => setPaused.mutate({ paused: !paused }, { onSuccess: setPauseOutcome })}
@@ -70,16 +72,21 @@ export function QueueLifecycleActions({
         </CapabilityGate>
 
         <CapabilityGate verdict={updateGate}>
-          <Button size="xs" variant="light" disabled={updateGate.kind === 'blocked'} onClick={() => setEditOpen(true)}>
+          <Button
+            size="xs"
+            variant="default"
+            disabled={updateGate.kind === 'blocked'}
+            onClick={() => setEditOpen(true)}
+          >
             Edit
           </Button>
         </CapabilityGate>
 
         <CapabilityGate verdict={deleteGate}>
           <Button
+            ref={deleteTrigger}
             size="xs"
-            variant="light"
-            color="red"
+            variant="default"
             disabled={deleteGate.kind === 'blocked'}
             onClick={() => setDeleteOpen(true)}
           >
@@ -103,11 +110,7 @@ export function QueueLifecycleActions({
             {paused ? 'Paused' : 'Resumed'} on every live node. The listing says so once the next sweep reads it back.
           </Text>
         ) : null}
-        {setPaused.isError ? (
-          <Alert color="red" variant="light" title={setPaused.error.title} role="alert">
-            {setPaused.error.message}
-          </Alert>
-        ) : null}
+        {setPaused.isError ? <ErrorState error={setPaused.error} variant="inline" /> : null}
         {pauseOutcome ? <NodeOutcomeSummary outcome={pauseOutcome} /> : null}
       </div>
 
@@ -119,6 +122,7 @@ export function QueueLifecycleActions({
         opened={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onDeleted={onClose}
+        restoreFocus={() => deleteTrigger.current?.focus()}
       />
     </Stack>
   );
@@ -130,7 +134,9 @@ export function QueueLifecycleActions({
  * messages will be destroyed on each, and which diverts go with the queue.
  *
  * <p>Disconnecting consumers is the operator's explicit choice (ADR-0084). Changing
- * it takes the preview again, so what is confirmed is always what was previewed.
+ * it takes the preview again, so what is confirmed is always what was previewed. The result of
+ * the delete replaces the confirmation, per node, so a partial delete is read before the dialog is
+ * dismissed.
  */
 export function DeleteQueueDialog({
   clusterId,
@@ -138,35 +144,41 @@ export function DeleteQueueDialog({
   opened,
   onClose,
   onDeleted,
+  restoreFocus,
 }: Readonly<{
   clusterId: string;
   queue: QueueView;
   opened: boolean;
   onClose: () => void;
   onDeleted: () => void;
+  /** Where focus goes once the result is dismissed, when no host does it. */
+  restoreFocus?: () => void;
 }>) {
   const remove = useDeleteQueue(clusterId, queue.queueName);
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
   const [previewFailed, setPreviewFailed] = useState<string | null>(null);
   const [disconnectConsumers, setDisconnectConsumers] = useState(false);
+  const { mutate } = remove;
 
-  const takePreview = (disconnect: boolean) => {
-    setPreview(null);
-    setResult(null);
-    setPreviewFailed(null);
-    remove.mutate(
-      { dryRun: true, disconnectConsumers: disconnect },
-      {
-        onSuccess: setPreview,
-        onError: (e) => setPreviewFailed(e.message),
-      },
-    );
-  };
+  const takePreview = useCallback(
+    (disconnect: boolean) => {
+      setPreview(null);
+      setResult(null);
+      setPreviewFailed(null);
+      mutate(
+        { dryRun: true, disconnectConsumers: disconnect },
+        { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) },
+      );
+    },
+    [mutate],
+  );
 
   // The preview runs when the dialog opens, not on a second click: the operator
   // asked to delete, and the estimate is what they need in order to decide.
-  const onOpen = () => takePreview(disconnectConsumers);
+  useEffect(() => {
+    if (opened) takePreview(false);
+  }, [opened, takePreview]);
 
   const close = () => {
     setPreview(null);
@@ -182,95 +194,109 @@ export function DeleteQueueDialog({
   const overCap = preview?.overCap ?? false;
 
   return (
-    <Modal opened={opened} onClose={close} onEnterTransitionEnd={onOpen} title={`Delete ${queue.queueName}`} size="lg">
-      <Stack gap="md">
-        <Text size="sm">
-          This destroys the queue on every live node of the cluster, along with every message it holds. Nothing here can
-          be undone, and a queue recreated afterwards is a new, empty one.
-        </Text>
-        <Text size="sm">
-          A divert that forwards into this queue&apos;s address is removed with it when the delete leaves nothing bound
-          there — otherwise the divert would bring the queue back, or break its producers. Each node below names the
-          diverts it removes and the ones it keeps.
-        </Text>
-
-        <Checkbox
-          label="Disconnect this queue's consumers"
-          description={`${consumers.toLocaleString()} ${
-            consumers === 1 ? 'consumer was' : 'consumers were'
-          } attached at the last scrape. Without this, a node where the queue has consumers refuses the delete. A client that reconnects can create the queue again if auto-create is on.`}
-          checked={disconnectConsumers}
-          // Locked while any call is in flight: a new preview on the same mutation would drop
-          // the real delete's result, and the operator would never see what it did.
-          disabled={result !== null || remove.isPending}
-          onChange={(e) => {
-            const next = e.currentTarget.checked;
-            setDisconnectConsumers(next);
-            takePreview(next);
-          }}
-        />
-
-        <div aria-live="polite">
-          {remove.isPending && !preview ? (
-            <Text size="sm" c="dimmed">
-              Counting what would be destroyed…
+    <>
+      <ConfirmDialog
+        opened={opened && result === null}
+        onClose={close}
+        title={`Delete ${queue.queueName}`}
+        tone="danger"
+        typedName={queue.queueName}
+        confirmLabel={overCap ? 'Delete anyway, over the cap' : 'Delete this queue'}
+        // Also locked while the preview is being taken, so the typed name cannot arm a delete that
+        // has not been shown its blast radius.
+        pending={remove.isPending}
+        onConfirm={() =>
+          remove.mutate({ dryRun: false, override: overCap, disconnectConsumers }, { onSuccess: setResult })
+        }
+        consequence={
+          <Stack gap="md">
+            <Text size="sm">
+              This destroys the queue on every live node of the cluster, along with every message it holds. Nothing here
+              can be undone, and a queue recreated afterwards is a new, empty one.
             </Text>
-          ) : null}
+            <Text size="sm">
+              A divert that forwards into this queue&apos;s address is removed with it when the delete leaves nothing
+              bound there — otherwise the divert would bring the queue back, or break its producers. Each node below
+              names the diverts it removes and the ones it keeps.
+            </Text>
 
-          {/* An unavailable estimate is stated, never omitted — an absent number
-              reads as zero, which is exactly the wrong thing to infer here. */}
-          {previewFailed ? (
-            <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
-              {previewFailed} The delete can still proceed, but Studio cannot tell you how many messages it would
-              destroy.
-            </Alert>
-          ) : null}
+            <Checkbox
+              label="Disconnect this queue's consumers"
+              description={`${consumers.toLocaleString()} ${
+                consumers === 1 ? 'consumer was' : 'consumers were'
+              } attached at the last scrape. Without this, a node where the queue has consumers refuses the delete. A client that reconnects can create the queue again if auto-create is on.`}
+              checked={disconnectConsumers}
+              // Locked while any call is in flight: a new preview on the same mutation would drop
+              // the real delete's result, and the operator would never see what it did.
+              disabled={remove.isPending}
+              onChange={(e) => {
+                const next = e.currentTarget.checked;
+                setDisconnectConsumers(next);
+                takePreview(next);
+              }}
+            />
 
-          {preview ? <NodeOutcomeSummary outcome={preview} destructive /> : null}
-          {result ? <NodeOutcomeSummary outcome={result} destructive /> : null}
-        </div>
+            <div aria-live="polite">
+              {remove.isPending && !preview ? (
+                <Text size="sm" c="dimmed">
+                  Counting what would be destroyed…
+                </Text>
+              ) : null}
 
-        {overCap && preview ? (
-          <Alert color="yellow" variant="light" title="Over the safety cap">
-            This would destroy {preview.totalAffected.toLocaleString()} messages, over the cap of{' '}
-            {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override is
-            recorded in the audit log.
-          </Alert>
-        ) : null}
+              {/* An unavailable estimate is stated, never omitted — an absent number
+                  reads as zero, which is exactly the wrong thing to infer here. */}
+              {previewFailed ? (
+                <Alert variant="default" title="The estimate could not be taken" role="alert">
+                  {previewFailed} The delete can still proceed, but Studio cannot tell you how many messages it would
+                  destroy.
+                </Alert>
+              ) : null}
 
-        {remove.isError && !previewFailed ? (
-          <Alert color="red" variant="light" title={remove.error.title} role="alert">
-            {remove.error.message}
-          </Alert>
-        ) : null}
+              {preview ? <NodeOutcomeSummary outcome={preview} destructive /> : null}
+            </div>
 
-        {result ? (
+            {overCap && preview ? (
+              <Alert variant="default" title="Over the safety cap">
+                This would destroy {preview.totalAffected.toLocaleString()} messages, over the cap of{' '}
+                {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override is
+                recorded in the audit log.
+              </Alert>
+            ) : null}
+
+            {remove.isError && !previewFailed ? <ErrorState error={remove.error} variant="inline" /> : null}
+          </Stack>
+        }
+      />
+
+      <Modal
+        opened={opened && result !== null}
+        onClose={close}
+        // The confirmation that opened this one has already handed focus back; without a host to
+        // restore it, the opener is focused once this is gone.
+        returnFocus={restoreFocus === undefined}
+        onExitTransitionEnd={restoreFocus}
+        title={`Result of deleting ${queue.queueName}`}
+        size="lg"
+      >
+        <Stack gap="md">
+          <div aria-live="polite">{result ? <NodeOutcomeSummary outcome={result} destructive /> : null}</div>
           <Group justify="flex-end">
             <Button
               size="xs"
               onClick={() => {
+                const done = result !== null && appliedEverywhere(result);
                 close();
                 // The queue view behind this dialog is dismissed only when the queue is
                 // really gone, which is a positive check on every node: a run that failed
                 // everywhere, or reached no live node at all, is not partial either.
-                if (appliedEverywhere(result)) onDeleted();
+                if (done) onDeleted();
               }}
             >
               Close
             </Button>
           </Group>
-        ) : (
-          <ConfirmByTyping
-            token={queue.queueName}
-            confirmLabel={overCap ? 'Delete anyway, over the cap' : 'Delete this queue'}
-            loading={remove.isPending && preview !== null}
-            disabled={remove.isPending}
-            onConfirm={() =>
-              remove.mutate({ dryRun: false, override: overCap, disconnectConsumers }, { onSuccess: setResult })
-            }
-          />
-        )}
-      </Stack>
-    </Modal>
+        </Stack>
+      </Modal>
+    </>
   );
 }

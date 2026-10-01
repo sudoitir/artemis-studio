@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -421,5 +421,43 @@ describe('QueuesView creating a queue', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Why creating a queue is unavailable' }));
     expect(await screen.findByText('Management is read-only on this broker.')).toBeInTheDocument();
+  });
+});
+
+describe('QueuesView page structure', () => {
+  it('is one page with a single h1 naming the view', async () => {
+    search = {};
+    serve({ queues: [queue('a')] });
+    renderWithProviders(<QueuesView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Queues' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('does not say there are no queues while the first page is still loading', async () => {
+    search = {};
+    serve();
+    server.use(http.get('*/api/v1/clusters/c1/queues', async () => delay('infinite')));
+    renderWithProviders(<QueuesView />);
+
+    await screen.findByRole('grid', { name: 'Queues' });
+    expect(screen.queryByText(/^No queues$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('No queues yet')).not.toBeInTheDocument();
+  });
+
+  it('never nests a button inside another, when creating is not allowed and the selection bar is shown', async () => {
+    search = {};
+    serve({ queues: [queue('a')], permissions: ['queue:read'] });
+    const { container } = renderWithProviders(<QueuesView />);
+
+    await screen.findByRole('button', { name: 'Why creating a queue is unavailable' });
+    expect(container.querySelector('button button')).toBeNull();
+    const bar = screen.getByRole('region', { name: 'Selected queues' });
+    // The bulk actions the selection bar hosts are gated too, and each explains itself from beside its button.
+    expect(
+      await within(bar).findByRole('button', { name: /why pausing these queues is unavailable/i }),
+    ).toBeInTheDocument();
+    expect(bar.closest('button')).toBeNull();
+    expect(bar.querySelector('button button')).toBeNull();
   });
 });

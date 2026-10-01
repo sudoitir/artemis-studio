@@ -1,19 +1,8 @@
 import { useRef, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Collapse,
-  Group,
-  Modal,
-  NumberInput,
-  Radio,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Button, Collapse, Group, Modal, NumberInput, Radio, Stack, Switch, Text, TextInput } from '@mantine/core';
 
 import { useCreateQueue, type CreateQueueRequest, type LifecycleOutcomeView } from './api.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { AddressPicker } from './AddressPicker.tsx';
 
@@ -229,11 +218,7 @@ export function CreateQueueForm({
           </Collapse>
         </div>
 
-        {create.isError ? (
-          <Alert color="red" variant="light" title={create.error.title} role="alert">
-            {create.error.message}
-          </Alert>
-        ) : null}
+        {create.isError ? <ErrorState error={create.error} variant="inline" /> : null}
 
         {/* Preview and result share one live region, so a screen reader is told
             the outcome rather than only the sighted operator seeing it. */}

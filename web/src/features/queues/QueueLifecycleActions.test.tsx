@@ -253,7 +253,8 @@ describe('the destructive flow is keyboard-complete', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toHaveFocus();
     await user.keyboard('{Enter}');
 
-    expect(await within(dialog).findByText('applied')).toBeInTheDocument();
+    const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
+    expect(await within(result).findByText('applied')).toBeInTheDocument();
     expect(urls.at(-1)).toContain('dryRun=false');
     expect(urls.at(-1)).toContain('disconnectConsumers=true');
 
@@ -307,8 +308,9 @@ describe('the destructive flow is keyboard-complete', () => {
     await user.click(disconnect);
 
     release();
-    expect(await within(dialog).findByText('applied')).toBeInTheDocument();
-    expect(within(dialog).getByText('destroyed 12 messages')).toBeInTheDocument();
+    const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
+    expect(await within(result).findByText('applied')).toBeInTheDocument();
+    expect(within(result).getByText('destroyed 12 messages')).toBeInTheDocument();
   });
 });
 
@@ -350,8 +352,9 @@ describe('a delete that failed everywhere', () => {
     await user.type(within(dialog).getByRole('textbox'), 'orders');
     await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
 
-    expect(await within(dialog).findByText('Failed on every node')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
+    expect(await within(result).findByText('Failed on every node')).toBeInTheDocument();
+    await user.click(within(result).getByRole('button', { name: 'Close' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onClose).not.toHaveBeenCalled();
@@ -396,8 +399,9 @@ describe('a delete no node was live for', () => {
     await user.type(within(dialog).getByRole('textbox'), 'orders');
     await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
 
-    expect(await within(dialog).findByText('No node was live, so nothing was applied')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
+    expect(await within(result).findByText('No node was live, so nothing was applied')).toBeInTheDocument();
+    await user.click(within(result).getByRole('button', { name: 'Close' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onClose).not.toHaveBeenCalled();
@@ -460,5 +464,68 @@ describe('the edit form', () => {
     expect(patched).toHaveBeenCalledTimes(1);
     expect(patched.mock.calls[0][0]).toMatchObject({ maxConsumers: 4 });
     expect((patched.mock.calls[0][0] as Record<string, unknown>).ringSize).toBeUndefined();
+  });
+});
+
+describe('a pause the broker refused', () => {
+  it('states the cause and the next step, and the control is usable again', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.post('*/api/v1/clusters/c1/queues/orders/pause', () =>
+        HttpResponse.json({ title: 'Pause failed', detail: 'node-a did not answer.' }, { status: 502 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    const pause = await screen.findByRole('button', { name: 'Pause' });
+    await user.click(pause);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('node-a did not answer.');
+    expect(alert).toHaveTextContent('Retry.');
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
+  });
+});
+
+describe('the delete result', () => {
+  it('replaces the confirmation with a dialog of its own, and hands focus back to the Delete button', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(AVAILABLE),
+      http.delete('*/api/v1/clusters/c1/queues/orders', ({ request }) => {
+        const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+        return HttpResponse.json({
+          dryRun,
+          cap: 1000,
+          overCap: false,
+          partial: true,
+          totalAffected: 12,
+          nodes: [
+            { nodeId: 'a', nodeName: 'node-a', status: dryRun ? 'WOULD_APPLY' : 'APPLIED', affected: 12, error: null },
+            { nodeId: 'b', nodeName: 'node-b', status: 'FAILED', affected: null, error: 'node-b refused' },
+          ],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    const trigger = await screen.findByRole('button', { name: 'Delete queue' });
+    await user.click(trigger);
+    const confirmation = await screen.findByRole('dialog', { name: 'Delete orders' });
+    await user.type(await within(confirmation).findByRole('textbox'), 'orders');
+    await user.click(within(confirmation).getByRole('button', { name: 'Delete this queue' }));
+
+    // Partial is read per node, in a dialog that is not the one that armed the delete.
+    const result = await screen.findByRole('dialog', { name: 'Result of deleting orders' });
+    expect(within(result).getByText('Applied to some nodes and not others')).toBeInTheDocument();
+    expect(within(result).getByText('node-b refused')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+
+    await user.click(within(result).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });

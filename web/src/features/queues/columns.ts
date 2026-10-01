@@ -1,5 +1,10 @@
+import { createElement } from 'react';
+
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { Column } from '../../ui/table/index.ts';
 import type { QueueView } from './api.ts';
+
+type NodeCell = QueueView['perNode'][number];
 
 /** The state cell: blank while running, so a healthy grid stays quiet. */
 export function pausedLabel(r: QueueView): string {
@@ -104,6 +109,29 @@ export function queueColumns(): Column<QueueView>[] {
       accessor: (r) => `${r.nodesPresent}/${r.nodesTotal}`,
       kind: 'number',
       priority: 'high',
+    },
+  ];
+}
+
+/**
+ * The per-node breakdown of one queue, in the drawer. The node is never hidden; a node whose figures
+ * are from an older scrape says so in words, in a column of its own.
+ */
+export function queueNodeColumns(): Column<NodeCell>[] {
+  return [
+    { id: 'node', header: 'Node', accessor: (n) => n.nodeName, kind: 'identifier', priority: 'essential' },
+    { id: 'depth', header: 'Depth', accessor: (n) => n.messageCount, kind: 'number', priority: 'high' },
+    { id: 'consumers', header: 'Consumers', accessor: (n) => n.consumerCount, kind: 'number', priority: 'high' },
+    { id: 'delivering', header: 'Delivering', accessor: (n) => n.deliveringCount, kind: 'number', priority: 'high' },
+    { id: 'scheduled', header: 'Scheduled', accessor: (n) => n.scheduledCount, kind: 'number', priority: 'high' },
+    {
+      id: 'freshness',
+      header: 'Figures',
+      accessor: (n) => (n.stale ? 'stale' : 'current'),
+      cell: (n) => (n.stale ? createElement(StatusBadge, { tone: 'warning', children: 'stale' }) : 'current'),
+      kind: 'status',
+      priority: 'high',
+      badge: true,
     },
   ];
 }
