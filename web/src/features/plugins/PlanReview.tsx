@@ -5,7 +5,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { Section as PageSection } from '../../ui/Section.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PluginPlanView, PluginViolationView } from './api.ts';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import styles from './Plugins.module.css';
 import { acknowledgementReasons, count, downtime, TRUST_LABEL } from './words.ts';
 
@@ -310,7 +310,7 @@ export function PlanReview({
       </Stack>
 
       {plan.missingRequires.length > 0 ? (
-        <Notice title="It cannot be activated yet" tone="danger" alert>
+        <Notice title="It cannot be activated yet" tone="danger">
           It requires {plan.missingRequires.join(', ')}, which {plan.missingRequires.length === 1 ? 'is' : 'are'} not
           active. Install or enable {plan.missingRequires.length === 1 ? 'it' : 'them'} first.
         </Notice>

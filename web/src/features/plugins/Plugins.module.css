@@ -59,34 +59,6 @@
   min-inline-size: 0;
 }
 
-/* A fact the operator must read, in a titled block. The badge says its tone in words; the edge only repeats it. */
-.notice {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--mantine-spacing-xs);
-  min-inline-size: 0;
-  padding-block: var(--mantine-spacing-sm);
-  padding-inline: var(--mantine-spacing-md);
-  border: 1px solid var(--as-border);
-  border-inline-start: 0.25rem solid var(--as-border-strong);
-  border-radius: var(--mantine-radius-md);
-  background: var(--as-surface-raised);
-}
-
-.notice[data-tone='warning'] {
-  border-inline-start-color: var(--as-warning);
-}
-
-.notice[data-tone='danger'] {
-  border-inline-start-color: var(--as-danger);
-}
-
-.noticeBody {
-  min-inline-size: 0;
-  max-inline-size: 100%;
-}
-
 /* A row of controls that wraps by width. */
 .controls {
   display: flex;
@@ -128,14 +100,6 @@
 
 .violations li + li {
   margin-block-start: 0.25rem;
-}
-
-/* A field and the button that submits it, on one baseline, wrapping by width. */
-.formRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--mantine-spacing-xs);
 }
 
 /* A spinner and the words saying what it is doing, on one line. */

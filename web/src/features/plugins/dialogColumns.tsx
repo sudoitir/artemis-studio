@@ -20,7 +20,6 @@ export function installerColumns(deps: {
       accessor: (i) => i.username,
       kind: 'identifier',
       priority: 'essential',
-      wrap: true,
     },
     { id: 'added', header: 'Added', accessor: (i) => absoluteLabel(i.grantedAt), kind: 'time', priority: 'high' },
     {
@@ -29,7 +28,6 @@ export function installerColumns(deps: {
       accessor: (i) => i.grantedBy ?? '—',
       kind: 'identifier',
       priority: 'high',
-      wrap: true,
     },
     {
       id: 'remove',

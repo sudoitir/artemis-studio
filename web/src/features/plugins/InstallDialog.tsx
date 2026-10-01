@@ -18,7 +18,8 @@ import {
   type PluginViolationView,
 } from './api.ts';
 import { ActivationProgress, type Outcome } from './ActivationProgress.tsx';
-import { Notice, Refusal } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
+import { Refusal } from './Refusal.tsx';
 import { Acknowledgement, PlanReview } from './PlanReview.tsx';
 import styles from './Plugins.module.css';
 import { TrustKeyDialog } from './TrustKeyDialog.tsx';
@@ -81,7 +82,7 @@ function InspectStep({
         </>
       ) : null}
       {violations.length > 0 ? (
-        <Notice title="This jar cannot be installed" tone="danger" alert>
+        <Notice title="This jar cannot be installed" tone="danger">
           <Stack gap="xs">
             <List size="sm" spacing={4}>
               {violations.map((v) => (

@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Button, Modal, Stack, Switch, Text, TextInput, Textarea } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { DataTable } from '../../ui/table/index.ts';
 import { useAddKey, useRemoveKey, useTrustedKeys, useTrustPolicy, type TrustedKeyView } from './api.ts';
 import { ConfirmAction } from './ConfirmAction.tsx';
 import { keyColumns } from './dialogColumns.tsx';
-import { Refusal } from './Notice.tsx';
+import { Refusal } from './Refusal.tsx';
 import styles from './Plugins.module.css';
 
 const TRUST: ActionVerb = { verb: 'Trust', past: 'Trusted', progressive: 'Trusting' };
@@ -27,9 +29,14 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
   const add = useAddKey();
   const remove = useRemoveKey();
   const policy = useTrustPolicy();
-  const [name, setName] = useState('');
-  const [pem, setPem] = useState('');
-  const [invalid, setInvalid] = useState<{ name?: string; pem?: string }>({});
+  const form = useForm({
+    initialValues: { name: '', pem: '' },
+    validateInputOnBlur: true,
+    validate: {
+      name: (v) => (v.trim() ? null : 'Give the key a name, such as the publisher.'),
+      pem: (v) => (v.trim() ? null : 'Paste a certificate or public key in PEM form.'),
+    },
+  });
   const [removing, setRemoving] = useState<TrustedKeyView | null>(null);
 
   const data = trusted.data;
@@ -50,24 +57,17 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
     [data?.signedPlugins, remove],
   );
 
-  const submit = () => {
-    const problems = {
-      name: name.trim() ? undefined : 'Give the key a name, such as the publisher.',
-      pem: pem.trim() ? undefined : 'Paste a certificate or public key in PEM form.',
-    };
-    setInvalid(problems);
-    if (problems.name || problems.pem) return;
+  const submit = form.onSubmit(({ name, pem }) => {
     add.mutate(
       { name: name.trim(), pem: pem.trim() },
       {
         onSuccess: (key) => {
           notify.succeeded({ action: TRUST, subject: `key ${key.name}` });
-          setName('');
-          setPem('');
+          form.reset();
         },
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <Modal
@@ -105,30 +105,19 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
           }
         />
         {refused ? <Refusal error={error} /> : null}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
+        <form noValidate onSubmit={submit}>
           <Stack gap="xs">
             <TextInput
               label="Key name"
               description="How it is listed here, such as the publisher"
-              value={name}
-              onChange={(e) => setName(e.currentTarget.value)}
-              onBlur={() => setInvalid((p) => ({ ...p, name: name.trim() ? undefined : 'Give the key a name.' }))}
-              error={invalid.name}
+              {...form.getInputProps('name')}
               autoComplete="off"
               className={styles.field}
             />
             <Textarea
               label="Certificate or public key (PEM)"
               description="The publisher's certificate, exported with keytool -exportcert -rfc, or their public key"
-              value={pem}
-              onChange={(e) => setPem(e.currentTarget.value)}
-              onBlur={() => setInvalid((p) => ({ ...p, pem: pem.trim() ? undefined : 'Paste a certificate or key.' }))}
-              error={invalid.pem}
+              {...form.getInputProps('pem')}
               autosize
               minRows={4}
               maxRows={10}

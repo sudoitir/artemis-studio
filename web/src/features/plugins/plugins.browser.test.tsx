@@ -8,7 +8,7 @@ import { DataTable } from '../../ui/table/index.ts';
 import type { AuditEventView, PluginInstallerView, TrustedKeyView } from './api.ts';
 import { installerColumns, keyColumns } from './dialogColumns.tsx';
 import { dataColumns, historyColumns } from './drawerColumns.tsx';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { PluginsIntro } from './PluginsPanel.tsx';
 
 /**
@@ -138,10 +138,12 @@ describe.each(SCHEMES)('plugin parts in the %s scheme', (scheme) => {
         <Notice title="Studio needs a restart" tone="warning">
           Notes starts after a restart.
         </Notice>
-        <Notice title="It cannot be activated yet" tone="danger" alert>
+        <Notice title="It cannot be activated yet" tone="danger">
           It requires acme-core, which is not active.
         </Notice>
-        <Notice title="Studio is restarting">This page reconnects by itself.</Notice>
+        <Notice title="Studio is restarting" tone="info">
+          This page reconnects by itself.
+        </Notice>
       </Frame>,
       scheme,
     );

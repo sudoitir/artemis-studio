@@ -16,7 +16,7 @@ const rowsText = (t: PurgeTable) => (t.estimatedRows < 0 ? 'not yet counted' : t
 /** The tables a plugin keeps: their name, and their size as table statistics estimate it. */
 export function dataColumns(): Column<PurgeTable>[] {
   return [
-    { id: 'table', header: 'Table', accessor: (t) => t.name, kind: 'identifier', priority: 'essential', wrap: true },
+    { id: 'table', header: 'Table', accessor: (t) => t.name, kind: 'identifier', priority: 'essential' },
     {
       id: 'rows',
       header: 'Rows (about)',

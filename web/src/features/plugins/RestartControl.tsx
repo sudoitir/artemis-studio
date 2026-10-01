@@ -6,7 +6,7 @@ import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useRestartStudio, type StudioRestartView } from './api.ts';
 import { ConfirmAction } from './ConfirmAction.tsx';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import styles from './Plugins.module.css';
 
 const REQUEST: ActionVerb = { verb: 'Restart', past: 'Requested', progressive: 'Requesting' };
@@ -31,7 +31,7 @@ export function RestartControl({
 
   if (restart.restarting) {
     return (
-      <Notice title="Studio is restarting">
+      <Notice title="Studio is restarting" tone="info">
         This page reconnects by itself; everyone is disconnected until Studio is back, usually under a minute.
       </Notice>
     );

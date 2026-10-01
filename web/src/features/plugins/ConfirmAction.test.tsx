@@ -51,15 +51,15 @@ describe('ConfirmAction', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the button live, and says nothing was sent, when pressed before the sign-in is confirmed', async () => {
+  it('disables the button, and says why, until the sign-in is confirmed', async () => {
     server.use(me(STALE));
     const { user, onConfirm } = open();
 
     const confirm = await screen.findByRole('button', { name: 'Disable Notes' });
-    expect(confirm).toBeEnabled();
+    expect(confirm).toBeDisabled();
+    expect(confirm).toHaveAccessibleDescription('Confirm it is you above first.');
     await user.click(confirm);
 
-    expect(await screen.findByText(/Confirm it is you above first; nothing was sent\./)).toBeInTheDocument();
     expect(onConfirm).not.toHaveBeenCalled();
   });
 

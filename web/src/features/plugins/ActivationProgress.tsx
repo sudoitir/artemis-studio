@@ -4,7 +4,7 @@ import { IconCheck } from '@tabler/icons-react';
 
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import type { PluginPlanView } from './api.ts';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import styles from './Plugins.module.css';
 import { usePlugins } from './api.ts';
 import { STEPS } from './words.ts';
@@ -56,7 +56,7 @@ function OutcomeNote({
   }
   if (outcome === 'succeeded') {
     return (
-      <Notice title={`${title} ${plan.toVersion} is active`}>
+      <Notice title={`${title} ${plan.toVersion} is active`} tone="info">
         <Stack gap="xs">
           {plan.info.contributions.ui ? (
             <>
@@ -74,7 +74,7 @@ function OutcomeNote({
   }
   if (outcome === 'failed') {
     return (
-      <Notice title={`${title} ${plan.toVersion} did not start`} tone="danger" alert>
+      <Notice title={`${title} ${plan.toVersion} did not start`} tone="danger">
         <Stack gap="xs">
           <Text size="sm">{failure ?? 'The server gave no reason.'}</Text>
           {plan.fromVersion && plan.activationClass === 'INSTANT' ? (
@@ -87,7 +87,7 @@ function OutcomeNote({
   }
   if (restart?.supervised || serverDown) {
     return (
-      <Notice title="Studio is restarting">
+      <Notice title="Studio is restarting" tone="info">
         <div className={styles.progressLine}>
           <LoadingState variant="inline" label="Waiting for Studio to come back" />
           <Text size="sm">

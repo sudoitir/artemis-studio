@@ -13,7 +13,7 @@ import { useCheckUpdates, usePlugins, type PluginUpdateView, type PluginView } f
 import { pluginColumns } from './columns.ts';
 import { InstallDialog, type Source } from './InstallDialog.tsx';
 import { InstallersDialog } from './InstallersDialog.tsx';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { TrustedKeysDialog } from './TrustedKeysDialog.tsx';
 import { PluginDrawer } from './PluginDrawer.tsx';
 import styles from './Plugins.module.css';

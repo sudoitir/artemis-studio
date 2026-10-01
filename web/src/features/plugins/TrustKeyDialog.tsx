@@ -1,7 +1,8 @@
-import { useState } from 'react';
 import { Checkbox, Code, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ConfirmAction } from './ConfirmAction.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useAddKey, type PluginTrustView } from './api.ts';
 import styles from './Plugins.module.css';
@@ -29,30 +30,28 @@ export function TrustKeyDialog({
   onTrusted: () => void;
 }>) {
   const add = useAddKey();
-  const [name, setName] = useState('');
-  const [compared, setCompared] = useState(false);
-  const [invalid, setInvalid] = useState<{ name?: string; compared?: string }>({});
+  const form = useForm({
+    initialValues: { name: '', compared: false },
+    validateInputOnBlur: true,
+    validate: {
+      name: (v) => (v.trim() ? null : 'Give the key a name, such as the publisher.'),
+      compared: (v) => (v ? null : 'Confirm you compared the fingerprint.'),
+    },
+  });
 
-  const submit = () => {
-    const problems = {
-      name: name.trim() ? undefined : 'Give the key a name, such as the publisher.',
-      compared: compared ? undefined : 'Confirm you compared the fingerprint.',
-    };
-    setInvalid(problems);
-    if (problems.name || problems.compared) return;
+  const submit = form.onSubmit(({ name }) => {
     add.mutate(
       { name: name.trim(), upload: sha256 },
       {
         onSuccess: () => {
           notify.succeeded({ action: TRUST, subject: `the key of ${trust.subject ?? 'this publisher'}` });
-          setName('');
-          setCompared(false);
+          form.reset();
           onTrusted();
           onClose();
         },
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <ConfirmAction
@@ -63,7 +62,7 @@ export function TrustKeyDialog({
       pending={add.isPending}
       error={add.error}
       returnTo={returnTo}
-      onConfirm={submit}
+      onConfirm={() => submit()}
     >
       <Stack gap="sm">
         <Text size="sm">
@@ -78,18 +77,13 @@ export function TrustKeyDialog({
         <TextInput
           label="Key name"
           description="How it is listed under Trusted keys"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          onBlur={() => setInvalid((p) => ({ ...p, name: name.trim() ? undefined : 'Give the key a name.' }))}
-          error={invalid.name}
+          {...form.getInputProps('name')}
           data-autofocus
           autoComplete="off"
         />
         <Checkbox
-          checked={compared}
-          onChange={(e) => setCompared(e.currentTarget.checked)}
+          {...form.getInputProps('compared', { type: 'checkbox' })}
           label="I compared this fingerprint with the one the publisher publishes"
-          error={invalid.compared}
         />
       </Stack>
     </ConfirmAction>

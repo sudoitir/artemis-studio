@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Button, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { DataTable } from '../../ui/table/index.ts';
 import { useGrantInstaller, useInstallers, useRevokeInstaller } from './api.ts';
 import { installerColumns } from './dialogColumns.tsx';
-import { Refusal } from './Notice.tsx';
+import { Refusal } from './Refusal.tsx';
 import styles from './Plugins.module.css';
 
 const ADD: ActionVerb = { verb: 'Add', past: 'Added', progressive: 'Adding' };
@@ -25,8 +28,11 @@ export function InstallersDialog({ opened, onClose }: Readonly<{ opened: boolean
   const installers = useInstallers(opened);
   const grant = useGrantInstaller();
   const revoke = useRevokeInstaller();
-  const [username, setUsername] = useState('');
-  const [empty, setEmpty] = useState(false);
+  const form = useForm({
+    initialValues: { username: '' },
+    validateInputOnBlur: true,
+    validate: { username: (v) => (v.trim() ? null : 'Enter a username.') },
+  });
   const error = grant.error ?? revoke.error;
   const stale = needsReauthentication(error);
   const only = (installers.data ?? []).length <= 1;
@@ -88,37 +94,27 @@ export function InstallersDialog({ opened, onClose }: Readonly<{ opened: boolean
         {error && !stale ? <Refusal error={error} /> : null}
         <form
           noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!username.trim()) {
-              setEmpty(true);
-              return;
-            }
+          onSubmit={form.onSubmit(({ username }) => {
             const name = username.trim();
             grant.mutate(name, {
               onSuccess: () => {
-                setUsername('');
+                form.reset();
                 notify.succeeded({ action: ADD, subject: `installer ${name}` });
               },
             });
-          }}
+          }, focusFirstInvalid(form.getInputNode))}
         >
-          <div className={styles.formRow}>
+          <FieldRow>
             <TextInput
               label="Add an installer"
               description="Their Studio username"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.currentTarget.value);
-                setEmpty(false);
-              }}
-              error={empty ? 'Enter a username.' : undefined}
+              {...form.getInputProps('username')}
               className={styles.field}
             />
             <Button type="submit" loading={grant.isPending}>
               Add
             </Button>
-          </div>
+          </FieldRow>
         </form>
       </Stack>
     </Modal>
