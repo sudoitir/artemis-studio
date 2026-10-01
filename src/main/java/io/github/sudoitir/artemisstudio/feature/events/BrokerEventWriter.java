@@ -1,24 +1,32 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEventSink;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -49,8 +57,7 @@ public class BrokerEventWriter implements BrokerEventSink {
     private final ObjectMapper mapper;
     private final ObjectProvider<BrokerEventPublisher> publisher;
 
-    /** This bean through its proxy, so the shutdown drain's flushes are transactional. */
-    private final ObjectProvider<BrokerEventWriter> self;
+    private final TransactionTemplate transaction;
 
     private final LinkedBlockingDeque<BrokerEvent> buffer = new LinkedBlockingDeque<>();
     private final Map<UUID, AtomicLong> dropped = new ConcurrentHashMap<>();
@@ -60,12 +67,12 @@ public class BrokerEventWriter implements BrokerEventSink {
             NamedParameterJdbcTemplate jdbc,
             ObjectMapper mapper,
             ObjectProvider<BrokerEventPublisher> publisher,
-            ObjectProvider<BrokerEventWriter> self,
+            PlatformTransactionManager transactions,
             EventsProperties properties) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.publisher = publisher;
-        this.self = self;
+        this.transaction = new TransactionTemplate(transactions);
         this.capacity = Math.max(1, properties.bufferSize());
     }
 
@@ -87,6 +94,14 @@ public class BrokerEventWriter implements BrokerEventSink {
         buffer.add(event);
     }
 
+    /** A cluster was deleted on any replica, once its transaction committed: its buffered events can no longer be stored. */
+    @EventListener(condition = "#signal.kind() == 'cluster-deleted'")
+    void onClusterDeleted(ReplicaSignal signal) {
+        UUID clusterId = UUID.fromString(signal.key());
+        buffer.removeIf(event -> event.clusterId().equals(clusterId));
+        dropped.remove(clusterId);
+    }
+
     public long droppedFor(UUID clusterId) {
         AtomicLong count = dropped.get(clusterId);
         return count == null ? 0 : count.get();
@@ -96,9 +111,10 @@ public class BrokerEventWriter implements BrokerEventSink {
      * Scheduled by {@code JobScheduler} on the settings-driven flush interval, and run once
      * more at shutdown. A batch whose insert fails is put back at the head of the buffer,
      * in order, and the failure is rethrown so the job reports it: a database outage delays
-     * events rather than discarding the batch that happened to be in flight.
+     * events rather than discarding the batch that happened to be in flight. A batch the
+     * database rejects for a cluster or node that no longer exists is the exception: those
+     * events can never be stored, so they are dropped and counted and the rest goes on.
      */
-    @Transactional
     public void flush() {
         List<BrokerEvent> batch = new ArrayList<>(BATCH_MAX);
         buffer.drainTo(batch, BATCH_MAX);
@@ -106,7 +122,9 @@ public class BrokerEventWriter implements BrokerEventSink {
             return;
         }
         try {
-            write(batch);
+            transaction.executeWithoutResult(status -> write(batch));
+        } catch (DataIntegrityViolationException e) {
+            dropOrphans(batch);
         } catch (RuntimeException e) {
             requeue(batch);
             throw e;
@@ -121,11 +139,43 @@ public class BrokerEventWriter implements BrokerEventSink {
     public void drain() {
         try {
             while (!buffer.isEmpty()) {
-                self.getObject().flush();
+                flush();
             }
         } catch (RuntimeException e) {
             log.warn("{} broker event(s) could not be written before shutdown: {}", buffer.size(), e.getMessage());
         }
+    }
+
+    /**
+     * The insert was rolled back on a foreign key: count the events whose cluster or node is gone
+     * as dropped and put the rest back. A rejection with no orphan to blame would repeat for
+     * ever, so then the whole batch is dropped.
+     */
+    private void dropOrphans(List<BrokerEvent> batch) {
+        Set<UUID> clusters = existing("cluster", batch.stream().map(BrokerEvent::clusterId));
+        Set<UUID> nodes = existing("broker_node", batch.stream().map(BrokerEvent::nodeId));
+        Map<Boolean, List<BrokerEvent>> byFate = batch.stream()
+                .collect(Collectors.partitioningBy(
+                        e -> clusters.contains(e.clusterId()) && (e.nodeId() == null || nodes.contains(e.nodeId()))));
+        List<BrokerEvent> orphans = byFate.get(false);
+        List<BrokerEvent> kept = byFate.get(true);
+        if (orphans.isEmpty()) {
+            orphans = kept;
+            kept = List.of();
+        }
+        orphans.forEach(e ->
+                dropped.computeIfAbsent(e.clusterId(), k -> new AtomicLong()).incrementAndGet());
+        log.warn("Dropped {} broker event(s) that reference a cluster or node that no longer exists", orphans.size());
+        requeue(kept);
+    }
+
+    private Set<UUID> existing(String table, Stream<UUID> ids) {
+        Set<UUID> wanted = ids.filter(Objects::nonNull).collect(Collectors.toSet());
+        if (wanted.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(jdbc.queryForList(
+                "SELECT id FROM " + table + " WHERE id IN (:ids)", Map.of("ids", wanted), UUID.class));
     }
 
     /** Back at the head in their original order. What no longer fits is counted as dropped, as on intake. */

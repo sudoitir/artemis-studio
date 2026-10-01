@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
@@ -53,7 +54,7 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
         jdbc.update(
                 "INSERT INTO cluster (id, name) VALUES (:id, :name)",
                 Map.of("id", clusterId, "name", "writer-" + clusterId));
-        writer = new BrokerEventWriter(jdbc, mapper, publisher, null, properties);
+        writer = new BrokerEventWriter(jdbc, mapper, publisher, transactions, properties);
     }
 
     @AfterEach
@@ -62,8 +63,12 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
     }
 
     private BrokerEvent event(String type) {
+        return event(clusterId, type);
+    }
+
+    private BrokerEvent event(UUID cluster, String type) {
         return new BrokerEvent(
-                clusterId,
+                cluster,
                 null,
                 type,
                 Instant.now(),
@@ -109,7 +114,7 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                                 org.springframework.jdbc.core.namedparam.SqlParameterSource[].class),
                         org.mockito.ArgumentMatchers.any(org.springframework.jdbc.support.KeyHolder.class),
                         org.mockito.ArgumentMatchers.any(String[].class));
-        BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, publisher, null, properties);
+        BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, publisher, transactions, properties);
         flaky.accept(event("CONSUMER_CREATED"));
         flaky.accept(event("SESSION_CREATED"));
 
@@ -133,7 +138,7 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
         ObjectProvider<BrokerEventPublisher> capturing = Mockito.mock();
         Mockito.when(capturing.getIfAvailable())
                 .thenReturn((seqs, batch) -> batch.forEach(e -> published.add(e.type())));
-        BrokerEventWriter capturingWriter = new BrokerEventWriter(jdbc, mapper, capturing, null, properties);
+        BrokerEventWriter capturingWriter = new BrokerEventWriter(jdbc, mapper, capturing, transactions, properties);
         TransactionTemplate tx = new TransactionTemplate(transactions);
         capturingWriter.accept(event("CONSUMER_CREATED"));
         capturingWriter.accept(event("SESSION_CREATED"));
@@ -159,5 +164,37 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
 
         writer.flush();
         assertThat(persisted()).isEqualTo(1);
+    }
+
+    @Test
+    void anIntegrityViolatingBatchDoesNotBlockTheEventsBehindIt() {
+        UUID deleted = UUID.randomUUID();
+        writer.accept(event(deleted, "CONSUMER_CREATED"));
+        writer.accept(event("SESSION_CREATED"));
+
+        writer.flush();
+        writer.accept(event("CONSUMER_CLOSED"));
+        writer.flush();
+
+        assertThat(jdbc.queryForList(
+                        "SELECT type FROM broker_event WHERE cluster_id = :c ORDER BY seq",
+                        Map.of("c", clusterId),
+                        String.class))
+                .containsExactly("SESSION_CREATED", "CONSUMER_CLOSED");
+        assertThat(writer.droppedFor(deleted)).isEqualTo(1);
+        assertThat(writer.droppedFor(clusterId)).isZero();
+    }
+
+    @Test
+    void aDeletedClustersBufferedEventsArePurged() {
+        UUID deleted = UUID.randomUUID();
+        writer.accept(event(deleted, "CONSUMER_CREATED"));
+        writer.accept(event("SESSION_CREATED"));
+
+        writer.onClusterDeleted(new ReplicaSignal("cluster-deleted", deleted.toString()));
+        writer.flush();
+
+        assertThat(persisted()).isEqualTo(1);
+        assertThat(writer.droppedFor(deleted)).isZero();
     }
 }
