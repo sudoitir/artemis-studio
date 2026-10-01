@@ -25,6 +25,7 @@ A runtime plugin cannot add a way to sign in. Identity providers are a kernel co
 ### Modified Capabilities
 - `identity-and-sessions`: plugins can contribute credential sign-in providers through the one login path
 - `plugin-metrics`: plugins can read metric history under the acting user's permissions
+- `plugin-trust`: a plugin that signs users in must be verified, whatever the allowance, and adding a provider needs confirmation
 
 ## Out of scope
 - Redirect sign-in (OIDC-like) providers from plugins.
