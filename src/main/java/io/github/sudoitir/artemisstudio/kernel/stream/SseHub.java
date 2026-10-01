@@ -150,12 +150,7 @@ public class SseHub {
                         Instant.now().toEpochMilli());
         for (Subscriber s : set) {
             if (s.wants(topic)) {
-                synchronized (s) {
-                    Subscriber.Held frame = new Subscriber.Held(topic, payload, eventId);
-                    if (!s.hold(frame)) {
-                        queue(s, frame);
-                    }
-                }
+                warnIfBehind(s.deliver(new Subscriber.Held(topic, payload, eventId)));
             }
         }
     }
@@ -165,20 +160,12 @@ public class SseHub {
      * in {@code replayed} whose id is not above the id already replayed for it is a repeat and is skipped.
      */
     public void release(UUID clusterId, Subscriber subscriber, Map<String, Long> replayed) {
-        synchronized (subscriber) {
-            for (Subscriber.Held frame : subscriber.unbuffer()) {
-                Long upTo = replayed.get(frame.topic());
-                if (upTo != null && frame.id() != null && Long.parseLong(frame.id()) <= upTo) {
-                    continue;
-                }
-                queue(subscriber, frame);
-            }
-        }
+        warnIfBehind(subscriber.release(replayed));
     }
 
-    /** Hand a frame to the subscriber's writer; logs, once per subscriber, when it is so far behind that it resyncs. */
-    private void queue(Subscriber s, Subscriber.Held frame) {
-        if (s.enqueue(frame)) {
+    /** Logs, once per subscriber, when it is so far behind that its queue was dropped and it resyncs. */
+    private void warnIfBehind(boolean overflowed) {
+        if (overflowed) {
             log.warn(
                     "An SSE client is {} frames behind and stopped reading; its queue was dropped and it is told to resync",
                     Subscriber.OUTBOUND_CAPACITY);
@@ -231,11 +218,8 @@ public class SseHub {
     private void toAll(String event) {
         byCluster
                 .values()
-                .forEach(set -> set.forEach(s -> {
-                    synchronized (s) {
-                        queue(s, new Subscriber.Held(event, Instant.now().toEpochMilli(), null));
-                    }
-                }));
+                .forEach(set -> set.forEach(s -> warnIfBehind(
+                        s.deliverNow(new Subscriber.Held(event, Instant.now().toEpochMilli(), null)))));
     }
 
     /** Writes one queued frame; a stream that cannot be written is dropped, and false stops its writer. */

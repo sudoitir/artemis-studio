@@ -5,10 +5,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,11 +37,12 @@ public final class Subscriber {
     private final UUID tokenId;
     private final BlockingQueue<Held> outbound = new LinkedBlockingQueue<>(OUTBOUND_CAPACITY);
     private volatile String sessionId;
-    private volatile Thread drainer;
+    private final AtomicReference<Thread> drainer = new AtomicReference<>();
+    private final Object lock = new Object();
     private volatile boolean finished;
     private volatile boolean overflowLogged;
 
-    /** Frames held back while a replay runs, or null once live. Guarded by this subscriber's monitor. */
+    /** Frames held back while a replay runs, or null once live. Guarded by {@link #lock}. */
     private List<Held> held;
 
     /** Frames a subscriber may have waiting to be written before it is considered stalled. */
@@ -99,24 +102,52 @@ public final class Subscriber {
      * Hold the frames this subscriber would receive until {@link SseHub#release}, so a replay can be
      * sent first and the live frames that arrived meanwhile follow it.
      */
-    public synchronized void buffer() {
-        held = new ArrayList<>();
+    public void buffer() {
+        synchronized (lock) {
+            held = new ArrayList<>();
+        }
     }
 
-    /** Keeps {@code frame} for {@link SseHub#release} and says so, or returns false when the subscriber is live. */
-    synchronized boolean hold(Held frame) {
-        if (held == null) {
+    /**
+     * Keeps {@code frame} for {@link #release} while the subscriber is buffering, and queues it when it is
+     * live. Returns true when the queue overflowed for the first time, for the caller to log.
+     */
+    boolean deliver(Held frame) {
+        synchronized (lock) {
+            if (held == null) {
+                return enqueue(frame);
+            }
+            held.add(frame);
             return false;
         }
-        held.add(frame);
-        return true;
     }
 
-    /** Goes live and returns what was held, oldest first. */
-    synchronized List<Held> unbuffer() {
-        List<Held> frames = held == null ? List.of() : held;
-        held = null;
-        return frames;
+    /** Queues {@code frame} at once, buffering or not, in order with {@link #deliver} and {@link #release}. */
+    boolean deliverNow(Held frame) {
+        synchronized (lock) {
+            return enqueue(frame);
+        }
+    }
+
+    /**
+     * Goes live and queues what was held, oldest first. A frame of a topic in {@code replayed} whose id is
+     * not above the id already replayed for it is a repeat and is skipped. Returns true when the queue
+     * overflowed for the first time, for the caller to log.
+     */
+    boolean release(Map<String, Long> replayed) {
+        synchronized (lock) {
+            List<Held> frames = held == null ? List.of() : held;
+            held = null;
+            boolean overflowed = false;
+            for (Held frame : frames) {
+                Long upTo = replayed.get(frame.topic());
+                if (upTo != null && frame.id() != null && Long.parseLong(frame.id()) <= upTo) {
+                    continue;
+                }
+                overflowed |= enqueue(frame);
+            }
+            return overflowed;
+        }
     }
 
     /**
@@ -124,7 +155,7 @@ public final class Subscriber {
      * the stream is dead. Called once, when the subscriber is registered.
      */
     void startDrain(Predicate<Held> writer, Runnable completer) {
-        drainer = Thread.ofVirtual().name("sse-drain").start(() -> {
+        drainer.set(Thread.ofVirtual().name("sse-drain").start(() -> {
             try {
                 while (true) {
                     Held frame = outbound.take();
@@ -139,7 +170,7 @@ public final class Subscriber {
             } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
-        });
+        }));
     }
 
     /**
@@ -151,8 +182,10 @@ public final class Subscriber {
         if (outbound.offer(frame)) {
             return false;
         }
-        outbound.clear();
-        outbound.offer(finished ? COMPLETE : new Held(SseHub.RESYNC, System.currentTimeMillis(), null));
+        Held marker = finished ? COMPLETE : new Held(SseHub.RESYNC, System.currentTimeMillis(), null);
+        do {
+            outbound.clear();
+        } while (!outbound.offer(marker)); // refused only when a concurrent producer refilled the queue
         boolean first = !overflowLogged;
         overflowLogged = true;
         return first;
@@ -173,7 +206,7 @@ public final class Subscriber {
 
     /** Stop the drainer; used when the stream ended by itself. */
     void stopDrain() {
-        Thread t = drainer;
+        Thread t = drainer.get();
         if (t != null) {
             t.interrupt();
         }

@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
@@ -56,7 +57,7 @@ public class FeatureRegistry implements PluginBridge {
     private final Map<String, PluginHandle> owners = new HashMap<>();
 
     /** Version of each active plugin, written with {@link #plugins}; what {@link #manifestVersion} hashes. */
-    private volatile Map<String, String> pluginVersions = Map.of();
+    private final AtomicReference<Map<String, String>> pluginVersions = new AtomicReference<>(Map.of());
 
     private volatile String manifestVersion = manifestVersionOf(Map.of());
 
@@ -167,9 +168,9 @@ public class FeatureRegistry implements PluginBridge {
         Map<String, FeatureDescriptor> next = new LinkedHashMap<>(plugins);
         next.put(asFeature.id(), asFeature);
         plugins = Map.copyOf(next);
-        Map<String, String> nextVersions = new HashMap<>(pluginVersions);
+        Map<String, String> nextVersions = new HashMap<>(pluginVersions.get());
         nextVersions.put(asFeature.id(), descriptor.version());
-        pluginVersions = Map.copyOf(nextVersions);
+        pluginVersions.set(Map.copyOf(nextVersions));
         rollManifestVersion();
     }
 
@@ -181,9 +182,9 @@ public class FeatureRegistry implements PluginBridge {
         Map<String, FeatureDescriptor> next = new LinkedHashMap<>(plugins);
         next.remove(pluginId);
         plugins = Map.copyOf(next);
-        Map<String, String> nextVersions = new HashMap<>(pluginVersions);
+        Map<String, String> nextVersions = new HashMap<>(pluginVersions.get());
         nextVersions.remove(pluginId);
-        pluginVersions = Map.copyOf(nextVersions);
+        pluginVersions.set(Map.copyOf(nextVersions));
         rollManifestVersion();
     }
 
@@ -196,7 +197,7 @@ public class FeatureRegistry implements PluginBridge {
     }
 
     private void rollManifestVersion() {
-        manifestVersion = manifestVersionOf(pluginVersions);
+        manifestVersion = manifestVersionOf(pluginVersions.get());
         events.publishEvent(new PluginsChanged(manifestVersion));
     }
 

@@ -40,12 +40,16 @@ public class ClusterDirectory {
     /** Every registered cluster, ordered by name. */
     @Transactional(readOnly = true)
     public List<RegisteredCluster> clusters() {
-        return List.copyOf(clusters.findAllByOrderByNameAsc());
+        return registered();
     }
 
     /** The registered clusters this replica owns (ADR-0152): the ones its timed broker duties visit. */
     public List<RegisteredCluster> owned() {
-        return clusters().stream().filter(c -> ownership.owns(c.getId())).toList();
+        return registered().stream().filter(c -> ownership.owns(c.getId())).toList();
+    }
+
+    private List<RegisteredCluster> registered() {
+        return List.copyOf(clusters.findAllByOrderByNameAsc());
     }
 
     @Transactional(readOnly = true)

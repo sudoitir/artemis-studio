@@ -121,12 +121,12 @@ public class PluginStore {
 
     @Transactional
     public void transitionTo(String id, PluginInstallStatus status) {
-        update(id, entity -> entity.transitionTo(status));
+        mutate(id, entity -> entity.transitionTo(status));
     }
 
     @Transactional
     public void fail(String id, String reason) {
-        update(id, entity -> entity.fail(reason));
+        mutate(id, entity -> entity.fail(reason));
     }
 
     public Optional<PluginInstallEntity> find(String id) {
@@ -141,6 +141,10 @@ public class PluginStore {
      */
     @Transactional
     public void update(String id, Consumer<PluginInstallEntity> mutation) {
+        mutate(id, mutation);
+    }
+
+    private void mutate(String id, Consumer<PluginInstallEntity> mutation) {
         PluginInstallEntity entity =
                 installs.findById(id).orElseThrow(() -> new PluginStoreException("No installed plugin " + id));
         PluginInstallStatus before = entity.status();

@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.postgresql.PGConnection;
 import org.postgresql.PGNotification;
@@ -63,8 +64,8 @@ public class StudioBus implements SmartLifecycle {
     /** Parsed messages, and {@link BusResumed}, from the reader to the dispatcher, in arrival order. */
     private final BlockingQueue<Object> inbox = new LinkedBlockingQueue<>();
 
-    private volatile Thread thread;
-    private volatile Thread dispatcher;
+    private final AtomicReference<Thread> thread = new AtomicReference<>();
+    private final AtomicReference<Thread> dispatcher = new AtomicReference<>();
     private volatile boolean listening;
     private volatile Instant downSince = Instant.now();
 
@@ -133,27 +134,25 @@ public class StudioBus implements SmartLifecycle {
 
     @Override
     public void start() {
-        if (thread != null) {
+        if (thread.get() != null) {
             return;
         }
         downSince = Instant.now();
         inbox.clear();
         Thread d = new Thread(this::dispatchLoop, "studio-bus-dispatch");
         d.setDaemon(true);
-        dispatcher = d;
+        dispatcher.set(d);
         d.start();
         Thread t = new Thread(this::run, "studio-bus");
         t.setDaemon(true);
-        thread = t;
+        thread.set(t);
         t.start();
     }
 
     @Override
     public void stop() {
-        Thread t = thread;
-        Thread d = dispatcher;
-        thread = null;
-        dispatcher = null;
+        Thread t = thread.getAndSet(null);
+        Thread d = dispatcher.getAndSet(null);
         for (Thread stopping : new Thread[] {t, d}) {
             if (stopping != null) {
                 stopping.interrupt();
@@ -169,7 +168,7 @@ public class StudioBus implements SmartLifecycle {
 
     @Override
     public boolean isRunning() {
-        return thread != null;
+        return thread.get() != null;
     }
 
     /** Stops after everything that publishes on it, and before the replica records its stop. */
@@ -179,7 +178,7 @@ public class StudioBus implements SmartLifecycle {
     }
 
     private boolean running() {
-        return thread == Thread.currentThread() && !Thread.currentThread().isInterrupted();
+        return thread.get() == Thread.currentThread() && !Thread.currentThread().isInterrupted();
     }
 
     private void run() {
@@ -210,6 +209,7 @@ public class StudioBus implements SmartLifecycle {
             try {
                 Thread.sleep(backoff);
             } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
                 return;
             }
             backoff = backoff.multipliedBy(2).compareTo(MAX_BACKOFF) > 0 ? MAX_BACKOFF : backoff.multipliedBy(2);
@@ -255,11 +255,12 @@ public class StudioBus implements SmartLifecycle {
     }
 
     private void dispatchLoop() {
-        while (dispatcher == Thread.currentThread()) {
+        while (dispatcher.get() == Thread.currentThread()) {
             Object message;
             try {
                 message = inbox.take();
             } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
                 return;
             }
             try {

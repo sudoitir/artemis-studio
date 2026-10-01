@@ -12,9 +12,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.SmartLifecycle;
@@ -65,11 +65,12 @@ public class ClusterOwnership implements SmartLifecycle {
     private final ApplicationEventPublisher events;
     private static final Duration NOT_READY_POLL = Duration.ofMillis(250);
 
-    private final BlockingQueue<Boolean> wake = new ArrayBlockingQueue<>(1);
+    /** Permits are wake-ups asked for since the last tick; the tick drains them all, so they never pile up. */
+    private final Semaphore wake = new Semaphore(0);
 
-    private volatile Set<UUID> owned = Set.of();
+    private final AtomicReference<Set<UUID>> owned = new AtomicReference<>(Set.of());
     private volatile long renewedAt = System.nanoTime();
-    private volatile Thread thread;
+    private final AtomicReference<Thread> thread = new AtomicReference<>();
 
     public ClusterOwnership(
             JdbcTemplate jdbc,
@@ -88,12 +89,12 @@ public class ClusterOwnership implements SmartLifecycle {
 
     /** Whether this replica runs the cluster's duties now: it holds the lease and renewed it recently. */
     public boolean owns(UUID clusterId) {
-        return fresh() && owned.contains(clusterId);
+        return fresh() && owned.get().contains(clusterId);
     }
 
     /** The clusters {@link #owns} is true for. */
     public Set<UUID> owned() {
-        return fresh() ? owned : Set.of();
+        return fresh() ? owned.get() : Set.of();
     }
 
     private boolean fresh() {
@@ -206,8 +207,7 @@ public class ClusterOwnership implements SmartLifecycle {
     }
 
     private void apply(Set<UUID> now) {
-        Set<UUID> before = owned;
-        owned = Set.copyOf(now);
+        Set<UUID> before = owned.getAndSet(Set.copyOf(now));
         before.stream().filter(id -> !now.contains(id)).forEach(id -> publish(new ClusterDutyReleased(id)));
         now.stream().filter(id -> !before.contains(id)).forEach(id -> publish(new ClusterDutyAcquired(id)));
     }
@@ -239,7 +239,7 @@ public class ClusterOwnership implements SmartLifecycle {
     @EventListener
     void onSignal(ReplicaSignal signal) {
         if ("leases".equals(signal.kind())) {
-            wake.offer(true);
+            wake.release();
         }
     }
 
@@ -262,19 +262,18 @@ public class ClusterOwnership implements SmartLifecycle {
 
     @Override
     public void start() {
-        if (thread != null) {
+        if (thread.get() != null) {
             return;
         }
         Thread t = new Thread(this::run, "studio-cluster-ownership");
         t.setDaemon(true);
-        thread = t;
+        thread.set(t);
         t.start();
     }
 
     @Override
     public void stop() {
-        Thread t = thread;
-        thread = null;
+        Thread t = thread.getAndSet(null);
         if (t != null) {
             t.interrupt();
             try {
@@ -287,7 +286,7 @@ public class ClusterOwnership implements SmartLifecycle {
 
     @Override
     public boolean isRunning() {
-        return thread != null;
+        return thread.get() != null;
     }
 
     /** With the jobs: no tick after shutdown has stopped the work it would hand out. */
@@ -298,7 +297,7 @@ public class ClusterOwnership implements SmartLifecycle {
 
     private void run() {
         boolean ready = false;
-        while (thread == Thread.currentThread()) {
+        while (thread.get() == Thread.currentThread()) {
             if (!ready && replicas.state() == ReplicaRegistry.State.READY) {
                 ready = true;
                 // Just joined: the others hand over this replica's share now rather than on their next tick.
@@ -308,11 +307,12 @@ public class ClusterOwnership implements SmartLifecycle {
             try {
                 // Until ready, look often, so a replica takes up its duties as soon as it can serve.
                 long wait = ready ? ha.heartbeat().toMillis() : NOT_READY_POLL.toMillis();
-                if (wake.poll(wait, TimeUnit.MILLISECONDS) != null) {
+                if (wake.tryAcquire(wait, TimeUnit.MILLISECONDS)) {
                     Thread.sleep(DEBOUNCE);
-                    wake.clear();
+                    wake.drainPermits();
                 }
             } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
                 return;
             }
         }

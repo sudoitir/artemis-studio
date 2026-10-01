@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
@@ -60,7 +61,7 @@ public class ReplicaRegistry implements SmartLifecycle {
     private final String version;
 
     private volatile State state = State.STARTING;
-    private volatile Thread heartbeat;
+    private final AtomicReference<Thread> heartbeat = new AtomicReference<>();
     private volatile long lastBeatNanos = System.nanoTime();
 
     public ReplicaRegistry(JdbcTemplate jdbc, HaProperties ha, ObjectProvider<BuildProperties> build) {
@@ -172,7 +173,7 @@ public class ReplicaRegistry implements SmartLifecycle {
 
     @Override
     public void start() {
-        if (heartbeat != null) {
+        if (heartbeat.get() != null) {
             return;
         }
         state = State.STARTING;
@@ -185,21 +186,21 @@ public class ReplicaRegistry implements SmartLifecycle {
                 """, host, version, id);
         Thread thread = new Thread(this::beat, "studio-replica-heartbeat");
         thread.setDaemon(true);
-        heartbeat = thread;
+        heartbeat.set(thread);
         thread.start();
         log.info("Replica {} on {} registered, version {}", id, host, version);
     }
 
     @Override
     public void stop() {
-        if (heartbeat != null) {
+        if (heartbeat.get() != null) {
             markStopped();
         }
     }
 
     @Override
     public boolean isRunning() {
-        return heartbeat != null;
+        return heartbeat.get() != null;
     }
 
     /** Stops last, so the shutdown of everything else is still covered by the heartbeat. */
@@ -218,6 +219,7 @@ public class ReplicaRegistry implements SmartLifecycle {
                         id);
                 lastBeatNanos = System.nanoTime();
             } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
                 return;
             } catch (RuntimeException e) {
                 log.warn("Replica {} could not record its heartbeat: {}", id, e.getMessage());
@@ -226,8 +228,7 @@ public class ReplicaRegistry implements SmartLifecycle {
     }
 
     private void stopHeartbeat() {
-        Thread thread = heartbeat;
-        heartbeat = null;
+        Thread thread = heartbeat.getAndSet(null);
         if (thread != null) {
             thread.interrupt();
             try {
