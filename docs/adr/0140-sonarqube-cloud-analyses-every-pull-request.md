@@ -1,6 +1,6 @@
 # ADR-0140: SonarQube Cloud analyses every pull request
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0155](0155-dependabot-pull-requests-skip-the-sonar-analysis.md))
 - **Date**: 2026-09-30
 - **Deciders**: Mahdi Amirabdollahi
 

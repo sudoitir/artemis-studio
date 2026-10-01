@@ -544,7 +544,9 @@ jobs:
   # SonarQube Cloud (ADR-0140): a PR is analysed with the coverage its own backend and frontend jobs
   # just measured, and its quality gate is required through `ci-ok`. Main does not re-test
   # (ADR-0126), so its analysis reuses the coverage of the PR run that the merge commit came from,
-  # which keeps the main dashboard and the README badges current. Fork PRs get no token and skip.
+  # which keeps the main dashboard and the README badges current. Fork PRs get no token and skip;
+  # so do Dependabot PRs (ADR-0155): their runs get Dependabot secrets, not SONAR_TOKEN, and they
+  # change only manifests, which the analysis of the main push after the merge covers.
   sonar:
     needs: [changes, coverage, frontend]
     if: >-
@@ -553,6 +555,7 @@ jobs:
           && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'))
         || (github.event_name == 'pull_request'
           && github.event.pull_request.head.repo.full_name == github.repository
+          && github.event.pull_request.user.login != 'dependabot[bot]'
           && needs.coverage.result == 'success' && needs.frontend.result == 'success'))
     runs-on: ubuntu-26.04
     timeout-minutes: 20
