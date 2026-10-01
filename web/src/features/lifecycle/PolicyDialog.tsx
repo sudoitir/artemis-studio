@@ -1,7 +1,8 @@
-import { useRef, useState, type RefObject } from 'react';
 import { Button, Checkbox, Group, Modal, NumberInput, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify } from '../../ui/notify.ts';
 import { usePreview, useUpdatePolicy, type StoreView } from './api.ts';
 import { bytes, count, quotaUnit, retentionWords } from './words.ts';
@@ -43,56 +44,37 @@ export function PolicyDialog({ store, onClose }: Readonly<{ store: StoreView | n
 
 function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: () => void }>) {
   const foreverAllowed = store.maxRetention === 'forever';
-  const [forever, setForever] = useState(store.retention === 'forever');
-  const [retention, setRetention] = useState(() => {
-    if (store.retention !== 'forever') return store.retention;
-    return store.defaultRetention === 'forever' ? store.minRetention : store.defaultRetention;
-  });
-  const [retentionError, setRetentionError] = useState<string | null>(null);
-  const [quota, setQuota] = useState<Figure>(store.quota);
-  const [quotaError, setQuotaError] = useState<string | null>(null);
-  const [warn, setWarn] = useState<Figure>(store.quotaWarnPercent);
-  const [warnError, setWarnError] = useState<string | null>(null);
-  const retentionInput = useRef<HTMLInputElement>(null);
-  const quotaInput = useRef<HTMLInputElement>(null);
-  const warnInput = useRef<HTMLInputElement>(null);
   const preview = usePreview();
   const update = useUpdatePolicy();
+  const form = useForm<{ forever: boolean; retention: string; quota: Figure; warn: Figure }>({
+    initialValues: {
+      forever: store.retention === 'forever',
+      retention:
+        store.retention !== 'forever'
+          ? store.retention
+          : store.defaultRetention === 'forever'
+            ? store.minRetention
+            : store.defaultRetention,
+      quota: store.quota,
+      warn: store.quotaWarnPercent,
+    },
+    validateInputOnBlur: true,
+    validate: {
+      retention: (v, values) =>
+        values.forever || DURATION.test(v.trim()) ? null : 'Use a number and a unit: 30d, 72h or 90m.',
+      quota: quotaProblem,
+      warn: warnProblem,
+    },
+    // A preview describes the retention it was run with, not the one typed since.
+    onValuesChange: () => preview.reset(),
+  });
+  const { forever, retention } = form.values;
 
   const value = forever ? 'forever' : retention.trim();
   const range = `${retentionWords(store.minRetention)} to ${retentionWords(store.maxRetention)}`;
 
-  function checkRetention(): string | null {
-    const problem = forever || DURATION.test(retention.trim()) ? null : 'Use a number and a unit: 30d, 72h or 90m.';
-    setRetentionError(problem);
-    return problem;
-  }
-
-  function checkQuota(): string | null {
-    const problem = quotaProblem(quota);
-    setQuotaError(problem);
-    return problem;
-  }
-
-  function checkWarn(): string | null {
-    const problem = warnProblem(warn);
-    setWarnError(problem);
-    return problem;
-  }
-
-  /** Checks the fields, all of them so every message shows, and focuses the first wrong one. */
-  function valid(fields: ReadonlyArray<readonly [() => string | null, RefObject<HTMLInputElement | null>]>): boolean {
-    const problems = fields.map(([check]) => check());
-    const first = problems.findIndex(Boolean);
-    if (first >= 0) fields[first][1].current?.focus();
-    return first < 0;
-  }
-
-  const retentionField = [checkRetention, retentionInput] as const;
-  const allFields = [retentionField, [checkQuota, quotaInput], [checkWarn, warnInput]] as const;
-
-  function save() {
-    if (!valid(allFields) || !isWhole(quota) || !isWhole(warn)) return;
+  const save = form.onSubmit(({ quota, warn }) => {
+    if (!isWhole(quota) || !isWhole(warn)) return;
     update.mutate(
       { id: store.id, body: { retention: value, quota, quotaWarnPercent: warn } },
       {
@@ -102,16 +84,18 @@ function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: ()
         },
       },
     );
-  }
+  }, focusFirstInvalid(form.getInputNode));
+
+  const runPreview = () => {
+    if (form.validateField('retention').hasError) {
+      form.getInputNode('retention')?.focus();
+      return;
+    }
+    preview.mutate({ id: store.id, retention: value });
+  };
 
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        save();
-      }}
-    >
+    <form noValidate onSubmit={save}>
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
           Allowed: {range}. Default: {retentionWords(store.defaultRetention)}.
@@ -119,48 +103,34 @@ function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: ()
         {foreverAllowed && (
           <Checkbox
             label="Keep everything (no purge)"
-            checked={forever}
+            {...form.getInputProps('forever', { type: 'checkbox' })}
             onChange={(e) => {
-              setForever(e.currentTarget.checked);
-              setRetentionError(null);
-              preview.reset();
+              form.setFieldValue('forever', e.currentTarget.checked);
+              form.clearFieldError('retention');
             }}
           />
         )}
         <TextInput
-          ref={retentionInput}
           label="Retention"
           description="Data older than this is purged by the next housekeeping run."
-          value={retention}
+          {...form.getInputProps('retention')}
           disabled={forever}
-          error={retentionError}
-          onChange={(e) => {
-            setRetention(e.currentTarget.value);
-            preview.reset();
-          }}
-          onBlur={checkRetention}
         />
         <NumberInput
-          ref={quotaInput}
           label={`Quota (${quotaUnit(store)})`}
           description="0 means no quota."
           min={0}
+          clampBehavior="none"
           allowDecimal={false}
-          value={quota}
-          error={quotaError}
-          onChange={setQuota}
-          onBlur={checkQuota}
+          {...form.getInputProps('quota')}
         />
         <NumberInput
-          ref={warnInput}
           label="Warn at (% of quota)"
           min={1}
           max={100}
+          clampBehavior="none"
           allowDecimal={false}
-          value={warn}
-          error={warnError}
-          onChange={setWarn}
-          onBlur={checkWarn}
+          {...form.getInputProps('warn')}
         />
 
         <div aria-live="polite">
@@ -177,11 +147,7 @@ function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: ()
         {update.error && <ErrorState variant="inline" error={update.error} />}
 
         <Group justify="flex-end">
-          <Button
-            variant="default"
-            loading={preview.isPending}
-            onClick={() => valid([retentionField]) && preview.mutate({ id: store.id, retention: value })}
-          >
+          <Button variant="default" loading={preview.isPending} onClick={runPreview}>
             Preview
           </Button>
           <Button type="submit" loading={update.isPending}>

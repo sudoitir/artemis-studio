@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ActionIcon, Button, Checkbox, NumberInput, Stack, Switch, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -7,6 +8,7 @@ import { useServerNow } from '../../kernel/time/time.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -64,63 +66,47 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
   const { can, loading: grantsLoading } = useCan();
   const denied = !grantsLoading && !can('cluster:write', clusterId);
 
-  const [requestAddress, setRequestAddress] = useState('');
-  const [requestError, setRequestError] = useState<string | null>(null);
-  const [replyAddresses, setReplyAddresses] = useState<string[]>([]);
-  const [deadlineMs, setDeadlineMs] = useState<Figure>('');
-  const [deadlineError, setDeadlineError] = useState<string | null>(null);
-  const [samplePerMin, setSamplePerMin] = useState<Figure>(DEFAULT_SAMPLES);
-  const [samplesError, setSamplesError] = useState<string | null>(null);
-  const [capturePayload, setCapturePayload] = useState(false);
   // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [removing, setRemoving] = useState<ExpectationView | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
-  const requestInput = useRef<HTMLInputElement>(null);
-  const deadlineInput = useRef<HTMLInputElement>(null);
-  const samplesInput = useRef<HTMLInputElement>(null);
 
-  const checkRequest = () => {
-    const problem = requestAddress.trim() ? null : 'Enter the request address to trace, such as orders.request.';
-    setRequestError(problem);
-    return problem;
-  };
-  const checkDeadline = () => {
-    const problem = deadlineProblem(deadlineMs);
-    setDeadlineError(problem);
-    return problem;
-  };
-  const checkSamples = () => {
-    const problem = samplesProblem(samplePerMin);
-    setSamplesError(problem);
-    return problem;
-  };
+  const form = useForm<{
+    requestAddress: string;
+    replyAddresses: string[];
+    deadlineMs: Figure;
+    samplePerMin: Figure;
+    capturePayload: boolean;
+  }>({
+    initialValues: {
+      requestAddress: '',
+      replyAddresses: [],
+      deadlineMs: '',
+      samplePerMin: DEFAULT_SAMPLES,
+      capturePayload: false,
+    },
+    validateInputOnBlur: true,
+    validate: {
+      requestAddress: (v) => (v.trim() ? null : 'Enter the request address to trace, such as orders.request.'),
+      deadlineMs: deadlineProblem,
+      samplePerMin: samplesProblem,
+    },
+  });
 
-  const submit = () => {
-    // Every field is checked, so every message shows; focus goes to the first wrong one.
-    const problems = [checkRequest(), checkDeadline(), checkSamples()];
-    const first = problems.findIndex(Boolean);
-    if (first >= 0) {
-      [requestInput, deadlineInput, samplesInput][first].current?.focus();
-      return;
-    }
-    const address = requestAddress.trim();
+  const submit = form.onSubmit((values) => {
+    const address = values.requestAddress.trim();
     const subject = `traced address ${address}`;
     create.mutate(
       {
         requestAddress: address,
-        replyAddresses,
+        replyAddresses: values.replyAddresses,
         correlationProperty: undefined,
-        deadlineMs: isWhole(deadlineMs) ? deadlineMs : undefined,
-        samplePerMin: isWhole(samplePerMin) ? samplePerMin : DEFAULT_SAMPLES,
-        capturePayload,
+        deadlineMs: isWhole(values.deadlineMs) ? values.deadlineMs : undefined,
+        samplePerMin: isWhole(values.samplePerMin) ? values.samplePerMin : DEFAULT_SAMPLES,
+        capturePayload: values.capturePayload,
       },
       {
         onSuccess: () => {
-          setRequestAddress('');
-          setReplyAddresses([]);
-          setDeadlineMs('');
-          setSamplePerMin(DEFAULT_SAMPLES);
-          setCapturePayload(false);
+          form.reset();
           notify.succeeded({ action: ADD, subject });
         },
         onError: (error) =>
@@ -132,7 +118,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
           }),
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const toggle = (e: ExpectationView, enabled: boolean) => {
     const action = enabled ? ENABLE : DISABLE;
@@ -218,58 +204,40 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
       ) : null}
 
       <Section headingLevel={3} title="Add an address">
-        <div className={classes.form}>
+        <form className={classes.form} noValidate onSubmit={submit}>
           <AddressPicker
             clusterId={clusterId}
             label="Request address"
             placeholder="orders.request"
-            value={requestAddress}
-            onChange={(value) => {
-              setRequestAddress(value);
-              setRequestError(null);
-            }}
-            onBlur={checkRequest}
-            error={requestError}
-            inputRef={requestInput}
+            {...form.getInputProps('requestAddress')}
+            value={form.values.requestAddress}
             unknownHint="No address on this cluster has that name yet."
             w="100%"
           />
-          <ReplyAddressesInput clusterId={clusterId} value={replyAddresses} onChange={setReplyAddresses} w="100%" />
+          <ReplyAddressesInput
+            clusterId={clusterId}
+            value={form.values.replyAddresses}
+            onChange={(next) => form.setFieldValue('replyAddresses', next)}
+            w="100%"
+          />
           <NumberInput
-            ref={deadlineInput}
             label="Deadline (ms)"
             placeholder="from message"
             allowDecimal={false}
             min={1}
-            value={deadlineMs}
-            error={deadlineError}
-            onChange={setDeadlineMs}
-            onBlur={checkDeadline}
+            {...form.getInputProps('deadlineMs')}
           />
-          <NumberInput
-            ref={samplesInput}
-            label="Samples/min"
-            allowDecimal={false}
-            min={1}
-            value={samplePerMin}
-            error={samplesError}
-            onChange={setSamplePerMin}
-            onBlur={checkSamples}
-          />
+          <NumberInput label="Samples/min" allowDecimal={false} min={1} {...form.getInputProps('samplePerMin')} />
           <div className={classes.actions}>
-            <Checkbox
-              label="Capture payload"
-              checked={capturePayload}
-              onChange={(e) => setCapturePayload(e.currentTarget.checked)}
-            />
-            <Button onClick={submit} loading={create.isPending} disabled={denied}>
+            <Checkbox label="Capture payload" {...form.getInputProps('capturePayload', { type: 'checkbox' })} />
+            <Button type="submit" loading={create.isPending} disabled={denied}>
               Add
             </Button>
           </div>
           <div className={classes.help}>
-            <ReplyAddressesHelp clusterId={clusterId} value={replyAddresses} />
+            <ReplyAddressesHelp clusterId={clusterId} value={form.values.replyAddresses} />
           </div>
-        </div>
+        </form>
       </Section>
 
       <CaptureHint

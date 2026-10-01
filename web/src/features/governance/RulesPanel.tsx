@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ActionIcon, Button, Group, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -7,6 +8,7 @@ import type { ApiError } from '../../kernel/api/request.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -74,8 +76,6 @@ const ACTIONS = [
 
 const WRITE_REASON = 'Changing masking rules needs the governance:write permission.';
 
-type Errors = { selector?: string; addressPattern?: string };
-
 const EMPTY: RuleRequest = {
   addressPattern: null,
   target: 'PROPERTY',
@@ -85,18 +85,17 @@ const EMPTY: RuleRequest = {
   enabled: true,
 };
 
-function validate(form: RuleRequest): Errors {
-  const errors: Errors = {};
-  if (form.selector.trim() === '') {
-    errors.selector =
-      form.target === 'BODY_PATH'
-        ? 'Enter the JSON path the rule matches, such as payment.card.'
-        : 'Enter the name the rule matches. Use * for any run of characters.';
-  }
-  if (form.addressPattern && /\s/.test(form.addressPattern)) {
-    errors.addressPattern = 'An address pattern has no spaces. Use a pattern such as orders.# or orders.*.';
-  }
-  return errors;
+function selectorProblem(selector: string, target: string): string | null {
+  if (selector.trim() !== '') return null;
+  return target === 'BODY_PATH'
+    ? 'Enter the JSON path the rule matches, such as payment.card.'
+    : 'Enter the name the rule matches. Use * for any run of characters.';
+}
+
+function addressProblem(addressPattern: string | null | undefined): string | null {
+  return addressPattern && /\s/.test(addressPattern)
+    ? 'An address pattern has no spaces. Use a pattern such as orders.# or orders.*.'
+    : null;
 }
 
 /** The content policy's masking rules (data-governance spec). Built-in credential rules can be disabled, never deleted. */
@@ -110,45 +109,38 @@ export function RulesPanel() {
   const canWrite = loading || can('governance:write');
 
   const [editing, setEditing] = useState<RuleView | 'new' | null>(null);
-  const [form, setForm] = useState<RuleRequest>(EMPTY);
-  const [errors, setErrors] = useState<Errors>({});
+  const form = useForm<RuleRequest>({
+    initialValues: EMPTY,
+    validateInputOnBlur: true,
+    validate: {
+      selector: (v, values) => selectorProblem(v, values.target),
+      addressPattern: addressProblem,
+    },
+  });
   const [saveError, setSaveError] = useState<ApiError | null>(null);
   // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [deleting, setDeleting] = useState<RuleView | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const selectorInput = useRef<HTMLInputElement>(null);
-  const addressInput = useRef<HTMLInputElement>(null);
 
   function openNew() {
     setEditing('new');
-    setForm(EMPTY);
-    setErrors({});
+    form.setValues(EMPTY);
+    form.clearErrors();
     setSaveError(null);
   }
 
   function openEdit(rule: RuleView) {
     setEditing(rule);
-    setForm(withEnabled(rule, rule.enabled));
-    setErrors({});
+    form.setValues(withEnabled(rule, rule.enabled));
+    form.clearErrors();
     setSaveError(null);
   }
 
-  function blur(field: keyof Errors) {
-    const next = validate(form);
-    setErrors((prev) => ({ ...prev, [field]: next[field] }));
-  }
-
-  function save() {
-    const next = validate(form);
-    setErrors(next);
-    if (next.selector || next.addressPattern) {
-      (next.selector ? selectorInput : addressInput).current?.focus();
-      return;
-    }
+  const save = form.onSubmit((values) => {
     const body: RuleRequest = {
-      ...form,
-      selector: form.selector.trim(),
-      addressPattern: form.addressPattern?.trim() ? form.addressPattern.trim() : null,
+      ...values,
+      selector: values.selector.trim(),
+      addressPattern: values.addressPattern?.trim() ? values.addressPattern.trim() : null,
     };
     const handlers = {
       onSuccess: (rule: RuleView) => {
@@ -160,7 +152,7 @@ export function RulesPanel() {
     setSaveError(null);
     if (editing === 'new') create.mutate(body, handlers);
     else if (editing) update.mutate({ ruleId: editing.id, body }, handlers);
-  }
+  }, focusFirstInvalid(form.getInputNode));
 
   function toggle(rule: RuleView, enabled: boolean) {
     const action = enabled ? ENABLE : DISABLE;
@@ -284,69 +276,52 @@ export function RulesPanel() {
       <Modal
         opened={editing !== null}
         onClose={() => setEditing(null)}
-        title={editing === 'new' ? 'New masking rule' : `Edit the rule for ${form.selector}`}
+        title={editing === 'new' ? 'New masking rule' : `Edit the rule for ${form.values.selector}`}
         size="md"
       >
-        <Stack gap="sm">
-          <Select
-            label="Matches a"
-            data={TARGETS}
-            value={form.target}
-            allowDeselect={false}
-            onChange={(v) => setForm({ ...form, target: v ?? 'PROPERTY' })}
-          />
-          <TextInput
-            ref={selectorInput}
-            label={form.target === 'BODY_PATH' ? 'JSON path' : 'Name'}
-            description={
-              form.target === 'BODY_PATH'
-                ? 'Dotted, with [*] for array elements: items[*].email'
-                : 'Case-insensitive. * matches any run of characters: *token*'
-            }
-            value={form.selector}
-            onChange={(e) => setForm({ ...form, selector: e.currentTarget.value })}
-            onBlur={() => blur('selector')}
-            error={errors.selector}
-            required
-          />
-          <TextInput
-            ref={addressInput}
-            label="Addresses"
-            description="Optional. An address pattern such as orders.#; empty means every address."
-            value={form.addressPattern ?? ''}
-            onChange={(e) => setForm({ ...form, addressPattern: e.currentTarget.value })}
-            onBlur={() => blur('addressPattern')}
-            error={errors.addressPattern}
-          />
-          <Select
-            label="Data class"
-            data={CLASSES}
-            value={form.dataClass}
-            allowDeselect={false}
-            onChange={(v) => setForm({ ...form, dataClass: v ?? 'PERSONAL' })}
-          />
-          <Select
-            label="Action"
-            data={ACTIONS}
-            value={form.action ?? 'DEFAULT'}
-            allowDeselect={false}
-            onChange={(v) => setForm({ ...form, action: !v || v === 'DEFAULT' ? null : v })}
-          />
-          <Switch
-            label="Enabled"
-            checked={form.enabled}
-            onChange={(e) => setForm({ ...form, enabled: e.currentTarget.checked })}
-          />
-          {saveError ? <ErrorState variant="inline" error={saveError} /> : null}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setEditing(null)} disabled={create.isPending || update.isPending}>
-              Cancel
-            </Button>
-            <Button loading={create.isPending || update.isPending} onClick={save}>
-              Save rule
-            </Button>
-          </Group>
-        </Stack>
+        <form noValidate onSubmit={save}>
+          <Stack gap="sm">
+            <Select label="Matches a" data={TARGETS} {...form.getInputProps('target')} allowDeselect={false} />
+            <TextInput
+              label={form.values.target === 'BODY_PATH' ? 'JSON path' : 'Name'}
+              description={
+                form.values.target === 'BODY_PATH'
+                  ? 'Dotted, with [*] for array elements: items[*].email'
+                  : 'Case-insensitive. * matches any run of characters: *token*'
+              }
+              {...form.getInputProps('selector')}
+              required
+            />
+            <TextInput
+              label="Addresses"
+              description="Optional. An address pattern such as orders.#; empty means every address."
+              {...form.getInputProps('addressPattern')}
+              value={form.values.addressPattern ?? ''}
+            />
+            <Select label="Data class" data={CLASSES} {...form.getInputProps('dataClass')} allowDeselect={false} />
+            <Select
+              label="Action"
+              data={ACTIONS}
+              value={form.values.action ?? 'DEFAULT'}
+              allowDeselect={false}
+              onChange={(v) => form.setFieldValue('action', !v || v === 'DEFAULT' ? null : v)}
+            />
+            <Switch label="Enabled" {...form.getInputProps('enabled', { type: 'checkbox' })} />
+            {saveError ? <ErrorState variant="inline" error={saveError} /> : null}
+            <Group justify="flex-end">
+              <Button
+                variant="default"
+                onClick={() => setEditing(null)}
+                disabled={create.isPending || update.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={create.isPending || update.isPending}>
+                Save rule
+              </Button>
+            </Group>
+          </Stack>
+        </form>
       </Modal>
 
       <ConfirmDialog

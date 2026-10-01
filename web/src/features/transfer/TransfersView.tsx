@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { useClusters } from '../clusters/index.ts';
@@ -11,6 +12,7 @@ import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import linkClasses from '../../ui/InlineLink.module.css';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
@@ -31,16 +33,20 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   const returnOrphan = useReturnOrphan(clusterId);
   const { can, loading } = useCan();
   const [chosen, setChosen] = useState<OrphanView | null>(null);
-  const [queue, setQueue] = useState('');
-  const [queueError, setQueueError] = useState<string | undefined>();
-  const queueRef = useRef<HTMLInputElement>(null);
+  const form = useForm({
+    initialValues: { queue: '' },
+    validateInputOnBlur: true,
+    validate: { queue: (v) => (v.trim() ? null : 'Name the queue the messages go back to.') },
+  });
   const gate = gateFor(can('message:move', clusterId), 'Move or retry messages', undefined, loading);
 
-  const checkQueue = () => {
-    const problem = queue.trim() ? undefined : 'Name the queue the messages go back to.';
-    setQueueError(problem);
-    return problem === undefined;
-  };
+  const returnMessages = form.onSubmit(({ queue }) => {
+    if (!chosen) return;
+    returnOrphan.mutate(
+      { nodeId: chosen.nodeId, stagingQueue: chosen.stagingQueue, targetQueue: queue.trim() },
+      { onSuccess: () => setChosen(null) },
+    );
+  }, focusFirstInvalid(form.getInputNode));
 
   // Not being able to look is not the same as nothing being there, and is said rather than hidden.
   if (query.isError) {
@@ -74,8 +80,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
               disabled={gate.kind === 'blocked'}
               onClick={() => {
                 returnOrphan.reset();
-                setQueue('');
-                setQueueError(undefined);
+                form.reset();
                 setChosen(orphan);
               }}
             >
@@ -111,21 +116,12 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
               clusterId={clusterId}
               label="Return them to"
               description="The queue the transfer took them from."
-              value={queue}
-              onChange={(v) => {
-                setQueue(v);
-                if (v.trim()) setQueueError(undefined);
-              }}
-              onBlur={checkQueue}
-              error={queueError}
-              inputRef={queueRef}
+              {...form.getInputProps('queue')}
+              value={form.values.queue}
               unknownHint="No queue by that name on this cluster. Check it before returning messages to it."
             />
             {returnOrphan.isError ? (
-              <Stack gap="xs">
-                <ErrorState error={returnOrphan.error} />
-                <Text size="sm">Nothing was returned.</Text>
-              </Stack>
+              <ErrorState error={returnOrphan.error} next="Nothing was returned. Check the queue, then try again." />
             ) : null}
             <ConfirmByTyping
               token={chosen.stagingQueue}
@@ -133,16 +129,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
               confirmLabel="Return the messages"
               loading={returnOrphan.isPending}
               disabled={returnOrphan.isPending}
-              onConfirm={() => {
-                if (!checkQueue()) {
-                  queueRef.current?.focus();
-                  return;
-                }
-                returnOrphan.mutate(
-                  { nodeId: chosen.nodeId, stagingQueue: chosen.stagingQueue, targetQueue: queue.trim() },
-                  { onSuccess: () => setChosen(null) },
-                );
-              }}
+              onConfirm={() => returnMessages()}
             />
           </Stack>
         ) : null}

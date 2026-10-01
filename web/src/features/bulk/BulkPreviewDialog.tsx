@@ -62,12 +62,14 @@ function PreviewStatus({
     <div aria-live="polite">
       {preview.isPending ? <LoadingState label="Reading what these queues hold" blockSize="6rem" /> : null}
       {preview.isError ? (
-        <Stack gap="sm" align="flex-start">
-          <ErrorState error={preview.error} />
-          <Button size="xs" variant="default" onClick={onRetry}>
-            Preview again
-          </Button>
-        </Stack>
+        <ErrorState
+          error={preview.error}
+          actions={
+            <Button size="xs" variant="default" onClick={onRetry}>
+              Preview again
+            </Button>
+          }
+        />
       ) : null}
       {data ? (
         <Stack gap="xs">
@@ -130,13 +132,15 @@ function RunControls({
       />
 
       {execute.isError ? (
-        <Stack gap="sm" align="flex-start">
-          <ErrorState error={execute.error} />
-          <Text size="sm">Nothing was run. Preview again to confirm the queues as they are now.</Text>
-          <Button size="xs" variant="default" onClick={onRetry}>
-            Preview again
-          </Button>
-        </Stack>
+        <ErrorState
+          error={execute.error}
+          next="Nothing was run. Preview again to confirm the queues as they are now."
+          actions={
+            <Button size="xs" variant="default" onClick={onRetry}>
+              Preview again
+            </Button>
+          }
+        />
       ) : null}
 
       {op.destructive ? (

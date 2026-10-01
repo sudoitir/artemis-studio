@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Button,
   Group,
@@ -12,9 +12,11 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import {
@@ -54,6 +56,11 @@ const FIELDS: Record<ChannelKind, Field[]> = {
   WEBHOOK: ['name', 'url', 'secret'],
 };
 
+const kindOf = (value: string | null | undefined): ChannelKind | undefined => KIND_ORDER.find((k) => k === value);
+
+const securityOf = (value: string): ChannelFields['security'] =>
+  value === 'TLS' || value === 'NONE' ? value : 'STARTTLS';
+
 /**
  * Create or edit a notification channel (ADR-0105). The kind is chosen once: it is a
  * fact about an existing channel, shown as text, never a disabled select. The secret is
@@ -82,40 +89,20 @@ export function ChannelEditor({
   );
 }
 
+/** Everything the form holds: the kind, the common fields and the per-kind ones, side by side. */
+type ChannelValues = ChannelFields & { kind: ChannelKind; name: string; secret: string; enabled: boolean };
+
 /** What the per-kind field groups need from the form. */
-type KindFieldsProps = Readonly<{
-  fields: ChannelFields;
-  errors: Partial<Record<Field, string>>;
-  set: (f: keyof ChannelFields) => (value: string) => void;
-  blur: (f: Field) => () => void;
-  register: (f: Field) => (el: HTMLElement | null) => void;
-}>;
+type KindFieldsProps = Readonly<{ form: UseFormReturnType<ChannelValues> }>;
 
 /** The SMTP-specific fields of an EMAIL channel. */
-function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
+function EmailFields({ form }: KindFieldsProps) {
+  const { security, port } = form.values;
   return (
     <>
       <div className={classes.form}>
-        <TextInput
-          ref={register('host')}
-          label="SMTP server"
-          value={fields.host}
-          onChange={(e) => set('host')(e.currentTarget.value)}
-          onBlur={blur('host')}
-          error={errors.host}
-          placeholder="smtp.example.com"
-          required
-        />
-        <TextInput
-          ref={register('port')}
-          label="Port"
-          inputMode="numeric"
-          value={fields.port}
-          onChange={(e) => set('port')(e.currentTarget.value)}
-          onBlur={blur('port')}
-          error={errors.port}
-          required
-        />
+        <TextInput label="SMTP server" {...form.getInputProps('host')} placeholder="smtp.example.com" required />
+        <TextInput label="Port" inputMode="numeric" {...form.getInputProps('port')} required />
         <Stack gap={4}>
           <Text size="sm" fw={500} id="smtp-security-label">
             Transport security
@@ -123,11 +110,11 @@ function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
           <SegmentedControl
             aria-labelledby="smtp-security-label"
             size="xs"
-            value={fields.security}
+            {...form.getInputProps('security')}
             onChange={(v) => {
-              set('security')(v);
-              if (v === 'TLS' && fields.port === '587') set('port')('465');
-              if (v === 'STARTTLS' && fields.port === '465') set('port')('587');
+              form.setFieldValue('security', securityOf(v));
+              if (v === 'TLS' && port === '587') form.setFieldValue('port', '465');
+              if (v === 'STARTTLS' && port === '465') form.setFieldValue('port', '587');
             }}
             data={[
               { value: 'STARTTLS', label: 'STARTTLS' },
@@ -137,39 +124,25 @@ function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
           />
         </Stack>
       </div>
-      {fields.security === 'NONE' ? (
+      {security === 'NONE' ? (
         <Text size="xs" className={classes.warning}>
           Without TLS the password and the alert cross the network in clear. STARTTLS, when chosen, is required — a
           server that does not offer it fails the delivery rather than receiving it unencrypted.
         </Text>
       ) : null}
       <div className={classes.form}>
-        <TextInput
-          ref={register('from')}
-          label="From"
-          value={fields.from}
-          onChange={(e) => set('from')(e.currentTarget.value)}
-          onBlur={blur('from')}
-          error={errors.from}
-          placeholder="artemis-studio@example.com"
-          required
-        />
+        <TextInput label="From" {...form.getInputProps('from')} placeholder="artemis-studio@example.com" required />
         <TextInput
           label="Username"
           description="Blank when the server needs no authentication."
-          value={fields.username}
-          onChange={(e) => set('username')(e.currentTarget.value)}
+          {...form.getInputProps('username')}
           autoComplete="off"
         />
       </div>
       <Textarea
-        ref={register('to')}
         label="Recipients"
         description="Separated by commas or new lines."
-        value={fields.to}
-        onChange={(e) => set('to')(e.currentTarget.value)}
-        onBlur={blur('to')}
-        error={errors.to}
+        {...form.getInputProps('to')}
         autosize
         minRows={2}
         required
@@ -177,32 +150,26 @@ function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
       <TextInput
         label="Subject prefix"
         description="Put before every subject, so a mail rule can file alerts."
-        value={fields.subjectPrefix}
-        onChange={(e) => set('subjectPrefix')(e.currentTarget.value)}
+        {...form.getInputProps('subjectPrefix')}
       />
     </>
   );
 }
 
 /** The endpoint choice of a PAGERDUTY channel, with a URL field for a custom one. */
-function PagerDutyFields({ fields, errors, set, blur, register }: KindFieldsProps) {
+function PagerDutyFields({ form }: KindFieldsProps) {
   return (
     <>
       <Select
         label="Endpoint"
         data={PAGERDUTY_ENDPOINTS.map((e) => ({ value: e.value, label: e.label }))}
-        value={fields.pagerDutyEndpoint}
-        onChange={(v) => v && set('pagerDutyEndpoint')(v)}
+        {...form.getInputProps('pagerDutyEndpoint')}
         allowDeselect={false}
       />
-      {fields.pagerDutyEndpoint === 'custom' ? (
+      {form.values.pagerDutyEndpoint === 'custom' ? (
         <TextInput
-          ref={register('url')}
           label="Events API v2 URL"
-          value={fields.url}
-          onChange={(e) => set('url')(e.currentTarget.value)}
-          onBlur={blur('url')}
-          error={errors.url}
+          {...form.getInputProps('url')}
           placeholder="https://oncall.example.com/v2/enqueue"
           required
         />
@@ -219,58 +186,50 @@ function ChannelForm({
   onClose: () => void;
 }>) {
   const editing = channel !== null;
-  const [kind, setKind] = useState<ChannelKind>((channel?.kind as ChannelKind) ?? 'SLACK');
-  const [name, setName] = useState(channel?.name ?? '');
-  const [enabled, setEnabled] = useState(channel?.enabled ?? true);
-  const [fields, setFields] = useState<ChannelFields>(
-    channel ? fieldsFromConfig(channel.kind, channel.config) : EMPTY_FIELDS,
-  );
-  const [secret, setSecret] = useState('');
-  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const hasSecret = channel?.hasSecret ?? false;
   const [testResult, setTestResult] = useState<ChannelTestResultView | null>(null);
   const [formError, setFormError] = useState<ApiError | null>(null);
-  const refs = useRef<Partial<Record<Field, HTMLElement | null>>>({});
 
   const create = useCreateNotificationChannel();
   const update = useUpdateNotificationChannel();
   const test = useTestChannelConfig();
+
+  const form = useForm<ChannelValues>({
+    initialValues: {
+      ...(channel ? fieldsFromConfig(channel.kind, channel.config) : EMPTY_FIELDS),
+      kind: kindOf(channel?.kind) ?? 'SLACK',
+      name: channel?.name ?? '',
+      secret: '',
+      enabled: channel?.enabled ?? true,
+    },
+    validateInputOnBlur: true,
+    // Only the fields this kind shows are checked, in the order they are shown.
+    validate: (values) =>
+      Object.fromEntries(
+        FIELDS[values.kind].flatMap((f) => {
+          const message = validateField(values.kind, f, values[f], { editing, hasSecret, fields: values });
+          return message ? [[f, message]] : [];
+        }),
+      ),
+    // A test result describes the values it was run with, not the ones typed since.
+    onValuesChange: () => setTestResult(null),
+  });
+  const { kind, enabled } = form.values;
   const info = CHANNEL_KINDS[kind];
-  const hasSecret = channel?.hasSecret ?? false;
 
-  const valueOf = (f: Field): string => {
-    if (f === 'name') return name;
-    if (f === 'secret') return secret;
-    return String(fields[f]);
-  };
-  const check = (f: Field, value = valueOf(f)) => validateField(kind, f, value, { editing, hasSecret, fields });
-  const blur = (f: Field) => () => setErrors((e) => ({ ...e, [f]: check(f) ?? undefined }));
-  const set = (f: keyof ChannelFields) => (value: string) => {
-    setFields((prev) => ({ ...prev, [f]: value }));
-    setTestResult(null);
-    if (errors[f]) setErrors((e) => ({ ...e, [f]: undefined }));
-  };
-
-  /** Validates every shown field; on failure focuses the first invalid one. */
-  const validateAll = (only?: Field[]): boolean => {
-    const next: Partial<Record<Field, string>> = {};
-    for (const f of only ?? FIELDS[kind]) {
-      const message = check(f);
-      if (message) next[f] = message;
-    }
-    setErrors(next);
-    const first = (only ?? FIELDS[kind]).find((f) => next[f]);
-    if (first) {
-      refs.current[first]?.focus();
-      return false;
-    }
-    return true;
+  /** Validates the given fields; on failure focuses the first invalid one. */
+  const validateOnly = (only: Field[]): boolean => {
+    const invalid = only.filter((f) => form.validateField(f).hasError);
+    focusFirstInvalid(form.getInputNode)(Object.fromEntries(invalid.map((f) => [f, true])));
+    return invalid.length === 0;
   };
 
   const rejected = (e: ApiError) => {
-    const field = serverField(e.message) as Field | null;
-    if (field && FIELDS[kind].includes(field)) {
-      setErrors((prev) => ({ ...prev, [field]: e.message.replace(/^[A-Za-z]+:\s/, '') }));
-      refs.current[field]?.focus();
+    const field = serverField(e.message);
+    const shown = FIELDS[kind].find((f) => f === field);
+    if (shown) {
+      form.setErrors({ [shown]: e.message.replace(/^[A-Za-z]+:\s/, '') });
+      form.getInputNode(shown)?.focus();
     } else {
       setFormError(e);
     }
@@ -279,27 +238,26 @@ function ChannelForm({
   const runTest = () => {
     setFormError(null);
     setTestResult(null);
-    if (!validateAll(FIELDS[kind].filter((f) => f !== 'name'))) return;
+    if (!validateOnly(FIELDS[kind].filter((f) => f !== 'name'))) return;
     test.mutate(
       {
         channelId: channel?.id ?? null,
         kind,
-        config: configFromFields(kind, fields),
-        secret: secret.trim() || undefined,
+        config: configFromFields(kind, form.values),
+        secret: form.values.secret.trim() || undefined,
       },
       { onSuccess: setTestResult, onError: rejected },
     );
   };
 
-  const save = () => {
+  const save = form.onSubmit((values) => {
     setFormError(null);
-    if (!validateAll()) return;
     const body = {
-      name: name.trim(),
+      name: values.name.trim(),
       kind,
-      config: configFromFields(kind, fields),
-      secret: secret.trim() || undefined,
-      enabled,
+      config: configFromFields(kind, values),
+      secret: values.secret.trim() || undefined,
+      enabled: values.enabled,
     };
     const done = () => {
       notify.succeeded({ action: editing ? SAVE : ADD, subject: `channel "${body.name}"` });
@@ -310,129 +268,107 @@ function ChannelForm({
     } else {
       create.mutate(body, { onSuccess: done, onError: rejected });
     }
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const saving = create.isPending || update.isPending;
-  const register = (f: Field) => (el: HTMLElement | null) => {
-    refs.current[f] = el;
-  };
 
   return (
-    <Stack gap="sm">
-      {editing ? (
-        <Text size="sm">
-          <Text span fw={600}>
-            Kind:
-          </Text>{' '}
-          {kindLabel(kind)} — a channel’s kind cannot change; add a new channel for another kind.
+    <form noValidate onSubmit={save}>
+      <Stack gap="sm">
+        {editing ? (
+          <Text size="sm">
+            <Text span fw={600}>
+              Kind:
+            </Text>{' '}
+            {kindLabel(kind)} — a channel’s kind cannot change; add a new channel for another kind.
+          </Text>
+        ) : (
+          <Select
+            label="Kind"
+            data={KIND_ORDER.map((k) => ({ value: k, label: CHANNEL_KINDS[k].label }))}
+            {...form.getInputProps('kind')}
+            onChange={(v) => {
+              const next = kindOf(v);
+              if (!next) return;
+              form.setFieldValue('kind', next);
+              form.clearErrors();
+            }}
+            allowDeselect={false}
+          />
+        )}
+        <Text size="sm" c="dimmed">
+          {info.description}
         </Text>
-      ) : (
-        <Select
-          label="Kind"
-          data={KIND_ORDER.map((k) => ({ value: k, label: CHANNEL_KINDS[k].label }))}
-          value={kind}
-          onChange={(v) => {
-            if (!v) return;
-            setKind(v as ChannelKind);
-            setErrors({});
-            setTestResult(null);
-          }}
-          allowDeselect={false}
-        />
-      )}
-      <Text size="sm" c="dimmed">
-        {info.description}
-      </Text>
 
-      <TextInput
-        ref={register('name')}
-        label="Name"
-        description="How rules and the channel list refer to it."
-        value={name}
-        onChange={(e) => setName(e.currentTarget.value)}
-        onBlur={blur('name')}
-        error={errors.name}
-        required
-      />
-
-      {kind === 'WEBHOOK' ? (
         <TextInput
-          ref={register('url')}
-          label="Receiver URL"
-          value={fields.url}
-          onChange={(e) => set('url')(e.currentTarget.value)}
-          onBlur={blur('url')}
-          error={errors.url}
-          placeholder="https://alerts.example.com/hooks/artemis"
+          label="Name"
+          description="How rules and the channel list refer to it."
+          {...form.getInputProps('name')}
           required
         />
-      ) : null}
 
-      {kind === 'EMAIL' ? (
-        <EmailFields fields={fields} errors={errors} set={set} blur={blur} register={register} />
-      ) : null}
+        {kind === 'WEBHOOK' ? (
+          <TextInput
+            label="Receiver URL"
+            {...form.getInputProps('url')}
+            placeholder="https://alerts.example.com/hooks/artemis"
+            required
+          />
+        ) : null}
 
-      <PasswordInput
-        ref={register('secret')}
-        label={info.secretLabel}
-        description={
-          editing && hasSecret
-            ? `${info.secretDescription} A secret is stored; leave blank to keep it.`
-            : info.secretDescription
-        }
-        placeholder={editing && hasSecret ? '•••••••• (stored — unchanged)' : info.secretPlaceholder}
-        value={secret}
-        onChange={(e) => {
-          setSecret(e.currentTarget.value);
-          setTestResult(null);
-          if (errors.secret) setErrors((x) => ({ ...x, secret: undefined }));
-        }}
-        onBlur={blur('secret')}
-        error={errors.secret}
-        autoComplete="new-password"
-        required={!info.secretOptional && !(editing && hasSecret)}
-      />
-      {kind === 'WEBHOOK' ? (
-        <Button
-          variant="subtle"
-          size="compact-xs"
-          type="button"
-          onClick={() => setSecret(generateSigningSecret())}
-          className={classes.start}
-        >
-          Generate a random signing secret
-        </Button>
-      ) : null}
+        {kind === 'EMAIL' ? <EmailFields form={form} /> : null}
 
-      {kind === 'PAGERDUTY' ? (
-        <PagerDutyFields fields={fields} errors={errors} set={set} blur={blur} register={register} />
-      ) : null}
-
-      <Switch
-        label={enabled ? 'Enabled — bound rules deliver here' : 'Disabled — bound rules skip this channel'}
-        checked={enabled}
-        onChange={(e) => setEnabled(e.currentTarget.checked)}
-      />
-
-      <div role="status" aria-live="polite">
-        {testResult ? <TestOutcome result={testResult} kind={kind} /> : null}
-      </div>
-      {formError ? <ErrorState variant="inline" error={formError} /> : null}
-
-      <Group justify="space-between">
-        <Button variant="default" onClick={runTest} loading={test.isPending} disabled={saving}>
-          Send a test
-        </Button>
-        <Group gap="xs">
-          <Button variant="subtle" onClick={onClose} disabled={saving}>
-            Cancel
+        <PasswordInput
+          label={info.secretLabel}
+          description={
+            editing && hasSecret
+              ? `${info.secretDescription} A secret is stored; leave blank to keep it.`
+              : info.secretDescription
+          }
+          placeholder={editing && hasSecret ? '•••••••• (stored — unchanged)' : info.secretPlaceholder}
+          {...form.getInputProps('secret')}
+          autoComplete="new-password"
+          required={!info.secretOptional && !(editing && hasSecret)}
+        />
+        {kind === 'WEBHOOK' ? (
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            type="button"
+            onClick={() => form.setFieldValue('secret', generateSigningSecret())}
+            className={classes.start}
+          >
+            Generate a random signing secret
           </Button>
-          <Button onClick={save} loading={saving} disabled={test.isPending}>
-            {editing ? 'Save' : 'Add channel'}
+        ) : null}
+
+        {kind === 'PAGERDUTY' ? <PagerDutyFields form={form} /> : null}
+
+        <Switch
+          label={enabled ? 'Enabled — bound rules deliver here' : 'Disabled — bound rules skip this channel'}
+          {...form.getInputProps('enabled', { type: 'checkbox' })}
+        />
+
+        <div role="status" aria-live="polite">
+          {testResult ? <TestOutcome result={testResult} kind={kind} /> : null}
+        </div>
+        {formError ? <ErrorState variant="inline" error={formError} /> : null}
+
+        <Group justify="space-between">
+          <Button variant="default" onClick={runTest} loading={test.isPending} disabled={saving}>
+            Send a test
           </Button>
+          <Group gap="xs">
+            <Button variant="subtle" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={saving} disabled={test.isPending}>
+              {editing ? 'Save' : 'Add channel'}
+            </Button>
+          </Group>
         </Group>
-      </Group>
-    </Stack>
+      </Stack>
+    </form>
   );
 }
 

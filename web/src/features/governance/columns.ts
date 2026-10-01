@@ -75,13 +75,12 @@ export interface FindingRows {
  */
 export function findingColumns({ zone, decisionControl }: FindingRows): Column<FindingView>[] {
   return [
-    { id: 'field', header: 'Field', accessor: fieldOf, kind: 'code', wrap: true, priority: 'essential' },
+    { id: 'field', header: 'Field', accessor: fieldOf, kind: 'identifier', priority: 'essential' },
     {
       id: 'address',
       header: 'Address',
       accessor: (f) => f.address,
       kind: 'identifier',
-      wrap: true,
       priority: 'essential',
     },
     { id: 'class', header: 'Class', accessor: (f) => f.dataClassLabel, kind: 'text', priority: 'high' },

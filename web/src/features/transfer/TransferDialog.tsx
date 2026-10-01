@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button, Checkbox, Code, Group, Modal, SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useCluster, useClusters } from '../clusters/index.ts';
@@ -11,6 +12,7 @@ import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
@@ -50,10 +52,12 @@ function firstBlocked(source: Gate, target: Gate): Gate | null {
 
 const isUncertain = (gate: Gate) => gate.kind === 'allowed' && gate.uncertain;
 
-/** What is missing from a destination field, or undefined when it is filled. */
-function fieldProblem(field: 'node' | 'queue', value: string | null): string | undefined {
-  if (value?.trim()) return undefined;
-  return field === 'node' ? 'Choose the node the messages go to.' : 'Name the queue the messages go to.';
+/** What the destination step asks for. */
+interface Destination {
+  mode: TransferMode;
+  targetClusterId: string;
+  targetNodeId: string | null;
+  targetQueue: string;
 }
 
 /** The selection as the API takes it: ids, a filter, or the whole queue. */
@@ -120,21 +124,11 @@ function Snippet({ snippet }: Readonly<{ snippet?: string | null }>) {
 function DestinationForm({
   queueName,
   redistribute,
-  mode,
-  onMode,
-  targetClusterId,
+  form,
   clusterOptions,
-  onTargetCluster,
   targetPending,
   targetNodes,
   chosenNode,
-  onNode,
-  targetQueue,
-  onQueue,
-  errors,
-  onValidate,
-  nodeRef,
-  queueRef,
   noSourceNode,
   uncertain,
   blocked,
@@ -145,21 +139,11 @@ function DestinationForm({
 }: Readonly<{
   queueName: string;
   redistribute: boolean;
-  mode: TransferMode;
-  onMode: (mode: TransferMode) => void;
-  targetClusterId: string;
+  form: UseFormReturnType<Destination>;
   clusterOptions: { value: string; label: string; disabled: boolean }[];
-  onTargetCluster: (id: string) => void;
   targetPending: boolean;
   targetNodes: ReturnType<typeof nodeOptions>;
   chosenNode: string | null;
-  onNode: (id: string | null) => void;
-  targetQueue: string;
-  onQueue: (queue: string) => void;
-  errors: { node?: string; queue?: string };
-  onValidate: (field: 'node' | 'queue') => void;
-  nodeRef: React.RefObject<HTMLInputElement | null>;
-  queueRef: React.RefObject<HTMLInputElement | null>;
   noSourceNode: boolean;
   uncertain: boolean;
   blocked: Gate | null;
@@ -168,89 +152,93 @@ function DestinationForm({
   onCancel: () => void;
   onPreview: () => void;
 }>) {
+  const { targetClusterId } = form.values;
   return (
-    <Stack gap="sm">
-      {noSourceNode ? (
-        <EmptyState
-          kind="empty"
-          title="No source node to read from"
-          description="No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait for a node to come back, then open this again."
-        />
-      ) : null}
-      {redistribute ? (
-        <Text size="sm">
-          The messages move to {queueName} on the node you choose, and land on that node&rsquo;s own queue.
-        </Text>
-      ) : (
-        <>
-          <Stack gap="xs">
-            <Text size="sm" fw={500} id="transfer-mode">
-              Mode
-            </Text>
-            <SegmentedControl
-              aria-labelledby="transfer-mode"
-              value={mode}
-              onChange={(v) => onMode(v as TransferMode)}
-              data={[
-                { value: 'MOVE', label: 'Move: the messages leave the source' },
-                { value: 'COPY', label: 'Copy: the source is unchanged' },
-              ]}
-            />
-          </Stack>
-          <Select
-            label="Target cluster"
-            description="A cluster you may not send to is listed, and says so."
-            data={clusterOptions}
-            value={targetClusterId}
-            allowDeselect={false}
-            onChange={(v) => {
-              if (v) onTargetCluster(v);
-            }}
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        onPreview();
+      }}
+    >
+      <Stack gap="sm">
+        {noSourceNode ? (
+          <EmptyState
+            kind="empty"
+            title="No source node to read from"
+            description="No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait for a node to come back, then open this again."
           />
-        </>
-      )}
-      <Select
-        ref={nodeRef}
-        label="Target node"
-        description="Every node is listed; one that cannot take messages says why."
-        placeholder={targetPending ? 'Reading the cluster’s nodes…' : 'Choose a node'}
-        data={targetNodes}
-        value={chosenNode}
-        onChange={onNode}
-        onBlur={() => onValidate('node')}
-        error={errors.node}
-        nothingFoundMessage="This cluster has no nodes Studio knows of."
-      />
-      {redistribute ? null : (
-        <AddressPicker
-          clusterId={targetClusterId}
-          label="Target queue"
-          description="The queue on the target node. A queue that does not exist is checked in the preview."
-          value={targetQueue}
-          onChange={onQueue}
-          onBlur={() => onValidate('queue')}
-          error={errors.queue}
-          inputRef={queueRef}
-          unknownHint="No queue by that name on this cluster yet. The preview says whether the broker would create it."
+        ) : null}
+        {redistribute ? (
+          <Text size="sm">
+            The messages move to {queueName} on the node you choose, and land on that node&rsquo;s own queue.
+          </Text>
+        ) : (
+          <>
+            <Stack gap="xs">
+              <Text size="sm" fw={500} id="transfer-mode">
+                Mode
+              </Text>
+              <SegmentedControl
+                aria-labelledby="transfer-mode"
+                {...form.getInputProps('mode')}
+                data={[
+                  { value: 'MOVE', label: 'Move: the messages leave the source' },
+                  { value: 'COPY', label: 'Copy: the source is unchanged' },
+                ]}
+              />
+            </Stack>
+            <Select
+              label="Target cluster"
+              description="A cluster you may not send to is listed, and says so."
+              data={clusterOptions}
+              {...form.getInputProps('targetClusterId')}
+              allowDeselect={false}
+              onChange={(v) => {
+                if (!v) return;
+                form.setFieldValue('targetClusterId', v);
+                form.setFieldValue('targetNodeId', null);
+              }}
+            />
+          </>
+        )}
+        <Select
+          label="Target node"
+          description="Every node is listed; one that cannot take messages says why."
+          placeholder={targetPending ? 'Reading the cluster’s nodes…' : 'Choose a node'}
+          data={targetNodes}
+          {...form.getInputProps('targetNodeId')}
+          value={chosenNode}
+          nothingFoundMessage="This cluster has no nodes Studio knows of."
         />
-      )}
-      {uncertain && !blocked ? (
-        <Text size="sm">
-          Whether these brokers allow Studio&rsquo;s management operations has not been established yet. The preview is
-          offered anyway, and states what it could not check.
-        </Text>
-      ) : null}
-      <Group justify="flex-end">
-        <Button variant="default" size="xs" onClick={onCancel}>
-          Cancel
-        </Button>
-        <CapabilityGate verdict={blocked ?? { kind: 'allowed', uncertain: false }} what="previewing this transfer">
-          <Button size="xs" loading={previewing} disabled={blocked !== null || !canPreview} onClick={onPreview}>
-            Preview
+        {redistribute ? null : (
+          <AddressPicker
+            clusterId={targetClusterId}
+            label="Target queue"
+            description="The queue on the target node. A queue that does not exist is checked in the preview."
+            {...form.getInputProps('targetQueue')}
+            value={form.values.targetQueue}
+            unknownHint="No queue by that name on this cluster yet. The preview says whether the broker would create it."
+          />
+        )}
+        {uncertain && !blocked ? (
+          <Text size="sm">
+            Whether these brokers allow Studio&rsquo;s management operations has not been established yet. The preview
+            is offered anyway, and states what it could not check.
+          </Text>
+        ) : null}
+        <Group justify="flex-end">
+          <Button variant="default" size="xs" onClick={onCancel}>
+            Cancel
           </Button>
-        </CapabilityGate>
-      </Group>
-    </Stack>
+          <CapabilityGate verdict={blocked ?? { kind: 'allowed', uncertain: false }} what="previewing this transfer">
+            <Button type="submit" size="xs" loading={previewing} disabled={blocked !== null || !canPreview}>
+              Preview
+            </Button>
+          </CapabilityGate>
+        </Group>
+      </Stack>
+    </form>
   );
 }
 
@@ -335,13 +323,15 @@ function FindingsPanel({
       ) : null}
 
       {execute.isError ? (
-        <Stack gap="sm" align="flex-start">
-          <ErrorState error={execute.error} />
-          <Text size="sm">Nothing was run. Preview again to confirm the transfer as it is now.</Text>
-          <Button size="xs" variant="default" onClick={onPreviewAgain}>
-            Preview again
-          </Button>
-        </Stack>
+        <ErrorState
+          error={execute.error}
+          next="Nothing was run. Preview again to confirm the transfer as it is now."
+          actions={
+            <Button size="xs" variant="default" onClick={onPreviewAgain}>
+              Preview again
+            </Button>
+          }
+        />
       ) : null}
 
       {refused ? null : (
@@ -416,14 +406,17 @@ export function TransferDialog({
   const preview = useTransferPreview(clusterId);
   const execute = useTransferExecute(clusterId);
 
-  const [mode, setMode] = useState<TransferMode>('MOVE');
-  const [targetClusterId, setTargetClusterId] = useState<string>(clusterId);
-  const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
-  const [targetQueue, setTargetQueue] = useState(queueName);
-  const [errors, setErrors] = useState<{ node?: string; queue?: string }>({});
+  const form = useForm<Destination>({
+    initialValues: { mode: 'MOVE', targetClusterId: clusterId, targetNodeId: null, targetQueue: queueName },
+    validateInputOnBlur: true,
+    validate: {
+      // The node the operator sees may be the one chosen for them, so it is checked as shown (see `chosenNode`).
+      targetNodeId: () => (chosenNode ? null : 'Choose the node the messages go to.'),
+      targetQueue: (v) => (redistribute || v.trim() ? null : 'Name the queue the messages go to.'),
+    },
+  });
+  const { mode, targetClusterId, targetNodeId } = form.values;
   const [acked, setAcked] = useState<Set<string>>(new Set());
-  const nodeRef = useRef<HTMLInputElement>(null);
-  const queueRef = useRef<HTMLInputElement>(null);
 
   const target = useCluster(targetClusterId);
   const sourceEndpoints = endpointsOf(source.data?.topology);
@@ -433,11 +426,7 @@ export function TransferDialog({
   const close = () => {
     preview.reset();
     execute.reset();
-    setMode('MOVE');
-    setTargetClusterId(clusterId);
-    setTargetNodeId(null);
-    setTargetQueue(queueName);
-    setErrors({});
+    form.reset();
     setAcked(new Set());
     onClose();
   };
@@ -464,19 +453,10 @@ export function TransferDialog({
   );
   // A redistribution with one other node has nothing to choose; it is chosen for the operator, visibly.
   const choosable = targetNodes.filter((o) => !o.disabled);
-  const chosenNode = targetNodeId ?? (redistribute && choosable.length === 1 ? choosable[0].value : null);
+  const chosenNode: string | null =
+    targetNodeId ?? (redistribute && choosable.length === 1 ? choosable[0].value : null);
 
-  const validate = (field: 'node' | 'queue') => {
-    const message = fieldProblem(field, field === 'node' ? chosenNode : targetQueue);
-    setErrors((e) => ({ ...e, [field]: message }));
-    return message === undefined;
-  };
-
-  const takePreview = () => {
-    const nodeOk = validate('node');
-    const queueOk = redistribute || validate('queue');
-    if (!nodeOk) return nodeRef.current?.focus();
-    if (!queueOk) return queueRef.current?.focus();
+  const takePreview = form.onSubmit((values) => {
     if (!sourceNode || !chosenNode) return;
     execute.reset();
     setAcked(new Set());
@@ -485,12 +465,12 @@ export function TransferDialog({
       sourceQueue: queueName,
       sourceNodeId: sourceNode.id,
       selection: selectionRequest(selection),
-      targetClusterId: redistribute ? clusterId : targetClusterId,
+      targetClusterId: redistribute ? clusterId : values.targetClusterId,
       targetNodeId: chosenNode,
-      targetQueue: redistribute ? queueName : targetQueue.trim(),
+      targetQueue: redistribute ? queueName : values.targetQueue.trim(),
       targetAddress: null,
     });
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const data = preview.data;
   const findings = data?.findings ?? [];
@@ -547,37 +527,18 @@ export function TransferDialog({
           <DestinationForm
             queueName={queueName}
             redistribute={redistribute}
-            mode={mode}
-            onMode={setMode}
-            targetClusterId={targetClusterId}
+            form={form}
             clusterOptions={clusterOptions}
-            onTargetCluster={(id) => {
-              setTargetClusterId(id);
-              setTargetNodeId(null);
-            }}
             targetPending={target.isPending}
             targetNodes={targetNodes}
             chosenNode={chosenNode}
-            onNode={(v) => {
-              setTargetNodeId(v);
-              if (v) setErrors((e) => ({ ...e, node: undefined }));
-            }}
-            targetQueue={targetQueue}
-            onQueue={(v) => {
-              setTargetQueue(v);
-              if (v.trim()) setErrors((e) => ({ ...e, queue: undefined }));
-            }}
-            errors={errors}
-            onValidate={validate}
-            nodeRef={nodeRef}
-            queueRef={queueRef}
             noSourceNode={!sourceNode && Boolean(source.data)}
             uncertain={uncertain}
             blocked={blocked}
             canPreview={sourceNode !== undefined}
             previewing={preview.isPending}
             onCancel={close}
-            onPreview={takePreview}
+            onPreview={() => takePreview()}
           />
         ) : null}
 
@@ -586,10 +547,7 @@ export function TransferDialog({
             <LoadingState label="Reading the source and checking the target" blockSize="6rem" />
           ) : null}
           {preview.isError ? (
-            <Stack gap="sm" align="flex-start">
-              <ErrorState error={preview.error} />
-              <Text size="sm">Nothing was moved. Change the destination, or preview again.</Text>
-            </Stack>
+            <ErrorState error={preview.error} next="Nothing was moved. Change the destination, or preview again." />
           ) : null}
           {data ? (
             <Stack gap="xs">
@@ -619,7 +577,7 @@ export function TransferDialog({
               })
             }
             execute={execute}
-            onPreviewAgain={takePreview}
+            onPreviewAgain={() => takePreview()}
             onStart={start}
             onChangeDestination={() => {
               preview.reset();
