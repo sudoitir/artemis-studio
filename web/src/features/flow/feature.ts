@@ -2,8 +2,8 @@ import { IconChartSankey } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { FlowView } from './FlowView.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { validateFlowSearch } from './flowSearch.ts';
 import {
   AddressInFlow,
@@ -17,7 +17,7 @@ import {
 const flowRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'flow',
-  component: featureView('flow', FlowView),
+  component: lazyFeatureView('flow', () => import('./FlowView.tsx'), 'FlowView'),
   validateSearch: validateFlowSearch,
 });
 

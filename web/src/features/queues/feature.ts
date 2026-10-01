@@ -2,7 +2,8 @@ import { IconListDetails } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { validateResourceSearch, type ResourceSearch } from '../../kernel/routing/search.ts';
 import { keys } from './api.ts';
 import {
@@ -18,7 +19,6 @@ import {
   QueueLink,
 } from './QueueActions.tsx';
 import { QueuePalette } from './QueuePalette.tsx';
-import { QueuesView } from './QueuesView.tsx';
 
 /** The listing's own state, plus the queue whose detail is open — a shareable address. */
 export interface QueuesSearch extends ResourceSearch {
@@ -34,7 +34,7 @@ function validateQueuesSearch(raw: Record<string, unknown>): QueuesSearch {
 const queuesRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'queues',
-  component: featureView('queues', QueuesView),
+  component: lazyFeatureView('queues', () => import('./QueuesView.tsx'), 'QueuesView'),
   validateSearch: validateQueuesSearch,
 });
 

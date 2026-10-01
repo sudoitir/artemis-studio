@@ -2,8 +2,8 @@ import { IconBellRinging } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { EventsView } from './EventsView.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 
 function validateEventsSearch(raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -20,7 +20,7 @@ function validateEventsSearch(raw: Record<string, unknown>): Record<string, unkn
 const eventsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'events',
-  component: featureView('events', EventsView),
+  component: lazyFeatureView('events', () => import('./EventsView.tsx'), 'EventsView'),
   validateSearch: validateEventsSearch,
 });
 

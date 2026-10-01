@@ -1,21 +1,20 @@
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { featureView, rootRoute } from '../../kernel/routing/roots.ts';
-import { ChangePasswordView } from './ChangePasswordView.tsx';
-import { EnrolSecondFactorView } from './EnrolSecondFactorView.tsx';
+import { rootRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { PasswordSection, TwoStepVerificationSection } from './sections.tsx';
 
 const changePasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'change-password',
-  component: featureView('identity-local', ChangePasswordView),
+  component: lazyFeatureView('identity-local', () => import('./ChangePasswordView.tsx'), 'ChangePasswordView'),
 });
 
 const enrolSecondFactorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'enrol-second-factor',
-  component: featureView('identity-local', EnrolSecondFactorView),
+  component: lazyFeatureView('identity-local', () => import('./EnrolSecondFactorView.tsx'), 'EnrolSecondFactorView'),
 });
 
 /** Local username-and-password accounts: changing the password, including the forced change on first sign-in, and the two-step verification it can require. */

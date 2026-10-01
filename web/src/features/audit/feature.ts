@@ -2,8 +2,8 @@ import { IconClipboardList } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { AuditView } from './AuditView.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 
 function validateAuditSearch(raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -22,7 +22,7 @@ function validateAuditSearch(raw: Record<string, unknown>): Record<string, unkno
 const auditRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'audit',
-  component: featureView('audit', AuditView),
+  component: lazyFeatureView('audit', () => import('./AuditView.tsx'), 'AuditView'),
   validateSearch: validateAuditSearch,
 });
 

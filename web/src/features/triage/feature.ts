@@ -2,16 +2,16 @@ import { IconActivityHeartbeat } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { validateResourceSearch } from '../../kernel/routing/search.ts';
 import { keys } from './api.ts';
-import { ConsumerHealthView } from './ConsumerHealthView.tsx';
 import { QueueHealthPanel } from './QueueHealthPanel.tsx';
 
 const consumerHealthRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'consumer-health',
-  component: featureView('triage', ConsumerHealthView),
+  component: lazyFeatureView('triage', () => import('./ConsumerHealthView.tsx'), 'ConsumerHealthView'),
   validateSearch: validateResourceSearch,
 });
 

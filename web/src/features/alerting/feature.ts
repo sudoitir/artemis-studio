@@ -3,8 +3,8 @@ import { createRoute } from '@tanstack/react-router';
 
 import { clusterKey } from '../../kernel/api/request.ts';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
-import { AlertsView } from './AlertsView.tsx';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { keys } from './api.ts';
 import { FiringBadge } from './FiringBadge.tsx';
 import { FiringNodeMark } from './FiringNodeMark.tsx';
@@ -14,7 +14,7 @@ import { ChannelsSection } from './sections.tsx';
 const alertsRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'alerts',
-  component: featureView('alerting', AlertsView),
+  component: lazyFeatureView('alerting', () => import('./AlertsView.tsx'), 'AlertsView'),
   validateSearch: (raw: Record<string, unknown>): { tab?: 'firing' | 'history' | 'rules' } =>
     raw.tab === 'firing' || raw.tab === 'history' || raw.tab === 'rules' ? { tab: raw.tab } : {},
 });

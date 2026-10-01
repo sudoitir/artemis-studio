@@ -2,12 +2,10 @@ import { IconAdjustmentsHorizontal, IconGitCompare } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView, lazySlot } from '../../kernel/routing/lazy.tsx';
 import { configTopic } from './applyProgress.ts';
-import { ConfigDiffView } from './ConfigDiffView.tsx';
-import { ConfigurationView } from './ConfigurationView.tsx';
 import { RegistrationRecommendations } from './RegistrationRecommendations.tsx';
-import { RoutingBuilderTab } from './routing/RoutingBuilderTab.tsx';
 import { asSection, type Section } from './words.ts';
 
 /**
@@ -35,13 +33,13 @@ function validateConfigurationSearch(raw: Record<string, unknown>): Configuratio
 const configDiffRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'config-diff',
-  component: featureView('brokerconfig', ConfigDiffView),
+  component: lazyFeatureView('brokerconfig', () => import('./ConfigDiffView.tsx'), 'ConfigDiffView'),
 });
 
 const configurationRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'configuration',
-  component: featureView('brokerconfig', ConfigurationView),
+  component: lazyFeatureView('brokerconfig', () => import('./ConfigurationView.tsx'), 'ConfigurationView'),
   validateSearch: validateConfigurationSearch,
 });
 
@@ -75,7 +73,14 @@ export const brokerconfigFeature = defineFeature({
     ],
     // The routing builder edits this module's declaration, and is hosted by the Routing screen
     // (ADR-0094). Its id is the tab's `?tab=`.
-    'routing.tabs': [{ id: 'builder', order: 10, title: 'Builder', Component: RoutingBuilderTab }],
+    'routing.tabs': [
+      {
+        id: 'builder',
+        order: 10,
+        title: 'Builder',
+        Component: lazySlot(() => import('./routing/RoutingBuilderTab.tsx'), 'RoutingBuilderTab'),
+      },
+    ],
   },
   streamTopics: { config: configTopic },
 });

@@ -1,11 +1,9 @@
 import { createElement, type ComponentType, type ReactElement } from 'react';
-import { createRootRoute, createRoute } from '@tanstack/react-router';
+import { createRootRoute, createRoute, lazyRouteComponent } from '@tanstack/react-router';
 
 import { LoginView } from '../auth/LoginView.tsx';
 import type { ModuleId } from '../feature.ts';
 import { PluginUnavailable } from '../plugins/PluginUnavailable.tsx';
-import { AccountView } from '../shell/AccountView.tsx';
-import { AdminView } from '../shell/AdminView.tsx';
 import { ClusterLayout } from '../shell/ClusterLayout.tsx';
 import { FeatureGate } from '../shell/FeatureGate.tsx';
 import { HomeView } from '../shell/HomeView.tsx';
@@ -34,7 +32,7 @@ const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: 'login',
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin',
-  component: AdminView,
+  component: lazyRouteComponent(() => import('../shell/AdminView.tsx'), 'AdminView'),
   validateSearch: (
     raw: Record<string, unknown>,
   ): { tab?: string; plugin?: string; upload?: string; view?: 'retention' | 'health' } => ({
@@ -45,7 +43,11 @@ const adminRoute = createRoute({
   }),
 });
 
-const accountRoute = createRoute({ getParentRoute: () => rootRoute, path: 'account', component: AccountView });
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account',
+  component: lazyRouteComponent(() => import('../shell/AccountView.tsx'), 'AccountView'),
+});
 
 /**
  * Every address under a plugin's `p/<id>/` that none of its own routes answer — including every

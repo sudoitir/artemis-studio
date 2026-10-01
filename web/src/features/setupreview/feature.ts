@@ -2,9 +2,9 @@ import { IconStethoscope } from '@tabler/icons-react';
 import { createRoute } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
 import { keys } from './api.ts';
-import { SetupReviewView } from './SetupReviewView.tsx';
 import { SEVERITY_FILTERS, type SeverityFilter } from './words.ts';
 
 export interface SetupReviewSearch {
@@ -15,7 +15,7 @@ export interface SetupReviewSearch {
 const setupReviewRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'setup-review',
-  component: featureView('setupreview', SetupReviewView),
+  component: lazyFeatureView('setupreview', () => import('./SetupReviewView.tsx'), 'SetupReviewView'),
   validateSearch: (raw: Record<string, unknown>): SetupReviewSearch => ({
     severity: (SEVERITY_FILTERS as readonly string[]).includes(String(raw.severity))
       ? (raw.severity as SeverityFilter)

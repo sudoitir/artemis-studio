@@ -2,16 +2,15 @@ import { IconSitemap } from '@tabler/icons-react';
 import { createRoute, redirect } from '@tanstack/react-router';
 
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
-import { clusterRoute, featureView } from '../../kernel/routing/roots.ts';
+import { clusterRoute } from '../../kernel/routing/roots.ts';
+import { lazyFeatureView, lazySlot } from '../../kernel/routing/lazy.tsx';
 import { keys } from './api.ts';
 import { ClusterHeader } from './ClusterHeader.tsx';
-import { ClusterHome } from './ClusterHome.tsx';
 import { ClusterPalette } from './ClusterPalette.tsx';
 import { RemoveClusterSection } from './RemoveClusterSection.tsx';
 import { ClusterRail } from './ClusterRail.tsx';
 import { CapabilitiesSection, CredentialsSection, RegisterSection } from './ClusterSettings.tsx';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
-import { TopologyView } from './TopologyView.tsx';
 
 /** A cluster's own address opens its topology. */
 const clusterIndexRoute = createRoute({
@@ -25,7 +24,7 @@ const clusterIndexRoute = createRoute({
 const topologyRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'topology',
-  component: featureView('clusters', TopologyView),
+  component: lazyFeatureView('clusters', () => import('./TopologyView.tsx'), 'TopologyView'),
 });
 
 /** Registered clusters, their topology and environments: the platform every other feature works on. */
@@ -47,7 +46,9 @@ export const clustersFeature = defineFeature({
   palette: ClusterPalette,
   slots: {
     'shell.navbar': [{ id: 'clusters-rail', order: 10, Component: ClusterRail }],
-    'home.empty': [{ id: 'clusters-home', order: 10, Component: ClusterHome }],
+    'home.empty': [
+      { id: 'clusters-home', order: 10, Component: lazySlot(() => import('./ClusterHome.tsx'), 'ClusterHome') },
+    ],
     'cluster.header': [{ id: 'clusters-header', order: 10, Component: ClusterHeader }],
     'settings.sections': [
       { id: 'clusters-register', order: 30, group: 'studio', title: 'Clusters', Component: RegisterSection },
