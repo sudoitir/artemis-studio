@@ -28,6 +28,7 @@ import { boot } from './kernel/plugins/boot.ts';
 // A module is only in Module Federation's shared scope when the host bundle imports it; this is
 // what hands plugin bundles the running Studio's SDK instead of a copy of their own.
 import '@artemis-studio/plugin-sdk';
+import { shouldRetry } from './kernel/api/retry.ts';
 
 /**
  * Shiki, loaded by dynamic `import()` so nothing but the adapter itself is in the
@@ -75,7 +76,7 @@ const shikiAdapter = createShikiAdapter(loadShiki, { forceColorScheme: CODE_THEM
 installPauseSeam();
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch() },
+    queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch(), retry: shouldRetry },
   },
 });
 
