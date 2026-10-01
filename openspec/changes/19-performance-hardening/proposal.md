@@ -35,6 +35,7 @@ Studio has no stated limits. Operators cannot tell how many clusters, nodes, que
 
 ## Depends on
 - 11-high-availability (targets are stated per replica, and both changes touch the event stream)
+- 15c-design-system (it replaces the grids with one data table, which this change then hardens for large lists)
 
 ## Execution
 **Subagent-driven, with the `planner` agent for the design**: the load test comes first, then the backend, database, event stream and UI fixes are independent tasks whose results feed one guide. Nothing here is adversarial, so a workflow is not worth its cost.
