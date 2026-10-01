@@ -72,8 +72,14 @@ async function main() {
     {
       file: 'topology.png',
       path: `/clusters/${clusterId}/topology`,
-      // A node box, not the frame: the frame renders before the data arrives.
-      ready: () => page.locator('.react-flow__node').first().waitFor({ timeout: 30_000 }),
+      // A node box, not the frame: the frame renders before the data arrives. Then one node is chosen,
+      // so the picture shows the panel that says what that broker is, in words.
+      before: async () => {
+        const node = page.locator('.react-flow__node button').first();
+        await node.waitFor({ timeout: 30_000 });
+        await node.click();
+      },
+      ready: () => page.getByRole('heading', { name: 'Its pair' }).waitFor({ timeout: 10_000 }),
     },
     {
       file: 'flow.png',

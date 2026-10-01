@@ -197,6 +197,11 @@ await clip('demo', async (page, clusterId, mark) => {
   mark();
   // Short: a GIF that opens on four seconds of a still frame reads as a
   // screenshot, and a reader who thinks it is one never waits for the motion.
+  await hold(page, 1_200);
+  // Choosing a broker opens the panel that says what it is: role, liveness, pair and version, in words.
+  await click(page, page.locator('.react-flow__node button').first()).catch(() =>
+    console.warn('demo: no topology node to choose'),
+  );
   await hold(page, 1_800);
 
   // Every queue on every node, worst first — the view the bundled console cannot
@@ -214,8 +219,8 @@ await clip('demo', async (page, clusterId, mark) => {
 
   // The dead-letter queues the seed really built, by rejecting messages.
   await navigate(page, 'DLQ');
-  // The DLQ view is cards, not a grid — waiting for a row here waits for a
-  // timeout and puts twelve dead seconds in the middle of the clip.
+  // The heading, not a row: with nothing dead-lettered yet the grid has no rows, and waiting for one
+  // would put a timeout's worth of dead seconds in the middle of the clip.
   await page
     .getByText(/dead-letter queues/i)
     .first()
@@ -321,8 +326,8 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   mark();
   await hold(page, 500);
 
-  // Cheap first: the predicate pushes down into a JMS selector, and the plan
-  // strip says so before anything is run.
+  // Cheap first: the predicate pushes down into a JMS selector, and the cost
+  // line says so before anything is run.
   await editor.click();
   // The console restores the last query; a click alone leaves the cursor in the
   // middle of it.
@@ -335,11 +340,10 @@ await clip('sql-console', async (page, _clusterId, mark) => {
     .nth(1)
     .waitFor({ timeout: 60_000 })
     .catch(() => {});
-  await page.mouse.wheel(0, 260);
+  // The results fill the pane under the editor; the page itself does not scroll.
   await hold(page, 2_200);
 
   // Then the thing a JMS selector cannot do at all: read the body.
-  await page.mouse.wheel(0, -260);
   await editor.click();
   await page.keyboard.press('ControlOrMeta+a');
   await type(page, "SELECT * FROM \"ORDERS.*\"\nWHERE body->>'orderId' = '4471'\nLIMIT 50");
@@ -350,7 +354,6 @@ await clip('sql-console', async (page, _clusterId, mark) => {
     .nth(1)
     .waitFor({ timeout: 60_000 })
     .catch(() => {});
-  await page.mouse.wheel(0, 260);
   await hold(page, 2_800);
 });
 
