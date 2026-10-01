@@ -17,7 +17,7 @@ const featureEdges = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'packages/*/dist'] },
+  { ignores: ['dist', 'node_modules', 'packages/*/dist', 'coverage', '.sweep', '.vitest'] },
   {
     files: ['src/**/*.{ts,tsx}'],
     plugins: { boundaries },

@@ -216,12 +216,15 @@ verify: verify-api verify-web
 verify-api:
     {{mvn}} verify
 
-# Frontend: type-check, build, lint, DOM tests.
+# Frontend, as CI runs it: build, lint, format, jsdom and browser tests. Needs Chromium once: `npx playwright install chromium`.
 [group('quality')]
 verify-web:
     {{npm}} run build
+    {{npm}} run check:bundle
     {{npm}} run lint
-    {{npm}} test
+    {{npm}} run format:check
+    {{npm}} run test:coverage
+    {{npm}} run test:browser
 
 # Kill, then drain, a replica of the HA reference stack under load (HA_IMAGE_BUILT=1 reuses artemis-studio:ci). Needs Docker, Node.
 [group('quality')]

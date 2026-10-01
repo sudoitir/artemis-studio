@@ -11,3 +11,4 @@ openapi.json
 manifest.snapshot.json
 package-lock.json
 *.md
+.vitest/
