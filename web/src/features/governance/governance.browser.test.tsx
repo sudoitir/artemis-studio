@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
-import { Button, Switch } from '@mantine/core';
 
 import { axeViolations, contentWidth, Frame, renderThemed, SCHEMES, settle } from '../../test/browser.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -53,16 +52,15 @@ const rules = [
   rule({ id: 'r3', selector: 'customerEmail', target: 'PROPERTY' }),
 ];
 
+const noop = () => {};
+
 const rulesTable = (width: number) => (
   <Frame width={width}>
     <DataTable
       variant="static"
       label="Masking rules"
       columns={ruleColumns({
-        enabledControl: (r) => (
-          <Switch size="sm" checked={r.enabled} onChange={() => {}} aria-label={`Enabled: ${r.selector}`} />
-        ),
-        changesControl: () => <Button size="compact-xs">Edit</Button>,
+        controls: { canWrite: true, savingId: undefined, onToggle: noop, onEdit: noop, onDelete: noop },
       })}
       data={rules}
       rowKey={(r) => r.id}
@@ -78,7 +76,7 @@ const findingsTable = (width: number) => (
       label="Classification findings"
       columns={findingColumns({
         zone: 'auto',
-        decisionControl: () => <Button size="compact-xs">Confirm</Button>,
+        controls: { canWrite: true, deciding: null, onDecide: noop },
       })}
       data={[finding(), finding({ id: 'f2', status: 'DISMISSED', location: 'HEADER', fieldPath: 'x-email' })]}
       rowKey={(f) => f.id}

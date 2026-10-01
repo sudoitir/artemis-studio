@@ -190,8 +190,6 @@ export function DeleteQueueDialog({
     if (gone) onDeleted();
   };
 
-  const consumers = queue.totalConsumerCount;
-
   const overCap = preview?.overCap ?? false;
 
   return (
@@ -211,65 +209,95 @@ export function DeleteQueueDialog({
       result={result ? <NodeOutcomeSummary outcome={result} destructive /> : undefined}
       consequence={
         result ? null : (
-          <Stack gap="md">
-            <Text size="sm">
-              This destroys the queue on every live node of the cluster, along with every message it holds. Nothing here
-              can be undone, and a queue recreated afterwards is a new, empty one.
-            </Text>
-            <Text size="sm">
-              A divert that forwards into this queue&apos;s address is removed with it when the delete leaves nothing
-              bound there — otherwise the divert would bring the queue back, or break its producers. Each node below
-              names the diverts it removes and the ones it keeps.
-            </Text>
-
-            <Checkbox
-              label="Disconnect this queue's consumers"
-              description={`${consumers.toLocaleString()} ${
-                consumers === 1 ? 'consumer was' : 'consumers were'
-              } attached at the last scrape. Without this, a node where the queue has consumers refuses the delete. A client that reconnects can create the queue again if auto-create is on.`}
-              checked={disconnectConsumers}
-              // Locked while any call is in flight: a new preview on the same mutation would drop
-              // the real delete's result, and the operator would never see what it did.
-              disabled={remove.isPending}
-              onChange={(e) => {
-                const next = e.currentTarget.checked;
-                setDisconnectConsumers(next);
-                takePreview(next);
-              }}
-            />
-
-            <div aria-live="polite">
-              {remove.isPending && !preview ? (
-                <Text size="sm" c="dimmed">
-                  Counting what would be destroyed…
-                </Text>
-              ) : null}
-
-              {/* An unavailable estimate is stated, never omitted — an absent number
-                  reads as zero, which is exactly the wrong thing to infer here. */}
-              {previewFailed ? (
-                <ErrorState
-                  variant="inline"
-                  error={previewFailed}
-                  next="The estimate could not be taken. The delete can still proceed, but Studio cannot tell you how many messages it would destroy."
-                />
-              ) : null}
-
-              {preview ? <NodeOutcomeSummary outcome={preview} destructive /> : null}
-            </div>
-
-            {overCap && preview ? (
-              <Notice tone="warning" title="Over the safety cap">
-                This would destroy {preview.totalAffected.toLocaleString()} messages, over the cap of{' '}
-                {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override is
-                recorded in the audit log.
-              </Notice>
-            ) : null}
-
-            {remove.isError && !previewFailed ? <ErrorState error={remove.error} variant="inline" /> : null}
-          </Stack>
+          <DeleteConsequence
+            consumers={queue.totalConsumerCount}
+            disconnectConsumers={disconnectConsumers}
+            pending={remove.isPending}
+            preview={preview}
+            previewFailed={previewFailed}
+            deleteError={remove.isError ? remove.error : null}
+            onDisconnectChange={(next) => {
+              setDisconnectConsumers(next);
+              takePreview(next);
+            }}
+          />
         )
       }
     />
+  );
+}
+
+/** What deleting a queue destroys, as the confirmation states it: the preview, the cap and the consumer choice. */
+function DeleteConsequence({
+  consumers,
+  disconnectConsumers,
+  pending,
+  preview,
+  previewFailed,
+  deleteError,
+  onDisconnectChange,
+}: Readonly<{
+  consumers: number;
+  disconnectConsumers: boolean;
+  pending: boolean;
+  preview: LifecycleOutcomeView | null;
+  previewFailed: Error | null;
+  deleteError: Error | null;
+  onDisconnectChange: (disconnect: boolean) => void;
+}>) {
+  return (
+    <Stack gap="md">
+      <Text size="sm">
+        This destroys the queue on every live node of the cluster, along with every message it holds. Nothing here can
+        be undone, and a queue recreated afterwards is a new, empty one.
+      </Text>
+      <Text size="sm">
+        A divert that forwards into this queue&apos;s address is removed with it when the delete leaves nothing bound
+        there — otherwise the divert would bring the queue back, or break its producers. Each node below names the
+        diverts it removes and the ones it keeps.
+      </Text>
+
+      <Checkbox
+        label="Disconnect this queue's consumers"
+        description={`${consumers.toLocaleString()} ${
+          consumers === 1 ? 'consumer was' : 'consumers were'
+        } attached at the last scrape. Without this, a node where the queue has consumers refuses the delete. A client that reconnects can create the queue again if auto-create is on.`}
+        checked={disconnectConsumers}
+        // Locked while any call is in flight: a new preview on the same mutation would drop
+        // the real delete's result, and the operator would never see what it did.
+        disabled={pending}
+        onChange={(e) => onDisconnectChange(e.currentTarget.checked)}
+      />
+
+      <div aria-live="polite">
+        {pending && !preview ? (
+          <Text size="sm" c="dimmed">
+            Counting what would be destroyed…
+          </Text>
+        ) : null}
+
+        {/* An unavailable estimate is stated, never omitted — an absent number
+            reads as zero, which is exactly the wrong thing to infer here. */}
+        {previewFailed ? (
+          <ErrorState
+            variant="inline"
+            error={previewFailed}
+            next="The estimate could not be taken. The delete can still proceed, but Studio cannot tell you how many messages it would destroy."
+          />
+        ) : null}
+
+        {preview ? <NodeOutcomeSummary outcome={preview} destructive /> : null}
+      </div>
+
+      {preview?.overCap ? (
+        <Notice tone="warning" title="Over the safety cap">
+          This would destroy {preview.totalAffected.toLocaleString()} messages, over the cap of{' '}
+          {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override is
+          recorded in the audit log.
+        </Notice>
+      ) : null}
+
+      {deleteError && !previewFailed ? <ErrorState error={deleteError} variant="inline" /> : null}
+    </Stack>
   );
 }

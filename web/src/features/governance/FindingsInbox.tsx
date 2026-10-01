@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, SegmentedControl, Text } from '@mantine/core';
+import { SegmentedControl, Text } from '@mantine/core';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
@@ -10,7 +10,6 @@ import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useDecideFinding, useFindings, type FindingView } from './api.ts';
 import { findingColumns } from './columns.ts';
-import classes from './Governance.module.css';
 import { FINDING_STATUSES, fieldOf } from './words.ts';
 
 const CONFIRM: ActionVerb = { verb: 'Confirm', past: 'Confirmed', progressive: 'Confirming' };
@@ -73,31 +72,11 @@ export function FindingsInbox() {
   // Built each render: the cells carry what is gated and busy right now.
   const columns = findingColumns({
     zone,
-    decisionControl: (f) =>
-      f.status === 'OPEN' ? (
-        <span className={classes.controls}>
-          <Button
-            size="compact-xs"
-            variant="default"
-            disabled={!canWrite || (pending !== null && pending !== f.id)}
-            loading={pending === f.id && decide.variables?.decision === 'confirm'}
-            onClick={() => act(f, 'confirm')}
-            aria-label={`Confirm ${fieldOf(f)} on ${f.address} as ${f.dataClassLabel}`}
-          >
-            Confirm
-          </Button>
-          <Button
-            size="compact-xs"
-            variant="default"
-            disabled={!canWrite || (pending !== null && pending !== f.id)}
-            loading={pending === f.id && decide.variables?.decision === 'dismiss'}
-            onClick={() => act(f, 'dismiss')}
-            aria-label={`Dismiss ${fieldOf(f)} on ${f.address} as not ${f.dataClassLabel}`}
-          >
-            Dismiss
-          </Button>
-        </span>
-      ) : null,
+    controls: {
+      canWrite,
+      deciding: pending === null ? null : { id: pending, decision: decide.variables?.decision },
+      onDecide: act,
+    },
   });
 
   return (

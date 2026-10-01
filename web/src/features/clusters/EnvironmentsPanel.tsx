@@ -23,6 +23,11 @@ const CREATE: ActionVerb = { verb: 'Create', past: 'Created', progressive: 'Crea
 const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
 const DELETE: ActionVerb = { verb: 'Delete', past: 'Deleted', progressive: 'Deleting' };
 
+function editorTitle(editing: EnvironmentView | 'new' | null): string {
+  if (editing === 'new') return 'New environment';
+  return `Edit "${editing?.name ?? ''}"`;
+}
+
 /** Environment grouping CRUD (environments spec). Cluster assignment happens from the cluster's own settings. */
 export function EnvironmentsPanel() {
   const environments = useEnvironments();
@@ -87,11 +92,7 @@ export function EnvironmentsPanel() {
         }
       />
 
-      <Modal
-        opened={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing === 'new' ? 'New environment' : `Edit "${editing === null ? '' : editing.name}"`}
-      >
+      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editorTitle(editing)}>
         {/* Remounted per environment, so the editor never shows a previous one's values. */}
         {editing === null ? null : (
           <EnvironmentEditor

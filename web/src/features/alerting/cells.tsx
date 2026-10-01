@@ -1,3 +1,6 @@
+import { ActionIcon, Switch } from '@mantine/core';
+import { IconHistory, IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
+
 import { elapsedLabel } from '../../kernel/time/time.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { AlertDeliveryView, AlertRuleView, NotificationChannelView } from './api.ts';
@@ -79,6 +82,108 @@ export function DeliveryState({ delivery: d }: Readonly<{ delivery: AlertDeliver
     <span className={classes.lines}>
       <span className={d.state === 'DEAD' ? classes.failed : undefined}>{deliveryState(d.state)}</span>
       <span className={`${classes.note} ${classes.figures}`}>{deliveryWhen(d)}</span>
+    </span>
+  );
+}
+
+/** What the rules table's row controls need from their view: what is allowed and busy right now, and what a click does. */
+export interface RuleControls {
+  canWrite: boolean;
+  /** The rule being saved, whose switch is locked until the write settles. */
+  savingId: string | undefined;
+  onToggle: (rule: AlertRuleView) => void;
+  onEdit: (rule: AlertRuleView) => void;
+  onDelete: (rule: AlertRuleView) => void;
+}
+
+/** The enabled switch: gated, busy while saving and announced by the view. */
+export function RuleEnabled({ rule, controls }: Readonly<{ rule: AlertRuleView; controls: RuleControls }>) {
+  return (
+    <Switch
+      size="sm"
+      checked={rule.enabled}
+      disabled={!controls.canWrite || controls.savingId === rule.id}
+      aria-label={`${rule.enabled ? 'Disable' : 'Enable'} ${rule.name}`}
+      onChange={() => controls.onToggle(rule)}
+    />
+  );
+}
+
+/** Edit and Delete: gated and confirmed by the view. */
+export function RuleActions({ rule, controls }: Readonly<{ rule: AlertRuleView; controls: RuleControls }>) {
+  return (
+    <span className={classes.controls}>
+      <ActionIcon
+        variant="subtle"
+        disabled={!controls.canWrite}
+        onClick={() => controls.onEdit(rule)}
+        aria-label={`Edit ${rule.name}`}
+      >
+        <IconPencil size="1rem" aria-hidden />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        disabled={!controls.canWrite}
+        onClick={() => controls.onDelete(rule)}
+        aria-label={`Delete ${rule.name}`}
+      >
+        <IconTrash size="1rem" aria-hidden />
+      </ActionIcon>
+    </span>
+  );
+}
+
+/** What the channels table's row controls need from their view. */
+export interface ChannelControls {
+  canWrite: boolean;
+  /** The channel whose test is running, or undefined; every other test is locked meanwhile. */
+  testingId: string | undefined;
+  onTest: (channel: NotificationChannelView) => void;
+  onLog: (channel: NotificationChannelView) => void;
+  onEdit: (channel: NotificationChannelView) => void;
+  onDelete: (channel: NotificationChannelView) => void;
+}
+
+/** Test, delivery log, edit and delete: gated, busy while running and announced by the view. */
+export function ChannelActions({
+  channel,
+  controls,
+}: Readonly<{ channel: NotificationChannelView; controls: ChannelControls }>) {
+  const { canWrite, testingId } = controls;
+  return (
+    <span className={classes.controls}>
+      <ActionIcon
+        variant="subtle"
+        onClick={() => controls.onTest(channel)}
+        loading={testingId === channel.id}
+        disabled={!canWrite || (testingId !== undefined && testingId !== channel.id)}
+        aria-label={`Send test notification to ${channel.name}`}
+      >
+        <IconSend size="1rem" aria-hidden />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        onClick={() => controls.onLog(channel)}
+        aria-label={`Delivery log of ${channel.name}`}
+      >
+        <IconHistory size="1rem" aria-hidden />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        onClick={() => controls.onEdit(channel)}
+        disabled={!canWrite}
+        aria-label={`Edit ${channel.name}`}
+      >
+        <IconPencil size="1rem" aria-hidden />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        onClick={() => controls.onDelete(channel)}
+        disabled={!canWrite}
+        aria-label={`Delete ${channel.name}`}
+      >
+        <IconTrash size="1rem" aria-hidden />
+      </ActionIcon>
     </span>
   );
 }

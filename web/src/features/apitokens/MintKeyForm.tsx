@@ -20,6 +20,29 @@ const LIFETIMES = [7, 30, 90, 180, 365];
 const NAME_ERROR = 'Name the key after where it will be used.';
 const GRANTS_ERROR = 'Choose at least one permission; a key without any could sign in and do nothing.';
 
+/** The lifetimes, in days, the installation's maximum allows, with the maximum itself as the last choice. */
+function lifetimeOptionsFor(maxDays: number | null): string[] {
+  if (maxDays === null) return [];
+  const options = LIFETIMES.filter((d) => d <= maxDays).map(String);
+  if (maxDays >= 1 && !options.includes(String(maxDays))) options.push(String(maxDays));
+  return options;
+}
+
+/** 30 days when offered, otherwise the longest lifetime there is. */
+function defaultLifetime(options: string[]): string | null {
+  if (options.includes('30')) return '30';
+  return options.at(-1) ?? null;
+}
+
+function grantsFor(scope: string, chosen: string[]): TokenGrantRequest[] {
+  const global = scope === GLOBAL;
+  return chosen.map((action) => ({
+    action,
+    scopeType: global ? GLOBAL : 'CLUSTER',
+    scopeId: global ? null : scope,
+  }));
+}
+
 /**
  * Mints a key: a name, an expiry within the installation's maximum lifetime, grants from the
  * permissions the user holds at the chosen scope (the server intersects them anyway, so offering
@@ -61,19 +84,12 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
 
   const latest = policy.data ? Date.parse(policy.data.latestExpiry) : null;
   const maxDays = latest === null ? null : Math.round((latest - serverNow()) / DAY_MS);
-  const lifetimeOptions = maxDays === null ? [] : LIFETIMES.filter((d) => d <= maxDays).map(String);
-  if (maxDays !== null && maxDays >= 1 && !lifetimeOptions.includes(String(maxDays))) {
-    lifetimeOptions.push(String(maxDays));
-  }
-  const selectedLifetime = lifetime ?? (lifetimeOptions.includes('30') ? '30' : (lifetimeOptions.at(-1) ?? null));
+  const lifetimeOptions = lifetimeOptionsFor(maxDays);
+  const selectedLifetime = lifetime ?? defaultLifetime(lifetimeOptions);
 
   const submit = form.onSubmit(() => {
     if (!selectedLifetime) return;
-    const grants: TokenGrantRequest[] = chosen.map((action) => ({
-      action,
-      scopeType: scope === GLOBAL ? GLOBAL : 'CLUSTER',
-      scopeId: scope === GLOBAL ? null : scope,
-    }));
+    const grants = grantsFor(scope, chosen);
     // Never past the cap the server stated, however long the form stayed open.
     const expiresAt = new Date(
       Math.min(serverNow() + Number(selectedLifetime) * DAY_MS, latest ?? Infinity),

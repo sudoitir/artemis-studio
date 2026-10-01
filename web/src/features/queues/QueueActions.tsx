@@ -77,20 +77,7 @@ function WithQueue({
   return (
     <Modal opened={opened} onClose={onClose} title={target.queueName}>
       <Stack gap="sm" aria-live="polite">
-        {isPending ? (
-          <LoadingState label="Looking the queue up" blockSize="4rem" />
-        ) : isError ? (
-          <ErrorState
-            error={error}
-            variant="inline"
-            next="Studio could not read the queue list just now. Try again in a moment."
-          />
-        ) : (
-          <Notice tone="info" title="The queue is not there">
-            No queue named {target.queueName} is on this cluster now. It may have been deleted since this view was
-            loaded.
-          </Notice>
-        )}
+        <LookupState queueName={target.queueName} isPending={isPending} isError={isError} error={error} />
         <Group justify="flex-end">
           <Button size="xs" variant="default" onClick={onClose}>
             Close
@@ -98,6 +85,30 @@ function WithQueue({
         </Group>
       </Stack>
     </Modal>
+  );
+}
+
+/** What the lookup dialog shows in place of a queue: the wait, the failure, or the queue not being there. */
+function LookupState({
+  queueName,
+  isPending,
+  isError,
+  error,
+}: Readonly<{ queueName: string; isPending: boolean; isError: boolean; error: Error | null }>) {
+  if (isPending) return <LoadingState label="Looking the queue up" blockSize="4rem" />;
+  if (isError) {
+    return (
+      <ErrorState
+        error={error}
+        variant="inline"
+        next="Studio could not read the queue list just now. Try again in a moment."
+      />
+    );
+  }
+  return (
+    <Notice tone="info" title="The queue is not there">
+      No queue named {queueName} is on this cluster now. It may have been deleted since this view was loaded.
+    </Notice>
   );
 }
 

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Switch, Text } from '@mantine/core';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { Text } from '@mantine/core';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
@@ -20,7 +19,6 @@ import {
   type AlertRuleRequest,
   type AlertRuleView,
 } from './api.ts';
-import classes from './Alerting.module.css';
 import { ruleColumns } from './columns.ts';
 import { RuleForm } from './RuleForm.tsx';
 
@@ -46,6 +44,12 @@ function withEnabled(r: AlertRuleView, enabled: boolean): AlertRuleRequest {
     enabled,
     channelIds: r.channelIds,
   };
+}
+
+/** The channels a deleted rule would have notified, in words. */
+function channelsPhrase(count: number): string {
+  if (count === 0) return 'any channel';
+  return count === 1 ? 'its channel' : `its ${count} channels`;
 }
 
 /** Rule CRUD — thresholds and cluster-state conditions share one form and table (alerting spec). */
@@ -138,33 +142,16 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   // Built each render: the cells carry what is gated and busy right now.
   const columns = ruleColumns({
     channelNames,
-    enabledControl: (r) => (
-      <Switch
-        size="sm"
-        checked={r.enabled}
-        disabled={!canWrite || savingId === r.id}
-        aria-label={`${r.enabled ? 'Disable' : 'Enable'} ${r.name}`}
-        onChange={() => toggle(r)}
-      />
-    ),
-    actionsControl: (r) => (
-      <span className={classes.controls}>
-        <ActionIcon variant="subtle" disabled={!canWrite} onClick={() => setEditing(r)} aria-label={`Edit ${r.name}`}>
-          <IconPencil size="1rem" aria-hidden />
-        </ActionIcon>
-        <ActionIcon
-          variant="subtle"
-          disabled={!canWrite}
-          onClick={() => {
-            setDeleting(r);
-            setDeleteOpen(true);
-          }}
-          aria-label={`Delete ${r.name}`}
-        >
-          <IconTrash size="1rem" aria-hidden />
-        </ActionIcon>
-      </span>
-    ),
+    controls: {
+      canWrite,
+      savingId,
+      onToggle: toggle,
+      onEdit: setEditing,
+      onDelete: (r) => {
+        setDeleting(r);
+        setDeleteOpen(true);
+      },
+    },
   });
 
   return (
@@ -220,10 +207,7 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
           deleting ? (
             <>
               <strong>{deleting.name}</strong> stops being evaluated, so it no longer fires or notifies{' '}
-              {deleting.channelIds.length === 0
-                ? 'any channel'
-                : `its ${deleting.channelIds.length === 1 ? 'channel' : `${deleting.channelIds.length} channels`}`}
-              . This cannot be undone.
+              {channelsPhrase(deleting.channelIds.length)}. This cannot be undone.
             </>
           ) : null
         }

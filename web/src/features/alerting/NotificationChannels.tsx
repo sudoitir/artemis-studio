@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Stack, Text } from '@mantine/core';
-import { IconHistory, IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
+import { Button, Stack, Text } from '@mantine/core';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
@@ -16,7 +15,6 @@ import {
   type ChannelTestResultView,
   type NotificationChannelView,
 } from './api.ts';
-import classes from './Alerting.module.css';
 import { ChannelEditor, TestOutcome } from './ChannelEditor.tsx';
 import { channelColumns } from './columns.ts';
 import { DeliveryLog } from './DeliveryLog.tsx';
@@ -67,36 +65,17 @@ export function NotificationChannels() {
   // Built each render: the cells carry what is gated and busy right now.
   const columns = channelColumns({
     now,
-    actionsControl: (c) => (
-      <span className={classes.controls}>
-        <ActionIcon
-          variant="subtle"
-          onClick={() => runTest(c)}
-          loading={test.isPending && test.variables === c.id}
-          disabled={!canWrite || (test.isPending && test.variables !== c.id)}
-          aria-label={`Send test notification to ${c.name}`}
-        >
-          <IconSend size="1rem" aria-hidden />
-        </ActionIcon>
-        <ActionIcon variant="subtle" onClick={() => setLogFor(c)} aria-label={`Delivery log of ${c.name}`}>
-          <IconHistory size="1rem" aria-hidden />
-        </ActionIcon>
-        <ActionIcon variant="subtle" onClick={() => setEditing(c)} disabled={!canWrite} aria-label={`Edit ${c.name}`}>
-          <IconPencil size="1rem" aria-hidden />
-        </ActionIcon>
-        <ActionIcon
-          variant="subtle"
-          onClick={() => {
-            setDeleting(c);
-            setDeleteOpen(true);
-          }}
-          disabled={!canWrite}
-          aria-label={`Delete ${c.name}`}
-        >
-          <IconTrash size="1rem" aria-hidden />
-        </ActionIcon>
-      </span>
-    ),
+    controls: {
+      canWrite,
+      testingId: test.isPending ? test.variables : undefined,
+      onTest: runTest,
+      onLog: setLogFor,
+      onEdit: setEditing,
+      onDelete: (c) => {
+        setDeleting(c);
+        setDeleteOpen(true);
+      },
+    },
   });
 
   return (
@@ -167,6 +146,7 @@ function DeleteChannel({
 }: Readonly<{ channel: NotificationChannelView | null; opened: boolean; onClose: () => void }>) {
   const remove = useDeleteNotificationChannel();
   const bound = channel?.boundRuleCount ?? 0;
+  const routes = bound === 1 ? 'rule routes' : 'rules route';
 
   const confirm = (c: NotificationChannelView) =>
     remove.mutate(c.id, {
@@ -198,7 +178,7 @@ function DeleteChannel({
             <Text component="p" size="sm" mb="xs">
               {bound === 0
                 ? 'No rule routes to this channel, so no alert stops being delivered.'
-                : `${bound} ${bound === 1 ? 'rule routes' : 'rules route'} to this channel and will stop delivering to it. Their other channels are unaffected; a rule left with none still fires and records history.`}
+                : `${bound} ${routes} to this channel and will stop delivering to it. Their other channels are unaffected; a rule left with none still fires and records history.`}
             </Text>
             <Text component="p" size="sm">
               Its delivery log is deleted with it. This cannot be undone.

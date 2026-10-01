@@ -1,4 +1,5 @@
-import { Stack, Text } from '@mantine/core';
+import { ActionIcon, Stack, Switch, Text } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { ExpectationDiagnosticsView, ExpectationView } from './api.ts';
@@ -57,7 +58,7 @@ export function ExpectationStatus({
   status,
   now,
 }: Readonly<{ status: ExpectationDiagnosticsView | undefined; now: number }>) {
-  if (!status || !status.enabled) {
+  if (!status?.enabled) {
     return (
       <Text size="xs" c="dimmed">
         {statusText(status, now)}
@@ -81,5 +82,49 @@ export function ExpectationStatus({
         </Text>
       ) : null}
     </Stack>
+  );
+}
+
+/** What a traced address's row controls need from their view: what is gated and busy right now, and what a click does. */
+export interface ExpectationControls {
+  denied: boolean;
+  /** The expectation being saved, whose switch is locked until the write settles. */
+  savingId: string | undefined;
+  /** The expectation being removed, or undefined. */
+  removingId: string | undefined;
+  onToggle: (expectation: ExpectationView, enabled: boolean) => void;
+  onRemove: (expectation: ExpectationView) => void;
+}
+
+/** The Enabled switch for a row: gated, busy while saving and announced by the view. */
+export function ExpectationEnabled({
+  expectation: e,
+  controls,
+}: Readonly<{ expectation: ExpectationView; controls: ExpectationControls }>) {
+  return (
+    <Switch
+      size="sm"
+      aria-label={`Trace ${e.requestAddress}`}
+      checked={e.enabled}
+      disabled={controls.denied || controls.savingId === e.id}
+      onChange={(event) => controls.onToggle(e, event.currentTarget.checked)}
+    />
+  );
+}
+
+/** The Remove control for a row. */
+export function ExpectationRemove({
+  expectation: e,
+  controls,
+}: Readonly<{ expectation: ExpectationView; controls: ExpectationControls }>) {
+  return (
+    <ActionIcon
+      variant="subtle"
+      aria-label={`Remove ${e.requestAddress}`}
+      disabled={controls.denied || controls.removingId === e.id}
+      onClick={() => controls.onRemove(e)}
+    >
+      <IconTrash size="1rem" aria-hidden />
+    </ActionIcon>
   );
 }

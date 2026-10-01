@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Modal, PasswordInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Button, Modal, PasswordInput, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconX } from '@tabler/icons-react';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
@@ -12,11 +11,11 @@ import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
-import { TwoStepStatus } from './cells.tsx';
 import { userColumns } from './columns.ts';
 import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
 import { withNotice } from './outcomes.ts';
 import { UserSessionsDrawer } from './UserSessionsDrawer.tsx';
+import { grantText } from './words.ts';
 import {
   useAddGrant,
   useCreateUser,
@@ -28,7 +27,6 @@ import {
   useUsers,
   type UserView,
 } from './api.ts';
-import classes from './Security.module.css';
 
 const UNLOCK: ActionVerb = { verb: 'Unlock', past: 'Unlocked', progressive: 'Unlocking' };
 const RESET: ActionVerb = { verb: 'Reset', past: 'Reset', progressive: 'Resetting' };
@@ -41,9 +39,6 @@ const CREATE: ActionVerb = { verb: 'Create', past: 'Created', progressive: 'Crea
 type UserGrant = UserView['grants'][number];
 
 const rowKey = (u: UserView) => u.id;
-
-const grantLabel = (g: UserGrant) =>
-  `${g.roleName}${g.scopeType === 'GLOBAL' ? '' : ` (${g.scopeType.toLowerCase()})`}`;
 
 /** User accounts and their role grants (authorization spec). Requires `user:admin`. */
 export function UsersPanel() {
@@ -72,88 +67,23 @@ export function UsersPanel() {
 
   // Built each render: the cells carry what is busy right now.
   const columns = userColumns({
-    twoStep: (u) => (
-      <TwoStepStatus
-        user={u}
-        onReset={() => {
-          setResetting(u);
-          setResetOpen(true);
-        }}
-      />
-    ),
-    grants: (u) => (
-      <ul className={classes.grants} aria-label={`Roles of ${u.username}`}>
-        {u.grants.map((g) => (
-          <li key={`${g.roleId}-${g.scopeType}-${g.scopeId ?? 'global'}`} className={classes.grant}>
-            {grantLabel(g)}
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              aria-label={`Remove ${grantLabel(g)} from ${u.username}`}
-              onClick={() => {
-                setRemoving({ user: u, grant: g });
-                setRemoveOpen(true);
-              }}
-            >
-              <IconX size="0.875rem" aria-hidden />
-            </ActionIcon>
-          </li>
-        ))}
-        <li>
-          <Button
-            variant="subtle"
-            size="compact-xs"
-            aria-label={`Grant a role to ${u.username}`}
-            onClick={() => setGrantingFor(u)}
-          >
-            Grant a role
-          </Button>
-        </li>
-      </ul>
-    ),
-    enabled: (u) => (
-      <Switch
-        checked={!u.disabled}
-        disabled={setDisabled.isPending && setDisabled.variables?.userId === u.id}
-        onChange={() => toggle(u)}
-        size="sm"
-        aria-label={`${u.disabled ? 'Enable' : 'Disable'} ${u.username}`}
-      />
-    ),
-    actions: (u) => (
-      <span className={classes.controls}>
-        {u.lockedUntil ? (
-          <Button
-            size="xs"
-            variant="default"
-            aria-label={`Unlock ${u.username}`}
-            loading={unlock.isPending && unlock.variables === u.id}
-            disabled={unlock.isPending}
-            onClick={() =>
-              unlock.mutate(u.id, withNotice(UNLOCK, u.username, 'The account is still locked. Try again.'))
-            }
-          >
-            Unlock
-          </Button>
-        ) : null}
-        <Button
-          size="xs"
-          variant="subtle"
-          aria-label={`Sessions of ${u.username}`}
-          onClick={() => setInspectingSessions(u)}
-        >
-          Sessions
-        </Button>
-        <Button
-          size="xs"
-          variant="subtle"
-          aria-label={`Effective permissions of ${u.username}`}
-          onClick={() => setPreviewing(u)}
-        >
-          Effective permissions
-        </Button>
-      </span>
-    ),
+    controls: {
+      togglingId: setDisabled.isPending ? setDisabled.variables?.userId : undefined,
+      unlockingId: unlock.isPending ? unlock.variables : undefined,
+      onReset: (u) => {
+        setResetting(u);
+        setResetOpen(true);
+      },
+      onRemoveGrant: (u, g) => {
+        setRemoving({ user: u, grant: g });
+        setRemoveOpen(true);
+      },
+      onGrant: setGrantingFor,
+      onToggle: toggle,
+      onUnlock: (u) => unlock.mutate(u.id, withNotice(UNLOCK, u.username, 'The account is still locked. Try again.')),
+      onSessions: setInspectingSessions,
+      onPermissions: setPreviewing,
+    },
   });
 
   const count = users.data?.length;
@@ -221,21 +151,21 @@ function RemoveGrantDialog({
         scopeType: grant.scopeType,
         scopeId: grant.scopeId ?? undefined,
       },
-      withNotice(REMOVE, `${grantLabel(grant)} from ${user.username}`, 'They still hold the role. Try again.', onClose),
+      withNotice(REMOVE, `${grantText(grant)} from ${user.username}`, 'They still hold the role. Try again.', onClose),
     );
 
   return (
     <ConfirmDialog
       opened={opened}
       onClose={onClose}
-      title={removing ? `Remove ${grantLabel(removing.grant)} from ${removing.user.username}` : 'Remove role'}
+      title={removing ? `Remove ${grantText(removing.grant)} from ${removing.user.username}` : 'Remove role'}
       tone="danger"
       typedName={removing?.user.username}
       pending={removeGrant.isPending}
       confirmLabel="Remove role"
       consequence={
         removing
-          ? `${removing.user.username} loses the permissions that ${grantLabel(removing.grant)} gave them. You can grant it again.`
+          ? `${removing.user.username} loses the permissions that ${grantText(removing.grant)} gave them. You can grant it again.`
           : ''
       }
       onConfirm={() => removing && confirm(removing)}

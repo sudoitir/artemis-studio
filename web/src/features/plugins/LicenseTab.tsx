@@ -19,6 +19,7 @@ import { LICENSE_LABEL, expiryNote, licenseAdvice } from './words.ts';
 /** What is known about the license: only the facts that have something to say. */
 function Facts({ license }: Readonly<{ license: PluginLicenseView }>) {
   useDisplayZone();
+  const uploadedBy = license.uploadedBy ? ` by ${license.uploadedBy}` : '';
   const items: DescriptionItem[] = [
     { term: 'State', value: <b>{LICENSE_LABEL[license.state]}</b> },
     ...(license.licensee ? [{ term: 'Licensed to', value: license.licensee }] : []),
@@ -30,7 +31,7 @@ function Facts({ license }: Readonly<{ license: PluginLicenseView }>) {
       ? [
           {
             term: 'Uploaded',
-            value: `${absoluteLabel(license.uploadedAt)}${license.uploadedBy ? ` by ${license.uploadedBy}` : ''}`,
+            value: `${absoluteLabel(license.uploadedAt)}${uploadedBy}`,
           },
         ]
       : []),

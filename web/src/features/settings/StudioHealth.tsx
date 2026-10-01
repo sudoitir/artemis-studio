@@ -22,6 +22,7 @@ const UNREAD = 'The server could not read it.';
 function Loaded({ health }: Readonly<{ health: Health }>) {
   const now = useServerNow(5_000);
   const answering = health.replicas.find((r) => r.id === health.answeringReplica)?.host;
+  const answeringNote = answering ? ` (${answering})` : '';
   const pool = health.dbPool;
   return (
     <Stack gap="xl">
@@ -77,7 +78,7 @@ function Loaded({ health }: Readonly<{ health: Health }>) {
       <Section
         title="Broker nodes"
         headingLevel={3}
-        description={`Call figures are as seen from this replica${answering ? ` (${answering})` : ''}; another replica may see a node differently.`}
+        description={`Call figures are as seen from this replica${answeringNote}; another replica may see a node differently.`}
       >
         <DataTable
           variant="static"

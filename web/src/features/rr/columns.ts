@@ -1,9 +1,16 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement } from 'react';
 
 import { elapsedLabel } from '../../kernel/time/time.ts';
 import type { Column } from '../../ui/table/index.ts';
 import type { ExpectationDiagnosticsView, ExpectationView, FlowView } from './api.ts';
-import { ExpectationStatus, FlowStateBadge, ReplyAddressesCell } from './cells.tsx';
+import {
+  ExpectationEnabled,
+  ExpectationRemove,
+  ExpectationStatus,
+  FlowStateBadge,
+  ReplyAddressesCell,
+  type ExpectationControls,
+} from './cells.tsx';
 import { stateLabel } from './rrState.ts';
 import { replyAddressesText, statusText } from './words.ts';
 
@@ -54,14 +61,11 @@ export function flowColumns(now: number): Column<FlowView>[] {
   ];
 }
 
-/** What a traced address's table needs from its view: the clock, each address's last tick and its two controls. */
+/** What a traced address's table needs from its view: the clock, each address's last tick and what its two controls may do. */
 export interface ExpectationRows {
   now: number;
   statusOf: (id: string) => ExpectationDiagnosticsView | undefined;
-  /** The Enabled switch for a row, which the view owns: it is gated, busy while saving and announced. */
-  enabledControl: (e: ExpectationView) => ReactNode;
-  /** The Remove control for a row, owned by the view for the same reasons. */
-  removeControl: (e: ExpectationView) => ReactNode;
+  controls: ExpectationControls;
 }
 
 /**
@@ -69,12 +73,7 @@ export interface ExpectationRows {
  * switch and Remove) are never hidden, so a row can always be switched or removed; the reply
  * addresses and the sampler's last tick wrap, and the plain settings go first when the table is narrow.
  */
-export function expectationColumns({
-  now,
-  statusOf,
-  enabledControl,
-  removeControl,
-}: ExpectationRows): Column<ExpectationView>[] {
+export function expectationColumns({ now, statusOf, controls }: ExpectationRows): Column<ExpectationView>[] {
   return [
     {
       id: 'requestAddress',
@@ -120,7 +119,7 @@ export function expectationColumns({
       id: 'enabled',
       header: 'Enabled',
       accessor: (e) => (e.enabled ? 'on' : 'off'),
-      cell: enabledControl,
+      cell: (e) => createElement(ExpectationEnabled, { expectation: e, controls }),
       kind: 'status',
       priority: 'essential',
     },
@@ -128,7 +127,7 @@ export function expectationColumns({
       id: 'remove',
       header: 'Remove',
       accessor: (e) => `Remove ${e.requestAddress}`,
-      cell: removeControl,
+      cell: (e) => createElement(ExpectationRemove, { expectation: e, controls }),
       kind: 'status',
       priority: 'essential',
     },

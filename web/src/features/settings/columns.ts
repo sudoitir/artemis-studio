@@ -13,7 +13,16 @@ import {
   ReplicaState,
   Verdict,
 } from './cells.tsx';
-import { JOB_STATES, REPLICA_STATES, figureText, heartbeatText, lagText, momentText } from './healthWords.ts';
+import {
+  JOB_STATES,
+  REPLICA_STATES,
+  failureText,
+  figureText,
+  heartbeatText,
+  lagText,
+  momentText,
+  replicaHealthText,
+} from './healthWords.ts';
 
 const round = (ms: number | null | undefined) => (ms == null ? null : Math.round(ms));
 
@@ -96,7 +105,7 @@ export function replicaColumns(): Column<ReplicaHealth>[] {
     {
       id: 'health',
       header: 'Health',
-      accessor: (r) => (r.state === 'STOPPED' ? 'Not running' : r.degraded ? 'Degraded' : 'Healthy'),
+      accessor: replicaHealthText,
       cell: (r) => createElement(ReplicaHealthCell, { replica: r }),
       kind: 'status',
       badge: true,
@@ -129,7 +138,7 @@ export function nodeColumns(now: number): Column<NodeHealth>[] {
     {
       id: 'failure',
       header: 'Last failure',
-      accessor: (n) => `${momentText(n.lastFailure)}${n.lastError ? ` ${n.lastError}` : ''}`,
+      accessor: failureText,
       cell: (n) => createElement(LastFailure, { node: n, now }),
       kind: 'text',
       wrap: true,

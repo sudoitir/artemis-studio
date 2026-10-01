@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from 'react';
 import type { Column } from '../../ui/table/index.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import type { TokenView, UsageView } from './api.ts';
-import { Expiry, KeyName, TokenStatus } from './cells.tsx';
+import { AdminKeyActions, Expiry, KeyActions, KeyName, TokenStatus, type KeyControls } from './cells.tsx';
 import { instantLabel, tokenState, toolsLabel } from './format.ts';
 
 type DayUsage = UsageView['perDay'][number];
@@ -74,14 +74,14 @@ const actionsColumn = (actions: (t: TokenView) => ReactNode, accessible: string)
  * The signed-in user's keys. The name identifies a key and the actions are never hidden; the status
  * and the expiry come next, and the last use and the tool restriction go first when the table is narrow.
  */
-export function keyColumns({ actions }: Readonly<{ actions: (t: TokenView) => ReactNode }>): Column<TokenView>[] {
+export function keyColumns({ controls }: Readonly<{ controls: KeyControls }>): Column<TokenView>[] {
   return [
     nameColumn,
     statusColumn,
     expiresColumn,
     lastUsedColumn,
     toolsColumn,
-    actionsColumn(actions, 'Usage Rotate Revoke'),
+    actionsColumn((t) => createElement(KeyActions, { token: t, controls }), 'Usage Rotate Revoke'),
   ];
 }
 
@@ -90,7 +90,9 @@ export function keyColumns({ actions }: Readonly<{ actions: (t: TokenView) => Re
  * the tool restriction, which are the longest, go first when the table is narrow. `stale` is part of
  * the status in words.
  */
-export function adminKeyColumns({ actions }: Readonly<{ actions: (t: TokenView) => ReactNode }>): Column<TokenView>[] {
+export function adminKeyColumns({
+  controls,
+}: Readonly<{ controls: Pick<KeyControls, 'onUsage' | 'onRevoke'> }>): Column<TokenView>[] {
   return [
     { id: 'owner', header: 'Owner', accessor: (t) => t.owner, kind: 'text', priority: 'essential' },
     nameColumn,
@@ -110,7 +112,7 @@ export function adminKeyColumns({ actions }: Readonly<{ actions: (t: TokenView) 
     toolsColumn,
     { id: 'expires', header: 'Expires', accessor: (t) => absoluteLabel(t.expiresAt), kind: 'time', priority: 'high' },
     lastUsedColumn,
-    actionsColumn(actions, 'Usage Revoke'),
+    actionsColumn((t) => createElement(AdminKeyActions, { token: t, controls }), 'Usage Revoke'),
   ];
 }
 

@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 
-import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { Column } from '../../ui/table/index.ts';
 import type { QueueView } from './api.ts';
+import { StaleBadge } from './cells.tsx';
 
 type NodeCell = QueueView['perNode'][number];
 
@@ -128,7 +128,7 @@ export function queueNodeColumns(): Column<NodeCell>[] {
       id: 'freshness',
       header: 'Figures',
       accessor: (n) => (n.stale ? 'stale' : 'current'),
-      cell: (n) => (n.stale ? createElement(StatusBadge, { tone: 'warning', children: 'stale' }) : 'current'),
+      cell: (n) => (n.stale ? createElement(StaleBadge) : 'current'),
       kind: 'status',
       priority: 'high',
       badge: true,

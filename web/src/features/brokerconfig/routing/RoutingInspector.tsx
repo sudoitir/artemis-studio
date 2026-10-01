@@ -127,6 +127,7 @@ export function RoutingInspector({
   if (!node) return <NothingSelected />;
 
   const rows = rowsFor(declaration, node);
+  const stateText = node.fault ? `${STATE_WORDS[node.state]}; ${node.fault}` : STATE_WORDS[node.state];
   const attention = node.state === 'DECLARED_ONLY' || node.state === 'OBSERVED_ONLY' || node.fault !== null;
   const section = node.edit ? REMOVABLE[node.kind] : undefined;
   const remove = section
@@ -146,9 +147,7 @@ export function RoutingInspector({
           {node.connects}.
         </Text>
         <div aria-live="polite">
-          <StatusBadge tone={attention ? 'warning' : 'neutral'}>
-            {`${STATE_WORDS[node.state]}${node.fault ? `; ${node.fault}` : ''}`}
-          </StatusBadge>
+          <StatusBadge tone={attention ? 'warning' : 'neutral'}>{stateText}</StatusBadge>
         </div>
         {node.state === 'OBSERVED_ONLY' ? (
           <Text size="sm" c="dimmed">

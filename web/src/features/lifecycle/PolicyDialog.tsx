@@ -42,6 +42,12 @@ export function PolicyDialog({ store, onClose }: Readonly<{ store: StoreView | n
   );
 }
 
+/** The finite retention the field starts on: the store's own, or, when it keeps forever, the default (or the minimum). */
+function initialRetention(store: StoreView): string {
+  if (store.retention !== 'forever') return store.retention;
+  return store.defaultRetention === 'forever' ? store.minRetention : store.defaultRetention;
+}
+
 function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: () => void }>) {
   const foreverAllowed = store.maxRetention === 'forever';
   const preview = usePreview();
@@ -49,12 +55,7 @@ function PolicyForm({ store, onClose }: Readonly<{ store: StoreView; onClose: ()
   const form = useForm<{ forever: boolean; retention: string; quota: Figure; warn: Figure }>({
     initialValues: {
       forever: store.retention === 'forever',
-      retention:
-        store.retention !== 'forever'
-          ? store.retention
-          : store.defaultRetention === 'forever'
-            ? store.minRetention
-            : store.defaultRetention,
+      retention: initialRetention(store),
       quota: store.quota,
       warn: store.quotaWarnPercent,
     },

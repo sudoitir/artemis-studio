@@ -85,6 +85,8 @@ function signerItems(plugin: PluginView): DescriptionItem[] {
 /** What the plugin is and who put it there. */
 function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: PluginInfo }>) {
   useDisplayZone();
+  const supportedUntil = info.until ? ` to ${info.until}` : ' and later';
+  const installedBy = plugin.installedBy ? ` by ${plugin.installedBy}` : '';
   const items: DescriptionItem[] = [
     {
       term: 'Vendor',
@@ -96,10 +98,10 @@ function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: Plug
         </Stack>
       ),
     },
-    { term: 'Supports Studio', value: `${info.since}${info.until ? ` to ${info.until}` : ' and later'}` },
+    { term: 'Supports Studio', value: `${info.since}${supportedUntil}` },
     {
       term: 'Installed',
-      value: `${absoluteLabel(plugin.installedAt)}${plugin.installedBy ? ` by ${plugin.installedBy}` : ''}`,
+      value: `${absoluteLabel(plugin.installedAt)}${installedBy}`,
     },
     ...(plugin.activatedAt ? [{ term: 'Last activated', value: absoluteLabel(plugin.activatedAt) }] : []),
     {

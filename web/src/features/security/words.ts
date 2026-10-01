@@ -13,3 +13,9 @@ export function twoStepText(user: UserView): string {
   if (factors.length === 0) return user.secondFactorRequired ? 'Required, not set up' : 'Not set up';
   return factors.join(', ');
 }
+
+/** A role held by a user, with its scope in words when it is not global. */
+export function grantText(g: UserView['grants'][number]): string {
+  const scope = g.scopeType === 'GLOBAL' ? '' : ` (${g.scopeType.toLowerCase()})`;
+  return `${g.roleName}${scope}`;
+}

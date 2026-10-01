@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Checkbox, NumberInput, Stack, Switch, Text } from '@mantine/core';
+import { Button, Checkbox, NumberInput, Stack, Text } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconTrash } from '@tabler/icons-react';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
@@ -168,28 +167,16 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
   const columns = expectationColumns({
     now,
     statusOf: (id) => diagnostics.data?.expectations.find((d) => d.expectationId === id),
-    enabledControl: (e) => (
-      <Switch
-        size="sm"
-        aria-label={`Trace ${e.requestAddress}`}
-        checked={e.enabled}
-        disabled={denied || savingId === e.id}
-        onChange={(event) => toggle(e, event.currentTarget.checked)}
-      />
-    ),
-    removeControl: (e) => (
-      <ActionIcon
-        variant="subtle"
-        aria-label={`Remove ${e.requestAddress}`}
-        disabled={denied || (remove.isPending && remove.variables === e.id)}
-        onClick={() => {
-          setRemoving(e);
-          setRemoveOpen(true);
-        }}
-      >
-        <IconTrash size="1rem" aria-hidden />
-      </ActionIcon>
-    ),
+    controls: {
+      denied,
+      savingId,
+      removingId: remove.isPending ? remove.variables : undefined,
+      onToggle: toggle,
+      onRemove: (e) => {
+        setRemoving(e);
+        setRemoveOpen(true);
+      },
+    },
   });
 
   return (

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Drawer, Modal, Stack, Text, Tooltip } from '@mantine/core';
-import { IconChartBar, IconRefresh, IconTrash } from '@tabler/icons-react';
+import { Button, Drawer, Modal, Stack, Text } from '@mantine/core';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
@@ -9,10 +8,9 @@ import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { DataTable } from '../../ui/table/index.ts';
 import { useRevokeToken, useRotateToken, useTokens, type CreatedTokenView, type TokenView } from './api.ts';
 import { keyColumns } from './columns.ts';
-import { instantLabel, tokenState } from './format.ts';
+import { instantLabel } from './format.ts';
 import { MintKeyForm } from './MintKeyForm.tsx';
 import { OneTimeSecret, TokenUsagePanel } from './TokenParts.tsx';
-import classes from './TokenActions.module.css';
 
 const ROTATE: ActionVerb = { verb: 'Rotate', past: 'Rotated', progressive: 'Rotating' };
 const REVOKE: ActionVerb = { verb: 'Revoke', past: 'Revoked', progressive: 'Revoking' };
@@ -40,40 +38,13 @@ export function ApiKeysPanel() {
   };
 
   const columns = keyColumns({
-    actions: (t) => {
-      const live = tokenState(t) === 'Active';
-      return (
-        <span className={classes.controls}>
-          <Tooltip label="Usage">
-            <ActionIcon variant="subtle" onClick={() => setUsageOf(t)} aria-label={`Usage of ${t.name}`}>
-              <IconChartBar size="1rem" aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Rotate">
-            <ActionIcon
-              variant="subtle"
-              disabled={!live}
-              onClick={() => setRotating(t)}
-              aria-label={`Rotate ${t.name}`}
-            >
-              <IconRefresh size="1rem" aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Revoke">
-            <ActionIcon
-              variant="subtle"
-              disabled={!live}
-              onClick={() => {
-                setRevoking(t);
-                setRevokeOpen(true);
-              }}
-              aria-label={`Revoke ${t.name}`}
-            >
-              <IconTrash size="1rem" aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-        </span>
-      );
+    controls: {
+      onUsage: setUsageOf,
+      onRotate: setRotating,
+      onRevoke: (t) => {
+        setRevoking(t);
+        setRevokeOpen(true);
+      },
     },
   });
 

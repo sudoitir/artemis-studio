@@ -4,20 +4,29 @@ import { absoluteLabel, elapsedLabel } from '../../kernel/time/time.ts';
 import { AUTO, localZone } from '../../kernel/time/timezone.ts';
 import type { Column } from '../../ui/table/index.ts';
 import type { AlertDeliveryView, AlertFiringView, AlertRuleView, NotificationChannelView } from './api.ts';
-import { ChannelHealth, ConditionCell, DeliveryState, NameWithMark, Notification, SeverityBadge } from './cells.tsx';
+import {
+  ChannelActions,
+  ChannelHealth,
+  ConditionCell,
+  DeliveryState,
+  NameWithMark,
+  Notification,
+  RuleActions,
+  RuleEnabled,
+  SeverityBadge,
+  type ChannelControls,
+  type RuleControls,
+} from './cells.tsx';
 import { deliveryState, destination, kindLabel } from './channelKinds.ts';
 import { deliveryWhen, missingSecretHint, ruleCondition } from './words.ts';
 import { severityTone } from './severity.ts';
 
 const zoneName = (zone: string) => (zone === AUTO ? localZone() : zone);
 
-/** What a rules table needs from its view: the channel names and the two controls the view owns. */
+/** What a rules table needs from its view: the channel names and what its row controls may do. */
 export interface RuleRows {
   channelNames: ReadonlyMap<string, string>;
-  /** The enabled switch: gated, busy while saving and announced by the view. */
-  enabledControl: (rule: AlertRuleView) => ReactNode;
-  /** Edit and Delete: gated and confirmed by the view. */
-  actionsControl: (rule: AlertRuleView) => ReactNode;
+  controls: RuleControls;
 }
 
 const channelsOf = (rule: AlertRuleView, names: ReadonlyMap<string, string>) =>
@@ -28,7 +37,7 @@ const channelsOf = (rule: AlertRuleView, names: ReadonlyMap<string, string>) =>
  * rule can always be switched, edited or deleted. The channels and the debounce are the first to be
  * hidden when the table is narrow.
  */
-export function ruleColumns({ channelNames, enabledControl, actionsControl }: RuleRows): Column<AlertRuleView>[] {
+export function ruleColumns({ channelNames, controls }: RuleRows): Column<AlertRuleView>[] {
   return [
     {
       id: 'name',
@@ -70,7 +79,7 @@ export function ruleColumns({ channelNames, enabledControl, actionsControl }: Ru
       id: 'enabled',
       header: 'Enabled',
       accessor: (r) => (r.enabled ? 'on' : 'off'),
-      cell: enabledControl,
+      cell: (r) => createElement(RuleEnabled, { rule: r, controls }),
       kind: 'status',
       priority: 'essential',
     },
@@ -78,7 +87,7 @@ export function ruleColumns({ channelNames, enabledControl, actionsControl }: Ru
       id: 'actions',
       header: 'Actions',
       accessor: () => 'Edit Delete',
-      cell: actionsControl,
+      cell: (r) => createElement(RuleActions, { rule: r, controls }),
       kind: 'status',
       wrap: true,
       priority: 'essential',
@@ -159,11 +168,10 @@ function healthText(h: NotificationChannelView['health'], now: number): string {
   return `${deliveryState(h.lastState)} ${elapsedLabel(now - Date.parse(h.lastCreatedAt))} ago`;
 }
 
-/** What the channels table needs from its view: the clock and the row controls the view owns. */
+/** What the channels table needs from its view: the clock and what its row controls may do. */
 export interface ChannelRows {
   now: number;
-  /** Test, delivery log, edit and delete: gated, busy while running and announced by the view. */
-  actionsControl: (channel: NotificationChannelView) => ReactNode;
+  controls: ChannelControls;
 }
 
 /**
@@ -171,7 +179,7 @@ export interface ChannelRows {
  * delivers and how its last delivery went wrap, and the kind and the rule count go first when the table
  * is narrow.
  */
-export function channelColumns({ now, actionsControl }: ChannelRows): Column<NotificationChannelView>[] {
+export function channelColumns({ now, controls }: ChannelRows): Column<NotificationChannelView>[] {
   return [
     { id: 'name', header: 'Name', accessor: (c) => c.name, kind: 'text', wrap: true, priority: 'essential' },
     { id: 'kind', header: 'Kind', accessor: (c) => kindLabel(c.kind), kind: 'status', priority: 'low' },
@@ -204,7 +212,7 @@ export function channelColumns({ now, actionsControl }: ChannelRows): Column<Not
       id: 'actions',
       header: 'Actions',
       accessor: () => 'Test Log Edit Delete',
-      cell: actionsControl,
+      cell: (c) => createElement(ChannelActions, { channel: c, controls }),
       kind: 'status',
       wrap: true,
       priority: 'essential',

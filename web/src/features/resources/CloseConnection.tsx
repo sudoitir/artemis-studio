@@ -341,51 +341,76 @@ export function CloseAddressConsumers({
       }
       consequence={
         result ? null : (
-          <Stack gap="md">
-            <Text size="sm">
-              This disconnects every application consuming from {address}, on every live node. The messages those
-              consumers hold return to their queues with an increased delivery count.
-            </Text>
-
-            <div aria-live="polite">
-              {close.isPending && !preview ? (
-                <Text size="sm" c="dimmed">
-                  Counting the consumers on each node…
-                </Text>
-              ) : null}
-
-              {previewFailed ? (
-                <ErrorState
-                  variant="inline"
-                  error={previewFailed}
-                  next="The count could not be taken. The close can still proceed, but Studio cannot tell you how many consumers it would disconnect."
-                />
-              ) : null}
-
-              {preview ? (
-                <NodeOutcomeSummary
-                  outcome={preview.outcome}
-                  destructive
-                  alreadyLabel={ALREADY_GONE}
-                  countNoun="consumer"
-                  verbFuture="would close"
-                  verbPast="closed"
-                />
-              ) : null}
-            </div>
-
-            {overCap && preview ? (
-              <Notice tone="warning" title="Over the safety cap">
-                This would disconnect {preview.outcome.totalAffected.toLocaleString()} consumers, over the cap of{' '}
-                {preview.outcome.cap.toLocaleString()}. Confirming will override the cap for this operation, and the
-                override is recorded in the audit log.
-              </Notice>
-            ) : null}
-
-            {close.isError && !previewFailed ? <ErrorState error={close.error} variant="inline" /> : null}
-          </Stack>
+          <AddressConsequence
+            address={address}
+            pending={close.isPending}
+            preview={preview}
+            previewFailed={previewFailed}
+            closeError={close.isError ? close.error : null}
+          />
         )
       }
     />
+  );
+}
+
+/** What closing every consumer on an address does, as the confirmation states it: the count, the cap and any failure. */
+function AddressConsequence({
+  address,
+  pending,
+  preview,
+  previewFailed,
+  closeError,
+}: Readonly<{
+  address: string;
+  pending: boolean;
+  preview: ConnectionCloseView | null;
+  previewFailed: Error | null;
+  closeError: Error | null;
+}>) {
+  return (
+    <Stack gap="md">
+      <Text size="sm">
+        This disconnects every application consuming from {address}, on every live node. The messages those consumers
+        hold return to their queues with an increased delivery count.
+      </Text>
+
+      <div aria-live="polite">
+        {pending && !preview ? (
+          <Text size="sm" c="dimmed">
+            Counting the consumers on each node…
+          </Text>
+        ) : null}
+
+        {previewFailed ? (
+          <ErrorState
+            variant="inline"
+            error={previewFailed}
+            next="The count could not be taken. The close can still proceed, but Studio cannot tell you how many consumers it would disconnect."
+          />
+        ) : null}
+
+        {preview ? (
+          <NodeOutcomeSummary
+            outcome={preview.outcome}
+            destructive
+            alreadyLabel={ALREADY_GONE}
+            countNoun="consumer"
+            verbFuture="would close"
+            verbPast="closed"
+          />
+        ) : null}
+      </div>
+
+      {preview?.outcome.overCap ? (
+        <Notice tone="warning" title="Over the safety cap">
+          This would disconnect {preview.outcome.totalAffected.toLocaleString()} consumers, over the cap of{' '}
+          {preview.outcome.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override
+          is recorded in the audit log.
+        </Notice>
+      ) : null}
+
+      {closeError && !previewFailed ? <ErrorState error={closeError} variant="inline" /> : null}
+    </Stack>
   );
 }

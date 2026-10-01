@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconTrash } from '@tabler/icons-react';
 
 import { useAuthProviders } from '../../kernel/auth/api.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
@@ -92,18 +91,10 @@ function ProviderMappings({ providerId }: Readonly<{ providerId: string }>) {
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
   const columns = mappingColumns({
-    actions: (m) => (
-      <ActionIcon
-        variant="subtle"
-        onClick={() => {
-          setDeleting(m);
-          setDeleteOpen(true);
-        }}
-        aria-label={`Delete mapping for ${m.groupName}`}
-      >
-        <IconTrash size="1rem" aria-hidden />
-      </ActionIcon>
-    ),
+    onDelete: (m) => {
+      setDeleting(m);
+      setDeleteOpen(true);
+    },
   });
 
   return (

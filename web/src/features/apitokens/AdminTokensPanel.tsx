@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Drawer, Tooltip } from '@mantine/core';
-import { IconChartBar, IconTrash } from '@tabler/icons-react';
+import { Drawer } from '@mantine/core';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
@@ -11,9 +10,7 @@ import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useAdminRevokeToken, useAdminTokens, type TokenView } from './api.ts';
 import { adminKeyColumns } from './columns.ts';
-import { tokenState } from './format.ts';
 import { TokenUsagePanel } from './TokenParts.tsx';
-import classes from './TokenActions.module.css';
 
 const TOKEN_ADMIN = 'token:admin';
 
@@ -55,28 +52,13 @@ function Inventory() {
   const [usageOf, setUsageOf] = useState<TokenView | null>(null);
 
   const columns = adminKeyColumns({
-    actions: (t) => (
-      <span className={classes.controls}>
-        <Tooltip label="Usage">
-          <ActionIcon variant="subtle" onClick={() => setUsageOf(t)} aria-label={`Usage of ${t.name}`}>
-            <IconChartBar size="1rem" aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Revoke">
-          <ActionIcon
-            variant="subtle"
-            disabled={tokenState(t) !== 'Active'}
-            onClick={() => {
-              setRevoking(t);
-              setRevokeOpen(true);
-            }}
-            aria-label={`Revoke ${t.name} of ${t.owner}`}
-          >
-            <IconTrash size="1rem" aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      </span>
-    ),
+    controls: {
+      onUsage: setUsageOf,
+      onRevoke: (t) => {
+        setRevoking(t);
+        setRevokeOpen(true);
+      },
+    },
   });
 
   return (

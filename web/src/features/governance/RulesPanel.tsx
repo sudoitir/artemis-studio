@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ActionIcon, Button, Group, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import type { ApiError } from '../../kernel/api/request.ts';
@@ -192,41 +191,16 @@ export function RulesPanel() {
   const savingId = update.isPending ? update.variables.ruleId : undefined;
   // Built each render: the cells carry what is gated and busy right now.
   const columns = ruleColumns({
-    enabledControl: (r) => (
-      <Switch
-        size="sm"
-        checked={r.enabled}
-        disabled={!canWrite || savingId === r.id}
-        aria-label={`Enabled: ${r.selector}`}
-        onChange={(e) => toggle(r, e.currentTarget.checked)}
-      />
-    ),
-    changesControl: (r) =>
-      r.builtin ? (
-        <span className={classes.note}>Can be disabled, not deleted.</span>
-      ) : (
-        <span className={classes.controls}>
-          <ActionIcon
-            variant="subtle"
-            disabled={!canWrite}
-            onClick={() => openEdit(r)}
-            aria-label={`Edit the rule for ${r.selector}`}
-          >
-            <IconPencil size="1rem" aria-hidden />
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            disabled={!canWrite}
-            onClick={() => {
-              setDeleting(r);
-              setDeleteOpen(true);
-            }}
-            aria-label={`Delete the rule for ${r.selector}`}
-          >
-            <IconTrash size="1rem" aria-hidden />
-          </ActionIcon>
-        </span>
-      ),
+    controls: {
+      canWrite,
+      savingId,
+      onToggle: toggle,
+      onEdit: openEdit,
+      onDelete: (r) => {
+        setDeleting(r);
+        setDeleteOpen(true);
+      },
+    },
   });
 
   return (

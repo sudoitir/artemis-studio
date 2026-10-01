@@ -72,29 +72,7 @@ export function FlowTable({
           );
         },
       }}
-      empty={
-        filtered ? (
-          <EmptyState
-            kind="filtered"
-            title="No path matches this focus and these layers"
-            description="Paths exist on this cluster, but none is left once the view is narrowed to the focus and the layers you chose. Clear them to see every shown path again."
-            onClearFilters={onClearFilters}
-          />
-        ) : unreachable.length > 0 ? (
-          <EmptyState
-            kind="unreachable"
-            title="No paths to list, and some nodes did not answer"
-            description="There may be paths here that Studio cannot currently see. These nodes did not answer the last sweep, so this is an incomplete view rather than a cluster with no flow."
-            nodes={unreachable}
-          />
-        ) : (
-          <EmptyState
-            kind="empty"
-            title="No paths to list"
-            description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Studio draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
-          />
-        )
-      }
+      empty={<NoPaths filtered={filtered} unreachable={unreachable} onClearFilters={onClearFilters} />}
     />
   );
 }
@@ -157,4 +135,43 @@ function sortRows(rows: PathRow[], sort: string | undefined): PathRow[] {
     }
     return dir * text(a).localeCompare(text(b)) || a.id.localeCompare(b.id);
   });
+}
+
+/** What an empty path table says: narrowed away, hidden by unreachable nodes, or genuinely none. */
+function NoPaths({
+  filtered,
+  unreachable,
+  onClearFilters,
+}: Readonly<{
+  filtered: boolean;
+  unreachable: ReturnType<typeof unreachableNodes>;
+  onClearFilters: () => void;
+}>) {
+  if (filtered) {
+    return (
+      <EmptyState
+        kind="filtered"
+        title="No path matches this focus and these layers"
+        description="Paths exist on this cluster, but none is left once the view is narrowed to the focus and the layers you chose. Clear them to see every shown path again."
+        onClearFilters={onClearFilters}
+      />
+    );
+  }
+  if (unreachable.length > 0) {
+    return (
+      <EmptyState
+        kind="unreachable"
+        title="No paths to list, and some nodes did not answer"
+        description="There may be paths here that Studio cannot currently see. These nodes did not answer the last sweep, so this is an incomplete view rather than a cluster with no flow."
+        nodes={unreachable}
+      />
+    );
+  }
+  return (
+    <EmptyState
+      kind="empty"
+      title="No paths to list"
+      description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Studio draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
+    />
+  );
 }

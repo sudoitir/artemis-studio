@@ -101,6 +101,7 @@ function DeclaredSection<T>({
   const columns = useMemo(() => declaredColumns(ctx, spec), [ctx, spec]);
   const n = items.length;
   const label = SECTION_LABEL[spec.section];
+  const declared = n === 0 ? '' : `${n} declared. `;
   const add = (
     <CapabilityGate verdict={addGate} what={`adding ${spec.noun}`}>
       <Button variant="default" size="xs" onClick={() => ctx.onEdit(spec.section)} disabled={addDisabled}>
@@ -109,11 +110,7 @@ function DeclaredSection<T>({
     </CapabilityGate>
   );
   return (
-    <PageSection
-      title={label}
-      description={`${n === 0 ? '' : `${n} declared. `}${SECTION_TEACHING[spec.section]}`}
-      actions={add}
-    >
+    <PageSection title={label} description={`${declared}${SECTION_TEACHING[spec.section]}`} actions={add}>
       {n === 0 ? (
         <EmptyState
           kind="empty"

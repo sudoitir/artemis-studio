@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
-import { Button, Switch } from '@mantine/core';
+import { Button } from '@mantine/core';
 
 import { axeViolations, contentWidth, Frame, renderThemed, SCHEMES, settle } from '../../test/browser.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -81,6 +81,8 @@ const delivery = (over: Partial<AlertDeliveryView> = {}): AlertDeliveryView =>
     ...over,
   }) as AlertDeliveryView;
 
+const noop = () => {};
+
 const TABLES = {
   rules: (
     <DataTable
@@ -91,10 +93,7 @@ const TABLES = {
           ['ch1', LONG],
           ['ch2', 'ops'],
         ]),
-        enabledControl: (r) => (
-          <Switch size="sm" checked={r.enabled} onChange={() => {}} aria-label={`Disable ${r.id}`} />
-        ),
-        actionsControl: () => <Button size="compact-xs">Edit</Button>,
+        controls: { canWrite: true, savingId: undefined, onToggle: noop, onEdit: noop, onDelete: noop },
       })}
       data={[
         rule(),
@@ -130,7 +129,7 @@ const TABLES = {
       label="Notification channels"
       columns={channelColumns({
         now: Date.parse('2026-09-11T10:05:00Z'),
-        actionsControl: () => <Button size="compact-xs">Test</Button>,
+        controls: { canWrite: true, testingId: undefined, onTest: noop, onLog: noop, onEdit: noop, onDelete: noop },
       })}
       data={[
         channel(),
