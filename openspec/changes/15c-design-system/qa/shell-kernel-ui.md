@@ -33,4 +33,4 @@ Baseline: 830 captures (default state at 1920/1440/1280 in light, dark and syste
 - Where: `web/src/kernel/keyboard/ShortcutsHelp.test.tsx:14`
 - Evidence: `findByRole('dialog', { name: 'Keyboard shortcuts' })` timed out after 8.6 s in one of three runs (once in the full suite, once alone), passing in the others.
 - Fix: find why the popover can take longer than the wait to appear (its transition, the tooltip on the same trigger) and make the test deterministic.
-- Status: open
+- Status: fixed (the popover hid itself when floating-ui judged its zero-size anchor detached; `hideDetached={false}`, and focus now moves onto its switch, which the test asserts)

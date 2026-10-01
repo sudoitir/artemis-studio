@@ -90,6 +90,9 @@ export function ShortcutsHelp() {
       withArrow
       trapFocus
       returnFocus
+      // Its trigger sits in the fixed header and is never scrolled away; hiding a "detached" popover only
+      // raced the position measurement and could leave it open but invisible.
+      hideDetached={false}
     >
       <Popover.Target>
         <Tooltip label="Keyboard shortcuts (?)" disabled={opened}>
@@ -116,6 +119,7 @@ export function ShortcutsHelp() {
               checked={enabled}
               onChange={(e) => setEnabled(e.currentTarget.checked)}
               label="Single-key shortcuts"
+              data-autofocus
               description="The shortcuts without ⌘ or Ctrl: go to a view, open this list, focus the filter. Turn them off if you use speech input, or if they get in your way. Kept in this browser."
             />
 
