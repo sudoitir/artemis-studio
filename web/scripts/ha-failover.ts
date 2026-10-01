@@ -176,6 +176,9 @@ class Stream {
   private abort: AbortController | undefined;
   private done: Promise<void>;
   private cluster: string;
+  private opened!: () => void;
+  /** Resolves when the first connection is answered. */
+  readonly open = new Promise<void>((resolve) => (this.opened = resolve));
 
   constructor(cluster: string) {
     this.cluster = cluster;
@@ -217,6 +220,7 @@ class Stream {
       });
       if (!response.ok || !response.body) throw new Error(`stream answered ${response.status}`);
       this.connects++;
+      this.opened();
       const decoder = new TextDecoder();
       let buffer = '';
       for await (const chunk of response.body) {
@@ -368,7 +372,12 @@ async function main() {
   console.log(`${clock()}   cluster ${cluster} is owned and scraped by ${owner}`);
 
   let running = true;
+  // The balancer is leastconn, so streams opened while nothing else is in flight land on both replicas, and
+  // the kill below always cuts one. Started with the load running, all three can land on the survivor.
   const streams = [new Stream(cluster), new Stream(cluster), new Stream(cluster)];
+  await until('every stream to open', 30_000, async () =>
+    Promise.race([Promise.all(streams.map((s) => s.open)).then(() => true), sleep(1_000).then(() => false)]),
+  );
   const loops = [readLoop(cluster, () => running), writeLoop(cluster, () => running)];
   await until('events on every stream', 60_000, async () => streams.every((s) => s.ids.size >= 5));
   console.log(`${clock()}   ${streams.length} streams open, events flowing`);
