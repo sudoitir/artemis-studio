@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, CopyButton, Drawer, Group, SegmentedControl, Stack, Text } from '@mantine/core';
+import { Button, CopyButton, Drawer, Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 
 import { useMessageDetail, type MessageDetailView } from './api.ts';
@@ -10,6 +10,7 @@ import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { GovernedValue, RedactionMarks, WithheldNotice } from '../../ui/RedactedValue.tsx';
 import { redactionsAt } from '../../ui/redactions.ts';
@@ -234,7 +235,7 @@ function Headers({ m }: Readonly<{ m: MessageDetailView }>) {
 function TruncationNotice({ m }: Readonly<{ m: MessageDetailView }>) {
   if (!m.bodyTruncated) return null;
   return (
-    <Alert variant="default" title="This message is truncated">
+    <Notice tone="warning" title="This message is truncated">
       <Stack gap="xs">
         <Text size="sm">
           The broker clipped this message's body and property values at {m.observedLimitBytes ?? 'its'} bytes (
@@ -243,7 +244,7 @@ function TruncationNotice({ m }: Readonly<{ m: MessageDetailView }>) {
         </Text>
         <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
       </Stack>
-    </Alert>
+    </Notice>
   );
 }
 

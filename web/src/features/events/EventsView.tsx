@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useRef } from 'react';
-import { Alert, Code, Drawer, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Code, Drawer, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -14,6 +14,7 @@ import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
@@ -94,9 +95,9 @@ function NotificationsUnavailable({ notifications }: Readonly<{ notifications: N
   return (
     <Page>
       <PageHeader title="Events" description="This cluster's broker notifications, newest first." />
-      <Alert variant="default" title="Live events not available">
+      <Notice tone="warning" title="Live events not available">
         {notifications.reason}
-      </Alert>
+      </Notice>
       {notifications.brokerXmlSnippet ? <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" /> : null}
     </Page>
   );

@@ -27,6 +27,9 @@ export interface AddressPickerProps {
   inputRef?: React.Ref<HTMLInputElement>;
   error?: React.ReactNode;
   onBlur?: () => void;
+  onFocus?: () => void;
+  /** Set by `form.getInputProps`, so `form.getInputNode` finds the input. */
+  'data-path'?: string;
 }
 
 /** What stands in for the options while queues fail to load or load, or when nothing matches. */
@@ -75,6 +78,8 @@ export function AddressPicker({
   inputRef,
   error,
   onBlur,
+  onFocus,
+  'data-path': dataPath,
 }: Readonly<AddressPickerProps>) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const [types, setTypes] = useState<RoutingType[]>([]);
@@ -115,6 +120,7 @@ export function AddressPicker({
         <Combobox.Target>
           <TextInput
             ref={inputRef}
+            data-path={dataPath}
             label={label}
             description={description}
             placeholder={placeholder}
@@ -129,7 +135,10 @@ export function AddressPicker({
               combobox.updateSelectedOptionIndex();
             }}
             onClick={() => combobox.openDropdown()}
-            onFocus={() => combobox.openDropdown()}
+            onFocus={() => {
+              combobox.openDropdown();
+              onFocus?.();
+            }}
             onBlur={(e) => {
               // Keep the dropdown open while focus moves to the filter inside it.
               if (root.current?.contains(e.relatedTarget)) return;

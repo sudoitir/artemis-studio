@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Alert, Button, Group, Modal, NumberInput, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useCallback, useEffect, useState } from 'react';
+import { Button, Group, Modal, NumberInput, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import {
   useQueueConfiguration,
@@ -11,6 +12,8 @@ import {
 } from './api.ts';
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid, serverFieldErrors } from '../../ui/formErrors.ts';
+import { Notice } from '../../ui/Notice.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 
@@ -35,6 +38,18 @@ function str(value: unknown): string {
 function num(value: unknown): number | '' {
   return typeof value === 'number' ? value : '';
 }
+
+interface FormState {
+  filter: string;
+  maxConsumers: number | string;
+  purgeOnNoConsumers: boolean;
+  exclusive: boolean;
+  ringSize: number | string;
+}
+
+const EMPTY: FormState = { filter: '', maxConsumers: '', purgeOnNoConsumers: false, exclusive: false, ringSize: '' };
+
+const FIELDS = Object.keys(EMPTY);
 
 /**
  * Change the configuration of a live queue.
@@ -65,13 +80,18 @@ export function EditQueueForm({
   opened: boolean;
   onClose: () => void;
 }>) {
-  const [filter, setFilter] = useState('');
-  const [maxConsumers, setMaxConsumers] = useState<number | ''>('');
-  const [purgeOnNoConsumers, setPurgeOnNoConsumers] = useState(false);
-  const [exclusive, setExclusive] = useState(false);
-  const [ringSize, setRingSize] = useState<number | ''>('');
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
+  // Stable, so the form's `setValues` is too and the seeding effect below runs only when the
+  // broker's configuration changes.
+  const clearPreview = useCallback(() => setPreview(null), []);
+  const form = useForm<FormState>({
+    initialValues: EMPTY,
+    validateInputOnBlur: true,
+    // What was previewed no longer describes the form once a field changes.
+    onValuesChange: clearPreview,
+  });
+  const { setValues, resetDirty } = form;
 
   const update = useUpdateQueue(clusterId, queue.queueName);
   // What the queue runs right now, per node. The form is seeded from it, so the
@@ -89,19 +109,23 @@ export function EditQueueForm({
 
   useEffect(() => {
     if (!current) return;
-    setFilter(str(current['filter-string']));
-    setMaxConsumers(num(current['max-consumers']));
-    setPurgeOnNoConsumers(current['purge-on-no-consumers'] === true);
-    setExclusive(current['exclusive'] === true);
-    setRingSize(num(current['ring-size']));
+    const seed: FormState = {
+      filter: str(current['filter-string']),
+      maxConsumers: num(current['max-consumers']),
+      purgeOnNoConsumers: current['purge-on-no-consumers'] === true,
+      exclusive: current['exclusive'] === true,
+      ringSize: num(current['ring-size']),
+    };
+    setValues(seed);
+    resetDirty(seed);
     // Seeding is keyed by the values themselves, so an applied update reseeds the
     // form from what the broker now reports rather than from the operator's typing.
-  }, [configuration.dataUpdatedAt, current]);
+  }, [configuration.dataUpdatedAt, current, setValues, resetDirty]);
 
   // Only what the operator actually changed is sent. The server reads the queue's
   // current configuration and merges this over it, because the broker's update
   // replaces rather than merges and would otherwise clear every omitted field.
-  const body = (): UpdateQueueRequest => ({
+  const body = ({ filter, maxConsumers, purgeOnNoConsumers, exclusive, ringSize }: FormState): UpdateQueueRequest => ({
     filter: current && str(current['filter-string']) === filter.trim() ? undefined : filter.trim(),
     maxConsumers:
       maxConsumers === '' || (current && num(current['max-consumers']) === maxConsumers)
@@ -114,9 +138,10 @@ export function EditQueueForm({
     ringSize: ringSize === '' || (current && num(current['ring-size']) === ringSize) ? undefined : Number(ringSize),
   });
 
-  const changed = Object.values(body()).some((v) => v !== undefined);
+  const changed = Object.values(body(form.values)).some((v) => v !== undefined);
 
   const close = () => {
+    form.reset();
     setPreview(null);
     setResult(null);
     update.reset();
@@ -124,115 +149,122 @@ export function EditQueueForm({
   };
 
   const submit = (dryRun: boolean) =>
-    update.mutate({ body: body(), dryRun }, { onSuccess: (o) => (o.dryRun ? setPreview(o) : setResult(o)) });
+    form.onSubmit(
+      (values) =>
+        update.mutate(
+          { body: body(values), dryRun },
+          {
+            onSuccess: (o) => (o.dryRun ? setPreview(o) : setResult(o)),
+            onError: (error) => form.setErrors(serverFieldErrors(error, FIELDS)),
+          },
+        ),
+      focusFirstInvalid(form.getInputNode),
+    );
 
   return (
     <Modal opened={opened} onClose={close} title={`Edit ${queue.queueName}`} size="lg">
-      <Stack gap="md">
-        {/* Immutable, not disabled — stated as facts about the queue rather than
+      <form noValidate onSubmit={submit(false)}>
+        <Stack gap="md">
+          {/* Immutable, not disabled — stated as facts about the queue rather than
             as inputs that happen to be switched off. */}
-        <DescriptionList
-          label="Fixed for the life of the queue"
-          items={[
-            { term: 'Address', value: queue.address },
-            { term: 'Routing type', value: queue.routingType },
-            { term: 'Durable', value: queue.durable ? 'yes' : 'no' },
-          ]}
-        />
-        <Text size="xs" c="dimmed">
-          These are fixed for the life of the queue — the broker refuses to change them on a queue that exists. To
-          change one, delete this queue and create a new one.
-        </Text>
-
-        {configuration.isError ? (
-          <>
-            <ErrorState error={configuration.error} variant="inline" onRetry={() => void configuration.refetch()} />
-            <Text size="sm">The fields below start empty; applying one writes it to every live node.</Text>
-          </>
-        ) : null}
-        {disagreeing.length > 0 ? (
-          <Alert variant="default" title="The nodes do not agree">
-            {disagreeing.join(', ')} {disagreeing.length === 1 ? 'runs' : 'run'} a different configuration from{' '}
-            {seededFrom}. The fields below show {seededFrom}; applying writes them to every live node.
-          </Alert>
-        ) : null}
-
-        {configuration.isPending ? (
-          <LoadingState label="Loading what this queue runs" blockSize="18rem" />
-        ) : (
-          <>
-            <TextInput
-              label="Filter"
-              description="A JMS selector. Empty means no filter."
-              placeholder="colour = 'red'"
-              value={filter}
-              onChange={(e) => setFilter(e.currentTarget.value)}
-            />
-            <NumberInput
-              label="Max consumers"
-              description="-1 for unlimited."
-              value={maxConsumers}
-              onChange={(v) => setMaxConsumers(v === '' ? '' : Number(v))}
-              allowDecimal={false}
-              min={-1}
-            />
-            <NumberInput
-              label="Ring size"
-              description="-1 for unlimited."
-              value={ringSize}
-              onChange={(v) => setRingSize(v === '' ? '' : Number(v))}
-              allowDecimal={false}
-              min={-1}
-            />
-            <Switch
-              label="Purge when the last consumer disconnects"
-              checked={purgeOnNoConsumers}
-              onChange={(e) => setPurgeOnNoConsumers(e.currentTarget.checked)}
-            />
-            <Switch
-              label="Exclusive"
-              description="Route to one consumer at a time."
-              checked={exclusive}
-              onChange={(e) => setExclusive(e.currentTarget.checked)}
-            />
-          </>
-        )}
-
-        {update.isError ? <ErrorState error={update.error} variant="inline" /> : null}
-
-        <div aria-live="polite">
-          {preview ? <NodeOutcomeSummary outcome={preview} /> : null}
-          {result ? <NodeOutcomeSummary outcome={result} /> : null}
-        </div>
-
-        <Group justify="space-between">
+          <DescriptionList
+            label="Fixed for the life of the queue"
+            items={[
+              { term: 'Address', value: queue.address },
+              { term: 'Routing type', value: queue.routingType },
+              { term: 'Durable', value: queue.durable ? 'yes' : 'no' },
+            ]}
+          />
           <Text size="xs" c="dimmed">
-            {changed ? '' : 'Change at least one field to apply an update.'}
+            These are fixed for the life of the queue — the broker refuses to change them on a queue that exists. To
+            change one, delete this queue and create a new one.
           </Text>
-          <Group gap="xs">
-            <Button variant="default" size="xs" onClick={close}>
-              {result ? 'Close' : 'Cancel'}
-            </Button>
-            <Button
-              variant="default"
-              size="xs"
-              loading={update.isPending && update.variables?.dryRun === true}
-              disabled={!changed}
-              onClick={() => submit(true)}
-            >
-              Preview
-            </Button>
-            <Button
-              size="xs"
-              loading={update.isPending && update.variables?.dryRun !== true}
-              disabled={!changed || result !== null}
-              onClick={() => submit(false)}
-            >
-              Apply
-            </Button>
+
+          {configuration.isError ? (
+            <>
+              <ErrorState error={configuration.error} variant="inline" onRetry={() => void configuration.refetch()} />
+              <Text size="sm">The fields below start empty; applying one writes it to every live node.</Text>
+            </>
+          ) : null}
+          {disagreeing.length > 0 ? (
+            <Notice tone="warning" title="The nodes do not agree">
+              {disagreeing.join(', ')} {disagreeing.length === 1 ? 'runs' : 'run'} a different configuration from{' '}
+              {seededFrom}. The fields below show {seededFrom}; applying writes them to every live node.
+            </Notice>
+          ) : null}
+
+          {configuration.isPending ? (
+            <LoadingState label="Loading what this queue runs" blockSize="18rem" />
+          ) : (
+            <>
+              <TextInput
+                label="Filter"
+                description="A JMS selector. Empty means no filter."
+                placeholder="colour = 'red'"
+                {...form.getInputProps('filter')}
+              />
+              <NumberInput
+                label="Max consumers"
+                description="-1 for unlimited."
+                {...form.getInputProps('maxConsumers')}
+                allowDecimal={false}
+                min={-1}
+              />
+              <NumberInput
+                label="Ring size"
+                description="-1 for unlimited."
+                {...form.getInputProps('ringSize')}
+                allowDecimal={false}
+                min={-1}
+              />
+              <Switch
+                label="Purge when the last consumer disconnects"
+                {...form.getInputProps('purgeOnNoConsumers', { type: 'checkbox' })}
+              />
+              <Switch
+                label="Exclusive"
+                description="Route to one consumer at a time."
+                {...form.getInputProps('exclusive', { type: 'checkbox' })}
+              />
+            </>
+          )}
+
+          {update.isError ? <ErrorState error={update.error} variant="inline" /> : null}
+
+          <div aria-live="polite">
+            {preview ? <NodeOutcomeSummary outcome={preview} /> : null}
+            {result ? <NodeOutcomeSummary outcome={result} /> : null}
+          </div>
+
+          <Group justify="space-between">
+            <Text size="xs" c="dimmed">
+              {changed ? '' : 'Change at least one field to apply an update.'}
+            </Text>
+            <Group gap="xs">
+              <Button variant="default" size="xs" onClick={close}>
+                {result ? 'Close' : 'Cancel'}
+              </Button>
+              <Button
+                variant="default"
+                size="xs"
+                loading={update.isPending && update.variables?.dryRun === true}
+                disabled={!changed}
+                onClick={() => submit(true)()}
+              >
+                Preview
+              </Button>
+              <Button
+                type="submit"
+                size="xs"
+                loading={update.isPending && update.variables?.dryRun !== true}
+                disabled={!changed || result !== null}
+              >
+                Apply
+              </Button>
+            </Group>
           </Group>
-        </Group>
-      </Stack>
+        </Stack>
+      </form>
     </Modal>
   );
 }

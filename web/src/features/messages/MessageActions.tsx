@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button, Menu, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { useActionHost } from '../../kernel/actions/hostContext.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { useMessageAction, type MessageActionKind } from './api.ts';
 import { BulkActionPreview } from './BulkActionPreview.tsx';
@@ -86,27 +88,25 @@ export function MessageActions({
   // The action stays set while the dialog closes, so its text does not change during the exit.
   const [action, setAction] = useState<MessageActionKind>('move');
   const [opened, setOpened] = useState(false);
-  const [target, setTarget] = useState('');
-  const [targetError, setTargetError] = useState<string | null>(null);
-  const targetRef = useRef<HTMLInputElement>(null);
+  const form = useForm({
+    initialValues: { target: '' },
+    validateInputOnBlur: true,
+    // Checked on activation, so the confirm button is never disabled with no reason given.
+    validate: {
+      target: (value) => (action === 'move' && !value.trim() ? 'Name the queue to move the messages to.' : null),
+    },
+  });
   const [bulk, setBulk] = useState<MessageActionKind | null>(null);
 
   const ids = [...selected].map(Number).filter((n) => Number.isFinite(n));
 
   const open = (next: MessageActionKind) => {
     setAction(next);
-    setTarget('');
-    setTargetError(null);
+    form.reset();
     setOpened(true);
   };
 
-  const submit = () => {
-    // Validated on activation, so the button is never disabled with no reason given.
-    if (action === 'move' && !target.trim()) {
-      setTargetError('Name the queue to move the messages to.');
-      targetRef.current?.focus();
-      return;
-    }
+  const submit = form.onSubmit(({ target }) => {
     run.mutate(
       {
         action,
@@ -122,7 +122,7 @@ export function MessageActions({
         onError: (e) => announceFailure(action, `${messageCount(ids.length)} in queue "${queueName}"`, e),
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const verb = VERBS[action].verb;
   return (
@@ -169,16 +169,9 @@ export function MessageActions({
             <Text size="sm">{consequenceOf(action, ids.length, queueName)}</Text>
             {action === 'move' ? (
               <TextInput
-                ref={targetRef}
                 label="Target queue"
                 description="The queue receives the messages on the same node."
-                value={target}
-                error={targetError}
-                onChange={(e) => {
-                  setTarget(e.currentTarget.value);
-                  setTargetError(null);
-                }}
-                onBlur={() => setTargetError(target.trim() ? null : 'Name the queue to move the messages to.')}
+                {...form.getInputProps('target')}
                 data-autofocus
               />
             ) : null}
@@ -188,7 +181,7 @@ export function MessageActions({
         tone={destroys(action) ? 'danger' : 'default'}
         typedName={destroys(action) ? queueName : undefined}
         pending={run.isPending}
-        onConfirm={submit}
+        onConfirm={() => submit()}
       />
 
       {bulk ? (

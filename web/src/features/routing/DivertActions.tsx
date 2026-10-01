@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Checkbox, Code, CopyButton, Group, Modal, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useCallback, useEffect, useState } from 'react';
+import { Button, Checkbox, Code, CopyButton, Group, Modal, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { useCluster } from '../clusters/index.ts';
 import {
@@ -14,7 +15,9 @@ import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { focusBack } from '../../kernel/actions/focusBack.ts';
 import { useActionHost } from '../../kernel/actions/hostContext.ts';
 import type { HostedDialogProps } from '../../kernel/actions/types.ts';
@@ -87,6 +90,9 @@ function divertError(field: DivertField, values: Record<DivertField, string>): s
   return VALIDATORS[field](values[field].trim(), values);
 }
 
+const divertRule = (field: DivertField) => (_: string, values: Record<DivertField, string>) =>
+  divertError(field, values);
+
 /** A server field error, on the field the operator can correct. */
 function serverFieldFor(field: string): DivertField | null {
   if (field === 'forwardingAddressDistinct') return 'forwardingAddress';
@@ -102,7 +108,6 @@ function CreateFooter({
   onDone,
   onEdit,
   onCreate,
-  onPreview,
 }: Readonly<{
   result: boolean;
   preview: DivertMutationView | null;
@@ -111,7 +116,6 @@ function CreateFooter({
   onDone: () => void;
   onEdit: () => void;
   onCreate: () => void;
-  onPreview: () => void;
 }>) {
   if (result) {
     return (
@@ -125,7 +129,7 @@ function CreateFooter({
   if (!preview) {
     return (
       <Group justify="flex-end">
-        <Button size="xs" loading={pending} onClick={onPreview}>
+        <Button type="submit" size="xs" loading={pending}>
           Preview
         </Button>
       </Group>
@@ -165,12 +169,12 @@ function CreateOutcome({
     return (
       <Stack gap="sm">
         <NodeOutcomeSummary outcome={result.outcome} />
-        <Alert variant="default" title="Your broker configuration does not know about this">
+        <Notice tone="warning" title="Your broker configuration does not know about this">
           <Stack gap="sm">
             <Text size="xs">{DRIFT_SENTENCE}</Text>
             <BrokerXmlRemedy xml={result.brokerXml} />
           </Stack>
-        </Alert>
+        </Notice>
       </Stack>
     );
   }
@@ -179,18 +183,21 @@ function CreateOutcome({
     <Stack gap="sm">
       <NodeOutcomeSummary outcome={preview.outcome} />
       {refused > 0 ? (
-        <Alert variant="default" title="This divert would be refused">
+        <Notice
+          tone={refused === preview.outcome.nodes.length ? 'danger' : 'warning'}
+          title="This divert would be refused"
+        >
           {refused === preview.outcome.nodes.length
             ? 'Every node refuses it, for the reason under each node above. Edit it and preview again.'
             : 'Some nodes refuse it, for the reason under each node above. Creating it anyway applies it only where it is not refused.'}
-        </Alert>
+        </Notice>
       ) : null}
-      <Alert variant="default" title="Before you create this">
+      <Notice tone="warning" title="Before you create this">
         <Stack gap="sm">
           <Text size="xs">{DRIFT_SENTENCE}</Text>
           <BrokerXmlRemedy xml={preview.brokerXml} />
         </Stack>
-      </Alert>
+      </Notice>
     </Stack>
   );
 }
@@ -210,60 +217,46 @@ export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }
   const gate = gateFor(can('divert:write', clusterId), PERMISSION_LABEL, write, loading || cluster.isPending);
 
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<Record<DivertField, string>>({
-    name: '',
-    address: '',
-    forwardingAddress: '',
-    filter: '',
-  });
-  const [exclusive, setExclusive] = useState(false);
-  const [acknowledge, setAcknowledge] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<DivertField, string | null>>>({});
   const [preview, setPreview] = useState<DivertMutationView | null>(null);
   const [result, setResult] = useState<DivertMutationView | null>(null);
-  const refs = useRef<Partial<Record<DivertField, HTMLInputElement | null>>>({});
+
+  const form = useForm({
+    initialValues: { name: '', address: '', forwardingAddress: '', filter: '', exclusive: false, acknowledge: false },
+    validateInputOnBlur: true,
+    validate: {
+      name: divertRule('name'),
+      address: divertRule('address'),
+      forwardingAddress: divertRule('forwardingAddress'),
+      filter: divertRule('filter'),
+    },
+  });
+  const { exclusive } = form.values;
 
   const create = useCreateDivert(clusterId);
   const frozen = preview !== null || result !== null;
-  const body = {
+  const bodyOf = (values: typeof form.values) => ({
     name: values.name.trim(),
     address: values.address.trim(),
     forwardingAddress: values.forwardingAddress.trim(),
     filter: values.filter.trim() || undefined,
-    exclusive,
-    acknowledgeCaptureShadowing: exclusive && acknowledge,
-  };
+    exclusive: values.exclusive,
+    acknowledgeCaptureShadowing: values.exclusive && values.acknowledge,
+  });
 
-  const set = (field: DivertField) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.currentTarget.value;
-    setValues((prev) => ({ ...prev, [field]: value }));
-  };
-  const blur = (field: DivertField) => () => setErrors((prev) => ({ ...prev, [field]: divertError(field, values) }));
-
-  const focusFirst = (found: Partial<Record<DivertField, string | null>>) => {
-    const first = FIELD_ORDER.find((f) => found[f]);
-    if (first) refs.current[first]?.focus();
-  };
-
-  const requestPreview = () => {
-    const found = Object.fromEntries(FIELD_ORDER.map((f) => [f, divertError(f, values)]));
-    setErrors(found);
-    if (FIELD_ORDER.some((f) => found[f])) {
-      focusFirst(found);
-      return;
-    }
+  const requestPreview = form.onSubmit((values) => {
     create.mutate(
-      { body, dryRun: true },
+      { body: bodyOf(values), dryRun: true },
       {
         onSuccess: setPreview,
+        // The server's rules land beside the field they are about.
         onError: (error) => {
           const mapped = serverErrorsFor(error.fieldErrors);
-          setErrors(mapped);
-          focusFirst(mapped);
+          form.setErrors(mapped);
+          focusFirstInvalid(form.getInputNode)(mapped);
         },
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const close = () => {
     // Closing mid-request would hide the outcome of a change that is still being made.
@@ -271,82 +264,69 @@ export function CreateDivertAction({ clusterId }: Readonly<{ clusterId: string }
     setOpen(false);
     setPreview(null);
     setResult(null);
-    setErrors({});
+    form.reset();
     create.reset();
   };
 
   const refused = preview?.outcome.nodes.filter((n) => n.status === 'FAILED') ?? [];
 
   const input = (field: DivertField, label: string, description?: string) => (
-    <TextInput
-      ref={(el) => {
-        refs.current[field] = el;
-      }}
-      label={label}
-      description={description}
-      value={values[field]}
-      onChange={set(field)}
-      onBlur={blur(field)}
-      error={errors[field]}
-      readOnly={frozen}
-      size="xs"
-    />
+    <TextInput label={label} description={description} {...form.getInputProps(field)} readOnly={frozen} size="xs" />
   );
 
   return (
     <>
-      <CapabilityGate verdict={gate}>
+      <CapabilityGate verdict={gate} what="creating a divert">
         <Button size="xs" variant="default" disabled={gate.kind === 'blocked'} onClick={() => setOpen(true)}>
           Create divert
         </Button>
       </CapabilityGate>
 
       <Modal opened={open} onClose={close} title="Create a divert" size="lg">
-        <Stack gap="sm">
-          {input('name', 'Name', 'Unique on each node.')}
-          {input('address', 'Divert messages from')}
-          {input('forwardingAddress', 'Divert messages to')}
-          {input('filter', 'Filter', 'Optional. Only messages matching it are diverted.')}
-          <Switch
-            size="xs"
-            checked={exclusive}
-            disabled={frozen}
-            onChange={(e) => setExclusive(e.currentTarget.checked)}
-            label="Exclusive — take the message instead of copying it"
-            description={
-              exclusive
-                ? 'Traffic on this address stops reaching its current destinations. Artemis evaluates exclusive diverts before non-exclusive ones, so this also runs ahead of any copying divert on the same address.'
-                : 'Traffic is copied. Its current destinations keep receiving it.'
-            }
-          />
-          {exclusive ? (
-            <Checkbox
+        <form noValidate onSubmit={requestPreview}>
+          <Stack gap="sm">
+            {input('name', 'Name', 'Unique on each node.')}
+            {input('address', 'Divert messages from')}
+            {input('forwardingAddress', 'Divert messages to')}
+            {input('filter', 'Filter', 'Optional. Only messages matching it are diverted.')}
+            <Switch
               size="xs"
-              checked={acknowledge}
+              {...form.getInputProps('exclusive', { type: 'checkbox' })}
               disabled={frozen}
-              onChange={(e) => setAcknowledge(e.currentTarget.checked)}
-              label="Create it even if this address is being captured"
-              description="Capture of the address would then record nothing while this divert exists. Needed only when the preview says the address is captured."
+              label="Exclusive — take the message instead of copying it"
+              description={
+                exclusive
+                  ? 'Traffic on this address stops reaching its current destinations. Artemis evaluates exclusive diverts before non-exclusive ones, so this also runs ahead of any copying divert on the same address.'
+                  : 'Traffic is copied. Its current destinations keep receiving it.'
+              }
             />
-          ) : null}
+            {exclusive ? (
+              <Checkbox
+                size="xs"
+                {...form.getInputProps('acknowledge', { type: 'checkbox' })}
+                disabled={frozen}
+                label="Create it even if this address is being captured"
+                description="Capture of the address would then record nothing while this divert exists. Needed only when the preview says the address is captured."
+              />
+            ) : null}
 
-          {create.isError && create.error.fieldErrors.length === 0 ? (
-            <ErrorState error={create.error} variant="inline" />
-          ) : null}
+            {create.isError && create.error.fieldErrors.length === 0 ? (
+              <ErrorState error={create.error} variant="inline" />
+            ) : null}
 
-          <CreateOutcome result={result} preview={preview} refused={refused.length} />
+            <CreateOutcome result={result} preview={preview} refused={refused.length} />
 
-          <CreateFooter
-            result={result !== null}
-            preview={preview}
-            refused={refused.length}
-            pending={create.isPending}
-            onDone={close}
-            onEdit={() => setPreview(null)}
-            onCreate={() => create.mutate({ body, dryRun: false }, { onSuccess: setResult })}
-            onPreview={requestPreview}
-          />
-        </Stack>
+            <CreateFooter
+              result={result !== null}
+              preview={preview}
+              refused={refused.length}
+              pending={create.isPending}
+              onDone={close}
+              onEdit={() => setPreview(null)}
+              onCreate={() => create.mutate({ body: bodyOf(form.values), dryRun: false }, { onSuccess: setResult })}
+            />
+          </Stack>
+        </form>
       </Modal>
     </>
   );
@@ -372,7 +352,7 @@ export function DeleteDivertAction({ clusterId, divert }: Readonly<{ clusterId: 
   }
 
   return (
-    <CapabilityGate verdict={gate}>
+    <CapabilityGate verdict={gate} what={`deleting divert ${divert.name}`}>
       <Button
         size="compact-xs"
         variant="default"
@@ -391,8 +371,9 @@ export function DeleteDivertAction({ clusterId, divert }: Readonly<{ clusterId: 
 
 /**
  * The delete itself: it opens on the preview of what each node would do, and is armed by typing the
- * divert's name. Until a preview has been taken, and when it could not be, a plain dialog says so
- * and offers no delete; once the delete has run, the same kind of dialog shows its per-node result.
+ * divert's name. Until a preview has been taken, and when it could not be, the delete is offered
+ * disabled with the reason beside it; once the delete has run, its per-node result replaces the
+ * confirmation in the same dialog.
  */
 export function DeleteDivertDialog({
   clusterId,
@@ -402,14 +383,14 @@ export function DeleteDivertDialog({
 }: HostedDialogProps & { clusterId: string; divert: DivertView }) {
   const [preview, setPreview] = useState<LifecycleOutcomeView | null>(null);
   const [result, setResult] = useState<LifecycleOutcomeView | null>(null);
-  const [previewFailed, setPreviewFailed] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState<Error | null>(null);
   const remove = useDeleteDivert(clusterId, divert.name);
   const { mutate } = remove;
 
   const takePreview = useCallback(() => {
     setPreview(null);
     setPreviewFailed(null);
-    mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
+    mutate({ dryRun: true }, { onSuccess: setPreview, onError: setPreviewFailed });
   }, [mutate]);
 
   useEffect(() => {
@@ -424,64 +405,42 @@ export function DeleteDivertDialog({
     onClose();
   };
 
-  const title = `Delete divert "${divert.name}"`;
-  const effect = (
-    <Text size="sm">
-      {divert.exclusive
-        ? `Messages on ${divert.address} stop going to ${divert.forwardingAddress} and resume reaching their original destinations.`
-        : `${divert.forwardingAddress} stops receiving a copy of the messages on ${divert.address}. Traffic on ${divert.address} itself is unaffected.`}
-    </Text>
-  );
-
-  if (preview && !result) {
-    return (
-      <ConfirmDialog
-        opened={opened}
-        onClose={close}
-        title={title}
-        tone="danger"
-        typedName={divert.name}
-        confirmLabel="Delete on every live node"
-        pending={remove.isPending}
-        onConfirm={() => remove.mutate({ dryRun: false }, { onSuccess: setResult })}
-        consequence={
-          <Stack gap="sm">
-            {effect}
-            <div aria-live="polite">
-              <NodeOutcomeSummary outcome={preview} />
-            </div>
-            {remove.isError ? <ErrorState error={remove.error} variant="inline" /> : null}
-          </Stack>
-        }
-      />
-    );
+  let blocked: string | undefined;
+  if (!preview) {
+    blocked = previewFailed
+      ? 'Nothing was deleted. Close this and try again once the nodes answer.'
+      : 'Asking each node what the delete would do…';
   }
 
   return (
-    <Modal opened={opened} onClose={close} title={title} size="lg">
-      <Stack gap="sm">
-        {effect}
-
-        <div aria-live="polite">
-          {remove.isPending && !result ? (
-            <Text size="sm" c="dimmed">
-              Asking each node what the delete would do…
-            </Text>
-          ) : null}
-          {previewFailed ? (
-            <Alert variant="default" title="The preview could not be taken" role="alert">
-              {previewFailed} Nothing was deleted. Close this and try again once the nodes answer.
-            </Alert>
-          ) : null}
-          {result ? <NodeOutcomeSummary outcome={result} /> : null}
-        </div>
-
-        <Group justify="flex-end">
-          <Button size="xs" variant={result ? 'filled' : 'default'} onClick={close}>
-            {result ? 'Done' : 'Cancel'}
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
+    <ConfirmDialog
+      opened={opened}
+      onClose={close}
+      title={`Delete divert "${divert.name}"`}
+      tone="danger"
+      typedName={preview ? divert.name : undefined}
+      confirmLabel="Delete on every live node"
+      // Only the delete itself locks the dialog; the preview before it can always be walked away from.
+      pending={remove.isPending && preview !== null}
+      blocked={blocked}
+      onConfirm={() => remove.mutate({ dryRun: false }, { onSuccess: setResult })}
+      result={result ? <NodeOutcomeSummary outcome={result} /> : undefined}
+      consequence={
+        <Stack gap="sm">
+          <Text size="sm">
+            {divert.exclusive
+              ? `Messages on ${divert.address} stop going to ${divert.forwardingAddress} and resume reaching their original destinations.`
+              : `${divert.forwardingAddress} stops receiving a copy of the messages on ${divert.address}. Traffic on ${divert.address} itself is unaffected.`}
+          </Text>
+          <div aria-live="polite">
+            {previewFailed ? (
+              <ErrorState variant="inline" error={previewFailed} next="The preview could not be taken." />
+            ) : null}
+            {preview && !result ? <NodeOutcomeSummary outcome={preview} /> : null}
+          </div>
+          {remove.isError && preview ? <ErrorState error={remove.error} variant="inline" /> : null}
+        </Stack>
+      }
+    />
   );
 }

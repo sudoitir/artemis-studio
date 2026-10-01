@@ -280,13 +280,17 @@ describe('a divert delete that could not be previewed', () => {
     await user.click(await screen.findByRole('button', { name: /^Delete divert/ }));
     const dialog = await screen.findByRole('dialog');
 
-    expect(await within(dialog).findByText('The preview could not be taken')).toBeInTheDocument();
-    expect(within(dialog).getByText(/Nothing was deleted/)).toBeInTheDocument();
+    expect(await within(dialog).findByText('node-a did not answer.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The preview could not be taken.')).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/Nothing was deleted/).length).toBeGreaterThan(0);
     expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('button', { name: 'Delete on every live node' })).not.toBeInTheDocument();
+    // The delete is visible and cannot be armed; the reason is what the button is described by.
+    const remove = within(dialog).getByRole('button', { name: 'Delete on every live node' });
+    expect(remove).toBeDisabled();
+    expect(remove).toHaveAccessibleDescription(/Nothing was deleted/);
   });
 
-  it('shows the per-node result of a delete that ran, in a dialog of its own', async () => {
+  it('shows the per-node result of a delete that ran, in the dialog that armed it', async () => {
     server.use(
       clusterHandler(),
       meHandler(),
@@ -304,7 +308,7 @@ describe('a divert delete that could not be previewed', () => {
     await user.click(confirm);
 
     expect(await screen.findByText('Applied to all 1 nodes')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete on every live node' })).not.toBeInTheDocument();
   });
 });

@@ -118,7 +118,7 @@ describe('QueueLifecycleActions capability gating', () => {
 
     // And the reason is reachable without a pointer hover: the wrapper is a real
     // focusable control carrying the explanation.
-    const why = screen.getAllByRole('button', { name: 'Why this is unavailable' })[0];
+    const why = screen.getByRole('button', { name: 'Why deleting this queue is unavailable' });
     await user.click(why);
 
     expect(await screen.findByText('The broker refused a management write for these credentials.')).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('QueueLifecycleActions capability gating', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
 
-    await user.click(screen.getByRole('button', { name: 'Why this is unavailable' }));
+    await user.click(screen.getByRole('button', { name: 'Why deleting this queue is unavailable' }));
     expect(await screen.findByText(/Destroy queues and addresses/)).toBeInTheDocument();
   });
 });
@@ -491,7 +491,7 @@ describe('a pause the broker refused', () => {
 });
 
 describe('the delete result', () => {
-  it('replaces the confirmation with a dialog of its own, and hands focus back to the Delete button', async () => {
+  it('replaces the confirmation with the result in the same dialog, and hands focus back to the Delete button', async () => {
     server.use(
       meHandler(),
       clusterHandler(AVAILABLE),
@@ -519,7 +519,7 @@ describe('the delete result', () => {
     await user.type(await within(confirmation).findByRole('textbox'), 'orders');
     await user.click(within(confirmation).getByRole('button', { name: 'Delete this queue' }));
 
-    // Partial is read per node, in a dialog that is not the one that armed the delete.
+    // Partial is read per node, where the typed confirmation was.
     const result = await screen.findByRole('dialog', { name: 'Result of deleting orders' });
     expect(within(result).getByText('Applied to some nodes and not others')).toBeInTheDocument();
     expect(within(result).getByText('node-b refused')).toBeInTheDocument();

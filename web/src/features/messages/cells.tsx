@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 
 import linkClasses from '../../ui/InlineLink.module.css';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { MiddleTruncate } from '../../ui/table/index.ts';
 import type { MessageSummaryView } from './api.ts';
 
 /** The body's preview, and that it is cut short: a preview that looks complete misleads. */
@@ -21,11 +22,11 @@ export function BodyPreview({ message: m }: Readonly<{ message: MessageSummaryVi
   );
 }
 
-/** A dead-letter queue's name, as a link to its messages. */
+/** A dead-letter queue's name, shortened in the middle so its distinguishing end stays in view, as a link to its messages. */
 export function QueueLink({ clusterId, queueName }: Readonly<{ clusterId: string; queueName: string }>) {
   return (
     <Link to={`/clusters/${clusterId}/queues/${encodeURIComponent(queueName)}/messages`} className={linkClasses.link}>
-      {queueName}
+      <MiddleTruncate text={queueName} />
     </Link>
   );
 }

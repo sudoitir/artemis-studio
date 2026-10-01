@@ -233,9 +233,13 @@ describe('a target that could not be read', () => {
     await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
     const dialog = await screen.findByRole('dialog', { name: 'Close this connection' });
 
-    expect(await within(dialog).findByText('The target could not be read')).toBeInTheDocument();
+    expect(await within(dialog).findByText('node-a did not answer.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The target could not be read.')).toBeInTheDocument();
     expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('button', { name: 'Close this connection' })).not.toBeInTheDocument();
+    // The close is visible and cannot be armed, and the reason is what the button is described by.
+    const close = within(dialog).getByRole('button', { name: 'Close this connection' });
+    expect(close).toBeDisabled();
+    expect(close).toHaveAccessibleDescription(/the close is not offered until the read succeeds/);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 

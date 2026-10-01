@@ -55,7 +55,7 @@ export function useQueue(
   clusterId: string,
   queueName: string | undefined,
   snapshot?: QueueView,
-): { queue: QueueView | undefined; isPending: boolean; isError: boolean } {
+): { queue: QueueView | undefined; isPending: boolean; isError: boolean; error: Error | null } {
   const lookup = useQuery({
     queryKey: keys.resource(clusterId, 'queues', { q: queueName, size: 50 }),
     queryFn: () =>
@@ -63,11 +63,12 @@ export function useQueue(
     enabled: !snapshot && clusterId !== '' && Boolean(queueName),
     refetchInterval: 5_000,
   });
-  if (snapshot) return { queue: snapshot, isPending: false, isError: false };
+  if (snapshot) return { queue: snapshot, isPending: false, isError: false, error: null };
   return {
     queue: lookup.data?.data.find((q) => q.queueName === queueName),
     isPending: Boolean(queueName) && lookup.isPending,
     isError: lookup.isError,
+    error: lookup.error,
   };
 }
 

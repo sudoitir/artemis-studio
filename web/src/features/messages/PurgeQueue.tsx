@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Stack, Text } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { usePurgeQueue, type DryRunView } from './api.ts';
 import { useMessageGate } from './gates.ts';
 import { announceFailure, announceResult, messageCount } from './outcomes.ts';
@@ -40,11 +41,11 @@ function Consequence({
         This cannot be undone.
       </Text>
       {preview.overCap ? (
-        <Alert variant="default" title="Over the safety cap">
+        <Notice tone="warning" title="Over the safety cap">
           This would remove {preview.affectedCount.toLocaleString()} messages, over the cap of{' '}
           {preview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override is
           recorded in the audit log.
-        </Alert>
+        </Notice>
       ) : null}
     </Stack>
   );

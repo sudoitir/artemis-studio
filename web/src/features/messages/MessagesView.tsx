@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Alert, Button, Select, Text, TextInput } from '@mantine/core';
+import { Button, Select, Text, TextInput } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -8,6 +8,7 @@ import { useMessages, type MessageSummaryView } from './api.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import linkClasses from '../../ui/InlineLink.module.css';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
@@ -195,10 +196,10 @@ export function MessagesView() {
   );
 
   const uncertainty = unproven ? (
-    <Alert variant="default" title="Not yet established for this connection">
+    <Notice tone="info" title="Not yet established for this connection">
       No management write has been attempted here yet, so Studio cannot say for certain that message operations will
       work. They are offered anyway — the first one settles it.
-    </Alert>
+    </Notice>
   ) : null;
 
   if (cluster.data && gated) {

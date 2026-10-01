@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 
 import {
   useCloseAddressConsumers,
@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { elapsedLabel, toServerMs, useServerNow } from '../../kernel/time/time.ts';
 import { focusBack } from '../../kernel/actions/focusBack.ts';
 import { useCloseAddressGate, useCloseGate } from './closeGates.ts';
@@ -35,14 +36,14 @@ const NOUN: Record<NodeKind, string> = {
 function useClosePreview(close: ReturnType<typeof useCloseAddressConsumers>, opened: boolean, onClose: () => void) {
   const [preview, setPreview] = useState<ConnectionCloseView | null>(null);
   const [result, setResult] = useState<ConnectionCloseView | null>(null);
-  const [previewFailed, setPreviewFailed] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState<Error | null>(null);
   const { mutate } = close;
 
   const start = useCallback(() => {
     setPreview(null);
     setResult(null);
     setPreviewFailed(null);
-    mutate({ dryRun: true }, { onSuccess: setPreview, onError: (e) => setPreviewFailed(e.message) });
+    mutate({ dryRun: true }, { onSuccess: setPreview, onError: setPreviewFailed });
   }, [mutate]);
 
   // The estimate is what the operator needs in order to decide, so it is taken when the dialog opens.
@@ -93,7 +94,7 @@ export function CloseConnectionAction({
   const host = useActionHost();
 
   return (
-    <CapabilityGate verdict={gate}>
+    <CapabilityGate verdict={gate} what={`closing this ${NOUN[kind]}`}>
       <Button
         size="compact-xs"
         variant="default"
@@ -122,9 +123,9 @@ export function CloseConnectionAction({
  * armed only once the operator has been shown who is about to be disconnected
  * and what happens to the messages that client is holding.
  *
- * <p>Three states share two dialogs: while the target is being read, or could not be read, or the
- * close has settled, a plain dialog says so; once the target is known and nothing has settled, the
- * confirmation shows it and asks for its name.
+ * <p>One dialog carries every state. While the target is being read, or could not be read, the
+ * confirmation says why it cannot be armed; once the target is known it shows it and asks for its
+ * name; once the close has settled, the outcome replaces the confirmation.
  */
 export function CloseDialog({
   clusterId,
@@ -153,73 +154,53 @@ export function CloseDialog({
   const settled = result ?? (preview?.alreadyGone ? preview : null);
   const target = preview?.target ?? null;
   const title = `Close this ${NOUN[kind]}`;
-
-  const intro = (
-    <Text size="sm">
-      This disconnects a running application from {nodeName}. It cannot be undone from here — a healthy client will
-      reconnect on its own, and a wedged one will not.
-    </Text>
-  );
-
-  if (target && !settled) {
-    return (
-      <ConfirmDialog
-        opened={opened}
-        onClose={dismiss}
-        title={title}
-        tone="danger"
-        typedName={target.confirmToken}
-        confirmLabel={title}
-        pending={close.isPending}
-        onConfirm={() => close.mutate({}, { onSuccess: setResult })}
-        consequence={
-          <Stack gap="md">
-            {intro}
-            {/* The action depends on how current the row is, so the age is stated
-                where the decision is made rather than only in the header. */}
-            {fetchedAt ? (
-              <Text size="xs" c="dimmed">
-                This row was read {elapsedLabel(now - toServerMs(fetchedAt))} ago. The check below is taken now, against
-                the broker.
-              </Text>
-            ) : null}
-            <TargetSummary target={target} nodeName={nodeName} />
-            {close.isError ? <ErrorState error={close.error} variant="inline" /> : null}
-          </Stack>
-        }
-      />
-    );
+  // Without a target there is nothing to name, so the close is not offered: it is stated, not hidden.
+  let blocked: string | undefined;
+  if (!target) {
+    blocked = previewFailed
+      ? 'Studio cannot tell you what this would disconnect, so the close is not offered until the read succeeds.'
+      : 'Reading what this would disconnect…';
   }
 
   return (
-    <Modal opened={opened} onClose={dismiss} title={title} size="lg">
-      <Stack gap="md">
-        {intro}
-        <div aria-live="polite">
-          {close.isPending && !preview && !result ? (
-            <Text size="sm" c="dimmed">
-              Reading what this would disconnect…
+    <ConfirmDialog
+      opened={opened}
+      onClose={dismiss}
+      title={title}
+      tone="danger"
+      typedName={target?.confirmToken}
+      confirmLabel={title}
+      // Only the close itself locks the dialog; the read before it can always be walked away from.
+      pending={close.isPending && preview !== null}
+      blocked={blocked}
+      onConfirm={() => close.mutate({}, { onSuccess: setResult })}
+      result={settled ? <SettledOutcome settled={settled} kind={kind} /> : undefined}
+      consequence={
+        <Stack gap="md">
+          <Text size="sm">
+            This disconnects a running application from {nodeName}. It cannot be undone from here — a healthy client
+            will reconnect on its own, and a wedged one will not.
+          </Text>
+          {/* The action depends on how current the row is, so the age is stated
+              where the decision is made rather than only in the header. */}
+          {fetchedAt && target && !settled ? (
+            <Text size="xs" c="dimmed">
+              This row was read {elapsedLabel(now - toServerMs(fetchedAt))} ago. The check below is taken now, against
+              the broker.
             </Text>
           ) : null}
-
           {/* An unavailable estimate is stated, never omitted: an absent number
               reads as zero, which is the most dangerous thing to infer here. */}
-          {previewFailed ? (
-            <Alert variant="default" title="The target could not be read" role="alert">
-              {previewFailed} Studio cannot tell you what this would disconnect, so the close is not offered until the
-              read succeeds.
-            </Alert>
-          ) : null}
-
-          {settled ? <SettledOutcome settled={settled} kind={kind} /> : null}
-        </div>
-        <Group justify="flex-end">
-          <Button size="xs" variant={settled ? 'filled' : 'default'} onClick={dismiss}>
-            {settled ? 'Close' : 'Cancel'}
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
+          <div aria-live="polite">
+            {previewFailed ? (
+              <ErrorState variant="inline" error={previewFailed} next="The target could not be read." />
+            ) : null}
+          </div>
+          {target && !settled ? <TargetSummary target={target} nodeName={nodeName} /> : null}
+          {close.isError && !previewFailed ? <ErrorState error={close.error} variant="inline" /> : null}
+        </Stack>
+      }
+    />
   );
 }
 
@@ -268,7 +249,7 @@ function TargetSummary({
       />
 
       {/* Stated before the confirmation, never discovered afterwards from a DLQ. */}
-      <Alert variant="default" title="Messages in flight return to their queue">
+      <Notice tone="info" title="Messages in flight return to their queue">
         {target.messagesInTransit == null ? (
           <>
             This broker did not report how many messages this client is holding. Any that are in flight return to their
@@ -282,7 +263,7 @@ function TargetSummary({
             message already near its maximum delivery attempts can be moved to the dead-letter queue by that increase.
           </>
         )}
-      </Alert>
+      </Notice>
     </Stack>
   );
 }
@@ -293,7 +274,7 @@ export function CloseAddressConsumersAction({ clusterId, address }: Readonly<{ c
   const host = useActionHost();
 
   return (
-    <CapabilityGate verdict={gate}>
+    <CapabilityGate verdict={gate} what={`closing every consumer on ${address}`}>
       <Button
         size="compact-xs"
         variant="default"
@@ -335,19 +316,31 @@ export function CloseAddressConsumers({
   const title = `Close every consumer on ${address}`;
 
   return (
-    <>
-      <ConfirmDialog
-        opened={opened && result === null}
-        onClose={dismiss}
-        title={title}
-        tone="danger"
-        typedName={address}
-        confirmLabel={overCap ? 'Close them anyway, over the cap' : 'Close these consumers'}
-        // Also locked while the count is being taken, so the typed name cannot arm a close that has
-        // not been shown how many consumers it reaches.
-        pending={close.isPending}
-        onConfirm={() => close.mutate({ override: overCap }, { onSuccess: setResult })}
-        consequence={
+    <ConfirmDialog
+      opened={opened}
+      onClose={dismiss}
+      title={result ? `Result of closing the consumers on ${address}` : title}
+      tone="danger"
+      typedName={address}
+      confirmLabel={overCap ? 'Close them anyway, over the cap' : 'Close these consumers'}
+      // Also locked while the count is being taken, so the typed name cannot arm a close that has
+      // not been shown how many consumers it reaches.
+      pending={close.isPending}
+      onConfirm={() => close.mutate({ override: overCap }, { onSuccess: setResult })}
+      result={
+        result ? (
+          <NodeOutcomeSummary
+            outcome={result.outcome}
+            destructive
+            alreadyLabel="no consumers were bound"
+            countNoun="consumer"
+            verbFuture="would close"
+            verbPast="closed"
+          />
+        ) : undefined
+      }
+      consequence={
+        result ? null : (
           <Stack gap="md">
             <Text size="sm">
               This disconnects every application consuming from {address}, on every live node. The messages those
@@ -362,10 +355,11 @@ export function CloseAddressConsumers({
               ) : null}
 
               {previewFailed ? (
-                <Alert variant="default" title="The count could not be taken" role="alert">
-                  {previewFailed} The close can still proceed, but Studio cannot tell you how many consumers it would
-                  disconnect.
-                </Alert>
+                <ErrorState
+                  variant="inline"
+                  error={previewFailed}
+                  next="The count could not be taken. The close can still proceed, but Studio cannot tell you how many consumers it would disconnect."
+                />
               ) : null}
 
               {preview ? (
@@ -381,44 +375,17 @@ export function CloseAddressConsumers({
             </div>
 
             {overCap && preview ? (
-              <Alert variant="default" title="Over the safety cap">
+              <Notice tone="warning" title="Over the safety cap">
                 This would disconnect {preview.outcome.totalAffected.toLocaleString()} consumers, over the cap of{' '}
                 {preview.outcome.cap.toLocaleString()}. Confirming will override the cap for this operation, and the
                 override is recorded in the audit log.
-              </Alert>
+              </Notice>
             ) : null}
 
             {close.isError && !previewFailed ? <ErrorState error={close.error} variant="inline" /> : null}
           </Stack>
-        }
-      />
-
-      <Modal
-        opened={opened && result !== null}
-        onClose={dismiss}
-        title={`Result of closing the consumers on ${address}`}
-        size="lg"
-      >
-        <Stack gap="md">
-          <div aria-live="polite">
-            {result ? (
-              <NodeOutcomeSummary
-                outcome={result.outcome}
-                destructive
-                alreadyLabel="no consumers were bound"
-                countNoun="consumer"
-                verbFuture="would close"
-                verbPast="closed"
-              />
-            ) : null}
-          </div>
-          <Group justify="flex-end">
-            <Button size="xs" onClick={dismiss}>
-              Close
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </>
+        )
+      }
+    />
   );
 }

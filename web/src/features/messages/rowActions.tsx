@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
 import { Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import {
   IconArrowBackUp,
   IconArrowsRightLeft,
@@ -17,6 +17,7 @@ import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify } from '../../ui/notify.ts';
 import { useMessageAction } from './api.ts';
 import { useActionGate } from './gates.ts';
@@ -125,18 +126,19 @@ function OneMessageDialog({
   action,
 }: HostedDialogProps & { clusterId: string; target: MessageTarget; action: OneAction }) {
   const run = useMessageAction(clusterId, target.queueName);
-  const [destination, setDestination] = useState('');
-  const [destinationError, setDestinationError] = useState<string | null>(null);
-  const destinationRef = useRef<HTMLInputElement>(null);
+  const form = useForm({
+    initialValues: { destination: '' },
+    validateInputOnBlur: true,
+    // Checked on activation, so the confirm button is never disabled with no reason given.
+    validate: {
+      destination: (value) =>
+        action === 'move' && !value.trim() ? 'Name the target queue to move the message.' : null,
+    },
+  });
   const one = ONE[action];
   const subject = `message ${target.messageId} in queue "${target.queueName}"`;
 
-  const submit = () => {
-    if (action === 'move' && !destination.trim()) {
-      setDestinationError('Name the target queue to move the message.');
-      destinationRef.current?.focus();
-      return;
-    }
+  const submit = form.onSubmit(({ destination }) => {
     run.mutate(
       {
         action,
@@ -161,7 +163,7 @@ function OneMessageDialog({
         onError: (e) => announceFailure(action, subject, e),
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <ConfirmDialog
@@ -173,18 +175,9 @@ function OneMessageDialog({
           <Text size="sm">{one.intro(target.queueName)}</Text>
           {action === 'move' ? (
             <TextInput
-              ref={destinationRef}
               label="Target queue"
               description="The queue receives the message on the same node."
-              value={destination}
-              error={destinationError}
-              onChange={(e) => {
-                setDestination(e.currentTarget.value);
-                setDestinationError(null);
-              }}
-              onBlur={() =>
-                setDestinationError(destination.trim() ? null : 'Name the target queue to move the message.')
-              }
+              {...form.getInputProps('destination')}
               size="xs"
               data-autofocus
             />
@@ -195,7 +188,7 @@ function OneMessageDialog({
       tone={action === 'delete' ? 'danger' : 'default'}
       typedName={action === 'delete' ? String(target.messageId) : undefined}
       pending={run.isPending}
-      onConfirm={submit}
+      onConfirm={() => submit()}
     />
   );
 }

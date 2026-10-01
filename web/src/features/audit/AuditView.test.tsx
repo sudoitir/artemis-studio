@@ -225,7 +225,8 @@ describe('AuditView rows and states', () => {
     const grid = await screen.findByRole('grid', { name: 'Audit events' });
     expect(await within(grid).findByText('success')).toBeInTheDocument();
     expect(within(grid).getByText('pending')).toBeInTheDocument();
-    expect(within(grid).getByText(/dry run/)).toBeInTheDocument();
+    // The target is shortened in the middle, so the whole value, dry-run mark included, is read from one place.
+    expect(within(grid).getByText('ORDERS · dry run')).toBeInTheDocument();
     expect(within(grid).getByText('12')).toBeInTheDocument();
     expect(within(grid).getAllByText('—').length).toBeGreaterThanOrEqual(2);
     expect(within(grid).getByText('ann')).toBeInTheDocument();

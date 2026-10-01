@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { useMessageAction, type DryRunView, type MessageActionKind } from './api.ts';
 import { announceFailure, announceResult, destroys, messageCount, VERBS } from './outcomes.ts';
 
@@ -30,48 +32,36 @@ export function BulkActionPreview({
   onDone: () => void;
 }>) {
   const run = useMessageAction(clusterId, queueName);
-  const [filter, setFilter] = useState('');
-  const [target, setTarget] = useState('');
-  const [errors, setErrors] = useState<{ filter?: string; target?: string }>({});
   const [preview, setPreview] = useState<DryRunView | null>(null);
-  const filterRef = useRef<HTMLInputElement>(null);
-  const targetRef = useRef<HTMLInputElement>(null);
+  const form = useForm({
+    initialValues: { filter: '', target: '' },
+    validateInputOnBlur: true,
+    validate: {
+      filter: (value) => (action !== 'retry' && !value.trim() ? 'Enter the selector the messages must match.' : null),
+      target: (value) => (action === 'move' && !value.trim() ? 'Name the queue to move the messages to.' : null),
+    },
+  });
   const verb = VERBS[action].verb;
 
   const body = () => ({
-    filter,
-    targetQueue: action === 'move' ? target : undefined,
+    filter: form.values.filter,
+    targetQueue: action === 'move' ? form.values.target : undefined,
   });
 
-  const check = (): { filter?: string; target?: string } => ({
-    filter: action !== 'retry' && !filter.trim() ? 'Enter the selector the messages must match.' : undefined,
-    target: action === 'move' && !target.trim() ? 'Name the queue to move the messages to.' : undefined,
-  });
-
-  const doPreview = () => {
-    const found = check();
-    setErrors(found);
-    if (found.filter) {
-      filterRef.current?.focus();
-      return;
-    }
-    if (found.target) {
-      targetRef.current?.focus();
-      return;
-    }
-    run.mutate(
-      { action, body: body(), node, dryRun: true },
-      {
-        onSuccess: (r) => setPreview('cap' in r ? r : null),
-        onError: (e) => announceFailure(action, `the preview of the selector on queue "${queueName}"`, e),
-      },
-    );
-  };
+  const doPreview = form.onSubmit(
+    () =>
+      run.mutate(
+        { action, body: body(), node, dryRun: true },
+        {
+          onSuccess: (r) => setPreview('cap' in r ? r : null),
+          onError: (e) => announceFailure(action, `the preview of the selector on queue "${queueName}"`, e),
+        },
+      ),
+    focusFirstInvalid(form.getInputNode),
+  );
 
   const reset = () => {
-    setFilter('');
-    setTarget('');
-    setErrors({});
+    form.reset();
     setPreview(null);
   };
 
@@ -99,42 +89,30 @@ export function BulkActionPreview({
   return (
     <>
       <Modal opened={opened && preview === null} onClose={close} title={`${verb} by selector`} size="lg">
-        <Stack gap="sm">
-          {action === 'retry' ? (
-            <Text size="sm" c="dimmed">
-              Artemis has no by-selector retry — this replays <strong>every</strong> message on the queue. Preview to
-              see how many.
-            </Text>
-          ) : (
-            <TextInput
-              ref={filterRef}
-              label="Selector"
-              placeholder="region = 'eu' AND priority > 4"
-              value={filter}
-              error={errors.filter}
-              onChange={(e) => setFilter(e.currentTarget.value)}
-              onBlur={() => setErrors((prev) => ({ ...prev, filter: check().filter }))}
-              size="xs"
-              data-autofocus
-            />
-          )}
-          {action === 'move' ? (
-            <TextInput
-              ref={targetRef}
-              label="Target queue"
-              value={target}
-              error={errors.target}
-              onChange={(e) => setTarget(e.currentTarget.value)}
-              onBlur={() => setErrors((prev) => ({ ...prev, target: check().target }))}
-              size="xs"
-            />
-          ) : null}
-          <div>
-            <Button size="xs" variant="default" loading={run.isPending} onClick={doPreview}>
-              Preview
-            </Button>
-          </div>
-        </Stack>
+        <form noValidate onSubmit={doPreview}>
+          <Stack gap="sm">
+            {action === 'retry' ? (
+              <Text size="sm" c="dimmed">
+                Artemis has no by-selector retry — this replays <strong>every</strong> message on the queue. Preview to
+                see how many.
+              </Text>
+            ) : (
+              <TextInput
+                label="Selector"
+                placeholder="region = 'eu' AND priority > 4"
+                {...form.getInputProps('filter')}
+                size="xs"
+                data-autofocus
+              />
+            )}
+            {action === 'move' ? <TextInput label="Target queue" {...form.getInputProps('target')} size="xs" /> : null}
+            <div>
+              <Button type="submit" size="xs" variant="default" loading={run.isPending}>
+                Preview
+              </Button>
+            </div>
+          </Stack>
+        </form>
       </Modal>
 
       <ConfirmDialog
