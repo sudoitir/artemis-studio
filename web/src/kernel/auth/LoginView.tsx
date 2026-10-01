@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button, Divider, Paper, PasswordInput, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { ApiError, SESSION_ENDED_REASON } from '../api/request.ts';
@@ -19,8 +21,7 @@ import classes from './LoginView.module.css';
 import { SecondFactorForm, type Restart } from './SecondFactorForm.tsx';
 import { bootState } from '../plugins/boot.ts';
 
-/** The field a refusal is about: Mantine marks it `aria-invalid`, or, for a password field, on its wrapper. */
-const INVALID = '[aria-invalid="true"], [data-error] :is(input, textarea)';
+type Credentials = { username: string; password: string };
 
 /**
  * The login screen, built only from the installation's identity providers
@@ -31,8 +32,14 @@ const INVALID = '[aria-invalid="true"], [data-error] :is(input, textarea)';
  * once its password is right (ADR-0143); nothing is signed in before it.
  */
 export function LoginView() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const form = useForm<Credentials>({
+    initialValues: { username: '', password: '' },
+    validateInputOnBlur: true,
+    validate: {
+      username: (v) => (v.trim() ? null : 'Enter your username.'),
+      password: (v) => (v ? null : 'Enter your password.'),
+    },
+  });
   const [provider, setProvider] = useState<string | null>(null);
   const [secondStep, setSecondStep] = useState<{ methods: SecondFactorMethod[]; trustDeviceDays: number } | null>(null);
   const [restart, setRestart] = useState<Restart | null>(null);
@@ -61,8 +68,7 @@ export function LoginView() {
     if (result.me) finish(result.me);
   }
 
-  function onSubmit(e: React.SubmitEvent) {
-    e.preventDefault();
+  const onSubmit = form.onSubmit(({ username, password }) => {
     setRestart(null);
     login.mutate(
       { provider: chosen, username, password },
@@ -76,12 +82,13 @@ export function LoginView() {
         },
       },
     );
-  }
+  }, focusFirstInvalid(form.getInputNode));
 
   function backToPassword(why: Restart | null) {
     setSecondStep(null);
     setReturned(true);
-    setPassword('');
+    form.setFieldValue('password', '');
+    form.clearFieldError('password');
     setRestart(why);
     login.reset();
   }
@@ -133,10 +140,7 @@ export function LoginView() {
               onRetry={() => void providers.refetch()}
               chosen={chosen}
               onProvider={setProvider}
-              username={username}
-              onUsername={setUsername}
-              password={password}
-              onPassword={setPassword}
+              form={form}
               returned={returned}
               login={login}
               onSubmit={onSubmit}
@@ -155,10 +159,7 @@ function FirstStep({
   onRetry,
   chosen,
   onProvider,
-  username,
-  onUsername,
-  password,
-  onPassword,
+  form,
   returned,
   login,
   onSubmit,
@@ -168,41 +169,15 @@ function FirstStep({
   onRetry: () => void;
   chosen: string | null;
   onProvider: (provider: string | null) => void;
-  username: string;
-  onUsername: (username: string) => void;
-  password: string;
-  onPassword: (password: string) => void;
+  form: UseFormReturnType<Credentials>;
   returned: boolean;
   login: ReturnType<typeof useLogin>;
-  onSubmit: (e: React.SubmitEvent) => void;
+  onSubmit: (e?: React.SyntheticEvent<HTMLFormElement>) => void;
 }>) {
   const credential = (providers ?? []).filter((p) => p.kind === 'CREDENTIAL');
   const redirect = (providers ?? []).filter((p) => p.kind === 'REDIRECT');
   const listed = providers !== undefined;
   const showForm = !listed || credential.length > 0;
-  const [left, setLeft] = useState({ username: false, password: false });
-  const [rejected, setRejected] = useState(0);
-  const form = useRef<HTMLFormElement>(null);
-
-  // What is missing is named beside its field once the field was left or the form was pressed.
-  const usernameError = left.username && !username.trim() ? 'Enter your username.' : undefined;
-  const passwordError = left.password && !password ? 'Enter your password.' : undefined;
-
-  // A rejected press takes the first invalid field into focus.
-  useEffect(() => {
-    if (rejected > 0) form.current?.querySelector<HTMLElement>(INVALID)?.focus();
-  }, [rejected]);
-
-  function submit(e: React.SubmitEvent) {
-    if (!username.trim() || !password) {
-      e.preventDefault();
-      setLeft({ username: true, password: true });
-      setRejected((n) => n + 1);
-      return;
-    }
-    onSubmit(e);
-  }
-
   return (
     <>
       {loadError ? (
@@ -214,7 +189,7 @@ function FirstStep({
         </>
       ) : null}
       {showForm ? (
-        <form ref={form} noValidate onSubmit={submit}>
+        <form noValidate onSubmit={onSubmit}>
           <Stack gap="sm">
             {credential.length > 1 ? (
               <Select
@@ -228,19 +203,13 @@ function FirstStep({
             <TextInput
               label="Username"
               autoFocus={!returned}
-              value={username}
-              onChange={(e) => onUsername(e.currentTarget.value)}
-              onBlur={() => setLeft((l) => ({ ...l, username: true }))}
-              error={usernameError}
+              {...form.getInputProps('username')}
               autoComplete="username"
               required
             />
             <PasswordInput
               label="Password"
-              value={password}
-              onChange={(e) => onPassword(e.currentTarget.value)}
-              onBlur={() => setLeft((l) => ({ ...l, password: true }))}
-              error={passwordError}
+              {...form.getInputProps('password')}
               autoComplete="current-password"
               autoFocus={returned}
               required

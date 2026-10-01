@@ -5,9 +5,3 @@
   padding-inline: var(--mantine-spacing-md) 0;
   overflow-wrap: anywhere;
 }
-
-.back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--mantine-spacing-xs);
-}

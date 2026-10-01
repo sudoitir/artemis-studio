@@ -16,7 +16,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 }));
 
 const { LoginView } = await import('./LoginView.tsx');
-const { setBootState } = await import('../plugins/boot.ts');
+const { boot, setBootState } = await import('../plugins/boot.ts');
 const BOOTED = { manifest: { version: '1' } as never, plugins: [], failures: new Map<string, string>() };
 
 const LOCAL = { id: 'local', kind: 'CREDENTIAL', label: 'Password', startPath: null };
@@ -94,10 +94,11 @@ describe('LoginView', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts. Wait a moment, then try again.');
   });
 
-  it('starts the page again after sign-in when it started signed out, so plugins load', async () => {
-    setBootState({ plugins: [], failures: new Map() });
+  it('starts the page again after sign-in when it started on the sign-in page, so plugins load', async () => {
     const replace = vi.fn();
     vi.stubGlobal('location', { ...window.location, replace, pathname: '/login' });
+    // The page's own start on /login: it reads no manifest, so there are no plugins to keep.
+    await boot();
     server.use(http.post('*/api/v1/auth/login', () => HttpResponse.json(signedIn('alice', false))));
     const user = userEvent.setup();
     renderWithProviders(<LoginView />);
@@ -465,7 +466,7 @@ describe('LoginView second step', () => {
 
     await user.type(await screen.findByLabelText('Code from your authenticator app'), '123456{Enter}');
 
-    expect(await screen.findByText('Invalid username or password.')).toBeInTheDocument();
+    expect(await screen.findByText('Invalid username or password. Check both and try again.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
   });
 

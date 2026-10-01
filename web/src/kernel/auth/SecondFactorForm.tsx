@@ -1,7 +1,9 @@
-import { useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Anchor, Button, Checkbox, Divider, Stack, Text, TextInput } from '@mantine/core';
+import { useState, type ReactNode } from 'react';
+import { Button, Checkbox, Divider, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconArrowLeft, IconKey } from '@tabler/icons-react';
 
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { ApiError } from '../api/request.ts';
 import {
   fetchPasskeyRequestOptions,
@@ -22,7 +24,8 @@ export interface Restart {
 const CODE = /^\d{6}$/;
 const CODE_HINT = 'Enter the 6 digits from your authenticator app.';
 
-type Via = 'code' | 'recovery' | 'passkey';
+type Entry = 'code' | 'recovery';
+type Via = Entry | 'passkey';
 
 const problemIs = (error: ApiError, slug: string) => error.type.endsWith(`/${slug}`);
 
@@ -34,7 +37,7 @@ function restartFor(error: ApiError): Restart | null {
     return { message: 'Your sign-in timed out. Enter your password again.', failed: false };
   }
   if (error.status === 401 && problemIs(error, 'invalid-credentials')) {
-    return { message: 'Invalid username or password.', failed: true };
+    return { message: 'Invalid username or password. Check both and try again.', failed: true };
   }
   if (error.status === 403 && problemIs(error, 'reauthentication-failed')) {
     return { message: 'Enter your password again, then your code.', failed: false };
@@ -53,7 +56,7 @@ function fieldErrorFor(error: ApiError, via: Via): string | null {
   return null;
 }
 
-function introFor(canUsePasskey: boolean, entry: 'code' | 'recovery'): string {
+function introFor(canUsePasskey: boolean, entry: Entry): string {
   if (canUsePasskey) return 'Use your passkey, or enter a code, to finish signing in.';
   return entry === 'code'
     ? 'Enter the code from your authenticator app to finish signing in.'
@@ -89,9 +92,9 @@ export function SecondFactorForm({
   const hasRecovery = methods.includes('RECOVERY_CODE');
   const hasPasskey = methods.includes('WEBAUTHN');
   const canUsePasskey = hasPasskey && passkeysSupported();
-  const attempt = useAttempt(trustDeviceDays, onDone, onRestart);
+  const [entry, setEntry] = useState<Entry>(hasTotp || !hasRecovery ? 'code' : 'recovery');
+  const attempt = useAttempt(entry, trustDeviceDays, onDone, onRestart);
   const passkey = usePasskeyAttempt(attempt);
-  const [entry, setEntry] = useState<'code' | 'recovery'>(hasTotp || !hasRecovery ? 'code' : 'recovery');
 
   const busy = attempt.pending || passkey.waiting;
   const hasEntry = hasTotp || hasRecovery;
@@ -146,40 +149,49 @@ export function SecondFactorForm({
         </Text>
       ) : null}
 
-      <Anchor
-        component="button"
-        type="button"
-        size="sm"
+      <Button
+        variant="subtle"
+        size="compact-sm"
         w="fit-content"
         disabled={busy}
         onClick={onBack}
-        className={classes.back}
+        leftSection={<IconArrowLeft size="0.875rem" aria-hidden />}
       >
-        <IconArrowLeft size="0.875rem" aria-hidden />
         Back
-      </Anchor>
+      </Button>
     </Stack>
   );
 }
 
 /** The submission of a proof and what its refusal says: beside the field, above the form, or back at the password. */
-function useAttempt(trustDeviceDays: number, onDone: (result: AuthResult) => void, onRestart: (why: Restart) => void) {
+function useAttempt(
+  entry: Entry,
+  trustDeviceDays: number,
+  onDone: (result: AuthResult) => void,
+  onRestart: (why: Restart) => void,
+) {
   const secondFactor = useSecondFactor();
-  const [trust, setTrust] = useState(false);
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const form = useForm({
+    initialValues: { code: '', recovery: '', trust: false },
+    validateInputOnBlur: true,
+    // Only the entry in use is checked; the other field is not on screen.
+    validate: {
+      code: (v) => (entry === 'code' && !validCode(v) ? CODE_HINT : null),
+      recovery: (v) => (entry === 'recovery' && !v.trim() ? 'Enter one of your recovery codes.' : null),
+    },
+  });
   const [failure, setFailure] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const field = useRef<HTMLInputElement>(null);
 
   function clearMessages() {
-    setFieldError(null);
+    form.clearErrors();
     setFailure(null);
     setNotice(null);
   }
 
   function refuseField(message: string) {
-    setFieldError(message);
-    field.current?.focus();
+    form.setErrors({ [entry]: message });
+    form.getInputNode(entry)?.focus();
   }
 
   function fail(error: ApiError, via: Via) {
@@ -200,18 +212,14 @@ function useAttempt(trustDeviceDays: number, onDone: (result: AuthResult) => voi
   function submit(proof: SecondFactorRequest, via: Via) {
     clearMessages();
     secondFactor.mutate(
-      { ...proof, trustDevice: trustDeviceDays > 0 ? trust : undefined },
+      { ...proof, trustDevice: trustDeviceDays > 0 ? form.values.trust : undefined },
       { onSuccess: onDone, onError: (e) => fail(e, via) },
     );
   }
 
   return {
     pending: secondFactor.isPending,
-    field,
-    trust,
-    setTrust,
-    fieldError,
-    setFieldError,
+    form,
     failure,
     setFailure,
     notice,
@@ -263,7 +271,7 @@ function EntryForm({
   waiting,
   onSwitch,
 }: Readonly<{
-  entry: 'code' | 'recovery';
+  entry: Entry;
   hasTotp: boolean;
   hasRecovery: boolean;
   canUsePasskey: boolean;
@@ -271,39 +279,18 @@ function EntryForm({
   attempt: Attempt;
   busy: boolean;
   waiting: boolean;
-  onSwitch: (next: 'code' | 'recovery') => void;
+  onSwitch: (next: Entry) => void;
 }>) {
-  const [code, setCode] = useState('');
-  const [recovery, setRecovery] = useState('');
-
-  function onSubmit(e: React.SubmitEvent) {
-    e.preventDefault();
-    if (entry === 'code') {
-      if (validCode(code)) attempt.submit({ totpCode: code.replace(/\s/g, '') }, 'code');
-      else attempt.refuseField(CODE_HINT);
-    } else if (recovery.trim()) {
-      attempt.submit({ recoveryCode: recovery.trim() }, 'recovery');
-    } else {
-      attempt.refuseField('Enter one of your recovery codes.');
-    }
-  }
+  const { form } = attempt;
+  const onSubmit = form.onSubmit(({ code, recovery }) => {
+    if (entry === 'code') attempt.submit({ totpCode: code.replace(/\s/g, '') }, 'code');
+    else attempt.submit({ recoveryCode: recovery.trim() }, 'recovery');
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <form onSubmit={onSubmit} noValidate>
       <Stack gap="sm">
-        <EntryField
-          entry={entry}
-          value={entry === 'code' ? code : recovery}
-          error={attempt.fieldError}
-          autoFocus={!canUsePasskey}
-          fieldRef={attempt.field}
-          onChange={(value) => {
-            if (entry === 'code') setCode(value);
-            else setRecovery(value);
-            attempt.setFieldError(null);
-          }}
-          onBlur={() => entry === 'code' && code && !validCode(code) && attempt.setFieldError(CODE_HINT)}
-        />
+        <EntryField entry={entry} inputProps={form.getInputProps(entry)} autoFocus={!canUsePasskey} />
 
         {entry === 'code' && hasRecovery ? (
           <SwitchLink busy={busy} onClick={() => onSwitch('recovery')}>
@@ -318,8 +305,7 @@ function EntryForm({
 
         {trustDeviceDays > 0 ? (
           <Checkbox
-            checked={attempt.trust}
-            onChange={(e) => attempt.setTrust(e.currentTarget.checked)}
+            {...form.getInputProps('trust', { type: 'checkbox' })}
             label={`Trust this device for ${trustDeviceDays} ${trustDeviceDays === 1 ? 'day' : 'days'}`}
             description="Next time you sign in here, your password is enough. Confirming a sensitive action still asks for a code."
           />
@@ -371,32 +357,20 @@ function PasskeyButton({
 /** The field of the entry in use: the authenticator code, or a recovery code. */
 function EntryField({
   entry,
-  value,
-  error,
+  inputProps,
   autoFocus,
-  fieldRef,
-  onChange,
-  onBlur,
 }: Readonly<{
-  entry: 'code' | 'recovery';
-  value: string;
-  error: string | null;
+  entry: Entry;
+  inputProps: ReturnType<ReturnType<typeof useAttempt>['form']['getInputProps']>;
   autoFocus: boolean;
-  fieldRef: RefObject<HTMLInputElement | null>;
-  onChange: (value: string) => void;
-  onBlur: () => void;
 }>) {
   if (entry === 'code') {
     return (
       <TextInput
         key="code"
-        ref={fieldRef}
         label="Code from your authenticator app"
         description="6 digits. The code changes every 30 seconds."
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        onBlur={onBlur}
-        error={error}
+        {...inputProps}
         inputMode="numeric"
         autoComplete="one-time-code"
         autoFocus={autoFocus}
@@ -407,12 +381,9 @@ function EntryField({
   return (
     <TextInput
       key="recovery"
-      ref={fieldRef}
       label="Recovery code"
       description="Looks like XXXXX-XXXXX. Each code works once."
-      value={value}
-      onChange={(e) => onChange(e.currentTarget.value)}
-      error={error}
+      {...inputProps}
       autoComplete="off"
       autoCapitalize="characters"
       spellCheck={false}
@@ -428,8 +399,8 @@ function SwitchLink({
   children,
 }: Readonly<{ busy: boolean; onClick: () => void; children: ReactNode }>) {
   return (
-    <Anchor component="button" type="button" size="sm" w="fit-content" disabled={busy} onClick={onClick}>
+    <Button variant="subtle" size="compact-sm" w="fit-content" disabled={busy} onClick={onClick}>
       {children}
-    </Anchor>
+    </Button>
   );
 }
