@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@artemis-studio/plugin-sdk": "2026.9.73",
+    "@artemis-studio/plugin-sdk": "2026.10.5",
     "@tabler/icons-react": "3.46.0"
   },
   "devDependencies": {
