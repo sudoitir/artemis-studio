@@ -1,0 +1,32 @@
+# Artemis Studio — ISOLATED overlay for the demo estate's extra brokers.
+#
+#   docker compose -p artemis-studio-qa-<name> \
+#                  -f deploy/compose/compose.dev.yaml \
+#                  -f deploy/compose/compose.demo.yaml \
+#                  -f deploy/compose/compose.isolated.yaml \
+#                  -f deploy/compose/compose.isolated-demo.yaml up -d
+#
+# compose.isolated.yaml cannot name these services itself: an override that mentions a service
+# the base files do not define is invalid, and the demo files are optional. Random loopback host
+# ports, as in compose.isolated.yaml.
+
+services:
+  artemis-secondary:
+    ports: !override
+      - "127.0.0.1::8161"
+      - "127.0.0.1::61616"
+
+  artemis-secondary-backup:
+    ports: !override
+      - "127.0.0.1::8161"
+      - "127.0.0.1::61616"
+
+  artemis-tertiary:
+    ports: !override
+      - "127.0.0.1::8161"
+      - "127.0.0.1::61616"
+
+  artemis-tertiary-backup:
+    ports: !override
+      - "127.0.0.1::8161"
+      - "127.0.0.1::61616"

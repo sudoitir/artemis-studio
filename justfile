@@ -109,6 +109,57 @@ demo-gif:
 dev-down:
     {{compose_demo}} down -v
 
+# Project artemis-studio-qa-<name>, Studio on 127.0.0.1:<port>, every broker on a random loopback port, Postgres
+# unpublished. It seeds long and large content (scripts/qa-seed.sh), raises the session timeouts, signs in once
+# per account and saves the Playwright sessions to web/.sweep/auth. `demo=1` adds the demo's second and third
+# broker pair and its traffic. The admin's credentials stay in web/.sweep/auth/credentials.env for reruns.
+# Start a second, isolated stack for a UI sweep, beside whatever else runs.
+[group('develop')]
+qa-up name port demo="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export QA_PORT={{port}}
+    files=(-f deploy/compose/compose.dev.yaml)
+    [ -z "{{demo}}" ] || files+=(-f deploy/compose/compose.demo.yaml)
+    files+=(-f deploy/compose/compose.isolated.yaml)
+    [ -z "{{demo}}" ] || files+=(-f deploy/compose/compose.isolated-demo.yaml)
+    export COMPOSE="docker compose -p artemis-studio-qa-{{name}} ${files[*]}"
+    export STUDIO=http://127.0.0.1:{{port}}
+    auth=web/.sweep/auth
+    creds=$auth/credentials.env
+    $COMPOSE up --build -d --wait
+    mkdir -p "$auth"
+    export ADMIN_USER=admin COOKIES=$(mktemp)
+    trap 'rm -f "$COOKIES"' EXIT
+    . scripts/lib/signin.sh
+    if [ -f "$creds" ]; then
+        . "$creds"
+    else
+        # The one-time password the first boot printed; the admin then chooses its own, and enrols two-step verification.
+        logs=$($COMPOSE logs --no-log-prefix studio 2>/dev/null || true)
+        ADMIN_PASSWORD=$(awk '/^ *password: / { print $2; exit }' <<<"$logs")
+        [ -n "$ADMIN_PASSWORD" ] || { echo "no one-time admin password in the logs and no $creds: run just qa-down {{name}} first" >&2; exit 1; }
+        NEW_ADMIN_PASSWORD=$(openssl rand -hex 16)
+        QA_USER_PASSWORD=$(openssl rand -hex 16)
+    fi
+    studio_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD
+    (umask 077; printf 'ADMIN_PASSWORD=%s\nADMIN_TOTP_SECRET=%s\nQA_USER_PASSWORD=%s\n' \
+        "$ADMIN_PASSWORD" "${ADMIN_TOTP_SECRET:-}" "$QA_USER_PASSWORD" > "$creds")
+    # Sessions created after this last for the sweep: 24 hours idle, 72 hours absolute (ADR-0145).
+    api PUT /settings/security.session.idle-timeout -d '{"value":"PT24H"}' -f -o /dev/null
+    api PUT /settings/security.session.absolute-lifetime -d '{"value":"PT72H"}' -f -o /dev/null
+    export ADMIN_PASSWORD ADMIN_TOTP_SECRET QA_USER_PASSWORD
+    if [ -n "{{demo}}" ]; then TRAFFIC_MINUTES=${TRAFFIC_MINUTES:-3} ./scripts/demo-seed.sh; fi
+    ./scripts/qa-seed.sh
+    node --experimental-strip-types web/scripts/sweep/auth.ts
+    echo "→ $STUDIO   (sweep: STUDIO=$STUDIO npm --prefix web run sweep -- --label <name>)"
+
+# Stop an isolated QA stack, delete its volumes and forget its saved sessions.
+[group('develop')]
+qa-down name:
+    docker compose -p artemis-studio-qa-{{name}} down -v --remove-orphans
+    rm -rf web/.sweep/auth
+
 # Tail dev stack logs (all services, or `just dev-logs studio`).
 [group('develop')]
 dev-logs *service:

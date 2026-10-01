@@ -30,7 +30,10 @@ const shared = Object.fromEntries([
 ]);
 
 // The Spring Boot app serves the built SPA from classpath:/static and owns
-// /api/**. In dev, Vite runs standalone on :5173 and proxies API + SSE to :8080.
+// /api/**. In dev, Vite runs standalone on :5173 and proxies API + SSE to :8080, or to the Studio
+// named by STUDIO_API (an isolated QA stack listens on another port).
+const api = process.env.STUDIO_API ?? 'http://localhost:8080';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -42,12 +45,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: api,
         changeOrigin: true,
       },
-      '/actuator': 'http://localhost:8080',
+      '/actuator': api,
       '/plugin-ui': {
-        target: 'http://localhost:8080',
+        target: api,
         changeOrigin: true,
       },
     },
