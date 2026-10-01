@@ -1,6 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.concurrent.DelegatingSecurityContextRunnable;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Component;
 public class OperatorHandoff {
 
     private final ActorResolver actors;
+    private final UserAccounts accounts;
     private final GrantLoader grants;
     private final PermissionResolver perm;
 
@@ -34,6 +38,21 @@ public class OperatorHandoff {
         return new Operator(principal, actors.resolve());
     }
 
+    /**
+     * The user as their account stands now, to act for work that has no request: grants read from the
+     * database, not from a session. Empty for a null id, an unknown user or a disabled one.
+     */
+    public Optional<Operator> forUser(UUID userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        return accounts.byId(userId).filter(account -> !account.disabled()).map(account -> {
+            StudioPrincipal principal =
+                    new StudioPrincipal(account.id(), account.username(), grants.loadFor(account.id()), false);
+            return new Operator(principal, new Actor(account.username(), null, null, account.id()));
+        });
+    }
+
     /** Run {@code task} on this thread as the operator, leaving the thread as it was afterwards. */
     public void runAs(Operator operator, Runnable task) {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -42,6 +61,13 @@ public class OperatorHandoff {
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
         ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor())
                 .run(new DelegatingSecurityContextRunnable(task, context));
+    }
+
+    /** As {@link #runAs}, returning what {@code task} returns. */
+    public <T> T callAs(Operator operator, Supplier<T> task) {
+        AtomicReference<T> result = new AtomicReference<>();
+        runAs(operator, () -> result.set(task.get()));
+        return result.get();
     }
 
     /**
