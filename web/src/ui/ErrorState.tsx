@@ -85,7 +85,7 @@ interface Problem {
   permission?: string;
   requestId?: string;
   retryAfter?: number;
-  fields?: Reading['fields'];
+  fields?: NonNullable<Reading['fields']>;
 }
 
 const NETWORK_DOWN: Reading = {

@@ -172,7 +172,8 @@ function brokerNode(
   const statusWord = statusWordOf(kind, endpoint);
   const version = endpoint.version ? `, Artemis ${endpoint.version}` : '';
   const versionNote = versionNoteOf(endpoint);
-  const srSentence = `${endpoint.name}: ${statusWord}${version}${versionNote ? `, ${versionNote}` : ''}.`;
+  const note = versionNote ? `, ${versionNote}` : '';
+  const srSentence = `${endpoint.name}: ${statusWord}${version}${note}.`;
   return {
     id: endpoint.id,
     type: kind === 'unmanaged' ? 'unmanaged' : 'broker',
