@@ -2,14 +2,21 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.UnknownHostException;
+import java.net.http.HttpConnectTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +24,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -282,5 +290,113 @@ class JolokiaBrokerClientTest {
 
         assertThat(parsed.get(0).get("nodeID").asText()).isEqualTo("f7734597-a768-11f1-aa4c-ceae3fa2df1d");
         server.verify();
+    }
+
+    private static final String BROKER_NAME = "org.apache.activemq.artemis:broker=\"primary\"";
+
+    private Fixture failing(ResponseCreator failure) {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL)).andRespond(failure);
+        return new Fixture(new JolokiaBrokerClient(builder.build(), URL, mapper), server);
+    }
+
+    private static ResponseCreator failsWith(IOException cause) {
+        return request -> {
+            throw cause;
+        };
+    }
+
+    private BrokerConnectionException transportFailure(IOException cause) {
+        Fixture f = failing(failsWith(cause));
+        return (BrokerConnectionException) catchThrowable(() -> f.client().single(JolokiaRequest.search("x:*")));
+    }
+
+    @Test
+    void aReadTimeoutSaysTheBrokerAcceptedTheConnectionButDidNotAnswer() {
+        BrokerConnectionException e = transportFailure(new HttpTimeoutException("request timed out"));
+
+        assertThat(e.kind()).isEqualTo(BrokerConnectionException.Kind.UNREACHABLE);
+        assertThat(e.getMessage())
+                .contains("broker-1:8161")
+                .contains("accepted the connection")
+                .contains("did not answer within the read timeout");
+    }
+
+    @Test
+    void aConnectTimeoutSaysNothingAnsweredTheConnectionAttempt() {
+        BrokerConnectionException e = transportFailure(new HttpConnectTimeoutException("HTTP connect timed out"));
+
+        assertThat(e.kind()).isEqualTo(BrokerConnectionException.Kind.UNREACHABLE);
+        assertThat(e.getMessage()).contains("broker-1:8161").contains("did not accept the connection");
+    }
+
+    @Test
+    void aRefusedConnectionSaysNothingIsListening() {
+        BrokerConnectionException e = transportFailure(new ConnectException("Connection refused"));
+
+        assertThat(e.kind()).isEqualTo(BrokerConnectionException.Kind.UNREACHABLE);
+        assertThat(e.getMessage()).contains("nothing is listening at broker-1:8161");
+    }
+
+    @Test
+    void anUnresolvableHostSaysTheNameDoesNotResolve() {
+        BrokerConnectionException e = transportFailure(new UnknownHostException("broker-1"));
+
+        assertThat(e.kind()).isEqualTo(BrokerConnectionException.Kind.UNREACHABLE);
+        assertThat(e.getMessage()).contains("broker-1:8161").contains("does not resolve");
+    }
+
+    @Test
+    void anyOtherTransportFailureKeepsTheRootCauseMessage() {
+        BrokerConnectionException e = transportFailure(new IOException("HTTP/1.1 header parser received no bytes"));
+
+        assertThat(e.kind()).isEqualTo(BrokerConnectionException.Kind.UNREACHABLE);
+        assertThat(e.getMessage()).contains("broker-1:8161").contains("header parser received no bytes");
+    }
+
+    @Test
+    void aTransportFailureForgetsTheResolvedBrokerName() {
+        Map<String, String> names = new ConcurrentHashMap<>(Map.of(URL, BROKER_NAME));
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL)).andRespond(failsWith(new ConnectException("Connection refused")));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null);
+
+        assertThatThrownBy(() -> client.readBrokerAttributes("Active")).isInstanceOf(BrokerConnectionException.class);
+
+        assertThat(names).doesNotContainKey(URL);
+    }
+
+    @Test
+    void aBrokerThatReportsItsMBeanMissingIsResolvedAgain() {
+        Map<String, String> names = new ConcurrentHashMap<>(Map.of(URL, BROKER_NAME));
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL))
+                .andRespond(withSuccess(body("ha-read-instance-not-found.json"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.APPLICATION_JSON));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null);
+
+        assertThat(client.readBrokerAttributes("Active").ok()).isFalse();
+        assertThat(names).doesNotContainKey(URL);
+
+        assertThat(client.resolveBrokerObjectName()).isEqualTo(BROKER_NAME);
+        assertThat(names).containsEntry(URL, BROKER_NAME);
+        server.verify();
+    }
+
+    @Test
+    void aFailureOfAnotherMBeanKeepsTheResolvedBrokerName() {
+        Map<String, String> names = new ConcurrentHashMap<>(Map.of(URL, BROKER_NAME));
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(URL))
+                .andRespond(withSuccess(body("ha-read-instance-not-found.json"), MediaType.APPLICATION_JSON));
+        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null);
+
+        client.single(JolokiaRequest.read("org.apache.activemq.artemis:queue=\"gone\"", "MessageCount"));
+
+        assertThat(names).containsEntry(URL, BROKER_NAME);
     }
 }

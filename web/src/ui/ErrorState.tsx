@@ -27,6 +27,12 @@ const BROKER: Readonly<Record<string, Omit<Reading, 'requestId' | 'detail'>>> = 
     next: 'Check that the broker is running and that Studio can reach its address, then retry.',
     retry: true,
   },
+  THROTTLED: {
+    title: 'Studio is throttling calls to this broker',
+    cause: 'Studio is already calling this broker as fast as its configured rate allows, so it held this call back.',
+    next: 'Retry in a moment. The broker itself was not asked.',
+    retry: true,
+  },
   UNAUTHORIZED: {
     title: 'The broker rejected the credentials',
     cause: 'The broker refused the user name and password Studio holds for it.',

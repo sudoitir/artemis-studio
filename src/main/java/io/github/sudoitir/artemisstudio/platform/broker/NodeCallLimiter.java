@@ -70,9 +70,9 @@ public class NodeCallLimiter {
                 if (!sem.tryAcquire(MAX_WAIT.toNanos(), TimeUnit.NANOSECONDS)) {
                     meters.counter("studio.broker.permit.timeouts", "node", tag).increment();
                     throw new BrokerConnectionException(
-                            BrokerConnectionException.Kind.UNREACHABLE,
-                            "Timed out waiting for this node's management-call ceiling: Studio is already calling"
-                                    + " it as fast as the configured rate allows.");
+                            BrokerConnectionException.Kind.THROTTLED,
+                            "Studio held this call back: it is already calling this node as fast as the configured"
+                                    + " management-call rate allows. The node itself was not asked.");
                 }
             }
         } catch (InterruptedException _) {

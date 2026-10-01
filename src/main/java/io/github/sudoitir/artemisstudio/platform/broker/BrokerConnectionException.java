@@ -8,8 +8,13 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 public class BrokerConnectionException extends RuntimeException {
 
     public enum Kind {
-        /** Nothing answered — DNS failure, connection refused, or timeout. */
+        /**
+         * Studio could not reach the broker: the name does not resolve, nothing is listening, the
+         * connection or the answer timed out, or the connection broke. The message names which.
+         */
         UNREACHABLE("Nothing answered at this address."),
+        /** Studio held the call back itself, because it was already calling this node as fast as its rate ceiling allows. */
+        THROTTLED("Studio is calling this node as fast as its rate ceiling allows."),
         /** The broker rejected the credentials (HTTP 401 or 403). */
         UNAUTHORIZED("The broker rejected these credentials."),
         /** A Jolokia agent answered, but no Artemis broker MBean is registered on it. */

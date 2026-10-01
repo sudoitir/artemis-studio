@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
@@ -20,6 +21,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +38,7 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -79,6 +82,9 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
      * again until it does.
      */
     private static final Duration PROBE_GRACE = Duration.ofSeconds(1);
+
+    /** Why each node's job last failed, by node and job, so a node that keeps failing the same way is logged once. */
+    private final Map<String, String> lastFailures = new ConcurrentHashMap<>();
 
     /** The nodes a tier A probe is running for on this replica. */
     private final Set<UUID> probesInFlight = ConcurrentHashMap.newKeySet();
@@ -205,7 +211,7 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
                 .filter(node -> probesInFlight.add(node.getId()))
                 .<Future<?>>map(node -> probes.submit(() -> {
                     try {
-                        runIsolated(node, n -> probe(clusterId, n, cycle));
+                        runIsolated(node, "HA read", n -> probe(clusterId, n, cycle));
                     } finally {
                         probesInFlight.remove(node.getId());
                     }
@@ -278,7 +284,7 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (RegisteredCluster cluster : clusters.owned()) {
                 UUID clusterId = cluster.getId();
-                fanOut(pool, manageableNodes(clusterId), node -> scrapeHotQueues(clusterId, node));
+                fanOut(pool, manageableNodes(clusterId), "hot queue read", node -> scrapeHotQueues(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.B));
             }
         }
@@ -288,7 +294,7 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (RegisteredCluster cluster : clusters.clusters()) {
                 UUID clusterId = cluster.getId();
-                fanOut(pool, manageableNodes(clusterId), node -> scrapeSweepPage(clusterId, node));
+                fanOut(pool, manageableNodes(clusterId), "queue sweep", node -> scrapeSweepPage(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.C));
             }
         }
@@ -324,13 +330,12 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
         } catch (RuntimeException e) {
             String message =
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            log.warn("Scrape failed for {} ({}): {}", node.getName(), node.getJolokiaUrl(), message);
             persist.recordNodeError(node.getId(), message);
-            return;
+            throw e;
         }
         if (!ha.ok()) {
-            log.warn("HA read of {} ({}) failed: {}", node.getName(), node.getJolokiaUrl(), ha.failure());
-            return;
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE, "The HA read answered with an error: " + ha.failure());
         }
         persist.applyTierA(node.getId(), ha.value(), cycle);
     }
@@ -377,9 +382,9 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
                 .toList();
     }
 
-    private void fanOut(ExecutorService pool, List<ClusterNode> targets, NodeJob job) {
+    private void fanOut(ExecutorService pool, List<ClusterNode> targets, String jobName, NodeJob job) {
         List<Future<?>> futures = targets.stream()
-                .<Future<?>>map(node -> pool.submit(() -> runIsolated(node, job)))
+                .<Future<?>>map(node -> pool.submit(() -> runIsolated(node, jobName, job)))
                 .toList();
         for (Future<?> f : futures) {
             try {
@@ -393,13 +398,19 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
         }
     }
 
-    private void runIsolated(ClusterNode node, NodeJob job) {
+    private void runIsolated(ClusterNode node, String jobName, NodeJob job) {
+        String key = node.getId() + "/" + jobName;
         try {
             // The client waits for the node's ceiling before each request it sends (ADR-0076).
             job.run(node);
+            lastFailures.remove(key);
         } catch (RuntimeException e) {
             // Only the tier A probe says whether a node is reachable; what failed here is not that.
-            log.warn("Scrape failed for {} ({}): {}", node.getName(), node.getJolokiaUrl(), e.toString());
+            Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
+            String why = root == e ? e.toString() : e + ", caused by " + root;
+            if (!why.equals(lastFailures.put(key, why))) {
+                log.warn("The {} of {} ({}) failed: {}", jobName, node.getName(), node.getJolokiaUrl(), why);
+            }
         }
     }
 

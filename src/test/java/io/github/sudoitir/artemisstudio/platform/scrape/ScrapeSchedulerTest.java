@@ -14,6 +14,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -30,6 +34,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -87,9 +93,13 @@ class ScrapeSchedulerTest {
     ScrapeCycle scrapeCycle;
     SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
+    ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
+        logs = new ListAppender<>();
+        logs.start();
+        ((Logger) LoggerFactory.getLogger(ScrapeScheduler.class)).addAppender(logs);
         when(ownership.owns(any())).thenReturn(true);
         scrapeCycle = new ScrapeCycle(persist);
         sweepCursor = new SweepCursor();
@@ -112,6 +122,11 @@ class ScrapeSchedulerTest {
                                 config -> java.util.Optional.of(() -> {})),
                         io.micrometer.observation.ObservationRegistry.NOOP,
                         new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+    }
+
+    @AfterEach
+    void tearDown() {
+        ((Logger) LoggerFactory.getLogger(ScrapeScheduler.class)).detachAppender(logs);
     }
 
     private JolokiaBrokerClient client(String... fixtures) {
@@ -293,6 +308,40 @@ class ScrapeSchedulerTest {
 
         verify(upsert).upsertBatch(any());
         verify(persist, never()).recordNodeError(any(), anyString());
+    }
+
+    @Test
+    void aNodeThatKeepsFailingTheSameWayIsLoggedOnceWithItsCauseAndAgainWhenTheReasonChanges() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", BAD);
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        IllegalStateException refused = new IllegalStateException("Connection refused");
+        when(connections.forCluster(cluster.getId(), BAD))
+                .thenThrow(new BrokerConnectionException(
+                        BrokerConnectionException.Kind.UNREACHABLE, "Nothing is listening at bad:8161.", refused));
+
+        scheduler.tierA();
+        scheduler.tierA();
+        assertThat(warnings()).hasSize(1);
+        assertThat(warnings().get(0)).contains("bad", "Nothing is listening at bad:8161.", "Connection refused");
+
+        doThrow(new BrokerConnectionException(
+                        BrokerConnectionException.Kind.UNREACHABLE, "The name 'bad' does not resolve."))
+                .when(connections)
+                .forCluster(cluster.getId(), BAD);
+        scheduler.tierA();
+        scheduler.tierA();
+        assertThat(warnings()).hasSize(2);
+        assertThat(warnings().get(1)).contains("does not resolve");
+    }
+
+    private List<String> warnings() {
+        return logs.list.stream()
+                .filter(e -> e.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
     }
 
     @Test
