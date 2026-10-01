@@ -146,7 +146,8 @@ describe.each(LAYOUTS)('Flow, $name', ({ tab, search }) => {
       );
       await screen.findByRole('heading', { level: 2, name: 'Totals across every path' });
       // The graph is laid out in a worker; check it once the nodes are there, not while it is still busy.
-      if (tab !== 'table') await screen.findByRole('button', { name: /^Queue ORDERS\.inbound/ });
+      // The worker's first layout can take seconds on a loaded runner, as the routing builder's tests allow.
+      if (tab !== 'table') await screen.findByRole('button', { name: /^Queue ORDERS\.inbound/ }, { timeout: 15_000 });
       await settle(
         () => `${container.querySelectorAll('[role="button"], [role="grid"]').length}:${container.scrollHeight}`,
       );
