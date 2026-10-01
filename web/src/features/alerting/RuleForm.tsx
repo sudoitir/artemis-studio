@@ -1,16 +1,5 @@
-import { useState } from 'react';
-import {
-  Anchor,
-  Button,
-  Checkbox,
-  Group,
-  MultiSelect,
-  NumberInput,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { useRef, useState } from 'react';
+import { Button, Checkbox, MultiSelect, NumberInput, Select, Text, TextInput } from '@mantine/core';
 
 import type { AlertRuleRequest, AlertRuleView, NotificationChannelView, PluginMetricView } from './api.ts';
 import {
@@ -27,6 +16,7 @@ import {
   metricKind,
   metricLabel,
 } from './severity.ts';
+import classes from './Alerting.module.css';
 
 const STUDIO_METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_METRICS].map((m) => ({
   value: m,
@@ -64,15 +54,9 @@ const SEVERITY_OPTIONS = ['INFO', 'WARNING', 'CRITICAL'];
 
 function TemplateLink({ label, onClick }: Readonly<{ label: string; onClick: () => void }>) {
   return (
-    <Anchor
-      component="button"
-      type="button"
-      size="xs"
-      onClick={onClick}
-      style={{ alignSelf: 'flex-end', paddingBottom: 8 }}
-    >
+    <Button variant="subtle" size="compact-sm" onClick={onClick}>
       {`Start from the ${label} template`}
-    </Anchor>
+    </Button>
   );
 }
 
@@ -96,6 +80,8 @@ function TemplateLinks({
     </>
   );
 }
+
+type Field = 'name' | 'metric' | 'comparator' | 'threshold' | 'stateCondition';
 
 type RuleDraft = {
   name: string;
@@ -139,6 +125,7 @@ export function RuleForm({
   onSubmit,
   submitting,
   onCancel,
+  disabled = false,
 }: Readonly<{
   channels: NotificationChannelView[];
   /** The metrics running plugins publish. */
@@ -147,6 +134,8 @@ export function RuleForm({
   onSubmit: (body: AlertRuleRequest) => void;
   submitting: boolean;
   onCancel?: () => void;
+  /** The caller may not change rules; the form stays visible and the view says why beside it. */
+  disabled?: boolean;
 }>) {
   // A rule with no cluster is about Studio itself: always a state rule, on a storage condition (ADR-0135).
   const installation = initial !== undefined && !initial.clusterId;
@@ -193,13 +182,44 @@ export function RuleForm({
 
   const pluginMetric = pluginMetrics.find((m) => m.metric === metric);
 
-  const valid =
-    name.trim() &&
-    severity &&
-    (kind === 'METRIC_THRESHOLD' ? metric && comparator && threshold !== '' : Boolean(stateCondition));
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const refs = useRef<Partial<Record<Field, HTMLElement | null>>>({});
+  const register = (f: Field) => (el: HTMLElement | null) => {
+    refs.current[f] = el;
+  };
+
+  /** What is wrong with a field now, or nothing. Only the fields of the chosen kind are checked. */
+  const problem = (f: Field): string | undefined => {
+    switch (f) {
+      case 'name':
+        return name.trim() ? undefined : 'Enter a name, so the rule and its alerts can be told apart.';
+      case 'metric':
+        return kind === 'METRIC_THRESHOLD' && !metric ? 'Choose the metric the rule watches.' : undefined;
+      case 'comparator':
+        return kind === 'METRIC_THRESHOLD' && !comparator ? 'Choose how the metric is compared.' : undefined;
+      case 'threshold':
+        return kind === 'METRIC_THRESHOLD' && threshold === ''
+          ? 'Enter the value that makes the rule fire.'
+          : undefined;
+      case 'stateCondition':
+        return kind === 'STATE' && !stateCondition ? 'Choose the cluster state the rule watches.' : undefined;
+    }
+  };
+  const fieldsOf = (): Field[] =>
+    kind === 'METRIC_THRESHOLD' ? ['name', 'metric', 'comparator', 'threshold'] : ['name', 'stateCondition'];
+  const blur = (f: Field) => () => setErrors((e) => ({ ...e, [f]: problem(f) }));
+  const clear = (f: Field) => setErrors((e) => (e[f] ? { ...e, [f]: undefined } : e));
 
   const submit = () => {
-    if (!valid || !severity) return;
+    const next: Partial<Record<Field, string>> = {};
+    for (const f of fieldsOf()) next[f] = problem(f);
+    setErrors(next);
+    const first = fieldsOf().find((f) => next[f]);
+    if (first) {
+      refs.current[first]?.focus();
+      return;
+    }
+    if (!severity) return;
     onSubmit(
       ruleRequest({
         name,
@@ -217,125 +237,154 @@ export function RuleForm({
   };
 
   return (
-    <Stack gap="xs">
-      <Group align="flex-end" gap="xs" wrap="wrap">
-        <Select
-          label="Kind"
-          data={[
-            { value: 'METRIC_THRESHOLD', label: 'Metric threshold' },
-            { value: 'STATE', label: 'Cluster state' },
-          ]}
-          value={kind}
-          onChange={(v) => setKind((v as 'METRIC_THRESHOLD' | 'STATE') ?? 'METRIC_THRESHOLD')}
-          w={170}
-          allowDeselect={false}
-          disabled={installation}
-        />
-        <TextInput
-          label="Name"
-          placeholder="Deep order queue"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          w={200}
-        />
-
-        {initial ? null : (
-          <TemplateLinks
-            kind={kind}
-            onSlowConsumer={applySlowConsumerTemplate}
-            onConfigDrift={applyConfigDriftTemplate}
-            onSetupRisk={applySetupRiskTemplate}
-          />
-        )}
-
-        {kind === 'METRIC_THRESHOLD' ? (
-          <>
-            <Select
-              label="Metric"
-              placeholder="Choose a metric"
-              data={metricOptions(pluginMetrics, metric)}
-              value={metric}
-              onChange={setMetric}
-              w={220}
-            />
-            <Select
-              label="Comparator"
-              data={COMPARATORS.map((c) => ({ value: c, label: c }))}
-              value={comparator}
-              onChange={setComparator}
-              w={110}
-              allowDeselect={false}
-            />
-            <NumberInput
-              label="Threshold"
-              value={threshold}
-              onChange={(v) => setThreshold(typeof v === 'number' ? v : '')}
-              w={120}
-            />
-          </>
-        ) : (
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <fieldset className={classes.fieldset} disabled={disabled}>
+        <div className={classes.form}>
           <Select
-            label="State condition"
-            placeholder="Choose a condition"
-            data={installation ? INSTALLATION_OPTIONS : STATE_OPTIONS}
-            value={stateCondition}
-            onChange={setStateCondition}
-            w={220}
+            label="Kind"
+            data={[
+              { value: 'METRIC_THRESHOLD', label: 'Metric threshold' },
+              { value: 'STATE', label: 'Cluster state' },
+            ]}
+            value={kind}
+            onChange={(v) => {
+              setKind((v as 'METRIC_THRESHOLD' | 'STATE') ?? 'METRIC_THRESHOLD');
+              setErrors({});
+            }}
+            allowDeselect={false}
+            disabled={installation}
           />
-        )}
+          <TextInput
+            ref={register('name')}
+            label="Name"
+            placeholder="Deep order queue"
+            value={name}
+            onChange={(e) => {
+              setName(e.currentTarget.value);
+              clear('name');
+            }}
+            onBlur={blur('name')}
+            error={errors.name}
+          />
 
-        <NumberInput
-          label="For (seconds)"
-          description="0 fires immediately"
-          value={forSeconds}
-          onChange={(v) => setForSeconds(typeof v === 'number' ? v : '')}
-          min={0}
-          w={140}
-        />
-        <Select
-          label="Severity"
-          data={SEVERITY_OPTIONS}
-          value={severity}
-          onChange={setSeverity}
-          w={130}
-          allowDeselect={false}
-        />
-      </Group>
+          {kind === 'METRIC_THRESHOLD' ? (
+            <>
+              <Select
+                ref={register('metric')}
+                label="Metric"
+                placeholder="Choose a metric"
+                data={metricOptions(pluginMetrics, metric)}
+                value={metric}
+                onChange={(v) => {
+                  setMetric(v);
+                  clear('metric');
+                }}
+                onBlur={blur('metric')}
+                error={errors.metric}
+              />
+              <Select
+                ref={register('comparator')}
+                label="Comparator"
+                data={COMPARATORS.map((c) => ({ value: c, label: c }))}
+                value={comparator}
+                onChange={(v) => {
+                  setComparator(v);
+                  clear('comparator');
+                }}
+                onBlur={blur('comparator')}
+                error={errors.comparator}
+                allowDeselect={false}
+              />
+              <NumberInput
+                ref={register('threshold')}
+                label="Threshold"
+                value={threshold}
+                onChange={(v) => {
+                  setThreshold(typeof v === 'number' ? v : '');
+                  clear('threshold');
+                }}
+                onBlur={blur('threshold')}
+                error={errors.threshold}
+              />
+            </>
+          ) : (
+            <Select
+              ref={register('stateCondition')}
+              label="State condition"
+              placeholder="Choose a condition"
+              data={installation ? INSTALLATION_OPTIONS : STATE_OPTIONS}
+              value={stateCondition}
+              onChange={(v) => {
+                setStateCondition(v);
+                clear('stateCondition');
+              }}
+              onBlur={blur('stateCondition')}
+              error={errors.stateCondition}
+            />
+          )}
 
-      {metric && METRIC_NOTES[metric] ? (
-        <Text size="xs" c="dimmed" maw={720}>
-          {METRIC_NOTES[metric]}
-        </Text>
-      ) : null}
-      {kind === 'METRIC_THRESHOLD' && pluginMetric ? (
-        <Text size="xs" c="dimmed" maw={720}>
-          {pluginMetric.description} Published by the {pluginMetric.plugin} plugin and sampled on every queue scrape;
-          the rule fires per {pluginMetric.subject}.
-        </Text>
-      ) : null}
+          <NumberInput
+            label="For (seconds)"
+            description="0 fires immediately"
+            value={forSeconds}
+            onChange={(v) => setForSeconds(typeof v === 'number' ? v : '')}
+            min={0}
+          />
+          <Select
+            label="Severity"
+            data={SEVERITY_OPTIONS}
+            value={severity}
+            onChange={setSeverity}
+            allowDeselect={false}
+          />
+          <MultiSelect
+            label="Notify channels"
+            placeholder={channels.length ? 'None selected' : 'No channels configured yet'}
+            data={channels.map((c) => ({ value: c.id, label: c.name }))}
+            value={channelIds}
+            onChange={setChannelIds}
+            disabled={channels.length === 0}
+          />
 
-      <Group align="flex-end" gap="xs" wrap="wrap">
-        <MultiSelect
-          label="Notify channels"
-          placeholder={channels.length ? 'None selected' : 'No channels configured yet'}
-          data={channels.map((c) => ({ value: c.id, label: c.name }))}
-          value={channelIds}
-          onChange={setChannelIds}
-          w={320}
-          disabled={channels.length === 0}
-        />
-        <Checkbox label="Enabled" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} mb={8} />
-        <Group gap="xs">
-          <Button onClick={submit} loading={submitting} disabled={!valid}>
-            {initial ? 'Save' : 'Add rule'}
-          </Button>
-          {onCancel ? (
-            <Button variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
+          {metric && METRIC_NOTES[metric] ? (
+            <Text size="xs" c="dimmed" className={`${classes.wide} ${classes.help}`}>
+              {METRIC_NOTES[metric]}
+            </Text>
           ) : null}
-        </Group>
-      </Group>
-    </Stack>
+          {kind === 'METRIC_THRESHOLD' && pluginMetric ? (
+            <Text size="xs" c="dimmed" className={`${classes.wide} ${classes.help}`}>
+              {pluginMetric.description} Published by the {pluginMetric.plugin} plugin and sampled on every queue
+              scrape; the rule fires per {pluginMetric.subject}.
+            </Text>
+          ) : null}
+
+          <div className={`${classes.wide} ${classes.actions}`}>
+            <Checkbox label="Enabled" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} />
+            <Button type="submit" loading={submitting}>
+              {initial ? 'Save' : 'Add rule'}
+            </Button>
+            {onCancel ? (
+              <Button variant="default" onClick={onCancel}>
+                Cancel
+              </Button>
+            ) : null}
+            {initial ? null : (
+              <TemplateLinks
+                kind={kind}
+                onSlowConsumer={applySlowConsumerTemplate}
+                onConfigDrift={applyConfigDriftTemplate}
+                onSetupRisk={applySetupRiskTemplate}
+              />
+            )}
+          </div>
+        </div>
+      </fieldset>
+    </form>
   );
 }

@@ -1,0 +1,76 @@
+/* A name with its mark beside it, wrapping by width, not by breakpoint. */
+.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+/* A cell of several short lines. */
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.note {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+/* A failure's words: the text names it; the colour only emphasises it. */
+.failed {
+  color: var(--as-danger);
+}
+
+.figures {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row controls sit on one line and wrap by width when the cell is narrow. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+/* The rule form: one grid whose tracks hold at least 12rem and wrap by size, so it needs no breakpoints.
+   The fields share one top edge, so a field that grows a message does not push its neighbours. */
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  align-items: start;
+  gap: var(--mantine-spacing-sm);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-md);
+}
+
+.help {
+  max-inline-size: 70ch;
+}
+
+.warning {
+  color: var(--as-warning);
+}
+
+/* A control that sits on the start side of its column instead of stretching across it. */
+.start {
+  align-self: flex-start;
+}

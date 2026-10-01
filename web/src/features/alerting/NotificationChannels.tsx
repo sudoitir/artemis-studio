@@ -1,10 +1,14 @@
-import { useState, type ReactNode } from 'react';
-import { ActionIcon, Button, Group, Modal, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { useState } from 'react';
+import { ActionIcon, Button, Stack, Text } from '@mantine/core';
 import { IconHistory, IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { useServerNow } from '../../kernel/time/time.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { DataTable } from '../../ui/table/index.ts';
 import {
   useDeleteNotificationChannel,
   useNotificationChannels,
@@ -12,9 +16,17 @@ import {
   type ChannelTestResultView,
   type NotificationChannelView,
 } from './api.ts';
+import classes from './Alerting.module.css';
 import { ChannelEditor, TestOutcome } from './ChannelEditor.tsx';
-import { deliveryState, destination, kindLabel } from './channelKinds.ts';
+import { channelColumns } from './columns.ts';
 import { DeliveryLog } from './DeliveryLog.tsx';
+
+const TEST: ActionVerb = { verb: 'Send', past: 'Sent', progressive: 'Sending' };
+const DELETE: ActionVerb = { verb: 'Delete', past: 'Deleted', progressive: 'Deleting' };
+
+const rowKey = (c: NotificationChannelView) => c.id;
+
+const WRITE_REASON = 'Changing channels needs the alert:write permission.';
 
 /**
  * Global notification channels — Slack, Microsoft Teams, PagerDuty, email and signed
@@ -33,135 +45,105 @@ export function NotificationChannels() {
   const [editing, setEditing] = useState<NotificationChannelView | null>(null);
   const [creating, setCreating] = useState(false);
   const [logFor, setLogFor] = useState<NotificationChannelView | null>(null);
+  // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [deleting, setDeleting] = useState<NotificationChannelView | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [tested, setTested] = useState<{ channel: NotificationChannelView; result: ChannelTestResultView } | null>(
     null,
   );
-  const [announcement, setAnnouncement] = useState('');
 
-  const notice = channelsNotice(channels);
-  const writeReason = 'Changing channels needs the alert:write permission.';
+  const runTest = (c: NotificationChannelView) =>
+    test.mutate(c.id, {
+      onSuccess: (result) => setTested({ channel: c, result }),
+      onError: (error) =>
+        notify.failed({
+          action: TEST,
+          subject: `a test notification to ${c.name}`,
+          cause: error.message,
+          next: 'Nothing was sent. Try again.',
+        }),
+    });
+
+  // Built each render: the cells carry what is gated and busy right now.
+  const columns = channelColumns({
+    now,
+    actionsControl: (c) => (
+      <span className={classes.controls}>
+        <ActionIcon
+          variant="subtle"
+          onClick={() => runTest(c)}
+          loading={test.isPending && test.variables === c.id}
+          disabled={!canWrite || (test.isPending && test.variables !== c.id)}
+          aria-label={`Send test notification to ${c.name}`}
+        >
+          <IconSend size="1rem" aria-hidden />
+        </ActionIcon>
+        <ActionIcon variant="subtle" onClick={() => setLogFor(c)} aria-label={`Delivery log of ${c.name}`}>
+          <IconHistory size="1rem" aria-hidden />
+        </ActionIcon>
+        <ActionIcon variant="subtle" onClick={() => setEditing(c)} disabled={!canWrite} aria-label={`Edit ${c.name}`}>
+          <IconPencil size="1rem" aria-hidden />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          onClick={() => {
+            setDeleting(c);
+            setDeleteOpen(true);
+          }}
+          disabled={!canWrite}
+          aria-label={`Delete ${c.name}`}
+        >
+          <IconTrash size="1rem" aria-hidden />
+        </ActionIcon>
+      </span>
+    ),
+  });
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          Bind a channel to a rule from the rule form. A rule with no channel still fires and records history.
-        </Text>
-        <Tooltip label={writeReason} disabled={canWrite}>
-          <span>
+      <Text size="sm" c="dimmed">
+        Bind a channel to a rule from the rule form. A rule with no channel still fires and records history.
+      </Text>
+      {canWrite ? null : <Text size="sm">{WRITE_REASON}</Text>}
+
+      {/* Mounted before any result, so a screen reader announces the test when it lands. */}
+      <div role="status" aria-live="polite">
+        {tested ? (
+          <Stack gap={4}>
+            <Text size="sm" fw={600}>
+              Test of {tested.channel.name}
+            </Text>
+            <TestOutcome result={tested.result} kind={tested.channel.kind} />
+          </Stack>
+        ) : null}
+      </div>
+
+      <DataTable
+        variant="static"
+        label="Notification channels"
+        storageKey="alerting.channels"
+        columns={columns}
+        data={channels.data ?? []}
+        rowKey={rowKey}
+        loading={channels.isPending}
+        error={
+          channels.isError ? <ErrorState error={channels.error} onRetry={() => void channels.refetch()} /> : undefined
+        }
+        toolbar={{
+          start: (
             <Button onClick={() => setCreating(true)} disabled={!canWrite}>
               Add channel
             </Button>
-          </span>
-        </Tooltip>
-      </Group>
-
-      <div role="status" aria-live="polite">
-        <Text size="sm">{announcement}</Text>
-      </div>
-
-      {tested ? (
-        <Stack gap={4}>
-          <Text size="sm" fw={600}>
-            Test of {tested.channel.name}
-          </Text>
-          <TestOutcome result={tested.result} kind={tested.channel.kind} />
-        </Stack>
-      ) : null}
-
-      {notice ?? (
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Kind</Table.Th>
-              <Table.Th>Delivers to</Table.Th>
-              <Table.Th ta="end">Rules</Table.Th>
-              <Table.Th>Last delivery</Table.Th>
-              <Table.Th>State</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {(channels.data ?? []).map((c) => (
-              <Table.Tr key={c.id}>
-                <Table.Td>
-                  <Text size="sm" fw={500}>
-                    {c.name}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{kindLabel(c.kind)}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" c="dimmed">
-                    {destination(c.kind, c.config)}
-                    {missingSecretHint(c)}
-                  </Text>
-                </Table.Td>
-                <Table.Td ta="end" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {c.boundRuleCount}
-                </Table.Td>
-                <Table.Td>
-                  <ChannelHealth h={c.health} now={now} />
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{c.enabled ? 'enabled' : 'disabled'}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4} wrap="nowrap">
-                    <ActionIcon
-                      variant="subtle"
-                      onClick={() =>
-                        test.mutate(c.id, {
-                          onSuccess: (result) => {
-                            setTested({ channel: c, result });
-                            setAnnouncement(
-                              result.delivered
-                                ? `Test delivered to ${c.name}.`
-                                : `Test to ${c.name} not delivered: ${result.error ?? 'no reason given'}.`,
-                            );
-                          },
-                          onError: (e) => setAnnouncement(`Test to ${c.name} could not be sent: ${e.message}`),
-                        })
-                      }
-                      loading={test.isPending && test.variables === c.id}
-                      disabled={!canWrite || (test.isPending && test.variables !== c.id)}
-                      aria-label={`Send test notification to ${c.name}`}
-                      title={canWrite ? undefined : writeReason}
-                    >
-                      <IconSend size={16} />
-                    </ActionIcon>
-                    <ActionIcon variant="subtle" onClick={() => setLogFor(c)} aria-label={`Delivery log of ${c.name}`}>
-                      <IconHistory size={16} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      onClick={() => setEditing(c)}
-                      disabled={!canWrite}
-                      aria-label={`Edit ${c.name}`}
-                      title={canWrite ? undefined : writeReason}
-                    >
-                      <IconPencil size={16} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => setDeleting(c)}
-                      disabled={!canWrite}
-                      aria-label={`Delete ${c.name}`}
-                      title={canWrite ? undefined : writeReason}
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
+          ),
+        }}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No notification channels configured"
+            description="Alert rules can still fire and record history, they just won’t deliver anywhere until a channel is bound. Add Slack, Microsoft Teams, PagerDuty, email or a signed webhook."
+          />
+        }
+      />
 
       <ChannelEditor
         opened={creating || editing !== null}
@@ -170,127 +152,61 @@ export function NotificationChannels() {
           setCreating(false);
           setEditing(null);
         }}
-        onSaved={setAnnouncement}
       />
-      <DeliveryLog channel={logFor} onClose={() => setLogFor(null)} canWrite={canWrite} announce={setAnnouncement} />
-      <DeleteChannel channel={deleting} onClose={() => setDeleting(null)} announce={setAnnouncement} />
+      <DeliveryLog channel={logFor} onClose={() => setLogFor(null)} canWrite={canWrite} />
+      <DeleteChannel channel={deleting} opened={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </Stack>
-  );
-}
-
-/** What stands in for the table while channels load, fail to load, or do not exist yet. */
-function channelsNotice(channels: ReturnType<typeof useNotificationChannels>): ReactNode {
-  if (channels.isPending) {
-    return (
-      <Text size="sm" c="dimmed">
-        Loading channels…
-      </Text>
-    );
-  }
-  if (channels.isError) {
-    return (
-      <Text size="sm" c="red">
-        Channels could not be loaded: {channels.error.message}. Reload the page; if it persists, check that Studio can
-        reach its database.
-      </Text>
-    );
-  }
-  if ((channels.data ?? []).length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No notification channels configured — alert rules can still fire and record history, they just won’t deliver
-        anywhere until a channel is bound. Add Slack, Microsoft Teams, PagerDuty, email or a signed webhook.
-      </Text>
-    );
-  }
-  return null;
-}
-
-/** Why a channel cannot deliver yet, when its secret is missing. */
-function missingSecretHint(c: NotificationChannelView): string {
-  if (c.hasSecret) return '';
-  return c.kind === 'EMAIL' ? ' · no password' : ' · secret not set';
-}
-
-/** How the channel's last delivery went, and its 24-hour tally. */
-function ChannelHealth({ h, now }: Readonly<{ h: NotificationChannelView['health']; now: number }>) {
-  if (!h) {
-    return (
-      <Text size="xs" c="dimmed">
-        never used
-      </Text>
-    );
-  }
-  const failing = h.lastState === 'DEAD';
-  return (
-    <>
-      <Text size="sm" c={failing ? 'red' : undefined}>
-        {deliveryState(h.lastState)} {elapsedLabel(now - Date.parse(h.lastCreatedAt))} ago
-      </Text>
-      {failing && h.lastError ? (
-        <Text size="xs" c="red" lineClamp={2}>
-          {h.lastError}
-        </Text>
-      ) : null}
-      <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        24h: {h.sentLast24h} sent, {h.failedLast24h} failed
-        {h.pending > 0 ? `, ${h.pending} waiting` : ''}
-      </Text>
-    </>
   );
 }
 
 /** States what deleting silences before it can be armed, then asks for the name. */
 function DeleteChannel({
   channel,
+  opened,
   onClose,
-  announce,
-}: Readonly<{
-  channel: NotificationChannelView | null;
-  onClose: () => void;
-  announce: (message: string) => void;
-}>) {
+}: Readonly<{ channel: NotificationChannelView | null; opened: boolean; onClose: () => void }>) {
   const remove = useDeleteNotificationChannel();
-  const [error, setError] = useState<string | null>(null);
   const bound = channel?.boundRuleCount ?? 0;
 
-  return (
-    <Modal opened={channel !== null} onClose={onClose} title={channel ? `Delete ${channel.name}?` : ''}>
-      {channel ? (
-        <Stack gap="sm">
-          <Text size="sm">
-            {bound === 0
-              ? 'No rule routes to this channel, so no alert stops being delivered.'
-              : `${bound} ${routeClause(bound)} to this channel and will stop delivering to it. Their other channels are unaffected; a rule left with none still fires and records history.`}
-          </Text>
-          <Text size="sm">Its delivery log is deleted with it. This cannot be undone.</Text>
-          {error ? (
-            <Text size="sm" c="red" role="alert">
-              Not deleted: {error}
-            </Text>
-          ) : null}
-          <ConfirmByTyping
-            token={channel.name}
-            confirmLabel="Delete channel"
-            loading={remove.isPending}
-            onConfirm={() =>
-              remove.mutate(channel.id, {
-                onSuccess: () => {
-                  announce(`Deleted "${channel.name}".`);
-                  setError(null);
-                  onClose();
-                },
-                onError: (e) => setError(e.message),
-              })
-            }
-          />
-        </Stack>
-      ) : null}
-    </Modal>
-  );
-}
+  const confirm = (c: NotificationChannelView) =>
+    remove.mutate(c.id, {
+      onSuccess: () => {
+        onClose();
+        notify.succeeded({ action: DELETE, subject: `channel "${c.name}"` });
+      },
+      onError: (error) =>
+        notify.failed({
+          action: DELETE,
+          subject: `channel "${c.name}"`,
+          cause: error.message,
+          next: 'It is still configured. Try again.',
+        }),
+    });
 
-/** "1 rule routes" / "3 rules route". */
-function routeClause(bound: number): string {
-  return bound === 1 ? 'rule routes' : 'rules route';
+  return (
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title="Delete channel"
+      tone="danger"
+      typedName={channel?.name}
+      pending={remove.isPending}
+      confirmLabel="Delete channel"
+      consequence={
+        channel ? (
+          <>
+            <Text component="p" size="sm" mb="xs">
+              {bound === 0
+                ? 'No rule routes to this channel, so no alert stops being delivered.'
+                : `${bound} ${bound === 1 ? 'rule routes' : 'rules route'} to this channel and will stop delivering to it. Their other channels are unaffected; a rule left with none still fires and records history.`}
+            </Text>
+            <Text component="p" size="sm">
+              Its delivery log is deleted with it. This cannot be undone.
+            </Text>
+          </>
+        ) : null
+      }
+      onConfirm={() => channel && confirm(channel)}
+    />
+  );
 }

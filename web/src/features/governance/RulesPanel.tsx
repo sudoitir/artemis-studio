@@ -1,23 +1,15 @@
-import { useState } from 'react';
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  TextInput,
-  VisuallyHidden,
-} from '@mantine/core';
+import { useRef, useState } from 'react';
+import { ActionIcon, Button, Group, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import type { ApiError } from '../../kernel/api/request.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import {
   useCreateRule,
   useDeleteRule,
@@ -28,38 +20,40 @@ import {
   type RuleRequest,
   type RuleView,
 } from './api.ts';
+import { ruleColumns } from './columns.ts';
+import classes from './Governance.module.css';
+import { TARGETS } from './words.ts';
+
+const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
+const ENABLE: ActionVerb = { verb: 'Enable', past: 'Enabled', progressive: 'Enabling' };
+const DISABLE: ActionVerb = { verb: 'Disable', past: 'Disabled', progressive: 'Disabling' };
+const DELETE: ActionVerb = { verb: 'Delete', past: 'Deleted', progressive: 'Deleting' };
+
+const rowKey = (r: RuleView) => r.id;
 
 /** Whether stored messages have caught up with the policy. Reads always apply the current policy either way. */
 function RemaskStatus() {
   const progress = useRemaskProgress();
+  let status;
   if (progress.isPending) {
-    return <Text size="sm">Checking whether stored messages are masked under the current policy…</Text>;
+    status = <Text size="sm">Checking whether stored messages are masked under the current policy…</Text>;
+  } else if (progress.isError) {
+    status = <ErrorState variant="inline" error={progress.error} onRetry={() => void progress.refetch()} />;
+  } else {
+    const { rowsUnderEarlierVersion: rows, capped, version } = progress.data;
+    status =
+      rows === 0 ? (
+        <Text size="sm">Every stored message is masked under the current policy (version {version}).</Text>
+      ) : (
+        <Text size="sm" className={classes.figures}>
+          {capped ? 'More than ' : ''}
+          {rows.toLocaleString()} stored message{rows === 1 ? ' is' : 's are'} still masked under an earlier policy.
+          Re-masking runs in the background; reads already apply version {version}.
+        </Text>
+      );
   }
-  if (progress.isError) {
-    return (
-      <Text size="sm">
-        Could not check whether stored messages are masked under the current policy: {progress.error.message}
-      </Text>
-    );
-  }
-  const { rowsUnderEarlierVersion: rows, capped, version } = progress.data;
-  if (rows === 0) {
-    return <Text size="sm">Every stored message is masked under the current policy (version {version}).</Text>;
-  }
-  return (
-    <Text size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
-      {capped ? 'More than ' : ''}
-      {rows.toLocaleString()} stored message{rows === 1 ? ' is' : 's are'} still masked under an earlier policy.
-      Re-masking runs in the background; reads already apply version {version}.
-    </Text>
-  );
+  return <div className={classes.remask}>{status}</div>;
 }
-
-const TARGETS = [
-  { value: 'PROPERTY', label: 'Property' },
-  { value: 'HEADER', label: 'Header' },
-  { value: 'BODY_PATH', label: 'JSON body path' },
-];
 
 const CLASSES = [
   { value: 'CREDENTIAL', label: 'Credential' },
@@ -77,13 +71,6 @@ const ACTIONS = [
   { value: 'PARTIAL', label: 'Partial — last four kept' },
   { value: 'REDACT', label: 'Redact — whole value' },
 ];
-
-const ACTION_WORDS: Record<string, string> = {
-  DROP: 'Drop',
-  PARTIAL: 'Partial',
-  REDACT: 'Redact',
-  CLEAR: 'Leave clear',
-};
 
 const WRITE_REASON = 'Changing masking rules needs the governance:write permission.';
 
@@ -125,10 +112,12 @@ export function RulesPanel() {
   const [editing, setEditing] = useState<RuleView | 'new' | null>(null);
   const [form, setForm] = useState<RuleRequest>(EMPTY);
   const [errors, setErrors] = useState<Errors>({});
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<ApiError | null>(null);
+  // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [deleting, setDeleting] = useState<RuleView | null>(null);
-  const [announcement, setAnnouncement] = useState('');
-  const [failure, setFailure] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const selectorInput = useRef<HTMLInputElement>(null);
+  const addressInput = useRef<HTMLInputElement>(null);
 
   function openNew() {
     setEditing('new');
@@ -152,9 +141,8 @@ export function RulesPanel() {
   function save() {
     const next = validate(form);
     setErrors(next);
-    const firstInvalid = (next.selector && 'rule-selector') || (next.addressPattern && 'rule-address') || null;
-    if (firstInvalid) {
-      document.getElementById(firstInvalid)?.focus();
+    if (next.selector || next.addressPattern) {
+      (next.selector ? selectorInput : addressInput).current?.focus();
       return;
     }
     const body: RuleRequest = {
@@ -165,195 +153,133 @@ export function RulesPanel() {
     const handlers = {
       onSuccess: (rule: RuleView) => {
         setEditing(null);
-        setAnnouncement(`Saved the rule for ${rule.selector}.`);
+        notify.succeeded({ action: SAVE, subject: `the rule for ${rule.selector}` });
       },
-      onError: (e: Error) => setSaveError(`${e.message} Check the fields and save again.`),
+      onError: (e: ApiError) => setSaveError(e),
     };
+    setSaveError(null);
     if (editing === 'new') create.mutate(body, handlers);
     else if (editing) update.mutate({ ruleId: editing.id, body }, handlers);
   }
 
   function toggle(rule: RuleView, enabled: boolean) {
-    setFailure(null);
+    const action = enabled ? ENABLE : DISABLE;
+    const subject = `the rule for ${rule.selector}`;
     update.mutate(
       { ruleId: rule.id, body: withEnabled(rule, enabled) },
       {
-        onSuccess: (saved) =>
-          setAnnouncement(`${saved.enabled ? 'Enabled' : 'Disabled'} the rule for ${saved.selector}.`),
-        onError: (e) => {
-          setFailure(`The rule for ${rule.selector} was not changed: ${e.message}`);
-          setAnnouncement(`The rule for ${rule.selector} was not changed.`);
-        },
+        onSuccess: () => notify.succeeded({ action, subject }),
+        onError: (e) =>
+          notify.failed({
+            action,
+            subject,
+            cause: e.message,
+            next: 'The switch shows what is stored; try again.',
+          }),
       },
     );
   }
 
   function confirmDelete(rule: RuleView) {
+    const subject = `the rule for ${rule.selector}`;
     remove.mutate(rule.id, {
       onSuccess: () => {
-        setDeleting(null);
-        setAnnouncement(`Deleted the rule for ${rule.selector}.`);
+        setDeleteOpen(false);
+        notify.succeeded({ action: DELETE, subject });
       },
-      onError: (e) => {
-        setDeleting(null);
-        setFailure(`The rule for ${rule.selector} was not deleted: ${e.message}`);
-        setAnnouncement(`The rule for ${rule.selector} was not deleted.`);
-      },
+      onError: (e) =>
+        notify.failed({
+          action: DELETE,
+          subject,
+          cause: e.message,
+          next: 'It is still listed; try again.',
+        }),
     });
   }
 
-  if (rules.isPending) {
-    return <Text size="sm">Loading masking rules…</Text>;
-  }
-  if (rules.isError) {
-    return (
-      <Alert variant="light" color="red" title="Masking rules could not be loaded">
-        <Stack gap="xs">
-          <Text size="sm">{rules.error.message}</Text>
-          <Group>
-            <Button size="xs" variant="default" onClick={() => rules.refetch()}>
-              Try again
-            </Button>
-          </Group>
-        </Stack>
-      </Alert>
-    );
-  }
+  const savingId = update.isPending ? update.variables.ruleId : undefined;
+  // Built each render: the cells carry what is gated and busy right now.
+  const columns = ruleColumns({
+    enabledControl: (r) => (
+      <Switch
+        size="sm"
+        checked={r.enabled}
+        disabled={!canWrite || savingId === r.id}
+        aria-label={`Enabled: ${r.selector}`}
+        onChange={(e) => toggle(r, e.currentTarget.checked)}
+      />
+    ),
+    changesControl: (r) =>
+      r.builtin ? (
+        <span className={classes.note}>Can be disabled, not deleted.</span>
+      ) : (
+        <span className={classes.controls}>
+          <ActionIcon
+            variant="subtle"
+            disabled={!canWrite}
+            onClick={() => openEdit(r)}
+            aria-label={`Edit the rule for ${r.selector}`}
+          >
+            <IconPencil size="1rem" aria-hidden />
+          </ActionIcon>
+          <ActionIcon
+            variant="subtle"
+            disabled={!canWrite}
+            onClick={() => {
+              setDeleting(r);
+              setDeleteOpen(true);
+            }}
+            aria-label={`Delete the rule for ${r.selector}`}
+          >
+            <IconTrash size="1rem" aria-hidden />
+          </ActionIcon>
+        </span>
+      ),
+  });
 
   return (
-    <Stack gap="md">
-      <VisuallyHidden>
-        <div role="status" aria-live="polite">
-          {announcement}
-        </div>
-      </VisuallyHidden>
-
-      <Stack gap={4}>
-        <Text size="sm">
+    <Section
+      title="Masking rules"
+      description={
+        <>
           A rule masks a header, a property or a JSON body value wherever message content leaves Studio or is stored.
           Values the detectors recognise are masked even without a rule. Credentials are never shown, and users with{' '}
           <code>message:clear</code> see every other value in clear.
-        </Text>
-        {canWrite ? null : (
-          <Text size="sm" c="dimmed">
-            {WRITE_REASON}
-          </Text>
-        )}
-        <RemaskStatus />
-      </Stack>
+        </>
+      }
+    >
+      {canWrite ? null : <Text size="sm">{WRITE_REASON}</Text>}
+      <RemaskStatus />
 
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          {rules.data.length} rule{rules.data.length === 1 ? '' : 's'}
-        </Text>
-        <Button size="xs" onClick={openNew} disabled={!canWrite}>
-          New rule
-        </Button>
-      </Group>
-
-      {failure ? (
-        <Alert
-          variant="light"
-          color="red"
-          title="The change did not apply"
-          withCloseButton
-          onClose={() => setFailure(null)}
-        >
-          {failure}
-        </Alert>
-      ) : null}
-
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Matches</Table.Th>
-            <Table.Th>Addresses</Table.Th>
-            <Table.Th>Class</Table.Th>
-            <Table.Th>Action</Table.Th>
-            <Table.Th>Enabled</Table.Th>
-            <Table.Th>
-              <VisuallyHidden>Changes</VisuallyHidden>
-            </Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rules.data.map((r) => (
-            <Table.Tr key={r.id}>
-              <Table.Td>
-                <Stack gap={2}>
-                  <Group gap={6}>
-                    <Text size="sm" ff="monospace">
-                      {r.selector}
-                    </Text>
-                    {r.builtin ? (
-                      <Badge size="xs" variant="outline" color="gray" tt="none">
-                        built-in
-                      </Badge>
-                    ) : null}
-                    {r.exception ? (
-                      <Badge size="xs" variant="outline" color="gray" tt="none">
-                        dismissed finding
-                      </Badge>
-                    ) : null}
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    {TARGETS.find((t) => t.value === r.target)?.label ?? r.target}
-                  </Text>
-                </Stack>
-              </Table.Td>
-              <Table.Td>
-                <Text size="sm" ff={r.addressPattern ? 'monospace' : undefined}>
-                  {r.addressPattern ?? 'All addresses'}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="sm">{r.dataClassLabel}</Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="sm">
-                  {r.action ? ACTION_WORDS[r.action] : `${ACTION_WORDS[r.defaultAction] ?? r.defaultAction} (default)`}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Switch
-                  checked={r.enabled}
-                  disabled={!canWrite}
-                  aria-label={`Enabled: ${r.selector}`}
-                  onChange={(e) => toggle(r, e.currentTarget.checked)}
-                />
-              </Table.Td>
-              <Table.Td>
-                {r.builtin ? (
-                  <Text size="xs" c="dimmed">
-                    Can be disabled, not deleted.
-                  </Text>
-                ) : (
-                  <Group gap={4} wrap="nowrap">
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      disabled={!canWrite}
-                      onClick={() => openEdit(r)}
-                      aria-label={`Edit the rule for ${r.selector}`}
-                    >
-                      <IconPencil size={16} aria-hidden />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      disabled={!canWrite}
-                      onClick={() => setDeleting(r)}
-                      aria-label={`Delete the rule for ${r.selector}`}
-                    >
-                      <IconTrash size={16} aria-hidden />
-                    </ActionIcon>
-                  </Group>
-                )}
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
+      <DataTable
+        variant="static"
+        label="Masking rules"
+        storageKey="governance.rules"
+        columns={columns}
+        data={rules.data ?? []}
+        rowKey={rowKey}
+        loading={rules.isPending}
+        error={rules.isError ? <ErrorState error={rules.error} onRetry={() => void rules.refetch()} /> : undefined}
+        toolbar={{
+          start: (
+            <Button size="xs" onClick={openNew} disabled={!canWrite}>
+              New rule
+            </Button>
+          ),
+          end: rules.data ? (
+            <Text size="sm" c="dimmed">
+              {rules.data.length} rule{rules.data.length === 1 ? '' : 's'}
+            </Text>
+          ) : undefined,
+        }}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No masking rules"
+            description="A rule names a header, property or JSON body path whose value is masked wherever message content leaves Studio. Add one with New rule."
+          />
+        }
+      />
 
       <Modal
         opened={editing !== null}
@@ -370,7 +296,7 @@ export function RulesPanel() {
             onChange={(v) => setForm({ ...form, target: v ?? 'PROPERTY' })}
           />
           <TextInput
-            id="rule-selector"
+            ref={selectorInput}
             label={form.target === 'BODY_PATH' ? 'JSON path' : 'Name'}
             description={
               form.target === 'BODY_PATH'
@@ -384,7 +310,7 @@ export function RulesPanel() {
             required
           />
           <TextInput
-            id="rule-address"
+            ref={addressInput}
             label="Addresses"
             description="Optional. An address pattern such as orders.#; empty means every address."
             value={form.addressPattern ?? ''}
@@ -411,13 +337,9 @@ export function RulesPanel() {
             checked={form.enabled}
             onChange={(e) => setForm({ ...form, enabled: e.currentTarget.checked })}
           />
-          {saveError ? (
-            <Alert variant="light" color="red" title="The rule was not saved">
-              {saveError}
-            </Alert>
-          ) : null}
+          {saveError ? <ErrorState variant="inline" error={saveError} /> : null}
           <Group justify="flex-end">
-            <Button variant="default" onClick={() => setEditing(null)}>
+            <Button variant="default" onClick={() => setEditing(null)} disabled={create.isPending || update.isPending}>
               Cancel
             </Button>
             <Button loading={create.isPending || update.isPending} onClick={save}>
@@ -427,28 +349,25 @@ export function RulesPanel() {
         </Stack>
       </Modal>
 
-      <Modal
-        opened={deleting !== null}
-        onClose={() => setDeleting(null)}
-        title={deleting ? `Delete the rule for ${deleting.selector}` : ''}
-        size="md"
-      >
-        {deleting ? (
-          <Stack gap="sm">
-            <Text size="sm">
+      <ConfirmDialog
+        opened={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={deleting ? `Delete the rule for ${deleting.selector}` : 'Delete the rule'}
+        tone="danger"
+        typedName={deleting?.selector}
+        pending={remove.isPending}
+        confirmLabel="Delete rule"
+        consequence={
+          deleting ? (
+            <>
               Values this rule masks become visible to every user who can read messages on{' '}
               {deleting.addressPattern ? <code>{deleting.addressPattern}</code> : 'every address'}, unless a detector
               still recognises them. Stored messages are re-masked under the new policy.
-            </Text>
-            <ConfirmByTyping
-              token={deleting.selector}
-              confirmLabel="Delete rule"
-              loading={remove.isPending}
-              onConfirm={() => confirmDelete(deleting)}
-            />
-          </Stack>
-        ) : null}
-      </Modal>
-    </Stack>
+            </>
+          ) : null
+        }
+        onConfirm={() => deleting && confirmDelete(deleting)}
+      />
+    </Section>
   );
 }

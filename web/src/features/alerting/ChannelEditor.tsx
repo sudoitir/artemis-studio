@@ -1,14 +1,11 @@
 import { useRef, useState } from 'react';
 import {
-  Alert,
-  Anchor,
   Button,
   Group,
   Modal,
   PasswordInput,
   SegmentedControl,
   Select,
-  SimpleGrid,
   Stack,
   Switch,
   Text,
@@ -17,6 +14,9 @@ import {
 } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import {
   useCreateNotificationChannel,
   useTestChannelConfig,
@@ -38,6 +38,10 @@ import {
   type ChannelFields,
   type ChannelKind,
 } from './channelKinds.ts';
+import classes from './Alerting.module.css';
+
+const ADD: ActionVerb = { verb: 'Add', past: 'Added', progressive: 'Adding' };
+const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
 
 type Field = keyof ChannelFields | 'name' | 'secret';
 
@@ -60,12 +64,10 @@ export function ChannelEditor({
   opened,
   channel,
   onClose,
-  onSaved,
 }: Readonly<{
   opened: boolean;
   channel: NotificationChannelView | null;
   onClose: () => void;
-  onSaved: (message: string) => void;
 }>) {
   return (
     <Modal
@@ -75,7 +77,7 @@ export function ChannelEditor({
       size="lg"
     >
       {/* Remounted per channel, so the form never shows a previous channel's values. */}
-      {opened ? <ChannelForm key={channel?.id ?? 'new'} channel={channel} onClose={onClose} onSaved={onSaved} /> : null}
+      {opened ? <ChannelForm key={channel?.id ?? 'new'} channel={channel} onClose={onClose} /> : null}
     </Modal>
   );
 }
@@ -93,7 +95,7 @@ type KindFieldsProps = Readonly<{
 function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
   return (
     <>
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
+      <div className={classes.form}>
         <TextInput
           ref={register('host')}
           label="SMTP server"
@@ -134,14 +136,14 @@ function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
             ]}
           />
         </Stack>
-      </SimpleGrid>
+      </div>
       {fields.security === 'NONE' ? (
-        <Text size="xs" c="var(--as-warning)">
+        <Text size="xs" className={classes.warning}>
           Without TLS the password and the alert cross the network in clear. STARTTLS, when chosen, is required — a
           server that does not offer it fails the delivery rather than receiving it unencrypted.
         </Text>
       ) : null}
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+      <div className={classes.form}>
         <TextInput
           ref={register('from')}
           label="From"
@@ -159,7 +161,7 @@ function EmailFields({ fields, errors, set, blur, register }: KindFieldsProps) {
           onChange={(e) => set('username')(e.currentTarget.value)}
           autoComplete="off"
         />
-      </SimpleGrid>
+      </div>
       <Textarea
         ref={register('to')}
         label="Recipients"
@@ -212,11 +214,9 @@ function PagerDutyFields({ fields, errors, set, blur, register }: KindFieldsProp
 function ChannelForm({
   channel,
   onClose,
-  onSaved,
 }: Readonly<{
   channel: NotificationChannelView | null;
   onClose: () => void;
-  onSaved: (message: string) => void;
 }>) {
   const editing = channel !== null;
   const [kind, setKind] = useState<ChannelKind>((channel?.kind as ChannelKind) ?? 'SLACK');
@@ -228,7 +228,7 @@ function ChannelForm({
   const [secret, setSecret] = useState('');
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [testResult, setTestResult] = useState<ChannelTestResultView | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<ApiError | null>(null);
   const refs = useRef<Partial<Record<Field, HTMLElement | null>>>({});
 
   const create = useCreateNotificationChannel();
@@ -272,7 +272,7 @@ function ChannelForm({
       setErrors((prev) => ({ ...prev, [field]: e.message.replace(/^[A-Za-z]+:\s/, '') }));
       refs.current[field]?.focus();
     } else {
-      setFormError(e.message);
+      setFormError(e);
     }
   };
 
@@ -302,7 +302,7 @@ function ChannelForm({
       enabled,
     };
     const done = () => {
-      onSaved(editing ? `Saved "${body.name}".` : `Added "${body.name}".`);
+      notify.succeeded({ action: editing ? SAVE : ADD, subject: `channel "${body.name}"` });
       onClose();
     };
     if (channel) {
@@ -393,9 +393,15 @@ function ChannelForm({
         required={!info.secretOptional && !(editing && hasSecret)}
       />
       {kind === 'WEBHOOK' ? (
-        <Anchor component="button" type="button" size="xs" onClick={() => setSecret(generateSigningSecret())}>
+        <Button
+          variant="subtle"
+          size="compact-xs"
+          type="button"
+          onClick={() => setSecret(generateSigningSecret())}
+          className={classes.start}
+        >
           Generate a random signing secret
-        </Anchor>
+        </Button>
       ) : null}
 
       {kind === 'PAGERDUTY' ? (
@@ -411,11 +417,7 @@ function ChannelForm({
       <div role="status" aria-live="polite">
         {testResult ? <TestOutcome result={testResult} kind={kind} /> : null}
       </div>
-      {formError ? (
-        <Alert color="red" variant="light" title="Not saved" role="alert">
-          {formError}
-        </Alert>
-      ) : null}
+      {formError ? <ErrorState variant="inline" error={formError} /> : null}
 
       <Group justify="space-between">
         <Button variant="default" onClick={runTest} loading={test.isPending} disabled={saving}>
@@ -438,21 +440,27 @@ function ChannelForm({
 export function TestOutcome({ result, kind }: Readonly<{ result: ChannelTestResultView; kind: string }>) {
   if (result.delivered) {
     return (
-      <Alert color="gray" variant="light" title={`Test delivered in ${result.durationMs} ms`}>
-        {kind === 'PAGERDUTY'
-          ? 'PagerDuty accepted a test incident and its resolution; it will appear already resolved.'
-          : 'Check the destination for a message titled "Test notification from Artemis Studio".'}
-      </Alert>
+      <Stack gap={4}>
+        <Text size="sm" fw={600}>
+          Test delivered in {result.durationMs} ms
+        </Text>
+        <Text size="sm">
+          {kind === 'PAGERDUTY'
+            ? 'PagerDuty accepted a test incident and its resolution; it will appear already resolved.'
+            : 'Check the destination for a message titled "Test notification from Artemis Studio".'}
+        </Text>
+      </Stack>
     );
   }
   return (
-    <Alert color="red" variant="light" title="Test not delivered">
+    <Stack gap={4} align="flex-start">
+      <StatusBadge tone="danger">Test not delivered</StatusBadge>
       <Text size="sm">{result.error ?? 'The receiver gave no reason.'}</Text>
-      <Text size="sm" mt={4}>
+      <Text size="sm">
         {result.permanent
           ? 'Retrying will not help: fix the URL, key or credentials and test again.'
           : 'This may be temporary — the receiver was unreachable or overloaded. Real deliveries are retried with backoff.'}
       </Text>
-    </Alert>
+    </Stack>
   );
 }

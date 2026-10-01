@@ -1,8 +1,13 @@
 import { useState } from 'react';
-import { Alert, Button, Group, Modal, Select, Stack, Text, Textarea } from '@mantine/core';
+import { useRef } from 'react';
+import { Button, Group, Modal, Select, Stack, Text, Textarea } from '@mantine/core';
 
 import { serverNow } from '../../kernel/time/time.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useAcceptRisk, type SetupFindingView } from './api.ts';
+
+const ACCEPT: ActionVerb = { verb: 'Accept', past: 'Accepted', progressive: 'Accepting' };
 
 const EXPIRY = [
   { value: '7', label: 'For 7 days' },
@@ -20,23 +25,15 @@ export function AcceptRiskDialog({
   clusterId,
   finding,
   onClose,
-  announce,
 }: Readonly<{
   clusterId: string;
   finding: SetupFindingView | null;
   onClose: () => void;
-  announce: (message: string) => void;
 }>) {
   return (
     <Modal opened={finding !== null} onClose={onClose} title="Accept as a known risk" size="lg">
       {finding ? (
-        <Form
-          key={`${finding.code}|${finding.subject}`}
-          clusterId={clusterId}
-          finding={finding}
-          onClose={onClose}
-          announce={announce}
-        />
+        <Form key={`${finding.code}|${finding.subject}`} clusterId={clusterId} finding={finding} onClose={onClose} />
       ) : null}
     </Modal>
   );
@@ -46,21 +43,21 @@ function Form({
   clusterId,
   finding,
   onClose,
-  announce,
 }: Readonly<{
   clusterId: string;
   finding: SetupFindingView;
   onClose: () => void;
-  announce: (message: string) => void;
 }>) {
   const accept = useAcceptRisk(clusterId);
   const [reason, setReason] = useState('');
   const [expiry, setExpiry] = useState<string>('30');
   const [error, setError] = useState<string | null>(null);
+  const reasonInput = useRef<HTMLTextAreaElement>(null);
 
   const submit = () => {
     if (!reason.trim()) {
       setError('A reason is required.');
+      reasonInput.current?.focus();
       return;
     }
     const expiresAt =
@@ -69,10 +66,9 @@ function Form({
       { code: finding.code, subject: finding.subject, reason: reason.trim(), expiresAt },
       {
         onSuccess: () => {
-          announce(`${finding.code} accepted as a known risk.`);
+          notify.succeeded({ action: ACCEPT, subject: `${finding.code} as a known risk` });
           onClose();
         },
-        onError: (e) => setError(e.message),
       },
     );
   };
@@ -87,6 +83,7 @@ function Form({
         until the acceptance expires or is revoked. Who accepted it, and why, is recorded in the audit trail.
       </Text>
       <Textarea
+        ref={reasonInput}
         label="Reason"
         description="Why this is acceptable here, e.g. “development cluster, no production traffic”."
         value={reason}
@@ -103,11 +100,7 @@ function Form({
         data-autofocus
       />
       <Select label="Accepted" data={EXPIRY} value={expiry} onChange={(v) => v && setExpiry(v)} allowDeselect={false} />
-      {accept.isError && !error ? (
-        <Alert color="red" variant="light" title="Not accepted">
-          {accept.error.message}
-        </Alert>
-      ) : null}
+      {accept.isError ? <ErrorState variant="inline" error={accept.error} /> : null}
       <Group justify="flex-end">
         <Button variant="subtle" onClick={onClose} disabled={accept.isPending}>
           Cancel

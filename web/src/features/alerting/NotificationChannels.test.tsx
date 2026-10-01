@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -22,6 +23,15 @@ function channel(over: Record<string, unknown> = {}) {
   };
 }
 
+function renderChannels() {
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <NotificationChannels />
+    </>,
+  );
+}
+
 function mockMe(permissions: string[]) {
   server.use(
     http.get('*/api/v1/auth/me', () =>
@@ -35,23 +45,27 @@ function mockMe(permissions: string[]) {
   );
 }
 
+afterEach(() => act(() => notifications.clean()));
+
 describe('NotificationChannels', () => {
   beforeEach(() => mockMe(['alert:read', 'alert:write']));
 
   it('keeps write controls visible but disabled, with the reason, for a reader', async () => {
     mockMe(['alert:read']);
     server.use(http.get('*/api/v1/channels', () => HttpResponse.json(paged([channel()]))));
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await screen.findByText('ops-slack');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add channel' })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Delete ops-slack' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Delivery log of ops-slack' })).toBeEnabled();
+    // The reason is on the page, where a keyboard user can read it, not in a hover.
+    expect(screen.getByText('Changing channels needs the alert:write permission.')).toBeInTheDocument();
   });
 
   it('lists channels without ever rendering the secret', async () => {
     server.use(http.get('*/api/v1/channels', () => HttpResponse.json(paged([channel()]))));
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     expect(await screen.findByText('ops-slack')).toBeInTheDocument();
     expect(screen.getByText('Slack')).toBeInTheDocument();
@@ -79,7 +93,7 @@ describe('NotificationChannels', () => {
         ),
       ),
     );
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     expect(await screen.findByText(/failed \d+s ago/)).toBeInTheDocument();
     expect(screen.getByText('Teams responded 404 NOT_FOUND')).toBeInTheDocument();
@@ -88,7 +102,7 @@ describe('NotificationChannels', () => {
 
   it('shows an empty state with no channels', async () => {
     server.use(http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))));
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     expect(await screen.findByText(/No notification channels configured/)).toBeInTheDocument();
   });
@@ -103,7 +117,7 @@ describe('NotificationChannels', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await screen.findByText(/No notification channels configured/);
     await user.click(screen.getByRole('button', { name: 'Add channel' }));
@@ -113,13 +127,13 @@ describe('NotificationChannels', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Add channel' }));
 
     expect(await screen.findByText('ops-slack')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Added "ops-slack".');
+    expect(await screen.findByText('Added channel "ops-slack"')).toBeInTheDocument();
   });
 
   it('validates an email channel on blur and focuses the first invalid field on save', async () => {
     const user = userEvent.setup();
     server.use(http.get('*/api/v1/channels', () => HttpResponse.json(paged([]))));
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await screen.findByText(/No notification channels configured/);
     await user.click(screen.getByRole('button', { name: 'Add channel' }));
@@ -149,7 +163,7 @@ describe('NotificationChannels', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await screen.findByText(/No notification channels configured/);
     await user.click(screen.getByRole('button', { name: 'Add channel' }));
@@ -174,7 +188,7 @@ describe('NotificationChannels', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     const trigger = await screen.findByRole('button', { name: 'Delete ops-slack' });
     await user.click(trigger);
@@ -193,7 +207,7 @@ describe('NotificationChannels', () => {
     await user.click(within(again).getByRole('button', { name: 'Delete channel' }));
 
     expect(await screen.findByText(/No notification channels configured/)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Deleted "ops-slack".');
+    expect(await screen.findByText('Deleted channel "ops-slack"')).toBeInTheDocument();
   });
 });
 
@@ -217,9 +231,11 @@ describe('NotificationChannels: the list and its row actions', () => {
         HttpResponse.json({ title: 'Unavailable', detail: 'The database is down' }, { status: 503 }),
       ),
     );
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
-    expect(await screen.findByText(/Channels could not be loaded: The database is down/)).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The database is down');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('shows where each kind delivers, and what a channel without a secret still needs', async () => {
@@ -240,7 +256,7 @@ describe('NotificationChannels: the list and its row actions', () => {
         ),
       ),
     );
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     expect(await screen.findByText('alerts.example.com')).toBeInTheDocument();
     expect(screen.getByText('a@x.test via smtp.x.test · no password')).toBeInTheDocument();
@@ -253,7 +269,7 @@ describe('NotificationChannels: the list and its row actions', () => {
     server.use(
       http.get('*/api/v1/channels', () => HttpResponse.json(paged([channel({ health: health({ pending: 2 }) })]))),
     );
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     expect(await screen.findByText(/^sent \d+s ago$/)).toBeInTheDocument();
     expect(screen.getByText('24h: 4 sent, 0 failed, 2 waiting')).toBeInTheDocument();
@@ -265,7 +281,7 @@ describe('NotificationChannels: the list and its row actions', () => {
         HttpResponse.json(paged([channel({ health: health({ lastState: 'PENDING', lastError: 'earlier hiccup' }) })])),
       ),
     );
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     expect(await screen.findByText(/^waiting \d+s ago$/)).toBeInTheDocument();
     expect(screen.queryByText('earlier hiccup')).not.toBeInTheDocument();
@@ -279,35 +295,35 @@ describe('NotificationChannels: the list and its row actions', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await user.click(await screen.findByRole('button', { name: 'Send test notification to ops-slack' }));
 
     expect(await screen.findByText('Test of ops-slack')).toBeInTheDocument();
     expect(screen.getByText('Test delivered in 31 ms')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Test delivered to ops-slack.');
+    // The result sits in a live region that exists before it, so it is announced when it lands.
+    expect(screen.getByRole('status')).toHaveTextContent('Test delivered in 31 ms');
   });
 
-  it('announces a test that was not delivered, with its reason, and one with none', async () => {
+  it('states a test that was not delivered, with its reason and what to do, and one with none', async () => {
     let reply: Record<string, unknown> = { delivered: false, permanent: true, durationMs: 3, error: 'HTTP 404' };
     server.use(
       http.get('*/api/v1/channels', () => HttpResponse.json(paged([channel()]))),
       http.post('*/api/v1/channels/ch1/test', () => HttpResponse.json(reply)),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     const send = await screen.findByRole('button', { name: 'Send test notification to ops-slack' });
     await user.click(send);
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Test to ops-slack not delivered: HTTP 404.'),
-    );
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Test not delivered'));
+    expect(screen.getByRole('status')).toHaveTextContent('HTTP 404');
+    expect(screen.getByRole('status')).toHaveTextContent('Retrying will not help');
 
     reply = { delivered: false, permanent: false, durationMs: 3 };
     await user.click(send);
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Test to ops-slack not delivered: no reason given.'),
-    );
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('The receiver gave no reason.'));
+    expect(screen.getByRole('status')).toHaveTextContent('This may be temporary');
   });
 
   it('announces a test that could not be sent at all', async () => {
@@ -318,19 +334,19 @@ describe('NotificationChannels: the list and its row actions', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await user.click(await screen.findByRole('button', { name: 'Send test notification to ops-slack' }));
 
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Test to ops-slack could not be sent: boom'),
-    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not send a test notification to ops-slack');
+    expect(alert).toHaveTextContent('boom Nothing was sent. Try again.');
   });
 
   it('opens the editor on a channel, and closes it without changing anything', async () => {
     server.use(http.get('*/api/v1/channels', () => HttpResponse.json(paged([channel()]))));
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await user.click(await screen.findByRole('button', { name: 'Edit ops-slack' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit ops-slack' });
@@ -346,7 +362,7 @@ describe('NotificationChannels: the list and its row actions', () => {
       http.get('*/api/v1/channels/ch1/deliveries', () => HttpResponse.json(paged([]))),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await user.click(await screen.findByRole('button', { name: 'Delivery log of ops-slack' }));
 
@@ -365,7 +381,7 @@ describe('NotificationChannels: the list and its row actions', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await user.click(await screen.findByRole('button', { name: 'Delete idle' }));
     expect(
@@ -378,7 +394,7 @@ describe('NotificationChannels: the list and its row actions', () => {
     expect(await screen.findByText(/1 rule routes to this channel/)).toBeInTheDocument();
   });
 
-  it('keeps the confirmation open and says why when the delete fails', async () => {
+  it('keeps the confirmation open and says why and what next when the delete fails', async () => {
     server.use(
       http.get('*/api/v1/channels', () => HttpResponse.json(paged([channel()]))),
       http.delete('*/api/v1/channels/ch1', () =>
@@ -386,14 +402,16 @@ describe('NotificationChannels: the list and its row actions', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<NotificationChannels />);
+    renderChannels();
 
     await user.click(await screen.findByRole('button', { name: 'Delete ops-slack' }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText('Type "ops-slack" to confirm'), 'ops-slack');
     await user.click(within(dialog).getByRole('button', { name: 'Delete channel' }));
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Not deleted: The channel is in use.');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not delete channel "ops-slack"');
+    expect(alert).toHaveTextContent('The channel is in use. It is still configured. Try again.');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

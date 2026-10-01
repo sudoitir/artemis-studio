@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -36,10 +37,14 @@ function capture(method: 'post' | 'put', path: string, response: unknown = chann
 
 function setup(existing: NotificationChannelView | null = null) {
   const onClose = vi.fn();
-  const onSaved = vi.fn();
   const user = userEvent.setup();
-  renderWithProviders(<ChannelEditor opened channel={existing} onClose={onClose} onSaved={onSaved} />);
-  return { user, onClose, onSaved };
+  renderWithProviders(
+    <>
+      <Notifications />
+      <ChannelEditor opened channel={existing} onClose={onClose} />
+    </>,
+  );
+  return { user, onClose };
 }
 
 async function dialog() {
@@ -58,9 +63,11 @@ async function chooseKind(user: ReturnType<typeof userEvent.setup>, label: strin
   await user.click(await screen.findByRole('option', { name: label, hidden: true }));
 }
 
+afterEach(() => act(() => notifications.clean()));
+
 describe('ChannelEditor: adding', () => {
   it('renders nothing while closed', () => {
-    renderWithProviders(<ChannelEditor opened={false} channel={null} onClose={() => {}} onSaved={() => {}} />);
+    renderWithProviders(<ChannelEditor opened={false} channel={null} onClose={() => {}} />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -84,7 +91,7 @@ describe('ChannelEditor: adding', () => {
 
   it('creates a signed webhook with a generated secret, sending the trimmed config', async () => {
     const seen = capture('post', '*/api/v1/channels', channel(), 201);
-    const { user, onSaved, onClose } = setup();
+    const { user, onClose } = setup();
     await chooseKind(user, 'Signed webhook');
     const d = await dialog();
 
@@ -93,7 +100,7 @@ describe('ChannelEditor: adding', () => {
     await user.click(d.getByRole('button', { name: 'Generate a random signing secret' }));
     await user.click(d.getByRole('button', { name: 'Add channel' }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Added "hook".'));
+    expect(await screen.findByText('Added channel "hook"')).toBeInTheDocument();
     expect(onClose).toHaveBeenCalled();
     expect(seen.body).toMatchObject({
       name: 'hook',
@@ -105,7 +112,7 @@ describe('ChannelEditor: adding', () => {
   });
 
   it('blocks a save with an invalid URL and secret, focusing the first invalid field', async () => {
-    const { user, onSaved } = setup();
+    const { user, onClose } = setup();
     await chooseKind(user, 'Signed webhook');
     const d = await dialog();
 
@@ -117,12 +124,12 @@ describe('ChannelEditor: adding', () => {
     expect(await d.findByText('An http or https URL with a host.')).toBeInTheDocument();
     expect(d.getByText('Must be base64, optionally prefixed whsec_.')).toBeInTheDocument();
     expect(d.getByLabelText(/^Receiver URL/)).toHaveFocus();
-    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('offers the PagerDuty regions and asks for a URL only for another receiver', async () => {
     const seen = capture('post', '*/api/v1/channels', channel({ kind: 'PAGERDUTY' }), 201);
-    const { user, onSaved } = setup();
+    const { user } = setup();
     await chooseKind(user, 'PagerDuty');
     const d = await dialog();
     expect(d.queryByLabelText(/^Events API v2 URL/)).not.toBeInTheDocument();
@@ -139,13 +146,13 @@ describe('ChannelEditor: adding', () => {
 
     await fill(user, d.getByLabelText(/^Events API v2 URL/), 'https://oncall.example.com/v2/enqueue');
     await user.click(d.getByRole('button', { name: 'Add channel' }));
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Added "pd".'));
+    expect(await screen.findByText('Added channel "pd"')).toBeInTheDocument();
     expect(seen.body).toMatchObject({ kind: 'PAGERDUTY', config: '{"url":"https://oncall.example.com/v2/enqueue"}' });
   }, 20_000);
 
   it('creates an email channel: follows the security choice with the port and warns about no TLS', async () => {
     const seen = capture('post', '*/api/v1/channels', channel({ kind: 'EMAIL' }), 201);
-    const { user, onSaved } = setup();
+    const { user } = setup();
     await chooseKind(user, 'Email (SMTP)');
     const d = await dialog();
     const port = d.getByLabelText(/^Port/);
@@ -174,7 +181,7 @@ describe('ChannelEditor: adding', () => {
     await fill(user, d.getByLabelText(/^Subject prefix/), '[Ops]');
     await user.click(d.getByRole('button', { name: 'Add channel' }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Added "mail".'));
+    expect(await screen.findByText('Added channel "mail"')).toBeInTheDocument();
     expect(seen.body).toMatchObject({ kind: 'EMAIL', enabled: true });
     expect(JSON.parse(String(seen.body?.config))).toEqual({
       host: 'smtp.example.com',
@@ -225,7 +232,7 @@ describe('ChannelEditor: adding', () => {
         HttpResponse.json({ title: 'Invalid', detail: 'secret: is not a reachable webhook' }, { status: 400 }),
       ),
     );
-    const { user, onSaved } = setup();
+    const { user, onClose } = setup();
     const d = await dialog();
     await user.type(d.getByLabelText(/^Name/), 'ops');
     await user.type(d.getByLabelText(/^Webhook URL/), 'https://hooks.slack.com/services/x');
@@ -233,7 +240,7 @@ describe('ChannelEditor: adding', () => {
 
     expect(await d.findByText('is not a reachable webhook')).toBeInTheDocument();
     expect(d.getByLabelText(/^Webhook URL/)).toHaveFocus();
-    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('shows any other rejection as a not-saved alert', async () => {
@@ -249,13 +256,13 @@ describe('ChannelEditor: adding', () => {
     await user.click(d.getByRole('button', { name: 'Add channel' }));
 
     const alert = await d.findByRole('alert');
-    expect(alert).toHaveTextContent('Not saved');
+    expect(alert).toHaveTextContent('This conflicts with the current state');
     expect(alert).toHaveTextContent('A channel named ops already exists.');
   });
 
   it('saves a disabled channel when the switch is turned off', async () => {
     const seen = capture('post', '*/api/v1/channels', channel({ kind: 'SLACK' }), 201);
-    const { user, onSaved } = setup();
+    const { user } = setup();
     const d = await dialog();
     await user.click(d.getByRole('switch', { name: 'Enabled — bound rules deliver here' }));
     expect(d.getByRole('switch', { name: 'Disabled — bound rules skip this channel' })).not.toBeChecked();
@@ -263,7 +270,7 @@ describe('ChannelEditor: adding', () => {
     await user.type(d.getByLabelText(/^Name/), 'quiet');
     await user.type(d.getByLabelText(/^Webhook URL/), 'https://hooks.slack.com/services/x');
     await user.click(d.getByRole('button', { name: 'Add channel' }));
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(await screen.findByText(/^Added channel/)).toBeInTheDocument();
     expect(seen.body).toMatchObject({ enabled: false, secret: 'https://hooks.slack.com/services/x', config: '{}' });
   });
 
@@ -291,26 +298,26 @@ describe('ChannelEditor: editing', () => {
 
   it('saves without a secret, keeping the stored one', async () => {
     const seen = capture('put', '*/api/v1/channels/ch1');
-    const { user, onSaved, onClose } = setup(channel());
+    const { user, onClose } = setup(channel());
     const d = await dialog();
     await user.clear(d.getByLabelText(/^Name/));
     await user.type(d.getByLabelText(/^Name/), 'renamed');
     await user.click(d.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Saved "renamed".'));
+    expect(await screen.findByText('Saved channel "renamed"')).toBeInTheDocument();
     expect(onClose).toHaveBeenCalled();
     expect(seen.body).toMatchObject({ name: 'renamed', kind: 'WEBHOOK', enabled: true });
     expect(seen.body?.secret).toBeUndefined();
   });
 
   it('requires a secret when the channel has none stored', async () => {
-    const { user, onSaved } = setup(channel({ hasSecret: false }));
+    const { user, onClose } = setup(channel({ hasSecret: false }));
     const d = await dialog();
     expect(d.queryByText(/A secret is stored/)).not.toBeInTheDocument();
     await user.click(d.getByRole('button', { name: 'Save' }));
 
     expect(await d.findByText('Signing secret is required.')).toBeInTheDocument();
-    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('starts an email channel from its stored config', async () => {

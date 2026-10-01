@@ -1,6 +1,6 @@
 .dot {
-  inline-size: 8px;
-  block-size: 8px;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
   border-radius: 50%;
   background: var(--as-alert-dot);
   flex-shrink: 0;

@@ -1,100 +1,50 @@
-import { useState } from 'react';
-import { Badge, Button, Group, Table, Text } from '@mantine/core';
+import { useMemo, useState } from 'react';
 
-import { useAlertHistory } from './api.ts';
-import { InstallationBadge } from './InstallationBadge.tsx';
-import { severityTone } from './severity.ts';
-import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Pager } from '../../ui/Pager.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { useAlertHistory, type AlertFiringView } from './api.ts';
+import { historyColumns } from './columns.ts';
 
 const PAGE_SIZE = 50;
+
+const rowKey = (f: AlertFiringView) => String(f.seq);
 
 /** Every past firing and resolution for this cluster, newest first (alerting spec). */
 export function HistoryPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
-  useDisplayZone();
+  const zone = useDisplayZone();
+  const columns = useMemo(() => historyColumns(zone), [zone]);
   const [page, setPage] = useState(1);
   const history = useAlertHistory(clusterId, page, PAGE_SIZE);
 
-  if (history.isPending) {
-    return (
-      <Text size="sm" c="dimmed">
-        Loading…
-      </Text>
-    );
-  }
-
-  const items = history.data?.data ?? [];
-  const hasMore = history.data?.hasNext ?? false;
-
-  if (items.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No firings recorded yet for this cluster.
-      </Text>
-    );
-  }
-
   return (
     <>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Rule</Table.Th>
-            <Table.Th>Subject</Table.Th>
-            <Table.Th>Severity</Table.Th>
-            <Table.Th>Started</Table.Th>
-            <Table.Th>Resolved</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {items.map((f) => {
-            const tone = severityTone(f.severity);
-            return (
-              <Table.Tr key={f.seq}>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Text size="sm">{f.ruleName}</Text>
-                    <InstallationBadge clusterId={f.clusterId} />
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" ff="monospace">
-                    {f.subjectKey}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Badge size="xs" variant="light" color={tone.color}>
-                    {tone.word}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">{absoluteLabel(f.startedAt)}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" c={f.resolvedAt ? undefined : 'dimmed'}>
-                    {f.resolvedAt ? absoluteLabel(f.resolvedAt) : 'still firing'}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-            );
-          })}
-        </Table.Tbody>
-      </Table>
-      <Group justify="space-between" mt="sm">
-        <Text size="xs" c="dimmed">
-          {history.data?.count ?? 0} total
-        </Text>
-        <Group gap="xs">
-          <Button size="xs" variant="default" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </Button>
-          <Button size="xs" variant="default" disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>
-            Next
-          </Button>
-        </Group>
-      </Group>
+      <DataTable
+        variant="static"
+        label="Alert history"
+        storageKey="alerting.history"
+        columns={columns}
+        data={history.data?.data ?? []}
+        rowKey={rowKey}
+        loading={history.isPending}
+        error={
+          history.isError ? <ErrorState error={history.error} onRetry={() => void history.refetch()} /> : undefined
+        }
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No firings recorded yet"
+            description="A firing is recorded here when a rule on this cluster fires, and again when it resolves. None has fired yet."
+          />
+        }
+      />
+      {history.data ? (
+        <Pager page={page} pageSize={PAGE_SIZE} total={history.data.count ?? 0} onChange={setPage} label="firings" />
+      ) : null}
     </>
   );
 }
