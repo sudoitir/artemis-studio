@@ -41,5 +41,5 @@
 - [x] 8.3 Run japicmp (`./mvnw verify` profile that runs it); bump `Contract.VERSION` (and `CONTRACT` in `web/src/kernel/feature.ts`) only if it flags a break. Commit 7.1's REST rename as breaking (`feat(auth)!:` with `BREAKING CHANGE:` naming `passwordAccount`). Result: `-Papi-check` reports only additions from this change (annotation added, methods added) and one `SseHub` constructor removal that is already on `main` and not touched here; this change breaks nothing in `@PluginApi` types, so `Contract.VERSION` is not bumped for it (`main` already raised it to 8 for the `SseHub` constructor)
 
 ## 9. Finish
-- [ ] 9.1 `just verify` green; Studio run with the test sign-in plugin: login screen with the plugin provider, the enrolment screen for its user, and the plugin review showing `signin-added`, light and dark, plus the degraded health state
+- [x] 9.1 `just verify` green; Studio run with the test sign-in plugin: login screen with the plugin provider, the enrolment screen for its user, and the plugin review showing `signin-added`, light and dark, plus the degraded health state
 - [ ] 9.2 `reviewer` pass on the sign-in diff (Execution); PR, SonarQube gate green, merge on green CI; `/opsx:archive`; tick `ROADMAP.md`
