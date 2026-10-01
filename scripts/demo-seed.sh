@@ -230,11 +230,13 @@ ensure /environments name staging '{"name": "staging", "sortOrder": 2}' >/dev/nu
 
 reader=$(ensure /roles name READER '{
   "name": "READER",
-  "permissions": ["cluster:read", "queue:read", "message:browse", "metric:read"]
+  "requiresMfa": false,
+  "permissions": ["cluster:read", "message:read"]
 }')
 operator=$(ensure /roles name OPERATOR '{
   "name": "OPERATOR",
-  "permissions": ["cluster:read", "queue:read", "queue:pause", "message:browse", "message:move", "metric:read"]
+  "requiresMfa": false,
+  "permissions": ["cluster:read", "queue:pause", "message:read", "message:move"]
 }')
 
 # A random password per run, printed nowhere: these accounts exist to populate the
