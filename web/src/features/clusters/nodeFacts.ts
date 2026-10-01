@@ -206,7 +206,7 @@ function originOf(endpoint: NodeEndpointView): string {
 /** `text` without the full stops it ends in; a scan from the end, so it is linear however many there are. */
 export function withoutTrailingStops(text: string): string {
   let end = text.length;
-  while (end > 0 && text.charCodeAt(end - 1) === 46) end--;
+  while (end > 0 && text[end - 1] === '.') end--;
   return text.slice(0, end);
 }
 
