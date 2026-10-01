@@ -88,7 +88,9 @@ typed, so the same broker reached by its IP address, another port or with a trai
 same broker. If any broker the check reaches or discovers already belongs to a registered cluster,
 **Check connection** says which cluster, links to it, and **Register cluster** stays disabled. That holds
 when only some of the brokers overlap, and when two people register the same brokers at the same moment:
-one cluster is created and the other registration is refused the same way.
+one cluster is created and the other registration is refused the same way. A broker cloned or restored from
+another broker's data directory carries the same NodeID, so Studio takes it for that broker; give it a
+fresh journal and it gets its own.
 
 If a capability is missing — the Core client is not reachable, or a management
 operation is not exposed — Studio tells you which one and shows the exact

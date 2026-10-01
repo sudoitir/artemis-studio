@@ -100,8 +100,8 @@ function alreadyRegistered(visible = true) {
       title: 'These brokers are already registered',
       status: 409,
       detail: visible
-        ? 'These brokers are already registered as the cluster "prod-emea" (node artemis-primary:61616). Open that cluster instead, or remove it before registering them again.'
-        : 'These brokers already belong to a registered cluster you do not have access to. Ask someone who can see it to share it with you, or to remove it.',
+        ? 'These brokers are already registered as the cluster "prod-emea" (node artemis-primary:61616). Open that cluster instead, or remove it before registering them again. If this is a cloned or restored broker, it carries the same node ID; give it a fresh journal so it gets its own.'
+        : 'These brokers already belong to a registered cluster you do not have access to. Ask someone who can see it to share it with you, or to remove it. If this is a cloned or restored broker, it carries the same node ID; give it a fresh journal so it gets its own.',
       ...(visible
         ? { existingClusterId: 'c1', existingClusterName: 'prod-emea', overlappingNodes: ['artemis-primary:61616'] }
         : {}),
@@ -201,6 +201,8 @@ describe('RegisterClusterForm', () => {
     const notice = await screen.findByRole('alert');
     expect(notice).toHaveTextContent('These brokers are already registered');
     expect(notice).toHaveTextContent(/as the cluster "prod-emea" \(node artemis-primary:61616\)/);
+    // A clone carries its original's node ID, so the notice says how to tell them apart.
+    expect(notice).toHaveTextContent(/cloned or restored broker.*give it a fresh journal/);
     const open = screen.getByRole('link', { name: 'Open prod-emea' });
     expect(open).toHaveAttribute('href', '/clusters/c1');
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();

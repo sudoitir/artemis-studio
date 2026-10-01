@@ -50,6 +50,23 @@ record ClusterIdentity(Set<String> nodeIds, Set<String> seedUrls, Set<String> un
     }
 
     /**
+     * What a registered cluster's nodes claim now: every NodeID they carry, and the management URL of a
+     * node that carries none. The same rule as a registration's {@link #claims()}, read from the nodes.
+     */
+    static Map<String, Set<String>> claimsOf(Collection<? extends ClusterNode> nodes) {
+        Set<String> nodeIds = new TreeSet<>();
+        Set<String> urls = new TreeSet<>();
+        for (ClusterNode node : nodes) {
+            if (node.getArtemisNodeId() != null) {
+                nodeIds.add(node.getArtemisNodeId());
+            } else if (node.getJolokiaUrl() != null) {
+                urls.add(normalise(node.getJolokiaUrl()));
+            }
+        }
+        return Map.of(NODE_ID, nodeIds, URL, urls);
+    }
+
+    /**
      * The registered cluster these brokers overlap, if any: a node of it matches when it carries one of
      * the NodeIDs, or its management URL has the normal form of one of the seeds. When several clusters
      * overlap, the one with the most matching nodes is named, then the first by name.

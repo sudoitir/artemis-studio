@@ -49,11 +49,15 @@ compared by its management URL in normal form (scheme and host in lower case, th
 trailing slash). The refusal SHALL be a 409 problem of type `cluster-already-registered` whose detail names
 the registered cluster and its overlapping nodes, with the cluster's id and name as `existingClusterId`
 and `existingClusterName` and the nodes as `overlappingNodes`; when the caller may not read that cluster,
-the refusal SHALL NOT name it. The refused attempt SHALL be audited as a failure, and nothing of it SHALL
-be stored. The database SHALL hold each broker's identity once, so that of two registrations of the same
-brokers made at the same time exactly one succeeds and the other receives the same refusal. The
-registration form SHALL show the refusal with a link to the registered cluster and keep Register
-disabled.
+the refusal SHALL NOT name it, and neither SHALL its audit record. The refused attempt SHALL be audited as
+a failure with the message the caller received, and nothing of it SHALL be stored. The refusal SHALL say
+that a cloned or restored broker carries the same NodeID and needs a fresh journal; there is no override.
+The database SHALL hold each broker's identity once, so that of two registrations of the same brokers
+made at the same time exactly one succeeds and the other receives the same refusal. A registered
+cluster's held identities SHALL follow its nodes: discovery, a changed NodeID and a management URL
+override SHALL update them in the same transaction, and a held identity no node carries any more SHALL be
+released rather than refuse a registration. The registration form SHALL show the refusal with a link to
+the registered cluster and keep Register disabled.
 
 #### Scenario: The same management URL
 
@@ -90,3 +94,27 @@ disabled.
 
 - **WHEN** the brokers belong to a cluster the caller has no grant to read
 - **THEN** the registration is refused with a 409 that names no cluster, no id and no nodes
+- **AND** the audit record of the attempt names no cluster and no node either
+
+#### Scenario: A management URL moved by an override is released
+
+- **WHEN** a registered node known only by its management URL is given another URL by an override
+- **THEN** its cluster holds the new URL and no longer holds the old one
+- **AND** a broker that later answers at the old URL can be registered
+
+#### Scenario: A held identity no node carries any more
+
+- **WHEN** a cluster still holds a broker's identity but none of its nodes carries it, its node having
+  moved or its broker's journal having been replaced
+- **THEN** registering that broker succeeds, and the identity passes to the new cluster
+
+#### Scenario: Nodes found after registration are held
+
+- **WHEN** discovery finds a node that joined the cluster after it was registered, or a node reports a
+  NodeID other than the stored one
+- **THEN** the cluster holds that node's identity from then on
+
+#### Scenario: A cloned broker
+
+- **WHEN** a broker cloned or restored from a registered broker's data directory is registered
+- **THEN** it is refused as the same broker, and the refusal says to give it a fresh journal

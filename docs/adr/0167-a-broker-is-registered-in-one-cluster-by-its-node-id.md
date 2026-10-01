@@ -41,20 +41,37 @@ pass it before either commits.
    claim that is not yet committed, so the second of two racing registrations finds the first's claim, and
    is refused like any other, never with a constraint violation. The table starts empty: clusters
    registered before it are still found by the check through `broker_node`.
+5. **Claims follow the nodes.** A cluster claims what its nodes carry now: every NodeID, and the URL of a
+   node without one. Every write that can change that rewrites the cluster's claims in its own
+   transaction, releasing what it no longer has and claiming what it has in the same key order:
+   discovery (at registration and on every discovery tick, so a node found later is claimed too), a
+   tier-A read whose NodeID differs from the stored one, and a management URL override. Deleting a
+   cluster deletes its claims.
+6. **A stale claim is released, not obeyed.** When a registration's claim finds another holder but the
+   check finds no node of any cluster carrying those identities, the holder's claim is stale (its node
+   moved or its broker's journal was replaced while it could not be read). The registration releases it
+   and claims again. A racing registration that has committed its nodes is still refused, because the
+   check then finds them.
 4. **Refusal.** A 409 problem of type `cluster-already-registered`, titled "These brokers are already
    registered", whose detail names the cluster and the overlapping nodes, with `existingClusterId`,
    `existingClusterName` and `overlappingNodes`. A caller with no read grant on that cluster is told only
    that the brokers are taken: naming the cluster would reveal that it exists (the authorization spec). The
-   attempt is audited as a failure with the full detail either way.
+   attempt is audited as a failure with the message the caller was given. The row belongs to no cluster,
+   so no cluster's read grant guards it, and it must not name what its actor could not see; its seed URLs
+   still let an administrator find the holder. Every refusal ends by saying that a cloned or restored
+   broker carries the same NodeID and needs a fresh journal.
 
 ## Consequences
 
 - One set of brokers is one cluster. The registration form names the cluster that has them and links to it.
 - The NodeID is the broker's journal identity: a broker whose data directory is wiped gets a new one and
   can be registered again, which is right, since it is a new broker to Artemis too.
-- Discovery after registration (`rediscover`) does not claim nodes that join later. The check still finds
-  them through `broker_node`; only a registration racing that discovery could slip past, which is not
-  worth a claim on every discovery tick.
+- A broker cloned from another (a copied VM, a restored backup of its data directory) carries the
+  original's NodeID, and Studio cannot tell the two apart: registering the clone is refused, and there is
+  no override. The refusal says so, and the fix is the broker's: give it a fresh journal so it gets its
+  own NodeID. An override would reopen the duplicate clusters this decision exists to prevent.
+- The discovery tick rewrites a cluster's claims each time it runs: one delete and one insert that write
+  nothing when the nodes did not change.
 - A test that needs several clusters over one broker can no longer register it several times; the
   replicas test copies a registered cluster in the database instead.
 - The URL fallback does not see that two different URLs reach the same broker when neither reports a

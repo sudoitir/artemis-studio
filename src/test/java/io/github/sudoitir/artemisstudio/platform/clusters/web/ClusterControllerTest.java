@@ -384,6 +384,14 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.existingClusterId").doesNotExist())
                 .andExpect(jsonPath("$.overlappingNodes").doesNotExist());
         assertThat(clusters.count()).isEqualTo(1);
+        // The refused attempt's row belongs to no cluster, so it must not name the one the caller cannot see.
+        assertThat(audits.findAll())
+                .filteredOn(e -> "FAILURE".equals(e.getOutcome()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.getError())
+                        .contains("a registered cluster you do not have access to")
+                        .doesNotContain("prod-emea")
+                        .doesNotContain("artemis-primary"));
     }
 
     @Test

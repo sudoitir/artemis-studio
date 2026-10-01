@@ -11,6 +11,13 @@ import java.util.UUID;
  */
 public class ClusterAlreadyRegisteredException extends RuntimeException {
 
+    /**
+     * A broker copied from another (a cloned VM, a restored backup of its data directory) carries the same
+     * NodeID, so Studio cannot tell it apart from the one it was copied from (ADR-0167).
+     */
+    private static final String CLONED = " If this is a cloned or restored broker, it carries the same node ID;"
+            + " give it a fresh journal so it gets its own.";
+
     private final UUID existingClusterId;
     private final String existingClusterName;
     private final List<String> overlappingNodes;
@@ -42,7 +49,7 @@ public class ClusterAlreadyRegisteredException extends RuntimeException {
     private static String detail(UUID clusterId, String name, List<String> nodes) {
         if (clusterId == null) {
             return "These brokers already belong to a registered cluster you do not have access to."
-                    + " Ask someone who can see it to share it with you, or to remove it.";
+                    + " Ask someone who can see it to share it with you, or to remove it." + CLONED;
         }
         String which =
                 switch (nodes.size()) {
@@ -51,6 +58,6 @@ public class ClusterAlreadyRegisteredException extends RuntimeException {
                     default -> " (nodes " + String.join(", ", nodes) + ")";
                 };
         return "These brokers are already registered as the cluster \"" + name + "\"" + which + "."
-                + " Open that cluster instead, or remove it before registering them again.";
+                + " Open that cluster instead, or remove it before registering them again." + CLONED;
     }
 }

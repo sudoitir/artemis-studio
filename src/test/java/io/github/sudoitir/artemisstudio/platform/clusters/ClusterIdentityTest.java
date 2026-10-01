@@ -109,6 +109,19 @@ class ClusterIdentityTest {
     }
 
     @Test
+    void aRegisteredClusterClaimsItsNodeIdsAndTheUrlOfANodeWithoutOne() {
+        List<BrokerNodeEntity> registered = List.of(
+                node(prod, "artemis-primary:61616", PAIR, null),
+                node(prod, "localhost:8161", PAIR, "http://localhost:8161/console/jolokia"),
+                node(prod, "broker-2:8161", null, "HTTP://Broker-2:8161/console/jolokia/"),
+                node(prod, "broker-3:61616", null, null));
+
+        assertThat(ClusterIdentity.claimsOf(registered))
+                .containsEntry(ClusterIdentity.NODE_ID, Set.of(PAIR))
+                .containsEntry(ClusterIdentity.URL, Set.of("http://broker-2:8161/console/jolokia"));
+    }
+
+    @Test
     void claimsEveryNodeIdAndTheUrlOfASeedWithoutOne() {
         ClusterIdentity identity = new ClusterIdentity(
                 Set.of(PAIR),

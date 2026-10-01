@@ -52,6 +52,7 @@ public class TopologyDiscovery {
     private final BrokerNodeRepository nodes;
     private final HaStateEvaluator evaluator;
     private final BrokerNodeMapper nodeMapper;
+    private final ClusterIdentityClaims identityClaims;
 
     /** A seed the caller has already connected to. */
     public record ProbedSeed(String jolokiaUrl, JolokiaBrokerClient client) {}
@@ -138,7 +139,11 @@ public class TopologyDiscovery {
             attachSeed(clusterId, r);
         }
 
-        // 3. Re-read and evaluate.
+        // 3. The cluster now claims exactly the brokers its nodes carry (ADR-0167): nodes found after
+        // registration are claimed, and a NodeID that changed releases the old one.
+        identityClaims.sync(clusterId);
+
+        // 4. Re-read and evaluate.
         return evaluated(clusterId);
     }
 
