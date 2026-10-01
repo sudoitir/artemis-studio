@@ -1,0 +1,10 @@
+# Runs the isolated QA stack's Studio from a jar built on the host instead of an image built from
+# source: the released runtime image with that jar mounted over its own. Building the image needs
+# room for the Maven and Node build stages; this needs only the jar. `just qa-up` adds this file
+# when QA_JAR is set (build the jar with `./mvnw -Pfrontend -DskipTests package`).
+services:
+  studio:
+    build: !reset null
+    image: ${QA_RUNTIME_IMAGE:-sudoit1/artemis-studio:latest}
+    volumes:
+      - ${QA_JAR:?set QA_JAR to the jar to run}:/app/app.jar:ro

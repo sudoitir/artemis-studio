@@ -123,11 +123,14 @@ qa-up name port demo="":
     [ -z "{{demo}}" ] || files+=(-f deploy/compose/compose.demo.yaml)
     files+=(-f deploy/compose/compose.isolated.yaml)
     [ -z "{{demo}}" ] || files+=(-f deploy/compose/compose.isolated-demo.yaml)
+    # QA_JAR runs a jar built on the host in the released runtime image, instead of building the image.
+    build=--build
+    if [ -n "${QA_JAR:-}" ]; then files+=(-f deploy/compose/compose.isolated-jar.yaml); build=; fi
     export COMPOSE="docker compose -p artemis-studio-qa-{{name}} ${files[*]}"
     export STUDIO=http://127.0.0.1:{{port}}
     auth=web/.sweep/auth
     creds=$auth/credentials.env
-    $COMPOSE up --build -d --wait
+    $COMPOSE up $build -d --wait
     mkdir -p "$auth"
     export ADMIN_USER=admin COOKIES=$(mktemp)
     trap 'rm -f "$COOKIES"' EXIT
