@@ -1,6 +1,6 @@
 # ADR-0116: Grid columns fit their content and resize
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0161](0161-columns-are-sized-by-a-solver-over-measured-content.md)
 - **Date**: 2026-09-27
 - **Deciders**: Artemis Studio maintainers
 

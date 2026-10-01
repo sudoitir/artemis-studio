@@ -1,6 +1,6 @@
 # ADR-0005: Frontend on React 19 + Vite + Mantine 9
 
-- **Status**: accepted
+- **Status**: accepted (amended by [ADR-0159](0159-the-colour-scheme-follows-the-system.md))
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
 
