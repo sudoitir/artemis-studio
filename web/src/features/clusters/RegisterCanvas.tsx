@@ -34,7 +34,7 @@ function PreviewCanvas({ topology, stale }: Readonly<{ topology: TopologyView; s
   return (
     <Stack gap="xs">
       <Alert
-        color={stale ? 'yellow' : 'pine'}
+        color={stale ? 'yellow' : undefined}
         variant="light"
         title={stale ? 'Changed since you checked' : 'Discovered topology'}
       >

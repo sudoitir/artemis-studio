@@ -358,7 +358,7 @@ function FindingsPanel({
               token={data.source.queue}
               label={`Type the source queue's name, "${data.source.queue}", to confirm`}
               confirmLabel={confirmLabel}
-              color={data.mode === 'MOVE' ? 'red' : 'pine'}
+              color={data.mode === 'MOVE' ? 'red' : 'cobalt'}
               loading={execute.isPending}
               disabled={unacked > 0 || execute.isPending}
               onConfirm={onStart}

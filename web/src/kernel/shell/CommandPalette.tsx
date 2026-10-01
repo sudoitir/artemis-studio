@@ -9,6 +9,7 @@ import { useCan } from '../auth/useCan.ts';
 import type { ModuleId, PaletteSource } from '../feature.ts';
 import { useFeatures } from '../features.ts';
 import { navGroups } from '../registry.ts';
+import { densityToggleLabel, useDensity } from '../../ui/table/density.ts';
 import { useColorSchemeToggle } from './useColorSchemeToggle.ts';
 import { readRecents } from './recents.ts';
 
@@ -45,7 +46,7 @@ function Source({
  * same way.
  *
  * Pause and the colour scheme are here too, so every header control is reachable from the keyboard
- * without a hotkey of its own (ADR-0052, ADR-0118).
+ * without a hotkey of its own (ADR-0052, ADR-0118), and so is the table density (ADR-0161).
  */
 export function CommandPalette() {
   const navigate = useNavigate();
@@ -53,6 +54,7 @@ export function CommandPalette() {
   const clusterId = params.clusterId;
   const paused = usePollingPaused();
   const scheme = useColorSchemeToggle();
+  const [density, setDensity] = useDensity();
   const features = useFeatures();
   const { can, loading: grantsLoading } = useCan();
   const [query, setQuery] = useState('');
@@ -98,6 +100,11 @@ export function CommandPalette() {
           onClick: () => setPollingPaused(!isPollingPaused()),
         },
         { id: 'toggle-color-scheme', label: scheme.label, onClick: scheme.toggle },
+        {
+          id: 'toggle-table-density',
+          label: densityToggleLabel(density),
+          onClick: () => setDensity(density === 'compact' ? 'comfortable' : 'compact'),
+        },
       ],
     });
 
@@ -124,7 +131,7 @@ export function CommandPalette() {
     // In composition order, and only for features still enabled.
     for (const feature of features) out.push(...(contributed[feature.id] ?? []));
     return out;
-  }, [clusterId, navigate, paused, scheme, features, contributed, recents, can, grantsLoading]);
+  }, [clusterId, navigate, paused, scheme, density, setDensity, features, contributed, recents, can, grantsLoading]);
 
   return (
     <>

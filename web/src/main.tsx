@@ -6,6 +6,8 @@ import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 
+import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
+import '@fontsource-variable/atkinson-hyperlegible-mono/index.css';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/spotlight/styles.css';
@@ -18,7 +20,7 @@ import { installPauseSeam, mountRefetch } from './kernel/api/polling.ts';
 import { FEATURES } from './app/features.ts';
 import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
-import { theme } from './theme.ts';
+import { cssVariablesResolver, theme } from './theme.ts';
 import { BootNotice } from './kernel/plugins/BootNotice.tsx';
 import { createAppRouter } from './app/router.ts';
 import { manifestKey } from './kernel/manifest.ts';
@@ -92,7 +94,7 @@ const router = createAppRouter(queryClient, features);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} defaultColorScheme="auto">
       <CodeHighlightAdapterProvider adapter={shikiAdapter}>
         <Notifications position="top-right" />
         <BootNotice />

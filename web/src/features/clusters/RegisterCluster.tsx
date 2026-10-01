@@ -300,7 +300,6 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
                 register.mutate(payload(), {
                   onSuccess: (detail) => {
                     notifications.show({
-                      color: 'pine',
                       title: 'Cluster registered',
                       message: detail.name,
                     });

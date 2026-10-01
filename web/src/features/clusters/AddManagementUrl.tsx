@@ -74,7 +74,6 @@ export function AddManagementUrl({
                 {
                   onSuccess: () => {
                     notifications.show({
-                      color: 'pine',
                       title: 'Node URL updated',
                       message: endpoint.coreUrl ?? endpoint.name,
                     });
