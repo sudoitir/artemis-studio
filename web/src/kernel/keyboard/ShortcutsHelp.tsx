@@ -209,6 +209,17 @@ export function ShortcutsHelp() {
                   { keys: [['Home'], ['End']], what: 'On the separator: the smallest or the largest editor' },
                 ]}
               />
+
+              <Shortcuts
+                title="In the topology"
+                rows={[
+                  { keys: [['←'], ['→']], what: 'Move between columns of nodes' },
+                  { keys: [['↑'], ['↓']], what: 'Move within a column' },
+                  { keys: [['Home'], ['End']], what: 'First or last node' },
+                  { keys: [['Enter'], ['Space']], what: 'Choose the node and announce it' },
+                  { keys: [['Escape']], what: 'Clear the choice, keeping focus on the node' },
+                ]}
+              />
             </Section>
           </Stack>
         </ScrollArea.Autosize>

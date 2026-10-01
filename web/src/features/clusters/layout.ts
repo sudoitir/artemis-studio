@@ -1,6 +1,9 @@
 import type { Edge, Node } from '@xyflow/react';
 
 import type { HealthView, LogicalNodeView, NodeEndpointView, TopologyView } from './api.ts';
+import { isServing, nodeFacts, type NodeFacts, type NodeKind } from './nodeFacts.ts';
+
+export type { NodeKind };
 
 /**
  * The identity-axis grammar, as a pure layout function (was `PairSpine`).
@@ -21,52 +24,54 @@ import type { HealthView, LogicalNodeView, NodeEndpointView, TopologyView } from
  * entering only when something is wrong. Every node also prints a status word, so
  * neither colour nor shape is ever the sole signal (non-negotiable #6).
  *
- * Pure by contract: no callbacks and no React state live here. The
- * "add a management URL" action reaches the unmanaged node through a context in
- * `TopologyCanvas`, so the registration preview can render the same graph with no
- * action attached.
+ * Pure by contract: no callbacks and no React state live here. Every word on a box comes
+ * from `nodeFacts`, so the box, the table and the side panel say the same thing.
  */
 
 /**
  * Box geometry. Children are positioned relative to their group.
  *
  * <p>These are absolute pixels the canvas cannot negotiate with, so the box has
- * to be exactly `NODE_H` tall whatever it contains — `TopologyGraph.module.css`
- * pins it there and clamps the two variable-length lines (the name, the last
- * error) to fit. An endpoint with a long name and an error message used to grow
- * past its slot and sit on top of the standby box below it.
+ * to be exactly `NODE_H` tall whatever it contains — `TopologyCanvas.module.css`
+ * pins it there and shortens each of its four lines to one. An endpoint with a
+ * long name and an error message used to grow past its slot and sit on top of the
+ * standby box below it.
  */
 export const NODE_W = 260;
-export const NODE_H = 132;
+export const NODE_H = 112;
 export const GROUP_PAD = 20;
 export const GROUP_GAP = 44;
 export const LIVE_Y = 36;
-export const BACKUP_Y = 216;
-export const AXIS_Y = 186;
+export const AXIS_Y = LIVE_Y + NODE_H + 18;
+export const BACKUP_Y = AXIS_Y + 30;
 export const GROUP_H = BACKUP_Y + NODE_H + GROUP_PAD;
-const SPLIT_BRAIN_DX = NODE_W + 20;
+const BOX_DX = NODE_W + 20;
 
 /** Column pitch for a single-endpoint-wide group; kept for callers that lay out by column. */
 export const COL_W = NODE_W + 2 * GROUP_PAD + GROUP_GAP;
 
-export type NodeKind = 'live' | 'standby' | 'behind' | 'down' | 'unmanaged';
 export type AxisStatus = 'ok' | 'behind' | 'suspected' | 'critical';
 
+/** The four lines of a box, and the sentence that names it. */
 export interface BrokerNodeData extends Record<string, unknown> {
+  /** Line 1: the name, with the version beside it. */
   name: string;
-  kind: NodeKind;
-  statusWord: string;
-  shortId: string;
   version: string | null;
-  /** Why this node's release is outside what Studio supports or has tested, in words; null when it is neither. */
-  versionNote: string | null;
-  address: string | null;
-  lastError: string | null;
+  /** "unsupported" or "untested", beside the version; null when it is neither. */
+  versionFlag: string | null;
+  /** Line 2: the mark's shape, and the liveness in words. */
+  kind: NodeKind;
+  liveness: string;
+  /** Line 3: the role and the pair. */
+  roleLine: string;
+  /** Line 4: the address, or the error that stopped Studio reaching the node. */
+  detail: string | null;
+  detailIsError: boolean;
   offset: boolean;
-  unmanaged: boolean;
-  /** The broker endpoints this box stands for: one, or every endpoint of a collapsed pair. */
+  /** The broker endpoints this box stands for: one, or every endpoint of a collapsed pair, its head first. */
   nodeIds: string[];
-  srSentence: string;
+  /** The box's accessible name. */
+  sentence: string;
 }
 
 export interface PairGroupData extends Record<string, unknown> {
@@ -88,10 +93,10 @@ export type TopologyNode = Node<BrokerNodeData> | Node<PairGroupData>;
 export const DENSE_THRESHOLD = 24;
 
 /** Pairs per row once the layout wraps. */
-const DENSE_COLUMNS = 8;
+export const DENSE_COLUMNS = 8;
 
 /** Row pitch for a collapsed box. */
-const DENSE_ROW_H = 140;
+const DENSE_ROW_H = NODE_H + 16;
 
 export interface TopologyLayout {
   nodes: TopologyNode[];
@@ -103,6 +108,13 @@ export interface TopologyLayout {
    * than one looking at a slow graph (ADR-0056).
    */
   dense: boolean;
+  /** How many logical nodes (pairs) the topology has, which the reduced-detail bound is measured in. */
+  logicalCount: number;
+  /**
+   * The boxes in their keyboard columns, left to right and top to bottom within a column: a pair is
+   * one column, a split brain's two serving boxes are two, and a reduced-detail grid's columns are its eight.
+   */
+  columns: string[][];
 }
 
 /**
@@ -111,6 +123,7 @@ export interface TopologyLayout {
  */
 export const NODE_MARKS: ReadonlyArray<{ kind: NodeKind; label: string }> = [
   { kind: 'live', label: 'serving' },
+  { kind: 'split', label: 'split brain' },
   { kind: 'standby', label: 'standby, in sync' },
   { kind: 'behind', label: 'replication behind' },
   { kind: 'down', label: 'stopped or unreachable' },
@@ -127,89 +140,43 @@ export function isBrokerNode(node: TopologyNode): node is Node<BrokerNodeData> {
   return node.type !== 'pair';
 }
 
-function host(url: string | null): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    return u.port ? `${u.hostname}:${u.port}` : u.hostname;
-  } catch {
-    return url;
-  }
-}
-
-function kindOf(endpoint: NodeEndpointView, serving: boolean): NodeKind {
-  if (!endpoint.manageable) return 'unmanaged';
-  if (endpoint.state === 'STOPPED' || endpoint.lastError) return 'down';
-  if (serving) return 'live';
-  return endpoint.replicaSync === false ? 'behind' : 'standby';
-}
-
-function statusWordOf(kind: NodeKind, endpoint: NodeEndpointView): string {
-  switch (kind) {
-    case 'live':
-      return 'live';
-    case 'down':
-      return endpoint.lastError ? 'unreachable' : 'stopped';
-    case 'unmanaged':
-      return 'discovered — no management URL';
-    case 'behind':
-      return 'not caught up';
-    case 'standby':
-      return 'standby';
-  }
-}
-
 function brokerNode(
   parentId: string,
   x: number,
   y: number,
   endpoint: NodeEndpointView,
-  serving: boolean,
+  logical: LogicalNodeView,
   offset: boolean,
-  logicalId: string | null,
 ): Node<BrokerNodeData> {
-  const kind = kindOf(endpoint, serving);
-  const statusWord = statusWordOf(kind, endpoint);
-  const version = endpoint.version ? `, Artemis ${endpoint.version}` : '';
-  const versionNote = versionNoteOf(endpoint);
-  const note = versionNote ? `, ${versionNote}` : '';
-  const srSentence = `${endpoint.name}: ${statusWord}${version}${note}.`;
+  const facts = nodeFacts(endpoint, logical);
   return {
     id: endpoint.id,
-    type: kind === 'unmanaged' ? 'unmanaged' : 'broker',
+    type: 'broker',
     parentId,
     extent: 'parent',
     position: { x, y },
     draggable: false,
     connectable: false,
-    ariaLabel: srSentence,
-    data: {
-      name: endpoint.name,
-      kind,
-      statusWord,
-      shortId: (logicalId ?? '—').slice(0, 8),
-      version: endpoint.version ?? null,
-      versionNote,
-      address: host(endpoint.jolokiaUrl ?? null) ?? endpoint.coreUrl ?? null,
-      lastError: endpoint.lastError ?? null,
-      offset,
-      unmanaged: kind === 'unmanaged',
-      nodeIds: [endpoint.id],
-      srSentence,
-    },
+    data: boxOf(facts, offset),
   };
 }
 
-/** The supported-range verdict as words (ADR-0142); colour only repeats it. */
-export function versionNoteOf(endpoint: NodeEndpointView): string | null {
-  switch (endpoint.versionSupport) {
-    case 'BELOW_MINIMUM':
-      return 'unsupported release: older than Studio supports';
-    case 'NEWER_THAN_TESTED':
-      return 'newer release than Studio has tested';
-    default:
-      return null;
-  }
+/** The four lines of an endpoint's box, from its facts. */
+function boxOf(facts: NodeFacts, offset: boolean): BrokerNodeData {
+  const error = facts.liveness.kind === 'unreachable' ? facts.lastError : null;
+  return {
+    name: facts.name,
+    version: facts.version,
+    versionFlag: facts.versionFlag,
+    kind: facts.mark,
+    liveness: facts.liveness.label,
+    roleLine: `${facts.role} · ${facts.pair}`,
+    detail: error ?? facts.address,
+    detailIsError: error !== null,
+    offset,
+    nodeIds: [facts.id],
+    sentence: facts.sentence,
+  };
 }
 
 function axisStatusOf(logical: LogicalNodeView): AxisStatus {
@@ -231,72 +198,63 @@ function axisNoteOf(status: AxisStatus): string {
   }
 }
 
-/** Both live endpoints of a split brain, side by side: neither is the primary and neither a backup. */
-function splitBrainChildren(
-  logical: LogicalNodeView,
-  groupId: string,
-  serving: NodeEndpointView[],
-): { children: Node<BrokerNodeData>[]; edges: Edge[] } {
-  const children = serving.map((e, i) =>
-    brokerNode(groupId, GROUP_PAD + i * SPLIT_BRAIN_DX, LIVE_Y, e, true, false, logical.artemisNodeId ?? null),
-  );
-  return { children, edges: [] };
-}
-
-/** The serving endpoint above its backup, with the replication line between them. */
+/**
+ * Every endpoint of a pair, in two rows: the serving ones above the axis, the rest below it, each row
+ * side by side. A healthy pair is one box above one box, with the replication line between them. A
+ * split brain is two serving boxes side by side with no line, because neither is the primary and
+ * neither a backup. Whatever else a pair holds (a second serving endpoint that is only suspected, a
+ * backup with the primary down) is drawn too: a node the graph does not draw is a node the operator
+ * does not know to look at.
+ */
 function pairChildren(
   logical: LogicalNodeView,
   groupId: string,
   serving: NodeEndpointView[],
   others: NodeEndpointView[],
-): { children: Node<BrokerNodeData>[]; edges: Edge[] } {
-  const children: Node<BrokerNodeData>[] = [];
-  const edges: Edge[] = [];
-  const top = serving[0] ?? null;
-  const bottom = others[0] ?? null;
-  if (top) {
-    children.push(brokerNode(groupId, GROUP_PAD, LIVE_Y, top, true, false, logical.artemisNodeId ?? null));
-  }
-  if (bottom) {
-    children.push(
-      brokerNode(groupId, GROUP_PAD, BACKUP_Y, bottom, false, logical.replicationBehind, logical.artemisNodeId ?? null),
-    );
-  }
-  if (top && bottom) {
-    edges.push({
-      id: `${top.id}--${bottom.id}`,
-      source: top.id,
-      target: bottom.id,
-      style: {
-        stroke: logical.replicationBehind ? 'var(--as-graph-edge-behind)' : 'var(--as-graph-edge)',
-        strokeDasharray: logical.replicationBehind ? '6 4' : undefined,
-      },
-    });
-  }
-  return { children, edges };
+  axisStatus: AxisStatus,
+): { children: Node<BrokerNodeData>[]; edges: Edge[]; columns: string[][] } {
+  const above = serving.map((e, i) => brokerNode(groupId, GROUP_PAD + i * BOX_DX, LIVE_Y, e, logical, false));
+  const below = others.map((e, i) =>
+    brokerNode(groupId, GROUP_PAD + i * BOX_DX, BACKUP_Y, e, logical, logical.replicationBehind),
+  );
+  const top = above[0];
+  const edges: Edge[] =
+    axisStatus === 'critical' || !top
+      ? []
+      : below.map((bottom) => ({
+          id: `${top.id}--${bottom.id}`,
+          source: top.id,
+          target: bottom.id,
+          style: {
+            stroke: logical.replicationBehind ? 'var(--as-graph-edge-behind)' : 'var(--as-graph-edge)',
+            strokeDasharray: logical.replicationBehind ? '6 4' : undefined,
+          },
+        }));
+  // Each box has its column, the serving one above the other, so the keyboard reads the picture.
+  const columns = Array.from({ length: Math.max(above.length, below.length) }, (_, i) =>
+    [above[i], below[i]].filter((box) => box !== undefined).map((box) => box.id),
+  );
+  return { children: [...above, ...below], edges, columns };
 }
 
 /**
  * One logical node → one group node plus its endpoint children. Returns the
  * group's own width so the caller can pack groups left to right without a
- * split-brain group (which is wider) overlapping its neighbour.
+ * wider group (a split brain's, say) overlapping its neighbour.
  */
 function layoutLogicalNode(
   logical: LogicalNodeView,
   x: number,
-): { nodes: TopologyNode[]; edges: Edge[]; width: number } {
+): { nodes: TopologyNode[]; edges: Edge[]; width: number; columns: string[][] } {
   const axisStatus = axisStatusOf(logical);
   const shortId = (logical.artemisNodeId ?? '—').slice(0, 8);
   const groupId = `pair:${logical.artemisNodeId ?? shortId}`;
-  const serving = logical.endpoints.filter((e) => e.active && !e.lastError);
-  const others = logical.endpoints.filter((e) => !(e.active && !e.lastError));
+  const serving = logical.endpoints.filter(isServing);
+  const others = logical.endpoints.filter((e) => !isServing(e));
 
-  const { children, edges } =
-    axisStatus === 'critical'
-      ? splitBrainChildren(logical, groupId, serving)
-      : pairChildren(logical, groupId, serving, others);
+  const { children, edges, columns } = pairChildren(logical, groupId, serving, others, axisStatus);
 
-  const spread = Math.max(0, children.length - 1) * (axisStatus === 'critical' ? SPLIT_BRAIN_DX : 0);
+  const spread = Math.max(0, columns.length - 1) * BOX_DX;
   const width = NODE_W + spread + 2 * GROUP_PAD;
 
   const group: Node<PairGroupData> = {
@@ -311,11 +269,12 @@ function layoutLogicalNode(
   };
 
   // React Flow requires a parent to precede its children in the node array.
-  return { nodes: [group, ...children], edges, width };
+  return { nodes: [group, ...children], edges, width, columns };
 }
 
 function collapsedKind(axisStatus: AxisStatus, serving: number): NodeKind {
-  if (axisStatus === 'critical' || axisStatus === 'suspected') return 'down';
+  if (axisStatus === 'critical') return 'split';
+  if (axisStatus === 'suspected') return 'down';
   if (axisStatus === 'behind') return 'behind';
   return serving > 0 ? 'live' : 'down';
 }
@@ -338,16 +297,14 @@ function collapsedStatusWord(axisStatus: AxisStatus, serving: number, standby: n
  */
 function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<BrokerNodeData> {
   const axisStatus = axisStatusOf(logical);
-  const serving = logical.endpoints.filter((e) => e.active && !e.lastError);
-  const others = logical.endpoints.filter((e) => !(e.active && !e.lastError));
+  const serving = logical.endpoints.filter(isServing);
+  const others = logical.endpoints.filter((e) => !isServing(e));
   const head = serving[0] ?? others[0] ?? null;
   const shortId = (logical.artemisNodeId ?? '—').slice(0, 8);
 
   const kind = collapsedKind(axisStatus, serving.length);
   const statusWord = collapsedStatusWord(axisStatus, serving.length, others.length);
-  const srSentence = `Node ${shortId}: ${statusWord}. ${logical.endpoints.length} endpoint${
-    logical.endpoints.length === 1 ? '' : 's'
-  }.`;
+  const count = `${logical.endpoints.length} endpoint${logical.endpoints.length === 1 ? '' : 's'}`;
 
   return {
     id: `collapsed:${logical.artemisNodeId ?? shortId}`,
@@ -356,20 +313,19 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
     draggable: false,
     connectable: false,
     selectable: false,
-    ariaLabel: srSentence,
     data: {
       name: head?.name ?? shortId,
-      kind,
-      statusWord,
-      shortId,
       version: null,
-      versionNote: null,
-      address: null,
-      lastError: null,
+      versionFlag: null,
+      kind,
+      liveness: statusWord,
+      roleLine: count,
+      detail: `node ${shortId}`,
+      detailIsError: false,
       offset: false,
-      unmanaged: false,
-      nodeIds: logical.endpoints.map((e) => e.id),
-      srSentence,
+      // The head first: choosing the box chooses it, and the panel lists the rest.
+      nodeIds: [...serving, ...others].map((e) => e.id),
+      sentence: `Node ${shortId}: ${statusWord}. ${count[0].toUpperCase()}${count.slice(1)}.`,
     },
   };
 }
@@ -379,7 +335,10 @@ export function layout(topology: TopologyView, health: HealthView): TopologyLayo
 
   const nodes: TopologyNode[] = [];
   const edges: Edge[] = [];
+  const columns: string[][] = [];
   const dense = ordered.length > DENSE_THRESHOLD;
+  const logicalCount = ordered.length;
+  const summary = summarise(topology, health);
 
   if (dense) {
     // Wrapped into a grid rather than one endless row: at this count the strip is
@@ -387,9 +346,11 @@ export function layout(topology: TopologyView, health: HealthView): TopologyLayo
     ordered.forEach((logical, i) => {
       const column = i % DENSE_COLUMNS;
       const row = Math.floor(i / DENSE_COLUMNS);
-      nodes.push(collapsedNode(logical, column * COL_W, row * DENSE_ROW_H));
+      const box = collapsedNode(logical, column * COL_W, row * DENSE_ROW_H);
+      nodes.push(box);
+      (columns[column] ??= []).push(box.id);
     });
-    return { nodes, edges, summary: summarise(topology, health), dense };
+    return { nodes, edges, summary, dense, logicalCount, columns };
   }
 
   let x = 0;
@@ -397,10 +358,11 @@ export function layout(topology: TopologyView, health: HealthView): TopologyLayo
     const part = layoutLogicalNode(logical, x);
     nodes.push(...part.nodes);
     edges.push(...part.edges);
+    columns.push(...part.columns);
     x += part.width + GROUP_GAP;
   }
 
-  return { nodes, edges, summary: summarise(topology, health), dense };
+  return { nodes, edges, summary, dense, logicalCount, columns };
 }
 
 /** The sentence the roll-up adds to the health level, when a pair is in trouble. */
@@ -413,8 +375,8 @@ function rollUpOf(health: HealthView): string {
 function summarise(topology: TopologyView, health: HealthView): string {
   const parts = topology.nodes.map((n) => {
     const id = (n.artemisNodeId ?? 'unknown').slice(0, 8);
-    const live = n.endpoints.filter((e) => e.active && !e.lastError).map((e) => e.name);
-    const standby = n.endpoints.filter((e) => !(e.active && !e.lastError)).map((e) => e.name);
+    const live = n.endpoints.filter(isServing).map((e) => e.name);
+    const standby = n.endpoints.filter((e) => !isServing(e)).map((e) => e.name);
     const standbyNote = standby.length ? `, ${standby.join(', ')} standby` : '';
     return `node ${id}: ${live.join(', ') || 'none'} live${standbyNote}`;
   });

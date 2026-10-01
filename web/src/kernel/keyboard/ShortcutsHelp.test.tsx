@@ -31,6 +31,8 @@ describe('ShortcutsHelp', () => {
     expect(within(popover).getByRole('heading', { level: 2, name: 'Keyboard shortcuts' })).toBeInTheDocument();
     expect(within(popover).getByRole('heading', { level: 3, name: 'Everywhere' })).toBeInTheDocument();
     expect(within(popover).getByRole('heading', { level: 3, name: 'In a grid' })).toBeInTheDocument();
+    const topology = within(popover).getByRole('region', { name: 'In the topology' });
+    expect(within(topology).getByText('First or last node').nextElementSibling).toHaveTextContent('HomeorEnd');
     expect(within(popover).queryByRole('table')).not.toBeInTheDocument();
     const everywhere = within(popover).getByRole('region', { name: 'Everywhere' });
     const term = within(everywhere).getByText('Search views, clusters and queues');

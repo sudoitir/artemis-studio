@@ -1,0 +1,289 @@
+/* The topology canvas. Fonts, spacing, colour and durations come from the tokens; the one place px
+   remains is the canvas's geometry: the box size is set by the canvas itself from layout.ts
+   (--topology-node-w, --topology-node-h), because a box's position in the pane is absolute. */
+
+.wrapper {
+  position: relative;
+  block-size: clamp(26rem, 60vh, 45rem);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--as-graph-node-bg);
+  overflow: hidden;
+}
+
+/* A box slides to its place when a failover promotes it. React Flow owns `transform` on its own node
+   wrapper, so the transition has to sit there. The duration is a token, which reduced motion sets to zero. */
+.wrapper :global(.react-flow__node) {
+  transition: transform var(--as-duration-base) var(--as-ease);
+}
+
+/* One logical node = one group. The axis lives INSIDE the group, in React
+   Flow's transformed pane, so it stays registered to the boxes it groups under
+   every pan and zoom. */
+.group {
+  position: relative;
+  block-size: 100%;
+  inline-size: 100%;
+  border: 1px dashed var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  background: transparent;
+}
+
+.groupAxis {
+  position: absolute;
+  inset-inline: var(--mantine-spacing-sm);
+  block-size: 0;
+  border-block-start: 2px solid var(--as-axis);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.group[data-status='behind'] .groupAxis,
+.group[data-status='suspected'] .groupAxis {
+  border-block-start-style: dashed;
+  border-block-start-color: var(--as-axis-broken);
+}
+
+.group[data-status='critical'] .groupAxis {
+  border-block-start-color: var(--as-node-split-brain);
+}
+
+.axisNote {
+  transform: translateY(-50%);
+  padding-inline: var(--mantine-spacing-xs);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--as-text-dimmed);
+  background: var(--as-graph-node-bg);
+}
+
+.group[data-status='critical'] .axisNote {
+  color: var(--as-danger);
+}
+
+/* The shared NodeID, set on the group's own edge: the identity the pair is. */
+.groupId {
+  position: absolute;
+  inset-block-start: var(--mantine-spacing-xs);
+  inset-inline-start: var(--mantine-spacing-sm);
+  font-family: var(--mantine-font-family-monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--as-text-dimmed);
+}
+
+/* The box is pinned to the slot layout.ts reserved for it. It is four lines, each kept to one: a long
+   name or an error sentence is shortened here, and the title and the accessible name carry the whole. */
+.node {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  inline-size: var(--topology-node-w);
+  block-size: var(--topology-node-h);
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: var(--mantine-spacing-xs);
+  /* A box is a control, so its edge is the strong one: 3:1 against the canvas. */
+  border: 1px solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface-raised);
+  color: var(--as-text);
+  font: inherit;
+  text-align: start;
+  overflow: hidden;
+}
+
+button.node {
+  cursor: pointer;
+  box-shadow: var(--as-elevation-1);
+  transition:
+    box-shadow var(--as-duration-fast) var(--as-ease),
+    border-color var(--as-duration-fast) var(--as-ease);
+}
+
+button.node:hover {
+  box-shadow: var(--as-elevation-2);
+}
+
+button.node:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+.node[data-selected] {
+  border-color: var(--as-text);
+  box-shadow:
+    0 0 0 1px var(--as-text),
+    var(--as-elevation-2);
+}
+
+.node[data-offset] {
+  transform: translateX(1.125rem);
+}
+
+.node[data-kind='unmanaged'] {
+  border-style: dashed;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+
+.name {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.version {
+  flex: none;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--as-text-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A release outside what Studio supports says so in words beside its number. */
+.flag {
+  font-family: var(--mantine-font-family);
+  font-weight: 600;
+  color: var(--as-text);
+}
+
+.line,
+.detail {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.detail {
+  display: block;
+  min-block-size: var(--mantine-line-height-xs);
+  color: var(--as-text-dimmed);
+}
+
+.liveness {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.liveness[data-kind='split'] {
+  font-weight: 600;
+  color: var(--as-danger);
+}
+
+/* Marks are told apart by SHAPE (fill, ring, half-fill, square, dash), not by two greys a few pixels
+   apart. Colour still enters only for a fault (theme.css: health is the absence of colour). */
+.mark {
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0.125rem solid var(--as-node-backup);
+}
+
+/* filled disc */
+.mark[data-kind='live'] {
+  background: var(--as-node-live);
+  border-color: var(--as-node-live);
+}
+
+/* hollow ring: the default above */
+.mark[data-kind='standby'] {
+  background: transparent;
+}
+
+/* half-filled */
+.mark[data-kind='behind'] {
+  border-color: var(--as-axis-broken);
+  background: linear-gradient(to bottom, var(--as-axis-broken) 0 50%, transparent 50% 100%);
+}
+
+/* filled, amber */
+.mark[data-kind='down'] {
+  background: var(--as-node-down);
+  border-color: var(--as-node-down);
+}
+
+/* filled square: two live in one pair */
+.mark[data-kind='split'] {
+  border-radius: 0;
+  background: var(--as-node-split-brain);
+  border-color: var(--as-node-split-brain);
+}
+
+/* dashed ring */
+.mark[data-kind='unmanaged'] {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--as-node-unmanaged);
+}
+
+.handle {
+  opacity: 0;
+}
+
+/* A static row under the canvas, not a floating panel that covers nodes when the frame is small. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+  padding-block-start: var(--mantine-spacing-xs);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--as-text-dimmed);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.legendEdge {
+  inline-size: 1.125rem;
+  block-size: 0;
+  border-block-start: 2px solid var(--as-graph-edge);
+}
+
+.legendEdge[data-kind='behind'] {
+  border-block-start-style: dashed;
+  border-block-start-color: var(--as-graph-edge-behind);
+}
+
+.legendAxis {
+  inline-size: 1.125rem;
+  block-size: 0;
+  border-block-start: 2px solid var(--as-axis);
+}
+
+.empty {
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mantine-spacing-xs);
+  padding: var(--mantine-spacing-lg);
+  text-align: center;
+}
