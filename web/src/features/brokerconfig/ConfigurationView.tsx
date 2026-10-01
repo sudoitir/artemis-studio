@@ -290,7 +290,7 @@ function StatusBar({
               Evaluate now
             </Button>
           </CapabilityGate>
-          <CapabilityGate verdict={applyGate}>
+          <CapabilityGate verdict={applyGate} what="review and apply">
             <Button
               size="xs"
               variant={studioManaged ? 'filled' : 'default'}

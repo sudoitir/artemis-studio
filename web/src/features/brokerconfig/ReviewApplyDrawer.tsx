@@ -15,12 +15,13 @@ import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { ApplyResult } from './ApplyResult.tsx';
 import { ApplyTimeline } from './ApplyTimeline.tsx';
-import { Notice } from './Notice.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import classes from './Configuration.module.css';
 import { CONFIG_MANAGED_REASON, hazardClassWords, wireSectionLabel } from './words.ts';
 
@@ -350,7 +351,7 @@ function PlanStage({
         </Stack>
       ) : null}
       {moved ? (
-        <Notice alert title="The cluster moved — this is a new plan">
+        <Notice tone="warning" title="The cluster moved — this is a new plan">
           Something changed on a node between the plan you were reading and the confirmation. The plan below has been
           made again from what the nodes run now; review it, acknowledge its hazards, and continue. Nothing was written.
         </Notice>
@@ -359,7 +360,7 @@ function PlanStage({
       <NodePicker flow={flow} />
 
       {noNodes ? (
-        <Notice alert title="Select at least one node">
+        <Notice tone="warning" title="Select at least one node">
           No node is selected, so there is nothing to plan. Tick the nodes this apply should write to — an empty
           selection is not a shortcut for all of them.
         </Notice>
@@ -373,7 +374,7 @@ function PlanStage({
 function NodePicker({ flow }: Readonly<{ flow: Flow }>) {
   const { liveNodes, targets, canary, previewed, setNodeIds, setCanary } = flow;
   return (
-    <Group align="flex-end" gap="md" wrap="wrap">
+    <FieldRow>
       <Checkbox.Group
         label="Nodes"
         description="Live nodes to apply to. Every node that is not live is skipped and said so."
@@ -397,9 +398,8 @@ function NodePicker({ flow }: Readonly<{ flow: Flow }>) {
         value={canary ?? previewed?.plan.canaryNodeId ?? null}
         onChange={setCanary}
         allowDeselect={false}
-        w="12.5rem"
       />
-    </Group>
+    </FieldRow>
   );
 }
 
@@ -628,7 +628,7 @@ function ConfirmStage({
         </Stack>
       ) : null}
       {running ? <ApplyTimeline progress={progress} /> : null}
-      <CapabilityGate verdict={gate}>
+      <CapabilityGate verdict={gate} what="applying this declaration">
         <ConfirmByTyping
           token={declaration.clusterName}
           confirmLabel={`Apply to ${targets.length} node${plural(targets.length)}, canary first`}

@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { ActionIcon, Button, Group, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 
+import { FieldRow } from '../../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../../ui/formErrors.ts';
 import { DataTable, type Column } from '../../../ui/table/index.ts';
 
 /**
@@ -38,7 +40,7 @@ function propertyColumns(value: TransformerValue, onChange: (next: TransformerVa
     onChange({ ...value, properties: next });
   };
   return [
-    { id: 'name', header: 'Property', accessor: (r) => r.name, kind: 'identifier', priority: 'essential', wrap: true },
+    { id: 'name', header: 'Property', accessor: (r) => r.name, kind: 'identifier', priority: 'essential' },
     {
       id: 'value',
       header: 'Value',
@@ -86,17 +88,18 @@ export function TransformerFields({
   /** "diverted" or "forwarded" — what happens to the messages this transformer sees. */
   what: 'diverted' | 'forwarded';
 }>) {
-  const [key, setKey] = useState('');
-  const [val, setVal] = useState('');
+  // Not a `<form>`: the editor that holds this is one already, and forms do not nest.
+  const property = useForm({
+    initialValues: { key: '', val: '' },
+    validateInputOnBlur: true,
+    validate: { key: (v) => (v.trim() ? null : 'Name the property to add.') },
+  });
   const entries = Object.entries(value.properties);
 
-  const add = () => {
-    const k = key.trim();
-    if (!k) return;
-    onChange({ ...value, properties: { ...value.properties, [k]: val } });
-    setKey('');
-    setVal('');
-  };
+  const add = property.onSubmit(({ key, val }) => {
+    onChange({ ...value, properties: { ...value.properties, [key.trim()]: val } });
+    property.reset();
+  }, focusFirstInvalid(property.getInputNode));
 
   return (
     <Stack gap="xs">
@@ -119,32 +122,28 @@ export function TransformerFields({
         />
       ) : null}
 
-      <Group align="flex-end" gap="xs">
+      <FieldRow>
         <TextInput
           label="Add a transformer property"
           description="Passed to the class as it is loaded. Properties on their own configure nothing — a class is required."
           size="xs"
-          value={key}
-          onChange={(e) => setKey(e.currentTarget.value)}
-          flex={1}
+          {...property.getInputProps('key')}
         />
         <TextInput
           label="Value"
           size="xs"
-          value={val}
-          onChange={(e) => setVal(e.currentTarget.value)}
+          {...property.getInputProps('val')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
               add();
             }
           }}
-          flex={1}
         />
-        <Button variant="default" size="xs" onClick={add}>
+        <Button variant="default" size="xs" onClick={() => add()}>
           Add property
         </Button>
-      </Group>
+      </FieldRow>
       {value.className.trim() === '' && entries.length > 0 ? (
         <Text size="sm" c="dimmed">
           These properties are not applied while no transformer class is declared.

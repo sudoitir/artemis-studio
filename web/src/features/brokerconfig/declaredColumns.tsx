@@ -17,7 +17,6 @@ export function declaredColumns<T>(ctx: DeclaredContext, spec: DeclaredSpec<T>):
       accessor: spec.nameOf,
       kind: 'identifier',
       priority: 'essential',
-      wrap: true,
     },
     {
       id: 'declared',

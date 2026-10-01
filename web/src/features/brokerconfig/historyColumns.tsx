@@ -181,9 +181,8 @@ export function diffColumns(compared: number, current: number): Column<DiffRow>[
       accessor: (d) => (d.first ? d.item : ''),
       kind: 'identifier',
       priority: 'essential',
-      wrap: true,
     },
-    { id: 'key', header: 'Key', accessor: (d) => d.key, kind: 'code', priority: 'essential', wrap: true },
+    { id: 'key', header: 'Key', accessor: (d) => d.key, kind: 'identifier', priority: 'essential' },
     {
       id: 'left',
       header: `Revision ${compared}`,

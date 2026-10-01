@@ -10,13 +10,13 @@ function classificationWord(entry: ConfigEntryView): string {
 }
 
 /**
- * The columns of one section of a two-node comparison. The key identifies a row; both values wrap
- * rather than shorten, because a long acceptor URI is the very thing that differs. The status is a
+ * The columns of one section of a two-node comparison. The key identifies a row and is shortened in the
+ * middle, keeping its tail; both values wrap rather than shorten, because a long acceptor URI is the very thing that differs. The status is a
  * word, never carried by colour alone, and a row that drifts also says so.
  */
 export function diffEntryColumns(): Column<ConfigEntryView>[] {
   return [
-    { id: 'key', header: 'Key', accessor: (e) => e.key, kind: 'code', priority: 'essential', wrap: true },
+    { id: 'key', header: 'Key', accessor: (e) => e.key, kind: 'identifier', priority: 'essential' },
     { id: 'left', header: 'Left', accessor: (e) => e.left ?? '—', kind: 'code', priority: 'essential', wrap: true },
     { id: 'right', header: 'Right', accessor: (e) => e.right ?? '—', kind: 'code', priority: 'essential', wrap: true },
     {

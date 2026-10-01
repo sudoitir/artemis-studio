@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Button, Group, Popover, Select, Stack, Switch, TagsInput, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { useConfigureBrokerConfig, type ConfigDeclarationView } from './api.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -22,22 +23,22 @@ export function ModeControl({
 }: Readonly<{ declaration: ConfigDeclarationView; canWrite: boolean }>) {
   const [open, setOpen] = useState(false);
   const configure = useConfigureBrokerConfig(declaration.clusterId);
-  const [applyMode, setApplyMode] = useState<ConfigDeclarationView['applyMode']>(declaration.applyMode);
-  const [reportUndeclared, setReportUndeclared] = useState(declaration.reportUndeclared);
-  const [exclusions, setExclusions] = useState<string[]>(declaration.undeclaredExclusions);
+  const seed = () => ({
+    applyMode: declaration.applyMode,
+    reportUndeclared: declaration.reportUndeclared,
+    undeclaredExclusions: declaration.undeclaredExclusions,
+  });
+  const form = useForm({ initialValues: seed(), validateInputOnBlur: true });
+  const { applyMode, reportUndeclared } = form.values;
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    configure.mutate(
-      { applyMode, reportUndeclared, undeclaredExclusions: exclusions },
-      {
-        onSuccess: () => {
-          notify.succeeded({ action: SAVE_MODE, subject: `the apply mode: ${applyModeWords(applyMode)}` });
-          setOpen(false);
-        },
+  const submit = form.onSubmit((values) => {
+    configure.mutate(values, {
+      onSuccess: () => {
+        notify.succeeded({ action: SAVE_MODE, subject: `the apply mode: ${applyModeWords(values.applyMode)}` });
+        setOpen(false);
       },
-    );
-  };
+    });
+  });
 
   return (
     <Popover
@@ -55,9 +56,7 @@ export function ModeControl({
           variant="subtle"
           size="compact-sm"
           onClick={() => {
-            setApplyMode(declaration.applyMode);
-            setReportUndeclared(declaration.reportUndeclared);
-            setExclusions(declaration.undeclaredExclusions);
+            form.setValues(seed());
             configure.reset();
             setOpen((o) => !o);
           }}
@@ -77,8 +76,7 @@ export function ModeControl({
                 { value: 'CONFIG_MANAGED', label: 'Managed outside Studio — export broker.xml' },
               ]}
               disabled={!canWrite}
-              value={applyMode}
-              onChange={(v) => setApplyMode((v as ConfigDeclarationView['applyMode']) ?? 'STUDIO_MANAGED')}
+              {...form.getInputProps('applyMode')}
               allowDeselect={false}
               size="xs"
             />
@@ -92,8 +90,7 @@ export function ModeControl({
               description="Settings and diverts on a node that the declaration does not mention. Off by default: most clusters have some."
               size="xs"
               disabled={!canWrite}
-              checked={reportUndeclared}
-              onChange={(e) => setReportUndeclared(e.currentTarget.checked)}
+              {...form.getInputProps('reportUndeclared', { type: 'checkbox' })}
             />
             {reportUndeclared ? (
               <TagsInput
@@ -101,8 +98,7 @@ export function ModeControl({
                 description="Match patterns not to report, one per tag."
                 size="xs"
                 disabled={!canWrite}
-                value={exclusions}
-                onChange={setExclusions}
+                {...form.getInputProps('undeclaredExclusions')}
               />
             ) : null}
             {configure.isError ? <ErrorState variant="inline" error={configure.error} /> : null}

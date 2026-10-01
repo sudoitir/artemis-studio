@@ -48,7 +48,7 @@ describe('ConfigurationView', () => {
     expect(await screen.findByText(/Declare what this cluster should run/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Adopt from cluster' })).toBeEnabled();
     // The apply control is visible and explains itself — never hidden.
-    expect(screen.getByRole('button', { name: 'Why this is unavailable' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Why review and apply is unavailable' })).toBeInTheDocument();
   });
 
   it('has no routing builder tab: the builder is on the Routing screen (ADR-0094)', async () => {
@@ -66,7 +66,7 @@ describe('ConfigurationView', () => {
     renderWithProviders(<ConfigurationView />);
 
     expect(await screen.findByText(/Managed outside Studio/)).toBeInTheDocument();
-    await user.click(screen.getAllByRole('button', { name: 'Why this is unavailable' })[0]);
+    await user.click(screen.getByRole('button', { name: 'Why review and apply is unavailable' }));
     expect(await screen.findByText(/owned by configuration management/)).toBeInTheDocument();
     // The primary action flipped to the fragment.
     expect(screen.getByRole('button', { name: 'Copy broker.xml fragment' })).toBeEnabled();

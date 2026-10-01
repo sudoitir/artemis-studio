@@ -8,7 +8,7 @@ import { DivertEditor } from '../DivertEditor.tsx';
 import { CapabilityGate } from '../../../ui/CapabilityGate.tsx';
 import { EmptyState } from '../../../ui/EmptyState.tsx';
 import type { GateVerdict } from '../../../ui/capabilityGate.ts';
-import { Notice } from '../Notice.tsx';
+import { Notice } from '../../../ui/Notice.tsx';
 import type { Section } from '../words.ts';
 import { BridgeEditor, type BridgePrefill } from './BridgeEditor.tsx';
 import { RoutingCanvas, type Compose } from './RoutingCanvas.tsx';
