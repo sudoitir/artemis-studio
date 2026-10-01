@@ -51,13 +51,15 @@ class PluginLicensesHealthIndicatorTest {
         var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(StudioHealth.DEGRADED);
-        assertThat(health.getDetails().get("plugins"))
-                .isEqualTo(Map.of(
-                        "acme-a", "MISSING",
-                        "acme-b", "EXPIRING",
-                        "acme-c", "EXPIRED",
-                        "acme-d", "OVER_LIMIT",
-                        "acme-e", "INVALID"));
+        assertThat(health.getDetails())
+                .containsEntry(
+                        "plugins",
+                        Map.of(
+                                "acme-a", "MISSING",
+                                "acme-b", "EXPIRING",
+                                "acme-c", "EXPIRED",
+                                "acme-d", "OVER_LIMIT",
+                                "acme-e", "INVALID"));
     }
 
     @Test

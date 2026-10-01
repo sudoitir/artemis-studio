@@ -80,8 +80,10 @@ class PluginAdministrationTest {
         when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
         byte[] secret = "sk-license-content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-        assertThatThrownBy(
-                        () -> administration(true).uploadLicense(mock(HttpServletRequest.class), "acme-notes", secret))
+        var administration = administration(true);
+        var request = mock(HttpServletRequest.class);
+
+        assertThatThrownBy(() -> administration.uploadLicense(request, "acme-notes", secret))
                 .isInstanceOf(PluginAccessDeniedException.class);
 
         verify(audit)
@@ -103,8 +105,9 @@ class PluginAdministrationTest {
         when(installers.isInstaller(userId)).thenReturn(true);
         when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
         var request = mock(HttpServletRequest.class);
+        var administration = administration(true);
 
-        assertThatThrownBy(() -> administration(true).removeLicense(request, "acme-notes"))
+        assertThatThrownBy(() -> administration.removeLicense(request, "acme-notes"))
                 .isInstanceOf(ReauthenticationRequiredException.class);
 
         verify(audit).fail(any(), any());

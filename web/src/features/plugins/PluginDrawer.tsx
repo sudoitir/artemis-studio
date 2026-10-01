@@ -480,6 +480,17 @@ function Confirmations({
 }
 
 /**
+ * The open tab. A plugin whose license needs someone opens on it; the tab someone picks is kept for
+ * that plugin only, so opening another plugin starts afresh.
+ */
+function useDrawerTab(plugin: PluginView | undefined): [string, (next: string | null) => void] {
+  const [chosen, setChosen] = useState<{ id: string; tab: string } | null>(null);
+  const fallback = licenseNeedsAction(plugin?.license) ? 'license' : 'overview';
+  const tab = chosen?.id === plugin?.id ? chosen?.tab : undefined;
+  return [tab ?? fallback, (next) => plugin && next && setChosen({ id: plugin.id, tab: next })];
+}
+
+/**
  * One plugin, in full (design.md §8), at `?plugin=<id>`: what it is and who put it there, what it
  * adds, what data it keeps, everything done to it, and the actions that change it — each stating
  * what it affects before it can be confirmed.
@@ -497,15 +508,11 @@ export function PluginDrawer({
   onClose: () => void;
   onUpdate: (id: string) => void;
 }>) {
-  const [chosen, setChosen] = useState<{ id: string; tab: string } | null>(null);
   const [pending, setPending] = useState<Pending>(null);
   const [cascade, setCascade] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [ackMissing, setAckMissing] = useState(false);
-  // A plugin whose license needs someone opens on it; the tab someone picks is kept for that plugin only.
-  const defaultTab = licenseNeedsAction(plugin?.license) ? 'license' : 'overview';
-  const tab = chosen && chosen.id === plugin?.id ? chosen.tab : defaultTab;
-  const setTab = (next: string | null) => plugin && next && setChosen({ id: plugin.id, tab: next });
+  const [tab, setTab] = useDrawerTab(plugin);
   const lifecycle = useLifecycle();
   const purge = usePurge();
   const history = usePluginHistory(plugin?.id);

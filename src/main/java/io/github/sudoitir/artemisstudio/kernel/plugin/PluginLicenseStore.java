@@ -180,6 +180,10 @@ public class PluginLicenseStore implements PluginScopedBeans {
     /** The license of every plugin that has a file; a plugin that is not here has none. */
     @Transactional(readOnly = true)
     public Map<String, Summary> summaries() {
+        return load();
+    }
+
+    private Map<String, Summary> load() {
         Map<String, Summary> all = new HashMap<>();
         for (PluginLicenseEntity row : licenses.findAll()) {
             all.put(row.getPluginId(), summarise(row));
@@ -190,7 +194,7 @@ public class PluginLicenseStore implements PluginScopedBeans {
     /** The license of every running plugin that declares a need for one, by plugin id, a missing one included. */
     @Transactional(readOnly = true)
     public Map<String, Summary> activeDeclaring() {
-        Map<String, Summary> stored = summaries();
+        Map<String, Summary> stored = load();
         Map<String, Summary> declaring = new TreeMap<>();
         for (PluginInstallEntity install : installs.findAll()) {
             if (install.status() == PluginInstallStatus.ACTIVE && requiresLicense(install)) {

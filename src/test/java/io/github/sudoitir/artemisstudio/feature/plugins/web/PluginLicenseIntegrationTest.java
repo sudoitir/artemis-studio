@@ -119,6 +119,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
             jdbc.update("DELETE FROM plugin_upload WHERE plugin_id = ?", id);
             System.clearProperty("probe." + id + ".removed");
             System.clearProperty("probe." + id + ".foreign");
+            System.clearProperty("probe." + id + ".boomed");
         }
         jdbc.update("DELETE FROM plugin_artifact a WHERE NOT EXISTS (SELECT 1 FROM plugin_install i"
                 + " WHERE i.sha256 = a.sha256 OR i.previous_sha256 = a.sha256)"
@@ -197,7 +198,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
                             }
                             if (file.isEmpty()) { System.setProperty("probe." + ID + ".removed", "true"); return; }
                             String text = new String(file.get().content(), StandardCharsets.UTF_8);
-                            if (text.startsWith("boom")) throw new IllegalStateException("probe failed");
+                            if (text.startsWith("boom")) { System.setProperty("probe." + ID + ".boomed", "true"); throw new IllegalStateException("probe failed"); }
                             license.report(file.get().sha256(), text.startsWith("valid")
                                     ? new PluginLicense.Verdict(PluginLicense.Status.VALID,
                                             Instant.now().plus(Duration.ofDays(400)), "Acme Ltd", "accepted")
@@ -433,7 +434,9 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
         // The broken plugin's listener throws on its file.
         putLicense(mvc, session, broken, bytes("boom"), MediaType.APPLICATION_OCTET_STREAM)
                 .andExpect(status().isOk());
-        Thread.sleep(1500);
+        await("the listener threw")
+                .atMost(Duration.ofSeconds(15))
+                .until(() -> "true".equals(System.getProperty("probe." + broken + ".boomed")));
         assertThat(view(mvc, session, broken).path("status").asString()).isEqualTo("active");
         assertThat(view(mvc, session, broken).at("/license/state").asString()).isEqualTo("UNCHECKED");
 

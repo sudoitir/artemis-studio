@@ -54,10 +54,10 @@ public final class PluginLicense {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof LicenseFile f
-                    && Arrays.equals(content, f.content)
-                    && sha256.equals(f.sha256)
-                    && uploadedAt.equals(f.uploadedAt);
+            return other instanceof LicenseFile(byte[] otherContent, String otherSha256, Instant otherUploadedAt)
+                    && Arrays.equals(content, otherContent)
+                    && sha256.equals(otherSha256)
+                    && uploadedAt.equals(otherUploadedAt);
         }
 
         @Override
