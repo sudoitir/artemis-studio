@@ -42,4 +42,4 @@
 
 ## 9. Finish
 - [x] 9.1 `just verify` green; Studio run with the test sign-in plugin: login screen with the plugin provider, the enrolment screen for its user, and the plugin review showing `signin-added`, light and dark, plus the degraded health state
-- [ ] 9.2 `reviewer` pass on the sign-in diff (Execution); PR, SonarQube gate green, merge on green CI; `/opsx:archive`; tick `ROADMAP.md`
+- [x] 9.2 `reviewer` pass on the sign-in diff (Execution); PR, SonarQube gate green, merge on green CI; `/opsx:archive`; tick `ROADMAP.md`
