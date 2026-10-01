@@ -35,6 +35,8 @@ class TrustedKeyReconciler implements ApplicationRunner {
 
     static final String ACTOR = "configuration";
 
+    private static final String KEY_ADD = "PLUGIN_KEY_ADD";
+
     private static final Actor CONFIGURATION = new Actor(ACTOR, null, null, null);
 
     private final PluginProperties properties;
@@ -54,26 +56,11 @@ class TrustedKeyReconciler implements ApplicationRunner {
         wanted.forEach((fingerprint, key) -> {
             PluginTrust.TrustedKey current = existing.get(fingerprint);
             if (current == null) {
-                audited(
-                        "PLUGIN_KEY_ADD",
-                        key.name(),
-                        fingerprint,
-                        "add",
-                        () -> trust.pin(key.name(), key.signer(), ACTOR));
+                audited(KEY_ADD, key.name(), fingerprint, "add", () -> trust.pin(key.name(), key.signer(), ACTOR));
             } else if (current.source() == KeySource.ADMIN) {
-                audited(
-                        "PLUGIN_KEY_ADD",
-                        key.name(),
-                        fingerprint,
-                        "convert",
-                        () -> trust.pin(key.name(), key.signer(), ACTOR));
+                audited(KEY_ADD, key.name(), fingerprint, "convert", () -> trust.pin(key.name(), key.signer(), ACTOR));
             } else if (!current.name().equals(key.name())) {
-                audited(
-                        "PLUGIN_KEY_ADD",
-                        key.name(),
-                        fingerprint,
-                        "rename",
-                        () -> trust.pin(key.name(), key.signer(), ACTOR));
+                audited(KEY_ADD, key.name(), fingerprint, "rename", () -> trust.pin(key.name(), key.signer(), ACTOR));
             }
         });
         existing.values().stream()
@@ -127,7 +114,7 @@ class TrustedKeyReconciler implements ApplicationRunner {
                 target,
                 null,
                 null,
-                Map.of("source", "configuration", "change", change, "fingerprint", fingerprint),
+                Map.of("source", ACTOR, "change", change, "fingerprint", fingerprint),
                 false);
         try {
             work.run();

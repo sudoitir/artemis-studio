@@ -49,8 +49,8 @@ class StudioRestartTest {
     @Test
     void anUnsupervisedStudioRefusesToStopItself() {
         var exited = new CompletableFuture<Integer>();
-        assertThatThrownBy(() -> restart(supervised(false), new MockEnvironment(), Clock.systemUTC(), exited)
-                        .restart("test"))
+        var restart = restart(supervised(false), new MockEnvironment(), Clock.systemUTC(), exited);
+        assertThatThrownBy(() -> restart.restart("test"))
                 .isInstanceOf(PluginRefusedException.class)
                 .hasMessageContaining("will not stop itself");
         assertThat(exited).isNotDone();
