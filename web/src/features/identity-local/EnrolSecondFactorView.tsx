@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 
 import { useLogout, useMe } from '../../kernel/auth/api.ts';
 import { Page } from '../../ui/Page.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import classes from './Identity.module.css';
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
@@ -22,6 +23,9 @@ export function EnrolSecondFactorView() {
   // Finishing the enrolment clears the requirement while the codes are still on screen; that is not a reason to leave.
   const wasRequired = useRef(false);
   if (me.data?.secondFactorEnrolmentRequired) wasRequired.current = true;
+  // The form starts an enrolment as it opens, which creates a secret on the server; it opens only for an
+  // account that must enrol, never for one this page is about to send elsewhere.
+  const enrolling = wasRequired.current && !me.data?.mustChangePassword;
 
   useEffect(() => {
     if (!me.data) return;
@@ -38,10 +42,14 @@ export function EnrolSecondFactorView() {
             description="Your role requires a second step when you sign in."
           />
 
-          <SecondFactorEnrolment
-            methods={['totp', 'passkey']}
-            onEnrolled={(done) => (done.recoveryCodes ? setCodes(done.recoveryCodes) : navigate({ to: '/' }))}
-          />
+          {enrolling ? (
+            <SecondFactorEnrolment
+              methods={['totp', 'passkey']}
+              onEnrolled={(done) => (done.recoveryCodes ? setCodes(done.recoveryCodes) : navigate({ to: '/' }))}
+            />
+          ) : (
+            <LoadingState label="Checking your account" />
+          )}
 
           <Button
             variant="subtle"

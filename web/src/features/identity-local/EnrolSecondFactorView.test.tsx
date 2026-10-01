@@ -115,7 +115,7 @@ describe('EnrolSecondFactorView', () => {
 
     expect(screen.getByRole('heading', { name: 'Set up two-step verification' })).toBeInTheDocument();
     expect(screen.getByText('Your role requires a second step when you sign in.')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Authenticator app' })).toBeChecked();
+    expect(await screen.findByRole('radio', { name: 'Authenticator app' })).toBeChecked();
 
     const qr = await screen.findByRole('img', { name: 'QR code for your authenticator app' });
     expect(qr.querySelector('path')?.getAttribute('d')).toMatch(/^M\d+ \d+h\d+v1h-\d+z/);
@@ -126,6 +126,22 @@ describe('EnrolSecondFactorView', () => {
     expect(screen.getByText("Can't scan? Enter this key")).toBeInTheDocument();
     expect(screen.getByText('JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP')).toBeInTheDocument();
     expect(screen.getByLabelText('Enter the 6-digit code')).toHaveAttribute('autocomplete', 'one-time-code');
+  });
+
+  it('starts no enrolment for an account that need not enrol, and sends it on', async () => {
+    let started = 0;
+    server.use(
+      me({ secondFactorEnrolmentRequired: false }),
+      status(),
+      http.post('*/api/v1/auth/mfa/totp', () => {
+        started += 1;
+        return HttpResponse.json({}, { status: 403 });
+      }),
+    );
+    renderWithProviders(<EnrolSecondFactorView />);
+    expect(await screen.findByText('Checking your account')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Authenticator app' })).not.toBeInTheDocument();
+    expect(started).toBe(0);
   });
 
   it('copies the key and announces it', async () => {
