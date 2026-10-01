@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
@@ -406,6 +407,11 @@ public class ClusterService {
         BrokerNodeEntity node = nodes.findById(nodeId)
                 .filter(n -> n.getClusterId().equals(clusterId))
                 .orElseThrow(() -> new NotFoundException("Node", nodeId));
+        if (request.hasJolokiaUrl()
+                && nodes.existsByClusterIdAndJolokiaUrlAndIdNot(clusterId, request.jolokiaUrl(), nodeId)) {
+            throw new ConflictException(
+                    "duplicate-node-url", "Another node of this cluster already uses " + request.jolokiaUrl() + ".");
+        }
 
         Map<String, Object> params = new HashMap<>();
         if (request.hasJolokiaUrl()) {
