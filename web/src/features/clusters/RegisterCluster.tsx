@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Button, Collapse, Group, PasswordInput, Radio, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Collapse, PasswordInput, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
-import {
-  useCheckConnection,
-  useClusters,
-  useRegisterCluster,
-  type RegisterClusterRequest,
-  type TopologyView,
-} from './api.ts';
+import { useCheckConnection, useRegisterCluster, type RegisterClusterRequest, type TopologyView } from './api.ts';
 import { useSlot } from '../../kernel/slots.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
@@ -21,8 +15,6 @@ import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import classes from './Clusters.module.css';
 import { normaliseSeeds } from './normaliseSeeds.ts';
-import { RegisterCanvas } from './RegisterCanvas.tsx';
-import { SETUPS, type Setup } from './setups.ts';
 
 const EXAMPLE = 'http://broker-1:8161/console/jolokia';
 
@@ -84,11 +76,7 @@ function CheckOutcome({
     <div aria-live="polite" className={classes.form}>
       {check.isSuccess ? (
         <Text size="sm" c="dimmed">
-          {`Found ${check.data.discoveredNodes} node${
-            check.data.discoveredNodes === 1 ? '' : 's'
-          } across ${check.data.reachableSeeds} address${
-            check.data.reachableSeeds === 1 ? '' : 'es'
-          }. Nothing saved yet.`}
+          {`Connected. Found ${check.data.discoveredNodes} node${check.data.discoveredNodes === 1 ? '' : 's'}.`}
         </Text>
       ) : null}
       {check.isSuccess ? <UntestedVersions topology={check.data.topology} /> : null}
@@ -100,7 +88,6 @@ function CheckOutcome({
 
 /** The registration form. Rendered inline on the empty state, in a modal after. */
 export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: () => void }>) {
-  const [setup, setSetup] = useState<Setup | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [checkedInputs, setCheckedInputs] = useState<string | null>(null);
 
@@ -190,41 +177,14 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
     };
   }
 
-  const guide = SETUPS.find((s) => s.value === setup);
-
   return (
     <div className={classes.register}>
-      <Radio.Group
-        className={classes.span}
-        label="What are you connecting to?"
-        description="Studio discovers the rest from the brokers; this only tells you what to enter."
-        value={setup}
-        onChange={(v) => setSetup(v as Setup)}
-      >
-        <div className={classes.setups}>
-          {SETUPS.map((s) => (
-            <Radio.Card key={s.value} value={s.value} className={classes.setup}>
-              <Group wrap="nowrap" align="flex-start" gap="sm">
-                <Radio.Indicator />
-                <div>
-                  <Text size="sm" fw={600}>
-                    {s.title}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {s.description}
-                  </Text>
-                </div>
-              </Group>
-            </Radio.Card>
-          ))}
-        </div>
-      </Radio.Group>
       <form className={classes.form} noValidate onSubmit={checkConnection}>
         <Textarea
           label="Broker management URLs"
-          description={`${guide ? guide.urls : 'One per line.'} For example: ${EXAMPLE}`}
+          description={`One per line. Studio finds the rest of the cluster from these. For example: ${EXAMPLE}`}
           autosize
-          minRows={guide?.rows ?? 2}
+          minRows={2}
           {...form.getInputProps('seeds')}
         />
         {rewritten.length > 0 ? (
@@ -316,27 +276,7 @@ export function RegisterClusterForm({ onRegistered }: Readonly<{ onRegistered?: 
           </Button>
         </div>
       </form>
-      <RegisterCanvas preview={check.data} stale={stale} />
     </div>
-  );
-}
-
-/** What the dialog holds: the form, and a note that this adds to the clusters already registered. */
-export function RegisterClusterPanel({ onRegistered }: Readonly<{ onRegistered: () => void }>) {
-  const clusters = useClusters();
-  const existing = clusters.data?.length ?? 0;
-
-  return (
-    <Stack gap="md">
-      {existing > 0 ? (
-        <Text size="sm" c="dimmed">
-          {existing === 1
-            ? 'One cluster is already registered. This adds another.'
-            : `${existing} clusters are already registered. This adds another.`}
-        </Text>
-      ) : null}
-      <RegisterClusterForm onRegistered={onRegistered} />
-    </Stack>
   );
 }
 

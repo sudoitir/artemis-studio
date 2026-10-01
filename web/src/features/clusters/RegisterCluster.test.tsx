@@ -82,45 +82,36 @@ function preview() {
 afterEach(() => act(() => notifications.clean()));
 
 describe('RegisterClusterForm', () => {
-  it('swaps the preview placeholder for the real discovered topology after a successful check', async () => {
-    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
-    const user = userEvent.setup();
-    renderWithProviders(<RegisterClusterForm />);
-
-    expect(screen.getByText('Topology preview')).toBeInTheDocument();
-
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
-    await user.click(screen.getByRole('button', { name: 'Check connection' }));
-
-    expect(await screen.findByText('Discovered topology')).toBeInTheDocument();
-    expect(screen.queryByText('Topology preview')).not.toBeInTheDocument();
-  });
-
-  it('tells the operator which URLs to enter for the setup they choose', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<RegisterClusterForm />);
-    const urls = screen.getByLabelText(/Broker management URLs/);
-    expect(urls).toHaveAccessibleDescription(/^One per line\./);
-
-    await user.click(screen.getByRole('radio', { name: /Primary and backup/ }));
-    expect(screen.getByRole('radio', { name: /Primary and backup/ })).toBeChecked();
-    expect(urls).toHaveAccessibleDescription(/Enter the primary's management URL\. Studio finds its backup/);
-
-    await user.click(screen.getByRole('radio', { name: /Cluster/ }));
-    expect(urls).toHaveAccessibleDescription(/one management URL per broker Studio can reach/);
-  });
-
-  it('marks the preview stale once the seeds are edited after a check', async () => {
+  it('says what the check found once it passes', async () => {
     server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+
+    expect(await screen.findByText(/^Connected\. Found \d+ nodes?\.$/)).toBeInTheDocument();
+  });
+
+  it('tells the operator what to enter as management URLs', () => {
+    renderWithProviders(<RegisterClusterForm />);
+    expect(screen.getByLabelText(/Broker management URLs/)).toHaveAccessibleDescription(
+      /^One per line\. Studio finds the rest of the cluster from these\./,
+    );
+  });
+
+  it('asks for a new check once the URLs are edited after a check', async () => {
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText(/^Connected\./);
 
     await user.type(screen.getByLabelText(/Broker management URLs/), '\nbroker-2');
-    expect(await screen.findByText('Changed since you checked')).toBeInTheDocument();
+    expect(await screen.findByText(/details changed since the last check/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
   });
 
   it('warns before registering a broker newer than Studio has tested, and still lets it register', async () => {
@@ -206,7 +197,7 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+    await screen.findByText(/^Connected\./);
 
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeEnabled();
   });
@@ -218,7 +209,7 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+    await screen.findByText(/^Connected\./);
 
     // A check that survived a password edit would vouch for credentials it never
     // saw — which is exactly how a wrong Core account reached a registered cluster.
@@ -282,7 +273,7 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+    await screen.findByText(/^Connected\./);
     await user.click(screen.getByRole('button', { name: 'Register cluster' }));
 
     expect(await screen.findByText('Registered cluster prod-eu')).toBeInTheDocument();
