@@ -1,0 +1,49 @@
+import type { ReactNode } from 'react';
+
+/** What a column holds. It sets the column's bounds, font and how an overlong value is shortened. */
+export type ColumnKind = 'text' | 'identifier' | 'code' | 'number' | 'time' | 'status';
+
+/**
+ * How much a column matters when the table is too narrow for all of them. `essential` is never hidden;
+ * `low` goes before `high`. The first data column and any column that names the node a row came from
+ * are `essential`.
+ */
+export type ColumnPriority = 'essential' | 'high' | 'low';
+
+export interface Column<T> {
+  id: string;
+  header: string;
+  /** The plain value of the cell: what is measured, copied, revealed and put in its `title`. */
+  accessor: (row: T) => unknown;
+  cell?: (row: T) => ReactNode;
+  kind: ColumnKind;
+  priority: ColumnPriority;
+  /** Bounds in `ch`, overriding the kind's. */
+  min?: number;
+  max?: number;
+  /** Whether the column shares spare width, overriding the kind's. */
+  grow?: boolean;
+  /** Static table only: wrap the value instead of shortening it. */
+  wrap?: boolean;
+  /** The `sort` query value this column sorts by, if sortable. */
+  sortKey?: string;
+  description?: string;
+}
+
+export interface KindPreset {
+  /** Bounds in `ch`; a kind without them is as wide as its content. */
+  min?: number;
+  max?: number;
+  grow: boolean;
+  truncate: 'end' | 'middle' | 'none';
+  mono: boolean;
+}
+
+export const KIND_PRESETS: Record<ColumnKind, KindPreset> = {
+  text: { min: 12, max: 48, grow: true, truncate: 'end', mono: false },
+  identifier: { min: 16, max: 64, grow: true, truncate: 'middle', mono: false },
+  code: { min: 12, max: 48, grow: true, truncate: 'end', mono: true },
+  number: { grow: false, truncate: 'none', mono: false },
+  time: { grow: false, truncate: 'none', mono: false },
+  status: { grow: false, truncate: 'none', mono: false },
+};
