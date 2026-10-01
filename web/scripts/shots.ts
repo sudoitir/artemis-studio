@@ -24,7 +24,7 @@ const OUT = resolve(HERE, '../../docs/img');
 
 password(); // fail before launching a browser if it is missing
 
-// A query with one pushdown predicate and one target wildcard: the plan strip
+// A query with one pushdown predicate and one target wildcard: the cost line
 // then has something to classify, which is the part of this screen worth showing.
 // No ORDER BY: sorting reads every message under ORDERS.*, which on a demo that has run for a while
 // runs to the console's 30 s bound. Unsorted, the scan stops at the limit.

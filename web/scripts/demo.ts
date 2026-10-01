@@ -328,7 +328,7 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   // middle of it.
   await page.keyboard.press('ControlOrMeta+a');
   await type(page, 'SELECT * FROM "ORDERS.*"\nWHERE props.tenant = \'acme\'\nLIMIT 200');
-  await hold(page, 1_400); // let the plan strip classify it
+  await hold(page, 1_400); // let the cost line classify it
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await page
     .getByRole('row')
@@ -343,7 +343,7 @@ await clip('sql-console', async (page, _clusterId, mark) => {
   await editor.click();
   await page.keyboard.press('ControlOrMeta+a');
   await type(page, "SELECT * FROM \"ORDERS.*\"\nWHERE body->>'orderId' = '4471'\nLIMIT 50");
-  await hold(page, 1_600); // the plan strip now says "scan", which is the point
+  await hold(page, 1_600); // the cost line now says "scan", which is the point
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await page
     .getByRole('row')

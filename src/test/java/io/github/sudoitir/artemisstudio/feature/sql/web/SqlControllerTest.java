@@ -93,7 +93,7 @@ class SqlControllerTest extends PostgresIntegrationTest {
 
     @Test
     void aHeaderPredicateBecomesASelectorAndABodyPredicateDoesNot() throws Exception {
-        // The distinction the plan strip exists to show: one costs the broker nothing,
+        // The distinction the cost line exists to show: one costs the broker nothing,
         // the other is a scan of everything the broker returned (ADR-0058 D4).
         plan("SELECT * FROM \"ORDER.IN\" WHERE priority = 9")
                 .andExpect(status().isOk())
