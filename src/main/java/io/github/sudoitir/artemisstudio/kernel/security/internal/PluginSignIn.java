@@ -222,7 +222,7 @@ public class PluginSignIn implements PluginBridge, IdentityProviders {
         }
 
         /** The subjects of this provider's accounts the plugin no longer vouches for; empty on any failure. */
-        Set<String> noLongerValid(Set<String> subjects) {
+        public Set<String> noLongerValid(Set<String> subjects) {
             if (!handle.verified()) {
                 return Set.of();
             }

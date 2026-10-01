@@ -24,7 +24,7 @@ public class SessionTerminator {
     private final FindByIndexNameSessionRepository<? extends Session> sessions;
     private final StudioBus bus;
 
-    void endSessionsOf(Collection<String> usernames) {
+    public void endSessionsOf(Collection<String> usernames) {
         if (usernames.isEmpty()) {
             return;
         }
