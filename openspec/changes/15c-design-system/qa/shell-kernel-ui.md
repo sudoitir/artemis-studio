@@ -34,3 +34,23 @@ Baseline: 830 captures (default state at 1920/1440/1280 in light, dark and syste
 - Evidence: `findByRole('dialog', { name: 'Keyboard shortcuts' })` timed out after 8.6 s in one of three runs (once in the full suite, once alone), passing in the others.
 - Fix: find why the popover can take longer than the wait to appear (its transition, the tooltip on the same trigger) and make the test deterministic.
 - Status: fixed (the popover hid itself when floating-ui judged its zero-size anchor detached; `hideDetached={false}`, and focus now moves onto its switch, which the test asserts)
+
+## Screenshot review (after wave 3)
+
+### shell-kernel-ui-cls-1 [S2 · performance · base] The boot placeholder moves the page when the app replaces it
+- Where: `web/index.html` (`#boot-status`)
+- Evidence: a 0.19 layout shift on every route: the placeholder sits in the flow with a 30vh margin, so the body jumps when React replaces it.
+- Fix: take the placeholder out of the flow (fixed, centred over the viewport).
+- Status: open
+
+### shell-kernel-ui-cls-2 [S2 · design · page] The cluster list pushes the navigation down when it loads
+- Where: `web/src/features/clusters/ClusterRail.tsx` (the `shell.navbar` slot)
+- Evidence: a 0.13 layout shift on every cluster route: the cluster rows and "Register cluster" arrive after the navigation and push it 51 px down; with 12 clusters the navigation starts far below the fold.
+- Fix: a cluster switcher of constant height (current cluster and environment in one row, opening a searchable list with registration), so the navigation never moves and scales to many clusters.
+- Status: open
+
+### shell-kernel-ui-react-1 [S2 · reliability · page] setState while rendering
+- Where: `FreshnessBar` updated while `RegisterClusterButton` renders
+- Evidence: React "Cannot update a component while rendering a different component" on cluster routes.
+- Fix: move the update into an effect or derive it.
+- Status: open
