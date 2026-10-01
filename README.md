@@ -129,7 +129,7 @@ Studio find it on one screen.
 
   The dialect is read-only `SELECT`, checked against a fixed column catalogue, so a
   query cannot change anything. Header predicates become a JMS selector and cost
-  nothing; body predicates scan, and **the plan strip tells you which before the
+  nothing; body predicates scan, and **the cost line under the editor tells you which before the
   query runs**. A query over the cost ceiling is refused with its estimate rather
   than quietly truncated. Add a live tail, or turn on
   [complete capture](https://sudoitir.github.io/artemis-studio/guide/message-capture)

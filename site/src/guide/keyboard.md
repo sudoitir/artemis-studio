@@ -54,6 +54,20 @@ Items are grouped as Open, Copy, Operate and Destroy. An item you cannot use sta
 menu with the reason. Select it and Studio explains why, with the `broker.xml` that
 would enable it. A destructive item opens its usual preview and typed confirmation.
 
+## SQL console
+
+| Keys | Where | Does |
+|---|---|---|
+| **Ctrl Enter** / **⌘ Enter** | Editor | Run the query |
+| **Ctrl .** / **⌘ .** | Editor or page | Cancel the running query or stop the tail |
+| **Ctrl Space** | Editor | Complete a column or queue name |
+| **Escape** | Editor | Close completion, then collapse the selection, then move focus to the Query toolbar. It never cancels |
+| **F8**, **Ctrl Shift M** | Editor | Step to the next diagnostic, or list them |
+| **↑ ↓** (5%, **Shift** 10%), **Home** / **End** | Separator | Resize the editor and the results |
+| **Tab**, **Space**, **Enter** | Columns menu | Show or hide a column, move it earlier or later |
+
+The results are a grid, so its keys apply, and **Enter** opens the message.
+
 ## Flow
 
 Graph nodes take **Enter** to open their details, **Escape** to close them, and

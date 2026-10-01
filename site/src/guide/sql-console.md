@@ -57,11 +57,24 @@ This is the part worth knowing. Every top-level `AND` conjunct is classified:
 | **Scan** | Studio examines every message the broker returned. |
 
 Headers and application properties push down. The body never can — nothing but
-Studio can read it. The plan strip above the editor tells you which your query
-is **before it runs**, and over the configured cost ceiling the query is refused
-with the estimate, the ceiling and a hint for narrowing it. It is refused rather
-than truncated: a truncated result is indistinguishable from a complete one at a
-glance, and an operator mid-incident reads it as "not there".
+Studio can read it. The **cost line** under the editor tells you which your query
+is **before it runs**, in one sentence of words and numbers, and over the configured
+cost ceiling the query is refused with the estimate, the ceiling and a hint for
+narrowing it. It is refused rather than truncated: a truncated result is
+indistinguishable from a complete one at a glance, and an operator mid-incident
+reads it as "not there".
+
+| The line says | It means |
+|---|---|
+| **Broker-filtered** | The brokers filter. Studio examines at most the row limit of messages from the queues. |
+| **Scan** | Studio reads and examines about *n* messages on the queues across the nodes. Narrow it with a header predicate. |
+| **Index** | The query reads Studio's index, up to the row limit. No broker is read. |
+| **No cost** | No queue matches the `FROM` pattern, so nothing is read. |
+| **Estimating** | The text has changed since the plan was asked for. |
+| **Unavailable** | The estimate cannot be made, and the line says why: the editor is empty, you may not read messages here, the query has a syntax error, or the plan failed. An estimate that is not available is never shown as zero. |
+
+The cost line is not announced as you type. The editor and **Run** are described by it,
+so a screen reader reads it when either takes focus.
 
 ::: tip One trap worth stating
 A predicate that is free on its own stops being free inside an `OR` with a body
@@ -70,6 +83,29 @@ gets to see — so a disjunction containing a scan is scanned as a whole. This i
 the one mistake in this area that produces a silently *wrong* answer rather than
 a slow one.
 :::
+
+## Writing, running and cancelling
+
+The editor sits above its results in one workspace. Drag the separator between them,
+or focus it and press **↑** or **↓** (5% a step, 10% with **Shift**), or **Home** and
+**End** for the smallest and largest editor. Studio remembers the split in this browser.
+
+**Run** and **Cancel** sit side by side above the editor. **Ctrl .** (**⌘ .** on a Mac)
+cancels from the editor or from anywhere on the page. Cancelling closes the stream, which
+releases the query on the server and stops every broker read. The rows that had arrived
+stay on screen, and the console says the query was cancelled and that they are not the
+whole answer. Cancelling a live tail simply stops it. **Escape** never cancels: it closes
+completion, then collapses the selection, and then moves focus out of the editor to the
+Query toolbar.
+
+A syntax error is marked in the editor on the offending token, with the reason beside it
+and in the cost line. **F8** steps to it, and **Ctrl Shift M** lists the diagnostics.
+A query that is refused or fails reads as an error with its cause and the next step, and
+a refusal carries the estimate and the ceiling it was refused against.
+
+Results use the same table as every other view. Its **Columns** menu shows or hides a
+column and moves it earlier or later with the **Move earlier** and **Move later** buttons,
+and remembers the choice in this browser. The message, which identifies a row, stays first.
 
 ## Columns
 

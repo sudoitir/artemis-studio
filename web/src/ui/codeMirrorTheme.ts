@@ -130,12 +130,6 @@ export const codeTheme = EditorView.theme({
     color: 'var(--as-text-dimmed)',
     fontStyle: 'normal',
   },
-  // Wavy underline plus the danger colour: the underline carries the meaning on
-  // its own, so the colour is redundant emphasis rather than the only signal.
-  '.cm-as-error-token': {
-    textDecoration: 'underline wavy var(--as-danger)',
-    textUnderlineOffset: '0.1875rem',
-  },
   // The lint layer ships its own marks in fixed colours (a data-URI squiggle, a gutter icon, a bar on
   // each message). They take the status tokens here, and the gutter marks differ in shape as well as
   // colour, so a severity is never carried by colour alone.

@@ -175,6 +175,40 @@ export function ShortcutsHelp() {
                   { keys: [['Ctrl', 'C']], what: "Copy the cell's full value" },
                 ]}
               />
+
+              <Shortcuts
+                title="In the SQL console"
+                rows={[
+                  {
+                    keys: [
+                      ['⌘', 'Enter'],
+                      ['Ctrl', 'Enter'],
+                    ],
+                    what: 'Run the query',
+                  },
+                  {
+                    keys: [
+                      ['⌘', '.'],
+                      ['Ctrl', '.'],
+                    ],
+                    what: 'Cancel the running query, from the editor or the page',
+                  },
+                  { keys: [['Ctrl', 'Space']], what: 'Complete a column or queue name' },
+                  {
+                    keys: [['Escape']],
+                    what: 'Close completion, then collapse the selection, then leave the editor; it never cancels',
+                  },
+                  {
+                    keys: [['F8'], ['⌘', 'Shift', 'M'], ['Ctrl', 'Shift', 'M']],
+                    what: 'Step to the next diagnostic, or list them',
+                  },
+                  {
+                    keys: [['↑'], ['↓']],
+                    what: 'On the separator: resize the editor and the results (Shift for a larger step)',
+                  },
+                  { keys: [['Home'], ['End']], what: 'On the separator: the smallest or the largest editor' },
+                ]}
+              />
             </Section>
           </Stack>
         </ScrollArea.Autosize>

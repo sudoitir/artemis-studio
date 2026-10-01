@@ -62,6 +62,23 @@ describe('IndexSubscriptions', () => {
     expect(screen.getByText(/for 7 days/i)).toBeInTheDocument();
   });
 
+  it('is two h3 sections, the subscriptions in a native table and the form to start one', async () => {
+    mockMe();
+    server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([subscription()]))));
+    renderWithProviders(<IndexSubscriptions />);
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Subscriptions' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Index a queue' })).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Index subscriptions' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Queues', 'Mode', 'Held', 'Retention', 'State', 'Delete']);
+    expect(within(table).getByText('Sample')).toBeInTheDocument();
+    expect(within(table).getByText('7 days')).toBeInTheDocument();
+  });
+
   it('teaches what an index is when none exists, rather than showing an empty table', async () => {
     mockMe();
     server.use(http.get('*/api/v1/clusters/c1/sql/index', () => HttpResponse.json(paged([]))));
@@ -94,7 +111,8 @@ describe('IndexSubscriptions', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
 
-    expect(screen.getByText(/1,284 captured messages/)).toBeInTheDocument();
+    expect(await screen.findByText(/1,284 captured messages/)).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Delete index subscription ORDER.IN' })).toBeInTheDocument();
     const confirm = screen.getByRole('button', { name: /Delete and destroy captured messages/i });
     // Not armed by a click, and not by a checkbox: the resource's own name.
     expect(confirm).toBeDisabled();
@@ -339,8 +357,8 @@ describe('IndexSubscriptions loading and failure', () => {
     );
     renderWithProviders(<IndexSubscriptions />);
 
-    expect(await screen.findByText('Forbidden')).toBeInTheDocument();
-    expect(screen.getByText('You may not see this cluster.')).toBeInTheDocument();
+    expect(await screen.findByText('You are not allowed to do this')).toBeInTheDocument();
+    expect(screen.getByText('Your role does not allow it.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Queue or pattern')).toBeNull();
   });
 
@@ -476,12 +494,17 @@ describe('IndexSubscriptions deleting', () => {
     renderWithProviders(<IndexSubscriptions />);
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText(/1,284 captured messages/)).toBeInTheDocument();
     expect(screen.queryByText(/removes the divert, the capture queue/)).toBeNull();
     await user.type(screen.getByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
     await user.click(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
 
     await waitFor(() =>
-      expect(show).toHaveBeenCalledWith({ message: 'Deleted ORDER.IN — 1,284 captured messages destroyed' }),
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Deleted index subscription ORDER.IN — 1,284 captured messages destroyed',
+        }),
+      ),
     );
     await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
     show.mockRestore();
@@ -494,14 +517,30 @@ describe('IndexSubscriptions deleting', () => {
     renderWithProviders(<IndexSubscriptions />);
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    expect(screen.getByText(/1 captured message it holds/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 captured message it holds/)).toBeInTheDocument();
     expect(
       screen.getByText(/removes the divert, the capture queue, the address setting and the security setting/),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull();
+    await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
+  it('closes on Escape and gives focus back to the Delete that opened it', async () => {
+    mockMe();
+    listing([subscription()]);
+    const user = userEvent.setup();
+    renderWithProviders(<IndexSubscriptions />);
+
+    const trigger = await screen.findByRole('button', { name: 'Delete' });
+    await user.click(trigger);
+    await screen.findByLabelText('Type "ORDER.IN" to confirm');
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus());
   });
 
   it('says why a delete failed and leaves the confirmation open', async () => {
@@ -517,12 +556,13 @@ describe('IndexSubscriptions deleting', () => {
     renderWithProviders(<IndexSubscriptions />);
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    await user.type(screen.getByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
+    await user.type(await screen.findByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
     await user.click(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
 
-    await waitFor(() =>
-      expect(show).toHaveBeenCalledWith({ color: 'red', message: 'The subscription is being reconciled.' }),
-    );
+    // The failure is read inside the dialog, by its cause and next step, and the confirmation stays open.
+    expect(await screen.findByText('This conflicts with the current state')).toBeInTheDocument();
+    expect(screen.getByText('The subscription is being reconciled.')).toBeInTheDocument();
+    expect(show).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Type "ORDER.IN" to confirm')).toBeInTheDocument();
     show.mockRestore();
   });
@@ -555,7 +595,9 @@ describe('IndexSubscriptions sampling form', () => {
       enabled: true,
       mode: 'SAMPLE',
     });
-    await waitFor(() => expect(show).toHaveBeenCalledWith({ message: 'Now sampling ORDER.IN' }));
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(expect.objectContaining({ message: 'Started sampling ORDER.IN' })),
+    );
     await waitFor(() => expect(pattern).toHaveValue(''));
     show.mockRestore();
   });
@@ -574,8 +616,8 @@ describe('IndexSubscriptions sampling form', () => {
     await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
     await user.click(screen.getByRole('button', { name: 'Start sampling' }));
 
-    const alert = (await screen.findByText('Already indexed')).closest('[role="alert"]');
-    expect(alert).toHaveTextContent('Already indexed');
+    const alert = (await screen.findByText('This conflicts with the current state')).closest('[role="alert"]');
+    expect(alert).toHaveTextContent('This conflicts with the current state');
     expect(alert).toHaveTextContent('ORDER.IN is already indexed.');
   });
 
@@ -743,8 +785,8 @@ describe('IndexSubscriptions capture form', () => {
     await user.click(screen.getByRole('radio', { name: /capture everything/i }));
     await user.click(screen.getByRole('button', { name: 'Preview capture' }));
 
-    const alert = (await screen.findByText('No live node')).closest('[role="alert"]');
-    expect(alert).toHaveTextContent('No live node');
+    const alert = (await screen.findByText('This conflicts with the current state')).closest('[role="alert"]');
+    expect(alert).toHaveTextContent('This conflicts with the current state');
     expect(alert).toHaveTextContent('No node of this cluster is live.');
   });
 

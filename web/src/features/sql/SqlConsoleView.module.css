@@ -1,22 +1,43 @@
-/* The console: editor, then what the query will do, then what it did. A single
-   column on purpose — an operator reads it top to bottom once, and a side pane
-   would only compete with the plan for the attention that belongs there. */
-
-.toolbar {
+/* The console is one workspace: the editor above and the results below, divided by a split the operator
+   resizes. It is the last part of the page, so it takes the window height that remains, and it keeps a
+   floor so a short window scrolls the page instead of squeezing the editor to nothing. */
+.frame {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-direction: column;
 }
 
-.hint {
-  color: var(--as-text-dimmed);
-  font-size: var(--mantine-font-size-xs);
+.workspace {
+  flex: 1 1 auto;
+  min-block-size: 32rem;
 }
 
-/* The screen-reader announcement of an outcome. Visually hidden, never
-   `display: none` — a hidden live region is not announced at all. */
+/* The split's own pane would scroll, and it is not keyboard-reachable. Each pane holds one named,
+   focusable region that scrolls instead. */
+.workspace > .pane {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+/* A pane's content: a named region that fills its pane and scrolls inside it. */
+.region {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  min-block-size: 0;
+  padding-block: var(--mantine-spacing-xs);
+  overflow: auto;
+}
+
+.region:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: calc(var(--as-focus-offset) * -1);
+}
+
+/* The screen-reader announcement of an outcome. Visually hidden, never `display: none`: a hidden live
+   region is not announced at all. */
 .announcement {
   position: absolute;
   inline-size: 1px;
@@ -27,59 +48,6 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
-}
-
-/* The console owns the viewport below the header: an editor pane, a handle, and a
-   results pane that takes what is left. The old single scrolling column pushed the
-   grid below the fold the moment a result had anything to say about itself, which
-   is precisely when an operator needs to see both. */
-.split {
-  display: grid;
-  grid-template-rows:
-    minmax(0, calc(var(--as-editor-fraction) * 100%))
-    auto minmax(0, 1fr);
-  block-size: calc(100dvh - 12rem);
-  min-block-size: 24rem;
-  gap: 0.5rem;
-}
-
-.editorPane {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-block-size: 0;
-  overflow-y: auto;
-}
-
-/* Wide target, thin line. The cursor says it resizes; the slider role and arrow
-   keys are what make it reachable without a pointer. */
-.handle {
-  position: relative;
-  block-size: 0.75rem;
-  cursor: row-resize;
-  touch-action: none;
-}
-
-.handle::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  inset-block-start: 50%;
-  block-size: 1px;
-  background: var(--as-border);
-}
-
-.handle:focus-visible {
-  outline: 2px solid var(--mantine-primary-color-filled);
-  outline-offset: 2px;
-}
-
-.resultPane {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-block-size: 0;
-  overflow-y: auto;
 }
 
 /* The grid gets whatever the pane has left, and scrolls inside itself. */

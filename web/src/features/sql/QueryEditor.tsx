@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
-import { EditorState, Prec, StateEffect, StateField, type Extension } from '@codemirror/state';
-import { Decoration, EditorView, keymap, placeholder, type DecorationSet } from '@codemirror/view';
+import { EditorState, Prec, type Extension } from '@codemirror/state';
+import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { syntaxHighlighting } from '@codemirror/language';
 import {
@@ -12,11 +12,13 @@ import {
   type CompletionResult,
 } from '@codemirror/autocomplete';
 import { sql } from '@codemirror/lang-sql';
+import { lintKeymap, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { Text } from '@mantine/core';
 
 import { codeHighlight as highlight, codeTheme as theme } from '../../ui/codeMirrorTheme.ts';
 
 import { COLUMNS, EVALUATION_WORDS, FUNCTIONS } from './catalogue.ts';
+import classes from './QueryEditor.module.css';
 
 /**
  * The completion source. Written by hand rather than handed to `lang-sql`'s
@@ -81,47 +83,36 @@ function completions(queues: string[]) {
 }
 
 /**
- * The offending-token underline (7.10).
+ * Where the offending token is in the query, as a lint diagnostic.
  *
- * <p>The plan strip already names the token a refusal is about. Naming it and
- * leaving the operator to find it in their own query is half an answer — on a long
- * query it is the half that costs the time. This marks it in place, so the error
- * and the text it is about are in the same field of view.
+ * <p>The plan strip already names the token a rejection is about. Naming it and leaving the operator
+ * to find it in their own query is half an answer; on a long query it is the half that costs the
+ * time. The server reports the token, not its position, so it is found here, case-insensitively
+ * because the server reports it as the parser saw it. A token no longer in the text marks nothing.
  */
-const setErrorToken = StateEffect.define<string | null>();
-
-const errorMark = Decoration.mark({ class: 'cm-as-error-token' });
-
-const errorField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update(marks, transaction) {
-    let token: string | null | undefined;
-    for (const effect of transaction.effects) {
-      if (effect.is(setErrorToken)) token = effect.value;
-    }
-    if (token === undefined) {
-      // No new verdict: keep what is marked, moved along with the edit.
-      return marks.map(transaction.changes);
-    }
-    if (!token) return Decoration.none;
-    const text = transaction.state.doc.toString();
-    // The first occurrence, case-insensitively: the server reports the token as the
-    // parser saw it, which may differ in case from what was typed.
-    const at = text.toLowerCase().indexOf(token.toLowerCase());
-    return at < 0 ? Decoration.none : Decoration.set([errorMark.range(at, at + token.length)]);
-  },
-  provide: (field) => EditorView.decorations.from(field),
-});
+function diagnosticsFor(state: EditorState, error: QueryError | null): Diagnostic[] {
+  if (!error?.token) return [];
+  const at = state.doc.toString().toLowerCase().indexOf(error.token.toLowerCase());
+  if (at < 0) return [];
+  return [{ from: at, to: at + error.token.length, severity: 'error', message: error.message }];
+}
 
 /** The token after `FROM `, so the completion replaces it rather than appending to it. */
 function wordAfterFrom(text: string): string {
   return /from\s+(\S.*)?$/i.exec(text)?.[1] ?? '';
 }
 
+/** What is wrong with the query: the offending token, and what to say about it. */
+export interface QueryError {
+  token: string;
+  message: string;
+}
+
 /**
  * The console's query editor: CodeMirror 6 with the SQL grammar, completion over
- * the column catalogue and the cluster's live queue names, and ⌘/Ctrl-Enter to
- * run.
+ * the column catalogue and the cluster's live queue names, ⌘/Ctrl-Enter to run and
+ * ⌘/Ctrl-. to cancel. A rejected query is marked on its offending token as a lint
+ * diagnostic, which F8 steps to.
  *
  * <p>Deliberately not `basicSetup` — line numbers, folding and a gutter belong to
  * a file, not to a four-line query. Everything here earns its place.
@@ -130,18 +121,27 @@ export function QueryEditor({
   value,
   onChange,
   onRun,
+  onCancel,
+  onEscape,
   queues,
   label = 'Query',
-  errorToken = null,
+  describedBy,
+  error = null,
 }: Readonly<{
   value: string;
   onChange: (next: string) => void;
   onRun: () => void;
+  /** Mod+. */
+  onCancel: () => void;
+  /** Escape with nothing left to close or collapse: the caller moves focus out of the editor. */
+  onEscape: () => void;
   /** Queue names for completion, from the cluster's current snapshot. */
   queues: string[];
   label?: string;
-  /** The token a refusal is about, underlined in place. Null clears the mark. */
-  errorToken?: string | null;
+  /** The element that describes the query, such as its cost verdict. */
+  describedBy?: string;
+  /** What is wrong with the query, marked on the offending token. Null clears the mark. */
+  error?: QueryError | null;
 }>) {
   const labelId = useId();
   const host = useRef<HTMLDivElement>(null);
@@ -150,8 +150,8 @@ export function QueryEditor({
   // The extensions are built once, so the keymap and completion source close over
   // the first render's callbacks. These refs keep them current without tearing
   // the editor down and losing the cursor on every parent render.
-  const latest = useRef({ onChange, onRun, queues });
-  latest.current = { onChange, onRun, queues };
+  const latest = useRef({ onChange, onRun, onCancel, onEscape, queues });
+  latest.current = { onChange, onRun, onCancel, onEscape, queues };
 
   useEffect(() => {
     if (!host.current) return;
@@ -172,7 +172,37 @@ export function QueryEditor({
           },
         ]),
       ),
-      keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap]),
+      Prec.high(
+        keymap.of([
+          {
+            // Cancelling is a key of its own, never Escape: Escape is how an operator leaves the
+            // editor, and leaving it must never stop a query that is reading brokers.
+            key: 'Mod-.',
+            preventDefault: true,
+            run: () => {
+              latest.current.onCancel();
+              return true;
+            },
+          },
+        ]),
+      ),
+      // In this order Escape closes the completion list, then collapses the selection to one
+      // cursor, and only then, with nothing left to close, hands focus on.
+      keymap.of([
+        ...closeBracketsKeymap,
+        ...completionKeymap,
+        ...defaultKeymap,
+        ...historyKeymap,
+        // F8 steps through the diagnostics and Mod-Shift-m lists them.
+        ...lintKeymap,
+        {
+          key: 'Escape',
+          run: () => {
+            latest.current.onEscape();
+            return true;
+          },
+        },
+      ]),
       closeBrackets(),
       sql({ upperCaseKeywords: true }),
       syntaxHighlighting(highlight),
@@ -181,13 +211,17 @@ export function QueryEditor({
       }),
       placeholder('SELECT * FROM "ORDER.IN" WHERE priority > 4 LIMIT 100'),
       EditorView.lineWrapping,
-      errorField,
       // The editor's content is a contenteditable div, not a form control, so a
       // <label for> cannot reach it. The visible label below is its accessible
       // name through aria-labelledby — a placeholder is not a label.
       EditorView.contentAttributes.of({
         'aria-labelledby': labelId,
+        ...(describedBy ? { 'aria-describedby': describedBy } : {}),
         role: 'textbox',
+        'aria-multiline': 'true',
+        // The editor scrolls inside itself when the query is long, and a scroll area must be reachable by
+        // keyboard: axe does not count a contenteditable as focusable, an explicit tab stop it does.
+        tabindex: '0',
       }),
       theme,
       EditorView.updateListener.of((update) => {
@@ -206,7 +240,7 @@ export function QueryEditor({
     };
     // Built once for the editor's lifetime; `value` is synced by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [labelId]);
+  }, [labelId, describedBy]);
 
   // An external change to the query — a loaded example, a restored URL — is
   // pushed in. A change the editor itself made is already in the document, and
@@ -222,15 +256,16 @@ export function QueryEditor({
   }, [value]);
 
   useEffect(() => {
-    view.current?.dispatch({ effects: setErrorToken.of(errorToken) });
-  }, [errorToken]);
+    const editor = view.current;
+    if (editor) editor.dispatch(setDiagnostics(editor.state, diagnosticsFor(editor.state, error)));
+  }, [error, value]);
 
   return (
-    <div>
+    <div className={classes.editor}>
       <Text id={labelId} component="label" size="xs" fw={600} c="dimmed" display="block" mb={4}>
         {label}
       </Text>
-      <div ref={host} />
+      <div ref={host} className={classes.host} />
     </div>
   );
 }

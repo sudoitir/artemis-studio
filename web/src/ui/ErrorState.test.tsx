@@ -99,6 +99,26 @@ describe('ErrorState', () => {
     expect(items.map((item) => item.textContent)).toEqual(['name: must not be blank', 'port: must be at most 65535']);
   });
 
+  it('reads a 422 with no field errors as the problem’s own title and detail', () => {
+    renderWithProviders(
+      <ErrorState error={apiError(422, { title: 'Query refused', detail: 'It would examine 2,000,000 messages.' })} />,
+    );
+    expect(screen.getByText('Query refused')).toBeInTheDocument();
+    expect(screen.getByText('It would examine 2,000,000 messages.')).toBeInTheDocument();
+    expect(screen.queryByText('Some values are not valid')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('shows a string hint as the next step, and lets the caller’s own next step win', () => {
+    const error = apiError(422, { title: 'Query refused', hint: 'Add a WHERE clause on the queue.' });
+    const { unmount } = renderWithProviders(<ErrorState error={error} />);
+    expect(screen.getByText('Add a WHERE clause on the queue.')).toBeInTheDocument();
+    unmount();
+    renderWithProviders(<ErrorState error={error} next="Narrow the query." />);
+    expect(screen.getByText('Narrow the query.')).toBeInTheDocument();
+    expect(screen.queryByText('Add a WHERE clause on the queue.')).not.toBeInTheDocument();
+  });
+
   it('gives the wait on 429', () => {
     renderWithProviders(<ErrorState error={apiError(429, { retryAfter: 30 })} onRetry={() => undefined} />);
     expect(screen.getByText('Too many requests')).toBeInTheDocument();

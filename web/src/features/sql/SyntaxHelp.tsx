@@ -1,5 +1,7 @@
-import { Button, Code, Divider, Group, Modal, Stack, Table, Text, Title } from '@mantine/core';
+import { Button, Code, Group, Modal, Stack, Text } from '@mantine/core';
 
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { COLUMNS, EVALUATION_WORDS, EXAMPLES, FULL_TEXT, FUNCTIONS } from './catalogue.ts';
 
 /**
@@ -37,8 +39,7 @@ export function SyntaxHelp({
           </Text>
         </Stack>
 
-        <Stack gap="xs">
-          <Title order={5}>Where the query reads</Title>
+        <Section title="Where the query reads" headingLevel={3}>
           <Text size="sm">
             The schema qualifier picks the backend. <Code>FROM broker.&quot;Q&quot;</Code> reads the live brokers —
             current truth. <Code>FROM index.&quot;Q&quot;</Code> reads the historical index, which still holds messages
@@ -46,56 +47,31 @@ export function SyntaxHelp({
             reads the index when every queue it names is captured, and the live brokers otherwise — a queue that is only
             sampled is read live. The plan says which it picked.
           </Text>
-        </Stack>
+        </Section>
 
-        <Stack gap="xs">
-          <Title order={5}>What a predicate costs</Title>
+        <Section title="What a predicate costs" headingLevel={3}>
           <Text size="sm">
             This is the one thing worth knowing before running anything. A predicate over a header or an application
             property becomes a JMS selector, so the broker filters and Studio never sees the messages that did not
             match. A predicate over the body cannot be pushed down at all: every message the broker returns has to be
-            read and examined. The plan strip above the editor says which of the two your query is, before it runs.
+            read and examined. The cost line under the editor says which of the two your query is, before it runs.
           </Text>
           <Text size="sm">
             One trap worth stating: a predicate that is free on its own stops being free inside an <Code>OR</Code> with
             a body predicate. Pushing down one side of an <Code>OR</Code> would narrow the set the other side gets to
             see, so the whole disjunction is scanned.
           </Text>
-        </Stack>
+        </Section>
 
-        <Divider />
-
-        <Stack gap="xs">
-          <Title order={5}>Columns</Title>
-          <Table verticalSpacing={4} withRowBorders={false}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Column</Table.Th>
-                <Table.Th>Cost</Table.Th>
-                <Table.Th>Meaning</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {COLUMNS.map((c) => (
-                <Table.Tr key={c.name}>
-                  <Table.Td>
-                    <Code>{c.name}</Code>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs" c="dimmed">
-                      {EVALUATION_WORDS[c.evaluation]}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">
-                      {c.description}
-                      {c.indexOnly ? ' Index only.' : ''}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+        <Section title="Columns" headingLevel={3}>
+          <DescriptionList
+            label="Columns"
+            items={COLUMNS.map((c) => ({
+              term: c.name,
+              value: `${c.description}${c.indexOnly ? ' Index only.' : ''}`,
+              hint: EVALUATION_WORDS[c.evaluation],
+            }))}
+          />
           <Text size="sm">
             Application properties are addressed by name as <Code>props.tenant</Code>, and a JSON field inside the body
             as <Code>body-&gt;&gt;&apos;orderId&apos;</Code>. The only functions the dialect accepts are{' '}
@@ -109,12 +85,9 @@ export function SyntaxHelp({
             orders by how well each row matched — it needs a <Code>MATCH()</Code> in the same query to rank against.{' '}
             {FULL_TEXT.note}
           </Text>
-        </Stack>
+        </Section>
 
-        <Divider />
-
-        <Stack gap="xs">
-          <Title order={5}>Examples</Title>
+        <Section title="Examples" headingLevel={3}>
           {EXAMPLES.map((example) => (
             <Stack key={example.title} gap={4}>
               <Group justify="space-between" align="flex-start" wrap="nowrap">
@@ -138,7 +111,7 @@ export function SyntaxHelp({
               </Text>
             </Stack>
           ))}
-        </Stack>
+        </Section>
       </Stack>
     </Modal>
   );

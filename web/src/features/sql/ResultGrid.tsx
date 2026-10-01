@@ -11,9 +11,10 @@ import classes from './ResultGrid.module.css';
  * The result set, in the console's data table: the same sizing, sorting and node attribution as every
  * other tabular view.
  *
- * <p>The leading column is where the row came from, not what it says: a live row
- * and an indexed row mean different things, and which one an operator is looking
- * at has to be answerable without opening it.
+ * <p>Which columns show, and in what order, is the table's own Columns menu, remembered per browser.
+ * The message identifies a row, so it leads; where the row came from follows the queue and the node, because
+ * a live row and an indexed row mean different things and which one an operator is looking at has to be
+ * answerable without opening it.
  */
 export function ResultGrid({
   clusterId,
@@ -21,7 +22,6 @@ export function ResultGrid({
   onOpen,
   emptyLabel,
   freshKeys,
-  columnIds,
   onAtTopChange,
 }: Readonly<{
   clusterId: string;
@@ -31,19 +31,11 @@ export function ResultGrid({
   emptyLabel: React.ReactNode;
   /** Keys the live tail delivered in the last few seconds. */
   freshKeys?: ReadonlySet<string>;
-  /** The columns to show, in the order to show them. Defaults to all of them. */
-  columnIds?: readonly string[];
   onAtTopChange?: (atTop: boolean) => void;
 }>) {
   // The Enqueued column is an absolute timestamp, so this view follows the display zone.
   const zone = useDisplayZone();
-  const columns = useMemo(() => {
-    const all = resultColumns(clusterId, zone);
-    if (!columnIds) return all;
-    // Ordered by the caller's list, not by the definition order: reordering is the
-    // point, and a column the caller left out is simply not built.
-    return columnIds.flatMap((id) => all.filter((c) => c.id === id));
-  }, [clusterId, zone, columnIds]);
+  const columns = useMemo(() => resultColumns(clusterId, zone), [clusterId, zone]);
   return (
     <DataTable
       label="Query results"

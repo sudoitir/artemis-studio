@@ -1,0 +1,21 @@
+/* The editor fills the pane the split gives it, and scrolls inside itself when the query is longer. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.host {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.host :global(.cm-editor) {
+  block-size: 100%;
+  min-block-size: 4.5rem;
+}
+
+.host :global(.cm-scroller) {
+  overflow: auto;
+}

@@ -1,6 +1,8 @@
-import { Anchor, Badge, Collapse, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Collapse, Group, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 
+import { Notice } from '../../ui/Notice.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { SqlResultView } from './api.ts';
 import { boundWords, noticeWords } from './notices.ts';
 import classes from './ResultMetaBar.module.css';
@@ -48,14 +50,8 @@ export function ResultMetaBar({
           <Text size="sm" fw={600} c={verdict.tone ? `var(--as-${verdict.tone})` : undefined}>
             {verdict.text}
           </Text>
-          <Badge size="sm" variant="light" color="gray">
-            {sourceLabel(fromIndex, captured)}
-          </Badge>
-          {bounds.length > 0 ? (
-            <Badge size="sm" variant="light" color="yellow">
-              incomplete
-            </Badge>
-          ) : null}
+          <StatusBadge>{sourceLabel(fromIndex, captured)}</StatusBadge>
+          {bounds.length > 0 ? <StatusBadge tone="warning">Incomplete</StatusBadge> : null}
         </Group>
         {statements > 0 ? (
           <Anchor
@@ -73,25 +69,30 @@ export function ResultMetaBar({
       <Collapse expanded={open}>
         <Stack gap={6} className={classes.detail}>
           {fromIndex ? (
-            <Text size="sm">
+            <Notice title={captured ? 'Captured rows' : 'Sampled rows'}>
               {captured
                 ? 'These rows were captured: a divert copied every message the address routed into a queue Studio drains, so a message that was consumed immediately is still here. A message may have been consumed since it was captured — "verify on broker", on any row, asks a broker whether it is still there.'
                 : 'These rows are what Studio observed while sampling these queues. A message may have been consumed since it was seen, and one that arrived and left between two samples was never indexed at all.'}
-            </Text>
+            </Notice>
           ) : null}
-          {bounds.map((bound, i) => (
-            <Text key={`${bound.kind}-${i}`} size="sm" c="var(--as-warning)">
-              {boundWords(bound)}
-            </Text>
-          ))}
-          {notices.map((notice, i) => {
-            const { text, tone } = noticeWords(notice);
-            return (
-              <Text key={`${notice.kind}-${i}`} size="sm" c={tone ? 'var(--as-warning)' : undefined}>
-                {text}
-              </Text>
-            );
-          })}
+          {bounds.length > 0 ? (
+            <Notice title="Stopped early" tone="warning">
+              <ul className={classes.statements}>
+                {bounds.map((bound, i) => (
+                  <li key={`${bound.kind}-${i}`}>{boundWords(bound)}</li>
+                ))}
+              </ul>
+            </Notice>
+          ) : null}
+          {notices.length > 0 ? (
+            <Notice title="About this result" tone={notices.some((n) => noticeWords(n).tone) ? 'warning' : 'neutral'}>
+              <ul className={classes.statements}>
+                {notices.map((notice, i) => (
+                  <li key={`${notice.kind}-${i}`}>{noticeWords(notice).text}</li>
+                ))}
+              </ul>
+            </Notice>
+          ) : null}
           <Text size="xs" c="dimmed">
             {rowCount.toLocaleString()} row{rowCount === 1 ? '' : 's'} in view.
           </Text>

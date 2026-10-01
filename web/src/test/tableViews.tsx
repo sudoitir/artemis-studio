@@ -786,7 +786,7 @@ export const VIEWS: TableView_[] = [
     rows: (f) => ROWS.map((i) => sqlRow(f, i)),
     rowKey: (r) => `${r.nodeId}/${r.messageId}`,
     identifiers: ['queue'],
-    visible1280: ['source', 'node', 'queue', 'messageId', 'timestamp', 'priority', 'size', 'body'],
+    visible1280: ['messageId', 'queue', 'node', 'source', 'timestamp', 'body', 'priority', 'size'],
   }),
   view({
     name: 'bulk runs',

@@ -99,13 +99,29 @@ export function withVisibility(state: TableState, id: string, visible: boolean):
 
 /**
  * The columns in the order a viewer chose: those it lists first, in its order, then the rest as
- * declared. An id the table no longer has is ignored.
+ * declared. An id the table no longer has is ignored. The first declared column identifies a row and
+ * stays first, whatever the stored order says.
  */
 export function orderColumns<C extends { id: string }>(columns: C[], order: string[]): C[] {
-  if (order.length === 0) return columns;
-  const byId = new Map(columns.map((column) => [column.id, column]));
+  const [first, ...rest] = columns;
+  if (order.length === 0 || !first) return columns;
+  const byId = new Map(rest.map((column) => [column.id, column]));
   const listed = order.flatMap((id) => byId.get(id) ?? []);
-  return [...listed, ...columns.filter((column) => !order.includes(column.id))];
+  return [first, ...listed, ...rest.filter((column) => !order.includes(column.id))];
+}
+
+/**
+ * The state with `id` moved one place earlier (`-1`) or later (`1`) among `ids`, which are every
+ * column's id in the order now shown. The first column stays first, so nothing moves before it, and a
+ * move past either end leaves the state as it was.
+ */
+export function withMovedColumn(state: TableState, ids: string[], id: string, by: -1 | 1): TableState {
+  const from = ids.indexOf(id);
+  const to = from + by;
+  if (from < 1 || to < 1 || to >= ids.length) return state;
+  const order = [...ids];
+  [order[from], order[to]] = [order[to], order[from]];
+  return { ...state, order };
 }
 
 /**

@@ -31,6 +31,9 @@ export function rowKey(row: SqlRowView): string {
  * - `done` — it finished and nothing more is coming.
  * - `tailing` — it finished and the tail is polling.
  * - `failed` — the server refused or could not run it; `error` says why.
+ * - `cancelled` — the operator stopped the static query part-way. The rows that had arrived are
+ *   kept, and the query is not running. Stopping a tail is not a cancellation: the query had
+ *   finished, so it reads as `done`.
  * - `disconnected` — the stream dropped. The query is *not* silently restarted:
  *   reconnecting would re-run a fan-out the operator did not ask for a second
  *   time, and would write a second audit record for one intent.
@@ -39,7 +42,7 @@ export function rowKey(row: SqlRowView): string {
  * operator did not drop the stream, so the same query is run again on another replica (a new
  * ticket, a new stream, and the rows start over) instead of reporting a disconnect.
  */
-export type RunStatus = 'idle' | 'running' | 'done' | 'tailing' | 'failed' | 'disconnected';
+export type RunStatus = 'idle' | 'running' | 'done' | 'tailing' | 'failed' | 'cancelled' | 'disconnected';
 
 export interface SqlRun {
   rows: SqlRowView[];
@@ -58,8 +61,16 @@ export interface SqlRun {
   paused: boolean;
   /** How many rows have arrived while paused and are waiting to be shown. */
   buffered: number;
+  /** Counts the runs started, and stays the same through a reconnect and a cancellation. 0 before the first. */
+  runId: number;
+  /** The SQL of the latest run, as it was sent. */
+  sql: string;
   start: (sql: string, tail: boolean) => void;
-  stop: () => void;
+  /**
+   * Close the stream, which releases the run on the server. A static query still running is
+   * `cancelled`; a tail is `done`. The rows that arrived stay.
+   */
+  cancel: () => void;
   /**
    * Hold new rows back without stopping the tail. The broker is still being read —
    * pausing the view and stopping the query are different acts, and conflating them
@@ -85,6 +96,10 @@ interface Request {
  * itself cancelled and issues no further broker read — which is why the effect's
  * cleanup closes it rather than leaving it to be garbage collected.
  *
+ * <p>A row event goes into a buffer that one animation frame writes with a single state update, so a
+ * fan-out that delivers thousands of rows is one render per frame, not one copy of the list per row.
+ * `done`, `failed`, a dropped stream and `cancel` write what is buffered before they set the status.
+ *
  * <p>A refusal arrives as a `failed` frame carrying the same problem body the JSON
  * API would have returned, because an `EventSource` cannot read the body of a
  * non-200 and a refusal without its estimate is not actionable.
@@ -98,6 +113,7 @@ export function useSqlTail(clusterId: string): SqlRun {
   const [tail, setTail] = useState<SqlTailStatusView | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [status, setStatus] = useState<RunStatus>('idle');
+  const [run, setRun] = useState({ runId: 0, sql: '' });
 
   // A Set, not an array: each entry removes itself when it fires, so a tail left
   // running for an hour does not accumulate one dead handle per row it delivered.
@@ -110,6 +126,51 @@ export function useSqlTail(clusterId: string): SqlRun {
   const pausedRef = useRef(false);
   const [paused, setPaused] = useState(false);
   const [buffered, setBuffered] = useState(0);
+
+  // Rows that have arrived since the last animation frame, oldest first, and whether the stream has
+  // reached its tail, which decides where they go.
+  const arrived = useRef<SqlRowView[]>([]);
+  const frame = useRef<number | null>(null);
+  const tailing = useRef(false);
+
+  // Writes the rows that have arrived with one state update, and marks them fresh with one timer.
+  const flush = useCallback(() => {
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+    const batch = arrived.current;
+    if (batch.length === 0) return;
+    arrived.current = [];
+    if (!tailing.current) {
+      setRows((prev) => [...prev, ...batch]);
+      return;
+    }
+    // While tailing, the newest row goes to the top: an operator watching a live feed is watching
+    // the head of it, not scrolling to find it.
+    const newest = batch.reverse();
+    if (pausedRef.current) {
+      // Bounded the same way the visible list is: a long pause must not become an unbounded buffer.
+      held.current = [...newest, ...held.current].slice(0, MAX_TAIL_ROWS);
+      setBuffered(held.current.length);
+      return;
+    }
+    setRows((prev) => {
+      const next = [...newest, ...prev];
+      return next.length > MAX_TAIL_ROWS ? next.slice(0, MAX_TAIL_ROWS) : next;
+    });
+    const keys = newest.map(rowKey);
+    setFreshKeys((prev) => new Set([...prev, ...keys]));
+    const timer = setTimeout(() => {
+      timers.current.delete(timer);
+      setFreshKeys((prev) => {
+        const next = new Set(prev);
+        keys.forEach((key) => next.delete(key));
+        return next;
+      });
+    }, FRESH_MS);
+    timers.current.add(timer);
+  }, []);
 
   const pause = useCallback(() => {
     pausedRef.current = true;
@@ -131,6 +192,7 @@ export function useSqlTail(clusterId: string): SqlRun {
   }, []);
 
   const start = useCallback((sql: string, wantsTail: boolean) => {
+    setRun((prev) => ({ runId: prev.runId + 1, sql }));
     setRequest((prev) => ({
       sql,
       tail: wantsTail,
@@ -138,15 +200,17 @@ export function useSqlTail(clusterId: string): SqlRun {
     }));
   }, []);
 
-  const stop = useCallback(() => {
+  const cancel = useCallback(() => {
+    // Cancelling does not discard what arrived. A static query cancelled part-way has a partial
+    // result the operator asked to keep, and one whose rows are already being read is not idle (7.2).
+    flush();
     setRequest(null);
-    // The query itself finished; only the tail was stopped. Reporting it as idle
-    // would throw away a result the operator is still reading.
-    // Stopping does not discard what arrived. A static query stopped part-way has a
-    // partial result the operator asked to keep; reporting it as idle would throw
-    // away rows they are already reading (7.2).
-    setStatus((prev) => (prev === 'tailing' || prev === 'running' ? 'done' : 'idle'));
-  }, []);
+    // The query itself finished when only the tail was stopped, so that reads as done.
+    setStatus((prev) => {
+      if (prev === 'running') return 'cancelled';
+      return prev === 'tailing' ? 'done' : prev;
+    });
+  }, [flush]);
 
   useEffect(() => {
     if (!request) return;
@@ -159,6 +223,8 @@ export function useSqlTail(clusterId: string): SqlRun {
     setError(null);
     setStatus('running');
     held.current = [];
+    arrived.current = [];
+    tailing.current = false;
     pausedRef.current = false;
     setPaused(false);
     setBuffered(0);
@@ -166,7 +232,6 @@ export function useSqlTail(clusterId: string): SqlRun {
     // True once the server has said its piece. The close that follows is then the
     // end of a finished stream, not a dropped one.
     let settled = false;
-    let tailing = false;
 
     // The query text is posted and the stream is opened by reference (ADR-0064): an
     // EventSource can only issue a GET, and a URL carrying body predicates is a URL
@@ -182,40 +247,17 @@ export function useSqlTail(clusterId: string): SqlRun {
       }
     };
 
-    const forgetFresh = (key: string) =>
-      setFreshKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-
     const listen = (stream: EventSource) => {
       stream.addEventListener('row', (e) => {
         const row = parse<SqlRowView>(e);
         if (!row) return;
-        const key = rowKey(row);
-        if (tailing && pausedRef.current) {
-          // Newest first, and bounded the same way the visible list is: a long pause
-          // must not become an unbounded buffer.
-          held.current = [row, ...held.current].slice(0, MAX_TAIL_ROWS);
-          setBuffered(held.current.length);
-          return;
-        }
-        // While tailing, the newest row goes to the top: an operator watching a live
-        // feed is watching the head of it, not scrolling to find it.
-        setRows((prev) => {
-          if (!tailing) return [...prev, row];
-          const next = [row, ...prev];
-          return next.length > MAX_TAIL_ROWS ? next.slice(0, MAX_TAIL_ROWS) : next;
+        arrived.current.push(row);
+        // A tail that arrives faster than frames are drawn (a hidden tab draws none) still stays bounded.
+        if (tailing.current && arrived.current.length > MAX_TAIL_ROWS) arrived.current.shift();
+        frame.current ??= requestAnimationFrame(() => {
+          frame.current = null;
+          flush();
         });
-        if (tailing) {
-          setFreshKeys((prev) => new Set(prev).add(key));
-          const timer = setTimeout(() => {
-            timers.current.delete(timer);
-            forgetFresh(key);
-          }, FRESH_MS);
-          timers.current.add(timer);
-        }
       });
 
       stream.addEventListener('node', (e) => {
@@ -226,8 +268,9 @@ export function useSqlTail(clusterId: string): SqlRun {
       stream.addEventListener('done', (e) => {
         const done = parse<SqlResultView>(e);
         if (done) setResult(done);
+        flush();
         if (request.tail) {
-          tailing = true;
+          tailing.current = true;
           setStatus('tailing');
         } else {
           settled = true;
@@ -246,6 +289,7 @@ export function useSqlTail(clusterId: string): SqlRun {
         // not be confused for one another.
         const problem = parse<Record<string, unknown>>(e);
         if (!problem) return;
+        flush();
         settled = true;
         setError(new ApiError(typeof problem.status === 'number' ? problem.status : 500, problem));
         setStatus('failed');
@@ -260,6 +304,7 @@ export function useSqlTail(clusterId: string): SqlRun {
 
       stream.onerror = () => {
         stream.close();
+        flush();
         if (!settled) setStatus('disconnected');
       };
     };
@@ -290,10 +335,12 @@ export function useSqlTail(clusterId: string): SqlRun {
     return () => {
       abandoned = true;
       source?.close();
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
       pending.forEach(clearTimeout);
       pending.clear();
     };
-  }, [clusterId, request]);
+  }, [clusterId, request, flush]);
 
   // Derived, not tracked: the list is trimmed to exactly the cap, so holding the cap
   // while tailing is the same fact as having discarded something. One less piece of
@@ -311,8 +358,10 @@ export function useSqlTail(clusterId: string): SqlRun {
     status,
     paused,
     buffered,
+    runId: run.runId,
+    sql: run.sql,
     start,
-    stop,
+    cancel,
     pause,
     resume,
   };

@@ -37,4 +37,16 @@ describe('ShortcutsHelp', () => {
     expect(term.tagName).toBe('DT');
     expect(term.nextElementSibling).toHaveTextContent('⌘KorCtrlK');
   });
+
+  it('lists the SQL console’s keys: Mod+. cancels and Escape never does', async () => {
+    renderWithProviders(<ShortcutsHelp />);
+    await userEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
+    const popover = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
+
+    const sql = within(popover).getByRole('region', { name: 'In the SQL console' });
+    expect(
+      within(sql).getByText('Cancel the running query, from the editor or the page').nextElementSibling,
+    ).toHaveTextContent('⌘.orCtrl.');
+    expect(within(sql).getByText(/it never cancels/)).toBeInTheDocument();
+  });
 });

@@ -1,54 +1,25 @@
-import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Collapse,
-  Group,
-  Loader,
-  NumberInput,
-  SegmentedControl,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  TextInput,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useMemo, useState } from 'react';
+import { Button, Code, Collapse, Group, NumberInput, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { useParams } from '@tanstack/react-router';
 
 import {
   useCreateIndexSubscription,
-  useDeleteIndexSubscription,
   useIndexSubscriptions,
   usePreviewIndexSubscription,
-  useUpdateIndexSubscription,
   type SqlCapturePreviewView,
   type SqlIndexSubscriptionRequest,
-  type SqlIndexSubscriptionView,
 } from './api.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import classes from './IndexSubscriptions.module.css';
-
-function bytes(value: number): string {
-  if (value < 1024) return `${value} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let scaled = value / 1024;
-  let unit = 0;
-  while (scaled >= 1024 && unit < units.length - 1) {
-    scaled /= 1024;
-    unit += 1;
-  }
-  return `${scaled.toFixed(scaled < 10 ? 1 : 0)} ${units[unit]}`;
-}
-
-function when(iso?: string | null): string {
-  if (!iso) return '—';
-  const at = new Date(iso);
-  return Number.isNaN(at.getTime()) ? '—' : at.toLocaleString();
-}
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Notice } from '../../ui/Notice.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { bytes } from './subscriptionFormat.ts';
+import { subscriptionColumns } from './subscriptionColumns.ts';
 
 /**
  * What a capture tap creates on every live node, in the words the operator needs
@@ -58,7 +29,7 @@ function when(iso?: string | null): string {
 function CaptureBlastRadius({ pattern, retentionDays }: Readonly<{ pattern: string; retentionDays: number }>) {
   const target = pattern.trim() || 'these queues';
   return (
-    <Alert color="yellow" variant="light" title="This changes routing on every live node">
+    <Notice tone="warning" title="This changes routing on every live node">
       <Stack gap={6}>
         <Text size="sm">
           On each live node Studio will create a <strong>non-exclusive divert</strong> from {target}, a{' '}
@@ -84,51 +55,7 @@ function CaptureBlastRadius({ pattern, retentionDays }: Readonly<{ pattern: stri
           shows the exact configuration.
         </Text>
       </Stack>
-    </Alert>
-  );
-}
-
-type CaptureNode = NonNullable<SqlIndexSubscriptionView['nodes']>[number];
-
-const CAPTURE_STATE_WORDS: Record<string, string> = {
-  DEGRADED: 'capturing, losing messages',
-  FAILED: 'not capturing',
-};
-
-function captureStateWords(node: CaptureNode): string {
-  if (node.state === 'ACTIVE') return `capturing since ${when(node.capturedFrom)}`;
-  return CAPTURE_STATE_WORDS[node.state ?? ''] ?? 'not reached yet';
-}
-
-/** How many messages a degraded node missed, when that can be said. */
-function missedNote(node: CaptureNode, filterString: string | null | undefined): string {
-  if (node.state === 'DEGRADED' && filterString) {
-    return " · how many were missed is unavailable — a capture filter makes the broker's routed count incomparable with what was stored";
-  }
-  return node.droppedEstimate ? ` · about ${node.droppedEstimate.toLocaleString()} missed` : '';
-}
-
-/** Capture state on one node, in words. Colour is redundant emphasis, never the carrier. */
-function CaptureNodes({ subscription }: Readonly<{ subscription: SqlIndexSubscriptionView }>) {
-  const nodes = subscription.nodes ?? [];
-  if (subscription.mode !== 'CAPTURE') return null;
-  if (nodes.length === 0) {
-    return (
-      <Text size="xs" c="dimmed">
-        No node has been reached yet. Capture is asserted on the next reconcile pass.
-      </Text>
-    );
-  }
-  return (
-    <Stack gap={2}>
-      {nodes.map((node) => (
-        <Text key={node.nodeId} size="xs" c={node.state === 'ACTIVE' ? undefined : 'var(--as-warning)'}>
-          {node.nodeName ?? node.nodeId}: {captureStateWords(node)}
-          {missedNote(node, subscription.filterString)}
-          {node.detail ? ` — ${node.detail}` : ''}
-        </Text>
-      ))}
-    </Stack>
+    </Notice>
   );
 }
 
@@ -227,9 +154,9 @@ function CaptureBounds({
 function CapturePreview({ preview }: Readonly<{ preview: SqlCapturePreviewView }>) {
   if (preview.refusal) {
     return (
-      <Alert color="red" variant="light" role="alert" title="Capture would be refused">
+      <Notice tone="danger" title="Capture would be refused">
         {preview.refusal}
-      </Alert>
+      </Notice>
     );
   }
   const addresses = preview.addresses ?? [];
@@ -266,6 +193,9 @@ function CapturePreview({ preview }: Readonly<{ preview: SqlCapturePreviewView }
     </Stack>
   );
 }
+
+const SAMPLE: ActionVerb = { verb: 'Start sampling', past: 'Started sampling', progressive: 'Starting sampling' };
+const CAPTURE: ActionVerb = { verb: 'Start capturing', past: 'Started capturing', progressive: 'Starting capturing' };
 
 const optional = (value: number | string, scale = 1) => (value === '' ? undefined : Number(value) * scale);
 
@@ -315,7 +245,7 @@ function StoresBodiesNotice({
   capture,
 }: Readonly<{ pattern: string; retention: number; capture: boolean }>) {
   return (
-    <Alert color="yellow" variant="light" title="This stores message bodies">
+    <Notice tone="warning" title="This stores message bodies">
       <Text size="sm">
         Studio will keep a copy of every message it observes on {pattern.trim() || 'these queues'} — headers,
         application properties and the body — in its own database for {retention} day
@@ -327,7 +257,7 @@ function StoresBodiesNotice({
         Sensitive values are stored masked and credentials are never stored; the originals of other masked values are
         sealed, and only users with <code>message:clear</code> can see them.
       </Text>
-    </Alert>
+    </Notice>
   );
 }
 
@@ -444,10 +374,9 @@ function CreateSubscription({
   const start = () =>
     create.mutate(body, {
       onSuccess: () => {
-        notifications.show({
-          message: capture
-            ? `Capturing ${body.queuePattern} — the tap is installed on the next pass`
-            : `Now sampling ${body.queuePattern}`,
+        notify.succeeded({
+          action: capture ? CAPTURE : SAMPLE,
+          subject: capture ? `${body.queuePattern} — the tap is installed on the next pass` : `${body.queuePattern}`,
         });
         setPattern('');
         setPreview(null);
@@ -538,16 +467,8 @@ function CreateSubscription({
       ) : null}
       <StoresBodiesNotice pattern={pattern} retention={retention} capture={capture} />
 
-      {create.isError ? (
-        <Alert color="red" variant="light" role="alert" title={create.error.title}>
-          {create.error.message}
-        </Alert>
-      ) : null}
-      {previewCapture.isError ? (
-        <Alert color="red" variant="light" role="alert" title={previewCapture.error.title}>
-          {previewCapture.error.message}
-        </Alert>
-      ) : null}
+      {create.isError ? <ErrorState variant="inline" error={create.error} /> : null}
+      {previewCapture.isError ? <ErrorState variant="inline" error={previewCapture.error} /> : null}
 
       <SubmitControls
         capture={capture}
@@ -562,143 +483,6 @@ function CreateSubscription({
         onPreview={() => previewCapture.mutate(body, { onSuccess: setPreview })}
       />
     </Stack>
-  );
-}
-
-/** What is not recorded, what is still being indexed, and what sampling cannot see. */
-function SubscriptionNotes({ subscription }: Readonly<{ subscription: SqlIndexSubscriptionView }>) {
-  return (
-    <>
-      {subscription.notCapturing ? (
-        <Text size="xs" c="var(--as-warning)">
-          Recording nothing — {subscription.notCapturing}
-        </Text>
-      ) : null}
-      {subscription.backlogInProgress ? (
-        <Text size="xs" c="dimmed">
-          Still indexing the messages that were already on these queues, a few pages per poll; until that finishes the
-          index is not up to date.
-        </Text>
-      ) : null}
-      {subscription.mode !== 'CAPTURE' ? (
-        <Text size="xs" c="dimmed">
-          Just sampling: a message consumed between two polls is never recorded. Capture everything to record all of
-          them.
-        </Text>
-      ) : null}
-    </>
-  );
-}
-
-/** One subscription: what it holds, whether it is capturing, and how to be rid of it. */
-function SubscriptionRow({
-  clusterId,
-  subscription,
-  canWrite,
-}: Readonly<{
-  clusterId: string;
-  subscription: SqlIndexSubscriptionView;
-  canWrite: boolean;
-}>) {
-  const update = useUpdateIndexSubscription(clusterId);
-  const remove = useDeleteIndexSubscription(clusterId);
-  const [confirming, setConfirming] = useState(false);
-
-  const id = subscription.id ?? '';
-  const pattern = subscription.queuePattern ?? '';
-  const held = subscription.messagesHeld ?? 0;
-  const retention = subscription.retentionDays ?? 0;
-
-  return (
-    <Table.Tr>
-      <Table.Td>
-        <Stack gap={2}>
-          <Text size="sm" fw={600}>
-            {pattern}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {subscription.mode === 'CAPTURE' ? 'capturing' : 'sampling'} since {when(subscription.captureFrom)}
-            {subscription.createdBy ? ` · created by ${subscription.createdBy}` : ''}
-            {subscription.filterString ? ` · filter ${subscription.filterString}` : ''}
-          </Text>
-          <SubscriptionNotes subscription={subscription} />
-          <CaptureNodes subscription={subscription} />
-        </Stack>
-      </Table.Td>
-      <Table.Td>
-        <Stack gap={2}>
-          <Text size="sm" className={classes.numeric}>
-            {held.toLocaleString()} message{held === 1 ? '' : 's'}
-          </Text>
-          <Text size="xs" c="dimmed" className={classes.numeric}>
-            {bytes(subscription.bytesHeld ?? 0)}
-            {subscription.mode === 'CAPTURE' && subscription.maxBytes
-              ? ` of ${bytes(subscription.maxBytes)} allowed`
-              : ' of payload'}
-            {subscription.oldestObservedAt ? ` · oldest ${when(subscription.oldestObservedAt)}` : ''}
-          </Text>
-        </Stack>
-      </Table.Td>
-      <Table.Td>
-        <Badge size="sm" variant="light" color="gray">
-          {retention} day{retention === 1 ? '' : 's'}
-        </Badge>
-      </Table.Td>
-      <Table.Td>
-        <Switch
-          size="xs"
-          label={subscription.enabled ? 'Capturing' : 'Paused'}
-          checked={subscription.enabled ?? false}
-          disabled={!canWrite || update.isPending}
-          onChange={(e) => update.mutate({ id, body: { enabled: e.currentTarget.checked } })}
-        />
-      </Table.Td>
-      <Table.Td>
-        {confirming ? (
-          <Stack gap={4}>
-            {/* The blast radius, stated before the action can be armed: this
-                destroys captured payload that cannot be observed again. */}
-            <Text size="xs">
-              This deletes the subscription and the {held.toLocaleString()} captured message
-              {held === 1 ? '' : 's'} it holds. They cannot be recovered — a consumed message cannot be observed a
-              second time.
-              {subscription.mode === 'CAPTURE'
-                ? ' It also removes the divert, the capture queue, the address setting and the security setting from every node that answers now; a node that is unreachable is cleaned on its next reconcile pass. Nothing else removes them.'
-                : ''}
-            </Text>
-            <ConfirmByTyping
-              token={pattern}
-              confirmLabel="Delete and destroy captured messages"
-              loading={remove.isPending}
-              onConfirm={() =>
-                remove.mutate(id, {
-                  onSuccess: (result) => {
-                    notifications.show({
-                      message: `Deleted ${pattern} — ${result.messagesDestroyed.toLocaleString()} captured messages destroyed`,
-                    });
-                    setConfirming(false);
-                  },
-                  onError: (err) => notifications.show({ color: 'red', message: err.message }),
-                })
-              }
-            />
-            <Button size="compact-xs" variant="subtle" onClick={() => setConfirming(false)}>
-              Cancel
-            </Button>
-          </Stack>
-        ) : (
-          <Button
-            size="compact-xs"
-            color="red"
-            variant="light"
-            disabled={!canWrite}
-            onClick={() => setConfirming(true)}
-          >
-            Delete
-          </Button>
-        )}
-      </Table.Td>
-    </Table.Tr>
   );
 }
 
@@ -717,53 +501,41 @@ export function IndexSubscriptions() {
   // Capture mutates broker routing, so it is a different authority from changing how
   // often Studio polls. Offered while grants are still loading, like everything else.
   const canCapture = loading || can('capture:write', clusterId);
+  const columns = useMemo(
+    () => subscriptionColumns({ clusterId, canWrite, canCapture }),
+    [clusterId, canWrite, canCapture],
+  );
 
   if (subscriptions.isError) {
-    return (
-      <Alert color="red" variant="light" title={subscriptions.error.title}>
-        {subscriptions.error.message}
-      </Alert>
-    );
+    return <ErrorState error={subscriptions.error} onRetry={() => void subscriptions.refetch()} />;
   }
   if (subscriptions.isPending) {
-    return <Loader size="sm" />;
+    return <LoadingState label="Loading index subscriptions" blockSize="8rem" />;
   }
 
-  const rows = subscriptions.data ?? [];
-
   return (
-    <Stack gap="md">
-      {rows.length === 0 ? (
-        <Alert color="gray" variant="light" title="Nothing is being indexed">
-          No queue on this cluster is captured, so the SQL Console answers every query from the live brokers and cannot
-          find a message that has already been consumed. Index a queue below to change that — it stores message payload,
-          so it is a deliberate choice rather than a default.
-        </Alert>
-      ) : (
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Queues</Table.Th>
-              <Table.Th>Held</Table.Th>
-              <Table.Th>Retention</Table.Th>
-              <Table.Th>State</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {rows.map((subscription) => (
-              <SubscriptionRow
-                key={subscription.id}
-                clusterId={clusterId}
-                subscription={subscription}
-                canWrite={subscription.mode === 'CAPTURE' ? canCapture : canWrite}
-              />
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
+    <Stack gap="lg">
+      <Section title="Subscriptions" headingLevel={3}>
+        <DataTable
+          variant="static"
+          label="Index subscriptions"
+          storageKey="sql.index"
+          columns={columns}
+          data={subscriptions.data}
+          rowKey={(subscription) => subscription.id ?? ''}
+          empty={
+            <EmptyState
+              kind="empty"
+              title="Nothing is being indexed"
+              description="No queue on this cluster is captured, so the SQL Console answers every query from the live brokers and cannot find a message that has already been consumed. Index a queue below to change that — it stores message payload, so it is a deliberate choice rather than a default."
+            />
+          }
+        />
+      </Section>
 
-      <CreateSubscription clusterId={clusterId} canWrite={canWrite} canCapture={canCapture} />
+      <Section title="Index a queue" headingLevel={3}>
+        <CreateSubscription clusterId={clusterId} canWrite={canWrite} canCapture={canCapture} />
+      </Section>
     </Stack>
   );
 }
