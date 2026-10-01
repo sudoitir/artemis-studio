@@ -1,8 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { Button, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
@@ -126,9 +129,12 @@ function SettingField({
   onSave: (value: string) => void;
   onReset: () => void;
 }>) {
-  const [value, setValue] = useState(current.value);
-  const [error, setError] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const invalid = (v: string) => (current.kind === 'INT' && !/^-?\d+$/.test(v.trim()) ? NOT_A_NUMBER : null);
+  const form = useForm({
+    initialValues: { value: current.value },
+    validateInputOnBlur: true,
+    validate: { value: invalid },
+  });
 
   const resetControl = current.overridden ? (
     <Button size="xs" variant="subtle" disabled={!canWrite} loading={resetting} onClick={onReset}>
@@ -139,7 +145,7 @@ function SettingField({
   if (current.kind === 'BOOLEAN') {
     // A switch saves as it is flipped: there is no half-typed value to hold back.
     return (
-      <div className={classes.setting}>
+      <FieldRow>
         <Switch
           label={current.label}
           description={current.hint}
@@ -149,51 +155,41 @@ function SettingField({
           size="sm"
         />
         {resetControl}
-      </div>
+      </FieldRow>
     );
   }
 
-  const invalid = (v: string) => (current.kind === 'INT' && !/^-?\d+$/.test(v.trim()) ? NOT_A_NUMBER : null);
-
-  const submit = () => {
-    const problem = invalid(value) ?? (value === current.value ? UNCHANGED : null);
-    setError(problem);
-    if (problem) {
-      input.current?.focus();
+  const submit = form.onSubmit(({ value }) => {
+    if (value === current.value) {
+      form.setFieldError('value', UNCHANGED);
+      form.getInputNode('value')?.focus();
       return;
     }
     onSave(value);
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <div>
-      <div className={classes.setting}>
+    <form noValidate onSubmit={submit}>
+      <FieldRow>
         <TextInput
-          ref={input}
           className={classes.settingField}
           label={current.label}
           description={current.hint}
-          value={value}
+          {...form.getInputProps('value')}
           inputMode={current.kind === 'INT' ? 'numeric' : 'text'}
           disabled={!canWrite}
-          error={error}
-          onChange={(e) => {
-            setValue(e.currentTarget.value);
-            setError(null);
-          }}
-          onBlur={() => setError(invalid(value))}
           size="xs"
         />
-        <Button size="xs" disabled={!canWrite} loading={saving} onClick={submit}>
+        <Button type="submit" size="xs" disabled={!canWrite} loading={saving}>
           Save
         </Button>
         {resetControl}
-      </div>
+      </FieldRow>
       {current.overridden ? (
         <Text size="xs" c="dimmed">
           overridden — default is {current.defaultValue}
         </Text>
       ) : null}
-    </div>
+    </form>
   );
 }

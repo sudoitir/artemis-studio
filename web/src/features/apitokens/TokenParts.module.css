@@ -1,15 +1,3 @@
-/* The disclosed secret: the field takes the row's spare width and is set in the code face. */
-.secretRow {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--mantine-spacing-sm);
-}
-
-.secretField {
-  flex: 1 1 0;
-  min-inline-size: 0;
-}
-
 .secret {
   font-family: var(--mantine-font-family-monospace);
 }

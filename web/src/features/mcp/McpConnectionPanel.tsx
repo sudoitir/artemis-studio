@@ -1,8 +1,9 @@
-import { Button, Code, CopyButton, Group, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Code, CopyButton, Stack, Text, TextInput } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconCopy } from '@tabler/icons-react';
 
 import { branding } from '../../branding.ts';
+import { FieldRow } from '../../ui/FieldRow.tsx';
 import { notify } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import classes from './McpConnectionPanel.module.css';
@@ -42,7 +43,7 @@ export function McpConnectionPanel() {
         same guarded operations you can — never more than the key's permissions allow.
       </Text>
 
-      <Group align="flex-end">
+      <FieldRow>
         <TextInput className={classes.endpoint} label="Endpoint" value={endpoint} readOnly />
         <CopyButton value={endpoint}>
           {({ copy }) => (
@@ -58,7 +59,7 @@ export function McpConnectionPanel() {
             </Button>
           )}
         </CopyButton>
-      </Group>
+      </FieldRow>
 
       <Section title="Client configuration" headingLevel={3}>
         <CodeHighlight code={config} language="json" />

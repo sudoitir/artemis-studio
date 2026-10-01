@@ -15,18 +15,9 @@
   gap: var(--mantine-spacing-md);
 }
 
-/* A setting's field and its buttons share a line and wrap by width. */
-.setting {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--mantine-spacing-xs);
-}
-
+/* A setting's field stays a readable width instead of stretching across its row. */
 .settingField {
-  flex: 1 1 14rem;
   max-inline-size: 22rem;
-  min-inline-size: 0;
 }
 
 /* A fault the operator must read first: a hairline in the danger token around words that state it. */

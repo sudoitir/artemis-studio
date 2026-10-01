@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ActionIcon, Button, Modal, PasswordInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 
 import { needsReauthentication } from '../../kernel/auth/api.ts';
@@ -7,6 +8,7 @@ import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -241,21 +243,15 @@ function RemoveGrantDialog({
   );
 }
 
-/** What a refused reset means for the administrator, and what to do about it. */
-function resetFailure(error: { type: string; message: string }): { cause: string; next: string } {
+/** What a refused reset means for the administrator, and what to do about it, in one line. */
+function resetFailure(error: { type: string; message: string }): string {
   if (error.type.endsWith('/self-reset')) {
-    return {
-      cause: 'You cannot reset your own two-step verification here.',
-      next: 'Sign in with one of your recovery codes instead.',
-    };
+    return 'You cannot reset your own two-step verification here. Sign in with one of your recovery codes instead.';
   }
   if (error.type.endsWith('/mfa-required')) {
-    return {
-      cause: 'This user must hold a second factor, so your own session has to have verified one.',
-      next: 'Sign out, sign in with your second factor, then try again.',
-    };
+    return 'This user must hold a second factor, so your own session has to have verified one. Sign out, sign in with your second factor, then try again.';
   }
-  return { cause: error.message, next: 'Nothing was reset. Try again.' };
+  return 'Nothing was reset. Try again.';
 }
 
 function ResetDialog({
@@ -275,10 +271,6 @@ function ResetDialog({
       onSuccess: () => {
         notify.succeeded({ action: RESET, subject });
         onClose();
-      },
-      onError: (error) => {
-        // A stale sign-in is answered by the prompt in the dialog, not by a failure.
-        if (!needsReauthentication(error)) notify.failed({ action: RESET, subject, ...resetFailure(error) });
       },
     });
   };
@@ -308,6 +300,10 @@ function ResetDialog({
               error={reset.error}
               returnTo={`${globalThis.location.pathname}${globalThis.location.search}`}
             />
+            {/* A stale sign-in is answered by the prompt above, not by a failure. */}
+            {reset.error && !needsReauthentication(reset.error) ? (
+              <ErrorState variant="inline" error={reset.error} next={resetFailure(reset.error)} />
+            ) : null}
           </Stack>
         ) : (
           ''
@@ -320,35 +316,22 @@ function ResetDialog({
 
 function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: () => void }>) {
   const createUser = useCreateUser();
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const usernameInput = useRef<HTMLInputElement>(null);
-  const passwordInput = useRef<HTMLInputElement>(null);
-  const policyReason = createUser.error?.type.endsWith('/password-policy') ? createUser.error.message : undefined;
+  const form = useForm({
+    initialValues: { username: '', email: '', password: '' },
+    validateInputOnBlur: true,
+    validate: {
+      username: (v) => (v.trim() ? null : 'Enter the username they sign in with.'),
+      password: (v) => (v ? null : 'Enter an initial password.'),
+    },
+  });
 
   const close = () => {
     onClose();
     createUser.reset();
-    setUsernameError(null);
-    setPasswordError(null);
+    form.reset();
   };
 
-  const submit = () => {
-    const nameMissing = !username.trim();
-    const passwordMissing = !password;
-    setUsernameError(nameMissing ? 'Enter the username they sign in with.' : null);
-    setPasswordError(passwordMissing ? 'Enter an initial password.' : null);
-    if (nameMissing) {
-      usernameInput.current?.focus();
-      return;
-    }
-    if (passwordMissing) {
-      passwordInput.current?.focus();
-      return;
-    }
+  const submit = form.onSubmit(({ username, email, password }) => {
     const subject = `user ${username.trim()}`;
     createUser.mutate(
       { username: username.trim(), email: email || undefined, password },
@@ -356,47 +339,37 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
         onSuccess: () => {
           notify.succeeded({ action: CREATE, subject });
           close();
-          setUsername('');
-          setEmail('');
-          setPassword('');
         },
         onError: (error) => {
           // A refused password is explained beside its field.
-          if (error.type.endsWith('/password-policy')) passwordInput.current?.focus();
-          else
+          if (error.type.endsWith('/password-policy')) {
+            form.setErrors({ password: error.message });
+            form.getInputNode('password')?.focus();
+          } else {
             notify.failed({ action: CREATE, subject, cause: error.message, next: 'No user was created. Try again.' });
+          }
         },
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <Modal opened={opened} onClose={close} title="New user">
-      <Stack gap="sm">
-        <TextInput
-          ref={usernameInput}
-          label="Username"
-          value={username}
-          onChange={(e) => setUsername(e.currentTarget.value)}
-          onBlur={() => setUsernameError(username.trim() ? null : 'Enter the username they sign in with.')}
-          error={usernameError}
-          required
-        />
-        <TextInput label="Email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
-        <PasswordInput
-          ref={passwordInput}
-          label="Initial password"
-          value={password}
-          onChange={(e) => setPassword(e.currentTarget.value)}
-          onBlur={() => setPasswordError(password ? null : 'Enter an initial password.')}
-          description="The user will be required to change it on first login."
-          error={policyReason ?? passwordError}
-          required
-        />
-        <Button loading={createUser.isPending} onClick={submit}>
-          Create
-        </Button>
-      </Stack>
+      <form noValidate onSubmit={submit}>
+        <Stack gap="sm">
+          <TextInput label="Username" {...form.getInputProps('username')} required />
+          <TextInput label="Email" {...form.getInputProps('email')} />
+          <PasswordInput
+            label="Initial password"
+            description="The user will be required to change it on first login."
+            {...form.getInputProps('password')}
+            required
+          />
+          <Button type="submit" loading={createUser.isPending}>
+            Create
+          </Button>
+        </Stack>
+      </form>
     </Modal>
   );
 }
@@ -404,54 +377,44 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
 function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose: () => void }>) {
   const roles = useRoles();
   const addGrant = useAddGrant();
-  const [roleId, setRoleId] = useState<string | null>(null);
-  const [roleError, setRoleError] = useState<string | null>(null);
-  const roleInput = useRef<HTMLInputElement>(null);
+  const form = useForm<{ roleId: string | null }>({
+    initialValues: { roleId: null },
+    validateInputOnBlur: true,
+    validate: { roleId: (v) => (v ? null : 'Choose the role to grant.') },
+  });
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
   const close = () => {
     onClose();
-    setRoleError(null);
+    form.reset();
   };
 
-  const submit = () => {
-    if (!user) return;
-    if (!roleId) {
-      setRoleError('Choose the role to grant.');
-      roleInput.current?.focus();
-      return;
-    }
+  const submit = form.onSubmit(({ roleId }) => {
+    if (!user || !roleId) return;
     const role = roleOptions.find((r) => r.value === roleId)?.label ?? 'the role';
     addGrant.mutate(
       { userId: user.id, body: { roleId, scopeType: 'GLOBAL' } },
-      withNotice(GRANT, `${role} to ${user.username}`, 'They do not hold the role. Try again.', () => {
-        close();
-        setRoleId(null);
-      }),
+      withNotice(GRANT, `${role} to ${user.username}`, 'They do not hold the role. Try again.', close),
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <Modal opened={user !== null} onClose={close} title={user ? `Grant a role to ${user.username}` : 'Grant a role'}>
-      <Stack gap="sm">
-        <Select
-          ref={roleInput}
-          label="Role"
-          data={roleOptions}
-          value={roleId}
-          onChange={(value) => {
-            setRoleId(value);
-            if (value) setRoleError(null);
-          }}
-          error={roleError}
-          description="Granted globally. Use the API to scope a grant to one environment or cluster."
-          placeholder="Select a role"
-          required
-        />
-        <Button loading={addGrant.isPending} onClick={submit}>
-          Grant
-        </Button>
-      </Stack>
+      <form noValidate onSubmit={submit}>
+        <Stack gap="sm">
+          <Select
+            label="Role"
+            data={roleOptions}
+            {...form.getInputProps('roleId')}
+            description="Granted globally. Use the API to scope a grant to one environment or cluster."
+            placeholder="Select a role"
+            required
+          />
+          <Button type="submit" loading={addGrant.isPending}>
+            Grant
+          </Button>
+        </Stack>
+      </form>
     </Modal>
   );
 }

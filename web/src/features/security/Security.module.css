@@ -1,17 +1,3 @@
-/* The permission picker's search field takes the row's spare width; the count keeps its own. */
-.search {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
-}
-
-.searchField {
-  flex: 1 1 12rem;
-  min-inline-size: 0;
-}
-
 /* Counts line up from one row to the next. */
 .figure {
   font-variant-numeric: tabular-nums;

@@ -1,11 +1,14 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActionIcon, Button, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
@@ -127,23 +130,21 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
   const create = useCreateRole();
   const update = useUpdateRole();
   const edited = role === 'new' ? null : role;
-  const [name, setName] = useState(edited?.name ?? '');
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [permissions, setPermissions] = useState<string[]>(edited?.permissions ?? []);
-  const [requiresMfa, setRequiresMfa] = useState(edited?.requiresMfa ?? false);
-  const nameInput = useRef<HTMLInputElement>(null);
+  const form = useForm({
+    initialValues: {
+      name: edited?.name ?? '',
+      permissions: edited?.permissions ?? [],
+      requiresMfa: edited?.requiresMfa ?? false,
+    },
+    validateInputOnBlur: true,
+    validate: { name: (v) => (edited?.builtin || v.trim() ? null : NAME_ERROR) },
+  });
 
   // Saving ends the sessions of the role's members when what they signed in with has changed under them.
-  const endsSessions = edited !== null && (!edited.builtin || requiresMfa !== edited.requiresMfa);
+  const endsSessions = edited !== null && (!edited.builtin || form.values.requiresMfa !== edited.requiresMfa);
 
-  const save = () => {
-    if (!edited?.builtin && !name.trim()) {
-      setNameError(NAME_ERROR);
-      nameInput.current?.focus();
-      return;
-    }
-    const body = { name, permissions, requiresMfa };
-    const subject = `role "${name}"`;
+  const save = form.onSubmit((body) => {
+    const subject = `role "${body.name}"`;
     if (edited === null) {
       create.mutate(body, {
         onSuccess: () => {
@@ -166,54 +167,51 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
         },
       );
     }
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Stack gap="sm">
-      {edited?.builtin ? (
-        <DescriptionList
-          items={[
-            { term: 'Name', value: edited.name },
-            {
-              term: 'Permissions',
-              value: <span className={classes.code}>{edited.permissions.join(', ')}</span>,
-              hint: 'Built-in roles keep their name and permissions; only the setting below can change.',
-            },
-          ]}
-        />
-      ) : (
-        <TextInput
-          ref={nameInput}
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          onBlur={() => setNameError(name.trim() ? null : NAME_ERROR)}
-          error={nameError}
-          required
-        />
-      )}
-      {edited?.builtin
-        ? null
-        : (catalogueNotice(catalogue) ?? (
-            <PermissionPicker catalogue={catalogue.data ?? []} value={permissions} onChange={setPermissions} />
-          ))}
-      <Stack gap={4}>
-        <Switch
-          label="Require two-step verification"
-          description="Applies to local accounts. Single sign-on users rely on their identity provider."
-          checked={requiresMfa}
-          onChange={(e) => setRequiresMfa(e.currentTarget.checked)}
-        />
-        {endsSessions ? (
-          <Text size="xs" c="dimmed">
-            Saving signs out everyone who holds this role.
-          </Text>
-        ) : null}
+    <form noValidate onSubmit={save}>
+      <Stack gap="sm">
+        {edited?.builtin ? (
+          <DescriptionList
+            items={[
+              { term: 'Name', value: edited.name },
+              {
+                term: 'Permissions',
+                value: <span className={classes.code}>{edited.permissions.join(', ')}</span>,
+                hint: 'Built-in roles keep their name and permissions; only the setting below can change.',
+              },
+            ]}
+          />
+        ) : (
+          <TextInput label="Name" {...form.getInputProps('name')} required />
+        )}
+        {edited?.builtin
+          ? null
+          : (catalogueNotice(catalogue) ?? (
+              <PermissionPicker
+                catalogue={catalogue.data ?? []}
+                value={form.values.permissions}
+                onChange={(next) => form.setFieldValue('permissions', next)}
+              />
+            ))}
+        <Stack gap={4}>
+          <Switch
+            label="Require two-step verification"
+            description="Applies to local accounts. Single sign-on users rely on their identity provider."
+            {...form.getInputProps('requiresMfa', { type: 'checkbox' })}
+          />
+          {endsSessions ? (
+            <Text size="xs" c="dimmed">
+              Saving signs out everyone who holds this role.
+            </Text>
+          ) : null}
+        </Stack>
+        <Button type="submit" loading={create.isPending || update.isPending}>
+          Save
+        </Button>
       </Stack>
-      <Button loading={create.isPending || update.isPending} onClick={save}>
-        Save
-      </Button>
-    </Stack>
+    </form>
   );
 }
 
@@ -335,10 +333,10 @@ function CompareRolesModal({
   return (
     <Modal opened={opened} onClose={onClose} title="Compare roles" size="lg">
       <Stack gap="sm">
-        <div className={classes.pair}>
+        <FieldRow>
           <Select label="First role" data={options} value={a} onChange={setA} searchable />
           <Select label="Second role" data={options} value={b} onChange={setB} searchable />
-        </div>
+        </FieldRow>
         <RoleComparison a={roleA} b={roleB} />
       </Stack>
     </Modal>

@@ -3,6 +3,7 @@ import { ActionIcon, CopyButton, SegmentedControl, Stack, Text, TextInput, Visua
 import { IconCopy } from '@tabler/icons-react';
 
 import { EmptyState } from '../../ui/EmptyState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Stat } from '../../ui/Stat.tsx';
@@ -21,14 +22,8 @@ export function OneTimeSecret({ value, note }: Readonly<{ value: string; note?: 
         <Text size="sm">This value is shown once. Copy it now — it cannot be retrieved again.</Text>
       </div>
       {note ? <Text size="sm">{note}</Text> : null}
-      <div className={classes.secretRow}>
-        <TextInput
-          className={classes.secretField}
-          classNames={{ input: classes.secret }}
-          value={value}
-          readOnly
-          aria-label="API key"
-        />
+      <FieldRow>
+        <TextInput classNames={{ input: classes.secret }} value={value} readOnly aria-label="API key" />
         <CopyButton value={value}>
           {({ copy, copied }) => (
             <>
@@ -39,7 +34,7 @@ export function OneTimeSecret({ value, note }: Readonly<{ value: string; note?: 
             </>
           )}
         </CopyButton>
-      </div>
+      </FieldRow>
     </Stack>
   );
 }

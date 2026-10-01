@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
 import { Button, MultiSelect, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useClusters } from '../clusters/index.ts';
 import { PermissionPicker, usePermissionsCatalogue } from '../security/index.ts';
@@ -33,15 +34,22 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
   const clusters = useClusters();
   const { can } = useCan();
 
-  const [name, setName] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [grantsError, setGrantsError] = useState<string | null>(null);
-  const [scope, setScope] = useState<string>(GLOBAL);
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [lifetime, setLifetime] = useState<string | null>(null);
-  const [mcpTools, setMcpTools] = useState<string[]>([]);
-  const nameInput = useRef<HTMLInputElement>(null);
-  const permissions = useRef<HTMLDivElement>(null);
+  const form = useForm({
+    initialValues: {
+      name: '',
+      scope: GLOBAL,
+      chosen: [] as string[],
+      lifetime: null as string | null,
+      mcpTools: [] as string[],
+    },
+    validateInputOnBlur: true,
+    validate: {
+      name: (v) => (v.trim() ? null : NAME_ERROR),
+      chosen: (v) => (v.length > 0 ? null : GRANTS_ERROR),
+    },
+  });
+  const { name, scope, chosen, lifetime, mcpTools } = form.values;
+  const chosenProps = form.getInputProps('chosen');
 
   const clusterId = scope === GLOBAL ? undefined : scope;
   // What the user can actually delegate at the selected scope. A wildcard grant makes every
@@ -59,19 +67,7 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
   }
   const selectedLifetime = lifetime ?? (lifetimeOptions.includes('30') ? '30' : (lifetimeOptions.at(-1) ?? null));
 
-  const submit = () => {
-    const nameMissing = !name.trim();
-    const grantsMissing = chosen.length === 0;
-    setNameError(nameMissing ? NAME_ERROR : null);
-    setGrantsError(grantsMissing ? GRANTS_ERROR : null);
-    if (nameMissing) {
-      nameInput.current?.focus();
-      return;
-    }
-    if (grantsMissing) {
-      permissions.current?.focus();
-      return;
-    }
+  const submit = form.onSubmit(() => {
     if (!selectedLifetime) return;
     const grants: TokenGrantRequest[] = chosen.map((action) => ({
       action,
@@ -90,114 +86,97 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
           onMinted(created);
           notify.succeeded({ action: CREATE, subject });
         },
-        onError: (error) => notify.failed({ action: CREATE, subject, ...createFailure(error) }),
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Stack gap="sm">
-      <TextInput
-        ref={nameInput}
-        label="Name"
-        value={name}
-        onChange={(e) => setName(e.currentTarget.value)}
-        onBlur={() => setNameError(name.trim() ? null : NAME_ERROR)}
-        error={nameError}
-        required
-      />
-      {policy.isError ? (
-        <ErrorState variant="inline" error={policy.error} onRetry={() => void policy.refetch()} />
-      ) : (
-        <Select
-          label="Expires in"
-          description={
-            policy.data
-              ? `Keys on this installation live at most ${maxDays} days.`
-              : 'Loading the installation’s maximum lifetime…'
-          }
-          value={selectedLifetime}
-          onChange={setLifetime}
-          data={lifetimeOptions.map((d) => ({ value: d, label: `${d} days` }))}
-          allowDeselect={false}
-          required
-        />
-      )}
-      <Select
-        label="Scope"
-        description="Where the key's permissions apply."
-        value={scope}
-        onChange={(v) => {
-          setScope(v ?? GLOBAL);
-          setChosen([]);
-        }}
-        allowDeselect={false}
-        data={[
-          { value: GLOBAL, label: 'Global — every cluster' },
-          ...(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name })),
-        ]}
-      />
-      <div ref={permissions} tabIndex={-1} className={classes.group}>
-        <Text size="sm" fw={500}>
-          Permissions
-        </Text>
-        <Text size="xs" c="dimmed" mb="xs">
-          Only what you hold at this scope is offered.
-        </Text>
-        {available.length === 0 ? (
-          <Text size="xs" c="dimmed">
-            You hold nothing at this scope, so a key made here could do nothing.
-          </Text>
+    <form noValidate onSubmit={submit}>
+      <Stack gap="sm">
+        <TextInput label="Name" {...form.getInputProps('name')} required />
+        {policy.isError ? (
+          <ErrorState variant="inline" error={policy.error} onRetry={() => void policy.refetch()} />
         ) : (
-          <PermissionPicker
-            catalogue={available}
-            value={chosen}
-            onChange={(next) => {
-              setChosen(next);
-              if (next.length > 0) setGrantsError(null);
-            }}
+          <Select
+            label="Expires in"
+            description={
+              policy.data
+                ? `Keys on this installation live at most ${maxDays} days.`
+                : 'Loading the installation’s maximum lifetime…'
+            }
+            value={selectedLifetime}
+            onChange={(v) => form.setFieldValue('lifetime', v)}
+            data={lifetimeOptions.map((d) => ({ value: d, label: `${d} days` }))}
+            allowDeselect={false}
+            required
           />
         )}
-        {grantsError ? (
-          <Text size="xs" role="alert" mt="xs">
-            {grantsError}
-          </Text>
-        ) : null}
-      </div>
-      {tools.data ? (
-        <MultiSelect
-          label="MCP tools"
-          description="Leave empty to let the key call every tool its permissions allow. Other tools stay hidden from it."
-          placeholder={mcpTools.length === 0 ? 'Every tool' : undefined}
-          searchable
-          value={mcpTools}
-          onChange={setMcpTools}
-          data={tools.data.map((t) => ({
-            value: t.name,
-            label: `${t.name} (${t.posture === 'READ' ? 'read' : 'changes state'})`,
-          }))}
+        <Select
+          label="Scope"
+          description="Where the key's permissions apply."
+          {...form.getInputProps('scope')}
+          onChange={(v) => {
+            form.setFieldValue('scope', v ?? GLOBAL);
+            form.setFieldValue('chosen', []);
+          }}
+          allowDeselect={false}
+          data={[
+            { value: GLOBAL, label: 'Global — every cluster' },
+            ...(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+          ]}
         />
-      ) : null}
-      <Button loading={create.isPending} onClick={submit}>
-        Create
-      </Button>
-    </Stack>
+        {/* The marker `form.getInputNode` looks for, so a rejected submit can focus the grants. */}
+        <div data-path="chosen" tabIndex={-1} className={classes.group}>
+          <Text size="sm" fw={500}>
+            Permissions
+          </Text>
+          <Text size="xs" c="dimmed" mb="xs">
+            Only what you hold at this scope is offered.
+          </Text>
+          {available.length === 0 ? (
+            <Text size="xs" c="dimmed">
+              You hold nothing at this scope, so a key made here could do nothing.
+            </Text>
+          ) : (
+            <PermissionPicker catalogue={available} value={chosen} onChange={chosenProps.onChange} />
+          )}
+          {form.errors.chosen ? (
+            <Text size="xs" role="alert" mt="xs">
+              {form.errors.chosen}
+            </Text>
+          ) : null}
+        </div>
+        {tools.data ? (
+          <MultiSelect
+            label="MCP tools"
+            description="Leave empty to let the key call every tool its permissions allow. Other tools stay hidden from it."
+            placeholder={mcpTools.length === 0 ? 'Every tool' : undefined}
+            searchable
+            {...form.getInputProps('mcpTools')}
+            data={tools.data.map((t) => ({
+              value: t.name,
+              label: `${t.name} (${t.posture === 'READ' ? 'read' : 'changes state'})`,
+            }))}
+          />
+        ) : null}
+        {create.isError ? (
+          <ErrorState variant="inline" error={create.error} next={createFailure(create.error)} />
+        ) : null}
+        <Button type="submit" loading={create.isPending}>
+          Create
+        </Button>
+      </Stack>
+    </form>
   );
 }
 
-/** Why a key could not be made, and what to do about it. */
-function createFailure(error: { type: string; message: string }): { cause: string; next: string } {
+/** Why a key could not be made, and what to do about it, in one line. */
+function createFailure(error: { type: string }): string {
   if (error.type.endsWith('/session-required')) {
-    return {
-      cause: 'A key can only be created from a signed-in console session, not with another key.',
-      next: 'Sign in to the console and create it there.',
-    };
+    return 'A key can only be created from a signed-in console session, not with another key. Sign in to the console and create it there.';
   }
   if (error.type.endsWith('/mfa-required')) {
-    return {
-      cause: 'Your role requires two-step verification, and this session has not completed it.',
-      next: 'Sign out, sign in with your second factor, then create the key.',
-    };
+    return 'Your role requires two-step verification, and this session has not completed it. Sign out, sign in with your second factor, then create the key.';
   }
-  return { cause: error.message, next: 'No key was created. Try again.' };
+  return 'No key was created. Try again.';
 }

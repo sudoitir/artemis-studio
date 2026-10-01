@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ActionIcon, Button, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 
 import { useAuthProviders } from '../../kernel/auth/api.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
@@ -209,31 +211,22 @@ function NewMappingModal({
   roleOptions: { value: string; label: string }[];
 }>) {
   const create = useCreateGroupMapping(providerId);
-  const [groupName, setGroupName] = useState('');
-  const [roleId, setRoleId] = useState<string | null>(null);
-  const [groupError, setGroupError] = useState<string | null>(null);
-  const [roleError, setRoleError] = useState<string | null>(null);
-  const groupInput = useRef<HTMLInputElement>(null);
-  const roleInput = useRef<HTMLInputElement>(null);
+  const form = useForm<{ groupName: string; roleId: string | null }>({
+    initialValues: { groupName: '', roleId: null },
+    validateInputOnBlur: true,
+    validate: {
+      groupName: (v) => (v.trim() ? null : 'Enter the group name exactly as the provider sends it.'),
+      roleId: (v) => (v ? null : 'Choose the role the group grants.'),
+    },
+  });
 
   const close = () => {
     onClose();
-    setGroupError(null);
-    setRoleError(null);
+    form.reset();
   };
 
-  const submit = () => {
-    const groupMissing = !groupName.trim();
-    setGroupError(groupMissing ? 'Enter the group name exactly as the provider sends it.' : null);
-    setRoleError(roleId ? null : 'Choose the role the group grants.');
-    if (groupMissing) {
-      groupInput.current?.focus();
-      return;
-    }
-    if (!roleId) {
-      roleInput.current?.focus();
-      return;
-    }
+  const submit = form.onSubmit(({ groupName, roleId }) => {
+    if (!roleId) return;
     const subject = `the mapping for ${groupName.trim()}`;
     create.mutate(
       { groupName: groupName.trim(), roleId, scopeType: 'GLOBAL' },
@@ -241,45 +234,24 @@ function NewMappingModal({
         onSuccess: () => {
           notify.succeeded({ action: ADD, subject });
           close();
-          setGroupName('');
-          setRoleId(null);
         },
         onError: (error) =>
           notify.failed({ action: ADD, subject, cause: error.message, next: 'No mapping was added. Try again.' }),
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <Modal opened={opened} onClose={close} title="New group mapping">
-      <Stack gap="sm">
-        <TextInput
-          ref={groupInput}
-          label="Group"
-          value={groupName}
-          onChange={(e) => setGroupName(e.currentTarget.value)}
-          onBlur={() =>
-            setGroupError(groupName.trim() ? null : 'Enter the group name exactly as the provider sends it.')
-          }
-          error={groupError}
-          required
-        />
-        <Select
-          ref={roleInput}
-          label="Role"
-          data={roleOptions}
-          value={roleId}
-          onChange={(value) => {
-            setRoleId(value);
-            if (value) setRoleError(null);
-          }}
-          error={roleError}
-          required
-        />
-        <Button loading={create.isPending} onClick={submit}>
-          Add mapping
-        </Button>
-      </Stack>
+      <form noValidate onSubmit={submit}>
+        <Stack gap="sm">
+          <TextInput label="Group" {...form.getInputProps('groupName')} required />
+          <Select label="Role" data={roleOptions} {...form.getInputProps('roleId')} required />
+          <Button type="submit" loading={create.isPending}>
+            Add mapping
+          </Button>
+        </Stack>
+      </form>
     </Modal>
   );
 }

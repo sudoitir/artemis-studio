@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
+import { FieldRow } from '../../ui/FieldRow.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PermissionView } from './api.ts';
 import classes from './Security.module.css';
@@ -125,9 +126,8 @@ export function PermissionPicker({
 
   return (
     <Stack gap="xs">
-      <div className={classes.search}>
+      <FieldRow>
         <TextInput
-          className={classes.searchField}
           label="Search permissions"
           leftSection={<IconSearch size="1rem" aria-hidden />}
           value={query}
@@ -137,7 +137,7 @@ export function PermissionPicker({
         <Text size="sm" c="dimmed" className={classes.figure}>
           {value.length} selected
         </Text>
-      </div>
+      </FieldRow>
 
       <VisuallyHidden role="status" aria-live="polite">
         {announcement}
