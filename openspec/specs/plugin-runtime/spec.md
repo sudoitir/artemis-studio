@@ -17,6 +17,7 @@ A plugin SHALL be delivered as a single jar containing a descriptor that states:
 - whether activating it needs a restart
 - an optional update URL
 - the permissions, setting keys, stream topics and assistant tools it contributes
+- whether it requires a license
 
 The system SHALL read the descriptor without executing any code from the plugin.
 
@@ -29,6 +30,10 @@ A plugin identifier SHALL consist of at least two lowercase kebab segments, SHAL
 #### Scenario: A single-segment identifier is refused
 - **WHEN** a plugin declares the identifier `notes`
 - **THEN** it is refused with a message that the identifier needs a vendor segment, for example `acme-notes`
+
+#### Scenario: A license requirement is declared
+- **WHEN** a plugin's descriptor states that it requires a license
+- **THEN** the review before activation and the plugin list say so
 
 ### Requirement: A plugin is inspected before anything is stored or run
 

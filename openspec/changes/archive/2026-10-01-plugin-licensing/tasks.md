@@ -17,4 +17,4 @@
 - [x] 3.1 `LicenseBadge`, the drawer's License tab with upload, replace and remove, and tests for every state.
 - [x] 3.2 The plugin guide's licensing sections and the template's note.
 - [x] 3.3 japicmp: nothing in this change breaks, but the stream hub's constructor (replica bus) does, so `Contract.VERSION` is raised to 8.
-- [ ] 3.4 `just verify`, screenshots in light and dark with a test plugin, pull request, CI and the quality gate green.
+- [x] 3.4 `just verify`, screenshots in light and dark with a test plugin, pull request, CI and the quality gate green.
