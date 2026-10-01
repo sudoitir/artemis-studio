@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Button, Group, Paper, PasswordInput, Stack, Text } from '@mantine/core';
+import { Button, Paper, PasswordInput, Stack, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { needsReauthentication, useMe, useReauthenticate, type SecondFactorMethod } from './api.ts';
 import { useFreshSignIn } from './freshSignIn.ts';
 import { SecondFactorForm } from './SecondFactorForm.tsx';
@@ -15,8 +18,11 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   const me = useMe();
   const fresh = useFreshSignIn();
   const reauthenticate = useReauthenticate();
-  const [password, setPassword] = useState('');
-  const [empty, setEmpty] = useState(false);
+  const form = useForm({
+    initialValues: { password: '' },
+    validateInputOnBlur: true,
+    validate: { password: (v) => (v ? null : 'Enter your password.') },
+  });
   const [secondFactor, setSecondFactor] = useState<SecondFactorMethod[] | null>(null);
   const [restarted, setRestarted] = useState<string | null>(null);
   const reauth = me.data?.reauthentication;
@@ -61,24 +67,20 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
     );
   }
 
-  const failed = reauthenticate.error;
+  const submit = form.onSubmit(({ password }) => {
+    setRestarted(null);
+    reauthenticate.mutate(password, {
+      onSuccess: (result) => {
+        form.reset();
+        if (result.status === 'SECOND_FACTOR_REQUIRED') setSecondFactor(result.methods ?? []);
+      },
+      // A wrong password is answered beside the field.
+      onError: (error) => form.setErrors({ password: error.message }),
+    });
+  }, focusFirstInvalid(form.getInputNode));
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!password) {
-          setEmpty(true);
-          return;
-        }
-        setRestarted(null);
-        reauthenticate.mutate(password, {
-          onSuccess: (result) => {
-            setPassword('');
-            if (result.status === 'SECOND_FACTOR_REQUIRED') setSecondFactor(result.methods ?? []);
-          },
-        });
-      }}
-    >
+    <form noValidate onSubmit={submit}>
       <Stack gap="xs">
         <Text size="sm" fw={600}>
           Confirm it is you
@@ -87,22 +89,12 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
           Your last sign-in was more than five minutes ago. Re-enter your password; after five wrong attempts you are
           signed out.
         </Text>
-        <Group align="flex-end" gap="xs">
-          <PasswordInput
-            label="Your password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.currentTarget.value);
-              setEmpty(false);
-            }}
-            error={empty ? 'Enter your password.' : failed?.message}
-            w="16rem"
-          />
+        <FieldRow>
+          <PasswordInput label="Your password" autoComplete="current-password" {...form.getInputProps('password')} />
           <Button type="submit" loading={reauthenticate.isPending}>
             Confirm
           </Button>
-        </Group>
+        </FieldRow>
         <div aria-live="polite">{restarted ? <Text size="sm">{restarted}</Text> : null}</div>
       </Stack>
     </form>

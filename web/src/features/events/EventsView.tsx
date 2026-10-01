@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useRef } from 'react';
-import { Alert, Code, Drawer, Group, Select, Skeleton, Stack, Switch, Text, TextInput, Title } from '@mantine/core';
+import { Code, Drawer, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -14,8 +14,14 @@ import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import styles from './EventsView.module.css';
 import { eventColumns, occurredAt, subjectOf } from './columns.ts';
@@ -49,7 +55,7 @@ function CopyEventLink({ clusterId, seq }: Readonly<{ clusterId: string; seq: nu
   return (
     <ActionMenuItem
       label="Copy link"
-      icon={<IconLink size={16} aria-hidden />}
+      icon={<IconLink size="1rem" aria-hidden />}
       onSelect={() => host.copy(absoluteHref(clusterHref(clusterId, 'events', { event: seq })), 'link to the event')}
     />
   );
@@ -87,13 +93,13 @@ function useLiveEvents(clusterId: string, live: boolean): BrokerEventView[] {
 /** Notifications not available: name the gap, show the broker.xml, infer nothing. */
 function NotificationsUnavailable({ notifications }: Readonly<{ notifications: Notifications }>) {
   return (
-    <Stack gap="sm">
-      <Title order={3}>Events</Title>
-      <Alert variant="light" title="Live events not available">
+    <Page>
+      <PageHeader title="Events" description="This cluster's broker notifications, newest first." />
+      <Notice tone="warning" title="Live events not available">
         {notifications.reason}
-      </Alert>
+      </Notice>
       {notifications.brokerXmlSnippet ? <CodeHighlight code={notifications.brokerXmlSnippet} language="xml" /> : null}
-    </Stack>
+    </Page>
   );
 }
 
@@ -142,32 +148,43 @@ function EventDetail({
   offPage,
 }: Readonly<{ selected: BrokerEventView | null; offPage: ReturnType<typeof useEvent> }>) {
   if (!selected) {
-    if (offPage.isPending) return <Skeleton height={28} />;
+    if (offPage.isPending) return <LoadingState label="Loading the event" blockSize="12rem" />;
     if (offPage.error?.status === 404) {
       return (
-        <Alert variant="light" title="This event no longer exists">
-          Broker events are kept for a limited time, so retention may have removed it, or the link names an event of
-          another cluster.
-        </Alert>
+        <EmptyState
+          kind="empty"
+          title="This event no longer exists"
+          description="Broker events are kept for a limited time, so retention may have removed it, or the link names an event of another cluster."
+        />
       );
     }
     if (offPage.isError) return <ErrorState error={offPage.error} onRetry={() => void offPage.refetch()} />;
     return null;
   }
+  const hasProps = selected.props && Object.keys(selected.props).length > 0;
   return (
-    <Stack gap="xs">
-      <Text size="xs" c="dimmed">
-        {occurredAt(selected)} · {selected.address ?? 'no address'} · {subjectOf(selected)}
-      </Text>
-      {selected.props && Object.keys(selected.props).length > 0 ? (
-        <Code block className={styles.props}>
-          {JSON.stringify(selected.props, null, 2)}
-        </Code>
-      ) : (
-        <Text size="sm" c="dimmed">
-          This notification carried no properties.
-        </Text>
-      )}
+    <Stack gap="lg">
+      <DescriptionList
+        label="Event"
+        columns={2}
+        items={[
+          { term: 'Time', value: occurredAt(selected) },
+          { term: 'Address', value: selected.address ?? 'no address' },
+          { term: 'Subject', value: subjectOf(selected) },
+          { term: 'Remote address', value: selected.remoteAddress ?? '—' },
+        ]}
+      />
+      <Section headingLevel={3} title="Properties">
+        {hasProps ? (
+          <Code block className={styles.props} tabIndex={0} role="region" aria-label="Event properties">
+            {JSON.stringify(selected.props, null, 2)}
+          </Code>
+        ) : (
+          <Text size="sm" c="dimmed">
+            This notification carried no properties.
+          </Text>
+        )}
+      </Section>
     </Stack>
   );
 }
@@ -267,18 +284,11 @@ export function EventsView() {
 
   return (
     <Page fill>
-      <Group justify="space-between" align="flex-end">
-        <Title order={3}>Events</Title>
-        <Switch size="xs" label="Live" checked={live} onChange={(e) => setLive(e.currentTarget.checked)} />
-      </Group>
-
-      {dropped > 0 ? (
-        <Alert variant="light" title="Some events were dropped">
-          {dropped} notification{dropped === 1 ? ' has' : 's have'} been dropped for this cluster because they arrived
-          faster than the write buffer could be flushed. Raise <code>events.buffer-size</code> in settings if this
-          persists.
-        </Alert>
-      ) : null}
+      <PageHeader
+        title="Events"
+        description="This cluster's broker notifications, newest first. Studio keeps them for a limited time."
+        actions={<Switch label="Live" checked={live} onChange={(e) => setLive(e.currentTarget.checked)} />}
+      />
 
       <Toolbar
         label="Event filters"
@@ -288,7 +298,7 @@ export function EventsView() {
               label="Filter by type"
               placeholder="Any type"
               size="xs"
-              w={220}
+              w="13.75rem"
               clearable
               searchable
               value={search.type ?? null}
@@ -303,7 +313,7 @@ export function EventsView() {
               onChange={(e) => setAddress(e.currentTarget.value)}
               onBlur={() => setParam({ address: debouncedAddress || undefined })}
               size="xs"
-              w={220}
+              w="13.75rem"
             />
           </>
         }
@@ -321,6 +331,17 @@ export function EventsView() {
         onRowClick={setOpen}
         onAtTopChange={onAtTopChange}
         toolbar={{
+          // Beside the pager, so a notice that arrives with the data does not push the grid down.
+          start:
+            dropped > 0 ? (
+              <>
+                <StatusBadge tone="warning">Some events were dropped</StatusBadge>
+                <Text size="xs">
+                  {dropped} notification{dropped === 1 ? '' : 's'} arrived faster than the write buffer could be
+                  flushed. Raise <code>events.buffer-size</code> in settings if this persists.
+                </Text>
+              </>
+            ) : null,
           end: (
             <Pager
               page={page}

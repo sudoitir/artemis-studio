@@ -1,0 +1,41 @@
+import { useCan } from '../../kernel/auth/useCan.ts';
+import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
+import { useCluster } from '../clusters/index.ts';
+import type { MessageActionKind } from './api.ts';
+
+/** Which of the connection's capabilities an operation depends on. */
+type Capability = 'messageIo' | 'managementWrite';
+
+/**
+ * Whether the caller may take a message operation here, and why not when they may not. Offered while
+ * grants and the cluster load, and blocked only on a known refusal (non-negotiable #5).
+ */
+export function useMessageGate(
+  clusterId: string,
+  permission: string,
+  label: string,
+  capability: Capability,
+): GateVerdict {
+  const { can, loading } = useCan();
+  const cluster = useCluster(clusterId);
+  return gateFor(
+    can(permission, clusterId),
+    label,
+    cluster.data?.capabilities[capability],
+    loading || cluster.isPending,
+  );
+}
+
+/** The permission each by-id or by-selector action needs, and how the permission is named to the operator. */
+const ACTION_PERMISSION: Record<MessageActionKind, { permission: string; label: string }> = {
+  move: { permission: 'message:move', label: 'Move or retry messages' },
+  retry: { permission: 'message:move', label: 'Move or retry messages' },
+  delete: { permission: 'message:delete', label: 'Delete or expire messages' },
+  expire: { permission: 'message:delete', label: 'Delete or expire messages' },
+};
+
+/** The gate for moving, retrying, deleting or expiring messages. */
+export function useActionGate(clusterId: string, action: MessageActionKind): GateVerdict {
+  const { permission, label } = ACTION_PERMISSION[action];
+  return useMessageGate(clusterId, permission, label, 'managementWrite');
+}

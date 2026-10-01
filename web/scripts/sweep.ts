@@ -228,6 +228,7 @@ interface Capture {
   appliedScheme?: string | null;
   cls?: number;
   layoutShifts?: number;
+  shiftSources?: { value: number; at: number; node: string; moved: number[] }[];
   pageOverflow?: Measure['pageOverflow'];
   scrollerOverflow?: Measure['scrollers'];
   csp?: Measure['csp'];
@@ -290,6 +291,7 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
     result.appliedScheme = measured.scheme;
     result.cls = Number(measured.cls.toFixed(4));
     result.layoutShifts = measured.shifts;
+    result.shiftSources = measured.shiftSources;
     result.pageOverflow = measured.pageOverflow;
     result.scrollerOverflow = measured.scrollers;
     result.csp = measured.csp;
@@ -322,7 +324,8 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
     fail('redirected-to-login', result.finalPath === '/login' && route.path !== '/login' && auth !== 'none');
     fail('scheme-not-applied', scheme !== 'system' && measured.scheme !== scheme);
     fail('page-overflow', !!measured.pageOverflow);
-    fail('grid-overflow', measured.scrollers.length > 0);
+    // At 200% zoom a grid, a canvas or code may scroll in two dimensions (WCAG 1.4.10; ADR-0164).
+    fail('grid-overflow', width !== 'zoom' && measured.scrollers.length > 0);
     fail('layout-shift', measured.cls > CLS_BUDGET);
     fail('csp-violation', measured.csp.length > 0);
     fail('console-error', result.consoleErrors.length > 0);

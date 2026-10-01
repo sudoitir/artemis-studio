@@ -1,17 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  CopyButton,
-  Drawer,
-  Group,
-  Loader,
-  SegmentedControl,
-  Stack,
-  Table,
-  Text,
-} from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Button, CopyButton, Drawer, Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 
 import { useMessageDetail, type MessageDetailView } from './api.ts';
@@ -20,9 +8,15 @@ import { JsonTree } from './JsonTree.tsx';
 import { detectPayload, messageTypeName, unavailableMessage } from './payload.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { GovernedValue, RedactionMarks, WithheldNotice } from '../../ui/RedactedValue.tsx';
 import { redactionsAt } from '../../ui/redactions.ts';
 import { download } from '../../ui/download.ts';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 
 type Redactions = MessageDetailView['redactions'];
 
@@ -40,7 +34,8 @@ const RAISE_LIMIT_SNIPPET = `<address-settings>
   </address-setting>
 </address-settings>`;
 
-function PropertyTable({
+/** One typed group of the message's properties, as terms and values. */
+function PropertySection({
   title,
   entries,
   redactions,
@@ -50,28 +45,14 @@ function PropertyTable({
   redactions: Redactions;
 }>) {
   if (entries.length === 0) return null;
+  const items: DescriptionItem[] = entries.map(([k, v]) => ({
+    term: k,
+    value: <GovernedValue value={v} redactions={redactionsAt(redactions, 'PROPERTY', k)} />,
+  }));
   return (
-    <Stack gap={4}>
-      <Text size="xs" fw={600} c="dimmed">
-        {title}
-      </Text>
-      <Table withRowBorders={false} verticalSpacing={2}>
-        <Table.Tbody>
-          {entries.map(([k, v]) => (
-            <Table.Tr key={k}>
-              <Table.Td w="40%">
-                <Text size="xs" ff="monospace">
-                  {k}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <GovernedValue value={v} redactions={redactionsAt(redactions, 'PROPERTY', k)} />
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Stack>
+    <Section headingLevel={3} title={title}>
+      <DescriptionList items={items} label={title} />
+    </Section>
   );
 }
 
@@ -117,25 +98,21 @@ function MessageBody({
   const downloadBody = () => downloadMessageBody(messageId, bodyEncoding, raw, detected.format);
 
   return (
-    <Stack gap={4}>
-      <Group gap="xs" justify="space-between">
+    <Section
+      headingLevel={3}
+      title="Body"
+      description={
         <Group gap="xs">
-          <Text size="xs" fw={600} c="dimmed">
-            Body
-          </Text>
-          <Badge size="xs" variant="light" color={detected.bytes ? 'teal' : 'gray'}>
-            {detected.label}
-          </Badge>
-          {detected.source === 'declared' ? (
-            <Text size="xs" c="dimmed">
-              declared by the producer
-            </Text>
-          ) : null}
+          <StatusBadge>{detected.label}</StatusBadge>
+          {detected.source === 'declared' ? <span>declared by the producer</span> : null}
         </Group>
-        <Group gap={4}>
+      }
+      actions={
+        <>
           {detected.formatted !== null ? (
             <SegmentedControl
               size="xs"
+              aria-label="Body view"
               value={view}
               onChange={(v) => setView(v as BodyView)}
               data={viewOptions(tree !== null)}
@@ -151,9 +128,9 @@ function MessageBody({
           <Button size="compact-xs" variant="default" onClick={downloadBody}>
             Download
           </Button>
-        </Group>
-      </Group>
-
+        </>
+      }
+    >
       <RedactionMarks redactions={bodyRedactions} />
       {masked ? (
         <Text size="xs" c="dimmed">
@@ -177,7 +154,7 @@ function MessageBody({
           {detected.unavailable === 'truncated' ? ' See the truncation notice below.' : ''}
         </Text>
       ) : null}
-    </Stack>
+    </Section>
   );
 }
 
@@ -225,96 +202,32 @@ function BodyContent({
   return <CodeHighlight code={code} language={language} />;
 }
 
-/** The type, durability, priority, size and transport of the message, in words. */
-function MessageBadges({ m }: Readonly<{ m: MessageDetailView }>) {
+/** What the message is and when it was enqueued, plus the identifying headers it carries. */
+function Headers({ m }: Readonly<{ m: MessageDetailView }>) {
+  const header = (term: string, value: string | null | undefined, name: string): DescriptionItem[] =>
+    value
+      ? [{ term, value: <GovernedValue value={value} redactions={redactionsAt(m.redactions, 'HEADER', name)} /> }]
+      : [];
+  const items: DescriptionItem[] = [
+    { term: 'Type', value: messageTypeName(m.type) },
+    { term: 'Durability', value: m.durable ? 'durable' : 'non-durable' },
+    { term: 'Priority', value: m.priority },
+    { term: 'Size', value: `${m.size} bytes` },
+    {
+      term: 'Read via',
+      value: m.transport === 'CORE' ? 'Core protocol client' : 'Jolokia management channel',
+      hint: m.transport === 'CORE' ? 'Read faithfully.' : 'Read as text over management.',
+    },
+    { term: 'Enqueued', value: absoluteLabel(m.timestamp) },
+    { term: 'Expiration', value: m.expiration > 0 ? absoluteLabel(m.expiration) : 'never' },
+    ...header('Group', m.groupId, 'groupId'),
+    ...header('Correlation ID', m.correlationId, 'correlationId'),
+    ...header('User ID', m.userId, 'userId'),
+  ];
   return (
-    <Group gap="xs">
-      <Badge variant="light">{messageTypeName(m.type)}</Badge>
-      <Badge variant="light" color="gray">
-        {m.durable ? 'durable' : 'non-durable'}
-      </Badge>
-      <Badge variant="light" color="gray">
-        priority {m.priority}
-      </Badge>
-      <Badge variant="light" color="gray">
-        {m.size} bytes
-      </Badge>
-      <Badge
-        variant="light"
-        color={m.transport === 'CORE' ? 'teal' : 'blue'}
-        title={
-          m.transport === 'CORE'
-            ? 'Read faithfully over the Core protocol client'
-            : 'Read over the Jolokia management channel'
-        }
-      >
-        via {m.transport === 'CORE' ? 'Core' : 'Jolokia'}
-      </Badge>
-    </Group>
-  );
-}
-
-/** One header row; the governed value keeps its redaction marks. */
-function HeaderRow({
-  label,
-  value,
-  redactions,
-  first,
-}: Readonly<{ label: string; value: string; redactions: ReturnType<typeof redactionsAt>; first?: boolean }>) {
-  return (
-    <Table.Tr>
-      <Table.Td w={first ? '40%' : undefined}>
-        <Text size="xs" c="dimmed">
-          {label}
-        </Text>
-      </Table.Td>
-      <Table.Td>
-        <GovernedValue value={value} redactions={redactions} />
-      </Table.Td>
-    </Table.Tr>
-  );
-}
-
-/** When the message was enqueued and expires, and the identifying headers it carries. */
-function HeaderTable({ m }: Readonly<{ m: MessageDetailView }>) {
-  return (
-    <Table withRowBorders={false} verticalSpacing={2}>
-      <Table.Tbody>
-        <Table.Tr>
-          <Table.Td w="40%">
-            <Text size="xs" c="dimmed">
-              Enqueued
-            </Text>
-          </Table.Td>
-          <Table.Td>
-            <Text size="xs">{absoluteLabel(m.timestamp)}</Text>
-          </Table.Td>
-        </Table.Tr>
-        <Table.Tr>
-          <Table.Td>
-            <Text size="xs" c="dimmed">
-              Expiration
-            </Text>
-          </Table.Td>
-          <Table.Td>
-            <Text size="xs">{m.expiration > 0 ? absoluteLabel(m.expiration) : 'never'}</Text>
-          </Table.Td>
-        </Table.Tr>
-        {m.groupId ? (
-          <HeaderRow label="Group" value={m.groupId} redactions={redactionsAt(m.redactions, 'HEADER', 'groupId')} />
-        ) : null}
-        {m.correlationId ? (
-          <HeaderRow
-            label="Correlation ID"
-            value={m.correlationId}
-            redactions={redactionsAt(m.redactions, 'HEADER', 'correlationId')}
-          />
-        ) : null}
-        {m.userId ? (
-          <HeaderRow label="User ID" value={m.userId} redactions={redactionsAt(m.redactions, 'HEADER', 'userId')} />
-        ) : null}
-      </Table.Tbody>
-    </Table>
+    <Section headingLevel={3} title="Headers">
+      <DescriptionList items={items} columns={2} label="Message headers" />
+    </Section>
   );
 }
 
@@ -322,7 +235,7 @@ function HeaderTable({ m }: Readonly<{ m: MessageDetailView }>) {
 function TruncationNotice({ m }: Readonly<{ m: MessageDetailView }>) {
   if (!m.bodyTruncated) return null;
   return (
-    <Alert color="yellow" variant="light" title="This message is truncated">
+    <Notice tone="warning" title="This message is truncated">
       <Stack gap="xs">
         <Text size="sm">
           The broker clipped this message's body and property values at {m.observedLimitBytes ?? 'its'} bytes (
@@ -331,22 +244,29 @@ function TruncationNotice({ m }: Readonly<{ m: MessageDetailView }>) {
         </Text>
         <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
       </Stack>
-    </Alert>
+    </Notice>
   );
 }
 
 /** The message itself: its headers, every property table, the body, and the truncation notice. */
 function MessageDetailContent({ m }: Readonly<{ m: MessageDetailView }>) {
   return (
-    <Stack gap="md">
-      <MessageBadges m={m} />
-      <HeaderTable m={m} />
+    <Stack gap="lg">
+      <Headers m={m} />
 
-      <PropertyTable title="String properties" entries={Object.entries(m.stringProperties)} redactions={m.redactions} />
-      <PropertyTable title="Integer properties" entries={Object.entries(m.intProperties)} redactions={m.redactions} />
-      <PropertyTable title="Long properties" entries={Object.entries(m.longProperties)} redactions={m.redactions} />
-      <PropertyTable title="Double properties" entries={Object.entries(m.doubleProperties)} redactions={m.redactions} />
-      <PropertyTable
+      <PropertySection
+        title="String properties"
+        entries={Object.entries(m.stringProperties)}
+        redactions={m.redactions}
+      />
+      <PropertySection title="Integer properties" entries={Object.entries(m.intProperties)} redactions={m.redactions} />
+      <PropertySection title="Long properties" entries={Object.entries(m.longProperties)} redactions={m.redactions} />
+      <PropertySection
+        title="Double properties"
+        entries={Object.entries(m.doubleProperties)}
+        redactions={m.redactions}
+      />
+      <PropertySection
         title="Boolean properties"
         entries={Object.entries(m.booleanProperties)}
         redactions={m.redactions}
@@ -367,19 +287,6 @@ function MessageDetailContent({ m }: Readonly<{ m: MessageDetailView }>) {
       <TruncationNotice m={m} />
     </Stack>
   );
-}
-
-/** What stands in for the message while it loads or fails to load. */
-function detailNotice(detail: ReturnType<typeof useMessageDetail>): ReactNode {
-  if (detail.isPending) return <Loader size="sm" />;
-  if (detail.isError) {
-    return (
-      <Alert color="red" variant="light" title={detail.error.title}>
-        {detail.error.message}
-      </Alert>
-    );
-  }
-  return null;
 }
 
 export function MessageDetailPanel({
@@ -411,7 +318,9 @@ export function MessageDetailPanel({
       size="xl"
       title={messageId ? `Message ${messageId}` : ''}
     >
-      {detailNotice(detail) ?? (m ? <MessageDetailContent m={m} /> : null)}
+      {detail.isPending ? <LoadingState label="Loading the message" blockSize="20rem" /> : null}
+      {detail.isError ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} /> : null}
+      {m ? <MessageDetailContent m={m} /> : null}
     </Drawer>
   );
 }

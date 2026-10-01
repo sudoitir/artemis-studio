@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, Center, Paper, Stack, Text, Title } from '@mantine/core';
+import { Button, Paper } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useLogout, useMe } from '../../kernel/auth/api.ts';
+import { Page } from '../../ui/Page.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import classes from './Identity.module.css';
 import { RecoveryCodesDialog } from './RecoveryCodesDialog.tsx';
 import { SecondFactorEnrolment } from './SecondFactorEnrolment.tsx';
 
@@ -19,6 +23,9 @@ export function EnrolSecondFactorView() {
   // Finishing the enrolment clears the requirement while the codes are still on screen; that is not a reason to leave.
   const wasRequired = useRef(false);
   if (me.data?.secondFactorEnrolmentRequired) wasRequired.current = true;
+  // The form starts an enrolment as it opens, which creates a secret on the server; it opens only for an
+  // account that must enrol, never for one this page is about to send elsewhere.
+  const enrolling = wasRequired.current && !me.data?.mustChangePassword;
 
   useEffect(() => {
     if (!me.data) return;
@@ -27,31 +34,33 @@ export function EnrolSecondFactorView() {
   }, [me.data, navigate]);
 
   return (
-    <Center mih="100vh" bg="var(--as-bg)">
-      <Paper w={560} p="xl" radius="md" withBorder>
-        <Stack gap="lg">
-          <Stack gap={2}>
-            <Title order={3}>Set up two-step verification</Title>
-            <Text size="sm" c="dimmed">
-              Your role requires a second step when you sign in.
-            </Text>
-          </Stack>
-
-          <SecondFactorEnrolment
-            methods={['totp', 'passkey']}
-            onEnrolled={(done) => (done.recoveryCodes ? setCodes(done.recoveryCodes) : navigate({ to: '/' }))}
+    <main className={classes.screen}>
+      <Paper p="xl" radius="md" withBorder className={classes.wide}>
+        <Page>
+          <PageHeader
+            title="Set up two-step verification"
+            description="Your role requires a second step when you sign in."
           />
 
-          <Anchor
-            component="button"
-            type="button"
-            size="sm"
-            w="fit-content"
+          {enrolling ? (
+            <SecondFactorEnrolment
+              methods={['totp', 'passkey']}
+              onEnrolled={(done) => (done.recoveryCodes ? setCodes(done.recoveryCodes) : navigate({ to: '/' }))}
+            />
+          ) : (
+            <LoadingState label="Checking your account" />
+          )}
+
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            className={classes.start}
+            loading={logout.isPending}
             onClick={() => logout.mutate(undefined, { onSettled: () => navigate({ to: '/login' }) })}
           >
             Sign out
-          </Anchor>
-        </Stack>
+          </Button>
+        </Page>
       </Paper>
 
       <RecoveryCodesDialog
@@ -61,6 +70,6 @@ export function EnrolSecondFactorView() {
           void navigate({ to: '/' });
         }}
       />
-    </Center>
+    </main>
   );
 }

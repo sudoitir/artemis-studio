@@ -1,8 +1,6 @@
-/** The six rr_flow states, grouped by which `--as-rr-*` token colors them (non-negotiable #6). */
-export function stateColorVar(state: string): string {
-  if (state === 'AWAITING_REPLY') return 'var(--as-rr-in-flight)';
-  if (state === 'COMPLETED') return 'var(--as-rr-resolved)';
-  return 'var(--as-rr-failed)'; // TIMED_OUT, ORPHANED, RESPONDER_DROPPED, ORPHANED_REPLY
+/** How a flow state is emphasised: the four that mean the flow went wrong, against the rest. The word carries it. */
+export function stateTone(state: string): 'neutral' | 'danger' {
+  return state === 'AWAITING_REPLY' || state === 'COMPLETED' ? 'neutral' : 'danger'; // TIMED_OUT, ORPHANED, RESPONDER_DROPPED, ORPHANED_REPLY
 }
 
 export function stateLabel(state: string): string {

@@ -8,7 +8,7 @@
 
 .notes {
   white-space: pre-wrap;
-  border-inline-start: 2px solid var(--as-border);
+  border-inline-start: 0.125rem solid var(--as-border);
   padding-inline-start: var(--mantine-spacing-sm);
 }
 
@@ -19,11 +19,11 @@
 .overlay {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: calc(var(--as-z-sticky) + 2);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--as-text-dimmed);
+  border: 0.125rem dashed var(--as-text-dimmed);
   border-radius: var(--mantine-radius-md);
   background: color-mix(in srgb, var(--as-surface) 88%, transparent);
   pointer-events: none;
@@ -33,18 +33,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 24px;
-  block-size: 24px;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
   border-radius: var(--mantine-radius-sm);
   border: 1px solid var(--as-border);
-  font-size: 11px;
+  font-size: var(--mantine-font-size-xs);
   font-weight: 600;
   flex: none;
 }
 
 .icon {
-  inline-size: 24px;
-  block-size: 24px;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
   flex: none;
 }
 
@@ -57,4 +57,62 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   min-inline-size: 0;
+}
+
+/* A row of controls that wraps by width. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+/* A control that sits on the start side of its column instead of stretching across it. */
+.start {
+  align-self: flex-start;
+}
+
+/* A field a short value goes in, so it does not stretch across a dialog. */
+.field {
+  max-inline-size: 20rem;
+}
+
+.pem {
+  font-family: var(--mantine-font-family-monospace);
+}
+
+/* A line of two lines in a cell: the value and a dimmed note under it. */
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.note {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.violations {
+  margin: 0;
+  padding-inline-start: var(--mantine-spacing-md);
+}
+
+.violations li + li {
+  margin-block-start: 0.25rem;
+}
+
+/* A spinner and the words saying what it is doing, on one line. */
+.progressLine {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+/* A fingerprint and its copy button, side by side and never wider than their container. */
+.fingerprintRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-inline-size: 100%;
 }

@@ -26,7 +26,7 @@ export function PurgeQueue({ clusterId, target, host }: Readonly<ActionProps<Que
   return (
     <ActionMenuItem
       label="Purge messages…"
-      icon={<IconEraser size={16} aria-hidden />}
+      icon={<IconEraser size="1rem" aria-hidden />}
       tone="danger"
       verdict={gate}
       onExplain={(verdict) => host.explain(verdict, 'purging this queue')}

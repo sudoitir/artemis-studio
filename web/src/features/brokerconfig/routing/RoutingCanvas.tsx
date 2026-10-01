@@ -8,11 +8,14 @@ import {
   type Connection,
   type Edge,
 } from '@xyflow/react';
-import { ActionIcon, Alert, Button, Loader, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Text, Tooltip, useComputedColorScheme } from '@mantine/core';
 import { IconFocusCentered, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
+import { ErrorState } from '../../../ui/ErrorState.tsx';
 import { runLayout as runElkLayout } from '../../../ui/graph/elk.ts';
+import { LoadingState } from '../../../ui/LoadingState.tsx';
+import { Toolbar } from '../../../ui/Toolbar.tsx';
 import { RoutingCanvasContext, type RoutingCanvasState } from './canvasContext.ts';
 import { composes, type RoutingGraph } from './routingGraph.ts';
 import {
@@ -70,29 +73,34 @@ const CanvasToolbar = forwardRef<
   const zoom = reduced ? { duration: 0 } : ZOOM;
   const view = (label: string, icon: ReactNode, onClick: () => void) => (
     <Tooltip label={label} withArrow openDelay={300}>
-      <ActionIcon variant="subtle" color="gray" size="md" aria-label={label} onClick={onClick}>
+      <ActionIcon variant="subtle" size="md" aria-label={label} onClick={onClick}>
         {icon}
       </ActionIcon>
     </Tooltip>
   );
   return (
-    <div className={classes.toolbar} role="toolbar" aria-label="Routing builder">
-      <Button ref={entry} variant="default" size="xs" onClick={onEnter} disabled={!canEnter}>
-        Enter the routing graph
-      </Button>
-      <span className={classes.divider} aria-hidden="true" />
-      <div className={classes.toolbarGroup}>
-        {view('Zoom out', <IconZoomOut size={16} stroke={1.75} />, () => void flow.zoomOut(zoom))}
-        {view('Zoom in', <IconZoomIn size={16} stroke={1.75} />, () => void flow.zoomIn(zoom))}
-        {view(
-          'Fit the graph to the view',
-          <IconFocusCentered size={16} stroke={1.75} />,
-          () => void flow.fitView({ ...FIT, ...zoom }),
-        )}
-      </div>
-      {leading}
-      <span className={classes.toolbarSpacer} />
-      {actions}
+    <div className={classes.toolbar}>
+      <Toolbar
+        label="Routing builder"
+        start={
+          <>
+            <Button ref={entry} variant="default" size="xs" onClick={onEnter} disabled={!canEnter}>
+              Enter the routing graph
+            </Button>
+            <div className={classes.toolbarGroup}>
+              {view('Zoom out', <IconZoomOut size="1rem" stroke={1.75} />, () => void flow.zoomOut(zoom))}
+              {view('Zoom in', <IconZoomIn size="1rem" stroke={1.75} />, () => void flow.zoomIn(zoom))}
+              {view(
+                'Fit the graph to the view',
+                <IconFocusCentered size="1rem" stroke={1.75} />,
+                () => void flow.fitView({ ...FIT, ...zoom }),
+              )}
+            </div>
+            {leading}
+          </>
+        }
+        end={actions}
+      />
     </div>
   );
 });
@@ -103,12 +111,12 @@ export type Compose =
   | { kind: 'bridge'; queueName: string; forwardingAddress: string };
 
 /** Positions for a routing graph, recomputed only when its structure changes. */
-function useRoutingLayout(graph: RoutingGraph): { positions: Positions; pending: boolean; error: string | null } {
+function useRoutingLayout(graph: RoutingGraph): { positions: Positions; pending: boolean; error: Error | null } {
   const signature = useMemo(() => layoutSignature(graph), [graph]);
   const latest = useRef(graph);
   latest.current = graph;
   const [state, setState] = useState<{ signature: string; positions: Positions }>({ signature: '', positions: {} });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     const current = latest.current;
@@ -124,7 +132,7 @@ function useRoutingLayout(graph: RoutingGraph): { positions: Positions; pending:
         setError(null);
       })
       .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+        if (!cancelled) setError(e);
       });
     return () => {
       cancelled = true;
@@ -228,6 +236,7 @@ export function RoutingCanvas({
   actions?: ReactNode;
 }>) {
   const layout = useRoutingLayout(graph);
+  const colorMode = useComputedColorScheme('dark', { getInitialValueInEffect: false });
   const wrapper = useRef<HTMLDivElement>(null);
 
   // How much room is left below the canvas's own top edge. Measured rather than
@@ -337,9 +346,13 @@ export function RoutingCanvas({
   return (
     <div>
       {layout.error ? (
-        <Alert color="red" variant="light" title="The graph could not be laid out" mb="xs">
-          {layout.error} Every element it would have drawn is on the Configuration screen's Declared &amp; live tab.
-        </Alert>
+        <div className={classes.layoutError}>
+          <ErrorState error={layout.error} />
+          <Text size="sm">
+            The graph could not be laid out. Every element it would have drawn is on the Configuration screen's Declared
+            &amp; live tab.
+          </Text>
+        </div>
       ) : null}
 
       <ReactFlowProvider>
@@ -353,14 +366,15 @@ export function RoutingCanvas({
             onKeyDown={onKeyDown}
           >
             {!laidOut ? (
-              <div className={classes.overlay} aria-busy="true" aria-label="Laying out the graph">
-                <Loader size="sm" />
+              <div className={classes.overlay}>
+                <LoadingState label="Laying out the graph" />
               </div>
             ) : null}
             <RoutingCanvasContext.Provider value={context}>
               <ReactFlow
                 nodes={model.nodes}
                 edges={model.edges}
+                colorMode={colorMode}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 minZoom={0.2}

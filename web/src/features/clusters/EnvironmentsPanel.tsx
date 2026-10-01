@@ -1,19 +1,14 @@
-import { useState } from 'react';
-import {
-  ActionIcon,
-  Button,
-  ColorSwatch,
-  Group,
-  Modal,
-  NumberInput,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-} from '@mantine/core';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { useCallback, useMemo, useState } from 'react';
+import { Button, ColorInput, Modal, NumberInput, Stack, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid, serverFieldErrors } from '../../ui/formErrors.ts';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import {
   useCreateEnvironment,
   useDeleteEnvironment,
@@ -21,121 +16,192 @@ import {
   useUpdateEnvironment,
   type EnvironmentView,
 } from './api.ts';
+import classes from './Clusters.module.css';
+import { environmentColumns } from './environmentColumns.tsx';
+
+const CREATE: ActionVerb = { verb: 'Create', past: 'Created', progressive: 'Creating' };
+const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
+const DELETE: ActionVerb = { verb: 'Delete', past: 'Deleted', progressive: 'Deleting' };
+
+function editorTitle(editing: EnvironmentView | 'new' | null): string {
+  if (editing === 'new') return 'New environment';
+  return `Edit "${editing?.name ?? ''}"`;
+}
 
 /** Environment grouping CRUD (environments spec). Cluster assignment happens from the cluster's own settings. */
 export function EnvironmentsPanel() {
   const environments = useEnvironments();
-  const create = useCreateEnvironment();
-  const update = useUpdateEnvironment();
   const remove = useDeleteEnvironment();
 
   const [editing, setEditing] = useState<EnvironmentView | 'new' | null>(null);
-  const [name, setName] = useState('');
-  const [colour, setColour] = useState('#4c6ef5');
-  const [sortOrder, setSortOrder] = useState(0);
+  const [deleting, setDeleting] = useState<EnvironmentView | null>(null);
 
-  function openNew() {
-    setEditing('new');
-    setName('');
-    setColour('#4c6ef5');
-    setSortOrder((environments.data ?? []).length);
-  }
+  const rows = environments.data ?? [];
 
-  function openEdit(env: EnvironmentView) {
-    setEditing(env);
-    setName(env.name);
-    setColour(env.colour ?? '#4c6ef5');
-    setSortOrder(env.sortOrder);
-  }
+  const { reset: resetRemove } = remove;
+
+  const openNew = useCallback(() => setEditing('new'), []);
+  const openEdit = useCallback((env: EnvironmentView) => setEditing(env), []);
+
+  const askDelete = useCallback(
+    (env: EnvironmentView) => {
+      resetRemove();
+      setDeleting(env);
+    },
+    [resetRemove],
+  );
+
+  // Stable, so the table does not measure its columns again on every render.
+  const columns = useMemo(() => environmentColumns(openEdit, askDelete), [openEdit, askDelete]);
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">
-          {(environments.data ?? []).length} environment{(environments.data ?? []).length === 1 ? '' : 's'}
-        </Text>
+    <Section
+      title="Environments"
+      description={`${rows.length} environment${rows.length === 1 ? '' : 's'}. An environment groups clusters, such as production or staging.`}
+      actions={
         <Button size="xs" onClick={openNew}>
           New environment
         </Button>
-      </Group>
-
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Colour</Table.Th>
-            <Table.Th>Name</Table.Th>
-            <Table.Th>Order</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {(environments.data ?? []).map((e) => (
-            <Table.Tr key={e.id}>
-              <Table.Td>
-                <ColorSwatch color={e.colour ?? 'var(--as-border)'} size={16} />
-              </Table.Td>
-              <Table.Td>
-                <Text size="sm">{e.name}</Text>
-              </Table.Td>
-              <Table.Td>{e.sortOrder}</Table.Td>
-              <Table.Td>
-                <Group gap={4}>
-                  <ActionIcon variant="subtle" onClick={() => openEdit(e)} aria-label={`Edit ${e.name}`}>
-                    <IconPencil size={16} />
-                  </ActionIcon>
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    onClick={() => remove.mutate(e.id)}
-                    aria-label={`Delete ${e.name}`}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-
-      <Modal
-        opened={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing === 'new' ? 'New environment' : `Edit "${name}"`}
-      >
-        <Stack gap="sm">
-          <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
-          <TextInput
-            label="Colour"
-            value={colour}
-            onChange={(e) => setColour(e.currentTarget.value)}
-            placeholder="#4c6ef5"
+      }
+    >
+      <DataTable
+        variant="static"
+        label="Environments"
+        storageKey="clusters.environments"
+        columns={columns}
+        data={rows}
+        rowKey={(e) => e.id}
+        height={{ maxRows: 12 }}
+        loading={environments.isPending}
+        error={
+          environments.isError ? (
+            <ErrorState error={environments.error} onRetry={() => void environments.refetch()} />
+          ) : undefined
+        }
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No environments yet"
+            description="An environment groups clusters, such as production or staging, and marks them in the cluster list. Create one, then assign a cluster to it from the cluster's own settings."
+            action={
+              <Button size="xs" onClick={openNew}>
+                New environment
+              </Button>
+            }
           />
-          <NumberInput label="Sort order" value={sortOrder} onChange={(v) => setSortOrder(Number(v) || 0)} />
-          <Button
-            loading={create.isPending || update.isPending}
-            onClick={() => {
-              const body = { name, colour, sortOrder };
-              if (editing === 'new') {
-                create.mutate(body, {
-                  onSuccess: () => setEditing(null),
-                  onError: (e) => notifications.show({ message: e.message, color: 'red' }),
-                });
-              } else if (editing) {
-                update.mutate(
-                  { environmentId: editing.id, body },
-                  {
-                    onSuccess: () => setEditing(null),
-                    onError: (e) => notifications.show({ message: e.message, color: 'red' }),
-                  },
-                );
-              }
-            }}
-          >
-            Save
-          </Button>
-        </Stack>
+        }
+      />
+
+      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editorTitle(editing)}>
+        {/* Remounted per environment, so the editor never shows a previous one's values. */}
+        {editing === null ? null : (
+          <EnvironmentEditor
+            key={editing === 'new' ? 'new' : editing.id}
+            environment={editing === 'new' ? null : editing}
+            nextOrder={rows.length}
+            onDone={() => setEditing(null)}
+          />
+        )}
       </Modal>
-    </Stack>
+
+      <ConfirmDialog
+        opened={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title="Delete environment"
+        consequence={
+          <Stack gap="xs">
+            <span>
+              Deleting <strong>{deleting?.name}</strong> removes the grouping. Its clusters stay registered and have no
+              environment afterwards; permission grants scoped to this environment are removed with it.
+            </span>
+            {remove.isError ? <ErrorState variant="inline" error={remove.error} /> : null}
+          </Stack>
+        }
+        confirmLabel="Delete environment"
+        tone="danger"
+        typedName={deleting?.name}
+        pending={remove.isPending}
+        onConfirm={() =>
+          deleting &&
+          remove.mutate(deleting.id, {
+            onSuccess: () => {
+              notify.succeeded({ action: DELETE, subject: `environment ${deleting.name}` });
+              setDeleting(null);
+            },
+          })
+        }
+      />
+    </Section>
+  );
+}
+
+/** The environment form: a name, an optional colour and where it sorts. */
+function EnvironmentEditor({
+  environment,
+  nextOrder,
+  onDone,
+}: Readonly<{ environment: EnvironmentView | null; nextOrder: number; onDone: () => void }>) {
+  const create = useCreateEnvironment();
+  const update = useUpdateEnvironment();
+  const form = useForm<{ name: string; colour: string; sortOrder: number | string }>({
+    initialValues: {
+      name: environment?.name ?? '',
+      colour: environment?.colour ?? '',
+      sortOrder: environment?.sortOrder ?? nextOrder,
+    },
+    validateInputOnBlur: true,
+    validate: { name: (v) => (v.trim() ? null : 'Give the environment a name.') },
+  });
+
+  const save = form.onSubmit((values) => {
+    const body = { name: values.name.trim(), colour: values.colour || null, sortOrder: Number(values.sortOrder) || 0 };
+    const subject = `environment ${body.name}`;
+    const onError = (error: unknown) => form.setErrors(serverFieldErrors(error, ['name']));
+    if (environment === null) {
+      create.mutate(body, {
+        onSuccess: () => {
+          notify.succeeded({ action: CREATE, subject });
+          onDone();
+        },
+        onError,
+      });
+    } else {
+      update.mutate(
+        { environmentId: environment.id, body },
+        {
+          onSuccess: () => {
+            notify.succeeded({ action: SAVE, subject });
+            onDone();
+          },
+          onError,
+        },
+      );
+    }
+  }, focusFirstInvalid(form.getInputNode));
+
+  const failure = environment === null ? create.error : update.error;
+
+  return (
+    <form noValidate onSubmit={save}>
+      <Stack gap="sm">
+        <TextInput label="Name" {...form.getInputProps('name')} data-autofocus required />
+        <ColorInput
+          label="Colour"
+          description="Optional. Marks the environment beside its name in the cluster list."
+          {...form.getInputProps('colour')}
+          format="hex"
+          closeOnColorSwatchClick
+        />
+        <NumberInput
+          label="Sort order"
+          description="Environments are listed from the lowest number up."
+          {...form.getInputProps('sortOrder')}
+        />
+        {failure ? <ErrorState variant="inline" error={failure} /> : null}
+        <Button type="submit" loading={create.isPending || update.isPending} className={classes.start}>
+          Save
+        </Button>
+      </Stack>
+    </form>
   );
 }

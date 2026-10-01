@@ -1,6 +1,8 @@
-import { Stack, Tabs, Title } from '@mantine/core';
+import { Tabs } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { useFiringAlerts } from './api.ts';
 import { FiringPanel } from './FiringPanel.tsx';
 import { HistoryPanel } from './HistoryPanel.tsx';
@@ -19,8 +21,11 @@ export function AlertsView() {
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: v ?? undefined }) });
 
   return (
-    <Stack gap="md">
-      <Title order={3}>Alerts</Title>
+    <Page>
+      <PageHeader
+        title="Alerts"
+        description="What is firing on this cluster now, what fired before, and the rules that decide both."
+      />
 
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>
@@ -39,6 +44,6 @@ export function AlertsView() {
           <RulesPanel clusterId={clusterId} />
         </Tabs.Panel>
       </Tabs>
-    </Stack>
+    </Page>
   );
 }

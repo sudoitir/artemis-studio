@@ -1,0 +1,74 @@
+/* The registration form beside its canvas: two columns that hold at least 22rem, wrapping by size. */
+.register {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+  gap: var(--mantine-spacing-lg);
+}
+
+/* Spans both columns of .register. */
+.span {
+  grid-column: 1 / -1;
+}
+
+/* The setup choices: three across, wrapping when the dialog is narrow (zoom). */
+.setups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--mantine-spacing-sm);
+  margin-block-start: var(--mantine-spacing-xs);
+}
+
+.setup {
+  padding: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-md);
+}
+
+.setup[data-checked] {
+  /* The accent is tuned per scheme to stand out from the resting border; the inset ring doubles its
+     weight without changing the card's size. */
+  border-color: var(--as-accent);
+  box-shadow: inset 0 0 0 1px var(--as-accent);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  min-inline-size: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mantine-spacing-sm);
+}
+
+.reason {
+  margin-inline-end: auto;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+}
+
+/* A form of a settings section: fields that stay a readable width instead of stretching across the page. */
+.settingsForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  max-inline-size: 30rem;
+}
+
+.start {
+  align-self: flex-start;
+}

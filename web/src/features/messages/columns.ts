@@ -3,8 +3,8 @@ import { createElement } from 'react';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { AUTO, localZone } from '../../kernel/time/timezone.ts';
 import type { Column } from '../../ui/table/index.ts';
-import type { MessageSummaryView } from './api.ts';
-import { BodyPreview } from './cells.tsx';
+import type { DlqQueue, MessageSummaryView } from './api.ts';
+import { BodyPreview, QueueLink } from './cells.tsx';
 
 /**
  * The columns of the message browser. The enqueue time is written in the display zone `zone`, which
@@ -45,5 +45,36 @@ export function messageColumns(zone: string): Column<MessageSummaryView>[] {
       kind: 'code',
       priority: 'high',
     },
+  ];
+}
+
+/** One dead-letter queue as a row: the queue, the address it is dead-lettered from, and its depth. */
+export interface DlqRow {
+  address: string;
+  kind: string;
+  queue: DlqQueue;
+}
+
+/** The dead-letter grid's columns. The queue identifies a row and is never hidden. */
+export function dlqColumns(clusterId: string): Column<DlqRow>[] {
+  return [
+    {
+      id: 'queue',
+      header: 'Queue',
+      accessor: (r) => r.queue.queueName,
+      cell: (r) => createElement(QueueLink, { clusterId, queueName: r.queue.queueName }),
+      kind: 'identifier',
+      priority: 'essential',
+    },
+    { id: 'address', header: 'Address', accessor: (r) => r.address, kind: 'identifier', priority: 'high' },
+    { id: 'kind', header: 'Kind', accessor: (r) => r.kind, kind: 'status', priority: 'low' },
+    {
+      id: 'depth',
+      header: 'Messages',
+      accessor: (r) => r.queue.totalDepth,
+      kind: 'number',
+      priority: 'essential',
+    },
+    { id: 'nodes', header: 'Nodes', accessor: (r) => r.queue.perNode.length, kind: 'number', priority: 'high' },
   ];
 }

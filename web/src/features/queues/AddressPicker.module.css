@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 0.125rem;
   min-inline-size: 0;
 }
 
@@ -36,14 +36,14 @@
    one cell of a form row. `min-inline-size` beats the inline width floating-ui
    writes for a target-width dropdown, so this widens it without a fixed prop. */
 .dropdown {
-  min-inline-size: min(420px, 90vw);
+  min-inline-size: min(26rem, 90vw);
 }
 
 .filters {
   display: flex;
   align-items: center;
   gap: var(--mantine-spacing-xs);
-  padding-block: 4px;
+  padding-block: 0.25rem;
   padding-inline: var(--mantine-spacing-xs);
   border-block-end: 1px solid var(--as-border);
 }
@@ -52,7 +52,7 @@
    native scrollbar is the accessible one, and it keeps the option rows in the
    accessibility tree where a virtualised viewport does not. */
 .options {
-  max-block-size: 260px;
+  max-block-size: 16rem;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -64,5 +64,5 @@
   position: absolute;
   inset-block-start: 100%;
   inset-inline-start: 0;
-  margin-block-start: 2px;
+  margin-block-start: 0.125rem;
 }

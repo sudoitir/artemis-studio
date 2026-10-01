@@ -1,8 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Group, Loader, Stack, Switch, Text, TextInput } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useMemo } from 'react';
+import { Button, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
-import { useResetSetting, useSettings, useUpdateSetting } from './api.ts';
+import { useCan } from '../../kernel/auth/useCan.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { useResetSetting, useSettings, useUpdateSetting, type SettingsResponse } from './api.ts';
+import classes from './Settings.module.css';
+
+const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
+const RESET: ActionVerb = { verb: 'Reset', past: 'Reset', progressive: 'Resetting' };
+
+const WRITE_REASON = 'Changing settings needs the settings:write permission.';
+
+type Setting = SettingsResponse['settings'][string];
 
 /**
  * The settings form is generated from the API, not from a list kept here. Every
@@ -15,113 +30,166 @@ export function OperationalConfig() {
   const settings = useSettings();
   const update = useUpdateSetting();
   const reset = useResetSetting();
-  const [draft, setDraft] = useState<Record<string, string>>({});
-
-  const entries = useMemo(() => Object.entries(settings.data?.settings ?? {}), [settings.data]);
+  const { can, loading } = useCan();
+  // While grants load, offer the control; the server is the enforcement point.
+  const canWrite = loading || can('settings:write');
 
   // Group in first-seen order: the server sends the registry order on purpose.
   const groups = useMemo(() => {
     const out: { name: string; keys: string[] }[] = [];
-    for (const [key, value] of entries) {
+    for (const [key, value] of Object.entries(settings.data?.settings ?? {})) {
       const existing = out.find((g) => g.name === value.group);
       if (existing) existing.keys.push(key);
       else out.push({ name: value.group, keys: [key] });
     }
     return out;
-  }, [entries]);
-
-  useEffect(() => {
-    if (settings.data) {
-      setDraft(Object.fromEntries(entries.map(([k, v]) => [k, v.value])));
-    }
-  }, [settings.data, entries]);
+  }, [settings.data]);
 
   if (settings.isError) {
-    return (
-      <Alert color="red" variant="light" title={settings.error.title}>
-        {settings.error.message}
-      </Alert>
-    );
+    return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />;
   }
 
+  // The frame holds the height of a few groups, so the form that replaces it does not push anything.
   if (settings.isPending) {
-    return <Loader size="sm" />;
+    return <LoadingState label="Loading settings" blockSize="24rem" />;
   }
+
+  const save = (key: string, current: Setting, next: string) =>
+    update.mutate(
+      { key, value: next },
+      {
+        onSuccess: () => notify.succeeded({ action: SAVE, subject: current.label }),
+        onError: (error) =>
+          notify.failed({
+            action: SAVE,
+            subject: current.label,
+            cause: error.message,
+            next: `It is still ${current.value}. Try again.`,
+          }),
+      },
+    );
+
+  const clear = (key: string, current: Setting) =>
+    reset.mutate(key, {
+      onSuccess: () => notify.succeeded({ action: RESET, subject: current.label }),
+      onError: (error) =>
+        notify.failed({
+          action: RESET,
+          subject: current.label,
+          cause: error.message,
+          next: `It is still ${current.value}. Try again.`,
+        }),
+    });
 
   return (
     <Stack gap="lg">
+      {canWrite ? null : <Text size="sm">{WRITE_REASON}</Text>}
       {groups.map((group) => (
-        <Stack key={group.name} gap="sm" maw={560}>
-          <Text size="sm" fw={600}>
-            {group.name}
-          </Text>
-          {group.keys.map((key) => {
-            const current = settings.data?.settings[key];
-            if (!current) return null;
-            const value = draft[key] ?? '';
-            const dirty = value !== current.value;
-            const save = (next: string) =>
-              update.mutate(
-                { key, value: next },
-                {
-                  onSuccess: () => notifications.show({ message: `${current.label} saved` }),
-                  onError: (err) => notifications.show({ color: 'red', message: err.message }),
-                },
-              );
-            if (current.kind === 'BOOLEAN') {
-              // A switch saves as it is flipped: there is no half-typed value to hold back.
+        <Section key={group.name} title={group.name} headingLevel={3}>
+          <Stack gap="md" className={classes.narrow}>
+            {group.keys.map((key) => {
+              const current = settings.data.settings[key];
+              if (!current) return null;
               return (
-                <Group key={key} align="flex-start" gap="xs">
-                  <Switch
-                    label={current.label}
-                    description={current.hint}
-                    checked={current.value === 'true'}
-                    disabled={update.isPending}
-                    onChange={(e) => save(String(e.currentTarget.checked))}
-                    size="sm"
-                  />
-                  {current.overridden ? (
-                    <Button size="xs" variant="subtle" onClick={() => reset.mutate(key)}>
-                      Reset
-                    </Button>
-                  ) : null}
-                </Group>
+                <SettingField
+                  // A new value from the server starts the field over from it.
+                  key={`${key}:${current.value}`}
+                  setting={current}
+                  canWrite={canWrite}
+                  saving={update.isPending && update.variables?.key === key}
+                  resetting={reset.isPending && reset.variables === key}
+                  onSave={(next) => save(key, current, next)}
+                  onReset={() => clear(key, current)}
+                />
               );
-            }
-            return (
-              <div key={key}>
-                <Group align="flex-end" gap="xs">
-                  <TextInput
-                    label={current.label}
-                    description={current.hint}
-                    value={value}
-                    inputMode={current.kind === 'INT' ? 'numeric' : 'text'}
-                    onChange={(e) => {
-                      const v = e.currentTarget.value;
-                      setDraft((d) => ({ ...d, [key]: v }));
-                    }}
-                    w={300}
-                    size="xs"
-                  />
-                  <Button size="xs" disabled={!dirty} loading={update.isPending} onClick={() => save(value)}>
-                    Save
-                  </Button>
-                  {current.overridden ? (
-                    <Button size="xs" variant="subtle" onClick={() => reset.mutate(key)}>
-                      Reset
-                    </Button>
-                  ) : null}
-                </Group>
-                {current.overridden ? (
-                  <Text size="xs" c="dimmed">
-                    overridden — default is {current.defaultValue}
-                  </Text>
-                ) : null}
-              </div>
-            );
-          })}
-        </Stack>
+            })}
+          </Stack>
+        </Section>
       ))}
     </Stack>
+  );
+}
+
+const NOT_A_NUMBER = 'Enter a whole number.';
+const UNCHANGED = 'Nothing to save: the value is unchanged.';
+
+/** One setting: a switch that saves as it is flipped, or a field with its own Save. */
+function SettingField({
+  setting: current,
+  canWrite,
+  saving,
+  resetting,
+  onSave,
+  onReset,
+}: Readonly<{
+  setting: Setting;
+  canWrite: boolean;
+  saving: boolean;
+  resetting: boolean;
+  onSave: (value: string) => void;
+  onReset: () => void;
+}>) {
+  const invalid = (v: string) => (current.kind === 'INT' && !/^-?\d+$/.test(v.trim()) ? NOT_A_NUMBER : null);
+  const form = useForm({
+    initialValues: { value: current.value },
+    validateInputOnBlur: true,
+    validate: { value: invalid },
+  });
+
+  const resetControl = current.overridden ? (
+    <Button size="xs" variant="subtle" disabled={!canWrite} loading={resetting} onClick={onReset}>
+      Reset
+    </Button>
+  ) : null;
+
+  if (current.kind === 'BOOLEAN') {
+    // A switch saves as it is flipped: there is no half-typed value to hold back.
+    return (
+      <FieldRow>
+        <Switch
+          label={current.label}
+          description={current.hint}
+          checked={current.value === 'true'}
+          disabled={!canWrite || saving}
+          onChange={(e) => onSave(String(e.currentTarget.checked))}
+          size="sm"
+        />
+        {resetControl}
+      </FieldRow>
+    );
+  }
+
+  const submit = form.onSubmit(({ value }) => {
+    if (value === current.value) {
+      form.setFieldError('value', UNCHANGED);
+      form.getInputNode('value')?.focus();
+      return;
+    }
+    onSave(value);
+  }, focusFirstInvalid(form.getInputNode));
+
+  return (
+    <form noValidate onSubmit={submit}>
+      <FieldRow>
+        <TextInput
+          className={classes.settingField}
+          label={current.label}
+          description={current.hint}
+          {...form.getInputProps('value')}
+          inputMode={current.kind === 'INT' ? 'numeric' : 'text'}
+          disabled={!canWrite}
+          size="xs"
+        />
+        <Button type="submit" size="xs" disabled={!canWrite} loading={saving}>
+          Save
+        </Button>
+        {resetControl}
+      </FieldRow>
+      {current.overridden ? (
+        <Text size="xs" c="dimmed">
+          overridden — default is {current.defaultValue}
+        </Text>
+      ) : null}
+    </form>
   );
 }

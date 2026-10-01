@@ -1,0 +1,4 @@
+/* A stranded queue's depth, in tabular digits so two of them compare without reading every digit. */
+.figures {
+  font-variant-numeric: tabular-nums;
+}

@@ -16,7 +16,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 }));
 
 const { LoginView } = await import('./LoginView.tsx');
-const { setBootState } = await import('../plugins/boot.ts');
+const { boot, setBootState } = await import('../plugins/boot.ts');
 const BOOTED = { manifest: { version: '1' } as never, plugins: [], failures: new Map<string, string>() };
 
 const LOCAL = { id: 'local', kind: 'CREDENTIAL', label: 'Password', startPath: null };
@@ -39,10 +39,66 @@ describe('LoginView', () => {
     setBootState({ plugins: [], failures: new Map() });
   });
 
-  it('starts the page again after sign-in when it started signed out, so plugins load', async () => {
-    setBootState({ plugins: [], failures: new Map() });
+  it('is one page with one top-level heading that names the view, the product beside it', async () => {
+    renderWithProviders(<LoginView />);
+
+    const headings = await screen.findAllByRole('heading', { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]).toHaveTextContent('Sign in');
+    expect(screen.getByRole('main')).toHaveTextContent('Artemis Studio');
+  });
+
+  it('keeps Sign in live, names what is missing beside each field, focuses the first and sends nothing', async () => {
+    let sent = 0;
+    server.use(
+      http.post('*/api/v1/auth/login', () => {
+        sent += 1;
+        return HttpResponse.json(signedIn('alice', false));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    const button = await screen.findByRole('button', { name: 'Sign in' });
+    expect(button).toBeEnabled();
+    await user.click(button);
+
+    expect(screen.getByText('Enter your username.')).toBeInTheDocument();
+    expect(screen.getByText('Enter your password.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Username/)).toHaveFocus();
+    expect(sent).toBe(0);
+  });
+
+  it('names a missing password when the field is left, before anything is pressed', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    await user.type(screen.getByLabelText(/Username/), 'alice');
+    await user.click(screen.getByLabelText(/Password/));
+    await user.tab();
+
+    expect(await screen.findByText('Enter your password.')).toBeInTheDocument();
+  });
+
+  it('says to wait when a sign-in is rate limited, and what to do next', async () => {
+    server.use(
+      http.post('*/api/v1/auth/login', () => HttpResponse.json({ title: 'Too many requests' }, { status: 429 })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LoginView />);
+
+    await user.type(screen.getByLabelText(/Username/), 'alice');
+    await user.type(screen.getByLabelText(/Password/), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts. Wait a moment, then try again.');
+  });
+
+  it('starts the page again after sign-in when it started on the sign-in page, so plugins load', async () => {
     const replace = vi.fn();
     vi.stubGlobal('location', { ...window.location, replace, pathname: '/login' });
+    // The page's own start on /login: it reads no manifest, so there are no plugins to keep.
+    await boot();
     server.use(http.post('*/api/v1/auth/login', () => HttpResponse.json(signedIn('alice', false))));
     const user = userEvent.setup();
     renderWithProviders(<LoginView />);
@@ -96,7 +152,9 @@ describe('LoginView', () => {
     await user.type(screen.getByLabelText(/Password/), 'wrong');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByText('Invalid username or password.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invalid username or password. Check both and try again.',
+    );
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -154,15 +212,15 @@ describe('LoginView', () => {
     renderWithProviders(<LoginView />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Could not load the sign-in methods');
-    expect(alert).toHaveTextContent('Password sign-in is still offered');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByText(/Password sign-in is still offered/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Username/)).toBeInTheDocument();
 
     healthy = true;
     await user.click(within(alert).getByRole('button', { name: 'Retry' }));
 
     expect((await screen.findAllByLabelText('Sign in with')).length).toBeGreaterThan(0);
-    expect(screen.queryByText('Could not load the sign-in methods')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('says the session ended when sent back from a signed-in page, and says nothing on a plain visit', async () => {
@@ -408,7 +466,7 @@ describe('LoginView second step', () => {
 
     await user.type(await screen.findByLabelText('Code from your authenticator app'), '123456{Enter}');
 
-    expect(await screen.findByText('Invalid username or password.')).toBeInTheDocument();
+    expect(await screen.findByText('Invalid username or password. Check both and try again.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
   });
 

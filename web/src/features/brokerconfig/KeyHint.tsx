@@ -11,19 +11,19 @@ import type { KeyHelp } from './keyHelp.ts';
  */
 export function KeyHint({ name, help }: Readonly<{ name: string; help: KeyHelp }>) {
   return (
-    <Popover width={360} position="bottom-start" withArrow shadow="md">
+    <Popover width="22.5rem" position="bottom-start" withArrow shadow="md">
       <Popover.Target>
-        <ActionIcon variant="subtle" color="gray" size="xs" aria-label={`About ${name}`} title={`About ${name}`}>
-          <IconInfoCircle size={14} aria-hidden />
+        <ActionIcon variant="subtle" size="sm" aria-label={`About ${name}`} title={`About ${name}`}>
+          <IconInfoCircle size="0.875rem" aria-hidden />
         </ActionIcon>
       </Popover.Target>
       <Popover.Dropdown>
-        <Stack gap={6}>
-          <Text size="xs" fw={600} ff="monospace">
+        <Stack gap="xs">
+          <Text size="sm" fw={600} ff="monospace">
             {name}
           </Text>
-          <Text size="xs">{help.summary}</Text>
-          <Text size="xs" c="dimmed">
+          <Text size="sm">{help.summary}</Text>
+          <Text size="sm" c="dimmed">
             <b>Example:</b> {help.example}
           </Text>
         </Stack>

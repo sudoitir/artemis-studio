@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -26,6 +27,15 @@ const me = () =>
     }),
   );
 
+const keysDialog = () => (
+  <>
+    <Notifications />
+    <TrustedKeysDialog opened onClose={() => undefined} />
+  </>
+);
+
+afterEach(() => act(() => notifications.clean()));
+
 describe('Trusted keys', () => {
   it('adds a pasted key and lists it', async () => {
     const view: TrustedKeysView = { keys: [], allowUnverified: false, signedPlugins: {} };
@@ -47,7 +57,7 @@ describe('Trusted keys', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<TrustedKeysDialog opened onClose={() => undefined} />);
+    renderWithProviders(keysDialog());
 
     expect(await screen.findByText(/No key is trusted yet/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add key' }));
@@ -60,7 +70,7 @@ describe('Trusted keys', () => {
 
     await waitFor(() => expect(body).toEqual({ name: 'Acme', pem: 'PEM' }));
     expect(await screen.findByText(ACME)).toBeInTheDocument();
-    expect(screen.getByText('Trusted Acme.')).toBeInTheDocument();
+    expect(await screen.findByText('Trusted key Acme')).toBeInTheDocument();
   });
 
   it('removes a key after naming the plugins that become unverified, by keyboard alone', async () => {
@@ -89,7 +99,7 @@ describe('Trusted keys', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<TrustedKeysDialog opened onClose={() => undefined} />);
+    renderWithProviders(keysDialog());
 
     const trigger = await screen.findByRole('button', { name: 'Remove Acme' });
     trigger.focus();
@@ -106,9 +116,12 @@ describe('Trusted keys', () => {
 
     await user.keyboard('{Enter}');
     const again = await screen.findByRole('dialog', { name: 'Remove Acme' });
-    await user.click(within(again).getByRole('button', { name: 'Remove Acme' }));
+    const confirm = within(again).getByRole('button', { name: 'Remove Acme' });
+    expect(confirm).toBeDisabled();
+    await user.type(within(again).getByLabelText('Type "Acme" to confirm'), 'Acme');
+    await user.click(confirm);
     await waitFor(() => expect(removed).toBe(ACME));
-    expect(await screen.findByText('Removed Acme.')).toBeInTheDocument();
+    expect(await screen.findByText('Removed key Acme')).toBeInTheDocument();
   });
 
   it('shows a configured key with a disabled Remove whose reason a keyboard reaches', async () => {
@@ -193,7 +206,7 @@ describe('Trusted keys', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<TrustedKeysDialog opened onClose={() => undefined} />);
+    renderWithProviders(keysDialog());
     expect(await screen.findByText(/^Danger: an unverified plugin runs code/)).toBeInTheDocument();
     await user.click(screen.getByRole('switch', { name: /^Allow unverified plugins/ }));
     await waitFor(() => expect(allowed).toEqual({ allowUnverified: true }));

@@ -1,4 +1,4 @@
-import type { FlowEdgeView } from './api.ts';
+import type { FlowEdgeView, FlowGraphView } from './api.ts';
 
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const precise = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
@@ -17,6 +17,13 @@ export function formatRate(rate: number): string {
 
 export function formatCount(n: number): string {
   return n >= 100_000 ? compact.format(n) : precise.format(n);
+}
+
+/** The broker nodes that did not answer, by name: rows missing because of them are an incomplete view, not an empty one. */
+export function unreachableNodes(graph: Pick<FlowGraphView, 'brokerNodes'>): string[] {
+  return (graph.brokerNodes ?? [])
+    .filter((n) => n.state === 'UNREACHABLE' || n.state === 'FAILED')
+    .map((n) => n.name ?? n.nodeId ?? 'A node');
 }
 
 /** A total rate that may be unknown. */

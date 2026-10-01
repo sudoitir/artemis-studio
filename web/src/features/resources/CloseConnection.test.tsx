@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { CapabilityView, ConnectionCloseView } from './api.ts';
-import { CloseConnectionAction } from './CloseConnection.tsx';
+import { CloseAddressConsumersAction, CloseConnectionAction } from './CloseConnection.tsx';
 
 const AVAILABLE: CapabilityView = { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null };
 
@@ -208,12 +208,96 @@ describe('the close outcome outlives its row (ADR-0107)', () => {
       'orders-worker-7',
     );
     await user.click(within(dialog).getByRole('button', { name: 'Close this connection' }));
-    await within(dialog).findByRole('button', { name: 'Close' });
+    await screen.findByRole('button', { name: 'Close' });
 
     // The listing refetches without the connection, so its row — and the action in it — is gone.
     rerender(<></>);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(within(screen.getByRole('dialog')).getAllByText(/applied/i).length).toBeGreaterThan(0);
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+});
+
+describe('a target that could not be read', () => {
+  it('offers no close, and says why, rather than arming one that was never previewed', async () => {
+    server.use(
+      meHandler(),
+      clusterHandler(),
+      http.post('*/api/v1/clusters/c1/nodes/n1/connections/a3f1c9de/close', () =>
+        HttpResponse.json({ title: 'Read failed', detail: 'node-a did not answer.' }, { status: 502 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Close this connection' });
+
+    expect(await within(dialog).findByText('node-a did not answer.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The target could not be read.')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
+    // The close is visible and cannot be armed, and the reason is what the button is described by.
+    const close = within(dialog).getByRole('button', { name: 'Close this connection' });
+    expect(close).toBeDisabled();
+    expect(close).toHaveAccessibleDescription(/the close is not offered until the read succeeds/);
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  it('lists what it would close as terms and values once it is read', async () => {
+    server.use(meHandler(), clusterHandler(), closeHandler(live));
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Close this connection' });
+
+    const group = await within(dialog).findByRole('group', { name: 'What this closes' });
+    expect(within(group).getByText('Remote address')).toBeInTheDocument();
+    expect(within(group).getByText('10.4.2.9:53160')).toBeInTheDocument();
+    expect(within(group).getByText('Consumers closed with it')).toBeInTheDocument();
+  });
+});
+
+describe('closing every consumer on an address', () => {
+  function addressHandler(replyFor: (dryRun: boolean) => object) {
+    return http.post('*/api/v1/clusters/c1/addresses/orders/consumers/close', ({ request }) =>
+      HttpResponse.json(replyFor(new URL(request.url).searchParams.get('dryRun') === 'true')),
+    );
+  }
+
+  const reply = (dryRun: boolean) => ({
+    kind: 'ADDRESS_CONSUMERS',
+    subject: 'orders',
+    alreadyGone: false,
+    outcome: {
+      dryRun,
+      cap: 100,
+      overCap: false,
+      partial: true,
+      totalAffected: 5,
+      nodes: [
+        { nodeId: 'a', nodeName: 'node-a', status: dryRun ? 'WOULD_APPLY' : 'APPLIED', affected: 5, error: null },
+        { nodeId: 'b', nodeName: 'node-b', status: 'FAILED', affected: null, error: 'node-b refused' },
+      ],
+    },
+  });
+
+  it('arms on the address, then reads a partial result per node in a dialog of its own', async () => {
+    server.use(meHandler(), clusterHandler(), addressHandler(reply));
+    const user = userEvent.setup();
+    renderWithProviders(<CloseAddressConsumersAction clusterId="c1" address="orders" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Close every consumer on orders' }));
+    const confirmation = await screen.findByRole('dialog', { name: 'Close every consumer on orders' });
+    expect(await within(confirmation).findByText('would close 5 consumers')).toBeInTheDocument();
+
+    const confirm = within(confirmation).getByRole('button', { name: 'Close these consumers' });
+    await user.type(within(confirmation).getByRole('textbox'), 'orders');
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    const result = await screen.findByRole('dialog', { name: 'Result of closing the consumers on orders' });
+    expect(within(result).getByText('Applied to some nodes and not others')).toBeInTheDocument();
+    expect(within(result).getByText('node-b refused')).toBeInTheDocument();
   });
 });

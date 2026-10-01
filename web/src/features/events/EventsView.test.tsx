@@ -75,6 +75,18 @@ describe('EventsView', () => {
     navigate.mockClear();
   });
 
+  it('is one page named Events, with the live switch in its header', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
+      http.get('*/api/v1/clusters/c1/events', () => HttpResponse.json(page([event()]))),
+    );
+    renderWithProviders(<EventsView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Events' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('switch', { name: 'Live' })).toBeChecked();
+  });
+
   it('lists events and a click on a row puts it in the address', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1', () => HttpResponse.json(cluster('AVAILABLE'))),
@@ -107,8 +119,12 @@ describe('EventsView', () => {
     );
     renderWithProviders(<EventsView />);
 
-    expect(await screen.findByRole('dialog', { name: 'CONSUMER_CREATED' })).toBeInTheDocument();
-    expect(await screen.findByText(/_AMQ_Address/)).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: 'CONSUMER_CREATED' });
+    // What the event is about is stated as terms and values; its raw properties follow, in a region the keyboard can scroll.
+    expect(within(dialog).getByText('Subject')).toBeInTheDocument();
+    expect(within(dialog).getByText('c-42')).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { level: 3, name: 'Properties' })).toBeInTheDocument();
+    expect(await within(dialog).findByRole('region', { name: 'Event properties' })).toHaveTextContent(/_AMQ_Address/);
   });
 
   it('opens an event that is not on the loaded page by asking for it', async () => {
@@ -251,6 +267,9 @@ describe('EventsView', () => {
     );
     renderWithProviders(<EventsView />);
 
-    expect(await screen.findByText(/were dropped/i)).toBeInTheDocument();
+    expect(await screen.findByText('Some events were dropped')).toBeInTheDocument();
+    expect(
+      screen.getByText(/7 notifications arrived faster than the write buffer could be flushed/),
+    ).toBeInTheDocument();
   });
 });

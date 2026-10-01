@@ -1,7 +1,10 @@
-import { useRef, useState, type KeyboardEvent, type Ref } from 'react';
-import { Alert, Button, Combobox, Group, Radio, Stack, Switch, Text, TextInput, useCombobox } from '@mantine/core';
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Button, Combobox, Group, Radio, Stack, Switch, Text, TextInput, useCombobox } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
 import type { ConfigDeclarationView } from './api.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { upsertAddress } from './document.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 import classes from './Configuration.module.css';
@@ -40,28 +43,29 @@ export function ForwardingAddressField({
   onChange,
   onBlur,
   error,
-  inputRef,
+  'data-path': dataPath,
   onCreatingChange,
 }: Readonly<{
   declaration: ConfigDeclarationView;
   value: string;
   onChange: (value: string) => void;
-  onBlur: () => void;
-  error?: string;
-  inputRef: Ref<HTMLInputElement>;
+  onBlur?: () => void;
+  error?: ReactNode;
+  /** Set by `form.getInputProps`, so `form.getInputNode` finds the input. */
+  'data-path'?: string;
   /** Whether the inline section is open, so the drawer can leave Escape to it. */
   onCreatingChange: (creating: boolean) => void;
 }>) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
-  const field = useRef<HTMLInputElement | null>(null);
-  const queueInput = useRef<HTMLInputElement>(null);
+  const field = useRef<HTMLInputElement>(null);
 
   // The inline section: which address it creates, and the queue it declares on it.
   const [creating, setCreating] = useState<string | null>(null);
-  const [queueName, setQueueName] = useState('');
-  const [routingType, setRoutingType] = useState<RoutingType>('ANYCAST');
-  const [durable, setDurable] = useState(true);
-  const [touched, setTouched] = useState(false);
+  const queue = useForm<{ queueName: string; routingType: RoutingType; durable: boolean }>({
+    initialValues: { queueName: '', routingType: 'ANYCAST', durable: true },
+    validateInputOnBlur: true,
+    validate: { queueName: (v) => queueNameProblem(declaration, v) },
+  });
   const [announcement, setAnnouncement] = useState('');
 
   const declared = declaration.document.addresses.map((a) => a.name);
@@ -69,7 +73,6 @@ export function ForwardingAddressField({
   const exact = declared.includes(typed);
   const matching = exact ? declared : declared.filter((n) => n.toLowerCase().includes(typed.toLowerCase()));
   const addressProblem = typed && !exact ? queueNameProblem(declaration, typed) : null;
-  const problem = creating !== null && touched ? queueNameProblem(declaration, queueName) : null;
 
   const setOpen = (address: string | null) => {
     setCreating(address);
@@ -81,10 +84,10 @@ export function ForwardingAddressField({
     field.current?.focus();
   };
 
-  const added = (address: string, queue: string) => {
+  const added = (address: string, queueName: string) => {
     onChange(address);
     setOpen(null);
-    setAnnouncement(`Queue ${queue} added to the declaration — apply to create it on the brokers.`);
+    setAnnouncement(`Queue ${queueName} added to the declaration — apply to create it on the brokers.`);
     field.current?.focus();
   };
   const {
@@ -92,36 +95,28 @@ export function ForwardingAddressField({
     isPending,
     error: saveError,
     reset,
-  } = useSaveDocument(declaration, () => added(creating!, queueName.trim()));
+  } = useSaveDocument(declaration, () => added(creating!, queue.values.queueName.trim()));
 
   const openCreate = () => {
-    setQueueName(typed);
-    setRoutingType('ANYCAST');
-    setDurable(true);
-    setTouched(false);
+    queue.setValues({ queueName: typed, routingType: 'ANYCAST', durable: true });
+    queue.clearErrors();
     setAnnouncement('');
     reset();
     setOpen(typed);
-    requestAnimationFrame(() => queueInput.current?.focus());
+    requestAnimationFrame(() => queue.getInputNode('queueName')?.focus());
   };
 
-  const submit = () => {
-    setTouched(true);
+  const submit = queue.onSubmit(({ queueName, routingType, durable }) => {
     if (creating === null || isPending) return;
-    if (queueNameProblem(declaration, queueName)) {
-      queueInput.current?.focus();
-      return;
-    }
-    const q = queueName.trim();
     save(
       upsertAddress(declaration.document, {
         name: creating,
         routingTypes: [routingType],
-        queues: [{ name: q, routingType, durable }],
+        queues: [{ name: queueName.trim(), routingType, durable }],
       }),
-      `Added queue ${q}`,
+      `Added queue ${queueName.trim()}`,
     );
-  };
+  }, focusFirstInvalid(queue.getInputNode));
 
   const onSectionKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
@@ -131,12 +126,6 @@ export function ForwardingAddressField({
       event.preventDefault();
       submit();
     }
-  };
-
-  const setField = (el: HTMLInputElement | null) => {
-    field.current = el;
-    if (typeof inputRef === 'function') inputRef(el);
-    else if (inputRef) (inputRef as { current: HTMLInputElement | null }).current = el;
   };
 
   return (
@@ -151,7 +140,8 @@ export function ForwardingAddressField({
       >
         <Combobox.Target withExpandedAttribute>
           <TextInput
-            ref={setField}
+            ref={field}
+            data-path={dataPath}
             label="To address"
             description="Choose a declared address, or type a new one and create its queue. An address with no queue drops what is diverted to it."
             value={value}
@@ -164,7 +154,7 @@ export function ForwardingAddressField({
             onClick={() => combobox.openDropdown()}
             onBlur={() => {
               combobox.closeDropdown();
-              onBlur();
+              onBlur?.();
             }}
             error={error}
             rightSection={<Combobox.Chevron />}
@@ -206,17 +196,9 @@ export function ForwardingAddressField({
             <Text size="sm" fw={600}>
               New queue on address {creating}
             </Text>
-            <TextInput
-              ref={queueInput}
-              label="Queue name"
-              value={queueName}
-              onChange={(e) => setQueueName(e.currentTarget.value)}
-              onBlur={() => setTouched(true)}
-              error={problem ?? undefined}
-              required
-            />
-            <Radio.Group label="Routing type" value={routingType} onChange={(v) => setRoutingType(v as RoutingType)}>
-              <Group gap="lg" mt={4}>
+            <TextInput label="Queue name" {...queue.getInputProps('queueName')} required />
+            <Radio.Group label="Routing type" {...queue.getInputProps('routingType')}>
+              <Group gap="lg" mt="xs">
                 <Radio value="ANYCAST" label="Anycast — each message to one consumer" />
                 <Radio value="MULTICAST" label="Multicast — to every subscriber" />
               </Group>
@@ -224,21 +206,24 @@ export function ForwardingAddressField({
             <Switch
               label="Durable"
               description="Messages survive a broker restart."
-              checked={durable}
-              onChange={(e) => setDurable(e.currentTarget.checked)}
+              {...queue.getInputProps('durable', { type: 'checkbox' })}
             />
             {saveError ? (
-              <Alert color="red" variant="light" title={saveError.title} role="alert">
-                {saveError.type.endsWith('stale-revision')
-                  ? `${saveError.message} Someone saved the declaration while this was open; close the editor and add the queue again on top of their revision.`
-                  : saveError.message}
-              </Alert>
+              <Stack gap="sm">
+                <ErrorState error={saveError} />
+                {saveError.type.endsWith('stale-revision') ? (
+                  <Text size="sm">
+                    Someone saved the declaration while this was open; close the editor and add the queue again on top
+                    of their revision.
+                  </Text>
+                ) : null}
+              </Stack>
             ) : null}
             <Group gap="xs" justify="flex-end">
               <Button variant="default" size="xs" onClick={collapse}>
                 Cancel
               </Button>
-              <Button size="xs" onClick={submit} loading={isPending}>
+              <Button size="xs" onClick={() => submit()} loading={isPending}>
                 Add queue to the declaration
               </Button>
             </Group>

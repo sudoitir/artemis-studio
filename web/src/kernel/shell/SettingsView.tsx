@@ -1,7 +1,10 @@
 import { Fragment, useRef } from 'react';
-import { Stack, Tabs, Text, Title } from '@mantine/core';
+import { Tabs, Text } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { SETTINGS_GROUPS, useSlot } from '../slots.ts';
 import classes from './SettingsView.module.css';
 
@@ -12,13 +15,14 @@ import classes from './SettingsView.module.css';
  * survives a reload.
  *
  * Arrow keys move between tabs without opening them; Enter or Space opens one and moves focus to
- * its heading, so a keyboard user reads the section they chose rather than staying in the list.
+ * its panel, which the tab names, so a keyboard user reads the section they chose rather than
+ * staying in the list.
  */
 export function SettingsView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
-  const headings = useRef(new Map<string, HTMLHeadingElement>());
+  const panels = useRef(new Map<string, HTMLDivElement>());
 
   const sections = useSlot('settings.sections');
   const groups = SETTINGS_GROUPS.map((group) => ({
@@ -32,19 +36,28 @@ export function SettingsView() {
   const open = (id: string | null) => {
     if (!id) return;
     void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: id }), replace: true });
-    requestAnimationFrame(() => headings.current.get(id)?.focus());
+    requestAnimationFrame(() => panels.current.get(id)?.focus());
   };
 
   return (
-    <Stack gap="md">
-      <Title order={3}>Settings</Title>
+    <Page>
+      <PageHeader
+        title="Settings"
+        description="Your own preferences, what Studio shares across clusters, and this cluster's configuration."
+      />
       <Tabs
         value={tab ?? null}
         onChange={open}
         orientation="vertical"
         activateTabWithKeyboard={false}
         keepMounted={false}
-        classNames={{ list: classes.list, tab: classes.tab, tabLabel: classes.tabLabel, panel: classes.panel }}
+        classNames={{
+          root: classes.root,
+          list: classes.list,
+          tab: classes.tab,
+          tabLabel: classes.tabLabel,
+          panel: classes.panel,
+        }}
       >
         <Tabs.List aria-label="Settings sections">
           {groups.map((group) => (
@@ -62,22 +75,21 @@ export function SettingsView() {
         </Tabs.List>
 
         {ordered.map(({ id, title, Component }) => (
-          <Tabs.Panel key={id} value={id}>
-            <Title
-              order={4}
-              tabIndex={-1}
-              mb="xs"
-              ref={(el) => {
-                if (el) headings.current.set(id, el);
-                else headings.current.delete(id);
-              }}
-            >
-              {title}
-            </Title>
-            <Component clusterId={clusterId} />
+          <Tabs.Panel
+            key={id}
+            value={id}
+            tabIndex={-1}
+            ref={(el) => {
+              if (el) panels.current.set(id, el);
+              else panels.current.delete(id);
+            }}
+          >
+            <Section title={title ?? id}>
+              <Component clusterId={clusterId} />
+            </Section>
           </Tabs.Panel>
         ))}
       </Tabs>
-    </Stack>
+    </Page>
   );
 }

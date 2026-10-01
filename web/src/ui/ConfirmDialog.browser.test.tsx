@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 
 import { axeViolations, renderThemed, SCHEMES, settle } from '../test/browser.tsx';
 import { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog.tsx';
+import { Notice } from './Notice.tsx';
 
 const base: ConfirmDialogProps = {
   opened: true,
@@ -16,6 +17,21 @@ const base: ConfirmDialogProps = {
 const VARIANTS: Record<string, ConfirmDialogProps> = {
   plain: base,
   'danger, typed': { ...base, tone: 'danger', typedName: 'orders.created' },
+  blocked: { ...base, blocked: 'A purge is already running on this queue. Wait for it to finish, then try again.' },
+  'danger, typed, blocked': {
+    ...base,
+    tone: 'danger',
+    typedName: 'orders.created',
+    blocked: 'The queue has consumers. Close them first.',
+  },
+  'with a result': {
+    ...base,
+    result: (
+      <Notice title="Queue purged" tone="info">
+        Removed 1,204 messages from 3 nodes.
+      </Notice>
+    ),
+  },
 };
 
 /** The open dialog, once its entrance transition has finished moving it. */
@@ -56,6 +72,16 @@ describe('ConfirmDialog', () => {
     expect(confirm.left).toBeGreaterThan(cancel.right);
     expect(box.right - confirm.right).toBeLessThan(box.width / 4);
     expect(confirm.right).toBeLessThanOrEqual(box.right);
+  });
+
+  it('states the reason beside the disabled button, above it', async () => {
+    renderThemed(<ConfirmDialog {...VARIANTS.blocked} />, 'light');
+    await openDialog();
+    const reason = screen.getByText(/A purge is already running/).getBoundingClientRect();
+    const confirm = screen.getByRole('button', { name: 'Purge queue' });
+    expect(confirm).toBeDisabled();
+    expect(reason.bottom).toBeLessThanOrEqual(confirm.getBoundingClientRect().top);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
   });
 
   it('asks for the name before the destructive button can be pressed', async () => {

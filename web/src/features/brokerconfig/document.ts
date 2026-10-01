@@ -96,14 +96,14 @@ function upsert<T>(items: T[], item: T, keyOf: (item: T) => string, original?: s
 }
 
 /**
- * `patch` laid over `base`: every item in the patch adds or replaces its
- * counterpart by key, and everything else in `base` stays. Address settings
+ * `patch` laid over `current`: every item in the patch adds or replaces its
+ * counterpart by key, and everything else in `current` stays. Address settings
  * merge by *values* too — the pasted keys win, the rest of the entry survives —
  * because the broker replaces the whole entry on apply (ADR-0067 D5) and a
  * fragment that sets four keys must not silently reset the other fourteen.
  */
-export function mergeDocuments(base: ConfigDocumentView, patch: ConfigDocumentView): ConfigDocumentView {
-  let doc = base;
+export function mergeDocuments(current: ConfigDocumentView, patch: ConfigDocumentView): ConfigDocumentView {
+  let doc = current;
   for (const a of patch.addresses) doc = upsertAddress(doc, a);
   for (const s of patch.addressSettings) {
     const existing = doc.addressSettings.find((i) => i.match === s.match);

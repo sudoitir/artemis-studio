@@ -25,21 +25,18 @@ export function HealthTable() {
     [tables],
   );
   const unhealthy = rows.filter((t) => t.problems.length > 0).length;
+  const verdict =
+    unhealthy === 0
+      ? `All ${rows.length} tables are healthy.`
+      : `${unhealthy} of ${rows.length} tables need attention. The Storage health alert rule reports them.`;
+  const summary = tables ? `${verdict} Figures are Postgres statistics, so row counts are estimates.` : '';
 
   return (
     <Stack gap="sm">
-      {tables ? (
-        <Text size="sm" c="dimmed" aria-live="polite">
-          {unhealthy === 0
-            ? `All ${rows.length} tables are healthy.`
-            : `${unhealthy} of ${rows.length} tables need attention. The Storage health alert rule reports them.`}{' '}
-          Figures are Postgres statistics, so row counts are estimates.
-        </Text>
-      ) : null}
       <DataTable
+        variant="static"
         label="Tables"
         storageKey="data-health"
-        height="fill"
         columns={columns}
         data={rows}
         rowKey={rowKey}
@@ -53,6 +50,10 @@ export function HealthTable() {
           />
         }
       />
+      {/* Below the table, so the sentence that arrives with the data moves nothing above it. */}
+      <Text size="sm" c="dimmed" role="status">
+        {summary}
+      </Text>
     </Stack>
   );
 }

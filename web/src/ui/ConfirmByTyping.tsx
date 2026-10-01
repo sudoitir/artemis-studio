@@ -13,6 +13,7 @@ export function ConfirmByTyping({
   confirmLabel,
   loading,
   disabled,
+  describedBy,
   tone = 'danger',
   onConfirm,
 }: Readonly<{
@@ -21,6 +22,8 @@ export function ConfirmByTyping({
   confirmLabel: string;
   loading?: boolean;
   disabled?: boolean;
+  /** The id of text that says why the button is disabled, for assistive technology. */
+  describedBy?: string;
   /** `danger` for an action that removes or overwrites (the default here); `default` for one that does not. */
   tone?: 'default' | 'danger';
   onConfirm: () => void;
@@ -41,6 +44,7 @@ export function ConfirmByTyping({
         size="xs"
         color={tone === 'danger' ? 'signal' : undefined}
         disabled={!armed}
+        aria-describedby={describedBy}
         loading={loading}
         onClick={onConfirm}
       >

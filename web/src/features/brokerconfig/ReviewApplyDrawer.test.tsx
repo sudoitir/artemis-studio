@@ -136,10 +136,38 @@ describe('ReviewApplyDrawer: the plan', () => {
     const d = await drawer();
 
     const alert = await d.findByRole('alert');
-    expect(alert).toHaveTextContent('Could not plan');
-    expect(alert).toHaveTextContent(
-      'The declaration does not validate. Fix the declaration and come back; nothing was changed.',
+    expect(alert).toHaveTextContent('Some values are not valid');
+    expect(alert).toHaveTextContent('The declaration does not validate.');
+    expect(d.getByText('Fix the declaration and come back; nothing was changed.')).toBeInTheDocument();
+  });
+
+  it('lays the plan out as sections under the drawer title, so a screen reader can jump between them', async () => {
+    const { d } = await planned();
+
+    expect(d.getByRole('heading', { level: 3, name: 'Plan' })).toBeInTheDocument();
+    expect(d.getByRole('heading', { level: 3, name: 'Hazards (1) — 1 High' })).toBeInTheDocument();
+    // The nodes of the plan are one level further down, never a skipped level.
+    expect(d.getAllByRole('heading', { level: 4 }).length).toBeGreaterThan(0);
+  });
+
+  it('offers to plan again when the plan failed for a reason trying again can fix', async () => {
+    let attempts = 0;
+    server.use(
+      http.post('*/api/v1/clusters/c1/config/apply', () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ title: 'Down', detail: 'No node answered the plan.' }, { status: 503 })
+          : HttpResponse.json(plan());
+      }),
     );
+    const { user } = open();
+    const d = await drawer();
+
+    const alert = await d.findByRole('alert');
+    expect(alert).toHaveTextContent('No node answered the plan.');
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await d.findByText(/Would apply/);
+    expect(attempts).toBe(2);
   });
 
   it('says so when every node already matches, and offers no way to continue', async () => {
@@ -352,8 +380,8 @@ describe('ReviewApplyDrawer: confirming', () => {
   });
 
   it.each([
-    ['https://studio/problems/plan-changed', /The cluster moved since this plan was made\. Plan again and review it/],
-    ['https://studio/problems/apply-in-progress', /Wait for it to finish, then plan again\./],
+    ['https://studio/problems/plan-changed', /^The cluster moved since this plan was made\. Plan again and review it/],
+    ['https://studio/problems/apply-in-progress', /^Wait for it to finish, then plan again\./],
   ])('explains a refusal of type %s', async (type, hint) => {
     real = () => HttpResponse.json({ type, title: 'Refused', detail: 'Refused by the server.' }, { status: 409 });
     const { user, d } = await planned();
@@ -362,7 +390,7 @@ describe('ReviewApplyDrawer: confirming', () => {
 
     const alert = await d.findByRole('alert');
     expect(alert).toHaveTextContent('Refused by the server.');
-    expect(alert).toHaveTextContent(hint);
+    expect(d.getByText(hint)).toBeInTheDocument();
   });
 
   it('gives an unknown refusal no hint', async () => {

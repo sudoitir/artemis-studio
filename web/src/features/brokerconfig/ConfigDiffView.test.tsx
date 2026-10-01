@@ -216,8 +216,11 @@ describe('ConfigDiffView', () => {
     );
     renderWithProviders(<ConfigDiffView />);
 
-    expect(await screen.findByText('Cluster unreachable')).toBeInTheDocument();
-    expect(screen.getByText('No node answered the comparison.')).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(within(alert).getByText('No node answered the comparison.')).toBeInTheDocument();
+    // The failure offers the comparison again.
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeEnabled();
   });
 
   it('narrows to drift only, keeping the sections', async () => {
@@ -255,5 +258,86 @@ describe('ConfigDiffView', () => {
     const rightList = await screen.findByRole('listbox', { name: 'Right node', ...opt });
     await user.click(within(rightList).getByRole('option', { name: 'broker-1', ...opt }));
     await waitFor(() => expect(seen).toContain('left=n-b&right=n-a'));
+  });
+
+  it('is one page: a single h1, the pair as its h2 and each section as an h3', async () => {
+    serve();
+    renderWithProviders(<ConfigDiffView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Config diff' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(await screen.findByRole('heading', { level: 2, name: 'broker-1 ↔ broker-2' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /^Broker/ })).toBeInTheDocument();
+  });
+
+  it('draws each section as a native table whose first column heads its rows, with no scroll box around it', async () => {
+    serve();
+    renderWithProviders(<ConfigDiffView />);
+
+    const table = await screen.findByRole('table', { name: 'Broker configuration of the two nodes' });
+    expect(within(table).getByRole('rowheader', { name: 'max-disk-usage' })).toBeInTheDocument();
+    for (const header of ['Key', 'Left', 'Right', 'Status']) {
+      expect(within(table).getByRole('columnheader', { name: header })).toBeInTheDocument();
+    }
+    expect(table.closest('[tabindex]')).toBeNull();
+  });
+
+  it('says a section with no drift is filtered, not empty, and offers to show every key again', async () => {
+    const d = diff();
+    d.sections = [
+      { section: 'broker', label: 'Broker', driftCount: 1, entries: diff().sections[0].entries },
+      {
+        section: 'addressSettings',
+        label: 'Address settings',
+        driftCount: 0,
+        entries: [entry({ key: 'agreeing-key' })],
+      },
+    ];
+    serve(d);
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigDiffView />);
+
+    await screen.findByRole('row', { name: /agreeing-key/ });
+    await user.click(screen.getByRole('switch', { name: 'Drift only' }));
+
+    expect(screen.getByText('No drift in this section')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing to compare in this section.')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('switch', { name: 'Drift only' })).not.toBeChecked();
+    expect(await screen.findByRole('row', { name: /agreeing-key/ })).toBeInTheDocument();
+  });
+
+  it('names an unreachable side as unreachable, not as an empty comparison', async () => {
+    serve(
+      diff({
+        comparable: false,
+        note: 'Only one node answered.',
+        right: side('n-b', 'broker-2', { available: false, unavailableReason: 'connection refused' }),
+      }),
+    );
+    renderWithProviders(<ConfigDiffView />);
+
+    const unreachable = await screen.findByRole('list', { name: 'Nodes that could not be reached' });
+    expect(within(unreachable).getByText('broker-2')).toBeInTheDocument();
+  });
+
+  it('states why the nodes could not be listed, and lists them again on retry', async () => {
+    let attempts = 0;
+    server.use(
+      http.get('*/api/v1/clusters/c1/topology', () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ title: 'Down', detail: 'The topology is not answering.' }, { status: 503 })
+          : HttpResponse.json(TOPOLOGY);
+      }),
+      http.get('*/api/v1/clusters/c1/config-diff', () => HttpResponse.json(diff())),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigDiffView />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The topology is not answering.');
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
   });
 });

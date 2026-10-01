@@ -1,9 +1,10 @@
-import { Alert, ColorSwatch, Stack, Text } from '@mantine/core';
+import { Button, ColorSwatch, Stack, Text } from '@mantine/core';
 
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { useCluster, useEnvironments, type CapabilitiesView, type ClusterDetail } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import styles from './ClusterHeader.module.css';
@@ -53,7 +54,14 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   // returns below so the hook order never depends on the query state.
   const [capsDismissed, dismissCaps] = useDismissedNotice(`capabilities:${clusterId}:${gaps.join(',')}`);
 
-  if (isPending) return <LoadingState label="Loading the cluster" variant="inline" blockSize="1.5rem" />;
+  // The strip's own box, holding the line's height, so the page below does not move when the cluster arrives.
+  if (isPending) {
+    return (
+      <div className={styles.strip}>
+        <LoadingState label="Loading the cluster" variant="inline" />
+      </div>
+    );
+  }
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
   const environment = environments.data?.find((e) => e.id === data.environmentId);
@@ -78,12 +86,9 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
       </fieldset>
 
       {data.health.level !== 'OK' && data.health.notes.length > 0 ? (
-        <Alert
-          variant="default"
-          className={styles.notice}
-          data-tone={critical ? 'danger' : 'warning'}
-          role={critical ? 'alert' : undefined}
+        <Notice
           title={critical ? 'Two nodes are live in one pair' : 'Needs attention'}
+          tone={critical ? 'danger' : 'warning'}
         >
           <Stack gap="xs">
             {data.health.notes.map((n) => (
@@ -92,16 +97,18 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
               </Text>
             ))}
           </Stack>
-        </Alert>
+        </Notice>
       ) : null}
 
       {gaps.length > 0 && !capsDismissed ? (
-        <Alert
-          variant="default"
+        <Notice
           title="Some broker capabilities need setup"
-          withCloseButton
-          closeButtonLabel="Dismiss until you sign out"
-          onClose={dismissCaps}
+          tone="warning"
+          action={
+            <Button variant="default" size="xs" onClick={dismissCaps}>
+              Dismiss until you sign out
+            </Button>
+          }
         >
           <Stack gap="xs">
             <Text size="sm">
@@ -110,7 +117,7 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
             </Text>
             <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />
           </Stack>
-        </Alert>
+        </Notice>
       ) : null}
     </>
   );

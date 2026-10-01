@@ -1,33 +1,20 @@
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Checkbox,
-  Code,
-  Collapse,
-  CopyButton,
-  Group,
-  List,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Button, Checkbox, Code, Collapse, CopyButton, Group, List, Stack, Text } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { useDisclosure } from '@mantine/hooks';
 
+import { Section as PageSection } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PluginPlanView, PluginViolationView } from './api.ts';
+import { Notice } from '../../ui/Notice.tsx';
 import styles from './Plugins.module.css';
 import { acknowledgementReasons, count, downtime, TRUST_LABEL } from './words.ts';
 
+/** A titled block of the review, one level below the dialog's title. */
 function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
-    <Stack gap={4}>
-      <Title order={4} fz="sm">
-        {title}
-      </Title>
+    <PageSection title={title} headingLevel={3}>
       {children}
-    </Stack>
+    </PageSection>
   );
 }
 
@@ -35,7 +22,7 @@ type TrustOffer = Readonly<{ canInstall: boolean; onTrust: () => void }>;
 
 function Fingerprint({ value, copy }: Readonly<{ value: string; copy?: boolean }>) {
   return (
-    <Group gap={4} wrap="nowrap" component="span" display="inline-flex" maw="100%">
+    <span className={styles.fingerprintRow}>
       <Code className={styles.fingerprint}>{value}</Code>
       {copy ? (
         <CopyButton value={value}>
@@ -46,7 +33,7 @@ function Fingerprint({ value, copy }: Readonly<{ value: string; copy?: boolean }
           )}
         </CopyButton>
       ) : null}
-    </Group>
+    </span>
   );
 }
 
@@ -111,14 +98,7 @@ function PublisherSection({ plan, trust }: Readonly<{ plan: PluginPlanView; trus
   return (
     <Section title="Publisher">
       <Group gap="xs">
-        <Badge
-          size="sm"
-          variant={trusted ? 'outline' : 'light'}
-          color={trusted ? 'gray' : 'yellow'}
-          c={trusted ? undefined : 'var(--as-warning)'}
-        >
-          {TRUST_LABEL[t.status]}
-        </Badge>
+        <StatusBadge tone={trusted ? 'neutral' : 'warning'}>{TRUST_LABEL[t.status]}</StatusBadge>
         {trusted && t.keyName ? <Text size="sm">Trusted key: {t.keyName}</Text> : null}
       </Group>
       {t.fingerprint ? (
@@ -145,7 +125,7 @@ export function Acknowledgement({
   onChange: (checked: boolean) => void;
 }>) {
   return (
-    <Alert variant="light" color="yellow" title="This needs your confirmation">
+    <Notice title="This needs your confirmation" tone="warning">
       <Stack gap="xs">
         <List size="sm" spacing={2}>
           {acknowledgementReasons(plan).map((reason) => (
@@ -158,7 +138,7 @@ export function Acknowledgement({
           label="I have read this and want to continue"
         />
       </Stack>
-    </Alert>
+    </Notice>
   );
 }
 
@@ -279,9 +259,9 @@ function ConfirmSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
             </Text>
           ) : null}
           <Group gap="xs">
-            <Anchor component="button" type="button" size="sm" onClick={sql.toggle} aria-expanded={sqlOpen}>
+            <Button variant="subtle" size="compact-sm" onClick={sql.toggle} aria-expanded={sqlOpen}>
               {sqlOpen ? 'Hide the SQL' : 'Show the SQL'}
-            </Anchor>
+            </Button>
           </Group>
           <Collapse expanded={sqlOpen}>
             <CodeHighlight code={plan.updateSql.trimEnd()} language="sql" />
@@ -311,7 +291,7 @@ export function PlanReview({
 
   return (
     <Stack gap="md">
-      <Stack gap={2}>
+      <Stack gap="xs">
         <Text fw={600}>
           {info.title} {plan.toVersion}
           {update ? (
@@ -330,10 +310,10 @@ export function PlanReview({
       </Stack>
 
       {plan.missingRequires.length > 0 ? (
-        <Alert variant="light" color="red" title="It cannot be activated yet">
+        <Notice title="It cannot be activated yet" tone="danger">
           It requires {plan.missingRequires.join(', ')}, which {plan.missingRequires.length === 1 ? 'is' : 'are'} not
           active. Install or enable {plan.missingRequires.length === 1 ? 'it' : 'them'} first.
-        </Alert>
+        </Notice>
       ) : null}
 
       <PublisherSection plan={plan} trust={trust} />

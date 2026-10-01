@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { notify } from '../../ui/notify.ts';
 import { baseHandlers, declaration, NODE_A, NODE_B } from './fixtures.ts';
 
 const search: Record<string, unknown> = {};
@@ -47,7 +48,7 @@ describe('ConfigurationView', () => {
     expect(await screen.findByText(/Declare what this cluster should run/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Adopt from cluster' })).toBeEnabled();
     // The apply control is visible and explains itself — never hidden.
-    expect(screen.getByRole('button', { name: 'Why this is unavailable' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Why review and apply is unavailable' })).toBeInTheDocument();
   });
 
   it('has no routing builder tab: the builder is on the Routing screen (ADR-0094)', async () => {
@@ -65,7 +66,7 @@ describe('ConfigurationView', () => {
     renderWithProviders(<ConfigurationView />);
 
     expect(await screen.findByText(/Managed outside Studio/)).toBeInTheDocument();
-    await user.click(screen.getAllByRole('button', { name: 'Why this is unavailable' })[0]);
+    await user.click(screen.getByRole('button', { name: 'Why review and apply is unavailable' }));
     expect(await screen.findByText(/owned by configuration management/)).toBeInTheDocument();
     // The primary action flipped to the fragment.
     expect(screen.getByRole('button', { name: 'Copy broker.xml fragment' })).toBeEnabled();
@@ -547,5 +548,121 @@ describe('ConfigurationView', () => {
 
     // An age, not a wall-clock stamp: four minutes back, against a five-minute pass.
     expect(await screen.findByText(/nodes evaluated 4m ago, about every 5m/)).toBeInTheDocument();
+  });
+
+  it('is one page: a single h1, the sections as h2 and a tab panel named by its tab', async () => {
+    server.use(...baseHandlers());
+    renderWithProviders(<ConfigurationView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Configuration' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Address settings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Nodes' })).toBeInTheDocument();
+    expect(await screen.findByRole('tabpanel', { name: 'Declared & live' })).toBeInTheDocument();
+  });
+
+  it('holds the page and says what is loading while the declaration loads', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/config', async () => {
+        await new Promise((r) => setTimeout(r, 200));
+        return HttpResponse.json(declaration());
+      }),
+      ...baseHandlers(),
+    );
+    renderWithProviders(<ConfigurationView />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Configuration' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the declared configuration');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Address settings' })).toBeInTheDocument();
+  });
+
+  it('states why the declaration could not be read and reads it again on retry', async () => {
+    let attempts = 0;
+    server.use(
+      http.get('*/api/v1/clusters/c1/config', () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ title: 'Down', detail: 'The configuration store is not answering.' }, { status: 503 })
+          : HttpResponse.json(declaration());
+      }),
+      ...baseHandlers(),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The configuration store is not answering.');
+    // The page keeps its heading while its content failed.
+    expect(screen.getByRole('heading', { level: 1, name: 'Configuration' })).toBeInTheDocument();
+
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Address settings' })).toBeInTheDocument();
+  });
+
+  it('keeps Evaluate now and Export visible when nothing is declared, each explaining itself', async () => {
+    server.use(
+      ...baseHandlers(
+        declaration({
+          declared: false,
+          revision: 0,
+          document: { version: 1, addresses: [], addressSettings: [], securitySettings: [], diverts: [], bridges: [] },
+          nodes: [],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    expect(await screen.findByRole('button', { name: 'Evaluate now' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export XML' })).toBeDisabled();
+    // The reason is on a control that takes focus, never a hover title.
+    await user.click(screen.getByRole('button', { name: 'Why exporting the declaration is unavailable' }));
+    expect(await screen.findByText('Nothing is declared yet.')).toBeInTheDocument();
+  });
+
+  it('busies Evaluate now while it runs, announces that it finished, and states a failure with a retry', async () => {
+    let calls = 0;
+    server.use(
+      ...baseHandlers(),
+      http.post('*/api/v1/clusters/c1/config/drift/evaluate', () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ title: 'Down', detail: 'No node answered the evaluation.' }, { status: 503 })
+          : HttpResponse.json({});
+      }),
+    );
+    const succeeded = vi.spyOn(notify, 'succeeded');
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Evaluate now' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No node answered the evaluation.');
+    expect(succeeded).not.toHaveBeenCalled();
+
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await waitFor(() =>
+      expect(succeeded).toHaveBeenCalledWith(
+        expect.objectContaining({ action: expect.objectContaining({ past: 'Evaluated' }) }),
+      ),
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    succeeded.mockRestore();
+  });
+
+  it('says why the recommendations could not be assessed, and that this is not the same as nothing to recommend', async () => {
+    server.use(
+      ...baseHandlers(),
+      http.get('*/api/v1/clusters/c1/config/recommendations', () =>
+        HttpResponse.json({ title: 'Down', detail: 'No node could be read.' }, { status: 503 }),
+      ),
+    );
+    search.tab = 'recommended';
+    renderWithProviders(<ConfigurationView />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No node could be read.');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeEnabled();
+    expect(screen.getByText(/this is not the same as having nothing to recommend/)).toBeInTheDocument();
   });
 });

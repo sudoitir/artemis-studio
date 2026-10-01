@@ -1,4 +1,4 @@
-import { Drawer, Text } from '@mantine/core';
+import { Drawer, Stack, Text } from '@mantine/core';
 
 import { SessionsManager } from './SessionsManager.tsx';
 
@@ -22,13 +22,13 @@ export function UserSessionsDrawer({
       title={user ? `Sessions of ${user.username}` : ''}
     >
       {user ? (
-        <>
-          <Text size="sm" c="dimmed" mb="md">
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
             Ending a session signs that browser out at its next request. It does not stop the user signing in again;
             disable the account for that.
           </Text>
           <SessionsManager userId={user.id} />
-        </>
+        </Stack>
       ) : null}
     </Drawer>
   );

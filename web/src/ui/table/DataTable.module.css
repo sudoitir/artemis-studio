@@ -20,6 +20,8 @@
   justify-content: space-between;
   gap: var(--mantine-spacing-sm);
   min-inline-size: 0;
+  /* The height of an extra-small control, such as the pager, held before it is drawn. */
+  min-block-size: var(--as-control-h-xs);
   margin: 0;
   padding: 0;
   border: 0;
@@ -34,7 +36,8 @@
 }
 
 .toolbarEnd {
-  margin-inline-start: auto;
+  flex: 1 1 auto;
+  justify-content: flex-end;
 }
 
 /* The Columns control's space is reserved, so nothing around it moves when a count appears. */
@@ -409,6 +412,20 @@
   white-space: pre;
 }
 
+/* The whole value for assistive technology, out of sight and out of the layout; a selection or a copy takes
+   the visible parts, not this. */
+.middleFull {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  user-select: none;
+}
+
 /* An empty alternative text keeps the mark out of what assistive technology reads. */
 .middleTail[data-ellipsis]::before {
   content: '…' / '';
@@ -455,6 +472,18 @@
 
 .staticFrame[data-overflow] {
   overflow-x: auto;
+}
+
+/* As tall as its header and `--as-max-rows` rows, the height of the loading placeholder. */
+.staticFrame[data-capped] {
+  max-block-size: calc(var(--as-row-h) * (var(--as-max-rows) + 1));
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.staticFrame[role='region']:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
 }
 
 .staticTable {

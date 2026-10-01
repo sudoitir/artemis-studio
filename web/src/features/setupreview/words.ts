@@ -27,3 +27,9 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 
 export const SEVERITY_FILTERS = ['CRITICAL', 'WARNING', 'INFO'] as const;
 export type SeverityFilter = (typeof SEVERITY_FILTERS)[number];
+
+/** How much attention a severity needs: only a critical or a warning finding is marked. */
+export function severityTone(severity: string): 'neutral' | 'warning' | 'danger' {
+  if (severity === 'CRITICAL') return 'danger';
+  return severity === 'WARNING' ? 'warning' : 'neutral';
+}

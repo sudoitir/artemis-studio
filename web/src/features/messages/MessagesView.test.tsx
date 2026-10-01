@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Notifications, notifications } from '@mantine/notifications';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -11,6 +12,7 @@ let searchState: Record<string, unknown> = {};
 const searchListeners = new Set<() => void>();
 afterEach(() => {
   searchState = {};
+  act(() => notifications.clean());
 });
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -130,6 +132,52 @@ describe('MessagesView', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('is one page named Messages, with the queue beside its title and the way back to all queues', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    renderWithProviders(<MessagesView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Messages' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByText('PHASE3.SRC')).toBeInTheDocument();
+    expect(screen.getByText('All queues')).toBeInTheDocument();
+  });
+
+  it('says message operations are not available, and keeps Send and Purge visible, disabled, with the reason', async () => {
+    mockCluster([endpoint('n1', 'primary')]);
+    server.use(
+      http.get('*/api/v1/clusters/c1', () =>
+        HttpResponse.json({
+          id: 'c1',
+          name: 'prod',
+          description: null,
+          topology: { clusterId: 'c1', nodes: [] },
+          capabilities: {
+            managementRead: AVAILABLE,
+            managementWrite: AVAILABLE,
+            notifications: AVAILABLE,
+            messageIo: { status: 'UNAVAILABLE', reason: 'The broker refused message I/O.', brokerXmlSnippet: null },
+            slowConsumerDetection: AVAILABLE,
+            versionGates: [],
+          },
+          health: {
+            clusterId: 'c1',
+            level: 'OK',
+            liveEndpointNames: [],
+            splitBrain: 'NONE',
+            replicationBehind: false,
+            notes: [],
+          },
+        }),
+      ),
+    );
+    renderWithProviders(<MessagesView />);
+
+    expect(await screen.findByText('Message operations are not available here')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Purge queue' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Why sending a message is unavailable' })).toBeInTheDocument();
   });
 
   it('hides the node selector when the queue is served by a single endpoint', async () => {
@@ -430,7 +478,12 @@ describe('one message, from its row (ADR-0107)', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<MessagesView />);
+    renderWithProviders(
+      <>
+        <Notifications />
+        <MessagesView />
+      </>,
+    );
 
     await user.click(await screen.findByRole('button', { name: 'Actions for message 205' }));
     const menu = await screen.findByRole('menu', { name: 'Actions for message 205' });
@@ -442,7 +495,62 @@ describe('one message, from its row (ADR-0107)', () => {
     await user.type(within(dialog).getByRole('textbox', { name: /type "205" to confirm/i }), '205');
     await user.click(confirm);
 
-    expect(await within(dialog).findByText('Done: the message was deleted.')).toBeInTheDocument();
+    // The outcome is announced, politely, and the dialog is out of the way.
+    expect(await screen.findByText('Deleted message 205 in queue "PHASE3.SRC"')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete message 205' })).not.toBeInTheDocument());
     expect(bodies).toEqual([{ messageIds: [205] }]);
+  });
+
+  it('asks for the target queue on the field when a single message is moved without one', async () => {
+    const summary = {
+      messageId: 206,
+      type: 3,
+      durable: true,
+      priority: 4,
+      timestamp: 1789847475826,
+      expiration: 0,
+      size: 9,
+      groupId: null,
+      correlationId: null,
+      bodyPreview: 'order B-6',
+      bodyTruncated: false,
+      propertyCount: 0,
+      redactions: [],
+    };
+    const posts: unknown[] = [];
+    mockCluster([endpoint('n1', 'primary')]);
+    server.use(
+      http.get('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages', () =>
+        HttpResponse.json({ data: [summary], count: 1, countUnavailable: null, page: 1, pageSize: 200, node: 'n1' }),
+      ),
+      http.post('*/api/v1/clusters/c1/queues/PHASE3.SRC/messages/actions/move', async ({ request }) => {
+        posts.push(await request.json());
+        return HttpResponse.json({ affectedCount: 1 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Notifications />
+        <MessagesView />
+      </>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for message 206' }));
+    const menu = await screen.findByRole('menu', { name: 'Actions for message 206' });
+    await user.click(within(menu).getByRole('menuitem', { name: /^Move…/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Move message 206' });
+    await user.click(within(dialog).getByRole('button', { name: 'Move message' }));
+    const target = within(dialog).getByLabelText('Target queue');
+    expect(target).toBeInvalid();
+    expect(within(dialog).getByText('Name the target queue to move the message.')).toBeInTheDocument();
+    expect(target).toHaveFocus();
+    expect(posts).toHaveLength(0);
+
+    await user.type(target, 'ARCHIVE');
+    await user.click(within(dialog).getByRole('button', { name: 'Move message' }));
+    expect(await screen.findByText('Moved message 206 in queue "PHASE3.SRC"')).toBeInTheDocument();
+    expect(posts).toEqual([{ messageIds: [206], targetQueue: 'ARCHIVE' }]);
   });
 });

@@ -1,50 +1,21 @@
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.card {
+/* Holds the preview's height, so the dialog does not move when a check lands. */
+.placeholder {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-block: 8px;
-  padding-inline: 10px;
-  border: 1px solid var(--as-border);
-  border-radius: var(--mantine-radius-sm);
-  background: transparent;
-  cursor: pointer;
-  text-align: start;
-  font: inherit;
-  color: var(--as-text);
-}
-
-.card:hover {
-  background: var(--as-surface-raised);
-}
-
-.card[data-selected] {
-  border-color: var(--mantine-primary-color-filled);
-}
-
-.cardCanvas {
-  block-size: 120px;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0.85;
+  justify-content: center;
+  gap: var(--mantine-spacing-xs);
+  block-size: 20rem;
+  padding: var(--mantine-spacing-lg);
+  border: 1px dashed var(--as-border);
+  border-radius: var(--mantine-radius-md);
+  text-align: center;
 }
 
 .previewCanvas {
-  block-size: 260px;
-  transition: opacity 180ms ease;
+  block-size: 15rem;
+  transition: opacity var(--as-duration-base) var(--as-ease);
 }
 
 .previewCanvas[data-stale] {
   opacity: 0.45;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .previewCanvas {
-    transition: none;
-  }
 }

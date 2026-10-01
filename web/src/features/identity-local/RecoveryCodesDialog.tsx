@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, CopyButton, Group, Modal, SimpleGrid, Stack, Text, VisuallyHidden } from '@mantine/core';
+import { Button, Checkbox, CopyButton, Modal, Stack, Text, VisuallyHidden } from '@mantine/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
 
 import { branding } from '../../branding.ts';
+import classes from './Identity.module.css';
 
 /** How a code is shown and saved: two groups of five, the way it is typed back. */
 const grouped = (code: string) => (code.includes('-') ? code : code.replace(/^(.{5})(?=.)/, '$1-'));
@@ -75,35 +76,24 @@ export function RecoveryCodesDialog({
             now, and cannot be shown again.
           </Text>
 
-          <SimpleGrid
-            component="ul"
-            cols={2}
-            spacing="xs"
-            aria-label="Recovery codes"
-            p="sm"
-            m={0}
-            style={{
-              listStyle: 'none',
-              border: '1px solid var(--as-border)',
-              borderRadius: 'var(--mantine-radius-md)',
-              background: 'var(--as-surface-raised)',
-            }}
-          >
+          <ul className={classes.codes} aria-label="Recovery codes">
             {codes.map((code) => (
-              <Text key={code} component="li" ff="monospace" size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <Text key={code} component="li" size="sm" className={classes.mono}>
                 {grouped(code)}
               </Text>
             ))}
-          </SimpleGrid>
+          </ul>
 
-          <Group gap="xs">
+          <div className={classes.controls}>
             <CopyButton value={text}>
               {({ copied, copy }) => (
                 <>
                   <Button
                     variant="default"
                     size="xs"
-                    leftSection={copied ? <IconCheck size={14} aria-hidden /> : <IconCopy size={14} aria-hidden />}
+                    leftSection={
+                      copied ? <IconCheck size="0.875rem" aria-hidden /> : <IconCopy size="0.875rem" aria-hidden />
+                    }
                     onClick={copy}
                   >
                     {copied ? 'Copied' : 'Copy all'}
@@ -117,7 +107,7 @@ export function RecoveryCodesDialog({
             <Button
               variant="default"
               size="xs"
-              leftSection={<IconDownload size={14} aria-hidden />}
+              leftSection={<IconDownload size="0.875rem" aria-hidden />}
               onClick={() => {
                 download(codes);
                 setDownloaded(true);
@@ -125,7 +115,7 @@ export function RecoveryCodesDialog({
             >
               Download
             </Button>
-          </Group>
+          </div>
           <VisuallyHidden aria-live="polite">{downloaded ? `Saved as ${filename()}.` : ''}</VisuallyHidden>
 
           <Text size="xs" c="dimmed">
@@ -143,7 +133,7 @@ export function RecoveryCodesDialog({
             error={missing ? 'Confirm you saved the codes before continuing.' : undefined}
           />
 
-          <Group justify="flex-end">
+          <div className={classes.end}>
             <Button
               onClick={() => {
                 if (!saved) {
@@ -155,7 +145,7 @@ export function RecoveryCodesDialog({
             >
               Continue
             </Button>
-          </Group>
+          </div>
         </Stack>
       ) : null}
     </Modal>

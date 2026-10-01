@@ -94,7 +94,7 @@ function RoutingNode({
         onClick={() => select(id)}
       >
         <span className={classes.kind} aria-hidden="true">
-          <Glyph size={14} stroke={1.75} className={classes.glyph} />
+          <Glyph size="0.875rem" stroke={1.75} className={classes.glyph} />
           {KIND_SHORT[view.kind]}
         </span>
         <span className={classes.name} aria-hidden="true" title={view.name}>

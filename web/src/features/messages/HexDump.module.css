@@ -1,0 +1,7 @@
+/* The dump keeps its columns: it scrolls sideways instead of wrapping, and the scroller takes focus
+   so the keyboard can reach the bytes that are cut off. */
+.dump {
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+}

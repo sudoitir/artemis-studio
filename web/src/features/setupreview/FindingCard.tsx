@@ -1,15 +1,22 @@
-import { Anchor, Badge, Button, Code, CopyButton, Group, Paper, Stack, Table, Text } from '@mantine/core';
+import { Button, Code, Paper, Stack, Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
+import { useActionHost } from '../../kernel/actions/hostContext.ts';
 import { absoluteLabel } from '../../kernel/time/time.ts';
+import linkClasses from '../../ui/InlineLink.module.css';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useRevokeRisk, type SetupFindingView } from './api.ts';
-import { SEVERITY_MEANING, SEVERITY_WORDS } from './words.ts';
+import { evidenceColumns } from './evidenceColumns.ts';
+import classes from './SetupReview.module.css';
+import { SEVERITY_WORDS, severityTone } from './words.ts';
 
-/** Emphasis only where something is wrong; the word carries the meaning. */
-function severityColor(severity: string): string {
-  if (severity === 'CRITICAL') return 'red';
-  return severity === 'WARNING' ? 'yellow' : 'gray';
-}
+const REVOKE: ActionVerb = { verb: 'Revoke', past: 'Revoked', progressive: 'Revoking' };
+
+const evidenceKey = (e: SetupFindingView['evidence'][number]) => `${e.node}|${e.key}`;
+
+const EVIDENCE_COLUMNS = evidenceColumns();
 
 /** Who accepted the risk and why, or that an earlier acceptance has expired. */
 function AcceptanceNote({ finding: f }: Readonly<{ finding: SetupFindingView }>) {
@@ -27,9 +34,9 @@ function AcceptanceNote({ finding: f }: Readonly<{ finding: SetupFindingView }>)
         </Text>
       ) : null}
       {expired ? (
-        <Text size="sm" c="var(--as-warning)">
-          An acceptance by {expired.acceptedBy} expired on {absoluteLabel(expired.expiresAt)}; the finding is open
-          again.
+        <Text size="sm">
+          <StatusBadge tone="warning">acceptance expired</StatusBadge> An acceptance by {expired.acceptedBy} expired on{' '}
+          {absoluteLabel(expired.expiresAt)}; the finding is open again.
         </Text>
       ) : null}
     </>
@@ -37,57 +44,41 @@ function AcceptanceNote({ finding: f }: Readonly<{ finding: SetupFindingView }>)
 }
 
 /** What each node reported for the finding, key by key. */
-function EvidenceTable({ finding: f }: Readonly<{ finding: SetupFindingView }>) {
+function Evidence({ finding: f }: Readonly<{ finding: SetupFindingView }>) {
   if (f.evidence.length === 0) return null;
   return (
-    <Table withTableBorder withColumnBorders fz="xs" aria-label={`Evidence for ${f.code}`}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Node</Table.Th>
-          <Table.Th>Reported</Table.Th>
-          <Table.Th>Value</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {f.evidence.map((e, i) => (
-          <Table.Tr key={`${e.node}|${e.key}|${i}`}>
-            <Table.Td>{e.node ?? 'cluster'}</Table.Td>
-            <Table.Td>{e.key}</Table.Td>
-            <Table.Td
-              style={{ fontFamily: 'var(--mantine-font-family-monospace)', fontVariantNumeric: 'tabular-nums' }}
-            >
-              {e.value ?? '—'}
-            </Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+    <DataTable
+      variant="static"
+      label={`Evidence for ${f.code}`}
+      columns={EVIDENCE_COLUMNS}
+      data={f.evidence}
+      rowKey={evidenceKey}
+      height={{ maxRows: f.evidence.length }}
+      empty={null}
+    />
   );
 }
 
 /** The broker.xml that fixes the finding, with a copy button. */
 function SnippetBlock({ finding: f }: Readonly<{ finding: SetupFindingView }>) {
+  const host = useActionHost();
   if (!f.snippet) return null;
   return (
     <Stack gap={4}>
-      <Group justify="space-between">
+      <div className={classes.snippetHead}>
         <Text size="xs" c="dimmed">
           broker.xml
         </Text>
-        <CopyButton value={f.snippet} timeout={1500}>
-          {({ copied, copy }) => (
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              onClick={copy}
-              aria-label={`Copy the broker.xml fix for ${f.code}`}
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
-          )}
-        </CopyButton>
-      </Group>
-      <Code block style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          onClick={() => host.copy(f.snippet ?? '', 'broker.xml fix')}
+          aria-label={`Copy the broker.xml fix for ${f.code}`}
+        >
+          Copy
+        </Button>
+      </div>
+      <Code block tabIndex={0} role="region" aria-label={`broker.xml fix for ${f.code}`} className={classes.snippet}>
         {f.snippet}
       </Code>
     </Stack>
@@ -103,46 +94,54 @@ export function FindingCard({
   clusterId,
   canAccept,
   onAccept,
-  announce,
 }: Readonly<{
   finding: SetupFindingView;
   clusterId: string;
   canAccept: boolean;
   onAccept: () => void;
-  announce: (message: string) => void;
 }>) {
   const revoke = useRevokeRisk(clusterId);
   const accepted = f.acceptance?.active ? f.acceptance : null;
-  const acceptReason = 'Accepting a risk silences its alert, so it needs alert:write on this cluster.';
+
+  const revokeAcceptance = () => {
+    const subject = `the acceptance of ${f.code}`;
+    revoke.mutate(
+      { code: f.code, subject: f.subject },
+      {
+        onSuccess: () => notify.succeeded({ action: REVOKE, subject }),
+        onError: (e) =>
+          notify.failed({
+            action: REVOKE,
+            subject,
+            cause: e.message,
+            next: 'The finding is still accepted. Try again.',
+          }),
+      },
+    );
+  };
 
   return (
     <Paper withBorder p="sm" component="article" aria-label={f.title}>
       <Stack gap="xs">
-        <Group gap="xs" wrap="nowrap" align="flex-start">
-          <Badge
-            color={severityColor(f.severity)}
-            variant={f.severity === 'INFO' ? 'outline' : 'light'}
-            title={SEVERITY_MEANING[f.severity]}
-          >
-            {SEVERITY_WORDS[f.severity] ?? f.severity}
-          </Badge>
-          <Stack gap={0} style={{ flex: 1 }}>
+        <div className={classes.heading}>
+          <StatusBadge tone={severityTone(f.severity)}>{SEVERITY_WORDS[f.severity] ?? f.severity}</StatusBadge>
+          <div className={classes.title}>
             <Text fw={600} size="sm">
               {f.title}
             </Text>
-            <Text size="xs" c="dimmed">
+            <div className={classes.meta}>
               {f.subject === 'cluster' ? 'Whole cluster' : `Node ${f.subjectLabel}`} · {f.code} · first seen{' '}
               {absoluteLabel(f.firstSeenAt)}
               {f.stale ? ' · not re-checked by the last review: its node did not answer' : ''}
-            </Text>
-          </Stack>
-        </Group>
+            </div>
+          </div>
+        </div>
 
         <AcceptanceNote finding={f} />
 
         <Text size="sm">{f.impact}</Text>
 
-        <EvidenceTable finding={f} />
+        <Evidence finding={f} />
 
         <Text size="sm">
           <Text span fw={600}>
@@ -161,48 +160,28 @@ export function FindingCard({
           </Stack>
         ) : null}
 
-        <Group gap="xs">
+        <div className={classes.controls}>
           {f.appliable ? (
-            <Anchor component={Link} to={`/clusters/${clusterId}/configuration`} size="sm">
+            <Link to={`/clusters/${clusterId}/configuration`} className={linkClasses.link}>
               Apply it in Broker configuration
-            </Anchor>
+            </Link>
           ) : null}
           {accepted ? (
             <Button
               size="compact-sm"
               variant="default"
               disabled={!canAccept}
-              title={canAccept ? undefined : acceptReason}
               loading={revoke.isPending}
-              onClick={() =>
-                revoke.mutate(
-                  { code: f.code, subject: f.subject },
-                  {
-                    onSuccess: () => announce(`Acceptance revoked; ${f.code} is open again.`),
-                    onError: (e) => announce(`The acceptance was not revoked: ${e.message}`),
-                  },
-                )
-              }
+              onClick={revokeAcceptance}
             >
               Revoke acceptance
             </Button>
           ) : (
-            <Button
-              size="compact-sm"
-              variant="default"
-              disabled={!canAccept}
-              title={canAccept ? undefined : acceptReason}
-              onClick={onAccept}
-            >
+            <Button size="compact-sm" variant="default" disabled={!canAccept} onClick={onAccept}>
               Accept as a known risk…
             </Button>
           )}
-        </Group>
-        {!canAccept ? (
-          <Text size="xs" c="dimmed">
-            {acceptReason}
-          </Text>
-        ) : null}
+        </div>
       </Stack>
     </Paper>
   );

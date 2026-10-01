@@ -1,20 +1,5 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  List,
-  Paper,
-  Skeleton,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-  VisuallyHidden,
-} from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { Button, Checkbox, Group, List, Stack, Text, ThemeIcon, VisuallyHidden } from '@mantine/core';
 import {
   IconActivityHeartbeat,
   IconAdjustments,
@@ -33,11 +18,20 @@ import {
 
 import { branding } from '../../branding.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
+import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
+import type { GateVerdict } from '../../ui/capabilityGate.ts';
 import { download } from '../../ui/download.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { useDownloadBundle, usePrepareBundle, type BundleView, type SectionView } from './api.ts';
 import classes from './Diagnostics.module.css';
 import { BUNDLE_PERMISSION, formatBytes } from './format.ts';
 import { SectionPreview } from './SectionPreview.tsx';
+
+const DOWNLOAD = { verb: 'Download', past: 'Downloaded', progressive: 'Downloading' } as const;
 
 /** What each section holds, in words an administrator can decide on. Unknown keys still render. */
 const SECTION_INFO: Record<string, { description: string; Icon: ComponentType<IconProps> }> = {
@@ -54,37 +48,42 @@ function formatRemaining(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** Why the bundle cannot be prepared, when the caller's grants say so; grants still loading offer it. */
+function bundleGate(allowed: boolean, loading: boolean): GateVerdict {
+  if (loading || allowed) return { kind: 'allowed', uncertain: false };
+  return {
+    kind: 'blocked',
+    reason: `Support bundles need the global permission "Create support bundles" (${BUNDLE_PERMISSION}). Ask an administrator to add it to one of your roles. Anyone can still report a bug from the user menu.`,
+  };
+}
+
 /** Administration → Diagnostics (diagnostics spec): prepare, review and trim, then download a support bundle. */
 export function DiagnosticsPanel() {
   const { can, loading } = useCan();
-  if (!loading && !can(BUNDLE_PERMISSION)) {
-    return (
-      <Alert color="gray" title="You cannot create support bundles">
-        Support bundles need the global permission &ldquo;Create support bundles&rdquo; ({BUNDLE_PERMISSION}). Ask an
-        administrator to add it to one of your roles. Anyone can still report a bug from the user menu.
-      </Alert>
-    );
-  }
-  return <BundleFlow />;
+  return <BundleFlow gate={bundleGate(can(BUNDLE_PERMISSION), loading)} />;
 }
 
-function BundleFlow() {
+function BundleFlow({ gate }: Readonly<{ gate: GateVerdict }>) {
   const prepare = usePrepareBundle();
   const bundle = prepare.data;
 
   if (prepare.isPending) return <PreparingSkeleton />;
   if (!bundle) {
-    return <Intro onPrepare={() => prepare.mutate()} error={prepare.isError ? prepare.error.message : null} />;
+    return <Intro gate={gate} onPrepare={() => prepare.mutate()} error={prepare.isError ? prepare.error : null} />;
   }
   return <Review key={bundle.id} bundle={bundle} onPrepareAgain={() => prepare.mutate()} />;
 }
 
-function Intro({ onPrepare, error }: Readonly<{ onPrepare: () => void; error: string | null }>) {
+function Intro({
+  gate,
+  onPrepare,
+  error,
+}: Readonly<{ gate: GateVerdict; onPrepare: () => void; error: Error | null }>) {
   const promise = (Icon: ComponentType<IconProps>, text: string) => (
     <List.Item
       icon={
-        <ThemeIcon variant="light" size={24} radius="xl">
-          <Icon size={14} aria-hidden />
+        <ThemeIcon variant="light" size="1.5rem" radius="xl">
+          <Icon size="0.875rem" aria-hidden />
         </ThemeIcon>
       }
     >
@@ -92,57 +91,44 @@ function Intro({ onPrepare, error }: Readonly<{ onPrepare: () => void; error: st
     </List.Item>
   );
   return (
-    <Stack gap="md" maw={720}>
-      {error && (
-        <Alert color="red" title="The bundle could not be prepared">
-          <Text size="sm">{error}</Text>
-          <Text size="sm">Try again; if it keeps failing, report a bug from the user menu with this message.</Text>
-        </Alert>
-      )}
-      <Paper withBorder p="lg" radius="md">
-        <Stack gap="md">
-          <div>
-            <Title order={3}>Support bundle</Title>
-            <Text size="sm" c="dimmed" mt={4}>
-              Everything a maintainer needs to diagnose a problem, in one file: versions and environment, settings,
-              health, features and plugins, a thread dump and the recent logs of this {branding.productShortName}.
-            </Text>
-          </div>
-          <List spacing="xs" size="sm" center>
-            {promise(IconShieldLock, 'Passwords, tokens, keys and credentials in URLs are replaced with [redacted].')}
-            {promise(IconMailOff, 'No message bodies or properties are included, whatever the governance policy.')}
-            {promise(IconWifiOff, 'Built on this server. Nothing is uploaded anywhere; it works offline.')}
-            {promise(IconEye, 'You review every section and choose what to keep before anything is downloaded.')}
-          </List>
-          <Group>
-            <Button leftSection={<IconRefresh size={16} aria-hidden />} onClick={onPrepare}>
+    <div className={classes.intro}>
+      <Section
+        title="Support bundle"
+        variant="card"
+        description={`Everything a maintainer needs to diagnose a problem, in one file: versions and environment, settings, health, features and plugins, a thread dump and the recent logs of this ${branding.productShortName}.`}
+      >
+        {error ? <ErrorState error={error} onRetry={onPrepare} /> : null}
+        <List spacing="xs" size="sm" center>
+          {promise(IconShieldLock, 'Passwords, tokens, keys and credentials in URLs are replaced with [redacted].')}
+          {promise(IconMailOff, 'No message bodies or properties are included, whatever the governance policy.')}
+          {promise(IconWifiOff, 'Built on this server. Nothing is uploaded anywhere; it works offline.')}
+          {promise(IconEye, 'You review every section and choose what to keep before anything is downloaded.')}
+        </List>
+        <Group>
+          <CapabilityGate verdict={gate} what="preparing a support bundle">
+            <Button
+              leftSection={<IconRefresh size="1rem" aria-hidden />}
+              disabled={gate.kind === 'blocked'}
+              onClick={onPrepare}
+            >
               Prepare bundle
             </Button>
-            <Text size="xs" c="dimmed">
-              Downloading a bundle is recorded in the audit log.
-            </Text>
-          </Group>
-        </Stack>
-      </Paper>
-    </Stack>
+          </CapabilityGate>
+          <Text size="xs" className={classes.hint}>
+            Downloading a bundle is recorded in the audit log.
+          </Text>
+        </Group>
+      </Section>
+    </div>
   );
 }
 
+/** Holds the review's size while the bundle is built, so the page does not jump when it arrives. */
 function PreparingSkeleton() {
   return (
-    <Stack gap="md" aria-busy="true" aria-label="Preparing the support bundle">
-      <Text size="sm" c="dimmed">
-        Collecting and redacting every section…
-      </Text>
-      <div className={classes.layout}>
-        <Stack gap="xs">
-          {Object.keys(SECTION_INFO).map((k) => (
-            <Skeleton key={k} h={58} radius="md" />
-          ))}
-        </Stack>
-        <Skeleton h={600} radius="md" />
-      </div>
-    </Stack>
+    <Section title="Preparing the bundle" description="Collecting and redacting every section…">
+      <LoadingState label="Preparing the support bundle" blockSize="40rem" />
+    </Section>
   );
 }
 
@@ -182,38 +168,37 @@ function Review({ bundle, onPrepareAgain }: Readonly<{ bundle: BundleView; onPre
       {
         onSuccess: ({ fileName, blob }) => {
           download(fileName, blob);
-          notifications.show({
-            color: 'green',
-            title: 'Support bundle downloaded',
-            message: `${fileName}, ${kept.length} of ${bundle.sections.length} sections. Recorded in the audit log.`,
+          notify.succeeded({
+            action: DOWNLOAD,
+            subject: `the support bundle, ${fileName} (${kept.length} of ${bundle.sections.length} sections, recorded in the audit log)`,
           });
         },
       },
     );
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <div>
-          <Title order={3}>Review the bundle</Title>
-          <Text size="sm" c="dimmed">
-            This is exactly what the file will contain. Select a section to read it; clear its box to leave it out.
-          </Text>
-        </div>
-        <Button variant="default" leftSection={<IconRefresh size={16} aria-hidden />} onClick={onPrepareAgain}>
+    <Section
+      title="Review the bundle"
+      description="This is exactly what the file will contain. Select a section to read it; clear its box to leave it out."
+      actions={
+        <Button variant="default" leftSection={<IconRefresh size="1rem" aria-hidden />} onClick={onPrepareAgain}>
           Prepare again
         </Button>
-      </Group>
-
+      }
+    >
       {expired && (
-        <Alert color="yellow" title="This snapshot has expired">
-          <Group justify="space-between">
+        <Group justify="space-between" role="status">
+          <Stack gap="xs" align="flex-start">
+            <StatusBadge tone="warning">Expired</StatusBadge>
+            <Text size="sm" fw={600}>
+              This snapshot has expired
+            </Text>
             <Text size="sm">A prepared bundle is kept for ten minutes. Prepare it again to download current data.</Text>
-            <Button size="compact-sm" onClick={onPrepareAgain}>
-              Prepare again
-            </Button>
-          </Group>
-        </Alert>
+          </Stack>
+          <Button size="compact-sm" onClick={onPrepareAgain}>
+            Prepare again
+          </Button>
+        </Group>
       )}
 
       <div className={classes.layout}>
@@ -233,36 +218,32 @@ function Review({ bundle, onPrepareAgain }: Readonly<{ bundle: BundleView; onPre
         {current && <SectionPreview key={current.key} section={current} included={!excluded.has(current.key)} />}
       </div>
 
-      <Paper className={classes.footer} p="sm">
+      <div className={classes.footer}>
         <Group justify="space-between">
           <Group gap="lg">
             <Text size="sm" className={classes.num} aria-live="polite">
               <b>{kept.length}</b> of {bundle.sections.length} sections · {formatBytes(keptBytes)} before compression
             </Text>
             {downloadBundle.isSuccess && (
-              <Text size="sm" c="dimmed" role="status">
+              <Text size="sm" className={classes.hint} role="status">
                 Downloaded {downloadBundle.data.fileName}, recorded in the audit log.
               </Text>
             )}
             {!expired && (
-              <Text size="sm" c="dimmed" className={classes.num}>
+              <Text size="sm" className={`${classes.hint} ${classes.num}`}>
                 Expires in {formatRemaining(remaining)}
               </Text>
             )}
           </Group>
           <Group gap="sm">
             {kept.length === 0 && (
-              <Text size="sm" c="dimmed">
+              <Text size="sm" className={classes.hint}>
                 Keep at least one section to download.
               </Text>
             )}
-            {downloadBundle.isError && !expired && (
-              <Text size="sm" c="red" role="alert">
-                The download failed: {downloadBundle.error.message}
-              </Text>
-            )}
+            {downloadBundle.isError && !expired && <ErrorState variant="inline" error={downloadBundle.error} />}
             <Button
-              leftSection={<IconDownload size={16} aria-hidden />}
+              leftSection={<IconDownload size="1rem" aria-hidden />}
               onClick={onDownload}
               loading={downloadBundle.isPending}
               disabled={kept.length === 0 || expired}
@@ -271,8 +252,8 @@ function Review({ bundle, onPrepareAgain }: Readonly<{ bundle: BundleView; onPre
             </Button>
           </Group>
         </Group>
-      </Paper>
-    </Stack>
+      </div>
+    </Section>
   );
 }
 
@@ -293,7 +274,7 @@ function SectionRow({
   const Icon = info?.Icon ?? IconFileText;
   return (
     <div className={classes.section} data-selected={selected || undefined} data-excluded={!included || undefined}>
-      <Checkbox mt={3} checked={included} onChange={onToggle} aria-label={`Include ${section.title}`} />
+      <Checkbox mt="0.1875rem" checked={included} onChange={onToggle} aria-label={`Include ${section.title}`} />
       <button
         type="button"
         className={`${classes.sectionText} ${classes.sectionButton}`}
@@ -301,26 +282,20 @@ function SectionRow({
         aria-pressed={selected}
         aria-label={`Show ${section.title}`}
       >
-        <Group gap={6} wrap="nowrap">
-          <Icon size={16} aria-hidden />
+        <Group gap="xs" wrap="nowrap">
+          <Icon size="1rem" aria-hidden />
           <Text size="sm" fw={600} td={included ? undefined : 'line-through'}>
             {section.title}
           </Text>
         </Group>
         {info && (
-          <Text size="xs" c="dimmed" mt={2}>
+          <Text size="xs" className={classes.hint} mt="0.125rem">
             {info.description}
           </Text>
         )}
-        <Group gap={6} mt={6}>
-          <Badge size="xs" variant="default" className={classes.num}>
-            {formatBytes(section.bytes)}
-          </Badge>
-          {section.redactions > 0 && (
-            <Badge size="xs" variant="light" color="yellow" leftSection={<IconShieldLock size={10} aria-hidden />}>
-              {section.redactions} redacted
-            </Badge>
-          )}
+        <Group gap="xs" mt="xs">
+          <StatusBadge>{formatBytes(section.bytes)}</StatusBadge>
+          {section.redactions > 0 && <StatusBadge tone="info">{`${section.redactions} redacted`}</StatusBadge>}
         </Group>
       </button>
     </div>

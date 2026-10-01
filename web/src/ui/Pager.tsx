@@ -10,7 +10,9 @@ import classes from './Pager.module.css';
  * everything, which is exactly the failure ADR-0056 is about.
  *
  * Rendered even on a single page, because "1–14 of 14" is the sentence that
- * settles the question; hiding it leaves the same doubt a missing pager does.
+ * settles the question; hiding it leaves the same doubt a missing pager does. The Previous and Next
+ * buttons only exist from the second page on, and the pager holds their height either way, so the
+ * rows below it do not move as the total grows past one page or shrinks back.
  */
 export function Pager({
   page,
@@ -32,7 +34,7 @@ export function Pager({
   const last = Math.min(page * pageSize, total);
 
   return (
-    <Group justify="space-between" gap="xs">
+    <Group justify="space-between" gap="xs" className={classes.pager}>
       {/* Polite, so a page turned with the keyboard says where it landed. */}
       <Text size="xs" c="dimmed" className={classes.position} aria-live="polite">
         {total === 0 ? `No ${label}` : `${first}–${last} of ${total} ${label}`}

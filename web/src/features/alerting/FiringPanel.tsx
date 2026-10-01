@@ -1,80 +1,39 @@
-import { Badge, Group, Stack, Table, Text } from '@mantine/core';
+import { useMemo } from 'react';
 
-import { useFiringAlerts } from './api.ts';
-import { InstallationBadge } from './InstallationBadge.tsx';
-import { severityTone } from './severity.ts';
-import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { useFiringAlerts, type AlertFiringView } from './api.ts';
+import { firingColumns } from './columns.ts';
+
+const rowKey = (f: AlertFiringView) => String(f.seq);
 
 /** Currently firing alerts for this cluster, newest first (alerting spec). */
 export function FiringPanel({ clusterId }: Readonly<{ clusterId: string }>) {
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
-  useDisplayZone();
+  const zone = useDisplayZone();
+  const columns = useMemo(() => firingColumns(zone), [zone]);
   const firing = useFiringAlerts(clusterId);
 
-  if (firing.isPending) {
-    return (
-      <Text size="sm" c="dimmed">
-        Loading…
-      </Text>
-    );
-  }
-
-  if ((firing.data ?? []).length === 0) {
-    return (
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Nothing is firing
-        </Text>
-        <Text size="sm" c="dimmed">
-          Every enabled rule is currently OK. A rule debounces through a "pending" state for its configured duration
-          before it fires here.
-        </Text>
-      </Stack>
-    );
-  }
-
   return (
-    <Table>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Rule</Table.Th>
-          <Table.Th>Subject</Table.Th>
-          <Table.Th>Severity</Table.Th>
-          <Table.Th>Value</Table.Th>
-          <Table.Th>Firing since</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {(firing.data ?? []).map((f) => {
-          const tone = severityTone(f.severity);
-          return (
-            <Table.Tr key={f.seq}>
-              <Table.Td>
-                <Group gap="xs">
-                  <Text size="sm">{f.ruleName}</Text>
-                  <InstallationBadge clusterId={f.clusterId} />
-                </Group>
-              </Table.Td>
-              <Table.Td>
-                <Text size="sm" ff="monospace">
-                  {f.subjectKey}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Badge size="xs" variant="light" color={tone.color}>
-                  {tone.word}
-                </Badge>
-              </Table.Td>
-              <Table.Td>{f.value ?? '—'}</Table.Td>
-              <Table.Td>
-                <Text size="xs">{absoluteLabel(f.startedAt)}</Text>
-              </Table.Td>
-            </Table.Tr>
-          );
-        })}
-      </Table.Tbody>
-    </Table>
+    <DataTable
+      variant="static"
+      label="Firing alerts"
+      storageKey="alerting.firing"
+      columns={columns}
+      data={firing.data ?? []}
+      rowKey={rowKey}
+      loading={firing.isPending}
+      error={firing.isError ? <ErrorState error={firing.error} onRetry={() => void firing.refetch()} /> : undefined}
+      empty={
+        <EmptyState
+          kind="empty"
+          title="Nothing is firing"
+          description='Every enabled rule is currently OK. A rule debounces through a "pending" state for its configured duration before it fires here.'
+        />
+      }
+    />
   );
 }

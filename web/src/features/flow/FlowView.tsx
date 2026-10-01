@@ -1,34 +1,25 @@
 import { useCallback, useRef, useState } from 'react';
 import type { MetricRange } from '../../kernel/time/ranges.ts';
-import {
-  Alert,
-  Badge,
-  Chip,
-  Button,
-  CloseButton,
-  Group,
-  Paper,
-  SegmentedControl,
-  Select,
-  Skeleton,
-  Splitter,
-  Stack,
-  Text,
-  Title,
-  VisuallyHidden,
-} from '@mantine/core';
+import { Button, Chip, Group, SegmentedControl, Select, Splitter, Text, VisuallyHidden } from '@mantine/core';
 import { useLocalStorage, useReducedMotion } from '@mantine/hooks';
 import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 import { useFlowGraph, type FlowGraphView, type FlowNodeView } from './api.ts';
 import { BrokerNodeNotices } from './BrokerNodeNotices.tsx';
 import { FlowCanvas } from './FlowCanvas.tsx';
 import { FlowInspector } from './FlowInspector.tsx';
 import { FlowKpis } from './FlowKpis.tsx';
 import { FlowMonitorPane } from './FlowMonitorPane.tsx';
-import { GROUP_LABELS, RANK_LABELS, totalRateLabel } from './flowFormat.ts';
+import { GROUP_LABELS, RANK_LABELS, totalRateLabel, unreachableNodes } from './flowFormat.ts';
 import {
   DEFAULT_LIMIT,
   FLOW_GROUPINGS,
@@ -81,82 +72,85 @@ export function FlowView() {
   const limit = search.limit ?? DEFAULT_LIMIT;
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
-        <div>
-          <Title order={3}>Flow</Title>
-          <Text size="sm" c="dimmed">
-            Who produces to which address, how it routes into queues, and who consumes it.
-          </Text>
-        </div>
-        <Group gap="sm" align="flex-end" wrap="wrap">
-          <Select
-            label="Rank paths by"
-            size="xs"
-            w={150}
-            allowDeselect={false}
-            data={FLOW_RANKS.map((value) => ({ value, label: RANK_LABELS[value] }))}
-            value={rank}
-            onChange={(value) => setSearch({ rank: value === 'IN' ? undefined : value })}
-          />
-          <Select
-            label="Group clients by"
-            size="xs"
-            w={150}
-            allowDeselect={false}
-            data={FLOW_GROUPINGS.map((value) => ({ value, label: GROUP_LABELS[value] }))}
-            value={search.groupBy ?? 'CLIENT_ID'}
-            onChange={(value) => setSearch({ groupBy: value === 'CLIENT_ID' ? undefined : (value as FlowGroupBy) })}
-          />
-          <Select
-            label="Show"
-            size="xs"
-            w={170}
-            allowDeselect={false}
-            data={FLOW_LIMITS.map((value) => ({ value: String(value), label: `${value} busiest paths` }))}
-            value={String(limit)}
-            onChange={(value) => setSearch({ limit: Number(value) === DEFAULT_LIMIT ? undefined : Number(value) })}
-          />
-        </Group>
-      </Group>
+    <Page>
+      <PageHeader
+        title="Flow"
+        description="Who produces to which address, how it routes into queues, and who consumes it."
+      />
+
+      <Toolbar
+        label="Flow settings"
+        start={
+          <>
+            <Select
+              label="Rank paths by"
+              size="xs"
+              w="9.5rem"
+              allowDeselect={false}
+              data={FLOW_RANKS.map((value) => ({ value, label: RANK_LABELS[value] }))}
+              value={rank}
+              onChange={(value) => setSearch({ rank: value === 'IN' ? undefined : value })}
+            />
+            <Select
+              label="Group clients by"
+              size="xs"
+              w="9.5rem"
+              allowDeselect={false}
+              data={FLOW_GROUPINGS.map((value) => ({ value, label: GROUP_LABELS[value] }))}
+              value={search.groupBy ?? 'CLIENT_ID'}
+              onChange={(value) => setSearch({ groupBy: value === 'CLIENT_ID' ? undefined : (value as FlowGroupBy) })}
+            />
+            <Select
+              label="Show"
+              size="xs"
+              w="10.625rem"
+              allowDeselect={false}
+              data={FLOW_LIMITS.map((value) => ({ value: String(value), label: `${value} busiest paths` }))}
+              value={String(limit)}
+              onChange={(value) => setSearch({ limit: Number(value) === DEFAULT_LIMIT ? undefined : Number(value) })}
+            />
+          </>
+        }
+      />
 
       {focus ? (
-        <Group gap="sm" wrap="wrap">
-          <Badge
-            size="lg"
-            variant="light"
-            color="gray"
-            rightSection={
-              <CloseButton
+        <Toolbar
+          label="Focus"
+          start={
+            <>
+              <Text size="sm">
+                Focused on {focus.kind} {focus.name}
+              </Text>
+              <Button size="xs" variant="default" onClick={() => setSearch({ focus: undefined, hops: undefined })}>
+                Clear focus
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <Text size="xs" c="dimmed" id="flow-reach">
+                Reach
+              </Text>
+              <SegmentedControl
                 size="xs"
-                aria-label="Clear focus"
-                onClick={() => setSearch({ focus: undefined, hops: undefined })}
+                aria-labelledby="flow-reach"
+                data={[
+                  { value: '1', label: 'Neighbours' },
+                  { value: '2', label: '+1 hop' },
+                  { value: '3', label: '+2 hops' },
+                ]}
+                value={String(search.hops ?? 1)}
+                onChange={(value) => setSearch({ hops: value === '1' ? undefined : Number(value) })}
               />
-            }
-          >
-            Focused on {focus.kind} {focus.name}
-          </Badge>
-          <Group gap={6}>
-            <Text size="xs" c="dimmed" id="flow-reach">
-              Reach
-            </Text>
-            <SegmentedControl
-              size="xs"
-              aria-labelledby="flow-reach"
-              data={[
-                { value: '1', label: 'Neighbours' },
-                { value: '2', label: '+1 hop' },
-                { value: '3', label: '+2 hops' },
-              ]}
-              value={String(search.hops ?? 1)}
-              onChange={(value) => setSearch({ hops: value === '1' ? undefined : Number(value) })}
-            />
-          </Group>
-        </Group>
+            </>
+          }
+        />
       ) : null}
 
-      <FlowResult clusterId={clusterId} graph={graph} search={search} rank={rank} setSearch={setSearch} />
-    </Stack>
+      <div className={classes.body}>
+        <FlowResult clusterId={clusterId} graph={graph} search={search} rank={rank} setSearch={setSearch} />
+      </div>
+    </Page>
   );
 }
 
@@ -177,23 +171,14 @@ function FlowResult({
   setSearch: SetSearch;
 }>) {
   if (graph.isError) {
-    return (
-      <Alert color="red" variant="light" title={graph.error.title ?? 'Flow could not be read'}>
-        <Stack gap="xs" align="flex-start">
-          <Text size="sm">{graph.error.message}</Text>
-          <Button size="xs" variant="default" onClick={() => graph.refetch()}>
-            Try again
-          </Button>
-        </Stack>
-      </Alert>
-    );
+    return <ErrorState error={graph.error} onRetry={() => void graph.refetch()} />;
   }
   if (graph.data === undefined) {
+    // As tall as the totals and the graph that arrive in its place, so nothing below moves.
     return (
-      <Stack gap="sm" aria-busy="true" aria-label="Loading flow">
-        <Skeleton height={72} />
-        <Skeleton height={420} />
-      </Stack>
+      <div className={classes.loading}>
+        <LoadingState label="Loading flow" />
+      </div>
     );
   }
   return (
@@ -281,8 +266,10 @@ function FlowBody({
   };
 
   return (
-    <Stack gap="md">
-      <FlowKpis kpis={kpis} />
+    <>
+      <Section title="Totals across every path">
+        <FlowKpis kpis={kpis} />
+      </Section>
       <BrokerNodeNotices nodes={data.brokerNodes ?? []} />
 
       {data.measuring ? (
@@ -333,7 +320,7 @@ function FlowBody({
           kpis.inRate,
         )}.`}
       </VisuallyHidden>
-    </Stack>
+    </>
   );
 }
 
@@ -363,17 +350,15 @@ function FlowMain({
 }>) {
   if (data.focus && !data.focus.matched) {
     return (
-      <Alert variant="light" color="gray" title={`Nothing matches the focus ${data.focus.kind} ${data.focus.name}`}>
-        <Stack gap="xs" align="flex-start">
-          <Text size="sm">It may have been deleted, or its clients disconnected since the address was shared.</Text>
-          <Button size="xs" variant="default" onClick={() => setSearch({ focus: undefined, hops: undefined })}>
-            Clear focus
-          </Button>
-        </Stack>
-      </Alert>
+      <EmptyState
+        kind="filtered"
+        title={`Nothing matches the focus ${data.focus.kind} ${data.focus.name}`}
+        description="It may have been deleted, or its clients disconnected since the address was shared. Clear the focus to see the busiest paths again."
+        onClearFilters={() => setSearch({ focus: undefined, hops: undefined })}
+      />
     );
   }
-  if (nothingAtAll) return <EmptyFlow />;
+  if (nothingAtAll) return <EmptyFlow unreachable={unreachableNodes(data)} />;
   return (
     <FlowViews
       clusterId={clusterId}
@@ -389,22 +374,31 @@ function FlowMain({
   );
 }
 
-/** What the flow says when there is nothing to draw yet. */
-function EmptyFlow() {
+/** What the flow says when there is nothing to draw yet: nodes that did not answer, or nothing seen at all. */
+function EmptyFlow({ unreachable }: Readonly<{ unreachable: string[] }>) {
+  if (unreachable.length > 0) {
+    return (
+      <EmptyState
+        kind="unreachable"
+        title="No flow to show, and some nodes did not answer"
+        description="Flow draws the clients producing to each address, the queues those addresses route into, and the clients consuming them. These nodes did not answer the last sweep, so this is an incomplete view rather than a cluster with no flow."
+        nodes={unreachable}
+      />
+    );
+  }
   return (
-    <Paper withBorder p="lg" radius="md">
-      <Stack gap="xs" className={classes.empty}>
-        <Title order={4}>No flow to show yet</Title>
-        <Text size="sm">
+    <EmptyState
+      kind="empty"
+      title="No flow to show yet"
+      description={
+        <>
           Flow draws the clients producing to each address, the queues those addresses route into, and the clients
-          consuming them. This cluster has no queues Studio has seen and no connected producers or consumers.
-        </Text>
-        <Text size="sm" c="dimmed">
-          Clients appear here within one sampling interval of attaching. New queues appear once the queue sweep has read
+          consuming them. This cluster has no queues Studio has seen and no connected producers or consumers. Clients
+          appear here within one sampling interval of attaching, and new queues appear once the queue sweep has read
           them.
-        </Text>
-      </Stack>
-    </Paper>
+        </>
+      }
+    />
   );
 }
 
@@ -434,38 +428,41 @@ function FlowViews({
   const tab = search.tab ?? 'graph';
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
-        <SegmentedControl
-          size="xs"
-          aria-label="View as"
-          data={[
-            { value: 'graph', label: 'Graph' },
-            { value: 'table', label: 'Table' },
-            { value: 'split', label: 'Split' },
-          ]}
-          value={tab}
-          onChange={(value) => setSearch({ tab: value === 'graph' ? undefined : value })}
-        />
-        <Group gap="sm" align="flex-end" wrap="wrap">
-          <Select
-            label="Find in this view"
-            placeholder="Client, address or queue"
-            size="xs"
-            w={260}
-            searchable
-            clearable
-            limit={30}
-            data={findGroups(data.nodes ?? [])}
-            value={null}
-            nothingFoundMessage="Not in the shown paths — raise the limit to reach more"
-            onChange={(value) => {
-              if (value) onFocusOn(value);
-            }}
-          />
-          {tab === 'table' ? null : <MotionControl paused={paused} onToggle={() => setPaused((p) => !p)} />}
-        </Group>
-      </Group>
+    <Section title="Paths">
+      <Toolbar
+        label="Flow view"
+        start={
+          <>
+            <SegmentedControl
+              size="xs"
+              aria-label="View as"
+              data={[
+                { value: 'graph', label: 'Graph' },
+                { value: 'table', label: 'Table' },
+                { value: 'split', label: 'Split' },
+              ]}
+              value={tab}
+              onChange={(value) => setSearch({ tab: value === 'graph' ? undefined : value })}
+            />
+            <Select
+              label="Find in this view"
+              placeholder="Client, address or queue"
+              size="xs"
+              w="16.25rem"
+              searchable
+              clearable
+              limit={30}
+              data={findGroups(data.nodes ?? [])}
+              value={null}
+              nothingFoundMessage="Not in the shown paths — raise the limit to reach more"
+              onChange={(value) => {
+                if (value) onFocusOn(value);
+              }}
+            />
+          </>
+        }
+        end={tab === 'table' ? null : <MotionControl paused={paused} onToggle={() => setPaused((p) => !p)} />}
+      />
 
       <Group gap="xs" align="center" wrap="wrap">
         <Text size="xs" c="dimmed" id="flow-layers">
@@ -476,7 +473,7 @@ function FlowViews({
           value={parseLayers(search.layers)}
           onChange={(value) => setSearch({ layers: layersParam(value as never[]) })}
         >
-          <Group gap={6} wrap="wrap" role="group" aria-labelledby="flow-layers">
+          <Group gap="xs" wrap="wrap" role="group" aria-labelledby="flow-layers">
             {FLOW_LAYERS.map((layer) => (
               <Chip key={layer} value={layer} size="xs" variant="outline">
                 {LAYER_LABELS[layer]}
@@ -505,7 +502,7 @@ function FlowViews({
         onCloseInspector={onCloseInspector}
         onFocusOn={onFocusOn}
       />
-    </Stack>
+    </Section>
   );
 }
 
@@ -524,7 +521,9 @@ function MotionControl({ paused, onToggle }: Readonly<{ paused: boolean; onToggl
       size="xs"
       variant="default"
       aria-pressed={paused}
-      leftSection={paused ? <IconPlayerPlay size={14} /> : <IconPlayerPause size={14} />}
+      leftSection={
+        paused ? <IconPlayerPlay size="0.875rem" aria-hidden /> : <IconPlayerPause size="0.875rem" aria-hidden />
+      }
       onClick={onToggle}
     >
       {paused ? 'Resume motion' : 'Pause motion'}
@@ -591,8 +590,10 @@ function FlowPane({
   }
   if (tab === 'graph') {
     return (
-      <div className={classes.graphLayout} data-inspecting={selected ? true : undefined}>
-        <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={onSelect} paused={paused} />
+      <div className={classes.graphLayout}>
+        <div className={classes.graphMain}>
+          <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={onSelect} paused={paused} />
+        </div>
         {selected ? (
           <FlowInspector
             graph={data}
@@ -606,12 +607,17 @@ function FlowPane({
     );
   }
   return (
-    <FlowTable
-      clusterId={clusterId}
-      graph={data}
-      sort={search.sort}
-      onSortChange={(sort) => setSearch({ sort })}
-      onFocus={(next) => setSearch({ focus: next, hops: undefined })}
-    />
+    <div className={classes.tableFrame}>
+      <FlowTable
+        clusterId={clusterId}
+        graph={data}
+        sort={search.sort}
+        loading={breakdownPending}
+        filtered={Boolean(search.layers) || Boolean(search.focus)}
+        onSortChange={(sort) => setSearch({ sort })}
+        onFocus={(next) => setSearch({ focus: next, hops: undefined })}
+        onClearFilters={() => setSearch({ layers: undefined, focus: undefined, hops: undefined })}
+      />
+    </div>
   );
 }

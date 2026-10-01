@@ -1,18 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Collapse, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
+
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 
 import type { ConfigDeclarationView, ConfigDivertView } from './api.ts';
 import { keyTaken, removeItem, upsertDivert } from './document.ts';
 import { EditorDrawer } from './EditorDrawer.tsx';
 import { ForwardingAddressField } from './ForwardingAddressField.tsx';
 import { TransformerFields, type TransformerValue } from './routing/TransformerFields.tsx';
+import { useReseedOnOpen } from './useReseedOnOpen.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 
-interface Errors {
-  name?: string;
-  address?: string;
-  forwardingAddress?: string;
+interface FormState {
+  name: string;
+  address: string;
+  forwardingAddress: string;
+  filter: string;
+  exclusive: boolean;
+  routingType: string;
+  transformer: TransformerValue;
 }
+
+const seedOf = ({ item, prefill }: { item: ConfigDivertView | null; prefill?: DivertPrefill }): FormState => ({
+  name: item?.name ?? '',
+  address: item?.address ?? prefill?.address ?? '',
+  forwardingAddress: item?.forwardingAddress ?? prefill?.forwardingAddress ?? '',
+  filter: item?.filter ?? '',
+  exclusive: item?.exclusive ?? false,
+  routingType: item?.routingType ?? '',
+  transformer: { className: item?.transformerClassName ?? '', properties: { ...item?.transformerProperties } },
+});
 
 /** What a drag on the routing canvas prefills a new divert with. */
 export interface DivertPrefill {
@@ -41,75 +59,51 @@ export function DivertEditor({
   opened: boolean;
   onClose: () => void;
 }>) {
-  const [name, setName] = useState(item?.name ?? '');
-  const [address, setAddress] = useState(item?.address ?? '');
-  const [forwardingAddress, setForwardingAddress] = useState(item?.forwardingAddress ?? '');
-  const [filter, setFilter] = useState(item?.filter ?? '');
-  const [exclusive, setExclusive] = useState(item?.exclusive ?? false);
-  const [routingType, setRoutingType] = useState<string>(item?.routingType ?? '');
-  const [transformer, setTransformer] = useState<TransformerValue>({ className: '', properties: {} });
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [submitted, setSubmitted] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [creatingQueue, setCreatingQueue] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const addressRef = useRef<HTMLInputElement>(null);
-  const forwardRef = useRef<HTMLInputElement>(null);
+  const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
+  const source = useMemo(() => ({ item, prefill }), [item, prefill]);
+
+  const form = useForm<FormState>({
+    initialValues: seedOf(source),
+    validateInputOnBlur: true,
+    validate: {
+      name: (v) => {
+        const n = v.trim();
+        if (!n) return 'A divert name is required.';
+        return keyTaken(declaration.document.diverts, (i) => i.name, n, item?.name)
+          ? `"${n}" is already declared. Edit that divert instead.`
+          : null;
+      },
+      address: (v) => (v.trim() ? null : 'A source address is required — the divert takes messages from it.'),
+      forwardingAddress: (v) =>
+        v.trim()
+          ? null
+          : 'A forwarding address is required. Messages diverted to an address with no queue are dropped.',
+    },
+  });
+  useReseedOnOpen(form, opened, source, seedOf);
+  const { exclusive } = form.values;
 
   useEffect(() => {
     if (!opened) return;
-    setName(item?.name ?? '');
-    setAddress(item?.address ?? prefill?.address ?? '');
-    setForwardingAddress(item?.forwardingAddress ?? prefill?.forwardingAddress ?? '');
-    setFilter(item?.filter ?? '');
-    setExclusive(item?.exclusive ?? false);
-    setRoutingType(item?.routingType ?? '');
-    setTransformer({
-      className: item?.transformerClassName ?? '',
-      properties: { ...item?.transformerProperties },
-    });
-    setTouched({});
-    setSubmitted(false);
     setAdvanced(false);
     setCreatingQueue(false);
   }, [opened, item, prefill]);
 
-  const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
-
-  const validate = (): Errors => {
-    const errors: Errors = {};
-    const n = name.trim();
-    if (!n) errors.name = 'A divert name is required.';
-    else if (keyTaken(declaration.document.diverts, (i) => i.name, n, item?.name)) {
-      errors.name = `"${n}" is already declared. Edit that divert instead.`;
-    }
-    if (!address.trim()) errors.address = 'A source address is required — the divert takes messages from it.';
-    if (!forwardingAddress.trim()) {
-      errors.forwardingAddress =
-        'A forwarding address is required. Messages diverted to an address with no queue are dropped.';
-    }
-    return errors;
-  };
-  const errors = validate();
-  const errorFor = (field: keyof Errors) => (touched[field] || submitted ? errors[field] : undefined);
-
-  const submit = () => {
-    setSubmitted(true);
-    if (errors.name) return nameRef.current?.focus();
-    if (errors.address) return addressRef.current?.focus();
-    if (errors.forwardingAddress) return forwardRef.current?.focus();
+  const submit = form.onSubmit((values) => {
     const next: ConfigDivertView = {
-      name: name.trim(),
-      address: address.trim(),
-      forwardingAddress: forwardingAddress.trim(),
-      filter: filter.trim() || null,
-      exclusive,
-      routingType: (routingType || null) as ConfigDivertView['routingType'],
-      transformerClassName: transformer.className.trim() || null,
-      transformerProperties: transformer.properties,
+      name: values.name.trim(),
+      address: values.address.trim(),
+      forwardingAddress: values.forwardingAddress.trim(),
+      filter: values.filter.trim() || null,
+      exclusive: values.exclusive,
+      routingType: (values.routingType || null) as ConfigDivertView['routingType'],
+      transformerClassName: values.transformer.className.trim() || null,
+      transformerProperties: values.transformer.properties,
     };
     save(upsertDivert(declaration.document, next, item?.name), `${item ? 'Edited' : 'Added'} divert ${next.name}`);
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const remove = () => save(removeItem(declaration.document, 'diverts', item!.name), `Removed divert ${item!.name}`);
 
@@ -126,41 +120,27 @@ export function DivertEditor({
       submitting={isPending}
       submitLabel={`Save as revision ${declaration.revision + 1}`}
       onSubmit={submit}
-      hint={submitted && Object.keys(errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
+      hint={Object.keys(form.errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
       secondary={
         item ? (
-          <Button variant="subtle" color="red" size="xs" onClick={remove} loading={isPending}>
+          <Button variant="subtle" size="xs" onClick={remove} loading={isPending}>
             Remove from declaration
           </Button>
         ) : null
       }
     >
+      <TextInput label="Name" {...form.getInputProps('name')} required />
       <TextInput
-        ref={nameRef}
-        label="Name"
-        value={name}
-        onChange={(e) => setName(e.currentTarget.value)}
-        onBlur={() => setTouched((t) => ({ ...t, name: true }))}
-        error={errorFor('name')}
-        required
-      />
-      <TextInput
-        ref={addressRef}
         label="From address"
         description="Messages arriving here are diverted."
-        value={address}
-        onChange={(e) => setAddress(e.currentTarget.value)}
-        onBlur={() => setTouched((t) => ({ ...t, address: true }))}
-        error={errorFor('address')}
+        {...form.getInputProps('address')}
         required
       />
       <ForwardingAddressField
         declaration={declaration}
-        inputRef={forwardRef}
-        value={forwardingAddress}
-        onChange={setForwardingAddress}
-        onBlur={() => setTouched((t) => ({ ...t, forwardingAddress: true }))}
-        error={errorFor('forwardingAddress')}
+        {...form.getInputProps('forwardingAddress')}
+        value={form.values.forwardingAddress}
+        onChange={(value) => form.setFieldValue('forwardingAddress', value)}
         onCreatingChange={setCreatingQueue}
       />
       <Switch
@@ -170,8 +150,7 @@ export function DivertEditor({
             ? 'Takes the message: the original address no longer receives it. A High hazard when the address has traffic.'
             : 'Copies the message: the original address still receives it.'
         }
-        checked={exclusive}
-        onChange={(e) => setExclusive(e.currentTarget.checked)}
+        {...form.getInputProps('exclusive', { type: 'checkbox' })}
       />
       {item ? (
         <Text size="xs" c="dimmed">
@@ -189,8 +168,7 @@ export function DivertEditor({
             <TextInput
               label="Filter"
               description="A selector; only matching messages are diverted. Empty diverts all."
-              value={filter}
-              onChange={(e) => setFilter(e.currentTarget.value)}
+              {...form.getInputProps('filter')}
             />
             <Select
               label="Routing type"
@@ -202,11 +180,14 @@ export function DivertEditor({
                 { value: 'ANYCAST', label: 'ANYCAST' },
                 { value: 'MULTICAST', label: 'MULTICAST' },
               ]}
-              value={routingType}
-              onChange={(v) => setRoutingType(v ?? '')}
+              {...form.getInputProps('routingType')}
               allowDeselect={false}
             />
-            <TransformerFields value={transformer} onChange={setTransformer} what="diverted" />
+            <TransformerFields
+              value={form.values.transformer}
+              onChange={(next) => form.setFieldValue('transformer', next)}
+              what="diverted"
+            />
           </Stack>
         </Collapse>
       </div>

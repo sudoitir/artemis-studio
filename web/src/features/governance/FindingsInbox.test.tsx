@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -39,10 +40,21 @@ function mockApis(permissions: string[], byStatus: Record<string, unknown[]> = {
   );
 }
 
+function renderInbox() {
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <FindingsInbox />
+    </>,
+  );
+}
+
 describe('FindingsInbox', () => {
+  afterEach(() => act(() => notifications.clean()));
+
   it('lists an open finding by field, address and class, never a value', async () => {
     mockApis(['governance:read', 'governance:write']);
-    renderWithProviders(<FindingsInbox />);
+    renderInbox();
 
     expect(await screen.findByText('property contact')).toBeInTheDocument();
     expect(screen.getByText('orders.eu')).toBeInTheDocument();
@@ -52,7 +64,7 @@ describe('FindingsInbox', () => {
 
   it('teaches when the inbox is empty', async () => {
     mockApis(['governance:read'], { OPEN: [] });
-    renderWithProviders(<FindingsInbox />);
+    renderInbox();
 
     expect(
       await screen.findByText(/No personal data has been detected in a field that no rule covers/),
@@ -62,19 +74,19 @@ describe('FindingsInbox', () => {
   it('says a filtered-empty view is filtered, and offers to clear the filter', async () => {
     mockApis(['governance:read'], { OPEN: [FINDING], DISMISSED: [], ALL: [FINDING] });
     const user = userEvent.setup();
-    renderWithProviders(<FindingsInbox />);
+    renderInbox();
 
     await screen.findByText('property contact');
     await user.click(screen.getByRole('radio', { name: 'Dismissed' }));
     expect(await screen.findByText(/No dismissed findings/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Show all findings' }));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(await screen.findByText('property contact')).toBeInTheDocument();
   });
 
   it('keeps decisions visible but disabled, with the reason, for a read-only user', async () => {
     mockApis(['governance:read']);
-    renderWithProviders(<FindingsInbox />);
+    renderInbox();
 
     expect(await screen.findByText(/needs the governance:write permission/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Dismiss property contact/ })).toBeDisabled();
@@ -88,17 +100,15 @@ describe('FindingsInbox', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<FindingsInbox />);
+    renderInbox();
 
     const dismiss = await screen.findByRole('button', { name: /^Dismiss property contact/ });
     dismiss.focus();
     await user.keyboard('{Enter}');
 
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'Dismissed: property contact on orders.eu is no longer masked',
-      ),
-    );
+    expect(
+      await screen.findByText('Dismissed the finding for property contact on orders.eu (email)'),
+    ).toBeInTheDocument();
   });
 
   it('states the cause and the next action when a decision fails', async () => {
@@ -112,11 +122,27 @@ describe('FindingsInbox', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<FindingsInbox />);
+    renderInbox();
 
     await user.click(await screen.findByRole('button', { name: /^Confirm property contact/ }));
 
-    expect(await screen.findByText('The decision did not apply')).toBeInTheDocument();
-    expect(screen.getByText(/was not confirmed: .* Try again\./)).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not confirm the finding for property contact on orders.eu (email)');
+    expect(alert).toHaveTextContent('This finding was already dismissed. The finding is unchanged. Try again.');
+  });
+
+  it('says the inbox could not be loaded instead of saying it is empty', async () => {
+    mockApis(['governance:read']);
+    server.use(
+      http.get('*/api/v1/governance/findings', () =>
+        HttpResponse.json({ title: 'Unavailable', detail: 'The database is down' }, { status: 503 }),
+      ),
+    );
+    renderInbox();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The database is down');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('No findings')).not.toBeInTheDocument();
   });
 });

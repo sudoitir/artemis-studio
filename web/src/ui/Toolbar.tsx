@@ -69,6 +69,7 @@ export function Toolbar({
     <div
       ref={ref}
       className={classes.toolbar}
+      data-as-toolbar=""
       role={arrowNavigation ? 'toolbar' : 'group'}
       aria-label={label}
       onKeyDown={arrowNavigation ? onKeyDown : undefined}

@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 
+import classes from './JsonTree.module.css';
 import { sqlBodyPath } from './payload.ts';
 
 /** What a node stands for: its path from the root, and a one-line rendering of its value. */
@@ -111,12 +112,11 @@ function JsonNode({ payload, info }: Readonly<{ payload: RenderTreeNodePayload; 
   return (
     <Group gap={4} wrap="nowrap" {...elementProps}>
       <IconChevronRight
-        size={12}
+        size="0.75rem"
         aria-hidden
-        style={{
-          visibility: hasChildren ? 'visible' : 'hidden',
-          transform: expanded ? 'rotate(90deg)' : undefined,
-        }}
+        className={classes.chevron}
+        data-leaf={hasChildren ? undefined : true}
+        data-expanded={expanded || undefined}
       />
       <Text size="xs" ff="monospace" fw={600}>
         {own.key}

@@ -1,6 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, FileButton, Group, Stack, Table, Text } from '@mantine/core';
+import { Button, FileButton, Stack, Text } from '@mantine/core';
 
+import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { absoluteLabel } from '../../kernel/time/time.ts';
+import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { ConfirmAction } from './ConfirmAction.tsx';
 import {
   useRemoveLicense,
@@ -12,44 +16,28 @@ import {
 import styles from './Plugins.module.css';
 import { LICENSE_LABEL, expiryNote, licenseAdvice } from './words.ts';
 
-function when(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleString() : '';
-}
-
-function Row({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
-  return (
-    <Table.Tr>
-      <Table.Th w={160}>{label}</Table.Th>
-      <Table.Td>{children}</Table.Td>
-    </Table.Tr>
-  );
-}
-
-/** What is known about the license: only the rows that have something to say. */
+/** What is known about the license: only the facts that have something to say. */
 function Facts({ license }: Readonly<{ license: PluginLicenseView }>) {
-  return (
-    <Table variant="vertical" withTableBorder>
-      <Table.Tbody>
-        <Row label="State">
-          <b>{LICENSE_LABEL[license.state]}</b>
-        </Row>
-        {license.licensee ? <Row label="Licensed to">{license.licensee}</Row> : null}
-        {license.expiresAt ? (
-          <Row label="Ends">
-            {new Date(license.expiresAt).toLocaleDateString()} ({expiryNote(license.expiresAt)})
-          </Row>
-        ) : null}
-        {license.detail ? <Row label="The plugin says">{license.detail}</Row> : null}
-        {license.uploadedAt ? (
-          <Row label="Uploaded">
-            {when(license.uploadedAt)}
-            {license.uploadedBy ? ` by ${license.uploadedBy}` : ''}
-          </Row>
-        ) : null}
-        {license.reportedAt ? <Row label="Last checked">{when(license.reportedAt)}</Row> : null}
-      </Table.Tbody>
-    </Table>
-  );
+  useDisplayZone();
+  const uploadedBy = license.uploadedBy ? ` by ${license.uploadedBy}` : '';
+  const items: DescriptionItem[] = [
+    { term: 'State', value: <b>{LICENSE_LABEL[license.state]}</b> },
+    ...(license.licensee ? [{ term: 'Licensed to', value: license.licensee }] : []),
+    ...(license.expiresAt
+      ? [{ term: 'Ends', value: `${absoluteLabel(license.expiresAt)} (${expiryNote(license.expiresAt)})` }]
+      : []),
+    ...(license.detail ? [{ term: 'The plugin says', value: license.detail }] : []),
+    ...(license.uploadedAt
+      ? [
+          {
+            term: 'Uploaded',
+            value: `${absoluteLabel(license.uploadedAt)}${uploadedBy}`,
+          },
+        ]
+      : []),
+    ...(license.reportedAt ? [{ term: 'Last checked', value: absoluteLabel(license.reportedAt) }] : []),
+  ];
+  return <DescriptionList items={items} label="The license" />;
 }
 
 /**
@@ -96,7 +84,7 @@ export function LicenseTab({
           License removed.
         </Text>
       ) : null}
-      <Group gap="xs">
+      <div className={styles.controls}>
         <FileButton
           onChange={(picked) => {
             if (!picked) return;
@@ -112,8 +100,7 @@ export function LicenseTab({
         </FileButton>
         {missing ? null : (
           <Button
-            variant="outline"
-            color="red"
+            variant="default"
             disabled={!canInstall}
             onClick={() => {
               remove.reset();
@@ -123,17 +110,13 @@ export function LicenseTab({
             Remove license…
           </Button>
         )}
-      </Group>
+      </div>
       {canInstall ? null : (
         <Text size="sm" c="dimmed">
           {cannotInstall ?? 'Only someone who can install plugins can change its license.'}
         </Text>
       )}
-      {upload.isError && !file ? (
-        <Alert color="red" variant="light" role="alert" title="The license was not uploaded">
-          {upload.error.message}
-        </Alert>
-      ) : null}
+      {upload.isError && !file ? <ErrorState variant="inline" error={upload.error} /> : null}
 
       <ConfirmAction
         opened={!!file}
@@ -144,7 +127,7 @@ export function LicenseTab({
         error={upload.error}
         onConfirm={() => file && upload.mutate({ id: plugin.id, file }, { onSuccess: () => setFile(null) })}
       >
-        <Stack gap={4}>
+        <Stack gap="xs">
           <Text size="sm">
             Stores <b className={styles.num}>{file?.name}</b> ({file ? Math.ceil(file.size / 1024) : 0} KB) as the
             license of {info.title}

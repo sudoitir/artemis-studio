@@ -45,11 +45,36 @@ describe('DiagnosticsPanel', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('explains the missing permission instead of offering the bundle', async () => {
+  it('keeps the bundle visible but disabled without the permission, with a reachable reason', async () => {
     me(['cluster:read']);
+    const user = userEvent.setup();
     renderWithProviders(<DiagnosticsPanel />);
-    expect(await screen.findByText('You cannot create support bundles')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Prepare bundle' })).not.toBeInTheDocument();
+
+    // The grants arrive after the first render, which offered it; once they land it is disabled.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Prepare bundle' })).toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Why preparing a support bundle is unavailable' }));
+    expect(await screen.findByText(/Create support bundles/)).toHaveTextContent('diagnostics:bundle');
+  });
+
+  it('offers the bundle while the grants are still loading', () => {
+    server.use(http.get('*/api/v1/auth/me', () => new Promise(() => {})));
+    renderWithProviders(<DiagnosticsPanel />);
+    expect(screen.getByRole('button', { name: 'Prepare bundle' })).toBeEnabled();
+  });
+
+  it('is built from sections: a support bundle h2, then the review h2 with the section as an h3', async () => {
+    me(['*']);
+    server.use(http.post('*/api/v1/admin/diagnostics/bundles', () => HttpResponse.json(BUNDLE, { status: 201 })));
+    const user = userEvent.setup();
+    renderWithProviders(<DiagnosticsPanel />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Support bundle' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Prepare bundle' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Review the bundle' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'About' })).toBeInTheDocument();
+    // A scrolling region takes the keyboard, so a long section can be read without a pointer.
+    expect(screen.getByRole('region', { name: 'About contents' })).toHaveAttribute('tabindex', '0');
   });
 
   it('previews every section with its redactions and downloads only the kept ones', async () => {
@@ -133,7 +158,10 @@ describe('DiagnosticsPanel', () => {
     renderWithProviders(<DiagnosticsPanel />);
 
     await user.click(await screen.findByRole('button', { name: 'Prepare bundle' }));
-    expect(await screen.findByText('The bundle could not be prepared')).toBeInTheDocument();
-    expect(screen.getByText('Database unavailable')).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Database unavailable');
+    // The cause is stated with the next step, and trying again is one press.
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

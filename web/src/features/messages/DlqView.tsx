@@ -1,160 +1,140 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Group,
-  Loader,
-  Paper,
-  Stack,
-  Table,
-  Text,
-  Title,
-  UnstyledButton,
-} from '@mantine/core';
-import { Link, useParams } from '@tanstack/react-router';
+import { Modal } from '@mantine/core';
+import { IconArrowBackUp, IconListDetails } from '@tabler/icons-react';
+import { useParams } from '@tanstack/react-router';
 
+import { useActionHost } from '../../kernel/actions/hostContext.ts';
+import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { useDlq, type DlqQueue } from './api.ts';
 import { BulkActionPreview } from './BulkActionPreview.tsx';
-import { Pager } from '../../ui/Pager.tsx';
+import { dlqColumns, type DlqRow } from './columns.ts';
+import { useActionGate } from './gates.ts';
+import { messageCount } from './outcomes.ts';
 
-/**
- * How many queue cards are rendered at once.
- *
- * The read returns every dead-lettered queue across every address in one
- * payload, and a cluster in trouble has hundreds. Paging is client-side because
- * the endpoint has no page parameter; the bound is on what is drawn, which is
- * where the cost was (ADR-0056).
- */
-const PAGE_SIZE = 25;
+const rowKey = (r: DlqRow) => `${r.address}/${r.queue.queueName}`;
 
-interface QueueRow {
-  address: string;
-  kind: string;
-  queue: DlqQueue;
+/** "Replay all…" on a queue's row: every message back to the queue it came from, through the shared preview. */
+function ReplayItem({ clusterId, onReplay }: Readonly<{ clusterId: string; onReplay: () => void }>) {
+  const host = useActionHost();
+  const gate = useActionGate(clusterId, 'retry');
+  return (
+    <ActionMenuItem
+      label="Replay all…"
+      icon={<IconArrowBackUp size="1rem" aria-hidden />}
+      verdict={gate}
+      onExplain={(verdict) => host.explain(verdict, 'replaying this queue')}
+      onSelect={onReplay}
+    />
+  );
+}
+
+/** Why the grid has no rows: the broker's settings could not be read, or nothing is dead-lettered. */
+function DlqEmpty({ addresses, available }: Readonly<{ addresses: string[]; available: boolean }>) {
+  if (!available) {
+    return (
+      <EmptyState
+        kind="empty"
+        title="Dead-letter configuration unavailable"
+        description={
+          <>
+            Studio could not read this broker's address settings, so it will not guess which queues are dead-letter
+            queues from their names. Grant the connection management-read access, or check{' '}
+            <code>getAddressSettingsAsJSON</code> is permitted, then reload.
+          </>
+        }
+      />
+    );
+  }
+  return (
+    <EmptyState
+      kind="empty"
+      title="No dead-lettered messages"
+      description={
+        <>
+          The broker's dead-letter address is <code>{addresses.join(', ') || '—'}</code>, but no queue on it currently
+          holds messages. A message lands there when a consumer keeps rejecting it or it expires.
+        </>
+      }
+    />
+  );
 }
 
 /**
- * Dead-letter / expiry management (ADR-0021, D8). Addresses come from the
- * broker's own settings — when that read fails the view says exactly that and
- * infers nothing. "Replay all" runs a by-selector RETRY through the shared
- * preview + cap gate.
+ * Dead-letter / expiry management (ADR-0021, D8). Addresses come from the broker's own settings —
+ * when that read fails the view says exactly that and infers nothing. "Replay all" runs a by-selector
+ * RETRY through the shared preview + cap gate. The grid is virtualised, so a cluster with hundreds
+ * of dead-lettered queues needs no paging.
  */
 export function DlqView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const dlq = useDlq(clusterId);
   const [replay, setReplay] = useState<DlqQueue | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  const [breakdown, setBreakdown] = useState<DlqQueue | null>(null);
+  const columns = useMemo(() => dlqColumns(clusterId), [clusterId]);
 
   const addresses = dlq.data?.addresses;
-  // Flattened so the bound is over queues rather than over addresses: one address
-  // holding four hundred queues is the shape this view actually meets.
-  const rows = useMemo<QueueRow[]>(
+  // Flattened so each row is a queue rather than an address: one address can hold hundreds.
+  const rows = useMemo<DlqRow[]>(
     () => (addresses ?? []).flatMap((a) => a.queues.map((queue) => ({ address: a.address, kind: a.kind, queue }))),
     [addresses],
   );
 
-  if (dlq.isPending) return <Loader size="sm" />;
-  if (dlq.isError) {
-    return (
-      <Alert color="red" variant="light" title={dlq.error.title}>
-        {dlq.error.message}
-      </Alert>
-    );
-  }
-
-  if (!dlq.data.settingsAvailable) {
-    return (
-      <Stack gap="sm">
-        <Title order={3}>Dead-letter queues</Title>
-        <Alert color="yellow" variant="light" title="Dead-letter configuration unavailable">
-          Studio could not read this broker's address settings, so it will not guess which queues are dead-letter queues
-          from their names. Grant the connection management-read access, or check <code>getAddressSettingsAsJSON</code>{' '}
-          is permitted, then reload.
-        </Alert>
-      </Stack>
-    );
-  }
-
-  const start = (page - 1) * PAGE_SIZE;
-  const visible = rows.slice(start, start + PAGE_SIZE);
-
   return (
-    <Stack gap="md">
-      <Title order={3}>Dead-letter queues</Title>
+    <Page fill>
+      <PageHeader
+        title="Dead-letter queues"
+        description="Queues on the broker's dead-letter and expiry addresses that hold messages, with how many on each node."
+      />
 
-      {rows.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          The broker's dead-letter address is <code>{dlq.data.addresses.map((a) => a.address).join(', ') || '—'}</code>,
-          but no queue on it currently holds messages.
-        </Text>
-      ) : (
-        <>
-          <Pager page={page} pageSize={PAGE_SIZE} total={rows.length} onChange={setPage} label="dead-lettered queues" />
-          {visible.map(({ address, kind, queue: q }) => {
-            const key = `${address}/${q.queueName}`;
-            const open = expanded === key;
-            return (
-              <Paper key={key} withBorder p="sm">
-                <Group justify="space-between" align="flex-start">
-                  <Stack gap={2}>
-                    <Anchor
-                      component={Link}
-                      to={`/clusters/${clusterId}/queues/${encodeURIComponent(q.queueName)}/messages`}
-                      size="sm"
-                    >
-                      {q.queueName}
-                    </Anchor>
-                    <Group gap="xs">
-                      <Text size="xs" c="dimmed">
-                        {address}
-                      </Text>
-                      <Badge size="xs" variant="light">
-                        {kind}
-                      </Badge>
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {q.totalDepth} message{q.totalDepth === 1 ? '' : 's'} across {q.perNode.length} node
-                      {q.perNode.length === 1 ? '' : 's'}
-                    </Text>
-                  </Stack>
-                  <Group gap="xs">
-                    {/* The per-node breakdown is opened one card at a time: rendering
-                        it for every card multiplies the page by the node count, which
-                        is the number that grows. */}
-                    <UnstyledButton onClick={() => setExpanded(open ? null : key)} aria-expanded={open}>
-                      <Text size="xs" c="dimmed" td="underline">
-                        {open ? 'Hide breakdown' : 'Per-node breakdown'}
-                      </Text>
-                    </UnstyledButton>
-                    <Button size="xs" variant="light" onClick={() => setReplay(q)}>
-                      Replay all
-                    </Button>
-                  </Group>
-                </Group>
-                {open ? (
-                  <Table mt="xs" withRowBorders={false} verticalSpacing={2}>
-                    <Table.Tbody>
-                      {q.perNode.map((n) => (
-                        <Table.Tr key={n.nodeId}>
-                          <Table.Td>
-                            <Text size="xs">{n.nodeName}</Text>
-                          </Table.Td>
-                          <Table.Td ta="end">
-                            <Text size="xs">{n.depth}</Text>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                ) : null}
-              </Paper>
-            );
-          })}
-        </>
-      )}
+      <DataTable
+        label="Dead-letter queues"
+        storageKey="dlq"
+        height="fill"
+        columns={columns}
+        data={rows}
+        rowKey={rowKey}
+        loading={dlq.isPending}
+        error={dlq.isError ? <ErrorState error={dlq.error} onRetry={() => void dlq.refetch()} /> : undefined}
+        onRowClick={(r) => setBreakdown(r.queue)}
+        rowMenu={{
+          label: (r) => `dead-letter queue ${r.queue.queueName}`,
+          render: (r) => (
+            <>
+              <ActionMenuItem
+                label="Per-node breakdown"
+                icon={<IconListDetails size="1rem" aria-hidden />}
+                onSelect={() => setBreakdown(r.queue)}
+              />
+              <ReplayItem clusterId={clusterId} onReplay={() => setReplay(r.queue)} />
+            </>
+          ),
+        }}
+        empty={
+          <DlqEmpty
+            addresses={(addresses ?? []).map((a) => a.address)}
+            available={dlq.data?.settingsAvailable ?? true}
+          />
+        }
+      />
+
+      <Modal
+        opened={breakdown !== null}
+        onClose={() => setBreakdown(null)}
+        title={breakdown ? `${breakdown.queueName} by node` : ''}
+      >
+        {breakdown ? (
+          <DescriptionList
+            label="Messages on each node"
+            items={breakdown.perNode.map((n) => ({ term: n.nodeName, value: messageCount(n.depth) }))}
+          />
+        ) : null}
+      </Modal>
 
       {replay ? (
         <BulkActionPreview
@@ -166,6 +146,6 @@ export function DlqView() {
           onDone={() => setReplay(null)}
         />
       ) : null}
-    </Stack>
+    </Page>
   );
 }

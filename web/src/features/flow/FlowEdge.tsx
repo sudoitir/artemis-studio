@@ -97,7 +97,7 @@ export const FlowEdge = memo(function FlowEdge({
             className={`${classes.edgeLabel} nopan nodrag`}
             data-fault={fault || undefined}
             data-dimmed={d.dimmed || undefined}
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            style={{ '--label-x': `${labelX}px`, '--label-y': `${labelY}px` } as CSSProperties}
           >
             {edgeText(view)}
           </div>

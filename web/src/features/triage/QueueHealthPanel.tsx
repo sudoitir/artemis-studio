@@ -1,5 +1,9 @@
-import { Alert, Group, Paper, Skeleton, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 
+import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { useQueueHealth } from './api.ts';
 import { HealthVerdict } from './HealthVerdict.tsx';
 import { formatCount, formatDuration, formatRate, trendPhrase, verdictCopy } from './verdict.ts';
@@ -21,16 +25,24 @@ export function QueueHealthPanel({
   const query = useQueueHealth(clusterId, queueName);
 
   if (query.isPending) {
-    return <Skeleton height={96} radius="md" />;
+    return (
+      <Section variant="card" headingLevel={3} title="Consumer health">
+        <LoadingState label="Loading consumer health" blockSize="9rem" />
+      </Section>
+    );
   }
 
   if (query.isError) {
     // Unreachable is not healthy, and not empty either.
     return (
-      <Alert color="gray" title="Consumer health is unavailable">
-        {query.error.message} — the verdict for this queue could not be read, so nothing here says whether its consumers
-        are keeping up.
-      </Alert>
+      <Section
+        variant="card"
+        headingLevel={3}
+        title="Consumer health"
+        description="Consumer health is unavailable: the verdict for this queue could not be read, so nothing here says whether its consumers are keeping up."
+      >
+        <ErrorState error={query.error} onRetry={() => void query.refetch()} />
+      </Section>
     );
   }
 
@@ -44,59 +56,43 @@ export function QueueHealthPanel({
   const sampleAge = formatDuration(row.sampleSpanSeconds);
 
   return (
-    <Paper withBorder p="sm" radius="md">
-      <Stack gap={6}>
-        <Group gap="xs" justify="space-between" wrap="nowrap">
-          <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-            Consumer health
-          </Text>
-          <HealthVerdict row={row} />
-        </Group>
-
+    <Section variant="card" headingLevel={3} title="Consumer health" actions={<HealthVerdict row={row} />}>
+      <Stack gap="xs">
         <Text size="sm">{copy.headline}</Text>
         <Text size="xs" c="dimmed">
           {row.cause}
         </Text>
-
-        <Group gap="lg" wrap="wrap">
-          <Figure label="Arriving" value={formatRate(row.addRate)} />
-          <Figure label="Acknowledged" value={formatRate(row.ackRate)} />
-          <Figure label="Per consumer" value={formatRate(row.ackRatePerConsumer)} />
-          <Figure label="In flight" value={formatCount(row.delivering)} />
-        </Group>
-
-        <Text size="xs" c="dimmed">
-          {trendPhrase(row)}
-          {eta ? ` · clears in about ${eta}` : ''}
-          {sampleAge ? ` · measured over ${sampleAge}` : ''}
-        </Text>
-
-        {row.nodesPresent < row.nodesTotal ? (
-          <Text size="xs" c="dimmed">
-            Present on {row.nodesPresent} of {row.nodesTotal} nodes; these numbers cover only the nodes reporting it.
-          </Text>
-        ) : null}
-
-        {row.source === 'BROKER' ? (
-          <Text size="xs" c="dimmed">
-            Reported by the broker's own slow-consumer detection
-            {row.brokerConsumerName ? ` for ${row.brokerConsumerName}` : ''}.
-          </Text>
-        ) : null}
       </Stack>
-    </Paper>
-  );
-}
 
-function Figure({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <Stack gap={0}>
+      <DescriptionList
+        label="Consumer health figures"
+        columns={2}
+        items={[
+          { term: 'Arriving', value: formatRate(row.addRate) },
+          { term: 'Acknowledged', value: formatRate(row.ackRate) },
+          { term: 'Per consumer', value: formatRate(row.ackRatePerConsumer) },
+          { term: 'In flight', value: formatCount(row.delivering) },
+        ]}
+      />
+
       <Text size="xs" c="dimmed">
-        {label}
+        {trendPhrase(row)}
+        {eta ? ` · clears in about ${eta}` : ''}
+        {sampleAge ? ` · measured over ${sampleAge}` : ''}
       </Text>
-      <Text size="sm" fw={600}>
-        {value}
-      </Text>
-    </Stack>
+
+      {row.nodesPresent < row.nodesTotal ? (
+        <Text size="xs" c="dimmed">
+          Present on {row.nodesPresent} of {row.nodesTotal} nodes; these numbers cover only the nodes reporting it.
+        </Text>
+      ) : null}
+
+      {row.source === 'BROKER' ? (
+        <Text size="xs" c="dimmed">
+          Reported by the broker's own slow-consumer detection
+          {row.brokerConsumerName ? ` for ${row.brokerConsumerName}` : ''}.
+        </Text>
+      ) : null}
+    </Section>
   );
 }

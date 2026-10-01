@@ -24,7 +24,7 @@ export function nodeText(node: FlowNodeView | undefined): string {
 export function nodeCell(node: FlowNodeView | undefined) {
   if (!node) return null;
   return (
-    <Group gap={4} wrap="nowrap">
+    <Group gap="xs" wrap="nowrap">
       {node.kind ? (
         <Text span size="xs" c="dimmed">
           {KIND[node.kind]}
@@ -71,7 +71,7 @@ export function figureCell(text: string, stale: boolean) {
 /** The node's name, shortened in the middle, with the words "did not answer" beside it when its figures are unknown. */
 export function nodeNameCell(node: string, stale: boolean) {
   return (
-    <Group gap={4} wrap="nowrap">
+    <Group gap="xs" wrap="nowrap">
       <MiddleTruncate text={node} />
       {stale ? (
         <Text span size="xs" className={classes.stale}>

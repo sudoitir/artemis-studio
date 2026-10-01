@@ -92,6 +92,11 @@ async function isWrongSecondFactor(res: Response): Promise<boolean> {
   }
 }
 
+/** Whether this page is the sign-in page, which asks for nothing that needs a session. */
+export function onLoginPage(): boolean {
+  return globalThis.location.pathname.startsWith('/login');
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();
   const headers: Record<string, string> = {
@@ -110,7 +115,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: merged,
   });
-  if (res.status === 401 && !globalThis.location.pathname.startsWith('/login') && !(await isWrongSecondFactor(res))) {
+  if (res.status === 401 && !onLoginPage() && !(await isWrongSecondFactor(res))) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
     globalThis.location.assign(confirmedSignedIn ? `/login?reason=${SESSION_ENDED_REASON}` : '/login');

@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Chip, Collapse, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { useDlq } from '../messages/index.ts';
 import type {
   ConfigAddressSettingKeyView,
@@ -11,7 +13,9 @@ import type {
 import { keyTaken, removeItem, upsertAddressSetting } from './document.ts';
 import { EditorDrawer, MATCH_HINT } from './EditorDrawer.tsx';
 import { keyHelp } from './keyHelp.ts';
+import classes from './Configuration.module.css';
 import { KeyHint } from './KeyHint.tsx';
+import { useReseedOnOpen } from './useReseedOnOpen.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 
 /**
@@ -82,9 +86,16 @@ function toWire(values: Values, catalogue: ConfigCatalogueView): Record<string, 
   return out;
 }
 
-interface Errors {
-  match?: string;
+interface FormState {
+  match: string;
+  /** The declared keys, by JSON name; an undeclared key is absent or empty. */
+  settings: Values;
 }
+
+const seedOf = (item: ConfigAddressSettingView | null): FormState => ({
+  match: item?.match ?? '',
+  settings: toValues(item),
+});
 
 /**
  * Edit one address-setting match. The catalogue (ADR-0067 D10) decides which
@@ -110,13 +121,25 @@ export function AddressSettingEditor({
   opened: boolean;
   onClose: () => void;
 }>) {
-  const [match, setMatch] = useState(item?.match ?? '');
-  const [values, setValues] = useState<Values>(toValues(item));
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [submitted, setSubmitted] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [filter, setFilter] = useState('');
-  const matchRef = useRef<HTMLInputElement>(null);
+  const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
+
+  const form = useForm<FormState>({
+    initialValues: seedOf(item),
+    validateInputOnBlur: true,
+    validate: {
+      match: (v) => {
+        const m = v.trim();
+        if (!m) return 'A match pattern is required — it names the addresses these settings apply to.';
+        return keyTaken(declaration.document.addressSettings, (i) => i.match, m, item?.match)
+          ? `"${m}" is already declared. Edit that entry instead.`
+          : null;
+      },
+    },
+  });
+  useReseedOnOpen(form, opened, item, seedOf);
+  const values = form.values.settings;
 
   // Templates are built from this cluster's own dead-letter and expiry addresses,
   // never from invented names: a prefilled DLQ that does not exist declares a
@@ -159,40 +182,17 @@ export function AddressSettingEditor({
 
   useEffect(() => {
     if (!opened) return;
-    setMatch(item?.match ?? '');
-    setValues(toValues(item));
-    setTouched({});
-    setSubmitted(false);
     setAdvanced(false);
     setFilter('');
   }, [opened, item]);
 
-  const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
-
-  const validate = (): Errors => {
-    const errors: Errors = {};
-    const m = match.trim();
-    if (!m) errors.match = 'A match pattern is required — it names the addresses these settings apply to.';
-    else if (keyTaken(declaration.document.addressSettings, (i) => i.match, m, item?.match)) {
-      errors.match = `"${m}" is already declared. Edit that entry instead.`;
-    }
-    return errors;
-  };
-  const errors = validate();
-  const errorFor = (field: keyof Errors) => (touched[field] || submitted ? errors[field] : undefined);
-
-  const submit = () => {
-    setSubmitted(true);
-    if (Object.keys(errors).length > 0) {
-      matchRef.current?.focus();
-      return;
-    }
-    const next: ConfigAddressSettingView = { match: match.trim(), values: toWire(values, catalogue) };
+  const submit = form.onSubmit(({ match, settings }) => {
+    const next: ConfigAddressSettingView = { match: match.trim(), values: toWire(settings, catalogue) };
     save(
       upsertAddressSetting(declaration.document, next, item?.match),
       `${item ? 'Edited' : 'Added'} address setting ${next.match}`,
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   const remove = () =>
     save(removeItem(declaration.document, 'addressSettings', item!.match), `Removed address setting ${item!.match}`);
@@ -225,7 +225,7 @@ export function AddressSettingEditor({
 
   const field = (key: ConfigAddressSettingKeyView) => {
     const value = values[key.jsonName] ?? '';
-    const set = (v: string) => setValues((prev) => ({ ...prev, [key.jsonName]: v }));
+    const path = `settings.${key.jsonName}`;
     const note = hazardNote(key.jsonName, value);
     const description =
       note ??
@@ -238,8 +238,8 @@ export function AddressSettingEditor({
     // control of its own (keyboard-reachable) and does not join the field's name.
     const inputContainer = help
       ? (children: ReactNode) => (
-          <Group gap={4} wrap="nowrap" align="center">
-            <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+          <Group gap="xs" wrap="nowrap" align="center">
+            <div className={classes.growField}>{children}</div>
             <KeyHint name={key.xmlName} help={help} />
           </Group>
         )
@@ -257,8 +257,7 @@ export function AddressSettingEditor({
               { value: 'true', label: 'true' },
               { value: 'false', label: 'false' },
             ]}
-            value={value}
-            onChange={(v) => set(v ?? '')}
+            {...form.getInputProps(path)}
             allowDeselect={false}
           />
         );
@@ -270,8 +269,7 @@ export function AddressSettingEditor({
             description={description}
             inputContainer={inputContainer}
             data={[{ value: '', label: 'not declared' }, ...key.allowedValues.map((v) => ({ value: v, label: v }))]}
-            value={value}
-            onChange={(v) => set(v ?? '')}
+            {...form.getInputProps(path)}
             allowDeselect={false}
           />
         );
@@ -284,8 +282,8 @@ export function AddressSettingEditor({
             label={label}
             description={description}
             inputContainer={inputContainer}
-            value={value === '' ? '' : Number(value)}
-            onChange={(v) => set(v === '' ? '' : String(v))}
+            {...form.getInputProps(path)}
+            onChange={(v) => form.setFieldValue(path, String(v))}
             allowDecimal={key.type === 'DOUBLE'}
           />
         );
@@ -296,8 +294,7 @@ export function AddressSettingEditor({
             label={label}
             description={description}
             inputContainer={inputContainer}
-            value={value}
-            onChange={(e) => set(e.currentTarget.value)}
+            {...form.getInputProps(path)}
           />
         );
     }
@@ -312,29 +309,20 @@ export function AddressSettingEditor({
       submitting={isPending}
       submitLabel={`Save as revision ${declaration.revision + 1}`}
       onSubmit={submit}
-      hint={submitted && Object.keys(errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
+      hint={Object.keys(form.errors).length > 0 ? 'Fix the fields above to continue.' : undefined}
       secondary={
         item ? (
-          <Button variant="subtle" color="red" size="xs" onClick={remove} loading={isPending}>
+          <Button variant="subtle" size="xs" onClick={remove} loading={isPending}>
             Remove from declaration
           </Button>
         ) : null
       }
     >
-      <TextInput
-        ref={matchRef}
-        label="Match pattern"
-        description={MATCH_HINT}
-        value={match}
-        onChange={(e) => setMatch(e.currentTarget.value)}
-        onBlur={() => setTouched((t) => ({ ...t, match: true }))}
-        error={errorFor('match')}
-        required
-      />
+      <TextInput label="Match pattern" description={MATCH_HINT} {...form.getInputProps('match')} required />
 
       {templates.length > 0 ? (
-        <Stack gap={4}>
-          <Text size="xs" fw={600}>
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
             Start from a template
           </Text>
           <Group gap="xs" wrap="wrap">
@@ -343,7 +331,7 @@ export function AddressSettingEditor({
                 key={t.id}
                 size="xs"
                 checked={false}
-                onClick={() => setValues((prev) => ({ ...prev, ...t.values }))}
+                onClick={() => form.setFieldValue('settings', (prev) => ({ ...prev, ...t.values }))}
                 title={t.description}
               >
                 {t.label}

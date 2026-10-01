@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { Stack, Text, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import {
   IconArrowBackUp,
   IconArrowsRightLeft,
@@ -12,13 +12,16 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { useCluster } from '../clusters/index.ts';
 import type { ActionProps, HostedDialogProps, MessageTarget, QueueTarget } from '../../kernel/actions/types.ts';
 import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
-import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
-import { useMessageAction, type AffectedView, type PartialView } from './api.ts';
+import { gateFor } from '../../ui/capabilityGate.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { notify } from '../../ui/notify.ts';
+import { useMessageAction } from './api.ts';
+import { useActionGate } from './gates.ts';
+import { announceFailure, VERBS } from './outcomes.ts';
 
 /** "Browse messages" on a queue's row: the message browser for that queue. */
 export function BrowseQueueMessages({ clusterId, target }: Readonly<ActionProps<QueueTarget>>) {
@@ -29,7 +32,7 @@ export function BrowseQueueMessages({ clusterId, target }: Readonly<ActionProps<
   return (
     <ActionMenuItem
       label="Browse messages"
-      icon={<IconMail size={16} aria-hidden />}
+      icon={<IconMail size="1rem" aria-hidden />}
       verdict={gate}
       href={clusterHref(clusterId, path)}
       onSelect={() => navigate({ to: `/clusters/${clusterId}/${path}` })}
@@ -51,7 +54,7 @@ export function OpenMessage({ clusterId, target }: Readonly<ActionProps<MessageT
   return (
     <ActionMenuItem
       label="Open details"
-      icon={<IconFileText size={16} aria-hidden />}
+      icon={<IconFileText size="1rem" aria-hidden />}
       href={clusterHref(clusterId, messagePath(target), messageSearch(target))}
       onSelect={() =>
         navigate({
@@ -68,12 +71,12 @@ export function CopyMessage({ clusterId, target, host }: Readonly<ActionProps<Me
     <>
       <ActionMenuItem
         label="Copy message id"
-        icon={<IconClipboard size={16} aria-hidden />}
+        icon={<IconClipboard size="1rem" aria-hidden />}
         onSelect={() => host.copy(String(target.messageId), 'message id')}
       />
       <ActionMenuItem
         label="Copy link to this message"
-        icon={<IconLink size={16} aria-hidden />}
+        icon={<IconLink size="1rem" aria-hidden />}
         onSelect={() =>
           host.copy(
             absoluteHref(clusterHref(clusterId, messagePath(target), messageSearch(target))),
@@ -87,114 +90,33 @@ export function CopyMessage({ clusterId, target, host }: Readonly<ActionProps<Me
 
 type OneAction = 'move' | 'retry' | 'delete';
 
-const ONE: Record<
-  OneAction,
-  { verb: string; permission: string; label: string; what: string; done: string; intro: (queueName: string) => string }
-> = {
+const ONE: Record<OneAction, { what: string; confirmLabel: string; intro: (queueName: string) => string }> = {
   move: {
-    verb: 'Move',
-    permission: 'message:move',
-    label: 'Move or retry messages',
     what: 'moving this message',
-    done: 'moved',
+    confirmLabel: 'Move message',
     intro: (queueName) =>
       `Moves this one message from ${queueName} to the queue you name, on the node it was read from.`,
   },
   retry: {
-    verb: 'Retry',
-    permission: 'message:move',
-    label: 'Move or retry messages',
     what: 'retrying this message',
-    done: 'retried',
+    confirmLabel: 'Retry message',
     intro: () => 'Sends this dead-lettered message back to the queue it originally came from.',
   },
   delete: {
-    verb: 'Delete',
-    permission: 'message:delete',
-    label: 'Delete or expire messages',
     what: 'deleting this message',
-    done: 'deleted',
+    confirmLabel: 'Delete this message',
     intro: (queueName) => `Removes this one message from ${queueName}. It cannot be brought back.`,
   },
 };
 
-function useMessageGate(clusterId: string, action: OneAction): GateVerdict {
-  const { can, loading } = useCan();
-  const cluster = useCluster(clusterId);
-  return gateFor(
-    can(ONE[action].permission, clusterId),
-    ONE[action].label,
-    cluster.data?.capabilities.managementWrite,
-    loading || cluster.isPending,
-  );
-}
-
-/** The outcome of the one message: done in words, or that it was not found. */
-function ActionOutcome({ changed, done }: Readonly<{ changed: boolean; done: string }>) {
-  if (changed) return <Text size="sm">Done: the message was {done}.</Text>;
-  return (
-    <Alert color="yellow" variant="light" title="Nothing was changed">
-      The message was not found on the node. It may have been consumed, expired or moved since this page was read.
-    </Alert>
-  );
-}
-
-/** Close once done; a delete is armed by typing the id; a move or retry has plain Cancel and Confirm. */
-function DialogActions({
-  action,
-  done,
-  running,
-  moveWithoutTarget,
-  verb,
-  confirmToken,
-  onClose,
-  onSubmit,
-}: Readonly<{
-  action: OneAction;
-  done: boolean;
-  running: boolean;
-  moveWithoutTarget: boolean;
-  verb: string;
-  confirmToken: string;
-  onClose: () => void;
-  onSubmit: () => void;
-}>) {
-  if (done) {
-    return (
-      <Group justify="flex-end">
-        <Button size="xs" onClick={onClose}>
-          Close
-        </Button>
-      </Group>
-    );
-  }
-  if (action === 'delete') {
-    return (
-      <ConfirmByTyping
-        token={confirmToken}
-        confirmLabel="Delete this message"
-        loading={running}
-        disabled={running}
-        onConfirm={onSubmit}
-      />
-    );
-  }
-  return (
-    <Group justify="flex-end">
-      <Button size="xs" variant="default" onClick={onClose}>
-        Cancel
-      </Button>
-      <Button size="xs" loading={running} disabled={moveWithoutTarget} onClick={onSubmit}>
-        {verb} message
-      </Button>
-    </Group>
-  );
-}
+/** The one message was not there to act on: consumed, expired or moved since the page was read. */
+const NOT_FOUND =
+  'The message was not found on the node. It may have been consumed, expired or moved since this page was read.';
 
 /**
- * One message moved, retried or deleted by id, from its row. The outcome stays in the dialog —
- * done, not found (the message was consumed or moved since the page was read), or failed with its
- * cause — rather than in a toast that disappears. A delete is confirmed by typing the message id.
+ * One message moved, retried or deleted by id, from its row. It confirms with what it does; a
+ * delete is armed by typing the message id. The outcome is announced: done, not found (nothing was
+ * changed), or failed with its cause. A move names its target, checked on activation.
  */
 function OneMessageDialog({
   opened,
@@ -204,62 +126,70 @@ function OneMessageDialog({
   action,
 }: HostedDialogProps & { clusterId: string; target: MessageTarget; action: OneAction }) {
   const run = useMessageAction(clusterId, target.queueName);
-  const [destination, setDestination] = useState('');
-  const [result, setResult] = useState<AffectedView | PartialView | null>(null);
+  const form = useForm({
+    initialValues: { destination: '' },
+    validateInputOnBlur: true,
+    // Checked on activation, so the confirm button is never disabled with no reason given.
+    validate: {
+      destination: (value) =>
+        action === 'move' && !value.trim() ? 'Name the target queue to move the message.' : null,
+    },
+  });
   const one = ONE[action];
-  const affected = result && 'affectedCount' in result ? result.affectedCount : null;
-  const submit = () =>
+  const subject = `message ${target.messageId} in queue "${target.queueName}"`;
+
+  const submit = form.onSubmit(({ destination }) => {
     run.mutate(
       {
         action,
         body: { messageIds: [target.messageId], targetQueue: action === 'move' ? destination : undefined },
         node: target.node,
       },
-      { onSuccess: (r) => setResult(r as AffectedView | PartialView) },
+      {
+        onSuccess: (r) => {
+          if ('cap' in r) return;
+          if ('notDone' in r || r.affectedCount !== 1) {
+            notify.failed({
+              action: VERBS[action],
+              subject,
+              cause: 'notDone' in r ? r.error : NOT_FOUND,
+              next: 'Nothing was changed. Reload the queue to see what is there now.',
+            });
+          } else {
+            notify.succeeded({ action: VERBS[action], subject });
+          }
+          onClose();
+        },
+        onError: (e) => announceFailure(action, subject, e),
+      },
     );
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Modal opened={opened} onClose={onClose} title={`${one.verb} message ${target.messageId}`}>
-      <Stack gap="sm">
-        <Text size="sm">{one.intro(target.queueName)}</Text>
-        {action === 'move' && !result ? (
-          <TextInput
-            label="Target queue"
-            description="The queue receives the message on the same node."
-            value={destination}
-            onChange={(e) => setDestination(e.currentTarget.value)}
-            size="xs"
-            data-autofocus
-          />
-        ) : null}
-        <div aria-live="polite">
-          {run.isPending ? (
-            <Text size="sm">{one.verb === 'Retry' ? 'Retrying' : `${one.verb.slice(0, -1)}ing`}…</Text>
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title={`${VERBS[action].verb} message ${target.messageId}`}
+      consequence={
+        <Stack gap="sm">
+          <Text size="sm">{one.intro(target.queueName)}</Text>
+          {action === 'move' ? (
+            <TextInput
+              label="Target queue"
+              description="The queue receives the message on the same node."
+              {...form.getInputProps('destination')}
+              size="xs"
+              data-autofocus
+            />
           ) : null}
-          {run.isError ? (
-            <Alert color="red" variant="light" title={run.error.title} role="alert">
-              {run.error.message} Nothing was changed; check the node in Topology and try again.
-            </Alert>
-          ) : null}
-          {result ? <ActionOutcome changed={affected === 1} done={one.done} /> : null}
-        </div>
-        <DialogActions
-          action={action}
-          done={result !== null}
-          running={run.isPending}
-          moveWithoutTarget={action === 'move' && !destination.trim()}
-          verb={one.verb}
-          confirmToken={String(target.messageId)}
-          onClose={onClose}
-          onSubmit={submit}
-        />
-        {action === 'move' && !destination.trim() && !result ? (
-          <Text size="xs" c="dimmed">
-            Name the target queue to move the message.
-          </Text>
-        ) : null}
-      </Stack>
-    </Modal>
+        </Stack>
+      }
+      confirmLabel={one.confirmLabel}
+      tone={action === 'delete' ? 'danger' : 'default'}
+      typedName={action === 'delete' ? String(target.messageId) : undefined}
+      pending={run.isPending}
+      onConfirm={() => submit()}
+    />
   );
 }
 
@@ -270,10 +200,10 @@ function OneMessageItem({
   action,
   icon,
 }: ActionProps<MessageTarget> & { action: OneAction; icon: React.ReactNode }) {
-  const gate = useMessageGate(clusterId, action);
+  const gate = useActionGate(clusterId, action);
   return (
     <ActionMenuItem
-      label={`${ONE[action].verb}…`}
+      label={`${VERBS[action].verb}…`}
       icon={icon}
       tone={action === 'delete' ? 'danger' : undefined}
       verdict={gate}
@@ -284,11 +214,11 @@ function OneMessageItem({
 }
 
 export const MoveMessage = (p: ActionProps<MessageTarget>) => (
-  <OneMessageItem {...p} action="move" icon={<IconArrowsRightLeft size={16} aria-hidden />} />
+  <OneMessageItem {...p} action="move" icon={<IconArrowsRightLeft size="1rem" aria-hidden />} />
 );
 export const RetryMessage = (p: ActionProps<MessageTarget>) => (
-  <OneMessageItem {...p} action="retry" icon={<IconArrowBackUp size={16} aria-hidden />} />
+  <OneMessageItem {...p} action="retry" icon={<IconArrowBackUp size="1rem" aria-hidden />} />
 );
 export const DeleteMessage = (p: ActionProps<MessageTarget>) => (
-  <OneMessageItem {...p} action="delete" icon={<IconTrash size={16} aria-hidden />} />
+  <OneMessageItem {...p} action="delete" icon={<IconTrash size="1rem" aria-hidden />} />
 );

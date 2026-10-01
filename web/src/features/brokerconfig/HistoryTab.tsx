@@ -1,6 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Anchor, Button, Group, Skeleton, Stack, Table, Text } from '@mantine/core';
-import { Link } from '@tanstack/react-router';
+import { useMemo, useState } from 'react';
+import { Stack, Text } from '@mantine/core';
 
 import {
   useBrokerConfigApplies,
@@ -8,57 +7,16 @@ import {
   useBrokerConfigRevisions,
   type ConfigCatalogueView,
   type ConfigDeclarationView,
-  type ConfigDocumentView,
   type ConfigRevisionView,
 } from './api.ts';
-import { absoluteLabel } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { DataTable } from '../../ui/table/index.ts';
 import { ApplyResult } from './ApplyResult.tsx';
-import classes from './Configuration.module.css';
-import { documentItems } from './pretty.ts';
-import { applyOutcomeWords } from './words.ts';
-
-/**
- * What changed between two documents, item by item and key by key: an item
- * added or removed is one row stating so; an item present in both lists only
- * the keys whose value differs, so the operator reads the change, not the JSON.
- */
-interface DiffRow {
-  item: string;
-  key: string;
-  left: string;
-  right: string;
-}
-
-const declaredLabel = (keys: number) => `declared (${keys} ${keys === 1 ? 'key' : 'keys'})`;
-
-/** An item declared on one side only is one row stating so. */
-function addedOrRemoved(item: string, l: unknown[] | undefined, r: unknown[] | undefined): DiffRow {
-  if (!l) return { item, key: '', left: 'not declared', right: declaredLabel(r!.length) };
-  return { item, key: '', left: declaredLabel(l.length), right: 'not declared' };
-}
-
-function diffDocuments(a: ConfigDocumentView, b: ConfigDocumentView, catalogue?: ConfigCatalogueView): DiffRow[] {
-  const left = documentItems(a, catalogue);
-  const right = documentItems(b, catalogue);
-  const out: DiffRow[] = [];
-  for (const item of [...new Set([...left.keys(), ...right.keys()])].sort((a, b) => a.localeCompare(b))) {
-    const l = left.get(item);
-    const r = right.get(item);
-    if (!l || !r) {
-      out.push(addedOrRemoved(item, l, r));
-      continue;
-    }
-    const lm = new Map(l.map((x) => [x.key, x.value]));
-    const rm = new Map(r.map((x) => [x.key, x.value]));
-    for (const key of [...new Set([...lm.keys(), ...rm.keys()])].sort((a, b) => a.localeCompare(b))) {
-      if (lm.get(key) !== rm.get(key)) {
-        out.push({ item, key, left: lm.get(key) ?? 'not declared', right: rm.get(key) ?? 'not declared' });
-      }
-    }
-  }
-  return out;
-}
+import { applyColumns, diffColumns, diffDocuments, revisionColumns, type DiffRow } from './historyColumns.tsx';
 
 function diffSummary(diff: DiffRow[], compared: number, current: number): string {
   if (diff.length === 0) return `Revision ${compared} and revision ${current} declare the same thing.`;
@@ -72,105 +30,25 @@ function CompareDiff({
   compare,
   current,
 }: Readonly<{ diff: DiffRow[]; compare: ConfigRevisionView; current: number }>) {
+  const columns = useMemo(() => diffColumns(compare.revision, current), [compare.revision, current]);
   return (
-    <Stack gap={4}>
-      <Text size="xs" c="dimmed">
+    <Section headingLevel={3} title={`Revision ${compare.revision} compared with revision ${current}`}>
+      <Text size="sm" c="dimmed" role="status">
         {diffSummary(diff, compare.revision, current)}
       </Text>
       {diff.length > 0 ? (
-        <Table fz="xs" verticalSpacing={4} withTableBorder>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Item</Table.Th>
-              <Table.Th>Key</Table.Th>
-              <Table.Th>Revision {compare.revision}</Table.Th>
-              <Table.Th>Revision {current}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {diff.map((d, i) => (
-              <Table.Tr key={`${d.item}/${d.key}`}>
-                {/* The item is named once per group, the way a reader scans a diff. */}
-                <Table.Td>{i === 0 || diff[i - 1].item !== d.item ? d.item : ''}</Table.Td>
-                <Table.Td className={classes.kvKey}>{d.key}</Table.Td>
-                <Table.Td className={classes.compare}>{d.left}</Table.Td>
-                <Table.Td className={classes.compare}>{d.right}</Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+        <DataTable
+          variant="static"
+          label={`Revision ${compare.revision} compared with revision ${current}`}
+          columns={columns}
+          data={diff}
+          rowKey={(d) => d.id}
+          storageKey="brokerconfig.history.diff"
+          height={{ maxRows: diff.length }}
+          empty={null}
+        />
       ) : null}
-    </Stack>
-  );
-}
-
-type Applies = NonNullable<ReturnType<typeof useBrokerConfigApplies>['data']>;
-
-/** What stands in for the applies table while it loads or when nothing was ever applied. */
-function appliesNotice(applies: ReturnType<typeof useBrokerConfigApplies>): ReactNode {
-  if (applies.isPending) return <Skeleton height={60} />;
-  if ((applies.data ?? []).length === 0) {
-    return (
-      <Text size="xs" c="dimmed">
-        Nothing has been applied or previewed yet.
-      </Text>
-    );
-  }
-  return null;
-}
-
-function AppliesTable({
-  applies,
-  clusterId,
-  openApply,
-  onToggle,
-}: Readonly<{ applies: Applies; clusterId: string; openApply: number | null; onToggle: (id: number) => void }>) {
-  return (
-    <Table fz="xs" verticalSpacing={4}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Started</Table.Th>
-          <Table.Th>Outcome</Table.Th>
-          <Table.Th>Summary</Table.Th>
-          <Table.Th>By</Table.Th>
-          <Table.Th />
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {applies.map((a) => {
-          const words = applyOutcomeWords(a.outcome);
-          return (
-            <Table.Tr key={a.id}>
-              <Table.Td className={classes.compare}>{absoluteLabel(a.startedAt)}</Table.Td>
-              <Table.Td>
-                <Text size="xs" className={classes.state} data-tone={words.tone}>
-                  {words.text}
-                </Text>
-              </Table.Td>
-              <Table.Td>{a.summary ?? ''}</Table.Td>
-              <Table.Td>{a.actor}</Table.Td>
-              <Table.Td className={classes.actionCell}>
-                <Group gap="xs" justify="flex-end" wrap="nowrap">
-                  {a.auditEventId != null ? (
-                    <Anchor component={Link} to={`/clusters/${clusterId}/audit?action=APPLY_BROKER_CONFIG`} size="xs">
-                      audit
-                    </Anchor>
-                  ) : null}
-                  <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    onClick={() => onToggle(a.id)}
-                    aria-expanded={openApply === a.id}
-                  >
-                    {openApply === a.id ? 'Hide' : 'Details'}
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          );
-        })}
-      </Table.Tbody>
-    </Table>
+    </Section>
   );
 }
 
@@ -182,7 +60,7 @@ export function HistoryTab({
   declaration: ConfigDeclarationView;
   catalogue?: ConfigCatalogueView;
 }>) {
-  useDisplayZone();
+  const zone = useDisplayZone();
   const revisions = useBrokerConfigRevisions(declaration.clusterId);
   const applies = useBrokerConfigApplies(declaration.clusterId);
   const [compare, setCompare] = useState<ConfigRevisionView | null>(null);
@@ -192,87 +70,100 @@ export function HistoryTab({
   const current = revisions.data?.find((r) => r.revision === declaration.revision);
   const diff = compare && current ? diffDocuments(compare.document, current.document, catalogue) : [];
 
-  return (
-    <Stack gap="lg">
-      <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Revisions
-        </Text>
-        {revisions.isPending ? (
-          <Skeleton height={60} />
-        ) : (
-          <Table fz="xs" verticalSpacing={4}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Revision</Table.Th>
-                <Table.Th>Saved</Table.Th>
-                <Table.Th>By</Table.Th>
-                <Table.Th>Source</Table.Th>
-                <Table.Th>Note</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {(revisions.data ?? []).map((r) => (
-                <Table.Tr key={r.revision}>
-                  <Table.Td className={classes.compare}>{r.revision}</Table.Td>
-                  <Table.Td className={classes.compare}>{absoluteLabel(r.createdAt)}</Table.Td>
-                  <Table.Td>{r.createdBy}</Table.Td>
-                  <Table.Td>{r.source.toLowerCase().replaceAll('_', ' ')}</Table.Td>
-                  <Table.Td>{r.note ?? ''}</Table.Td>
-                  <Table.Td className={classes.actionCell}>
-                    {r.revision !== declaration.revision ? (
-                      <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        onClick={() => setCompare((c) => (c?.revision === r.revision ? null : r))}
-                        aria-expanded={compare?.revision === r.revision}
-                      >
-                        {compare?.revision === r.revision ? 'Hide comparison' : 'Compare with current'}
-                      </Button>
-                    ) : (
-                      <Text size="xs" c="dimmed">
-                        current
-                      </Text>
-                    )}
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-        {compare ? <CompareDiff diff={diff} compare={compare} current={declaration.revision} /> : null}
-      </Stack>
+  const revisionCols = useMemo(
+    () =>
+      revisionColumns(zone, declaration.revision, compare?.revision, (r) =>
+        setCompare((c) => (c?.revision === r.revision ? null : r)),
+      ),
+    [zone, declaration.revision, compare?.revision],
+  );
+  const applyCols = useMemo(
+    () => applyColumns(zone, declaration.clusterId, openApply, (id) => setOpenApply((o) => (o === id ? null : id))),
+    [zone, declaration.clusterId, openApply],
+  );
 
-      <Stack gap="xs">
-        <Text size="sm" fw={600}>
-          Applies
-        </Text>
-        {appliesNotice(applies) ?? (
-          <AppliesTable
-            applies={applies.data ?? []}
-            clusterId={declaration.clusterId}
-            openApply={openApply}
-            onToggle={(id) => setOpenApply((o) => (o === id ? null : id))}
-          />
+  // Both lists arrive before either is drawn: a table that loads on its own and then shrinks to its few
+  // rows would pull the section below it up the page.
+  if (revisions.isPending || applies.isPending) {
+    return <LoadingState label="Loading the history" blockSize="24rem" />;
+  }
+
+  return (
+    <Stack gap="xl">
+      <Section
+        title="Revisions"
+        description="Every saved revision of the declaration, newest first, with who saved it and from where."
+      >
+        <DataTable
+          variant="static"
+          label="Revisions"
+          columns={revisionCols}
+          data={revisions.data ?? []}
+          rowKey={(r) => String(r.revision)}
+          storageKey="brokerconfig.history.revisions"
+          height={{ maxRows: 12 }}
+          error={
+            revisions.isError ? (
+              <ErrorState error={revisions.error} onRetry={() => void revisions.refetch()} />
+            ) : undefined
+          }
+          empty={
+            <EmptyState
+              kind="empty"
+              title="No revision has been saved yet"
+              description="A revision is one saved copy of the declaration. Adopt what the cluster runs, import broker.xml or add an entry, and the first one is saved."
+            />
+          }
+        />
+        {compare ? <CompareDiff diff={diff} compare={compare} current={declaration.revision} /> : null}
+      </Section>
+
+      <Section
+        title="Applies"
+        description="Every preview and apply of the declaration, newest first, with how it ended."
+      >
+        <DataTable
+          variant="static"
+          label="Applies"
+          columns={applyCols}
+          data={applies.data ?? []}
+          rowKey={(a) => String(a.id)}
+          storageKey="brokerconfig.history.applies"
+          height={{ maxRows: 12 }}
+          error={
+            applies.isError ? <ErrorState error={applies.error} onRetry={() => void applies.refetch()} /> : undefined
+          }
+          empty={
+            <EmptyState
+              kind="empty"
+              title="Nothing has been applied or previewed yet."
+              description="An apply writes the declaration to the live nodes, canary first; a preview plans one without writing. Each is listed here once it has run."
+            />
+          }
+        />
+        {openApply === null ? null : (
+          <Section headingLevel={3} title={`Apply ${openApply}`}>
+            {detail.isError ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} /> : null}
+            {detail.isPending ? <LoadingState label="Loading the apply" blockSize="8rem" /> : null}
+            {detail.data ? (
+              <ApplyResult
+                outcome={{
+                  applyId: detail.data.apply.id,
+                  dryRun: detail.data.apply.dryRun,
+                  outcome: detail.data.apply.outcome,
+                  revision: declaration.revision,
+                  plan: detail.data.plan,
+                  nodes: detail.data.nodes,
+                  stepCap: 0,
+                  overCap: false,
+                  summary: detail.data.apply.summary ?? '',
+                  auditEventId: detail.data.apply.auditEventId,
+                }}
+              />
+            ) : null}
+          </Section>
         )}
-        {openApply !== null && detail.data ? (
-          <ApplyResult
-            outcome={{
-              applyId: detail.data.apply.id,
-              dryRun: detail.data.apply.dryRun,
-              outcome: detail.data.apply.outcome,
-              revision: declaration.revision,
-              plan: detail.data.plan,
-              nodes: detail.data.nodes,
-              stepCap: 0,
-              overCap: false,
-              summary: detail.data.apply.summary ?? '',
-              auditEventId: detail.data.apply.auditEventId,
-            }}
-          />
-        ) : null}
-      </Stack>
+      </Section>
     </Stack>
   );
 }

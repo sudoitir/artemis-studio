@@ -30,3 +30,38 @@
 .main:has([data-fill]) {
   block-size: 100dvh;
 }
+
+/* The header is one line that never wraps: when the window is narrow (or zoomed) the brand side
+   shrinks and truncates, so a word changing in the freshness state cannot reflow the band. */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-xs);
+  block-size: 100%;
+  padding-inline: var(--mantine-spacing-md);
+}
+
+.headerStart {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.headerStart > * {
+  flex: none;
+}
+
+.headerStart > :global(.mantine-Text-root) {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+}
+
+.headerEnd {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+}

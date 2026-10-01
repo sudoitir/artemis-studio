@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentType } from 'react';
@@ -370,5 +370,42 @@ describe('RoutingView tabs', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Diverts' }));
     expect(lastSearch({ q: 'x' })).toEqual({ tab: undefined });
+  });
+});
+
+describe('RoutingView page structure', () => {
+  it('is one page whose single h1 names the view, with the tabs under it', async () => {
+    serve({ diverts: [divert()] });
+    renderWithProviders(<RoutingView />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Routing' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('tab', { name: 'Diverts' })).toBeInTheDocument();
+  });
+
+  it('keeps the page header above a contributed tab', async () => {
+    search = { tab: 'builder' };
+    renderWithProviders(<RoutingView />);
+
+    expect(await screen.findByText('builder body')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Routing' })).toBeInTheDocument();
+  });
+
+  it('puts the page position in the table toolbar, not below the table', async () => {
+    serve({ diverts: [divert()] });
+    renderWithProviders(<RoutingView />);
+
+    const controls = await screen.findByRole('group', { name: 'Diverts controls' });
+    expect(await within(controls).findByText('1–1 of 1 diverts')).toBeInTheDocument();
+  });
+
+  it('does not say there are no diverts while the first page is still loading', async () => {
+    serve();
+    server.use(http.get('*/api/v1/clusters/c1/diverts', async () => delay('infinite')));
+    renderWithProviders(<RoutingView />);
+
+    await screen.findByRole('grid', { name: 'Diverts' });
+    expect(screen.queryByText(/^No diverts$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('No diverts yet')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
 
 import { manifestHandler } from '../../test/manifest.ts';
@@ -39,6 +40,27 @@ describe('FeatureGate', () => {
       </FeatureGate>,
     );
 
+    expect(await screen.findByText('console')).toBeInTheDocument();
+  });
+
+  it("holds the view's place with a named loading state while the manifest loads", async () => {
+    let answer: () => void = () => {};
+    server.use(
+      http.get('*/api/v1/manifest', async () => {
+        await new Promise<void>((resolve) => (answer = resolve));
+        return HttpResponse.json({ contract: 1, version: '1', safeMode: false, features: [] });
+      }),
+    );
+    renderWithProviders(
+      <FeatureGate feature="sql">
+        <p>console</p>
+      </FeatureGate>,
+    );
+
+    const loading = await screen.findByRole('status');
+    expect(loading).toHaveTextContent('Loading the page');
+    expect(loading.getAttribute('style')).toContain('24rem');
+    answer();
     expect(await screen.findByText('console')).toBeInTheDocument();
   });
 });

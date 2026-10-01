@@ -1,56 +1,49 @@
 import { useState } from 'react';
-import { ActionIcon, Alert, CopyButton, Group, SegmentedControl, Stack, Table, Text, TextInput } from '@mantine/core';
+import { ActionIcon, CopyButton, SegmentedControl, Stack, Text, TextInput, VisuallyHidden } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 
-import { useTokenUsage, type TokenView, type UsagePeriod } from './api.ts';
-import { serverNow } from '../../kernel/time/time.ts';
-
-const NUMERIC = { fontVariantNumeric: 'tabular-nums' } as const;
-
-/** Revoked, expired or active, in words; colour only where something is wrong. */
-export function TokenStatus({ token }: Readonly<{ token: TokenView }>) {
-  if (token.revokedAt) {
-    return (
-      <Text size="xs" fw={600} c="red">
-        Revoked
-      </Text>
-    );
-  }
-  if (Date.parse(token.expiresAt) < serverNow()) {
-    return (
-      <Text size="xs" fw={600} c="red">
-        Expired
-      </Text>
-    );
-  }
-  return <Text size="xs">Active</Text>;
-}
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { FieldRow } from '../../ui/FieldRow.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Stat } from '../../ui/Stat.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import { useTokenUsage, type UsagePeriod } from './api.ts';
+import { usageColumns } from './columns.ts';
+import classes from './TokenParts.module.css';
 
 /** A secret disclosed once, at minting or rotation, with a copy control. */
 export function OneTimeSecret({ value, note }: Readonly<{ value: string; note?: string }>) {
   return (
     <Stack gap="sm">
-      <Alert color="yellow">This value is shown once. Copy it now — it cannot be retrieved again.</Alert>
+      <div>
+        <StatusBadge tone="warning">Shown once</StatusBadge>
+        <Text size="sm">This value is shown once. Copy it now — it cannot be retrieved again.</Text>
+      </div>
       {note ? <Text size="sm">{note}</Text> : null}
-      <Group>
-        <TextInput
-          value={value}
-          readOnly
-          style={{ flex: 1 }}
-          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
-          aria-label="API key"
-        />
+      <FieldRow>
+        <TextInput classNames={{ input: classes.secret }} value={value} readOnly aria-label="API key" />
         <CopyButton value={value}>
           {({ copy, copied }) => (
-            <ActionIcon onClick={copy} aria-label={copied ? 'Copied' : 'Copy key'}>
-              <IconCopy size={16} />
-            </ActionIcon>
+            <>
+              <ActionIcon onClick={copy} aria-label="Copy key">
+                <IconCopy size="1rem" aria-hidden />
+              </ActionIcon>
+              <VisuallyHidden role="status">{copied ? 'Key copied' : ''}</VisuallyHidden>
+            </>
           )}
         </CopyButton>
-      </Group>
+      </FieldRow>
     </Stack>
   );
 }
+
+const PERIODS = [
+  { value: '1', label: 'Today' },
+  { value: '7', label: '7 days' },
+  { value: '30', label: '30 days' },
+];
 
 /** One token's requests per day over the chosen period, with denials, limits and errors. */
 export function TokenUsagePanel({ scope, tokenId }: Readonly<{ scope: 'own' | 'admin'; tokenId: string }>) {
@@ -58,17 +51,13 @@ export function TokenUsagePanel({ scope, tokenId }: Readonly<{ scope: 'own' | 'a
   const usage = useTokenUsage(scope, tokenId, days);
 
   return (
-    <Stack gap="sm">
+    <Stack gap="md">
       <SegmentedControl
         size="xs"
         aria-label="Period"
         value={String(days)}
         onChange={(v) => setDays(Number(v) as UsagePeriod)}
-        data={[
-          { value: '1', label: 'Today' },
-          { value: '7', label: '7 days' },
-          { value: '30', label: '30 days' },
-        ]}
+        data={PERIODS}
       />
       <UsageBody usage={usage} />
     </Stack>
@@ -77,77 +66,33 @@ export function TokenUsagePanel({ scope, tokenId }: Readonly<{ scope: 'own' | 'a
 
 function UsageBody({ usage }: Readonly<{ usage: ReturnType<typeof useTokenUsage> }>) {
   if (usage.isError) {
-    return (
-      <Alert color="red" title="Usage could not be loaded">
-        <Text size="sm">{usage.error.message}</Text>
-        <Text size="sm">Try again, or check that you still hold the permission to see this key.</Text>
-      </Alert>
-    );
+    return <ErrorState error={usage.error} onRetry={() => void usage.refetch()} />;
   }
   if (usage.isPending) {
-    return (
-      <Text size="sm" c="dimmed">
-        Loading usage…
-      </Text>
-    );
+    return <LoadingState label="Loading usage" blockSize="14rem" />;
   }
   return (
-    <>
-      <Group gap="lg" aria-live="polite">
-        <Figure label="Requests" value={usage.data.requests} />
-        <Figure label="Denied" value={usage.data.denied} />
-        <Figure label="Rate limited" value={usage.data.limited} />
-        <Figure label="Errors" value={usage.data.errors} />
-      </Group>
-      {usage.data.perDay.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          No requests in this period. Counts appear within a minute of a key being used.
-        </Text>
-      ) : (
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Day (UTC)</Table.Th>
-              <Table.Th ta="end">Requests</Table.Th>
-              <Table.Th ta="end">Denied</Table.Th>
-              <Table.Th ta="end">Rate limited</Table.Th>
-              <Table.Th ta="end">Errors</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {usage.data.perDay.map((d) => (
-              <Table.Tr key={d.day}>
-                <Table.Td style={NUMERIC}>{d.day}</Table.Td>
-                <Table.Td ta="end" style={NUMERIC}>
-                  {d.requests}
-                </Table.Td>
-                <Table.Td ta="end" style={NUMERIC}>
-                  {d.denied}
-                </Table.Td>
-                <Table.Td ta="end" style={NUMERIC}>
-                  {d.limited}
-                </Table.Td>
-                <Table.Td ta="end" style={NUMERIC}>
-                  {d.errors}
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
-    </>
-  );
-}
-
-function Figure({ label, value }: Readonly<{ label: string; value: number }>) {
-  return (
-    <Stack gap={0}>
-      <Text size="xs" c="dimmed">
-        {label}
-      </Text>
-      <Text size="lg" fw={600} style={NUMERIC}>
-        {value}
-      </Text>
+    <Stack gap="md">
+      <div className={classes.figures} aria-live="polite">
+        <Stat label="Requests" value={usage.data.requests} />
+        <Stat label="Denied" value={usage.data.denied} />
+        <Stat label="Rate limited" value={usage.data.limited} />
+        <Stat label="Errors" value={usage.data.errors} />
+      </div>
+      <DataTable
+        variant="static"
+        label="Requests per day"
+        columns={usageColumns()}
+        data={usage.data.perDay}
+        rowKey={(d) => d.day}
+        empty={
+          <EmptyState
+            kind="empty"
+            title="No requests in this period"
+            description="Counts appear within a minute of a key being used."
+          />
+        }
+      />
     </Stack>
   );
 }

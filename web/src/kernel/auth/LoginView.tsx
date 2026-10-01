@@ -1,20 +1,13 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Center,
-  Divider,
-  Paper,
-  PasswordInput,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
+import { Button, Divider, Paper, PasswordInput, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useForm, type UseFormReturnType } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 
 import { branding } from '../../branding.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { ApiError, SESSION_ENDED_REASON } from '../api/request.ts';
 import {
   useAuthProviders,
@@ -24,8 +17,11 @@ import {
   type MeView,
   type SecondFactorMethod,
 } from './api.ts';
+import classes from './LoginView.module.css';
 import { SecondFactorForm, type Restart } from './SecondFactorForm.tsx';
 import { bootState } from '../plugins/boot.ts';
+
+type Credentials = { username: string; password: string };
 
 /**
  * The login screen, built only from the installation's identity providers
@@ -36,8 +32,14 @@ import { bootState } from '../plugins/boot.ts';
  * once its password is right (ADR-0143); nothing is signed in before it.
  */
 export function LoginView() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const form = useForm<Credentials>({
+    initialValues: { username: '', password: '' },
+    validateInputOnBlur: true,
+    validate: {
+      username: (v) => (v.trim() ? null : 'Enter your username.'),
+      password: (v) => (v ? null : 'Enter your password.'),
+    },
+  });
   const [provider, setProvider] = useState<string | null>(null);
   const [secondStep, setSecondStep] = useState<{ methods: SecondFactorMethod[]; trustDeviceDays: number } | null>(null);
   const [restart, setRestart] = useState<Restart | null>(null);
@@ -66,8 +68,7 @@ export function LoginView() {
     if (result.me) finish(result.me);
   }
 
-  function onSubmit(e: React.SubmitEvent) {
-    e.preventDefault();
+  const onSubmit = form.onSubmit(({ username, password }) => {
     setRestart(null);
     login.mutate(
       { provider: chosen, username, password },
@@ -81,38 +82,47 @@ export function LoginView() {
         },
       },
     );
-  }
+  }, focusFirstInvalid(form.getInputNode));
 
   function backToPassword(why: Restart | null) {
     setSecondStep(null);
     setReturned(true);
-    setPassword('');
+    form.setFieldValue('password', '');
+    form.clearFieldError('password');
     setRestart(why);
     login.reset();
   }
 
   return (
-    <Center mih="100vh" bg="var(--as-bg)">
-      <Paper w={360} p="xl" radius="md" withBorder>
-        <Stack gap="md">
-          <Stack gap={2}>
-            <Title order={3}>{branding.productName}</Title>
-            <Text size="sm" c="dimmed">
-              {secondStep ? 'Two-step verification' : 'Sign in to continue'}
-            </Text>
-          </Stack>
+    <main className={classes.screen}>
+      <Paper p="xl" radius="md" withBorder className={classes.card}>
+        <Page>
+          <PageHeader
+            title={secondStep ? 'Two-step verification' : 'Sign in'}
+            meta={branding.productName}
+            description={secondStep ? 'Confirm it is you with a second step.' : 'Sign in to continue.'}
+          />
 
           {sessionEnded ? (
-            <Alert color="gray" title="You were signed out" role="status">
-              Your session ended after a period of inactivity, reached its maximum length, or was ended from another
-              device or by an administrator. Sign in again to continue.
-            </Alert>
+            <output className={classes.notice}>
+              <Text size="sm" className={classes.title}>
+                You were signed out
+              </Text>
+              <Text size="sm">
+                Your session ended after a period of inactivity, reached its maximum length, or was ended from another
+                device or by an administrator. Sign in again to continue.
+              </Text>
+            </output>
           ) : null}
 
           {restart ? (
-            <Alert color={restart.failed ? 'red' : 'gray'} role={restart.failed ? 'alert' : 'status'}>
+            <Text
+              size="sm"
+              role={restart.failed ? 'alert' : 'status'}
+              className={restart.failed ? classes.failure : classes.notice}
+            >
               {restart.message}
-            </Alert>
+            </Text>
           ) : null}
 
           {secondStep ? (
@@ -126,52 +136,43 @@ export function LoginView() {
           ) : (
             <FirstStep
               providers={providers.data}
-              loadFailed={providers.isError}
+              loadError={providers.isError ? providers.error : null}
               onRetry={() => void providers.refetch()}
               chosen={chosen}
               onProvider={setProvider}
-              username={username}
-              onUsername={setUsername}
-              password={password}
-              onPassword={setPassword}
+              form={form}
               returned={returned}
               login={login}
               onSubmit={onSubmit}
             />
           )}
-        </Stack>
+        </Page>
       </Paper>
-    </Center>
+    </main>
   );
 }
 
 /** The password form, when a credential provider exists, and one sign-in action per redirect provider. */
 function FirstStep({
   providers,
-  loadFailed,
+  loadError,
   onRetry,
   chosen,
   onProvider,
-  username,
-  onUsername,
-  password,
-  onPassword,
+  form,
   returned,
   login,
   onSubmit,
 }: Readonly<{
   providers: IdentityProviderView[] | undefined;
-  loadFailed: boolean;
+  loadError: ApiError | null;
   onRetry: () => void;
   chosen: string | null;
   onProvider: (provider: string | null) => void;
-  username: string;
-  onUsername: (username: string) => void;
-  password: string;
-  onPassword: (password: string) => void;
+  form: UseFormReturnType<Credentials>;
   returned: boolean;
   login: ReturnType<typeof useLogin>;
-  onSubmit: (e: React.SubmitEvent) => void;
+  onSubmit: (e?: React.SyntheticEvent<HTMLFormElement>) => void;
 }>) {
   const credential = (providers ?? []).filter((p) => p.kind === 'CREDENTIAL');
   const redirect = (providers ?? []).filter((p) => p.kind === 'REDIRECT');
@@ -179,20 +180,16 @@ function FirstStep({
   const showForm = !listed || credential.length > 0;
   return (
     <>
-      {loadFailed ? (
-        <Alert color="yellow" title="Could not load the sign-in methods" role="alert">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">
-              Password sign-in is still offered. Every other way to sign in is missing until this loads.
-            </Text>
-            <Button size="xs" variant="light" onClick={onRetry}>
-              Retry
-            </Button>
-          </Stack>
-        </Alert>
+      {loadError ? (
+        <>
+          <ErrorState variant="inline" error={loadError} onRetry={onRetry} />
+          <Text size="sm">
+            Password sign-in is still offered. Every other way to sign in is missing until this loads.
+          </Text>
+        </>
       ) : null}
       {showForm ? (
-        <form onSubmit={onSubmit}>
+        <form noValidate onSubmit={onSubmit}>
           <Stack gap="sm">
             {credential.length > 1 ? (
               <Select
@@ -206,21 +203,23 @@ function FirstStep({
             <TextInput
               label="Username"
               autoFocus={!returned}
-              value={username}
-              onChange={(e) => onUsername(e.currentTarget.value)}
+              {...form.getInputProps('username')}
               autoComplete="username"
               required
             />
             <PasswordInput
               label="Password"
-              value={password}
-              onChange={(e) => onPassword(e.currentTarget.value)}
+              {...form.getInputProps('password')}
               autoComplete="current-password"
               autoFocus={returned}
               required
             />
-            {login.isError ? <Alert color="red">{loginErrorMessage(login.error)}</Alert> : null}
-            <Button type="submit" loading={login.isPending} fullWidth mt="xs">
+            {login.isError ? (
+              <Text size="sm" role="alert" className={classes.failure}>
+                {loginErrorMessage(login.error)}
+              </Text>
+            ) : null}
+            <Button type="submit" loading={login.isPending} fullWidth>
               Sign in
             </Button>
           </Stack>
@@ -241,10 +240,10 @@ function FirstStep({
       ) : null}
 
       {listed && !showForm && redirect.length === 0 ? (
-        <Alert color="yellow">
+        <Text size="sm" role="status" className={classes.notice} data-tone="warning">
           No sign-in method is configured on this installation. An administrator needs to enable local login or
           configure an identity provider.
-        </Alert>
+        </Text>
       ) : null}
     </>
   );
@@ -257,7 +256,8 @@ function landingFor(me: MeView): string {
   return '/';
 }
 
+/** A refused attempt says what happened and what to do; it never says which of the two was wrong. */
 function loginErrorMessage(error: ApiError): string {
-  if (error.status === 429) return 'Too many attempts. Try again in a moment.';
-  return 'Invalid username or password.';
+  if (error.status === 429) return 'Too many attempts. Wait a moment, then try again.';
+  return 'Invalid username or password. Check both and try again.';
 }

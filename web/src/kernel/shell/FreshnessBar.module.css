@@ -47,6 +47,13 @@
   white-space: nowrap;
 }
 
+/* The state word keeps the width of the longest everyday one ("Polling", "Offline"), so the
+   controls beside it hold still when the stream connects and "Polling" becomes "Live". The rare
+   "Reconnecting…" may still push them; reserving for it left a gap after every "Live". */
+.state {
+  min-inline-size: 7ch;
+}
+
 /* The elapsed label changes every second ("updated 9s ago" becomes "10s"), so it
    reserves its track; without one the whole toolbar shifts a few pixels once a
    second. The state word is not reserved: it changes only on a transition, and a

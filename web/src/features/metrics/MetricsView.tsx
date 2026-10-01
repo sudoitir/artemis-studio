@@ -1,57 +1,87 @@
-import { useMemo } from 'react';
-import { Alert, Anchor, Badge, Group, Spoiler, Stack, Switch, Text, Title } from '@mantine/core';
+import { useId, useMemo, useState, type ReactNode } from 'react';
+import { Button, Switch, Text } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { useMetrics, type MetricSeries } from './api.ts';
-import { useServerNow } from '../../kernel/time/time.ts';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+
+import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
 import { rangeSpec, type MetricRange } from './ranges.ts';
 import { RangePicker } from './RangePicker.tsx';
 import { ChartPanel } from '../../kernel/metrics/ChartPanel.tsx';
 import { DepthChart } from './DepthChart.tsx';
 import { ThroughputChart } from './ThroughputChart.tsx';
 import { ConsumersChart } from './ConsumersChart.tsx';
-import { MetricsTable } from './MetricsTable.tsx';
+import { MetricsTable, type WindowMetric } from './MetricsTable.tsx';
 import { NodeSplitCharts } from './NodeSplitPanels.tsx';
-import { StatRow, type Stat } from './StatRow.tsx';
+import { StatRow, type Figure } from './StatRow.tsx';
 import { earliest, formatCount, formatExact, formatRate, latest } from '../../kernel/metrics/axis.ts';
 import { useSlot } from '../../kernel/slots.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Section } from '../../ui/Section.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 
 const METRICS = ['messageCount', 'consumerCount', 'messagesAdded', 'messagesAcked'];
 
-/** The note that the series cover one queue, with the way back to the cluster and the per-node split. */
-function QueueScope({ subject, split }: Readonly<{ subject: string; split: boolean }>) {
+/** The controls for a queue-scoped view: the way back to the cluster, and the per-node split. */
+function QueueScope({ split }: Readonly<{ split: boolean }>) {
   const navigate = useNavigate();
   return (
-    <>
-      <Alert color="gray" variant="light" title="Scoped to one queue">
-        These series cover <strong>{subject}</strong> only.{' '}
-        <Anchor
-          component="button"
-          type="button"
-          onClick={() =>
-            navigate({
-              to: '.',
-              search: (prev: Record<string, unknown>) => ({ ...prev, subject: undefined, split: undefined }),
-            })
-          }
-        >
-          Show the whole cluster
-        </Anchor>
-        .
-      </Alert>
-      <Switch
-        label="Break down by broker node"
-        checked={split}
-        onChange={(event) => {
-          const on = event.currentTarget.checked;
-          void navigate({
-            to: '.',
-            search: (prev: Record<string, unknown>) => ({ ...prev, split: on ? 'node' : undefined }),
-          });
-        }}
-      />
-    </>
+    <Toolbar
+      label="Queue scope"
+      start={
+        <>
+          <Button
+            size="xs"
+            variant="default"
+            onClick={() =>
+              navigate({
+                to: '.',
+                search: (prev: Record<string, unknown>) => ({ ...prev, subject: undefined, split: undefined }),
+              })
+            }
+          >
+            Show the whole cluster
+          </Button>
+          <Switch
+            label="Break down by broker node"
+            checked={split}
+            onChange={(event) => {
+              const on = event.currentTarget.checked;
+              void navigate({
+                to: '.',
+                search: (prev: Record<string, unknown>) => ({ ...prev, split: on ? 'node' : undefined }),
+              });
+            }}
+          />
+        </>
+      }
+    />
   );
+}
+
+/**
+ * What the window is, in one line that is always present: so the line is there while the first read
+ * is pending, and the charts beneath it do not move when a note arrives.
+ */
+dayjs.extend(duration);
+
+/** A bucket width as the console writes durations ("5m"), from the ISO-8601 step the server sends ("PT5M"). */
+function bucketLabel(step: string): string {
+  return elapsedLabel(dayjs.duration(step).asMilliseconds());
+}
+
+function windowNote(pending: boolean, data: { truncated?: boolean; step?: string } | undefined): string {
+  if (pending) return 'Reading the window…';
+  if (data?.truncated) {
+    // One line at desktop widths, so the toolbar keeps its height and the charts below do not move.
+    return `Window adjusted to ${bucketLabel(data.step ?? '')} buckets, the finest this cluster's retention allows.`;
+  }
+  return data?.step ? `Each point is a ${bucketLabel(data.step)} bucket.` : '';
 }
 
 /** A table cell in the unit of its column: depth as a count, consumers exactly, the rest as rates. */
@@ -136,7 +166,7 @@ export function MetricsView() {
   const empty = (s: MetricSeries | undefined) => !error && !isPending && !s?.points?.length;
   const scope = subject ? `queue ${subject}` : 'this cluster';
 
-  const stats: Stat[] = [
+  const figures: Figure[] = [
     { label: 'Depth', unit: 'messages', value: latest(depth), since: earliest(depth), format: formatCount },
     { label: 'Added', unit: 'msg/s', value: latest(added), since: earliest(added), format: formatRate },
     { label: 'Acked', unit: 'msg/s', value: latest(acked), since: earliest(acked), format: formatRate },
@@ -149,30 +179,45 @@ export function MetricsView() {
     },
   ];
 
+  const windowMetrics = useMemo(
+    () => [
+      { name: 'depth', label: 'Depth', series: depth },
+      { name: 'added', label: 'Added (msg/s)', series: added },
+      { name: 'acked', label: 'Acked (msg/s)', series: acked },
+      { name: 'consumers', label: 'Consumers', series: consumers },
+    ],
+    [depth, added, acked, consumers],
+  );
+
   return (
-    <Stack gap="lg">
-      <Group justify="space-between" align="center">
-        <Group gap="sm" align="center">
-          <Title order={3}>Metrics</Title>
-          {subject ? (
-            <Badge variant="light" tt="none">
-              {subject}
-            </Badge>
-          ) : null}
-        </Group>
-        <RangePicker />
-      </Group>
+    <Page>
+      <PageHeader
+        title="Metrics"
+        description={
+          subject ? (
+            <>
+              These series cover <strong>{subject}</strong> only.
+            </>
+          ) : (
+            "Depth, throughput and consumers over time, from Studio's own samples of this cluster."
+          )
+        }
+        meta={subject ? <StatusBadge tone="info">{subject}</StatusBadge> : undefined}
+      />
 
-      {subject ? <QueueScope subject={subject} split={split} /> : null}
+      {subject ? <QueueScope split={split} /> : null}
 
-      {metrics.data?.truncated ? (
-        <Alert color="gray" variant="light" title="Window adjusted">
-          The requested resolution or range was wider than this cluster's retention or sampling cadence allows; the
-          charts below show the {metrics.data.step} bucket Studio actually used.
-        </Alert>
-      ) : null}
+      <Toolbar
+        label="Metrics window"
+        start={<RangePicker />}
+        end={
+          <Text size="sm" role="status">
+            {windowNote(isPending, metrics.data)}
+          </Text>
+        }
+      />
 
-      <StatRow stats={stats} />
+      <StatRow figures={figures} loading={isPending} />
 
       <ChartPanel
         title="Depth"
@@ -208,33 +253,57 @@ export function MetricsView() {
       </ChartPanel>
 
       {split && metrics.data && !error ? (
-        <Stack gap="xs">
-          <Title order={4}>Per broker node</Title>
-          <Text size="sm" c="dimmed">
-            One chart per node, on one scale, so a node's share is read by comparing heights. The nodes add up to the
-            totals above.
-          </Text>
+        <Section
+          title="Per broker node"
+          description="One chart per node, on one scale, so a node's share is read by comparing heights. The nodes add up to the totals above."
+        >
           <NodeSplitCharts response={metrics.data} range={range} from={fromMs} to={toMs} syncId={syncId} />
-        </Stack>
+        </Section>
       ) : null}
 
-      {error || isPending ? null : (
-        <Spoiler maxHeight={0} showLabel="Show this window as a table" hideLabel="Hide the table">
-          <MetricsTable
-            columns={[
-              { name: 'depth', label: 'Depth', series: depth },
-              { name: 'added', label: 'Added (msg/s)', series: added },
-              { name: 'acked', label: 'Acked (msg/s)', series: acked },
-              { name: 'consumers', label: 'Consumers', series: consumers },
-            ]}
-            format={formatCell}
-          />
-        </Spoiler>
-      )}
+      <WindowTable pending={isPending} failed={error !== null} metrics={windowMetrics} />
 
       {panels.map(({ id, Component }) => (
         <Component key={id} clusterId={clusterId} />
       ))}
-    </Stack>
+    </Page>
+  );
+}
+
+/**
+ * The window as a table, behind a disclosure: the plots are the way in, and the table is for the
+ * operator who needs an exact value or cannot read a plot. Its section is always there, so opening
+ * it never moves what is below.
+ */
+function WindowTable({
+  pending,
+  failed,
+  metrics,
+}: Readonly<{ pending: boolean; failed: boolean; metrics: WindowMetric[] }>) {
+  const [shown, setShown] = useState(false);
+  const bodyId = useId();
+  let body: ReactNode = null;
+  if (shown) {
+    if (pending) body = <LoadingState label="Loading the window" blockSize="12rem" />;
+    else if (failed) body = <Text size="sm">The window could not be read, so there are no buckets to list.</Text>;
+    else body = <MetricsTable metrics={metrics} format={formatCell} />;
+  }
+  return (
+    <Section
+      title="This window as a table"
+      actions={
+        <Button
+          size="xs"
+          variant="default"
+          aria-expanded={shown}
+          aria-controls={bodyId}
+          onClick={() => setShown((on) => !on)}
+        >
+          {shown ? 'Hide the table' : 'Show this window as a table'}
+        </Button>
+      }
+    >
+      <div id={bodyId}>{body}</div>
+    </Section>
   );
 }

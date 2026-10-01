@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Group, Stack, Text } from '@mantine/core';
 
 import { useLogout } from '../../kernel/auth/api.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
 import { Ago } from '../../kernel/time/Ago.tsx';
 import { useEndOtherSessions, useEndSession, useSessions, type AccountSessionView } from './api.ts';
 import { describeClient } from '../../kernel/auth/clientLabel.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Row, Rows } from '../../ui/ListRows.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 
 interface Outcome {
   text: string;
@@ -84,18 +87,10 @@ export function SessionsManager({ userId }: Readonly<{ userId?: string }>) {
   const sessions = useSessions(userId);
   const ending = useSessionEnding(userId);
 
-  if (sessions.isPending) return <LoadingState variant="inline" label="Loading sessions" />;
+  // Holds the height of a row or two, so the list that replaces it does not push what follows down.
+  if (sessions.isPending) return <LoadingState label="Loading sessions" blockSize="6rem" />;
   if (sessions.isError) {
-    return (
-      <Alert color="red" variant="light" title="Could not load the sessions" role="alert">
-        <Stack gap="xs" align="flex-start">
-          <Text size="sm">{sessions.error.message} Check your connection and try again.</Text>
-          <Button size="xs" variant="light" onClick={() => void sessions.refetch()}>
-            Retry
-          </Button>
-        </Stack>
-      </Alert>
-    );
+    return <ErrorState error={sessions.error} onRetry={() => void sessions.refetch()} />;
   }
 
   const list = sessions.data;
@@ -146,9 +141,12 @@ function Status({ ending, admin }: Readonly<{ ending: ReturnType<typeof useSessi
         </Text>
       ) : null}
       {!ending.busy && ending.outcome ? (
-        <Text size="sm" c={ending.outcome.failed ? 'red' : 'dimmed'}>
-          {ending.outcome.text}
-        </Text>
+        <Group gap="xs" wrap="nowrap" align="flex-start">
+          {ending.outcome.failed ? <StatusBadge tone="danger">Failed</StatusBadge> : null}
+          <Text size="sm" c={ending.outcome.failed ? undefined : 'dimmed'}>
+            {ending.outcome.text}
+          </Text>
+        </Group>
       ) : null}
     </div>
   );
@@ -162,15 +160,19 @@ function SessionRows({
   const now = useServerNow(30_000);
   if (list.length === 0) {
     return (
-      <Text size="sm">
-        {admin
-          ? 'This user is not signed in anywhere. A session is listed here from the moment they sign in.'
-          : 'No sessions are listed.'}
-      </Text>
+      <EmptyState
+        kind="empty"
+        title={admin ? 'This user is not signed in anywhere' : 'No sessions are listed'}
+        description={
+          admin
+            ? 'A session is listed here from the moment they sign in.'
+            : 'A session is listed here from the moment you sign in.'
+        }
+      />
     );
   }
   return (
-    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'}>
+    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'} bounded>
       {list.map((s) => (
         <Row
           key={s.handle}
@@ -179,11 +181,7 @@ function SessionRows({
               <Text size="sm" fw={500} title={s.userAgent ?? undefined}>
                 {describeClient(s.userAgent)}
               </Text>
-              {s.current ? (
-                <Badge size="xs" variant="default">
-                  This session
-                </Badge>
-              ) : null}
+              {s.current ? <StatusBadge>This session</StatusBadge> : null}
             </Group>
           }
           facts={
@@ -196,7 +194,6 @@ function SessionRows({
             <Button
               size="xs"
               variant="subtle"
-              color="red"
               aria-label={
                 s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
               }

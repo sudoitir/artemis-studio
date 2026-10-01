@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Code, CopyButton, Group, Radio, Stack, Text, TextInput, VisuallyHidden } from '@mantine/core';
+import { Button, Code, CopyButton, Radio, Stack, Text, TextInput, VisuallyHidden } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
 
 import { ApiError } from '../../kernel/api/request.ts';
@@ -8,7 +9,11 @@ import { describeBrowser } from '../../kernel/auth/clientLabel.ts';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
 import { createPasskey, passkeyFailure, passkeyUnavailableReason } from '../../kernel/auth/webauthn.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { fetchPasskeyCreationOptions, useConfirmTotp, useMfaStatus, useRegisterPasskey, useStartTotp } from './api.ts';
+import classes from './Identity.module.css';
 import { QrCode } from './QrCode.tsx';
 
 export type EnrolMethod = 'totp' | 'passkey';
@@ -86,9 +91,12 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
   const start = useStartTotp();
   const confirm = useConfirmTotp();
   const fresh = useFreshSignIn();
-  const [code, setCode] = useState('');
-  const [fieldError, setFieldError] = useState<string | null>(null);
-  const field = useRef<HTMLInputElement>(null);
+  const form = useForm({
+    initialValues: { code: '' },
+    validateInputOnBlur: true,
+    // A field left empty is not yet wrong on leaving it; pressing Confirm says what to enter.
+    validate: { code: (v) => (CODE.test(v.replace(/\s/g, '')) ? null : 'Enter the 6 digits your app shows.') },
+  });
   const started = useRef(false);
   const wasFresh = useRef(fresh);
 
@@ -106,15 +114,8 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
     wasFresh.current = fresh;
   }, [fresh, start]);
 
-  function submit(e: React.SubmitEvent) {
-    e.preventDefault();
-    const digits = code.replace(/\s/g, '');
-    if (!CODE.test(digits)) {
-      setFieldError('Enter the 6 digits your app shows.');
-      field.current?.focus();
-      return;
-    }
-    confirm.mutate(digits, {
+  const submit = form.onSubmit(({ code }) => {
+    confirm.mutate(code.replace(/\s/g, ''), {
       onSuccess: (result) => {
         onEnrolled({ method: 'totp', recoveryCodes: result.recoveryCodes ?? null });
         // The key and the codes are the caller's now (or nobody's): the cache keeps neither.
@@ -123,14 +124,14 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
       },
       onError: (error) => {
         if (error.status === 400) {
-          setFieldError(
-            'That code is not right. Enter the code your app shows now; if it keeps failing, check the clock on your phone.',
-          );
-          field.current?.focus();
+          form.setErrors({
+            code: 'That code is not right. Enter the code your app shows now; if it keeps failing, check the clock on your phone.',
+          });
+          form.getInputNode('code')?.focus();
         }
       },
     });
-  }
+  }, focusFirstInvalid(form.getInputNode));
 
   const setup = start.data;
   const confirmFailure =
@@ -140,31 +141,22 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
   return (
     <Stack gap="md">
       <StepUpPrompt error={start.error} returnTo={returnTo()} />
-      {startFailure ? (
-        <Alert color="red" variant="light" role="alert" title="Could not start the setup">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">{startFailure.message} Try again.</Text>
-            <Button size="xs" variant="light" onClick={() => start.mutate()}>
-              Try again
-            </Button>
-          </Stack>
-        </Alert>
-      ) : null}
+      {startFailure ? <ErrorState variant="inline" error={startFailure} onRetry={() => start.mutate()} /> : null}
 
       {setup ? (
         <>
-          <Group align="flex-start" gap="xl" wrap="nowrap">
-            <Stack gap={6}>
+          <div className={classes.setup}>
+            <Stack gap="xs">
               <Text size="sm" fw={600}>
                 Scan with your authenticator app
               </Text>
               <QrCode value={setup.otpauthUri} label="QR code for your authenticator app" />
             </Stack>
-            <Stack gap={6} style={{ flex: 1, minWidth: 0 }}>
+            <Stack gap="xs" className={classes.secret}>
               <Text size="sm" fw={600}>
                 Can't scan? Enter this key
               </Text>
-              <Code block style={{ fontSize: 'var(--mantine-font-size-sm)', whiteSpace: 'pre-wrap' }}>
+              <Code block className={classes.secretCode}>
                 {groupedKey(setup.secret)}
               </Code>
               <CopyButton value={setup.secret}>
@@ -173,8 +165,10 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
                     <Button
                       variant="default"
                       size="xs"
-                      w="fit-content"
-                      leftSection={copied ? <IconCheck size={14} aria-hidden /> : <IconCopy size={14} aria-hidden />}
+                      className={classes.start}
+                      leftSection={
+                        copied ? <IconCheck size="0.875rem" aria-hidden /> : <IconCopy size="0.875rem" aria-hidden />
+                      }
                       onClick={copy}
                     >
                       {copied ? 'Copied' : 'Copy key'}
@@ -187,27 +181,18 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
                 Choose "enter a setup key" in your app and pick the time-based option.
               </Text>
             </Stack>
-          </Group>
+          </div>
 
           <form onSubmit={submit} noValidate>
             <Stack gap="sm" align="flex-start">
               <TextInput
-                ref={field}
                 label="Enter the 6-digit code"
                 description="Shown by your app once the key is added."
-                value={code}
-                onChange={(e) => {
-                  setCode(e.currentTarget.value);
-                  setFieldError(null);
-                }}
-                onBlur={() =>
-                  code && !CODE.test(code.replace(/\s/g, '')) && setFieldError('Enter the 6 digits your app shows.')
-                }
-                error={fieldError}
+                {...form.getInputProps('code')}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={7}
-                w={260}
+                className={classes.field}
               />
               <Button type="submit" loading={confirm.isPending}>
                 Confirm
@@ -222,39 +207,27 @@ function AuthenticatorSetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enro
             ) : null}
           </div>
           {confirmFailure ? (
-            <Alert color="red" variant="light" role="alert" title="Not confirmed">
-              {confirmFailure.status === 409
-                ? `${confirmFailure.message} Reload this page to start again.`
-                : `${confirmFailure.message} Try again.`}
-            </Alert>
+            <ErrorState variant="inline" error={confirmFailure} onRetry={() => confirm.reset()} />
           ) : null}
         </>
       ) : null}
-      {!setup && start.isPending ? (
-        <Text size="sm" c="dimmed" role="status">
-          Preparing your setup key…
-        </Text>
-      ) : null}
+      {!setup && start.isPending ? <LoadingState label="Preparing your setup key" blockSize="24rem" /> : null}
     </Stack>
   );
 }
 
 function PasskeySetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) => void }>) {
   const register = useRegisterPasskey();
-  const [label, setLabel] = useState(() => describeBrowser(navigator.userAgent) ?? 'This device');
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const form = useForm({
+    initialValues: { label: describeBrowser(navigator.userAgent) ?? 'This device' },
+    validateInputOnBlur: true,
+    validate: { label: (v) => (v.trim() ? null : 'Name this passkey so you can tell it apart later.') },
+  });
   const [failure, setFailure] = useState<unknown>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
-  const field = useRef<HTMLInputElement>(null);
 
-  async function create(e: React.SubmitEvent) {
-    e.preventDefault();
-    if (!label.trim()) {
-      setFieldError('Name this passkey so you can tell it apart later.');
-      field.current?.focus();
-      return;
-    }
+  const create = form.onSubmit(async ({ label }) => {
     setFailure(null);
     setNotice(null);
     setAsking(true);
@@ -272,13 +245,10 @@ function PasskeySetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) 
     } finally {
       setAsking(false);
     }
-  }
+  }, focusFirstInvalid(form.getInputNode));
 
   const problem = failure instanceof ApiError ? failure : null;
-  let message: string | null = null;
-  if (failure !== null && !needsReauthentication(failure)) {
-    message = problem ? `${problem.message} Try again.` : passkeyFailure(failure);
-  }
+  const refused = failure !== null && !needsReauthentication(failure);
 
   return (
     <Stack gap="md">
@@ -287,23 +257,16 @@ function PasskeySetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) 
         for this account.
       </Text>
       <StepUpPrompt error={failure} returnTo={returnTo()} />
-      <form onSubmit={(e) => void create(e)} noValidate>
+      <form onSubmit={create} noValidate>
         <Stack gap="sm" align="flex-start">
           <TextInput
-            ref={field}
             label="Passkey name"
             description="So you can tell your passkeys apart, for example the device it lives on."
-            value={label}
-            onChange={(e) => {
-              setLabel(e.currentTarget.value);
-              setFieldError(null);
-            }}
-            error={fieldError}
+            {...form.getInputProps('label')}
             maxLength={100}
-            w="100%"
-            maw={420}
+            className={classes.nameField}
           />
-          <Button type="submit" leftSection={<IconKey size={16} aria-hidden />} loading={asking}>
+          <Button type="submit" leftSection={<IconKey size="1rem" aria-hidden />} loading={asking}>
             Create passkey
           </Button>
         </Stack>
@@ -316,10 +279,11 @@ function PasskeySetup({ onEnrolled }: Readonly<{ onEnrolled: (result: Enrolled) 
         ) : null}
         {!asking && notice ? <Text size="sm">{notice}</Text> : null}
       </div>
-      {message ? (
-        <Alert color="red" variant="light" role="alert" title="Passkey not created">
-          {message}
-        </Alert>
+      {refused && problem ? <ErrorState variant="inline" error={problem} onRetry={() => setFailure(null)} /> : null}
+      {refused && !problem ? (
+        <Text size="sm" role="alert" className={classes.failure}>
+          Passkey not created. {passkeyFailure(failure)}
+        </Text>
       ) : null}
     </Stack>
   );

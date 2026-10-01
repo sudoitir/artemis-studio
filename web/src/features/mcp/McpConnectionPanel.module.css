@@ -1,0 +1,4 @@
+/* The endpoint is an identifier: a monospace face tells 0 from O and l from 1. */
+.endpoint input {
+  font-family: var(--mantine-font-family-monospace);
+}

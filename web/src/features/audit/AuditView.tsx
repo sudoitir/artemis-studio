@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Button, Code, Drawer, Group, Select, Skeleton, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Button, Code, Drawer, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -13,10 +13,15 @@ import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
-import { at, auditColumns } from './columns.tsx';
+import { at, auditColumns, outcome } from './columns.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
@@ -31,7 +36,7 @@ function CopyAuditLink({ clusterId, id }: Readonly<{ clusterId: string; id: numb
   return (
     <ActionMenuItem
       label="Copy link"
-      icon={<IconLink size={16} aria-hidden />}
+      icon={<IconLink size="1rem" aria-hidden />}
       onSelect={() =>
         host.copy(absoluteHref(clusterHref(clusterId, 'audit', { event: id })), 'link to the audit event')
       }
@@ -78,13 +83,13 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
   // the free-text fallback commits its own debounced value the same way on blur —
   // either way, the URL's `search.user` is the single source of truth for the query.
   return (
-    <Group gap="xs">
+    <>
       {canListUsers ? (
         <Select
           label="User"
           placeholder="Any user"
           size="xs"
-          w={180}
+          w="11.25rem"
           clearable
           searchable
           value={search.user ?? null}
@@ -100,14 +105,14 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
           onChange={(e) => setUser(e.currentTarget.value)}
           onBlur={() => setParam({ user: debouncedUser || undefined })}
           size="xs"
-          w={180}
+          w="11.25rem"
         />
       )}
       <Select
         label="Action"
         placeholder="Any action"
         size="xs"
-        w={190}
+        w="11.875rem"
         clearable
         value={search.action ?? null}
         onChange={(v) => setParam({ action: v || undefined })}
@@ -117,13 +122,13 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
         label="Outcome"
         placeholder="Any outcome"
         size="xs"
-        w={150}
+        w="9.375rem"
         clearable
         value={search.outcome ?? null}
         onChange={(v) => setParam({ outcome: v || undefined })}
         data={['SUCCESS', 'FAILURE', 'PENDING']}
       />
-    </Group>
+    </>
   );
 }
 
@@ -159,54 +164,69 @@ function AuditEventDetail({
   setParam: SetParam;
 }>) {
   if (!selected) {
-    if (offPage.isPending) return <Skeleton height={28} />;
+    if (offPage.isPending) return <LoadingState label="Loading the audit event" blockSize="12rem" />;
     if (offPage.error?.status === 404) {
       return (
-        <Alert variant="light" title="This audit event no longer exists">
-          No audit event with this id exists on this cluster. Check the link, or ask whoever shared it to copy it again.
-        </Alert>
+        <EmptyState
+          kind="empty"
+          title="This audit event no longer exists"
+          description="No audit event with this id exists on this cluster. Check the link, or ask whoever shared it to copy it again."
+        />
       );
     }
     if (offPage.isError) return <ErrorState error={offPage.error} onRetry={() => void offPage.refetch()} />;
     return null;
   }
+  const { word, tone } = outcome(selected.outcome);
+  const items: DescriptionItem[] = [
+    { term: 'Time', value: at(selected) },
+    { term: 'User', value: selected.username ?? 'anonymous' },
+    {
+      term: 'Target',
+      value: selected.targetName ?? 'no target',
+      hint: selected.dryRun ? 'Dry run: nothing was changed.' : undefined,
+    },
+    { term: 'Outcome', value: <StatusBadge tone={tone}>{word}</StatusBadge> },
+    ...(selected.error ? [{ term: 'Error', value: selected.error }] : []),
+    { term: 'Request', value: selected.requestId ?? '—' },
+    { term: 'From', value: selected.sourceIp ?? '—' },
+  ];
   return (
-    <Stack gap="xs">
-      <Text size="xs" c="dimmed">
-        {at(selected)} · {selected.username ?? 'anonymous'} · {selected.targetName ?? 'no target'}
-        {selected.dryRun ? ' · dry run' : ''}
-      </Text>
-      {selected.error ? (
-        <Text size="xs" c="var(--as-danger)">
-          {selected.error}
-        </Text>
+    <Stack gap="lg">
+      <DescriptionList label="Audit event" columns={2} items={items} />
+      {selected.params ? (
+        <Section headingLevel={3} title="Parameters">
+          <Code block tabIndex={0} role="region" aria-label="Audit event parameters">
+            {selected.params}
+          </Code>
+        </Section>
       ) : null}
-      {selected.params ? <Code block>{selected.params}</Code> : null}
-      {selected.parentId != null ? (
-        <Button
-          size="xs"
-          variant="light"
-          onClick={() => {
-            void setParam({ parentId: selected.parentId, event: undefined });
-          }}
-        >
-          Show the operation this belongs to, with all its parts
-        </Button>
+      {selected.parentId != null || selected.action.startsWith('bulk.') ? (
+        <Group gap="xs">
+          {selected.parentId != null ? (
+            <Button
+              size="xs"
+              variant="default"
+              onClick={() => {
+                void setParam({ parentId: selected.parentId, event: undefined });
+              }}
+            >
+              Show the operation this belongs to, with all its parts
+            </Button>
+          ) : null}
+          {selected.action.startsWith('bulk.') ? (
+            <Button
+              size="xs"
+              variant="default"
+              onClick={() => {
+                void setParam({ parentId: selected.id, event: undefined });
+              }}
+            >
+              Show the event for each queue in this run
+            </Button>
+          ) : null}
+        </Group>
       ) : null}
-      {selected.action.startsWith('bulk.') ? (
-        <Button
-          size="xs"
-          variant="light"
-          onClick={() => {
-            void setParam({ parentId: selected.id, event: undefined });
-          }}
-        >
-          Show the event for each queue in this run
-        </Button>
-      ) : null}
-      <Text size="xs" c="dimmed">
-        request {selected.requestId ?? '—'} · from {selected.sourceIp ?? '—'}
-      </Text>
     </Stack>
   );
 }
@@ -261,7 +281,10 @@ export function AuditView() {
 
   return (
     <Page fill>
-      <Title order={3}>Audit log</Title>
+      <PageHeader
+        title="Audit log"
+        description="Every operation that changed something, newest first, with who ran it and how it ended."
+      />
 
       <Toolbar label="Audit filters" start={<AuditFilters key={filterEpoch} search={search} setParam={setParam} />} />
 

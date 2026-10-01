@@ -1,63 +1,53 @@
-import { Table, Text } from '@mantine/core';
+import { useMemo, type ReactNode } from 'react';
 
 import type { FlowView } from './api.ts';
-import { elapsedLabel, useServerNow } from '../../kernel/time/time.ts';
-import { stateColorVar, stateLabel } from './rrState.ts';
+import { useServerNow } from '../../kernel/time/time.ts';
+import { DataTable, type TableToolbar } from '../../ui/table/index.ts';
+import { flowColumns } from './columns.ts';
 
-/** One flow's state, address, correlation id, age, and latency (or none yet). */
-export function FlowsTable({ flows, onSelect }: Readonly<{ flows: FlowView[]; onSelect: (flowId: string) => void }>) {
+const rowKey = (f: FlowView) => f.id;
+
+/** One flow's state, address, correlation id, age, and latency (or none yet); a row opens the flow. */
+export function FlowsTable({
+  label,
+  storageKey,
+  flows,
+  loading,
+  error,
+  empty,
+  toolbar,
+  onSelect,
+}: Readonly<{
+  /** Names the table: "Flows", "Stuck flows". */
+  label: string;
+  storageKey: string;
+  flows: FlowView[];
+  loading: boolean;
+  /** An `ErrorState`, shown in place of the rows. */
+  error?: ReactNode;
+  /** An `EmptyState`: why there are no flows here. */
+  empty: ReactNode;
+  toolbar?: TableToolbar;
+  onSelect: (flowId: string) => void;
+}>) {
   // Ticking, and on Studio's clock rather than the workstation's — an age is a
   // server timestamp subtracted from now, so the two must be the same clock.
-  const now = useServerNow();
-
-  if (flows.length === 0) {
-    return (
-      <Text size="sm" c="dimmed">
-        No request-reply flows observed yet for this filter.
-      </Text>
-    );
-  }
+  const now = useServerNow(5_000);
+  const columns = useMemo(() => flowColumns(now), [now]);
 
   return (
-    <Table.ScrollContainer minWidth={640} type="native">
-      <Table stickyHeader highlightOnHover>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>State</Table.Th>
-            <Table.Th>Address</Table.Th>
-            <Table.Th>Correlation id</Table.Th>
-            <Table.Th>Age</Table.Th>
-            <Table.Th>Latency</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {flows.map((f) => (
-            <Table.Tr key={f.id} onClick={() => onSelect(f.id)} style={{ cursor: 'pointer' }}>
-              <Table.Td>
-                <Text size="xs" fw={600} style={{ color: stateColorVar(f.state) }}>
-                  {stateLabel(f.state)}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="xs" ff="monospace">
-                  {f.requestAddress}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="xs" ff="monospace">
-                  {f.correlationId ?? '—'}
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="xs">{elapsedLabel(now - Date.parse(f.requestedAt))}</Text>
-              </Table.Td>
-              <Table.Td>
-                <Text size="xs">{f.latencyMs != null ? `${f.latencyMs}ms` : '—'}</Text>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable
+      label={label}
+      storageKey={storageKey}
+      height={{ maxRows: 20 }}
+      columns={columns}
+      data={flows}
+      rowKey={rowKey}
+      loading={loading}
+      error={error}
+      empty={empty}
+      toolbar={toolbar}
+      onRowClick={(f) => onSelect(f.id)}
+    />
   );
 }

@@ -81,10 +81,10 @@ describe('InstallDialog inspection', () => {
     open(UPDATE);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('This jar cannot be installed');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
     expect(alert).toHaveTextContent('The vendor did not answer.');
-    expect(alert).toHaveTextContent('Nothing was stored.');
-    expect(within(alert).queryByRole('button', { name: /Copy report/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing was stored.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Copy report/ })).not.toBeInTheDocument();
   });
 
   it('lists every violation with its fix and copies a report for the plugin author', async () => {
@@ -237,7 +237,8 @@ describe('InstallDialog review and confirmation', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Not activated');
-    expect(alert).toHaveTextContent('Schema check failed. Connection budget spent.');
+    expect(within(alert).getByText('Schema check failed.')).toBeInTheDocument();
+    expect(within(alert).getByText('Connection budget spent.')).toBeInTheDocument();
   });
 
   it('falls back to the problem message when an activation is refused without listing reasons', async () => {

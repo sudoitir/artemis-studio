@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Accordion, Anchor, Chip, Group, Stack, Table, Text } from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Accordion, Button, Chip, Group, Stack, Text } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import type { ConfigApplyOutcomeView, ConfigNodeApplyView } from './api.ts';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { OutcomeSummary, type OutcomeRow } from '../../ui/NodeOutcomeSummary.tsx';
-import classes from './Configuration.module.css';
-import { stepStatusWords, wireSectionLabel } from './words.ts';
+import { DataTable } from '../../ui/table/index.ts';
+import { stepColumns, type StepRow } from './stepColumns.tsx';
+import { wireSectionLabel } from './words.ts';
 
 const plural = (n: number) => (n === 1 ? '' : 's');
 
@@ -165,7 +167,7 @@ export function ApplyResult({
       <OutcomeSummary verdict={verdict.text} verdictTone={verdict.tone} rows={outcome.nodes.map(nodeRow)} />
       {allKeys.length > 1 || alreadyCount > 0 ? (
         <Group gap="xs" align="center" wrap="wrap">
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             Show
           </Text>
           <Chip.Group multiple value={sections} onChange={setSections}>
@@ -176,42 +178,37 @@ export function ApplyResult({
             ))}
           </Chip.Group>
           {alreadyCount > 0 ? (
-            <Anchor component="button" type="button" size="xs" onClick={() => setShowAlready((s) => !s)}>
+            <Button variant="subtle" size="compact-sm" onClick={() => setShowAlready((s) => !s)}>
               {showAlready
                 ? `Hide the ${alreadyCount} already as declared`
                 : `Show the ${alreadyCount} already as declared`}
-            </Anchor>
+            </Button>
           ) : null}
           {filtering ? (
-            <Anchor
-              component="button"
-              type="button"
-              size="xs"
+            <Button
+              variant="subtle"
+              size="compact-sm"
               onClick={() => {
                 setSections([]);
                 setKeys([]);
               }}
             >
               Clear the filter
-            </Anchor>
+            </Button>
           ) : null}
         </Group>
       ) : null}
-      {!outcome.dryRun && outcome.summary ? (
-        <Text size="sm" className={classes.state} data-tone={verdict.tone}>
-          {outcome.summary}
-        </Text>
-      ) : null}
+      {!outcome.dryRun && outcome.summary ? <Text size="sm">{outcome.summary}</Text> : null}
       {/* Filtered-empty is not empty (frontend rule): a node whose steps all fall
           outside the filter says so instead of vanishing from the page. */}
       {withSteps
         .filter((node) => !node.steps.some(shows))
         .map((node) => (
-          <Text key={node.nodeId} size="xs" c="dimmed">
+          <Text key={node.nodeId} size="sm" c="dimmed">
             {node.nodeName}: {hiddenStepsNote(node.steps)}
           </Text>
         ))}
-      <Accordion multiple defaultValue={openByDefault} variant="contained" chevronPosition="left">
+      <Accordion multiple defaultValue={openByDefault} variant="contained" chevronPosition="left" order={4}>
         {withSteps
           .filter((node) => node.steps.some(shows))
           .map((node) => {
@@ -220,71 +217,38 @@ export function ApplyResult({
             return (
               <Accordion.Item value={node.nodeId} key={node.nodeId}>
                 <Accordion.Control>
-                  <Text size="xs" fw={600} component="span">
+                  <Text size="sm" fw={600} component="span">
                     {node.nodeName}
                     {node.canary ? ' — canary' : ''}
                   </Text>{' '}
-                  <Text size="xs" c="dimmed" component="span">
+                  <Text size="sm" c="dimmed" component="span">
                     {shown.length === node.steps.length
                       ? `${node.steps.length} step${plural(node.steps.length)}`
                       : `${shown.length} of ${node.steps.length} steps shown`}
                   </Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <Table fz="xs" verticalSpacing={4} withTableBorder layout="fixed">
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th w={32}>#</Table.Th>
-                        <Table.Th w="34%">Step</Table.Th>
-                        <Table.Th w="40%">Change</Table.Th>
-                        <Table.Th w="20%">Status</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {shown.map((step) => {
-                        // The number is the step's place in the plan, not in the
-                        // filtered view: it is what the halt message refers to.
-                        const i = node.steps.indexOf(step);
-                        const plan = planned?.steps.find((s) => s.id === step.stepId);
-                        const words = stepStatusWords(step);
-                        return (
-                          <Table.Tr key={step.stepId}>
-                            <Table.Td className={classes.stepNumber}>{i + 1}</Table.Td>
-                            <Table.Td>
-                              <Text size="xs">{step.description}</Text>
-                              <Text size="xs" c="dimmed">
-                                {step.op.toLowerCase()} {wireSectionLabel(step.section)} {step.key}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td className={classes.compare}>
-                              {plan ? <Diff before={plan.before} after={plan.after} /> : '—'}
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="xs" className={classes.state} data-tone={words.tone}>
-                                {words.text}
-                              </Text>
-                              {step.error ? (
-                                <Text size="xs" c="var(--as-danger)">
-                                  {step.error}
-                                </Text>
-                              ) : null}
-                            </Table.Td>
-                          </Table.Tr>
-                        );
-                      })}
-                    </Table.Tbody>
-                  </Table>
+                  <NodeSteps
+                    nodeName={node.nodeName}
+                    // The number is the step's place in the plan, not in the filtered view: it is
+                    // what the halt message refers to.
+                    rows={shown.map((step) => ({
+                      step,
+                      number: node.steps.indexOf(step) + 1,
+                      plan: planned?.steps.find((s) => s.id === step.stepId),
+                    }))}
+                  />
                 </Accordion.Panel>
               </Accordion.Item>
             );
           })}
       </Accordion>
       {clusterId && outcome.auditEventId != null && !outcome.dryRun ? (
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           Recorded as audit event {outcome.auditEventId} —{' '}
-          <Anchor component={Link} to={`/clusters/${clusterId}/audit?action=APPLY_BROKER_CONFIG`} size="xs">
+          <Link to={`/clusters/${clusterId}/audit?action=APPLY_BROKER_CONFIG`} className={linkClasses.link}>
             open the audit log
-          </Anchor>
+          </Link>
           .
         </Text>
       ) : null}
@@ -292,66 +256,19 @@ export function ApplyResult({
   );
 }
 
-function one(value: unknown): string {
-  if (value === undefined) return '—';
-  if (Array.isArray(value)) return value.length === 0 ? '—' : value.join(',');
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return JSON.stringify(value);
-}
-
-/**
- * One step as a diff: a row per key, `before → after`, with the keys that do not
- * change dimmed underneath rather than hidden.
- *
- * Two columns of `k=v · k=v` made the reader do the comparison — on an address
- * setting carrying eighteen keys of which one moves, the one that moves is not
- * findable. The unchanged keys stay because a management write **replaces** the
- * whole entry (notes §15 M2): they are not context, they are part of what is
- * being written.
- */
-function Diff({ before, after }: Readonly<{ before: Record<string, unknown>; after: Record<string, unknown> }>) {
-  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort((a, b) => a.localeCompare(b));
-  if (keys.length === 0) return <>—</>;
-  // Nothing is there yet, so every key would read `— → value`. The step's own
-  // description already says it creates the thing; what is worth reading is what
-  // it will be created as.
-  if (Object.keys(before).length === 0) {
-    return (
-      <div className={classes.kv}>
-        {keys.map((key) => (
-          <div key={key} className={classes.kvRow}>
-            <span className={classes.kvKey}>{key}</span>
-            <span className={classes.kvValue}>{one(after[key])}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  const rows = keys.map((key) => ({
-    key,
-    before: one(before[key]),
-    after: one(after[key]),
-    differs: one(before[key]) !== one(after[key]),
-  }));
-  const ordered = [...rows.filter((r) => r.differs), ...rows.filter((r) => !r.differs)];
+/** One node's steps as a table: the step, what it changes, and how it ended. */
+function NodeSteps({ nodeName, rows }: Readonly<{ nodeName: string; rows: StepRow[] }>) {
+  const columns = useMemo(stepColumns, []);
   return (
-    <div className={classes.kv} data-diff>
-      {ordered.map((r) => (
-        <div key={r.key} className={classes.kvRow} data-differs={r.differs || undefined}>
-          <span className={classes.kvKey}>{r.key}</span>
-          <span className={classes.kvValue}>
-            {r.differs ? (
-              <>
-                <span className={classes.before}>{r.before}</span>
-                {' → '}
-                {r.after}
-              </>
-            ) : (
-              r.after
-            )}
-          </span>
-        </div>
-      ))}
-    </div>
+    <DataTable
+      variant="static"
+      label={`Steps on ${nodeName}`}
+      columns={columns}
+      data={rows}
+      rowKey={(r) => r.step.stepId}
+      storageKey="brokerconfig.apply.steps"
+      height={{ maxRows: rows.length }}
+      empty={null}
+    />
   );
 }

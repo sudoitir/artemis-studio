@@ -1,0 +1,22 @@
+.secret {
+  font-family: var(--mantine-font-family-monospace);
+}
+
+/* The four counts of a period wrap by their own width. */
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+}
+
+/* The name of a key, with its prefix beneath it. */
+.prefix {
+  font-family: var(--mantine-font-family-monospace);
+  color: var(--as-text-dimmed);
+}
+
+/* The permissions block takes focus when a key is submitted without any, so it names no outline of its own. */
+.group:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}

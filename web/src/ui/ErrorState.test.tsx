@@ -140,6 +140,37 @@ describe('ErrorState', () => {
     expect(screen.queryByRole('button', { name: 'Retry' }) !== null).toBe(retryable);
   });
 
+  it('keeps what the broker said under the cause its error kind maps to', () => {
+    renderWithProviders(
+      <ErrorState
+        error={apiError(502, { detail: 'Connection refused: artemis-1:8161' }, { brokerErrorKind: 'UNREACHABLE' })}
+      />,
+    );
+    expect(screen.getByText('The broker is unreachable')).toBeInTheDocument();
+    expect(screen.getByText('Nothing answered at the broker address.')).toBeInTheDocument();
+    expect(screen.getByText('Connection refused: artemis-1:8161')).toBeInTheDocument();
+    expect(screen.getByText(/Check that the broker is running/)).toBeInTheDocument();
+  });
+
+  it('replaces the next step with the one it is given', () => {
+    renderWithProviders(<ErrorState error={apiError(404)} next="Choose the queue again from the Queues list." />);
+    expect(screen.getByText('Choose the queue again from the Queues list.')).toBeInTheDocument();
+    expect(screen.queryByText(/Check the address/)).not.toBeInTheDocument();
+  });
+
+  it('adds extra next-step controls beside Retry, and without it', async () => {
+    const onRetry = vi.fn();
+    const { unmount } = renderWithProviders(
+      <ErrorState error={apiError(500)} onRetry={onRetry} actions={<button type="button">Open settings</button>} />,
+    );
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeInTheDocument();
+    unmount();
+    renderWithProviders(<ErrorState error={apiError(403)} actions={<button type="button">Open settings</button>} />);
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
   it('shows the problem title and detail for any other refusal', () => {
     renderWithProviders(
       <ErrorState error={apiError(400, { detail: 'Bad paging cursor.' }, { title: 'Bad request' })} />,

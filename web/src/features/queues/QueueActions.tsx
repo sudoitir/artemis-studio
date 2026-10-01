@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import {
   IconClipboard,
   IconEdit,
@@ -26,6 +26,10 @@ import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { queueHref } from './queueHref.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { NodeOutcomeSummary } from '../../ui/NodeOutcomeSummary.tsx';
 import { useQueue, useSetQueuePaused, type LifecycleOutcomeView, type QueueView } from './api.ts';
 import { EditQueueForm } from './EditQueueForm.tsx';
@@ -61,7 +65,7 @@ function WithQueue({
   target: QueueTarget;
   render: (queue: QueueView, dialog: HostedDialogProps) => ReactNode;
 }) {
-  const { queue, isPending, isError } = useQueue(clusterId, target.queueName, target.snapshot);
+  const { queue, isPending, isError, error } = useQueue(clusterId, target.queueName, target.snapshot);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!queue || !opened) return;
@@ -73,19 +77,7 @@ function WithQueue({
   return (
     <Modal opened={opened} onClose={onClose} title={target.queueName}>
       <Stack gap="sm" aria-live="polite">
-        {isPending ? (
-          <Text size="sm">Looking the queue up…</Text>
-        ) : (
-          <Alert
-            color="yellow"
-            variant="light"
-            title={isError ? 'The queue could not be read' : 'The queue is not there'}
-          >
-            {isError
-              ? 'Studio could not read the queue list just now. Try again in a moment.'
-              : `No queue named ${target.queueName} is on this cluster now. It may have been deleted since this view was loaded.`}
-          </Alert>
-        )}
+        <LookupState queueName={target.queueName} isPending={isPending} isError={isError} error={error} />
         <Group justify="flex-end">
           <Button size="xs" variant="default" onClick={onClose}>
             Close
@@ -93,6 +85,30 @@ function WithQueue({
         </Group>
       </Stack>
     </Modal>
+  );
+}
+
+/** What the lookup dialog shows in place of a queue: the wait, the failure, or the queue not being there. */
+function LookupState({
+  queueName,
+  isPending,
+  isError,
+  error,
+}: Readonly<{ queueName: string; isPending: boolean; isError: boolean; error: Error | null }>) {
+  if (isPending) return <LoadingState label="Looking the queue up" blockSize="4rem" />;
+  if (isError) {
+    return (
+      <ErrorState
+        error={error}
+        variant="inline"
+        next="Studio could not read the queue list just now. Try again in a moment."
+      />
+    );
+  }
+  return (
+    <Notice tone="info" title="The queue is not there">
+      No queue named {queueName} is on this cluster now. It may have been deleted since this view was loaded.
+    </Notice>
   );
 }
 
@@ -113,45 +129,28 @@ function PauseQueueDialog({
   const verb = paused ? 'Resume' : 'Pause';
 
   return (
-    <Modal opened={opened} onClose={onClose} title={`${verb} ${queue.queueName}`}>
-      <Stack gap="md">
-        <Text size="sm">
-          {paused
-            ? 'Resuming restarts delivery to this queue’s consumers on every live node.'
-            : 'Pausing stops delivery to this queue’s consumers on every live node. Messages keep arriving and wait; nothing is lost. Resume to deliver them.'}
-        </Text>
-        <div aria-live="polite">
-          {setPaused.isPending ? <Text size="sm">{paused ? 'Resuming' : 'Pausing'} on every live node…</Text> : null}
-          {setPaused.isError ? (
-            <Alert color="red" variant="light" title={setPaused.error.title} role="alert">
-              {setPaused.error.message} Nothing was changed where the request failed; try again, or check the node in
-              Topology.
-            </Alert>
-          ) : null}
-          {outcome ? <NodeOutcomeSummary outcome={outcome} /> : null}
-        </div>
-        <Group justify="flex-end">
-          {outcome ? (
-            <Button size="xs" onClick={onClose}>
-              Close
-            </Button>
-          ) : (
-            <>
-              <Button size="xs" variant="default" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button
-                size="xs"
-                loading={setPaused.isPending}
-                onClick={() => setPaused.mutate({ paused: !paused }, { onSuccess: setOutcome })}
-              >
-                {verb} queue
-              </Button>
-            </>
-          )}
-        </Group>
-      </Stack>
-    </Modal>
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title={`${verb} ${queue.queueName}`}
+      confirmLabel={`${verb} queue`}
+      pending={setPaused.isPending}
+      onConfirm={() => setPaused.mutate({ paused: !paused }, { onSuccess: setOutcome })}
+      result={outcome ? <NodeOutcomeSummary outcome={outcome} /> : undefined}
+      consequence={
+        <Stack gap="md">
+          <Text size="sm">
+            {paused
+              ? 'Resuming restarts delivery to this queue’s consumers on every live node.'
+              : 'Pausing stops delivery to this queue’s consumers on every live node. Messages keep arriving and wait; nothing is lost. Resume to deliver them.'}
+          </Text>
+          <div aria-live="polite">
+            {setPaused.isPending ? <Text size="sm">{paused ? 'Resuming' : 'Pausing'} on every live node…</Text> : null}
+            {setPaused.isError ? <ErrorState error={setPaused.error} variant="inline" /> : null}
+          </div>
+        </Stack>
+      }
+    />
   );
 }
 

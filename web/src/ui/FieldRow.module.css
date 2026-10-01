@@ -1,0 +1,27 @@
+/* Fields side by side, top-aligned, wrapping by width. Top alignment keeps every input box on one
+   line whatever its label, description or message holds; a button beside labelled fields drops by
+   one label line so it lines up with their input boxes. */
+.row {
+  /* One label line: Mantine's label size at the theme's line height. */
+  --field-label-h: calc(var(--input-label-size, var(--mantine-font-size-sm)) * var(--mantine-line-height));
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+}
+
+.row > :global(.mantine-InputWrapper-root) {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.row:has(> :global(.mantine-InputWrapper-root) > :global(.mantine-InputWrapper-label))
+  > :not(:global(.mantine-InputWrapper-root)) {
+  margin-block-start: var(--field-label-h);
+}
+
+/* A block label is exactly one line tall, so the offset above matches it. */
+.row :global(.mantine-InputWrapper-label) {
+  display: block;
+}

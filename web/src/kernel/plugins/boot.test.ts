@@ -71,6 +71,26 @@ describe('plugin boot', () => {
     expect(started.plugins).toEqual([]);
   });
 
+  it('asks for nothing on the sign-in page: no manifest request, no plugins', async () => {
+    let asked = 0;
+    server.use(
+      http.get('*/api/v1/manifest', () => {
+        asked += 1;
+        return new HttpResponse(null, { status: 401 });
+      }),
+    );
+    vi.stubGlobal('location', { ...window.location, pathname: '/login' });
+    try {
+      const started = await boot();
+      expect(started.manifest).toBeUndefined();
+      expect(started.manifestError).toBeUndefined();
+      expect(started.plugins).toEqual([]);
+      expect(asked).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('starts without plugins, and without complaint, while a password change is pending', async () => {
     server.use(http.get('*/api/v1/manifest', () => new HttpResponse(null, { status: 423 })));
     const started = await boot();

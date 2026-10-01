@@ -47,8 +47,7 @@ export function BulkActionBar({ clusterId, selection, count, clear }: Readonly<S
           <CapabilityGate key={each} verdict={gate} what={`${op.gerund} these queues`}>
             <Button
               size="xs"
-              variant="light"
-              color={op.destructive ? 'red' : undefined}
+              variant="default"
               disabled={gate.kind === 'blocked'}
               onClick={() => {
                 setOperation(each);

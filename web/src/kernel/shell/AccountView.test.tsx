@@ -75,12 +75,13 @@ describe('AccountView', () => {
 
     expect(await screen.findByText('ada')).toBeInTheDocument();
     // Two-step verification sits right after the password, before the sessions it protects.
-    const headings = screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Account']);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings.slice(1, 4)).toEqual(['Password', 'Two-step verification', 'Sessions']);
     expect(await screen.findByText('Two-step verification is off')).toBeInTheDocument();
     expect(await screen.findByText('This session')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'API keys' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'MCP connection' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'API keys' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'MCP connection' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute('href', '/change-password');
   });
 

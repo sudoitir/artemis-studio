@@ -256,9 +256,8 @@ describe('TransferDialog what may not be done', () => {
     server.use(meHandler(), ...clusterHandlers(backupOnly));
     open();
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('No source node to read from');
-    expect(alert).toHaveTextContent('No node of this cluster is live and managed by Studio now');
+    const notice = await screen.findByRole('region', { name: 'No source node to read from' });
+    expect(notice).toHaveTextContent('No node of this cluster is live and managed by Studio now');
     const dialog = screen.getByRole('dialog');
     expect(previewButton(dialog)).toBeDisabled();
     expect(within(dialog).getByRole('combobox', { name: 'Target node' })).toBeInTheDocument();
@@ -465,7 +464,8 @@ describe('TransferDialog preview', () => {
 
     const alert = await within(dialog).findByRole('alert');
     expect(alert).toHaveTextContent('The plan changed.');
-    await user.click(within(alert).getByRole('button', { name: 'Preview again' }));
+    expect(within(dialog).getByText(/Nothing was run\./)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Preview again' }));
 
     await waitFor(() => expect(bodies).toHaveLength(2));
     // A new plan needs its warnings acknowledged afresh.

@@ -45,7 +45,7 @@ one is missing.
 
 ## Stack (fixed — changing any of these needs an ADR)
 
-- **Backend**: Java 25, Spring Boot 4.1.0, Maven. Package root
+- **Backend**: Java 25, Spring Boot 4.1.1, Maven. Package root
   `io.github.sudoitir.artemisstudio`. groupId `io.github.sudoitir`.
 - **Persistence**: JPA (Hibernate) entities mapped to the Liquibase-owned schema,
   `spring.jpa.hibernate.ddl-auto=validate` (ADR-0011). **Lombok** for entity /

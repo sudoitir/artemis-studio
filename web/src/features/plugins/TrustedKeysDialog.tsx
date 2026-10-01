@@ -1,28 +1,24 @@
-import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Code,
-  Group,
-  Loader,
-  Modal,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  TextInput,
-  Textarea,
-} from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Button, Modal, Stack, Switch, Text, TextInput, Textarea } from '@mantine/core';
+import { useForm } from '@mantine/form';
 
-import { useAddKey, useRemoveKey, useTrustedKeys, useTrustPolicy, violationsOf, type TrustedKeyView } from './api.ts';
-import { ConfirmAction } from './ConfirmAction.tsx';
-import styles from './Plugins.module.css';
 import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
-import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { DataTable } from '../../ui/table/index.ts';
+import { useAddKey, useRemoveKey, useTrustedKeys, useTrustPolicy, type TrustedKeyView } from './api.ts';
+import { ConfirmAction } from './ConfirmAction.tsx';
+import { keyColumns } from './dialogColumns.tsx';
+import { Refusal } from './Refusal.tsx';
+import styles from './Plugins.module.css';
 
-const CONFIGURED_REASON =
-  'Set by configuration. Remove it from artemis-studio.plugins.trusted-keys and restart Studio.';
+const TRUST: ActionVerb = { verb: 'Trust', past: 'Trusted', progressive: 'Trusting' };
+const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Removing' };
+const ALLOW: ActionVerb = { verb: 'Change', past: 'Changed', progressive: 'Changing' };
 
 /**
  * Whose signatures Studio accepts on plugins (ADR-0140), and the one switch that lets unverified
@@ -33,41 +29,45 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
   const add = useAddKey();
   const remove = useRemoveKey();
   const policy = useTrustPolicy();
-  const [name, setName] = useState('');
-  const [pem, setPem] = useState('');
-  const [invalid, setInvalid] = useState<{ name?: string; pem?: string }>({});
+  const form = useForm({
+    initialValues: { name: '', pem: '' },
+    validateInputOnBlur: true,
+    validate: {
+      name: (v) => (v.trim() ? null : 'Give the key a name, such as the publisher.'),
+      pem: (v) => (v.trim() ? null : 'Paste a certificate or public key in PEM form.'),
+    },
+  });
   const [removing, setRemoving] = useState<TrustedKeyView | null>(null);
-  const [notice, setNotice] = useState('');
 
   const data = trusted.data;
+  useDisplayZone();
   const error = add.error ?? policy.error;
-  const refusal =
-    error && !needsReauthentication(error)
-      ? violationsOf(error)
-          .map((v) => v.message)
-          .join(' ') || error.message
-      : null;
+  const refused = error !== null && !needsReauthentication(error);
   const allow = policy.isPending ? policy.variables : data?.allowUnverified;
   const becomingUnverified = removing ? (data?.signedPlugins[removing.fingerprint] ?? []) : [];
+  const columns = useMemo(
+    () =>
+      keyColumns({
+        signedPlugins: data?.signedPlugins ?? {},
+        onRemove: (key) => {
+          remove.reset();
+          setRemoving(key);
+        },
+      }),
+    [data?.signedPlugins, remove],
+  );
 
-  const submit = () => {
-    const problems = {
-      name: name.trim() ? undefined : 'Give the key a name, such as the publisher.',
-      pem: pem.trim() ? undefined : 'Paste a certificate or public key in PEM form.',
-    };
-    setInvalid(problems);
-    if (problems.name || problems.pem) return;
+  const submit = form.onSubmit(({ name, pem }) => {
     add.mutate(
       { name: name.trim(), pem: pem.trim() },
       {
         onSuccess: (key) => {
-          setNotice(`Trusted ${key.name}.`);
-          setName('');
-          setPem('');
+          notify.succeeded({ action: TRUST, subject: `key ${key.name}` });
+          form.reset();
         },
       },
     );
-  };
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
     <Modal
@@ -84,130 +84,62 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
           unverified at once, and blocks their updates unless a trusted key signs them.
         </Text>
         <StepUp returnTo={`${globalThis.location.pathname}?tab=plugins`} />
-        {trusted.isPending ? <Loader size="sm" /> : null}
-        {trusted.isError ? (
-          <Alert color="red" variant="light" role="alert" title="Trusted keys could not be listed">
-            {trusted.error.message}
-          </Alert>
-        ) : null}
-        {data?.keys.length === 0 ? (
-          <Text size="sm">
-            No key is trusted yet, so only unverified plugins can be installed, and only while they are allowed below.
-            Trust a publisher's key from a plugin's review, or paste one here.
-          </Text>
-        ) : null}
-        {data && data.keys.length > 0 ? (
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Fingerprint</Table.Th>
-                <Table.Th>Signed plugins</Table.Th>
-                <Table.Th>Added</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {data.keys.map((k) => (
-                <Table.Tr key={k.fingerprint}>
-                  <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                      {k.name}
-                      {k.source === 'CONFIGURATION' ? <StatusBadge tone="info">From configuration</StatusBadge> : null}
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {k.subject}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Code className={styles.fingerprint}>{k.fingerprint}</Code>
-                  </Table.Td>
-                  <Table.Td>{(data.signedPlugins[k.fingerprint] ?? []).join(', ') || 'None installed'}</Table.Td>
-                  <Table.Td>
-                    {new Date(k.addedAt).toLocaleDateString()} by {k.addedBy}
-                  </Table.Td>
-                  <Table.Td>
-                    {/* A configured key cannot be removed here, so Remove stays visible and focusable, and its reason
-                        is the text its description names (a disabled button takes no focus). */}
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      color="red"
-                      aria-label={`Remove ${k.name}`}
-                      data-disabled={k.source === 'CONFIGURATION' ? true : undefined}
-                      aria-disabled={k.source === 'CONFIGURATION' ? true : undefined}
-                      aria-describedby={k.source === 'CONFIGURATION' ? `configured-${k.fingerprint}` : undefined}
-                      onClick={() => {
-                        if (k.source === 'CONFIGURATION') return;
-                        remove.reset();
-                        setRemoving(k);
-                      }}
-                    >
-                      Remove
-                    </Button>
-                    {k.source === 'CONFIGURATION' ? (
-                      <Text size="xs" c="dimmed" id={`configured-${k.fingerprint}`}>
-                        {CONFIGURED_REASON}
-                      </Text>
-                    ) : null}
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        ) : null}
-        {notice ? (
-          <Text size="sm" role="status">
-            {notice}
-          </Text>
-        ) : null}
-        {refusal ? (
-          <Alert color="red" variant="light" role="alert" title="Not done">
-            {refusal}
-          </Alert>
-        ) : null}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
+        <DataTable
+          variant="static"
+          label="Trusted keys"
+          columns={columns}
+          data={data?.keys ?? []}
+          rowKey={(k) => k.fingerprint}
+          storageKey="plugins.keys"
+          height={{ maxRows: 8 }}
+          loading={trusted.isPending}
+          error={
+            trusted.isError ? <ErrorState error={trusted.error} onRetry={() => void trusted.refetch()} /> : undefined
+          }
+          empty={
+            <EmptyState
+              kind="empty"
+              title="No key is trusted yet"
+              description="Only unverified plugins can be installed, and only while they are allowed below. Trust a publisher's key from a plugin's review, or paste one here."
+            />
+          }
+        />
+        {refused ? <Refusal error={error} /> : null}
+        <form noValidate onSubmit={submit}>
           <Stack gap="xs">
             <TextInput
               label="Key name"
               description="How it is listed here, such as the publisher"
-              value={name}
-              onChange={(e) => setName(e.currentTarget.value)}
-              error={invalid.name}
+              {...form.getInputProps('name')}
               autoComplete="off"
-              w={320}
+              className={styles.field}
             />
             <Textarea
               label="Certificate or public key (PEM)"
               description="The publisher's certificate, exported with keytool -exportcert -rfc, or their public key"
-              value={pem}
-              onChange={(e) => setPem(e.currentTarget.value)}
-              error={invalid.pem}
+              {...form.getInputProps('pem')}
               autosize
               minRows={4}
               maxRows={10}
-              styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)' } }}
+              classNames={{ input: styles.pem }}
             />
-            <Group>
-              <Button type="submit" loading={add.isPending}>
-                Add key
-              </Button>
-            </Group>
+            <Button type="submit" loading={add.isPending} className={styles.start}>
+              Add key
+            </Button>
           </Stack>
         </form>
         {data ? (
-          <Stack gap={4}>
+          <Stack gap="xs">
             <Switch
               label="Allow unverified plugins"
               description="Unsigned plugins, and plugins signed by a key that is not listed above, can then be installed."
               checked={!!allow}
               disabled={policy.isPending}
-              onChange={(e) => policy.mutate(e.currentTarget.checked)}
+              onChange={(e) =>
+                policy.mutate(e.currentTarget.checked, {
+                  onSuccess: () => notify.succeeded({ action: ALLOW, subject: 'the policy on unverified plugins' }),
+                })
+              }
             />
             <Text size="sm" className={styles.danger}>
               Danger: an unverified plugin runs code inside Studio with its access to your brokers and database, and
@@ -223,6 +155,7 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
         onClose={() => setRemoving(null)}
         title={`Remove ${removing?.name ?? 'key'}`}
         confirmLabel={`Remove ${removing?.name ?? 'key'}`}
+        typeToConfirm={removing?.name}
         danger
         pending={remove.isPending}
         error={remove.error}
@@ -230,7 +163,7 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
           removing &&
           remove.mutate(removing.fingerprint, {
             onSuccess: () => {
-              setNotice(`Removed ${removing.name}.`);
+              notify.succeeded({ action: REMOVE, subject: `key ${removing.name}` });
               setRemoving(null);
             },
           })

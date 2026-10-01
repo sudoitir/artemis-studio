@@ -5,6 +5,9 @@ type CapabilityView = components['schemas']['CapabilityView'];
 export type GateVerdict =
   { kind: 'allowed'; uncertain: boolean } | { kind: 'blocked'; reason: string; snippet?: string | null };
 
+/** What a permission is held on: one cluster, or Studio itself. */
+export type GateScope = 'cluster' | 'installation';
+
 /**
  * Whether a lifecycle control may act, and why not when it may not.
  *
@@ -18,6 +21,10 @@ export type GateVerdict =
  *       reported as unknown, and blocking on the absence of evidence would stop
  *       an operator using a broker that works perfectly well.
  * </ul>
+ *
+ * <p>`scope` is what the permission is held on, so the reason names the right place: `cluster` for
+ * an action on one cluster (the usual one), `installation` for one on Studio itself, such as its
+ * settings, users or plugins.
  */
 export function gateFor(
   permitted: boolean,
@@ -25,6 +32,7 @@ export function gateFor(
   capability: CapabilityView | undefined,
   /** True while the caller's grants are still being fetched. */
   loading = false,
+  scope: GateScope = 'cluster',
 ): GateVerdict {
   // Nothing is known yet. Saying "you do not have permission" here would be a
   // claim about the operator that has not been checked, and it would flash on
@@ -36,7 +44,7 @@ export function gateFor(
   if (!permitted) {
     return {
       kind: 'blocked',
-      reason: `You do not have the "${permissionLabel}" permission on this cluster. An administrator can grant it in Settings → Roles.`,
+      reason: `You do not have the "${permissionLabel}" permission on this ${scope}. An administrator can grant it in Settings → Roles.`,
     };
   }
   if (capability?.status === 'UNAVAILABLE') {

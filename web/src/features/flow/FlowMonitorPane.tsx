@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
-import { CloseButton, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
+import { CloseButton, SegmentedControl, Text } from '@mantine/core';
 
 import { useSlot } from '../../kernel/slots.ts';
 import { METRIC_RANGES, type MetricRange } from '../../kernel/time/ranges.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import type { FlowGraphView, FlowNodeShare, FlowNodeView } from './api.ts';
 import { nodeColumns, type NodeRow, type NodeShape } from './columns.ts';
@@ -71,16 +73,21 @@ function BrokerNodeTotals({ graph, stale }: Readonly<{ graph: FlowGraphView; sta
     stale: b.state === 'UNREACHABLE' || b.state === 'FAILED',
   }));
   return (
-    <section className={classes.pane} aria-label="Broker nodes">
-      <Stack gap="sm">
-        <Title order={4}>Broker nodes</Title>
-        <Text size="sm" c="dimmed">
-          {stale ? 'The selection is not in the shown paths any more. ' : ''}
-          Select a client, address or queue to break it down per node. These are each node's totals now.
-        </Text>
+    <div className={classes.pane}>
+      <Section
+        variant="card"
+        headingLevel={3}
+        title="Broker nodes"
+        description={
+          <>
+            {stale ? 'The selection is not in the shown paths any more. ' : ''}
+            Select a client, address or queue to break it down per node. These are each node&rsquo;s totals now.
+          </>
+        }
+      >
         <NodeTable label="Totals per broker node" rows={rows} shape="resource" />
-      </Stack>
-    </section>
+      </Section>
+    </div>
   );
 }
 
@@ -103,11 +110,7 @@ function Breakdown({
   pending: boolean;
 }>) {
   if (pending) {
-    return (
-      <Text size="sm" c="dimmed" role="status">
-        Breaking this down per node…
-      </Text>
-    );
+    return <LoadingState label="Breaking this down per node" blockSize="8rem" />;
   }
   if (rows.length === 0) {
     return (
@@ -161,9 +164,10 @@ function History({
   }
   if (node.kind !== 'QUEUE' || panels.length === 0) return null;
   return (
-    <Stack gap="xs">
-      <Group justify="space-between" align="center" wrap="wrap" gap="xs">
-        <Title order={5}>Over time</Title>
+    <Section
+      headingLevel={3}
+      title="Over time"
+      actions={
         <SegmentedControl
           size="xs"
           aria-label="History range"
@@ -171,11 +175,12 @@ function History({
           value={range}
           onChange={(value) => onRangeChange(value as MetricRange)}
         />
-      </Group>
+      }
+    >
       {panels.map(({ id, Component }) => (
         <Component key={id} clusterId={clusterId} queueName={node.label ?? ''} range={range} />
       ))}
-    </Stack>
+    </Section>
   );
 }
 
@@ -216,20 +221,14 @@ export function FlowMonitorPane({
   const kind = KIND_WORD[node.kind ?? ''] ?? 'Node';
 
   return (
-    <section className={classes.pane} aria-label={`${kind} ${node.label} per node`}>
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <div className={classes.inspectorTitle}>
-            <Text size="xs" c="dimmed">
-              {kind}
-            </Text>
-            <Title order={4} className={classes.breakAnywhere}>
-              {node.label}
-            </Title>
-          </div>
-          <CloseButton aria-label="Clear selection" onClick={onClear} />
-        </Group>
-
+    <div className={classes.pane}>
+      <Section
+        variant="card"
+        headingLevel={3}
+        title={`${kind} ${node.label}`}
+        description="Broken down per broker node."
+        actions={<CloseButton aria-label="Clear selection" onClick={onClear} />}
+      >
         {faults.length ? (
           <Text size="sm" fw={600} className={classes.alarm}>
             {faults.join(', ')}
@@ -246,7 +245,7 @@ export function FlowMonitorPane({
           range={range}
           onRangeChange={onRangeChange}
         />
-      </Stack>
-    </section>
+      </Section>
+    </div>
   );
 }

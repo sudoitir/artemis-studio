@@ -1,7 +1,7 @@
 /* Small multiples: as many per row as fit, each at least wide enough to read its time axis. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(16.25rem, 1fr));
   gap: var(--mantine-spacing-md);
 }
 

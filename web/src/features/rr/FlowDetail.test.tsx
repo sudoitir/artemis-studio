@@ -207,9 +207,39 @@ describe('FlowDetail', () => {
     open();
 
     const alert = await screen.findByRole('alert');
-    expect(within(alert).getByText('Flow not found')).toBeInTheDocument();
+    expect(within(alert).getByText('Not found')).toBeInTheDocument();
     expect(within(alert).getByText('No flow f1 in this cluster.')).toBeInTheDocument();
+    expect(within(alert).getByText(/go back to the list and choose it again/)).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Flow' })).toBeInTheDocument();
+  });
+
+  it('offers a retry when the flow could not be read and trying again can help', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/rr/flows/f1', () => HttpResponse.json({ title: 'Down' }, { status: 503 })),
+    );
+    open();
+
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('states a failed flow in words, and a healthy one without colour', async () => {
+    serve(flow({ state: 'TIMED_OUT' }));
+    open();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Flow on orders.request' });
+    expect(within(dialog).getByText('timed out')).toBeInTheDocument();
+  });
+
+  it('lists the flow’s facts as terms and values, not as a table', async () => {
+    serve(flow({ correlationId: 'corr-1' }));
+    open();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Flow on orders.request' });
+    expect(within(dialog).queryByRole('table')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('group', { name: 'Flow facts' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { level: 3, name: 'Timeline' })).toBeInTheDocument();
   });
 
   it('closes on Escape', async () => {

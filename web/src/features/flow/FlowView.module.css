@@ -1,16 +1,39 @@
-/* Figures line up across rows and tiles, so a difference is visible without reading digits. */
-.figure {
-  font-variant-numeric: tabular-nums;
+/* One height for everything that stands for the flow while the view is arranged: the graph, the
+   table and the monitoring pane share it, so switching between them and the loading frame that
+   precedes them move nothing below. */
+.body {
+  --flow-canvas-block: clamp(35rem, calc(100dvh - 7.5rem), 68.75rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-lg);
+  min-inline-size: 0;
+}
+
+/* The loading frame: the totals, then a view as tall as the graph will be. */
+.loading {
+  min-block-size: calc(var(--flow-canvas-block) + 8rem);
+  display: flex;
+}
+
+.loading > * {
+  flex: 1;
+}
+
+/* The totals, as many to a row as fit. */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--mantine-spacing-md);
+}
+
+/* A figure that is out of date reads as stale; a fresh one needs no emphasis. */
+.stale {
+  color: var(--as-stale);
 }
 
 /* Colour only where something is wrong; the word carries the meaning, colour is emphasis. */
 .alarm {
-  font-variant-numeric: tabular-nums;
   color: var(--as-danger);
-}
-
-.stale {
-  color: var(--as-stale);
 }
 
 .footer {
@@ -21,88 +44,59 @@
   border-block-start: 1px solid var(--as-border);
 }
 
-.empty {
-  max-inline-size: 64ch;
+/* The table is as tall as the graph, so it fills the same place. */
+.tableFrame {
+  block-size: var(--flow-canvas-block);
+  min-block-size: 0;
 }
 
-/* Graph beside its inspector; stacked when the column is too narrow for both. */
+/* Graph beside its inspector; the inspector wraps below the graph when the column is too narrow for both. */
 .graphLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--mantine-spacing-md);
-  align-items: start;
 }
 
-.graphLayout[data-inspecting] {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-}
-
-@media (max-width: 64em) {
-  .graphLayout[data-inspecting] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.inspector {
-  padding: var(--mantine-spacing-md);
-  border: 1px solid var(--as-border);
-  border-radius: var(--mantine-radius-md);
-  background: var(--as-surface);
-  max-block-size: clamp(520px, 68vh, 880px);
-  overflow: auto;
-}
-
-.inspectorTitle {
+.graphMain {
+  flex: 1 1 36rem;
   min-inline-size: 0;
 }
 
-.breakAnywhere {
-  overflow-wrap: anywhere;
-}
-
-.facts {
-  margin: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.fact {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: var(--mantine-spacing-xs);
-  font-size: var(--mantine-font-size-sm);
-}
-
-.fact dt {
-  color: var(--as-text-dimmed);
-}
-
-.fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-}
-
-.flowRow {
-  display: grid;
-  gap: 0;
-  padding-block: 4px;
-  border-block-end: 1px solid var(--as-border);
+.inspector {
+  flex: 0 1 21.25rem;
+  min-inline-size: min(100%, 17.5rem);
+  max-block-size: var(--flow-canvas-block);
+  overflow: auto;
 }
 
 /* The Split layout's pane: as tall as the graph beside it, scrolling on its own. */
 .pane {
-  padding: var(--mantine-spacing-md);
-  border: 1px solid var(--as-border);
-  border-radius: var(--mantine-radius-md);
-  background: var(--as-surface);
-  block-size: clamp(560px, calc(100dvh - 120px), 1100px);
+  block-size: var(--flow-canvas-block);
   overflow: auto;
+}
+
+.flowList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.flowRow {
+  display: flex;
+  flex-direction: column;
+  padding-block: var(--mantine-spacing-xs);
+  border-block-end: 1px solid var(--as-border);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .statements {
   margin: 0;
   padding-inline-start: var(--mantine-spacing-md);
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
 }

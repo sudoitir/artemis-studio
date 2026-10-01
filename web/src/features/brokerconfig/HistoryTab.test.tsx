@@ -240,3 +240,77 @@ describe('HistoryTab applies', () => {
     expect(await screen.findByText(/Would apply 2 steps to 2 live nodes, canary first/)).toBeInTheDocument();
   });
 });
+
+describe('HistoryTab states', () => {
+  it('names each table, and the revision number heads its row', async () => {
+    serve([revision(3), revision(2)], [apply(1)]);
+    renderWithProviders(<HistoryTab declaration={declaration()} />);
+
+    const revisions = await screen.findByRole('table', { name: 'Revisions' });
+    expect(await within(revisions).findByRole('rowheader', { name: '3' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Applies' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Applies' })).toBeInTheDocument();
+  });
+
+  it('says what a revision is and how the first one is saved when there is none', async () => {
+    serve([], []);
+    renderWithProviders(<HistoryTab declaration={declaration({ declared: false, revision: 0 })} />);
+
+    expect(await screen.findByText('No revision has been saved yet')).toBeInTheDocument();
+    expect(screen.getByText(/A revision is one saved copy of the declaration/)).toBeInTheDocument();
+  });
+
+  it('says what is loading, then draws both lists at once so the section below does not move', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/config/revisions', async () => {
+        await new Promise((r) => setTimeout(r, 100));
+        return HttpResponse.json(paged([revision(3)]));
+      }),
+      http.get('*/api/v1/clusters/c1/config/applies', () => HttpResponse.json(paged([apply(1)]))),
+    );
+    renderWithProviders(<HistoryTab declaration={declaration()} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the history');
+    // The applies came back first, and are held until the revisions are there too.
+    expect(screen.queryByRole('table', { name: 'Applies' })).toBeNull();
+    expect(await screen.findByRole('rowheader', { name: '3' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Applies' })).toBeInTheDocument();
+  });
+
+  it('states why the revisions could not be listed and lists them again on retry', async () => {
+    let attempts = 0;
+    server.use(
+      http.get('*/api/v1/clusters/c1/config/revisions', () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ title: 'Down', detail: 'The history is not answering.' }, { status: 503 })
+          : HttpResponse.json(paged([revision(3)]));
+      }),
+      http.get('*/api/v1/clusters/c1/config/applies', () => HttpResponse.json(paged([]))),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<HistoryTab declaration={declaration()} />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The history is not answering.');
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('rowheader', { name: '3' })).toBeInTheDocument();
+  });
+
+  it('says why an apply could not be opened instead of showing nothing', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/c1/config/applies/3', () =>
+        HttpResponse.json({ title: 'Gone', detail: 'That apply is no longer recorded.' }, { status: 404 }),
+      ),
+    );
+    serve([revision(3)], [apply(3)]);
+    const user = userEvent.setup();
+    renderWithProviders(<HistoryTab declaration={declaration()} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Details' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('That apply is no longer recorded.');
+    expect(screen.getByRole('heading', { level: 3, name: 'Apply 3' })).toBeInTheDocument();
+  });
+});

@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { notify } from '../../ui/notify.ts';
 import type { ConfigAddressView } from './api.ts';
 import { AddressEditor } from './AddressEditor.tsx';
 import { declaration } from './fixtures.ts';
@@ -184,11 +185,46 @@ describe('AddressEditor', () => {
 
     await user.click(await screen.findByRole('button', { name: SAVE }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Declaration changed');
-    expect(alert).toHaveTextContent('Revision 4 exists. Reload the declaration and make this edit again');
+    expect(alert).toHaveTextContent('This conflicts with the current state');
+    expect(alert).toHaveTextContent('Revision 4 exists.');
+    expect(screen.getByText(/Reload the declaration and make this edit again/)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('announces the saved revision with what was done, because the editor closes and focus moves', async () => {
+    captureSave();
+    const succeeded = vi.spyOn(notify, 'succeeded');
+    const { user, onClose } = open(null);
+
+    await user.type(await screen.findByRole('textbox', { name: /Address/ }), 'orders.new');
+    await user.click(screen.getByRole('button', { name: SAVE }));
+
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(succeeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: expect.objectContaining({ past: 'Saved' }),
+        subject: expect.stringContaining('Added address orders.new'),
+      }),
+    );
+    succeeded.mockRestore();
+  });
+
+  it('keeps the save control busy while the request runs, and re-enables it when it fails', async () => {
+    server.use(
+      http.put('*/api/v1/clusters/c1/config', async () => {
+        await new Promise((r) => setTimeout(r, 100));
+        return HttpResponse.json({ title: 'Down', detail: 'Store down.' }, { status: 503 });
+      }),
+    );
+    const { user } = open(ORDERS);
+
+    await user.click(await screen.findByRole('button', { name: SAVE }));
+    expect(screen.getByRole('button', { name: SAVE })).toHaveAttribute('data-loading', 'true');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Store down.');
+    expect(screen.getByRole('button', { name: SAVE })).not.toHaveAttribute('data-loading');
   });
 });

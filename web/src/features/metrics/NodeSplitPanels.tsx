@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
-import { Alert, Skeleton, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { CompositeChart } from '@mantine/charts';
 
 import { useServerNow } from '../../kernel/time/time.ts';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { rangeSpec, type MetricRange } from '../../kernel/time/ranges.ts';
 import { useMetrics, type MetricNodeSeries, type MetricSeriesResponse } from './api.ts';
@@ -19,7 +21,9 @@ import {
 import classes from './NodeSplit.module.css';
 
 const METRICS = ['messageCount', 'messagesAdded', 'messagesAcked'];
-const SMALL_HEIGHT = 120;
+const SMALL_HEIGHT = '7.5rem';
+/** The legend's band above the added and acked plot. */
+const LEGEND = '1.75rem';
 
 const series = (node: MetricNodeSeries, metric: string) => node.series.find((s) => s.metric === metric);
 /** The shared scale's top: the largest value across every node, rounded up to a readable figure. */
@@ -123,7 +127,7 @@ export function NodeSplitCharts({
                     ])}
                     withLegend
                     legendProps={{ verticalAlign: 'top', height: 28 }}
-                    h={SMALL_HEIGHT + 28}
+                    h={`calc(${SMALL_HEIGHT} + ${LEGEND})`}
                     valueFormatter={formatRate}
                     yAxisProps={{ ...yAxisProps(), domain: [0, rateMax] }}
                     series={[
@@ -172,13 +176,9 @@ export function NodeSplitPanels({
   );
 
   if (metrics.isError) {
-    return (
-      <Alert color="red" variant="light" title={metrics.error.title ?? 'History could not be read'}>
-        {metrics.error.message} — this window could not be read, which is not the same as there being nothing in it.
-      </Alert>
-    );
+    return <ErrorState error={metrics.error} variant="inline" onRetry={() => void metrics.refetch()} />;
   }
-  if (!metrics.data) return <Skeleton height={SMALL_HEIGHT * 2} aria-label="Loading history per node" />;
+  if (!metrics.data) return <LoadingState label="Loading history per node" blockSize="17rem" />;
   return (
     <NodeSplitCharts
       response={metrics.data}

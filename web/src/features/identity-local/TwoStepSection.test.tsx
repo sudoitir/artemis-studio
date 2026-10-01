@@ -53,6 +53,24 @@ const problem = (slug: string, status: number, detail?: string) =>
 afterEach(() => unstubPasskeys());
 
 describe('TwoStepSection', () => {
+  it('holds the height of what replaces it while the status loads', () => {
+    server.use(
+      me(),
+      http.get('*/api/v1/auth/mfa', () => new Promise(() => undefined)),
+    );
+    renderWithProviders(<TwoStepSection />);
+
+    expect(screen.getByText('Loading two-step verification')).toBeInTheDocument();
+  });
+
+  it('says it is required in words, not by colour', async () => {
+    server.use(me());
+    serve({ status: { ...ON, required: true } });
+    renderWithProviders(<TwoStepSection />);
+
+    expect(await screen.findByText('Required by your role')).toBeInTheDocument();
+  });
+
   it('says in words that two-step verification is off, and offers to set it up', async () => {
     server.use(me());
     stubPasskeys({});
@@ -256,6 +274,8 @@ describe('TwoStepSection', () => {
     await user.click(await screen.findByRole('button', { name: 'Remove passkey Work laptop' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove passkey "Work laptop"?' });
     expect(within(dialog).getByText(/Your other methods and your recovery codes keep working/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Remove passkey' })).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Type "Work laptop" to confirm'), 'Work laptop');
     await user.click(within(dialog).getByRole('button', { name: 'Remove passkey' }));
 
     expect(await within(dialog).findByLabelText('Your password')).toBeInTheDocument();
@@ -279,12 +299,13 @@ describe('TwoStepSection', () => {
 
     serve({ status: { ...OFF, required: true, enrolled: true, totpEnrolled: true, recoveryCodesRemaining: 10 } });
     renderWithProviders(<TwoStepSection />);
-    await user.click(await screen.findByRole('button', { name: 'Remove authenticator app' }));
-    const blocked = await screen.findAllByRole('dialog', { name: 'Remove the authenticator app?' });
-    expect(
-      within(blocked.at(-1)!).getByText('Your role requires two-step verification. Add another method first.'),
-    ).toBeInTheDocument();
-    expect(within(blocked.at(-1)!).getByRole('button', { name: 'Remove authenticator app' })).toBeDisabled();
+    const refused = await screen.findByRole('button', { name: 'Remove authenticator app' });
+    expect(refused).toHaveAttribute('aria-disabled', 'true');
+    const reason = screen.getByText(/Your role requires two-step verification\. Add another method first\./);
+    expect(refused).toHaveAccessibleDescription(/Add another method first/);
+    expect(reason).toBeVisible();
+    await user.click(refused);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('surfaces the server message when a removal is refused', async () => {
@@ -346,7 +367,7 @@ describe('TwoStepSection', () => {
     );
     renderWithProviders(<TwoStepSection />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('It broke. Check your connection and try again.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('It broke.');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

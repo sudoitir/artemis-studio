@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { renderAppAt } from '../../test/render.tsx';
+import { renderAppAt, renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { paged } from '../../kernel/api/paging.ts';
 
@@ -104,12 +105,19 @@ function shell(reviewBody: () => Record<string, unknown>) {
   );
 }
 
+/** The application at the view, with the toast host the real application mounts above the router. */
+function renderView(search = '') {
+  renderWithProviders(<Notifications />);
+  return renderAppAt(`/clusters/${CLUSTER}/setup-review${search}`);
+}
+
 describe('Setup review', () => {
   beforeEach(() => shell(() => review()));
+  afterEach(() => act(() => notifications.clean()));
 
   it('explains what it checks before the first review', async () => {
     shell(() => review({ reviewedAt: null, findings: [], nodes: [], nodesTotal: 0, nodesReviewed: 0 }));
-    renderAppAt(`/clusters/${CLUSTER}/setup-review`);
+    renderView();
 
     expect(await screen.findByText('Not reviewed yet')).toBeInTheDocument();
     expect(screen.getByText(/checking 22 rules/)).toBeInTheDocument();
@@ -117,7 +125,7 @@ describe('Setup review', () => {
   });
 
   it('shows findings worst first, with severity in words, evidence and the fix', async () => {
-    renderAppAt(`/clusters/${CLUSTER}/setup-review`);
+    renderView();
 
     const card = await screen.findByRole('article', { name: /single replication pair/ });
     expect(within(card).getByText('Critical')).toBeInTheDocument();
@@ -149,7 +157,7 @@ describe('Setup review', () => {
         open: { critical: 0, warning: 0, info: 0 },
       }),
     );
-    renderAppAt(`/clusters/${CLUSTER}/setup-review`);
+    renderView();
 
     expect(await screen.findByText('1 node not reviewed')).toBeInTheDocument();
     expect(screen.getByText(/Nothing answered at this address/)).toBeInTheDocument();
@@ -159,10 +167,10 @@ describe('Setup review', () => {
 
   it('says a filter emptied the view and offers to clear it', async () => {
     const user = userEvent.setup();
-    renderAppAt(`/clusters/${CLUSTER}/setup-review?severity=WARNING`);
+    renderView('?severity=WARNING');
 
     expect(await screen.findByText(/No findings match this filter/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear the filter' }));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(await screen.findByRole('article', { name: /single replication pair/ })).toBeInTheDocument();
   });
 
@@ -191,7 +199,7 @@ describe('Setup review', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAppAt(`/clusters/${CLUSTER}/setup-review`);
+    renderView();
 
     const card = await screen.findByRole('article', { name: /single replication pair/ });
     const trigger = within(card).getByRole('button', { name: 'Accept as a known risk…' });
@@ -216,12 +224,10 @@ describe('Setup review', () => {
     expect(within(accepted).getByRole('button', { name: 'Revoke acceptance' })).toBeInTheDocument();
     expect(body).toMatchObject({ code: 'HA_SINGLE_PAIR_QUORUM', subject: 'cluster', reason: 'dev only' });
     expect((body as unknown as { expiresAt: string }).expiresAt).toBeTruthy();
-    expect(screen.getByRole('status', { name: 'Setup review outcome' })).toHaveTextContent(
-      'HA_SINGLE_PAIR_QUORUM accepted as a known risk.',
-    );
+    expect(await screen.findByText('Accepted HA_SINGLE_PAIR_QUORUM as a known risk')).toBeInTheDocument();
   });
 
-  it('reports a review that was too soon, in words', async () => {
+  it('reports a review that was too soon as one that did not run, in words', async () => {
     server.use(
       http.post(`*/api/v1/clusters/${CLUSTER}/setup-review/run`, () =>
         HttpResponse.json(
@@ -230,11 +236,124 @@ describe('Setup review', () => {
       ),
     );
     const user = userEvent.setup();
-    renderAppAt(`/clusters/${CLUSTER}/setup-review`);
+    renderView();
 
     await user.click(await screen.findByRole('button', { name: 'Review now' }));
-    expect(await screen.findByRole('status', { name: 'Setup review outcome' })).toHaveTextContent(
-      /the next review can run in 27s/,
+    // Nothing ran, so it is said as such, with the cause and what is shown instead.
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not run the setup review');
+    expect(alert).toHaveTextContent('the next review can run in 27s');
+    expect(alert).toHaveTextContent('The last review is shown.');
+  });
+
+  it('says the review could not be loaded, with a retry, instead of showing nothing', async () => {
+    server.use(
+      http.get(`*/api/v1/clusters/${CLUSTER}/setup-review`, () =>
+        HttpResponse.json({ title: 'Unavailable', detail: 'The database is down' }, { status: 503 }),
+      ),
     );
+    renderView();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The database is down');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Setup review' })).toBeInTheDocument();
+  });
+
+  it('says a review that failed to run did not run, and what next', async () => {
+    server.use(
+      http.post(`*/api/v1/clusters/${CLUSTER}/setup-review/run`, () =>
+        HttpResponse.json({ title: 'Unavailable', detail: 'No node answered.' }, { status: 503 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderView();
+
+    await user.click(await screen.findByRole('button', { name: 'Review now' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not run the setup review');
+    expect(alert).toHaveTextContent('No node answered. Nothing was changed on a broker. Try again.');
+  });
+
+  it('announces a finished review', async () => {
+    server.use(http.post(`*/api/v1/clusters/${CLUSTER}/setup-review/run`, () => HttpResponse.json(review())));
+    const user = userEvent.setup();
+    renderView();
+
+    await user.click(await screen.findByRole('button', { name: 'Review now' }));
+    expect(await screen.findByText('Ran the setup review')).toBeInTheDocument();
+  });
+
+  it('keeps the accept control visible but disabled, with the reason, without alert:write', async () => {
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({
+          id: 'u1',
+          username: 'ops',
+          mustChangePassword: false,
+          grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
+        }),
+      ),
+    );
+    renderView();
+
+    const card = await screen.findByRole('article', { name: /single replication pair/ });
+    await waitFor(() => expect(within(card).getByRole('button', { name: 'Accept as a known risk…' })).toBeDisabled());
+    expect(screen.getByText(/needs the alert:write permission on this cluster/)).toBeInTheDocument();
+  });
+
+  it('keeps the dialog open and says why a risk was not accepted', async () => {
+    server.use(
+      http.post(`*/api/v1/clusters/${CLUSTER}/setup-review/acceptances`, () =>
+        HttpResponse.json({ title: 'Conflict', detail: 'This finding no longer exists.' }, { status: 409 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderView();
+
+    const card = await screen.findByRole('article', { name: /single replication pair/ });
+    await user.click(within(card).getByRole('button', { name: 'Accept as a known risk…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Accept as a known risk' });
+    await user.type(within(dialog).getByLabelText(/^Reason/), 'dev only');
+    await user.click(within(dialog).getByRole('button', { name: 'Accept the risk' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This finding no longer exists.');
+    expect(screen.getByRole('dialog', { name: 'Accept as a known risk' })).toBeInTheDocument();
+  });
+
+  it('revokes an acceptance and says so, and says why and what next when it fails', async () => {
+    const accepted = finding({
+      acceptance: {
+        reason: 'dev only',
+        acceptedBy: 'ops',
+        createdAt: new Date().toISOString(),
+        expiresAt: null,
+        active: true,
+      },
+    });
+    shell(() => review({ findings: [accepted], open: { critical: 0, warning: 0, info: 0 }, accepted: 1 }));
+    let reply: Response = HttpResponse.json({ title: 'Conflict', detail: 'It was revoked already.' }, { status: 409 });
+    server.use(http.delete(`*/api/v1/clusters/${CLUSTER}/setup-review/acceptances`, () => reply));
+    const user = userEvent.setup();
+    renderView();
+
+    await user.click(await screen.findByRole('button', { name: 'Revoke acceptance' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not revoke the acceptance of HA_SINGLE_PAIR_QUORUM');
+    expect(alert).toHaveTextContent('It was revoked already. The finding is still accepted. Try again.');
+
+    reply = HttpResponse.json(review());
+    await user.click(screen.getByRole('button', { name: 'Revoke acceptance' }));
+    expect(await screen.findByText('Revoked the acceptance of HA_SINGLE_PAIR_QUORUM')).toBeInTheDocument();
+  });
+
+  it('is one page with one h1, its categories as h2 and the evidence of each finding in a table', async () => {
+    renderView();
+
+    await screen.findByRole('article', { name: /single replication pair/ });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'High availability (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Message safety (1)' })).toBeInTheDocument();
+    expect(screen.getAllByRole('table')).toHaveLength(2);
   });
 });

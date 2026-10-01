@@ -7,6 +7,11 @@
   min-inline-size: 0;
 }
 
+.section:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
 .section[data-variant='card'] {
   padding: var(--mantine-spacing-lg);
   border: 1px solid var(--as-border);

@@ -12,13 +12,15 @@ interface Reading {
   retry: boolean;
   fields?: readonly { field: string; message: string }[];
   requestId?: string;
+  /** What the server said about this failure, when a mapping's own words win and would otherwise drop it. */
+  detail?: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 const text = (value: unknown): string | undefined => (typeof value === 'string' && value ? value : undefined);
 
 /** Broker failures, by `brokerErrorKind`. The kind wins over the status, which only says who was at fault. */
-const BROKER: Readonly<Record<string, Omit<Reading, 'requestId'>>> = {
+const BROKER: Readonly<Record<string, Omit<Reading, 'requestId' | 'detail'>>> = {
   UNREACHABLE: {
     title: 'The broker is unreachable',
     cause: 'Nothing answered at the broker address.',
@@ -210,7 +212,10 @@ function read(error: unknown): Reading {
   const given = typeof e.status === 'number' ? e.status : undefined;
   const kind = text(e.brokerErrorKind);
   const broker = kind ? BROKER[kind] : undefined;
-  if (broker) return broker;
+  if (broker) {
+    const problem = isRecord(e.problem) ? e.problem : {};
+    return { ...broker, detail: text(problem.detail) };
+  }
   if (isNetworkFailure(error, given)) return NETWORK_DOWN;
   if (given === undefined) return unexpected(error);
   const reading = BY_STATUS[given] ?? (given >= 500 ? serverFailure : refused);
@@ -224,18 +229,29 @@ function read(error: unknown): Reading {
  * wait, a server error quotes the request id and a broker failure says which of its connection
  * problems it is. It is an alert, so it is announced when it appears.
  *
+ * <p>A broker failure keeps the server's own `detail` under the cause the kind maps to, so what the
+ * broker actually said is never lost to the mapping.
+ *
  * <p>`onRetry` adds a Retry button when trying again can help; where it cannot (a refused
- * credential, a missing permission), the button is left out.
+ * credential, a missing permission), the button is left out. `next` replaces the next-step sentence
+ * where the caller knows a better one for its screen, and `actions` adds controls beside Retry, such
+ * as a link to the page that fixes it.
  */
 export function ErrorState({
   error,
   onRetry,
+  next,
+  actions,
   variant = 'block',
 }: Readonly<{
   /** The thrown error, typically an `ApiError`; read structurally, so any value is safe. */
   error: unknown;
   /** Called by the Retry button. Omit it where retrying makes no sense. */
   onRetry?: () => void;
+  /** The next step, replacing the one read from the error. */
+  next?: ReactNode;
+  /** Further next-step controls, after Retry. */
+  actions?: ReactNode;
   /** `block` is a panel standing in for a view; `inline` is one wrapping line inside a section. */
   variant?: 'block' | 'inline';
 }>) {
@@ -246,6 +262,11 @@ export function ErrorState({
       <Text size="sm" component="div" className={classes.text}>
         {reading.cause}
       </Text>
+      {reading.detail && reading.detail !== reading.cause ? (
+        <Text size="sm" component="div" className={classes.text}>
+          {reading.detail}
+        </Text>
+      ) : null}
       {reading.fields?.length ? (
         <ul className={classes.fields}>
           {reading.fields.map(({ field, message }) => (
@@ -256,17 +277,22 @@ export function ErrorState({
         </ul>
       ) : null}
       <Text size="sm" component="div" className={classes.text}>
-        {reading.next}
+        {next ?? reading.next}
       </Text>
       {reading.requestId ? (
         <Text size="xs" component="div" className={classes.requestId}>
           Request id: {reading.requestId}
         </Text>
       ) : null}
-      {reading.retry && onRetry ? (
-        <Button variant="default" size="xs" onClick={onRetry}>
-          Retry
-        </Button>
+      {(reading.retry && onRetry) || actions ? (
+        <div className={classes.actions}>
+          {reading.retry && onRetry ? (
+            <Button variant="default" size="xs" onClick={onRetry}>
+              Retry
+            </Button>
+          ) : null}
+          {actions}
+        </div>
       ) : null}
     </div>
   );

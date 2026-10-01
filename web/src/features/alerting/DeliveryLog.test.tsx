@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Notifications, notifications } from '@mantine/notifications';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { absoluteLabel } from '../../kernel/time/time.ts';
@@ -42,11 +43,17 @@ function serve(rows: AlertDeliveryView[] | Response) {
 }
 
 function renderLog(over: Partial<Parameters<typeof DeliveryLog>[0]> = {}) {
-  const announce = vi.fn();
   const onClose = vi.fn();
-  renderWithProviders(<DeliveryLog channel={CHANNEL} onClose={onClose} canWrite announce={announce} {...over} />);
-  return { announce, onClose };
+  renderWithProviders(
+    <>
+      <Notifications />
+      <DeliveryLog channel={CHANNEL} onClose={onClose} canWrite {...over} />
+    </>,
+  );
+  return { onClose };
 }
+
+afterEach(() => act(() => notifications.clean()));
 
 describe('DeliveryLog', () => {
   it('is closed without a channel', () => {
@@ -59,17 +66,18 @@ describe('DeliveryLog', () => {
     renderLog();
 
     expect(await screen.findByRole('dialog', { name: 'Deliveries to on-call' })).toBeInTheDocument();
-    expect(await screen.findByText(/Nothing has been sent to this channel yet/)).toBeInTheDocument();
-    expect(screen.queryByRole('table')).toBeNull();
+    expect(await screen.findByText('Nothing has been sent to this channel yet')).toBeInTheDocument();
+    // Only the header row: there is no delivery to list.
+    expect(screen.getAllByRole('row')).toHaveLength(1);
   });
 
   it('says why the log could not be loaded', async () => {
     serve(HttpResponse.json({ title: 'Down', detail: 'channel store unavailable' }, { status: 503 }));
     renderLog();
 
-    expect(
-      await screen.findByText(/The delivery log could not be loaded: channel store unavailable/),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('channel store unavailable');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('states each delivery in words: when it was sent, when the next attempt is due, and that it gave up', async () => {
@@ -86,7 +94,7 @@ describe('DeliveryLog', () => {
     expect(sent).toHaveTextContent(absoluteLabel('2026-09-11T10:01:00Z'));
     // An error on a delivery that was sent is history, not a problem.
     expect(within(sent).getByText(/Earlier attempt:/)).toHaveTextContent('HTTP 502 on the first attempt');
-    expect(within(sent).getByText('2', { selector: 'td' })).toBeInTheDocument();
+    expect(within(sent).getByRole('cell', { name: '2' })).toBeInTheDocument();
 
     const pending = screen.getByRole('row', { name: /backlog 2/ });
     expect(pending).toHaveTextContent('waiting');
@@ -112,10 +120,10 @@ describe('DeliveryLog', () => {
       ),
     );
     const user = userEvent.setup();
-    const { announce } = renderLog();
+    renderLog();
 
     await user.click(await screen.findByRole('button', { name: 'Retry delivery 3' }));
-    await waitFor(() => expect(announce).toHaveBeenCalledWith('Delivery 3 queued again.'));
+    expect(await screen.findByText('Retried delivery 3')).toBeInTheDocument();
   });
 
   it('announces why a retry was refused', async () => {
@@ -126,10 +134,12 @@ describe('DeliveryLog', () => {
       ),
     );
     const user = userEvent.setup();
-    const { announce } = renderLog();
+    renderLog();
 
     await user.click(await screen.findByRole('button', { name: 'Retry delivery 3' }));
-    await waitFor(() => expect(announce).toHaveBeenCalledWith('Delivery 3 was not queued: The channel is disabled.'));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not retry delivery 3');
+    expect(alert).toHaveTextContent('The channel is disabled. It was not queued again. Fix the channel, then retry.');
   });
 
   it('keeps retry visible but disabled, with the reason, without alert:write', async () => {
@@ -138,7 +148,7 @@ describe('DeliveryLog', () => {
 
     const retry = await screen.findByRole('button', { name: 'Retry delivery 3' });
     expect(retry).toBeDisabled();
-    expect(retry).toHaveAttribute('title', 'Retrying needs alert:write');
+    expect(screen.getByText('Retrying a delivery needs the alert:write permission.')).toBeInTheDocument();
   });
 
   it('closes from the drawer', async () => {

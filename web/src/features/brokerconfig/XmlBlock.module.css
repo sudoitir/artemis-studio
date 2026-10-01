@@ -1,0 +1,22 @@
+/* The scroller is the labelled, focusable box, so a keyboard can reach what overflows; the
+   highlighter inside only colours the text and never scrolls on its own. */
+.scroller {
+  max-block-size: 24rem;
+  overflow: auto;
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-code-bg);
+}
+
+.scroller:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+.code {
+  display: block;
+  inline-size: fit-content;
+  min-inline-size: 100%;
+  white-space: pre;
+  background: transparent;
+}

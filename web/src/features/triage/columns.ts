@@ -4,13 +4,7 @@ import type { Column } from '../../ui/table/index.ts';
 import type { ConsumerHealthView } from './api.ts';
 import { QueueLink } from './cells.tsx';
 import { HealthVerdict } from './HealthVerdict.tsx';
-import { formatRate, trendPhrase, verdictCopy } from './verdict.ts';
-
-/** The verdict as the plain text a cell copies and is measured by, with its staleness. */
-function verdictText(r: ConsumerHealthView): string {
-  const { label } = verdictCopy(r.verdict);
-  return r.stale ? `${label} · stale` : label;
-}
+import { formatRate, trendPhrase, verdictText } from './verdict.ts';
 
 /**
  * The consumer-health grid's columns. The verdict and the queue identify a row and are never
@@ -28,6 +22,7 @@ export function consumerHealthColumns(): Column<ConsumerHealthView>[] {
       accessor: verdictText,
       cell: (r) => createElement(HealthVerdict, { row: r }),
       kind: 'status',
+      badge: true,
       priority: 'essential',
       sortKey: 'severity',
     },

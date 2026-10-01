@@ -10,6 +10,7 @@ import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
@@ -19,10 +20,14 @@ const PAGE_SIZE = 200;
 
 const rowKey = (r: HealthRow) => `${r.address}::${r.queueName}`;
 
-/** How many rows on this page need attention, in words; quiet when the page is empty. */
-function attentionWords(needing: number, rows: number): string {
+/**
+ * How many rows on this page need attention, in words. There is always a sentence, so the line it
+ * sits on keeps its height while the rows load and when there are none.
+ */
+function attentionWords(needing: number, rows: number, loading: boolean): string {
+  if (loading) return 'Reading queue health…';
   if (needing > 0) return `${needing} of ${rows} on this page need attention`;
-  return rows > 0 ? 'Nothing on this page needs attention' : '';
+  return rows > 0 ? 'Nothing on this page needs attention' : 'No queues on this page';
 }
 
 /** Why the grid is empty: the filter, nodes that did not answer, or genuinely nothing yet. */
@@ -69,8 +74,8 @@ function HealthEmpty({
 /**
  * Every queue in the cluster ranked by how badly it needs attention.
  *
- * This is the view the roadmap item exists for: the question during an incident
- * is "which of my queues have consumer trouble", and no existing screen answers
+ * This view exists for the question asked during an incident:
+ * "which of my queues have consumer trouble", and no other screen answers
  * it — Metrics charts one queue at a time and Flow is bounded to the busiest
  * paths. Sorting, filtering and paging are URL-owned, so a triage view can be
  * pasted into a channel and reopened exactly as it was.
@@ -128,6 +133,10 @@ export function ConsumerHealthView() {
 
   return (
     <Page fill>
+      <PageHeader
+        title="Consumer health"
+        description="Every queue ranked by whether its consumers are keeping up: whether anything is attached, whether it is acknowledging, and whether the backlog is growing."
+      />
       <Toolbar
         label="Queue filters"
         start={
@@ -137,14 +146,14 @@ export function ConsumerHealthView() {
             placeholder="Queue or address name"
             value={filter}
             onChange={(e) => setFilter(e.currentTarget.value)}
-            w={280}
+            w="17.5rem"
             size="xs"
           />
         }
         end={
-          // Stated in words, and quiet when there is nothing to say.
+          // Stated in words.
           <Text size="xs" c="dimmed" role="status">
-            {attentionWords(needingAttention, rows.length)}
+            {attentionWords(needingAttention, rows.length, query.isPending)}
             {unmeasured > 0 ? ` · ${unmeasured} not yet measured` : ''}
           </Text>
         }

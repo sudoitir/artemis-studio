@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Button, Group, Skeleton, Stack, Tabs, Text, Tooltip } from '@mantine/core';
+import { Button, Stack, Tabs, Text, Tooltip } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import {
@@ -13,6 +13,13 @@ import { absoluteLabel, elapsedLabel, useServerNow } from '../../kernel/time/tim
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import type { GateVerdict } from '../../ui/capabilityGate.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { ConfigurationSearch } from './feature.ts';
 import { AdoptionSuggestion } from './AdoptionSuggestion.tsx';
 import { DeclaredTab } from './DeclaredTab.tsx';
@@ -27,6 +34,10 @@ import classes from './Configuration.module.css';
 import { appliedWords, CONFIG_MANAGED_REASON } from './words.ts';
 
 type Drawer = 'adopt' | 'import' | 'export' | null;
+
+const EVALUATE: ActionVerb = { verb: 'Evaluate', past: 'Evaluated', progressive: 'Evaluating' };
+
+const LEAD = 'What this cluster should run, what each live node runs, and the apply that closes the difference.';
 
 /**
  * A cluster's declared configuration on one screen (ADR-0087 D1): what it should
@@ -56,28 +67,26 @@ export function ConfigurationView() {
   const setSearch = (patch: Partial<ConfigurationSearch>) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
 
-  if (declaration.isError) {
-    return (
-      <Alert color="red" variant="light" title={declaration.error.title}>
-        {declaration.error.message}
-      </Alert>
-    );
-  }
-  if (!declaration.data) {
-    return (
-      <Stack gap={4}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} height={30} />
-        ))}
-      </Stack>
-    );
-  }
-
   const d = declaration.data;
+  if (declaration.isError || !d) {
+    return (
+      <Page>
+        <PageHeader title="Configuration" description={LEAD} />
+        {declaration.isError ? (
+          <ErrorState error={declaration.error} onRetry={() => void declaration.refetch()} />
+        ) : (
+          <LoadingState label="Loading the declared configuration" blockSize="24rem" />
+        )}
+      </Page>
+    );
+  }
   const studioManaged = d.applyMode === 'STUDIO_MANAGED';
+  const nothingDeclared: GateVerdict = d.declared
+    ? { kind: 'allowed', uncertain: false }
+    : { kind: 'blocked', reason: 'Nothing is declared yet.' };
 
-  const writeButton = (label: string, onClick: () => void) => (
-    <CapabilityGate verdict={writeGate}>
+  const writeButton = (label: string, what: string, onClick: () => void) => (
+    <CapabilityGate verdict={writeGate} what={what}>
       <Button variant="default" size="xs" onClick={onClick} disabled={writeGate.kind === 'blocked'}>
         {label}
       </Button>
@@ -95,7 +104,7 @@ export function ConfigurationView() {
     ),
     history: <HistoryTab declaration={d} catalogue={catalogue.data} />,
     declared: (
-      <>
+      <Stack gap="xl">
         <DeclaredTab
           declaration={d}
           catalogue={catalogue.data}
@@ -107,30 +116,41 @@ export function ConfigurationView() {
           onEdit={(section, item) => setSearch({ section, item })}
         />
         <NodesPanel declaration={d} catalogue={catalogue.data} />
-      </>
+      </Stack>
     ),
   };
 
   return (
-    <Stack gap="md">
-      <StatusBar declaration={d} applyGate={applyGate} studioManaged={studioManaged} onReview={() => setScope({})} />
+    <Page>
+      <PageHeader
+        title="Configuration"
+        description={LEAD}
+        meta={d.declared ? <ModeControl declaration={d} canWrite={canWrite} /> : undefined}
+        actions={
+          <>
+            {writeButton('Adopt from cluster', 'adopting from the cluster', () => setDrawer('adopt'))}
+            {writeButton('Import XML', 'importing XML', () => setDrawer('import'))}
+            <CapabilityGate verdict={nothingDeclared} what="exporting the declaration">
+              <Button
+                variant={studioManaged ? 'default' : 'filled'}
+                size="xs"
+                onClick={() => setDrawer('export')}
+                disabled={!d.declared}
+              >
+                {studioManaged ? 'Export XML' : 'Copy broker.xml fragment'}
+              </Button>
+            </CapabilityGate>
+          </>
+        }
+      />
 
-      <Group justify="space-between" align="flex-start" wrap="wrap">
-        {d.declared ? <ModeControl declaration={d} canWrite={canWrite} /> : <div />}
-        <Group gap="xs" wrap="wrap">
-          {writeButton('Adopt from cluster', () => setDrawer('adopt'))}
-          {writeButton('Import XML', () => setDrawer('import'))}
-          <Button
-            variant={studioManaged ? 'default' : 'filled'}
-            size="xs"
-            onClick={() => setDrawer('export')}
-            disabled={!d.declared}
-            title={d.declared ? undefined : 'Nothing is declared yet.'}
-          >
-            {studioManaged ? 'Export XML' : 'Copy broker.xml fragment'}
-          </Button>
-        </Group>
-      </Group>
+      <StatusBar
+        declaration={d}
+        applyGate={applyGate}
+        nothingDeclared={nothingDeclared}
+        studioManaged={studioManaged}
+        onReview={() => setScope({})}
+      />
 
       {d.declared ? null : <DeclarePrompt declaration={d} writeGate={writeGate} onAdopt={() => setDrawer('adopt')} />}
 
@@ -140,15 +160,16 @@ export function ConfigurationView() {
           <Tabs.Tab value="history">History</Tabs.Tab>
           <Tabs.Tab value="recommended">Recommended</Tabs.Tab>
         </Tabs.List>
+        <Tabs.Panel value={tab} pt="lg">
+          {panes[tab]}
+        </Tabs.Panel>
       </Tabs>
-
-      {panes[tab]}
 
       <ReviewApplyDrawer declaration={d} scope={scope} opened={scope !== null} onClose={() => setScope(null)} />
       <AdoptDrawer declaration={d} opened={drawer === 'adopt'} onClose={() => setDrawer(null)} />
       <ImportXmlDrawer declaration={d} opened={drawer === 'import'} onClose={() => setDrawer(null)} />
       <ExportXmlDrawer declaration={d} opened={drawer === 'export'} onClose={() => setDrawer(null)} />
-    </Stack>
+    </Page>
   );
 }
 
@@ -166,20 +187,24 @@ function DeclarePrompt({
         canWrite={writeGate.kind !== 'blocked'}
         blockedReason={writeGate.kind === 'blocked' ? writeGate.reason : undefined}
       />
-      <Alert variant="light" color="gray" title="Declare what this cluster should run">
-        <Stack gap="xs">
-          <Text size="sm">
-            A declaration is the configuration Studio can apply over the management API and measure every live node
-            against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is declared
-            for this cluster yet, so there is nothing to compare the nodes with.
-          </Text>
-          <Text size="sm">
-            Start with <b>Adopt from cluster</b> to take what the brokers run today, <b>Import XML</b> to paste a
-            broker.xml, or open a section below and add an entry. Static settings — the rest of broker.xml — cannot be
-            applied over management and are not part of a declaration.
-          </Text>
-        </Stack>
-      </Alert>
+      <EmptyState
+        kind="empty"
+        title="Declare what this cluster should run"
+        description={
+          <Stack gap="xs">
+            <Text size="sm">
+              A declaration is the configuration Studio can apply over the management API and measure every live node
+              against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is
+              declared for this cluster yet, so there is nothing to compare the nodes with.
+            </Text>
+            <Text size="sm">
+              Start with <b>Adopt from cluster</b> to take what the brokers run today, <b>Import XML</b> to paste a
+              broker.xml, or open a section below and add an entry. Static settings — the rest of broker.xml — cannot be
+              applied over management and are not part of a declaration.
+            </Text>
+          </Stack>
+        }
+      />
     </>
   );
 }
@@ -202,15 +227,20 @@ function savedLabel(declaration: ConfigDeclarationView): string {
  * one primary action, so a saved revision is never left with no way to reach a
  * broker; when applying is impossible the control stays visible and says why
  * (non-negotiable #5).
+ *
+ * <p>"Evaluate now" runs one read of every live node. It is busy while it runs, announces that it
+ * finished, and when it fails says why and offers the same evaluation again.
  */
 function StatusBar({
   declaration,
   applyGate,
+  nothingDeclared,
   studioManaged,
   onReview,
 }: Readonly<{
   declaration: ConfigDeclarationView;
   applyGate: GateVerdict;
+  nothingDeclared: GateVerdict;
   studioManaged: boolean;
   onReview: () => void;
 }>) {
@@ -222,14 +252,19 @@ function StatusBar({
     .sort((a, b) => a.localeCompare(b))
     .at(-1);
 
+  const run = () =>
+    evaluate.mutate(undefined, {
+      onSuccess: () => notify.succeeded({ action: EVALUATE, subject: 'every live node against the declaration' }),
+    });
+
   return (
-    <Stack gap={4}>
+    <Stack gap="xs">
       <div className={classes.summaryBar}>
-        <Stack gap={2}>
-          <Text size="sm" fw={600} className={classes.state} data-tone={applied.tone} aria-live="polite">
-            {applied.text}
-          </Text>
-          <Text size="xs" c="dimmed">
+        <Stack gap="xs">
+          <div aria-live="polite">
+            <StatusBadge tone={applied.tone ?? 'neutral'}>{applied.text}</StatusBadge>
+          </div>
+          <Text size="sm" c="dimmed">
             {declaration.declared ? `${savedLabel(declaration)} · ` : ''}
             {latest ? (
               <Tooltip label={absoluteLabel(latest)} withArrow>
@@ -243,18 +278,19 @@ function StatusBar({
             )}
           </Text>
         </Stack>
-        <Group gap="xs" wrap="wrap">
-          <Button
-            variant="default"
-            size="xs"
-            loading={evaluate.isPending}
-            onClick={() => evaluate.mutate()}
-            disabled={!declaration.declared}
-            title={declaration.declared ? undefined : 'Nothing is declared to compare the nodes with.'}
-          >
-            Evaluate now
-          </Button>
-          <CapabilityGate verdict={applyGate}>
+        <div className={classes.barActions}>
+          <CapabilityGate verdict={nothingDeclared} what="evaluating the nodes">
+            <Button
+              variant="default"
+              size="xs"
+              loading={evaluate.isPending}
+              onClick={run}
+              disabled={!declaration.declared}
+            >
+              Evaluate now
+            </Button>
+          </CapabilityGate>
+          <CapabilityGate verdict={applyGate} what="review and apply">
             <Button
               size="xs"
               variant={studioManaged ? 'filled' : 'default'}
@@ -264,13 +300,9 @@ function StatusBar({
               Review &amp; apply
             </Button>
           </CapabilityGate>
-        </Group>
+        </div>
       </div>
-      {evaluate.isError ? (
-        <Alert color="red" variant="light" title={evaluate.error.title} role="alert">
-          {evaluate.error.message}
-        </Alert>
-      ) : null}
+      {evaluate.isError ? <ErrorState variant="inline" error={evaluate.error} onRetry={run} /> : null}
     </Stack>
   );
 }
@@ -293,21 +325,16 @@ function RecommendedTab({
 }>) {
   if (query.isError) {
     return (
-      <Alert color="red" variant="light" title={query.error.title}>
-        {query.error.message} Studio could not assess this cluster, so it has nothing to recommend — this is not the
-        same as having nothing to recommend.
-      </Alert>
-    );
-  }
-  if (!query.data) {
-    return (
-      <Stack gap={4}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} height={30} />
-        ))}
+      <Stack gap="sm">
+        <ErrorState error={query.error} onRetry={() => void query.refetch()} />
+        <Text size="sm" c="dimmed">
+          Studio could not assess this cluster, so it has nothing to recommend — this is not the same as having nothing
+          to recommend.
+        </Text>
       </Stack>
     );
   }
+  if (!query.data) return <LoadingState label="Assessing the cluster" blockSize="16rem" />;
   return (
     <RecommendedConfiguration
       clusterId={clusterId}

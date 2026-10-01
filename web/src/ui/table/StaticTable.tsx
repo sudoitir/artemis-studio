@@ -62,23 +62,37 @@ const StaticRow = memo(StaticRowView) as typeof StaticRowView;
 /**
  * The small, read-only renderer of `DataTable` (ADR-0160): a native `<table>` through Mantine's
  * `Table`, with tabular figures, a header that sticks to the page, and the same column model and
- * solver as the grid. Not virtualised, so cells hold natively focusable controls and the keyboard
- * needs no grid model. `DataTable` switches to the grid above 200 rows.
+ * solver as the grid. The layout is fixed, so the solved widths hold and an identifier or code value
+ * is shortened by its kind (middle or end) instead of widening its column. Not virtualised, so cells
+ * hold natively focusable controls and the keyboard needs no grid model. `DataTable` switches to the
+ * grid above 200 rows.
  */
 export function StaticTable<T>({ model, caption }: Readonly<{ model: TableModel<T>; caption?: ReactNode }>) {
   const { columns, data, rowKey } = model;
   const wrapRef = useRef<HTMLDivElement>(null);
   useInlineSize(wrapRef, model.onWidth);
   const placeholder = model.loading && data.length === 0;
+  // With `maxRows`, more rows than that scroll inside the frame under a pinned header, so a long list
+  // keeps the height its loading placeholder had and the page below it does not move.
+  const capped = model.maxRows !== undefined && data.length > model.maxRows;
+  const scrolls = model.overflow || capped;
 
   return (
-    <div ref={wrapRef} className={classes.staticFrame} data-overflow={model.overflow || undefined}>
+    <div
+      ref={wrapRef}
+      className={classes.staticFrame}
+      data-overflow={model.overflow || undefined}
+      data-capped={capped || undefined}
+      style={capped ? ({ '--as-max-rows': model.maxRows } as CSSProperties) : undefined}
+      // A frame that scrolls is reachable by keyboard and named, as the grid's scroller is.
+      {...(scrolls ? { role: 'region', tabIndex: 0, 'aria-label': `${model.label}, scrollable` } : {})}
+    >
       {model.measurer}
       <Table
-        layout="auto"
+        layout="fixed"
         tabularNums
         stickyHeader
-        stickyHeaderOffset="var(--app-shell-header-offset, 0rem)"
+        stickyHeaderOffset={capped ? '0rem' : 'var(--app-shell-header-offset, 0rem)'}
         className={classes.staticTable}
         aria-label={caption ? undefined : model.label}
         aria-busy={model.loading || undefined}

@@ -1,11 +1,17 @@
-import { Alert, List, Stack, Text, VisuallyHidden } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useState } from 'react';
+import { Button, List, Stack, Text } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useCluster, useDeleteCluster } from './api.ts';
+import classes from './Clusters.module.css';
 import styles from './RemoveClusterSection.module.css';
+
+const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Removing' };
 
 /**
  * Settings section: remove this cluster from Studio (cluster-registration spec). It lives here, last in the
@@ -17,15 +23,19 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
   const remove = useDeleteCluster();
   const navigate = useNavigate();
   const { can, loading } = useCan();
+  const [confirming, setConfirming] = useState(false);
   // While grants load the control is offered; the server is the enforcement point.
   const denied = !loading && !can('cluster:write', clusterId);
   const name = cluster.data?.name;
+
+  if (cluster.isError) return <ErrorState error={cluster.error} onRetry={() => void cluster.refetch()} />;
+  if (!name) return <LoadingState label="Loading the cluster" blockSize="16rem" />;
 
   return (
     <div className={styles.danger}>
       <Stack gap="sm">
         <Text size="sm">
-          Removing <strong>{name ?? 'this cluster'}</strong> deletes what Studio keeps for it:
+          Removing <strong>{name}</strong> deletes what Studio keeps for it:
         </Text>
         <List size="sm" spacing={2}>
           <List.Item>its registration, nodes and stored broker credentials;</List.Item>
@@ -44,36 +54,54 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
           </Text>
         ) : null}
 
-        {remove.isError ? (
-          <Alert color="red" variant="light" title="The cluster was not removed">
-            {remove.error.message} It is still registered; try again, or check that you still hold{' '}
-            <code>cluster:write</code> on it.
-          </Alert>
-        ) : null}
-
-        {name ? (
-          <ConfirmByTyping
-            token={name}
-            confirmLabel="Remove cluster"
-            loading={remove.isPending}
-            disabled={denied}
-            onConfirm={() =>
-              remove.mutate(clusterId, {
-                onSuccess: () => {
-                  notifications.show({ color: 'gray', title: 'Cluster removed', message: name });
-                  void navigate({ to: '/' });
-                },
-              })
-            }
-          />
-        ) : null}
-
-        <VisuallyHidden aria-live="polite">
-          {remove.isPending ? `Removing ${name}` : ''}
-          {remove.isError ? `${name} was not removed` : ''}
-          {remove.isSuccess ? `${name} removed` : ''}
-        </VisuallyHidden>
+        <Button
+          variant="default"
+          disabled={denied}
+          className={classes.start}
+          onClick={() => {
+            remove.reset();
+            setConfirming(true);
+          }}
+        >
+          Remove cluster…
+        </Button>
       </Stack>
+
+      <ConfirmDialog
+        opened={confirming}
+        onClose={() => setConfirming(false)}
+        title="Remove cluster"
+        consequence={
+          <Stack gap="xs">
+            <span>
+              Removes <strong>{name}</strong> from Studio, with its registration, nodes, stored broker credentials,
+              alert rules, request-reply flows, message-index subscriptions and configuration history. Nothing on the
+              broker changes.
+            </span>
+            {remove.isError ? (
+              <>
+                <ErrorState variant="inline" error={remove.error} />
+                <span>
+                  It is still registered; try again, or check that you still hold <code>cluster:write</code> on it.
+                </span>
+              </>
+            ) : null}
+          </Stack>
+        }
+        confirmLabel="Remove cluster"
+        tone="danger"
+        typedName={name}
+        pending={remove.isPending}
+        onConfirm={() =>
+          remove.mutate(clusterId, {
+            onSuccess: () => {
+              notify.succeeded({ action: REMOVE, subject: `cluster ${name}` });
+              setConfirming(false);
+              void navigate({ to: '/' });
+            },
+          })
+        }
+      />
     </div>
   );
 }

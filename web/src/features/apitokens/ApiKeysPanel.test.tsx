@@ -1,12 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { ApiKeysPanel } from './ApiKeysPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+
+function renderKeys() {
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <ApiKeysPanel />
+    </>,
+  );
+}
+
+afterEach(() => act(() => notifications.clean()));
 
 const CATALOGUE = [
   {
@@ -68,7 +80,7 @@ function mockBaseApis(grants: unknown[], tokens: unknown[] = []) {
 describe('ApiKeysPanel', () => {
   it('lists existing keys with their expiry and tool restriction', async () => {
     mockBaseApis([], [token({ mcpTools: ['list_resources'] })]);
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     expect(await screen.findByText('laptop')).toBeInTheDocument();
     expect(screen.getByText('as_abcd')).toBeInTheDocument();
@@ -77,7 +89,7 @@ describe('ApiKeysPanel', () => {
 
   it('teaches what a key is when there are none', async () => {
     mockBaseApis([]);
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     expect(await screen.findByText(/You have no keys/)).toBeInTheDocument();
   });
@@ -89,15 +101,17 @@ describe('ApiKeysPanel', () => {
         HttpResponse.json({ title: 'Boom', detail: 'Database unavailable' }, { status: 500 }),
       ),
     );
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
-    expect(await screen.findByText('Your keys could not be loaded')).toBeInTheDocument();
+    expect(await screen.findByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(screen.getByText('Database unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('offers only the permissions the user holds', async () => {
     mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }]);
     const user = userEvent.setup();
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'New key' }));
 
@@ -120,7 +134,7 @@ describe('ApiKeysPanel', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'New key' }));
     await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'agent');
@@ -144,7 +158,7 @@ describe('ApiKeysPanel', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'Rotate laptop' }));
     await user.click(await screen.findByRole('button', { name: 'Rotate' }));
@@ -153,7 +167,7 @@ describe('ApiKeysPanel', () => {
     expect(screen.getByText(/The old secret keeps working until/)).toBeInTheDocument();
   });
 
-  it('revokes a key only once its name is typed', async () => {
+  it('revokes a key only once its name is typed, and announces it', async () => {
     let revoked = false;
     mockBaseApis([], [token()]);
     server.use(
@@ -163,7 +177,7 @@ describe('ApiKeysPanel', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'Revoke laptop' }));
     const confirm = await screen.findByRole('button', { name: 'Revoke key' });
@@ -172,6 +186,102 @@ describe('ApiKeysPanel', () => {
     await user.click(confirm);
 
     await expect.poll(() => revoked).toBe(true);
+    // The dialog closing is not the only signal: the outcome is announced politely.
+    expect(await screen.findByRole('status')).toHaveTextContent('Revoked key "laptop"');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('says why a revoke failed and what to do, and carries nothing over to the next key', async () => {
+    mockBaseApis([], [token(), token({ id: 't2', name: 'ci' })]);
+    server.use(
+      http.delete('*/api/v1/tokens/t1', () =>
+        HttpResponse.json({ title: 'Boom', detail: 'Database unavailable' }, { status: 500 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderKeys();
+
+    await user.click(await screen.findByRole('button', { name: 'Revoke laptop' }));
+    let dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: /Type "laptop" to confirm/ }), 'laptop');
+    await user.click(within(dialog).getByRole('button', { name: 'Revoke key' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not revoke key "laptop"');
+    expect(alert).toHaveTextContent('Database unavailable The key still works. Try again.');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Revoke ci' }));
+    dialog = await screen.findByRole('dialog');
+    // The dialog for the next key holds no trace of the last key's failure.
+    expect(within(dialog).queryByText(/Database unavailable/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('moves focus into the revoke dialog, closes it with Escape and returns focus to the trigger', async () => {
+    mockBaseApis([], [token()]);
+    const user = userEvent.setup();
+    renderKeys();
+
+    const trigger = await screen.findByRole('button', { name: 'Revoke laptop' });
+    await user.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('keeps rotate and revoke visible but disabled for a key that already ended', async () => {
+    mockBaseApis([], [token({ revokedAt: new Date().toISOString() })]);
+    renderKeys();
+
+    expect(await screen.findByText('Revoked')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rotate laptop' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Revoke laptop' })).toBeDisabled();
+  });
+
+  it('offers the permissions once the user’s grants arrive after the catalogue', async () => {
+    mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }]);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get('*/api/v1/auth/me', async () => {
+        await gate;
+        return HttpResponse.json({
+          id: 'u1',
+          username: 'ada',
+          mustChangePassword: false,
+          grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderKeys();
+
+    await user.click(await screen.findByRole('button', { name: 'New key' }));
+    // The catalogue is here and the grants are not: nothing is held yet.
+    expect(await screen.findByText(/You hold nothing at this scope/)).toBeInTheDocument();
+    release();
+    // Once they land the list follows them; it is not stuck on the first answer.
+    expect(await screen.findByRole('button', { name: /Clusters, 0 of 1 selected/ })).toBeInTheDocument();
+    expect(screen.queryByText(/You hold nothing at this scope/)).not.toBeInTheDocument();
+  });
+
+  it('asks for a permission on submit and moves focus to the first thing missing', async () => {
+    mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }]);
+    const user = userEvent.setup();
+    renderKeys();
+
+    await user.click(await screen.findByRole('button', { name: 'New key' }));
+    await user.click(await screen.findByRole('button', { name: 'Create' }));
+    expect(await screen.findByText('Name the key after where it will be used.')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /Name/ })).toHaveFocus();
+
+    await user.type(screen.getByRole('textbox', { name: /Name/ }), 'agent');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+    expect(await screen.findByText(/Choose at least one permission/)).toBeInTheDocument();
   });
 
   it('shows a key’s usage per day', async () => {
@@ -189,7 +299,7 @@ describe('ApiKeysPanel', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'Usage of laptop' }));
 
@@ -211,7 +321,7 @@ describe('ApiKeysPanel', () => {
       ),
     );
     const user = userEvent.setup();
-    renderWithProviders(<ApiKeysPanel />);
+    renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'New key' }));
     await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'agent');

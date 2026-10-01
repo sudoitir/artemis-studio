@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button, PasswordInput, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { useForm } from '@mantine/form';
 
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useCluster, useRotateCredentials } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
+import classes from './Clusters.module.css';
 import { RegisterClusterButton } from './RegisterClusterButton.tsx';
 
 /** Settings section: register another cluster. */
@@ -41,72 +47,108 @@ const CREDENTIAL_KINDS: Record<CredentialKind, { label: string; hint: string }> 
   },
 };
 
+const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
+
 function CredentialRotation({ clusterId, clusterName }: Readonly<{ clusterId: string; clusterName: string }>) {
   const rotate = useRotateCredentials(clusterId);
-  const [kind, setKind] = useState<CredentialKind>('JOLOKIA_BASIC');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const armed = confirm === clusterName && username.length > 0 && password.length > 0;
+  const [confirming, setConfirming] = useState(false);
+  const form = useForm<{ kind: CredentialKind; username: string; password: string }>({
+    initialValues: { kind: 'JOLOKIA_BASIC', username: '', password: '' },
+    validateInputOnBlur: true,
+    // Both fields are validated when the button is pressed, and on leaving a field; nothing is disabled silently.
+    validate: {
+      username: (v) => (v.trim() ? null : 'Enter the account name.'),
+      password: (v) => (v ? null : 'Enter the new password.'),
+    },
+  });
+  const { kind, username } = form.values;
+  const label = CREDENTIAL_KINDS[kind].label;
+
+  const submit = form.onSubmit(() => {
+    rotate.reset();
+    setConfirming(true);
+  }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Stack gap="xs" maw={480}>
+    <form className={classes.settingsForm} noValidate onSubmit={submit}>
       <div>
-        <Text component="label" size="xs" fw={500} display="block" mb={4}>
+        <Text component="label" size="xs" fw={500} display="block" mb="0.25rem" id="credential-kind">
           Account
         </Text>
         <SegmentedControl
           size="xs"
           fullWidth
-          value={kind}
-          onChange={(v) => setKind(v as CredentialKind)}
+          aria-labelledby="credential-kind"
+          {...form.getInputProps('kind')}
+          onChange={(v) => form.setFieldValue('kind', v === 'CORE' ? 'CORE' : 'JOLOKIA_BASIC')}
           data={(Object.keys(CREDENTIAL_KINDS) as CredentialKind[]).map((k) => ({
             value: k,
             label: CREDENTIAL_KINDS[k].label,
           }))}
         />
-        <Text size="xs" c="dimmed" mt={4}>
+        <Text size="xs" c="dimmed" mt="0.25rem">
           {CREDENTIAL_KINDS[kind].hint}
         </Text>
       </div>
-      <TextInput label="Username" value={username} onChange={(e) => setUsername(e.currentTarget.value)} size="xs" />
-      <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} size="xs" />
-      <TextInput
-        label={`Type "${clusterName}" to confirm`}
-        value={confirm}
-        onChange={(e) => setConfirm(e.currentTarget.value)}
-        size="xs"
-      />
-      <Button
-        size="xs"
-        color="red"
-        disabled={!armed}
-        loading={rotate.isPending}
-        onClick={() =>
-          rotate.mutate(
-            { username, password, kind },
-            {
-              onSuccess: () => {
-                notifications.show({
-                  message: `${CREDENTIAL_KINDS[kind].label} credentials saved — the next scrape will use them`,
-                });
-                setUsername('');
-                setPassword('');
-                setConfirm('');
-              },
-              onError: (err) => notifications.show({ color: 'red', message: err.message }),
-            },
-          )
-        }
-      >
-        Save {CREDENTIAL_KINDS[kind].label.toLowerCase()} credentials
+      <TextInput label="Username" {...form.getInputProps('username')} size="xs" />
+      <PasswordInput label="Password" {...form.getInputProps('password')} size="xs" />
+      <Button type="submit" size="xs" className={classes.start}>
+        Save {label.toLowerCase()} credentials…
       </Button>
       <Text size="xs" c="dimmed">
         The new secret is AES-GCM sealed and the change is audited. It replaces this cluster’s stored{' '}
-        {CREDENTIAL_KINDS[kind].label.toLowerCase()} account on every node; the other account is left alone.
+        {label.toLowerCase()} account on every node; the other account is left alone.
       </Text>
-    </Stack>
+      <ConfirmDialog
+        opened={confirming}
+        onClose={() => setConfirming(false)}
+        title={`Save ${label.toLowerCase()} credentials`}
+        consequence={
+          <Stack gap="xs">
+            <Text size="sm">
+              This replaces the stored {label.toLowerCase()} account of <strong>{clusterName}</strong> on every node
+              with <strong>{username}</strong>. The next scrape uses it; if the broker refuses it, this cluster reads as
+              unreachable until the account is corrected.
+            </Text>
+            {rotate.isError ? <ErrorState variant="inline" error={rotate.error} /> : null}
+          </Stack>
+        }
+        confirmLabel={`Save ${label.toLowerCase()} credentials`}
+        tone="danger"
+        typedName={clusterName}
+        pending={rotate.isPending}
+        onConfirm={() =>
+          rotate.mutate(
+            { username: form.values.username, password: form.values.password, kind },
+            {
+              onSuccess: () => {
+                notify.succeeded({ action: SAVE, subject: `${label.toLowerCase()} credentials of ${clusterName}` });
+                form.setValues({ username: '', password: '' });
+                form.clearErrors();
+                setConfirming(false);
+              },
+            },
+          )
+        }
+      />
+    </form>
   );
+}
+
+/** A section's content once the cluster has loaded; until then a frame of its size, so nothing below moves. */
+function SectionBody({
+  cluster,
+  blockSize,
+  children,
+}: Readonly<{
+  cluster: ReturnType<typeof useCluster>;
+  /** The height of the content that replaces the frame. */
+  blockSize: string;
+  children: (data: NonNullable<ReturnType<typeof useCluster>['data']>) => ReactNode;
+}>) {
+  if (cluster.data) return <>{children(cluster.data)}</>;
+  if (cluster.isError) return <ErrorState error={cluster.error} onRetry={() => void cluster.refetch()} />;
+  return <LoadingState label="Loading the cluster" blockSize={blockSize} />;
 }
 
 /** Settings section: rotate the broker accounts Studio uses for this cluster. */
@@ -119,7 +161,9 @@ export function CredentialsSection({ clusterId }: Readonly<{ clusterId: string }
         Management and Core are stored separately, so a cluster whose management account is its{' '}
         <code>&lt;cluster-user&gt;</code> can still open a Core connection.
       </Text>
-      {cluster.data ? <CredentialRotation clusterId={clusterId} clusterName={cluster.data.name} /> : null}
+      <SectionBody cluster={cluster} blockSize="18rem">
+        {(data) => <CredentialRotation clusterId={clusterId} clusterName={data.name} />}
+      </SectionBody>
     </>
   );
 }
@@ -133,7 +177,9 @@ export function CapabilitiesSection({ clusterId }: Readonly<{ clusterId: string 
         What this connection can and cannot do over Jolokia. Rows that are not plainly available expand with the reason
         and the exact <code>broker.xml</code> change to close the gap.
       </Text>
-      {cluster.data ? <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} /> : null}
+      <SectionBody cluster={cluster} blockSize="14rem">
+        {(data) => <CapabilityLedger capabilities={data.capabilities} clusterId={clusterId} />}
+      </SectionBody>
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { Suspense, type ComponentType, type ReactNode } from 'react';
-import { Loader } from '@mantine/core';
 import { lazyRouteComponent } from '@tanstack/react-router';
 
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import type { ModuleId } from '../feature.ts';
 import { FeatureGate } from '../shell/FeatureGate.tsx';
 
@@ -38,16 +38,18 @@ export function lazyFeatureView<K extends string>(
 
 /**
  * A slot contribution whose code, and what it pulls in, loads when the slot first renders it. The
- * contribution carries its own loading state, so the screen that hosts the slot never waits for it.
+ * contribution carries its own loading state, so the screen that hosts the slot never waits for it;
+ * until its code arrives a frame of `blockSize` (a CSS length) holds its place.
  */
 export function lazySlot<K extends string, P extends object>(
   load: () => Promise<{ [Name in NoInfer<K>]: (props: P) => ReactNode }>,
   exportName: K,
+  blockSize = '12rem',
 ): ComponentType<P> {
   const Contribution = namedExport(load, exportName);
   return function LazySlot(props: P) {
     return (
-      <Suspense fallback={<Loader size="sm" />}>
+      <Suspense fallback={<LoadingState label="Loading" blockSize={blockSize} />}>
         <Contribution {...props} />
       </Suspense>
     );

@@ -1,0 +1,37 @@
+/* The sign-in screen: one card in the middle of the window, as wide as its form needs and no wider than the
+   window, so it needs no breakpoints. */
+.screen {
+  display: grid;
+  place-items: center;
+  min-block-size: 100vh;
+  padding: var(--mantine-spacing-lg);
+}
+
+.card {
+  inline-size: min(100%, 23rem);
+}
+
+/* A fact to read before signing in. The words carry the meaning; the edge only repeats it. */
+.notice {
+  display: block;
+  border-inline-start: 0.25rem solid var(--as-border-strong);
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-md) 0;
+  overflow-wrap: anywhere;
+}
+
+.notice[data-tone='warning'] {
+  border-inline-start-color: var(--as-warning);
+}
+
+/* A refused attempt, with the danger token on the edge only (the same edge ErrorState uses). */
+.failure {
+  border-inline-start: 0.25rem solid var(--as-danger);
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-md) 0;
+  overflow-wrap: anywhere;
+}
+
+.title {
+  font-weight: 600;
+}

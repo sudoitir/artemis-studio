@@ -9,6 +9,7 @@ import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { QueueDetailDrawer } from './QueueDetailDrawer.tsx';
@@ -297,6 +298,10 @@ export function QueuesView() {
 
   return (
     <Page fill>
+      <PageHeader
+        title="Queues"
+        description="Every queue across the cluster's nodes, with its depth and consumers. Select a row to open its detail and actions."
+      />
       <Toolbar
         label="Queue filters"
         start={
@@ -306,7 +311,7 @@ export function QueuesView() {
             placeholder="Queue or address name"
             value={filter}
             onChange={(e) => typeFilter(e.currentTarget.value)}
-            w={280}
+            w="17.5rem"
             size="xs"
           />
         }
@@ -351,8 +356,11 @@ export function QueuesView() {
         onToggleRow={toggleRow}
         onToggleAll={toggleAll}
         toolbar={{
-          // The count and position live in the pager, stated once.
-          end: <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />,
+          // The count and position live in the pager, stated once. Not before the first page lands:
+          // "No queues" while loading would claim there are none.
+          end: query.data ? (
+            <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label="queues" />
+          ) : undefined,
         }}
         rowMenu={{
           label: (r) => r.queueName,

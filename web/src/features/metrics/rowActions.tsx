@@ -11,7 +11,7 @@ export function OpenQueueHistory({ clusterId, target }: Readonly<ActionProps<Que
   return (
     <ActionMenuItem
       label="Open history"
-      icon={<IconChartLine size={16} aria-hidden />}
+      icon={<IconChartLine size="1rem" aria-hidden />}
       href={clusterHref(clusterId, 'metrics', { subject: target.queueName })}
       onSelect={() =>
         navigate({ to: `/clusters/${clusterId}/metrics`, search: { subject: target.queueName } as never })

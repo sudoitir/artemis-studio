@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -45,6 +46,8 @@ function me(authenticatedAt: string, permissions = ['*']) {
 }
 
 const fresh = () => new Date().toISOString();
+
+afterEach(() => act(() => notifications.clean()));
 
 describe('SecuritySettings', () => {
   it('renders the provider, versions and the last rotation', async () => {
@@ -233,5 +236,86 @@ describe('SecuritySettings', () => {
     );
     renderWithProviders(<SecuritySettings />);
     expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('says why a refused rotation did not start and what to do, in the toast and not as a red box', async () => {
+    server.use(
+      status({ lastRotation: ROTATION }),
+      me(fresh()),
+      http.post('*/api/v1/settings/secrets/rotations', () =>
+        HttpResponse.json(
+          { type: 'https://studio/problems/no-newer-key', title: 'No newer key', detail: 'No newer key version.' },
+          { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Notifications />
+        <SecuritySettings />
+      </>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Rotate key' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Rotate key' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not start the key rotation');
+    expect(alert).toHaveTextContent('No newer key version. Add a newer key version to the provider, then try again.');
+    // The confirmation stays open, so the operator can act on what it says.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('announces that a rotation started', async () => {
+    server.use(
+      status({ lastRotation: ROTATION }),
+      me(fresh()),
+      http.post('*/api/v1/settings/secrets/rotations', () =>
+        HttpResponse.json({ ...ROTATION, status: 'RUNNING' }, { status: 202 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Notifications />
+        <SecuritySettings />
+      </>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Rotate key' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rotate key' }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map((s) => s.textContent)).toContainEqual(
+        expect.stringContaining('Started the key rotation'),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('dismisses the confirmation with Escape and gives focus back to the button that opened it', async () => {
+    server.use(status({ lastRotation: ROTATION }), me(fresh()));
+    renderWithProviders(<SecuritySettings />);
+    const user = userEvent.setup();
+
+    const trigger = await screen.findByRole('button', { name: 'Rotate key' });
+    await user.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement));
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('holds its place while the key status loads, as a status and not a labelled box', async () => {
+    server.use(http.get('*/api/v1/settings/secrets', () => new Promise(() => {})));
+    renderWithProviders(<SecuritySettings />);
+
+    const loading = screen.getByRole('status');
+    expect(loading).toHaveTextContent('Loading key status');
+    expect(loading).toHaveAttribute('aria-busy', 'true');
   });
 });

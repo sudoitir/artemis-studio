@@ -21,6 +21,7 @@ import { DataTable, type Column } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { useCluster } from '../clusters/index.ts';
@@ -43,6 +44,8 @@ interface KindConfig<T> {
   noun: string;
   /** What one is and how one comes to exist: what an empty view teaches. */
   about: string;
+  /** What the view lists, for the page's description. */
+  summary: string;
   /** The row's menu (ADR-0107): which resource it is, and how the row names itself. */
   menu: RowMenuConfig<T>;
 }
@@ -67,6 +70,7 @@ const CONFIG: {
     rowKey: (r) => `${r.nodeId}:${r.name}`,
     filter: 'Address name',
     noun: 'address',
+    summary: 'Every address on the cluster, with its queues and messages, read live from each node.',
     about:
       'An address is a named destination that producers send to; the broker routes each message to the queues bound to it. One appears when a queue is created or a producer first sends to it.',
     menu: {
@@ -81,6 +85,7 @@ const CONFIG: {
     rowKey: (r) => `${r.nodeId}:${r.consumerId}`,
     filter: 'Queue name or session id',
     noun: 'consumer',
+    summary: 'Every consumer attached to a queue, read live from each node.',
     about:
       'A consumer is a client subscribed to a queue and receiving its messages. There are none while no client is subscribed; one appears as soon as a client subscribes.',
     menu: {
@@ -102,6 +107,7 @@ const CONFIG: {
     rowKey: (r) => `${r.nodeId}:${r.sessionId}`,
     filter: 'Session id, connection id or user',
     noun: 'session',
+    summary: 'Every client session, read live from each node.',
     about:
       "A session is a client's unit of work on a connection; it owns that client's producers and consumers. There are none while no client is connected; one appears when a client opens a session.",
     menu: {
@@ -122,6 +128,7 @@ const CONFIG: {
     rowKey: (r) => `${r.nodeId}:${r.connectionId}`,
     filter: 'Remote address, client id or connection id',
     noun: 'connection',
+    summary: 'Every client connection, read live from each node.',
     about:
       "A connection is a client's network link to a broker node. There are none while no client is connected; one appears when a client connects to a node's acceptor.",
     menu: {
@@ -136,6 +143,7 @@ const CONFIG: {
     rowKey: (r) => `${r.nodeId}:${r.producerId}`,
     filter: 'Address, producer name or session id',
     noun: 'producer',
+    summary: 'Every producer sending to an address, read live from each node.',
     about:
       "A producer is a client's sender to an address. There are none while no client holds one open; one appears when a client creates a producer on a session.",
     menu: {
@@ -221,6 +229,7 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
   const search = useSearch({ strict: false }) as { q?: string; sort?: string; page?: number };
   const navigate = useNavigate();
   const config = CONFIG[kind] as unknown as KindConfig<{ nodeName: string }>;
+  const title = kind.charAt(0).toUpperCase() + kind.slice(1);
 
   const [filter, setFilter] = useState(search.q ?? '');
   const [debounced] = useDebouncedValue(filter, 250);
@@ -265,8 +274,9 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
 
   return (
     <Page fill>
+      <PageHeader title={title} description={config.summary} />
       <Toolbar
-        label={`${kind.charAt(0).toUpperCase() + kind.slice(1)} filters`}
+        label={`${title} filters`}
         start={
           <TextInput
             ref={filterRef}
@@ -274,14 +284,14 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
             placeholder={config.filter}
             value={filter}
             onChange={(e) => setFilter(e.currentTarget.value)}
-            w={280}
+            w="17.5rem"
             size="xs"
           />
         }
       />
 
       <DataTable
-        label={kind.charAt(0).toUpperCase() + kind.slice(1)}
+        label={title}
         storageKey={`resources.${kind}`}
         height="fill"
         columns={columns}
@@ -292,7 +302,10 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
         onSortChange={setSort}
         rowKey={config.rowKey}
         toolbar={{
-          end: <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={plural(config.noun)} />,
+          // Not before the first page lands: "No addresses" while loading would claim there are none.
+          end: query.data ? (
+            <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} label={plural(config.noun)} />
+          ) : undefined,
         }}
         rowMenu={{
           label: config.menu.label,

@@ -1,0 +1,33 @@
+/* The re-mask status holds two lines before it loads, so the table below does not move when it arrives. */
+.remask {
+  min-block-size: calc(2 * var(--mantine-line-height-sm) * var(--mantine-font-size-sm));
+}
+
+.figures {
+  font-variant-numeric: tabular-nums;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.note {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

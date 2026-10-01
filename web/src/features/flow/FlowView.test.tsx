@@ -158,14 +158,77 @@ describe('FlowView', () => {
     renderWithProviders(<FlowView />);
 
     const totals = await screen.findByRole('region', { name: 'Totals across every path' });
-    expect(totals).toHaveTextContent('42 msg/s');
-    expect(totals).toHaveTextContent('Messages outmeasuring…');
+    expect(totals).toHaveTextContent('Messages in42msg/s');
+    // An unknown total is stated and explained, never rendered as zero.
+    expect(totals).toHaveTextContent('Messages outUnavailable');
+    expect(totals).toHaveTextContent('Still measuring: a rate needs two samples.');
     expect(totals).toHaveTextContent('2 faults');
     expect(screen.getByText('Showing 2 of 5 paths, ranked by messages in.')).toBeInTheDocument();
     expect(
       screen.getByText('Raise the limit, or focus a client, address or queue to reach the rest.'),
     ).toBeInTheDocument();
     expect(screen.getByText(/Measuring client rates/)).toBeInTheDocument();
+  });
+
+  it('is one page with a single h1 named Flow, and sections under it', async () => {
+    serve(graph());
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Totals across every path' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Flow' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'Paths' })).toBeInTheDocument();
+  });
+
+  it('says the flow is incomplete, not absent, when the nodes that would show it did not answer', async () => {
+    serve(
+      graph({
+        nodes: [],
+        edges: [],
+        kpis: { inRate: null, outRate: null, backlog: 0, clients: 0, faults: 0 },
+        totals: { paths: 0, shown: 0, limit: 40, clamped: false },
+      }),
+    );
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('No flow to show, and some nodes did not answer')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Nodes that could not be reached' })).toHaveTextContent('node-b');
+    expect(screen.queryByText('No flow to show yet')).not.toBeInTheDocument();
+  });
+
+  it('names the nodes that did not answer in the table instead of presenting an empty list as a fact', async () => {
+    routerState.search = { tab: 'table' };
+    serve(graph({ nodes: [], edges: [] }));
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('No paths to list, and some nodes did not answer')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Nodes that could not be reached' })).toHaveTextContent('node-b');
+  });
+
+  it('says a narrowed table is narrowed, and clears the focus and the layers on request', async () => {
+    routerState.search = { tab: 'table', layers: 'BRIDGES' };
+    serve(graph({ nodes: [], edges: [], brokerNodes: [] }));
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('No path matches this focus and these layers')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    const call = routerState.navigate.mock.calls.at(-1)?.[0] as { search: (prev: object) => Record<string, unknown> };
+    expect(call.search({ tab: 'table', layers: 'BRIDGES' })).toEqual({
+      tab: 'table',
+      layers: undefined,
+      focus: undefined,
+      hops: undefined,
+    });
+  });
+
+  it('teaches what the table lists when there are no paths and nothing narrows it', async () => {
+    routerState.search = { tab: 'table' };
+    serve(graph({ nodes: [], edges: [], brokerNodes: [] }));
+    renderWithProviders(<FlowView />);
+
+    expect(await screen.findByText('No paths to list')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
   });
 
   it('names a node that did not answer instead of showing fewer clients silently', async () => {
@@ -209,7 +272,7 @@ describe('FlowView', () => {
     );
     renderWithProviders(<FlowView />);
 
-    expect(await screen.findByRole('heading', { name: 'No flow to show yet' })).toBeInTheDocument();
+    expect(await screen.findByText('No flow to show yet')).toBeInTheDocument();
   });
 
   it('says when a focus matches nothing and clears it through the URL', async () => {
@@ -319,7 +382,7 @@ describe('FlowView', () => {
     serveHistory();
     renderWithProviders(<FlowView />);
 
-    const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
+    const pane = await screen.findByRole('region', { name: 'Queue orders' });
     expect(seen.at(-1)).toContain('byNode=true');
     expect(pane).toHaveTextContent(
       'artemis-b holds 9,000 messages and has no consumer; the consumers are on artemis-a.',
@@ -468,9 +531,9 @@ describe('FlowView controls', () => {
     const user = userEvent.setup();
     renderWithProviders(<FlowView />);
 
-    expect(await screen.findByText('Flow unavailable')).toBeInTheDocument();
+    expect(await screen.findByText('Studio failed to complete the request')).toBeInTheDocument();
     expect(screen.getByText('No node answered.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(asked).toBe(2));
   });
 
@@ -482,7 +545,9 @@ describe('FlowView controls', () => {
     );
     renderWithProviders(<FlowView />);
 
-    expect(await screen.findByLabelText('Loading flow')).toHaveAttribute('aria-busy', 'true');
+    const loading = await screen.findByRole('status');
+    expect(loading).toHaveTextContent('Loading flow');
+    expect(loading).toHaveAttribute('aria-busy', 'true');
   });
 
   it('states the bound, the server cap and when clients were last sampled', async () => {
@@ -585,7 +650,7 @@ describe('FlowView controls', () => {
     const user = userEvent.setup();
     renderWithProviders(<FlowView />);
 
-    const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
+    const pane = await screen.findByRole('region', { name: 'Queue orders' });
     await user.click(await within(pane).findByRole('radio', { name: '6h' }));
     expect(nextSearch({ tab: 'split' })).toEqual({ tab: 'split', range: '6h' });
   });
@@ -597,7 +662,7 @@ describe('FlowView controls', () => {
     const user = userEvent.setup();
     renderWithProviders(<FlowView />);
 
-    const pane = await screen.findByRole('region', { name: 'Queue orders per node' });
+    const pane = await screen.findByRole('region', { name: 'Queue orders' });
     await user.click(await within(pane).findByRole('radio', { name: '1h' }));
     expect(nextSearch({ range: '6h' })).toEqual({ range: undefined });
   });

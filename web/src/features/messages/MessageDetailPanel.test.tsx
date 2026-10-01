@@ -81,11 +81,11 @@ describe('MessageDetailPanel', () => {
     expect(screen.getByText(/connect the Core client/)).toBeInTheDocument();
   });
 
-  it('shows the transport badge and dumps a binary body as bytes, never as text', async () => {
+  it('states the transport and dumps a binary body as bytes, never as text', async () => {
     mockDetail(detail({ transport: 'CORE', bodyEncoding: 'BASE64', body: 'AQIDBA==' }));
     renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
 
-    expect(await screen.findByText('via Core')).toBeInTheDocument();
+    expect(await screen.findByText('Core protocol client')).toBeInTheDocument();
     expect(screen.getByText('binary')).toBeInTheDocument();
     // A hex + ASCII dump of the four bytes, not a TextDecoder'd rendering of them.
     expect(screen.getByText(/00000000 01 02 03 04/)).toBeInTheDocument();
@@ -194,5 +194,64 @@ describe('MessageDetailPanel', () => {
     expect(name).toBe('message-146.bin');
     expect(new Uint8Array(await (blob as Blob).arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));
     spy.mockRestore();
+  });
+
+  it('states what the message is and its headers as terms and values, and its properties by type under their own headings', async () => {
+    mockDetail(
+      detail({
+        groupId: 'g-1',
+        stringProperties: { orderId: 'BIG-1' },
+        intProperties: { retries: 3 },
+      }),
+    );
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Headers' })).toBeInTheDocument();
+    const headers = screen.getByRole('group', { name: 'Message headers' });
+    expect(within(headers).getByText('Jolokia management channel')).toBeInTheDocument();
+    expect(within(headers).getByText('durable')).toBeInTheDocument();
+    expect(within(headers).getByText('8184 bytes')).toBeInTheDocument();
+    expect(within(headers).getByText('never')).toBeInTheDocument();
+    expect(within(headers).getByText('g-1')).toBeInTheDocument();
+
+    const strings = screen.getByRole('group', { name: 'String properties' });
+    expect(within(strings).getByText('orderId')).toBeInTheDocument();
+    expect(within(strings).getByText('BIG-1')).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Integer properties' })).getByText('retries')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Long properties' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Body' })).toBeInTheDocument();
+  });
+
+  it('holds the drawer open at its final size with a labelled status while the message loads', async () => {
+    server.use(
+      http.get('*/api/v1/clusters/:c/queues/:q/messages/:id', async () => {
+        await new Promise(() => {});
+      }),
+    );
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Message 146' });
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Loading the message');
+  });
+
+  it('states why the message could not be read, with a retry that reads it again', async () => {
+    let attempts = 0;
+    server.use(
+      http.get('*/api/v1/clusters/:c/queues/:q/messages/:id', () => {
+        attempts += 1;
+        return attempts === 1
+          ? HttpResponse.json({ title: 'Cluster unreachable', detail: 'No node answered.' }, { status: 502 })
+          : HttpResponse.json(detail());
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Headers' })).toBeInTheDocument();
+    expect(attempts).toBe(2);
   });
 });

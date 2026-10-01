@@ -1,18 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Button,
-  CopyButton,
-  Drawer,
-  FileButton,
-  Group,
-  List,
-  Radio,
-  Stack,
-  Text,
-  Textarea,
-} from '@mantine/core';
-import { CodeHighlight } from '@mantine/code-highlight';
+import { Button, CopyButton, Drawer, FileButton, Group, List, Radio, Stack, Text, Textarea } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -23,11 +10,19 @@ import {
   type ConfigDocumentView,
   type ConfigImportResultView,
 } from './api.ts';
-import { type ApiError } from '../../kernel/api/request.ts';
+import { ApiError } from '../../kernel/api/request.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
 import { mergeDocuments } from './document.ts';
 import { useSaveDocument } from './useSaveDocument.ts';
 import { WHY_NOT_AUTOMATIC } from './words.ts';
+import { XmlBlock } from './XmlBlock.tsx';
+import classes from './Configuration.module.css';
+
+const COPY: ActionVerb = { verb: 'Copy', past: 'Copied', progressive: 'Copying' };
 
 /** How a parsed document compares with the current one, per section, in counts. */
 function sectionCounts(current: ConfigDocumentView, next: ConfigDocumentView) {
@@ -55,7 +50,7 @@ function sectionCounts(current: ConfigDocumentView, next: ConfigDocumentView) {
 
 export function CountsList({ current, next }: Readonly<{ current: ConfigDocumentView; next: ConfigDocumentView }>) {
   return (
-    <List size="xs" spacing={2}>
+    <List size="sm" spacing="xs">
       {sectionCounts(current, next).map((c) => (
         <List.Item key={c.label}>
           {c.label}: {c.total} recognised — {c.added} added, {c.changed} changed, {c.unchanged} unchanged
@@ -80,26 +75,20 @@ function ImportPreview({
 }>) {
   return (
     <Stack gap="sm">
-      <Stack gap={4}>
-        <Text size="sm" fw={600}>
-          {merging ? 'After merging' : 'Recognised'}
-        </Text>
+      <Section headingLevel={3} title={merging ? 'After merging' : 'Recognised'}>
         <CountsList current={declaration.document} next={next} />
-      </Stack>
+      </Section>
 
-      <Stack gap={4}>
-        <Text size="sm" fw={600}>
-          Not applied ({result.unsupported.length})
-        </Text>
+      <Section headingLevel={3} title={`Not applied (${result.unsupported.length})`}>
         {result.unsupported.length === 0 ? (
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             Every element was recognised.
           </Text>
         ) : (
-          <List size="xs" spacing={2}>
+          <List size="sm" spacing="xs">
             {result.unsupported.map((u) => (
               <List.Item key={u.path}>
-                <Text size="xs" component="span" ff="monospace">
+                <Text size="sm" component="span" ff="monospace">
                   {u.path}
                 </Text>{' '}
                 — {u.reason}
@@ -107,21 +96,17 @@ function ImportPreview({
             ))}
           </List>
         )}
-      </Stack>
+      </Section>
 
       {result.errors.length > 0 ? (
-        <Alert color="red" variant="light" title={`${result.errors.length} error(s) — fix them to save`} role="alert">
-          <List size="xs" spacing={2}>
-            {result.errors.map((e) => (
-              <List.Item key={`${e.field}:${e.message}`}>
-                <Text size="xs" component="span" ff="monospace">
-                  {e.field}
-                </Text>{' '}
-                — {e.message}
-              </List.Item>
-            ))}
-          </List>
-        </Alert>
+        <ErrorState
+          error={
+            new ApiError(422, {
+              detail: `${result.errors.length} error${result.errors.length === 1 ? '' : 's'} in the XML. Nothing can be saved until they are fixed.`,
+              errors: result.errors,
+            })
+          }
+        />
       ) : null}
     </Stack>
   );
@@ -164,8 +149,10 @@ export function ImportXmlDrawer({
   const [result, setResult] = useState<ConfigImportResultView | null>(null);
   const [loaded, setLoaded] = useState<string | null>(null);
   const parse = useImportBrokerConfigXml(declaration.clusterId);
+  const { reset: resetParse } = parse;
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
 
+  // The reset belongs to the open/close edge, not to every render.
   useEffect(() => {
     if (opened) {
       setXml(initialXml ?? '');
@@ -175,11 +162,9 @@ export function ImportXmlDrawer({
     setXml('');
     setResult(null);
     setLoaded(null);
-    parse.reset();
+    resetParse();
     reset();
-    // The mutation objects are stable; the reset belongs to the open/close edge, not to every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, initialXml]);
+  }, [opened, initialXml, resetParse, reset]);
 
   const preview = () => parse.mutate(xml, { onSuccess: setResult });
   const load = async (file: File | null) => {
@@ -196,14 +181,15 @@ export function ImportXmlDrawer({
     <Drawer opened={opened} onClose={onClose} title="Import broker.xml" position="right" size="xl" padding="md">
       <Stack gap="md">
         {initialNote ? (
-          <Alert variant="light" color="gray" title={initialNote}>
-            This is the snippet the capability ledger shows. Preview it: the parts that are address or security settings
-            become declared entries you can apply over the management API; anything static — a plugin, an acceptor — is
-            listed under “Not applied” and still needs broker.xml.
-          </Alert>
+          <Section
+            headingLevel={3}
+            variant="card"
+            title={initialNote}
+            description="This is the snippet the capability ledger shows. Preview it: the parts that are address or security settings become declared entries you can apply over the management API; anything static — a plugin, an acceptor — is listed under “Not applied” and still needs broker.xml."
+          />
         ) : null}
         <Group justify="space-between" align="center" gap="xs">
-          <Text size="xs" c="dimmed" aria-live="polite">
+          <Text size="sm" c="dimmed" aria-live="polite">
             {loaded ? `Loaded ${loaded}` : 'Paste below, or load a file.'}
           </Text>
           <FileButton
@@ -230,7 +216,7 @@ export function ImportXmlDrawer({
           autosize
           minRows={10}
           maxRows={24}
-          styles={{ input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 12 } }}
+          classNames={{ input: classes.xmlInput }}
         />
 
         {declaration.declared ? (
@@ -240,18 +226,14 @@ export function ImportXmlDrawer({
             value={combine}
             onChange={(v) => setCombine(v as 'merge' | 'replace')}
           >
-            <Group gap="md" mt={4}>
+            <Group gap="md" mt="xs">
               <Radio value="merge" label="Merge into it" />
               <Radio value="replace" label="Replace it" />
             </Group>
           </Radio.Group>
         ) : null}
 
-        {parse.isError ? (
-          <Alert color="red" variant="light" title={parse.error.title} role="alert">
-            {parse.error.message}
-          </Alert>
-        ) : null}
+        {parse.isError ? <ErrorState error={parse.error} onRetry={preview} /> : null}
 
         <div aria-live="polite">
           {result && next ? (
@@ -259,11 +241,7 @@ export function ImportXmlDrawer({
           ) : null}
         </div>
 
-        {error ? (
-          <Alert color="red" variant="light" title={error.title} role="alert">
-            {error.message}
-          </Alert>
-        ) : null}
+        {error ? <ErrorState error={error} /> : null}
 
         <Group justify="flex-end" gap="xs">
           <Button variant="default" size="xs" onClick={onClose}>
@@ -282,11 +260,15 @@ export function ImportXmlDrawer({
               }
               save(next!, initialNote ?? (merging ? 'Merged from broker.xml' : 'Imported from broker.xml'));
             }}
-            title={canSave ? undefined : 'Previews first; a document with errors cannot be saved.'}
           >
             {`Save as revision ${declaration.revision + 1}`}
           </Button>
         </Group>
+        {canSave ? null : (
+          <Text size="sm" c="dimmed" ta="end">
+            Saving previews first; a document with errors cannot be saved.
+          </Text>
+        )}
       </Stack>
     </Drawer>
   );
@@ -310,33 +292,34 @@ export function ExportXmlDrawer({
   return (
     <Drawer opened={opened} onClose={onClose} title="broker.xml fragment" position="right" size="xl" padding="md">
       <Stack gap="md">
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           Revision {declaration.revision} as the four sections of a <code>&lt;core&gt;</code> element. Deploy it through
           your own tooling; the next drift evaluation shows whether the running brokers match.
         </Text>
-        {xml.isError ? (
-          <Alert color="red" variant="light" title={xml.error.title}>
-            {xml.error.message}
-          </Alert>
-        ) : null}
+        {xml.isError ? <ErrorState error={xml.error} onRetry={() => void xml.refetch()} /> : null}
         {xml.data ? (
           <>
             <Group justify="flex-end">
               <CopyButton value={xml.data}>
                 {({ copied, copy }) => (
-                  <Button size="xs" variant="default" onClick={copy}>
+                  <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => {
+                      copy();
+                      notify.succeeded({ action: COPY, subject: 'the broker.xml fragment' });
+                    }}
+                  >
                     {copied ? 'Copied' : 'Copy broker.xml fragment'}
                   </Button>
                 )}
               </CopyButton>
             </Group>
-            <CodeHighlight code={xml.data} language="xml" />
+            <XmlBlock code={xml.data} label={`broker.xml fragment of revision ${declaration.revision}`} />
           </>
         ) : null}
         {!xml.data && xml.isPending && opened ? (
-          <Text size="xs" c="dimmed">
-            Rendering…
-          </Text>
+          <LoadingState label="Rendering the broker.xml fragment" blockSize="12rem" />
         ) : null}
       </Stack>
     </Drawer>
@@ -359,16 +342,17 @@ export function AdoptDrawer({
   onClose: () => void;
 }>) {
   const adopt = useAdoptBrokerConfig(declaration.clusterId);
+  const { mutate: read, reset: resetAdopt } = adopt;
   const { save, isPending, error, reset } = useSaveDocument(declaration, onClose);
 
+  // A read when the drawer opens; closing it forgets what was read.
   useEffect(() => {
-    if (opened) adopt.mutate();
+    if (opened) read();
     else {
-      adopt.reset();
+      resetAdopt();
       reset();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
+  }, [opened, read, resetAdopt, reset]);
 
   const result = adopt.data;
   const closes = result?.closes ?? [];
@@ -377,58 +361,48 @@ export function AdoptDrawer({
   return (
     <Drawer opened={opened} onClose={onClose} title="Adopt from cluster" position="right" size="xl" padding="md">
       <Stack gap="md">
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           Reads every live node and builds a declaration from what they run. Nothing is saved until you choose to.{' '}
           {WHY_NOT_AUTOMATIC}
         </Text>
-        {adopt.isPending ? (
-          <Text size="sm" aria-live="polite">
-            Reading the live nodes…
-          </Text>
-        ) : null}
-        {adopt.isError ? (
-          <Alert color="red" variant="light" title={adopt.error.title} role="alert">
-            {adopt.error.message}
-          </Alert>
-        ) : null}
+        {adopt.isPending ? <LoadingState label="Reading the live nodes" blockSize="8rem" /> : null}
+        {adopt.isError ? <ErrorState error={adopt.error} onRetry={() => read()} /> : null}
         {result ? (
           <div aria-live="polite">
-            <Stack gap="sm">
+            <Stack gap="md">
               <CountsList current={declaration.document} next={result.document} />
               {result.disagreements.length > 0 ? (
-                <Alert color="yellow" variant="light" title="The nodes disagree">
-                  <Text size="xs" mb={4}>
-                    The first node's value was taken where they differ; check these before saving.
-                  </Text>
-                  <List size="xs" spacing={2}>
+                <Section variant="card" headingLevel={3} title="The nodes disagree">
+                  <Text size="sm">The first node's value was taken where they differ; check these before saving.</Text>
+                  <List size="sm" spacing="xs">
                     {result.disagreements.map((d) => (
                       <List.Item key={d}>{d}</List.Item>
                     ))}
                   </List>
-                </Alert>
+                </Section>
               ) : null}
               {closes.length > 0 ? (
-                <Alert
-                  color="yellow"
-                  variant="light"
+                <Section
+                  variant="card"
+                  headingLevel={3}
                   title={`Closes ${closes.length} open drift finding${closes.length === 1 ? '' : 's'} with zero broker writes`}
                 >
-                  <Text size="xs" mb={4}>
+                  <Text size="sm">
                     Adopting declares what the cluster already runs, so these findings disappear because the declaration
                     moved — not because anything was fixed. Apply the current declaration instead if the cluster is what
                     is wrong.
                   </Text>
-                  <List size="xs" spacing={2}>
+                  <List size="sm" spacing="xs">
                     {closes.map((c) => (
                       <List.Item key={`${c.nodeName}:${c.finding.detail}`}>
                         {c.nodeName}: {c.finding.detail}
                       </List.Item>
                     ))}
                   </List>
-                </Alert>
+                </Section>
               ) : null}
               {result.notes.length > 0 ? (
-                <List size="xs" spacing={2}>
+                <List size="sm" spacing="xs">
                   {result.notes.map((n) => (
                     <List.Item key={n}>{n}</List.Item>
                   ))}
@@ -437,11 +411,7 @@ export function AdoptDrawer({
             </Stack>
           </div>
         ) : null}
-        {error ? (
-          <Alert color="red" variant="light" title={error.title} role="alert">
-            {error.message}
-          </Alert>
-        ) : null}
+        {error ? <ErrorState error={error} /> : null}
         {closes.length > 0 ? (
           <ConfirmByTyping
             token={declaration.clusterName}

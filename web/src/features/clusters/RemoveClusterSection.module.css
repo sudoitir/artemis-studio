@@ -1,9 +1,9 @@
 /* The one destructive section in a cluster's settings: set apart by a danger border, not by colour alone
-   (its heading and copy say what it does). */
+   (its copy says what it does). */
 .danger {
   border: 1px solid var(--as-danger);
   border-radius: var(--mantine-radius-md);
   padding-block: var(--mantine-spacing-md);
   padding-inline: var(--mantine-spacing-md);
-  max-inline-size: 560px;
+  max-inline-size: 35rem;
 }

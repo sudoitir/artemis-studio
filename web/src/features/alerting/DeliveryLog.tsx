@@ -1,8 +1,16 @@
-import { Button, Drawer, Stack, Table, Text } from '@mantine/core';
+import { Button, Drawer, Stack, Text } from '@mantine/core';
 
-import { absoluteLabel } from '../../kernel/time/time.ts';
+import { useDisplayZone } from '../../kernel/time/timezone.ts';
+import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { DataTable } from '../../ui/table/index.ts';
 import { useChannelDeliveries, useRetryDelivery, type AlertDeliveryView, type NotificationChannelView } from './api.ts';
-import { deliveryState } from './channelKinds.ts';
+import { deliveryColumns } from './columns.ts';
+
+const RETRY: ActionVerb = { verb: 'Retry', past: 'Retried', progressive: 'Retrying' };
+
+const rowKey = (d: AlertDeliveryView) => String(d.seq);
 
 /**
  * A channel's delivery log, newest first (ADR-0105): what was sent, how many attempts it
@@ -13,108 +21,44 @@ export function DeliveryLog({
   channel,
   onClose,
   canWrite,
-  announce,
 }: Readonly<{
   channel: NotificationChannelView | null;
   onClose: () => void;
   canWrite: boolean;
-  announce: (message: string) => void;
 }>) {
+  const zone = useDisplayZone();
   const deliveries = useChannelDeliveries(channel?.id ?? null);
   const retry = useRetryDelivery(channel?.id ?? '');
 
-  const renderBody = () => {
-    if (deliveries.isPending) {
-      return (
-        <Text size="sm" c="dimmed">
-          Loading deliveries…
-        </Text>
-      );
-    }
-    if (deliveries.isError) {
-      return (
-        <Text size="sm" c="red">
-          The delivery log could not be loaded: {deliveries.error.message}
-        </Text>
-      );
-    }
-    if ((deliveries.data ?? []).length === 0) {
-      return (
-        <Text size="sm" c="dimmed">
-          Nothing has been sent to this channel yet. A delivery is queued when a rule bound to it fires or resolves; use
-          “Send a test” to try it now.
-        </Text>
-      );
-    }
-    return (
-      <Stack gap="xs">
-        <Text size="xs" c="dimmed">
-          The newest 100 deliveries. A delivery covers everything one rule changed in one evaluation, however many
-          subjects.
-        </Text>
-        <Table striped>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Queued</Table.Th>
-              <Table.Th>Notification</Table.Th>
-              <Table.Th>State</Table.Th>
-              <Table.Th ta="end">Attempts</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {(deliveries.data ?? []).map((d) => (
-              <Table.Tr key={d.seq}>
-                <Table.Td style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                  {absoluteLabel(d.createdAt)}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{d.summary}</Text>
-                  {d.lastError ? (
-                    <Text size="xs" c={d.state === 'SENT' ? 'dimmed' : 'red'}>
-                      {d.state === 'SENT' ? 'Earlier attempt: ' : 'Last error: '}
-                      {d.lastError}
-                    </Text>
-                  ) : null}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c={d.state === 'DEAD' ? 'red' : undefined}>
-                    {deliveryState(d.state)}
-                  </Text>
-                  <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {deliveryWhen(d)}
-                  </Text>
-                </Table.Td>
-                <Table.Td ta="end" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {d.attempts}
-                </Table.Td>
-                <Table.Td>
-                  {d.state === 'DEAD' ? (
-                    <Button
-                      size="compact-xs"
-                      variant="default"
-                      disabled={!canWrite}
-                      title={canWrite ? undefined : 'Retrying needs alert:write'}
-                      loading={retry.isPending && retry.variables === d.seq}
-                      onClick={() =>
-                        retry.mutate(d.seq, {
-                          onSuccess: () => announce(`Delivery ${d.seq} queued again.`),
-                          onError: (e) => announce(`Delivery ${d.seq} was not queued: ${e.message}`),
-                        })
-                      }
-                      aria-label={`Retry delivery ${d.seq}`}
-                    >
-                      Retry
-                    </Button>
-                  ) : null}
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Stack>
-    );
+  const retryDelivery = (d: AlertDeliveryView) => {
+    const subject = `delivery ${d.seq}`;
+    retry.mutate(d.seq, {
+      onSuccess: () => notify.succeeded({ action: RETRY, subject }),
+      onError: (error) =>
+        notify.failed({
+          action: RETRY,
+          subject,
+          cause: error.message,
+          next: 'It was not queued again. Fix the channel, then retry.',
+        }),
+    });
   };
+
+  // Built each render: the cells carry what is gated and busy right now.
+  const columns = deliveryColumns(zone, (d) =>
+    d.state === 'DEAD' ? (
+      <Button
+        size="compact-xs"
+        variant="default"
+        disabled={!canWrite}
+        loading={retry.isPending && retry.variables === d.seq}
+        onClick={() => retryDelivery(d)}
+        aria-label={`Retry delivery ${d.seq}`}
+      >
+        Retry
+      </Button>
+    ) : null,
+  );
 
   return (
     <Drawer
@@ -124,14 +68,34 @@ export function DeliveryLog({
       size="xl"
       title={channel ? `Deliveries to ${channel.name}` : ''}
     >
-      {renderBody()}
+      <Stack gap="sm">
+        <Text size="xs" c="dimmed">
+          The newest 100 deliveries. A delivery covers everything one rule changed in one evaluation, however many
+          subjects.
+        </Text>
+        {canWrite ? null : <Text size="sm">Retrying a delivery needs the alert:write permission.</Text>}
+        <DataTable
+          variant="static"
+          label="Deliveries"
+          storageKey="alerting.deliveries"
+          columns={columns}
+          data={deliveries.data ?? []}
+          rowKey={rowKey}
+          loading={deliveries.isPending}
+          error={
+            deliveries.isError ? (
+              <ErrorState error={deliveries.error} onRetry={() => void deliveries.refetch()} />
+            ) : undefined
+          }
+          empty={
+            <EmptyState
+              kind="empty"
+              title="Nothing has been sent to this channel yet"
+              description="A delivery is queued when a rule bound to this channel fires or resolves; use “Send a test” on the channel to try it now."
+            />
+          }
+        />
+      </Stack>
     </Drawer>
   );
-}
-
-/** When a delivery went out, or what became of it. */
-function deliveryWhen(d: AlertDeliveryView): string {
-  if (d.state === 'SENT') return absoluteLabel(d.deliveredAt);
-  if (d.state === 'PENDING') return `next ${absoluteLabel(d.nextAttemptAt)}`;
-  return 'gave up';
 }

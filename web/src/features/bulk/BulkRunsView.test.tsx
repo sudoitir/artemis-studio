@@ -69,6 +69,15 @@ describe('BulkRunsView', () => {
     expect(within(table).getByText('Previewed, never started')).toBeInTheDocument();
   });
 
+  it('is one page with a single h1, present before the runs arrive', async () => {
+    server.use(http.get('*/api/v1/clusters/c1/bulk/runs', () => HttpResponse.json(paged([run({})]))));
+    renderWithProviders(<BulkRunsView />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Bulk runs' })).toBeInTheDocument();
+    await screen.findByRole('grid', { name: 'Bulk runs' });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('teaches what a bulk run is when there are none, and links to Queues', async () => {
     server.use(http.get('*/api/v1/clusters/c1/bulk/runs', () => HttpResponse.json(paged([]))));
     renderWithProviders(<BulkRunsView />);

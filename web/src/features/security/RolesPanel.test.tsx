@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { notifications } from '@mantine/notifications';
+import { Notifications, notifications } from '@mantine/notifications';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
@@ -37,12 +37,21 @@ function serve(roles: RoleView[] = ROLES, catalogue: PermissionView[] | Response
   );
 }
 
-afterEach(() => vi.restoreAllMocks());
+function renderRoles() {
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <RolesPanel />
+    </>,
+  );
+}
+
+afterEach(() => act(() => notifications.clean()));
 
 describe('RolesPanel list', () => {
   it('counts the roles, marks built-in ones and offers delete only for custom ones', async () => {
     serve();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     expect(await screen.findByText('4 roles')).toBeInTheDocument();
     const builtin = screen.getByRole('row', { name: /ADMIN/ });
@@ -58,11 +67,11 @@ describe('RolesPanel list', () => {
 
   it('counts a single role in the singular', async () => {
     serve([ROLES[0]]);
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
     expect(await screen.findByText('1 role')).toBeInTheDocument();
   });
 
-  it('deletes a custom role', async () => {
+  it('deletes a custom role only once its name is typed, and announces it', async () => {
     serve();
     let deleted = '';
     server.use(
@@ -72,27 +81,42 @@ describe('RolesPanel list', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'Delete queue-creator' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete queue-creator' });
+    expect(dialog).toHaveTextContent('1 permission');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete role' });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Type "queue-creator" to confirm'), 'queue-creator');
+    await user.click(confirm);
+
     await waitFor(() => expect(deleted).toBe('r-2'));
+    expect(await screen.findByRole('status')).toHaveTextContent('Deleted role "queue-creator"');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('says why a role could not be deleted', async () => {
+  it('says why a role could not be deleted and what to do', async () => {
     serve();
     server.use(
       http.delete('*/api/v1/roles/r-2', () =>
         HttpResponse.json({ title: 'Conflict', detail: 'The role is still granted to 2 users.' }, { status: 409 }),
       ),
     );
-    const show = vi.spyOn(notifications, 'show').mockReturnValue('n');
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'Delete queue-creator' }));
-    await waitFor(() =>
-      expect(show).toHaveBeenCalledWith({ message: 'The role is still granted to 2 users.', color: 'red' }),
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Type "queue-creator" to confirm'), 'queue-creator');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete role' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not delete role "queue-creator"');
+    expect(alert).toHaveTextContent(
+      'The role is still granted to 2 users. Remove it from the users who hold it, then delete it.',
     );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
 
@@ -112,7 +136,7 @@ describe('RolesPanel editor', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'New role' }));
     const dialog = await screen.findByRole('dialog', { name: 'New role' });
@@ -136,7 +160,7 @@ describe('RolesPanel editor', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'Edit queue-creator' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit "queue-creator"' });
@@ -165,17 +189,16 @@ describe('RolesPanel editor', () => {
         HttpResponse.json({ title: 'Invalid', detail: 'Unknown permission.' }, { status: 400 }),
       ),
     );
-    const show = vi.spyOn(notifications, 'show').mockReturnValue('n');
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'New role' }));
     let dialog = await screen.findByRole('dialog', { name: 'New role' });
     await user.type(within(dialog).getByRole('textbox', { name: /Name/ }), 'x');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
-    await waitFor(() =>
-      expect(show).toHaveBeenCalledWith({ message: 'A role named "x" already exists.', color: 'red' }),
-    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not create role "x"');
+    expect(alert).toHaveTextContent('A role named "x" already exists. No role was created. Try again.');
     expect(screen.getByRole('dialog', { name: 'New role' })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
@@ -183,17 +206,34 @@ describe('RolesPanel editor', () => {
     await user.click(screen.getByRole('button', { name: 'Edit queue-creator' }));
     dialog = await screen.findByRole('dialog', { name: 'Edit "queue-creator"' });
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(show).toHaveBeenCalledWith({ message: 'Unknown permission.', color: 'red' }));
+    await waitFor(() =>
+      expect(screen.getAllByRole('alert').map((a) => a.textContent)).toContainEqual(
+        expect.stringContaining('Unknown permission. The role is unchanged. Try again.'),
+      ),
+    );
+  });
+
+  it('asks for a name on save, beside the field, and puts focus there', async () => {
+    serve();
+    const user = userEvent.setup();
+    renderRoles();
+
+    await user.click(await screen.findByRole('button', { name: 'New role' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New role' });
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    expect(await within(dialog).findByText('Name the role after what its holders do.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /Name/ })).toHaveFocus();
   });
 
   it('states that the permission catalogue could not be loaded, and retries it', async () => {
     serve(ROLES, HttpResponse.json({ title: 'Down', detail: 'catalogue unavailable' }, { status: 503 }));
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'New role' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Could not load the permission catalogue');
+    expect(alert).toHaveTextContent('Studio failed to complete the request');
     expect(alert).toHaveTextContent('catalogue unavailable');
 
     serve(ROLES, CATALOGUE);
@@ -207,17 +247,17 @@ describe('RolesPanel editor', () => {
       http.get('*/api/v1/permissions', () => new Promise(() => {})),
     );
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'New role' }));
-    expect(await screen.findByText('Loading permissions…')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading permissions');
   });
 });
 
 describe('RolesPanel compare', () => {
   async function openCompare() {
     const user = userEvent.setup();
-    renderWithProviders(<RolesPanel />);
+    renderRoles();
     await user.click(await screen.findByRole('button', { name: 'Compare roles' }));
     const dialog = await screen.findByRole('dialog', { name: 'Compare roles' });
     const pick = async (label: string, role: string) => {

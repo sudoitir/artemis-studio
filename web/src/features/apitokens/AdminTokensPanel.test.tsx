@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { Notifications, notifications } from '@mantine/notifications';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -23,6 +24,17 @@ const LEAKED = {
   stale: true,
 };
 
+function renderInventory() {
+  return renderWithProviders(
+    <>
+      <Notifications />
+      <AdminTokensPanel />
+    </>,
+  );
+}
+
+afterEach(() => act(() => notifications.clean()));
+
 function me(permissions: string[]) {
   server.use(
     http.get('*/api/v1/auth/me', () =>
@@ -40,11 +52,11 @@ describe('AdminTokensPanel', () => {
   it('lists every user’s keys and flags stale ones', async () => {
     me(['token:admin']);
     server.use(http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([LEAKED]))));
-    renderWithProviders(<AdminTokensPanel />);
+    renderInventory();
 
     expect(await screen.findByText('grace')).toBeInTheDocument();
     expect(screen.getByText('ci-bot')).toBeInTheDocument();
-    expect(screen.getByText('stale')).toBeInTheDocument();
+    expect(screen.getByText('Stale')).toBeInTheDocument();
   });
 
   it('revokes another user’s key after its name is typed', async () => {
@@ -58,18 +70,48 @@ describe('AdminTokensPanel', () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<AdminTokensPanel />);
+    renderInventory();
 
     await user.click(await screen.findByRole('button', { name: 'Revoke ci-bot of grace' }));
     await user.type(await screen.findByRole('textbox', { name: /Type "ci-bot" to confirm/ }), 'ci-bot');
     await user.click(screen.getByRole('button', { name: 'Revoke key' }));
 
     await expect.poll(() => revoked).toBe(true);
+    expect(await screen.findByRole('status')).toHaveTextContent('Revoked grace\'s key "ci-bot"');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('says why a revoke failed and what to do', async () => {
+    me(['token:admin']);
+    server.use(
+      http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([LEAKED]))),
+      http.delete('*/api/v1/admin/tokens/t7', () =>
+        HttpResponse.json({ title: 'Boom', detail: 'Database unavailable' }, { status: 500 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderInventory();
+
+    await user.click(await screen.findByRole('button', { name: 'Revoke ci-bot of grace' }));
+    await user.type(await screen.findByRole('textbox', { name: /Type "ci-bot" to confirm/ }), 'ci-bot');
+    await user.click(screen.getByRole('button', { name: 'Revoke key' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not revoke grace\'s key "ci-bot"');
+    expect(alert).toHaveTextContent('Database unavailable The key still works. Try again.');
+  });
+
+  it('teaches that nobody has a key yet', async () => {
+    me(['token:admin']);
+    server.use(http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([]))));
+    renderInventory();
+
+    expect(await screen.findByText('No user has a key yet')).toBeInTheDocument();
   });
 
   it('explains the missing permission instead of an empty list', async () => {
     me(['cluster:read']);
-    renderWithProviders(<AdminTokensPanel />);
+    renderInventory();
 
     expect(await screen.findByText(/You cannot see other users/)).toBeInTheDocument();
   });

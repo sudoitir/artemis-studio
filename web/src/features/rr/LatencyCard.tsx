@@ -1,6 +1,5 @@
-import { Card, Group, Stack, Text } from '@mantine/core';
-
 import { LatencyPanel } from './LatencyPanel.tsx';
+import { Section } from '../../ui/Section.tsx';
 
 /**
  * Request-reply latency at the foot of a cluster's metrics view (`metrics.panels`). Not a chart
@@ -9,18 +8,8 @@ import { LatencyPanel } from './LatencyPanel.tsx';
  */
 export function LatencyCard({ clusterId }: Readonly<{ clusterId: string }>) {
   return (
-    <Card withBorder padding="md" radius="md">
-      <Stack gap="xs">
-        <Group justify="space-between" align="baseline" wrap="nowrap">
-          <Text size="sm" fw={600}>
-            Request-reply latency
-          </Text>
-          <Text size="xs" c="dimmed">
-            milliseconds — current live window only
-          </Text>
-        </Group>
-        <LatencyPanel clusterId={clusterId} />
-      </Stack>
-    </Card>
+    <Section variant="card" title="Request-reply latency" description="milliseconds — current live window only">
+      <LatencyPanel clusterId={clusterId} />
+    </Section>
   );
 }

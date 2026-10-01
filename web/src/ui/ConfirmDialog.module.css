@@ -1,0 +1,20 @@
+/* Why the action cannot be armed: the words carry it, the warning edge repeats it. */
+.blocked {
+  border-inline-start: 0.25rem solid var(--as-warning);
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-md) 0;
+  overflow-wrap: anywhere;
+}
+
+/* The outcome takes focus when it replaces the confirm controls, and shows it on the same ring as every control. */
+.outcome {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.outcome:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}

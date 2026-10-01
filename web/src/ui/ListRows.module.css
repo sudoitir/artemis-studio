@@ -13,3 +13,15 @@
 .facts {
   font-variant-numeric: tabular-nums;
 }
+
+/* About eight rows, then the list scrolls in place. */
+.bounded {
+  max-block-size: 30rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.bounded:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}

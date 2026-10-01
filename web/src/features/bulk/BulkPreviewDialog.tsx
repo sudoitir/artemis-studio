@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Checkbox, Group, Modal, Stack, Switch, Text, Title } from '@mantine/core';
+import { Button, Checkbox, Group, Modal, Stack, Switch, Text } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import type { QueueSelection } from '../../kernel/slots.ts';
 import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
+import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
+import { notify } from '../../ui/notify.ts';
+import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import {
   useBulkExecute,
@@ -19,6 +23,8 @@ import { OPERATIONS, plural } from './words.ts';
 const hasProblem = (i: BulkItemView) => i.status === 'REFUSED' || Boolean(i.warning);
 
 const rowKey = (i: BulkItemView) => i.queueName;
+
+const START = { verb: 'Start', past: 'Started', progressive: 'Starting' } as const;
 
 /** What the run would do, as one sentence an operator can check before arming it. */
 function blastRadius(operation: BulkOperation, preview: BulkRunDetailView): string {
@@ -54,23 +60,19 @@ function PreviewStatus({
   const data = preview.data;
   return (
     <div aria-live="polite">
-      {preview.isPending ? (
-        <Text size="sm" c="dimmed">
-          Reading what these queues hold…
-        </Text>
-      ) : null}
+      {preview.isPending ? <LoadingState label="Reading what these queues hold" blockSize="6rem" /> : null}
       {preview.isError ? (
-        <Alert color="red" variant="light" title={preview.error.title} role="alert">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">{preview.error.message}</Text>
-            <Button size="xs" variant="light" onClick={onRetry}>
+        <ErrorState
+          error={preview.error}
+          actions={
+            <Button size="xs" variant="default" onClick={onRetry}>
               Preview again
             </Button>
-          </Stack>
-        </Alert>
+          }
+        />
       ) : null}
       {data ? (
-        <Stack gap={4}>
+        <Stack gap="xs">
           <Text size="sm" fw={600}>
             {blastRadius(operation, data)}
           </Text>
@@ -130,15 +132,15 @@ function RunControls({
       />
 
       {execute.isError ? (
-        <Alert color="red" variant="light" title={execute.error.title} role="alert">
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">{execute.error.message}</Text>
-            <Text size="sm">Nothing was run. Preview again to confirm the queues as they are now.</Text>
-            <Button size="xs" variant="light" onClick={onRetry}>
+        <ErrorState
+          error={execute.error}
+          next="Nothing was run. Preview again to confirm the queues as they are now."
+          actions={
+            <Button size="xs" variant="default" onClick={onRetry}>
               Preview again
             </Button>
-          </Stack>
-        </Alert>
+          }
+        />
       ) : null}
 
       {op.destructive ? (
@@ -176,16 +178,18 @@ function QueuesInRun({
 }>) {
   const columns = useMemo(() => previewColumns(destructive), [destructive]);
   return (
-    <Stack gap="xs">
-      <Group justify="space-between">
-        <Title order={5}>The queues in this run</Title>
+    <Section
+      title="The queues in this run"
+      headingLevel={3}
+      actions={
         <Switch
           size="xs"
           label="Only queues with a refusal or warning"
           checked={onlyProblems}
           onChange={(e) => onOnlyProblems(e.currentTarget.checked)}
         />
-      </Group>
+      }
+    >
       <DataTable
         label="Queues in this run"
         storageKey="bulk.preview"
@@ -210,7 +214,7 @@ function QueuesInRun({
           )
         }
       />
-    </Stack>
+    </Section>
   );
 }
 
@@ -277,6 +281,7 @@ export function BulkPreviewDialog({
       {
         onSuccess: (run) => {
           close();
+          notify.succeeded({ action: START, subject: `the ${op.verb.toLowerCase()} of ${plural(run.total, 'queue')}` });
           void navigate({ to: `/clusters/${clusterId}/bulk/${run.id}` });
           onStarted();
         },
@@ -302,7 +307,7 @@ export function BulkPreviewDialog({
         />
 
         {data && overCap ? (
-          <Alert color="yellow" variant="light" title="Over the safety cap">
+          <Section title="Over the safety cap" headingLevel={3} variant="card">
             <Stack gap="xs">
               <Text size="sm">
                 This run would destroy {data.run.estimate?.toLocaleString()} messages, over the cap of{' '}
@@ -315,7 +320,7 @@ export function BulkPreviewDialog({
                 onChange={(e) => setOverride(e.currentTarget.checked)}
               />
             </Stack>
-          </Alert>
+          </Section>
         ) : null}
 
         {data && acting.length > 0 ? (

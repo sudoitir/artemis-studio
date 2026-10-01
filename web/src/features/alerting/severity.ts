@@ -1,8 +1,8 @@
-/** Status word + tone — colour is never the sole signal (non-negotiable #6), same pattern as AuditView's outcome(). */
-export function severityTone(severity: string): { word: string; color: string } {
-  if (severity === 'CRITICAL') return { word: 'critical', color: 'red' };
-  if (severity === 'WARNING') return { word: 'warning', color: 'yellow' };
-  return { word: 'info', color: 'gray' };
+/** A severity in a word, and how much attention it needs: only a warning or a critical alert is marked. */
+export function severityTone(severity: string): { word: string; tone: 'neutral' | 'warning' | 'danger' } {
+  if (severity === 'CRITICAL') return { word: 'critical', tone: 'danger' };
+  if (severity === 'WARNING') return { word: 'warning', tone: 'warning' };
+  return { word: 'info', tone: 'neutral' };
 }
 
 export const GAUGE_METRICS = ['messageCount', 'consumerCount', 'deliveringCount', 'scheduledCount'] as const;

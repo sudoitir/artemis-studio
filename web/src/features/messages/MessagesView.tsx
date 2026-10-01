@@ -1,44 +1,37 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Alert, Anchor, Button, Group, Modal, Select, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Button, Select, Text, TextInput } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
-import { notifications } from '@mantine/notifications';
-
 import { CapabilityLedger, useCluster } from '../clusters/index.ts';
-import { useMessages, usePurgeQueue, type DryRunView, type MessageSummaryView } from './api.ts';
+import { useMessages, type MessageSummaryView } from './api.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
-import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { messageColumns } from './columns.ts';
+import { useMessageGate } from './gates.ts';
 import { MessageDetailPanel } from './MessageDetailPanel.tsx';
 import { MessageActions } from './MessageActions.tsx';
+import { PurgeQueue } from './PurgeQueue.tsx';
 import { SendMessage } from './SendMessage.tsx';
-import { useCan } from '../../kernel/auth/useCan.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useSlot, type MessageSelection } from '../../kernel/slots.ts';
 import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
+import classes from './MessagesView.module.css';
 
 const PAGE_SIZE = 200;
 
 const NO_ROWS: MessageSummaryView[] = [];
 
 const messageKey = (m: MessageSummaryView) => String(m.messageId);
-
-/**
- * Whether the caller may take a message operation here, and why not when they may not. Offered while
- * grants and the cluster load, and blocked only on a known refusal (non-negotiable #5).
- */
-function useMessageGate(clusterId: string, permission: string, label: string): GateVerdict {
-  const { can, loading } = useCan();
-  const cluster = useCluster(clusterId);
-  return gateFor(can(permission, clusterId), label, cluster.data?.capabilities.messageIo, loading || cluster.isPending);
-}
 
 /** "12 messages", or why the total is not known. */
 function countLabel(page: { count?: number | null; countUnavailable?: string | null }): string {
@@ -55,95 +48,6 @@ function selectionOf(pickedIds: number[], filter: string | undefined): MessageSe
 function selectionTotalOf(selection: MessageSelection, total: number | null | undefined): number | null {
   if (selection.kind === 'ids') return selection.ids.length;
   return selection.kind === 'all' ? (total ?? null) : null;
-}
-
-function estimateSentence(affected: number): string {
-  return `This will remove approximately ${affected} message${affected === 1 ? '' : 's'} (point-in-time estimate). This cannot be undone.`;
-}
-
-/** Purge the whole queue: estimate first, then confirm by typing the queue's name. */
-function PurgeQueue({ clusterId, queueName, node }: Readonly<{ clusterId: string; queueName: string; node?: string }>) {
-  const [purgeOpen, setPurgeOpen] = useState(false);
-  const purge = usePurgeQueue(clusterId, queueName);
-  // The whole preview, not just its count: the cap and whether the estimate is over
-  // it decide both what the dialog says and whether the purge may override it.
-  const [purgePreview, setPurgePreview] = useState<DryRunView | null>(null);
-  const [purgeFailed, setPurgeFailed] = useState<string | null>(null);
-  const purgeOverCap = purgePreview?.overCap ?? false;
-  const gate = useMessageGate(clusterId, 'queue:purge', 'Purge queues');
-
-  return (
-    <>
-      <CapabilityGate verdict={gate} what="purging this queue">
-        <Button
-          size="xs"
-          variant="light"
-          color="red"
-          disabled={gate.kind === 'blocked'}
-          onClick={() => {
-            setPurgePreview(null);
-            setPurgeFailed(null);
-            setPurgeOpen(true);
-            purge.mutate(
-              { node, dryRun: true },
-              {
-                onSuccess: (r) => setPurgePreview('cap' in r ? r : null),
-                onError: (e) => setPurgeFailed(e.message),
-              },
-            );
-          }}
-        >
-          Purge queue
-        </Button>
-      </CapabilityGate>
-      <Modal opened={purgeOpen} onClose={() => setPurgeOpen(false)} title={`Purge ${queueName}?`}>
-        <Stack gap="sm">
-          {/* An unavailable estimate is stated, never omitted: an absent number reads
-              as zero, and a confirmation disabled with no reason reads as a bug. */}
-          {purgeFailed ? (
-            <Alert color="yellow" variant="light" title="The estimate could not be taken" role="alert">
-              {purgeFailed} The purge can still proceed, but Studio cannot tell you how many messages it would destroy.
-              This cannot be undone. The broker's bulk safety cap still applies: if the depth turns out to be over it,
-              the purge is refused.
-            </Alert>
-          ) : (
-            <Text size="sm">
-              {purgePreview === null ? 'Estimating current depth…' : estimateSentence(purgePreview.affectedCount)}
-            </Text>
-          )}
-          {/* The cap is overridden only where the operator was told the number it
-              is being overridden for — never on an unknown depth. */}
-          {purgeOverCap && purgePreview ? (
-            <Alert color="yellow" variant="light" title="Over the safety cap">
-              This would remove {purgePreview.affectedCount.toLocaleString()} messages, over the cap of{' '}
-              {purgePreview.cap.toLocaleString()}. Confirming will override the cap for this operation, and the override
-              is recorded in the audit log.
-            </Alert>
-          ) : null}
-          <ConfirmByTyping
-            token={queueName}
-            confirmLabel={purgeOverCap ? 'Purge anyway, over the cap' : 'Purge queue'}
-            loading={purge.isPending}
-            disabled={purgePreview === null && purgeFailed === null}
-            onConfirm={() =>
-              purge.mutate(
-                { node, override: purgeOverCap },
-                {
-                  onSuccess: (r) => {
-                    notifications.show({
-                      message: `Purged ${'affectedCount' in r ? r.affectedCount : ''} messages`,
-                    });
-                    setPurgeOpen(false);
-                  },
-                  onError: (e) => notifications.show({ color: 'red', message: e.message }),
-                },
-              )
-            }
-          />
-        </Stack>
-      </Modal>
-    </>
-  );
 }
 
 /** Why the grid is empty: the selector, nodes that did not answer, or genuinely nothing in the queue. */
@@ -197,7 +101,7 @@ export function MessagesView() {
   const navigate = useNavigate();
 
   const cluster = useCluster(clusterId);
-  const sendGate = useMessageGate(clusterId, 'message:send', 'Send messages');
+  const sendGate = useMessageGate(clusterId, 'message:send', 'Send messages', 'messageIo');
   const columns = useMemo(() => messageColumns(zone), [zone]);
   const [filter, setFilter] = useState(search.filter ?? '');
   const [debounced] = useDebouncedValue(filter, 250);
@@ -260,49 +164,59 @@ export function MessagesView() {
   const gated = messageIo?.status === 'UNAVAILABLE';
   const unproven = messageIo?.status === 'UNKNOWN';
 
-  const backToQueues = { to: `/clusters/${clusterId}/queues` } as const;
-
   const header = (
-    <Stack gap={4}>
-      <Anchor component={Link} {...backToQueues} size="xs">
-        ← All queues
-      </Anchor>
-      <Group justify="space-between" align="flex-end">
-        <Title order={3}>{queueName}</Title>
-        <Group gap="xs">
-          {messages.data ? (
-            <Text size="xs" c="dimmed">
-              {countLabel(messages.data)} · read from{' '}
-              {endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'}
-            </Text>
-          ) : null}
+    <PageHeader
+      title="Messages"
+      meta={
+        <>
+          <Link to={`/clusters/${clusterId}/queues`} className={linkClasses.link}>
+            All queues
+          </Link>
+          <span className={classes.queue}>{queueName}</span>
+        </>
+      }
+      description={
+        messages.data
+          ? `${countLabel(messages.data)} · read from ${
+              endpoints.find((e) => e.id === messages.data.node)?.name ?? 'the live node'
+            }`
+          : 'Reading the queue…'
+      }
+      actions={
+        <>
           <CapabilityGate verdict={sendGate} what="sending a message">
-            <Button size="xs" variant="light" disabled={sendGate.kind === 'blocked'} onClick={() => setSendOpen(true)}>
+            <Button disabled={sendGate.kind === 'blocked'} onClick={() => setSendOpen(true)}>
               Send
             </Button>
           </CapabilityGate>
           <PurgeQueue clusterId={clusterId} queueName={queueName} node={search.node} />
-        </Group>
-      </Group>
-    </Stack>
+        </>
+      }
+    />
   );
 
   const uncertainty = unproven ? (
-    <Alert color="gray" variant="light" title="Not yet established for this connection">
+    <Notice tone="info" title="Not yet established for this connection">
       No management write has been attempted here yet, so Studio cannot say for certain that message operations will
       work. They are offered anyway — the first one settles it.
-    </Alert>
+    </Notice>
   ) : null;
 
   if (cluster.data && gated) {
     return (
-      <Stack gap="md">
+      <Page>
         {header}
-        <Alert color="yellow" variant="light" title="Message operations are not available here">
-          This connection cannot browse messages. The reason and the exact <code>broker.xml</code> change are below.
-        </Alert>
+        <EmptyState
+          kind="empty"
+          title="Message operations are not available here"
+          description={
+            <>
+              This connection cannot browse messages. The reason and the exact <code>broker.xml</code> change are below.
+            </>
+          }
+        />
         <CapabilityLedger capabilities={cluster.data.capabilities} clusterId={clusterId} />
-      </Stack>
+      </Page>
     );
   }
 
@@ -332,51 +246,56 @@ export function MessagesView() {
     });
 
   return (
-    <Stack gap="sm">
+    <Page fill>
       {header}
       {uncertainty}
 
-      <Group justify="space-between">
-        <Group gap="xs">
-          <TextInput
-            ref={filterRef}
-            label="Message selector"
-            placeholder="Selector, e.g. region = 'eu'"
-            value={filter}
-            onChange={(e) => setFilter(e.currentTarget.value)}
-            w={280}
-            size="xs"
-          />
-          {endpoints.length > 1 ? (
-            <Select
+      <Toolbar
+        label="Message filters"
+        start={
+          <>
+            <TextInput
+              ref={filterRef}
+              label="Message selector"
+              placeholder="Selector, e.g. region = 'eu'"
+              value={filter}
+              onChange={(e) => setFilter(e.currentTarget.value)}
+              w="17.5rem"
               size="xs"
-              w={180}
-              placeholder="Live node"
-              clearable
-              value={search.node ?? null}
-              onChange={setNode}
-              data={endpoints.map((e) => ({ value: e.id, label: e.name }))}
-              aria-label="Node to browse"
             />
-          ) : null}
-        </Group>
-        <Group gap="xs">
-          <Text size="xs" c="dimmed">
-            {lastPage == null ? `page ${page} · total unavailable` : `page ${page} of ${lastPage}`}
-          </Text>
-          {selectionSlot.map(({ id, Component }) => (
-            <Component
-              key={id}
-              clusterId={clusterId}
-              queueName={queueName}
-              node={search.node}
-              selection={selection}
-              total={selectionTotal}
-              clear={() => setSelected(new Set())}
-            />
-          ))}
-        </Group>
-      </Group>
+            {endpoints.length > 1 ? (
+              <Select
+                size="xs"
+                w="11.25rem"
+                label="Node to browse"
+                placeholder="Live node"
+                clearable
+                value={search.node ?? null}
+                onChange={setNode}
+                data={endpoints.map((e) => ({ value: e.id, label: e.name }))}
+              />
+            ) : null}
+          </>
+        }
+        end={
+          <>
+            <Text size="xs" c="dimmed">
+              {lastPage == null ? `page ${page} · total unavailable` : `page ${page} of ${lastPage}`}
+            </Text>
+            {selectionSlot.map(({ id, Component }) => (
+              <Component
+                key={id}
+                clusterId={clusterId}
+                queueName={queueName}
+                node={search.node}
+                selection={selection}
+                total={selectionTotal}
+                clear={() => setSelected(new Set())}
+              />
+            ))}
+          </>
+        }
+      />
 
       <MessageActions
         clusterId={clusterId}
@@ -434,6 +353,6 @@ export function MessagesView() {
         opened={sendOpen}
         onClose={() => setSendOpen(false)}
       />
-    </Stack>
+    </Page>
   );
 }

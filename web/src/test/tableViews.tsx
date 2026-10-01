@@ -7,7 +7,7 @@ import { bridgeColumns, divertColumns } from '../features/routing/columns.ts';
 import { eventColumns } from '../features/events/columns.ts';
 import { healthColumns, storeColumns } from '../features/lifecycle/columns.ts';
 import { itemColumns, previewColumns, runColumns } from '../features/bulk/columns.ts';
-import { messageColumns } from '../features/messages/columns.ts';
+import { dlqColumns, messageColumns, type DlqRow } from '../features/messages/columns.ts';
 import { consumerHealthColumns } from '../features/triage/columns.ts';
 import { nodeColumns, pathColumns, type NodeRow, type PathRow } from '../features/flow/columns.ts';
 import { pluginColumns } from '../features/plugins/columns.ts';
@@ -280,6 +280,20 @@ const message = (f: Fixture, i: number): MessageSummaryView => ({
   bodyTruncated: i === 1,
   propertyCount: 3,
   redactions: [],
+});
+
+const dlqRow = (f: Fixture, i: number): DlqRow => ({
+  address: f === 'normal' ? ['DLQ', 'ExpiryQueue'][i % 2] : address(f, i),
+  kind: i % 2 ? 'expiry' : 'dead-letter',
+  queue: {
+    queueName: name(f, 'DLQ.orders', i),
+    address: f === 'normal' ? ['DLQ', 'ExpiryQueue'][i % 2] : address(f, i),
+    totalDepth: num(f, 1_204 + i),
+    perNode: [
+      { nodeId: 'node-1', nodeName: 'broker-1', depth: num(f, 600 + i) },
+      { nodeId: 'node-2', nodeName: 'broker-2', depth: num(f, 604) },
+    ],
+  },
 });
 
 const brokerEvent = (f: Fixture, i: number): BrokerEventView => ({
@@ -718,6 +732,16 @@ export const VIEWS: TableView_[] = [
     menu: true,
     identifiers: [],
     visible1280: ['messageId', 'timestamp', 'priority', 'durable', 'size', 'props', 'body'],
+  }),
+  view({
+    name: 'dead-letter queues',
+    label: 'Dead-letter queues',
+    columns: dlqColumns(CLUSTER),
+    rows: (f) => ROWS.map((i) => dlqRow(f, i)),
+    rowKey: (r) => r.queue.queueName,
+    menu: true,
+    identifiers: ['queue', 'address'],
+    visible1280: ['queue', 'address', 'kind', 'depth', 'nodes'],
   }),
   view({
     name: 'events',

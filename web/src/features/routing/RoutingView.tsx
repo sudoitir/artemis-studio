@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Group, Stack, Tabs, TextInput } from '@mantine/core';
+import { Tabs, TextInput } from '@mantine/core';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -9,7 +9,10 @@ import { useSlot } from '../../kernel/slots.ts';
 import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { Page } from '../../ui/Page.tsx';
+import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { Toolbar } from '../../ui/Toolbar.tsx';
 import { useCluster } from '../clusters/index.ts';
 import { bridgeColumns, divertColumns } from './columns.ts';
 import { CreateDivertAction } from './DivertActions.tsx';
@@ -74,6 +77,8 @@ interface ListingProps<T> {
   unreachable: string[];
   loading: boolean;
   error: ReactNode;
+  /** The page position, once the first page has landed. */
+  pager: ReactNode;
   onSort: (sort: string | undefined) => void;
   onClearFilters: () => void;
 }
@@ -86,6 +91,7 @@ function DivertsTable({
   unreachable,
   loading,
   error,
+  pager,
   onSort,
   onClearFilters,
 }: Readonly<ListingProps<DivertView>>) {
@@ -102,6 +108,7 @@ function DivertsTable({
       rowKey={divertKey}
       loading={loading}
       error={error}
+      toolbar={{ end: pager }}
       rowMenu={{
         label: (r) => r.name,
         render: (r, menu) => (
@@ -133,6 +140,7 @@ function BridgesTable({
   unreachable,
   loading,
   error,
+  pager,
   onSort,
   onClearFilters,
   hasBuilder,
@@ -150,6 +158,7 @@ function BridgesTable({
       rowKey={bridgeKey}
       loading={loading}
       error={error}
+      toolbar={{ end: pager }}
       empty={
         <ListingEmpty
           noun="bridge"
@@ -187,7 +196,12 @@ export function RoutingView() {
     });
 
   return (
-    <Stack gap="sm">
+    // A contributed tab (the builder) sizes itself; the listings fill the window.
+    <Page fill={!slot}>
+      <PageHeader
+        title="Routing"
+        description="What copies or takes this cluster's traffic, and what carries it to another broker."
+      />
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>
           <Tabs.Tab value="diverts">Diverts</Tabs.Tab>
@@ -211,7 +225,7 @@ export function RoutingView() {
           hasBuilder={contributed.some((c) => c.id === 'builder')}
         />
       )}
-    </Stack>
+    </Page>
   );
 }
 
@@ -256,39 +270,15 @@ function RoutingListing({
 
   // The address follows the field once typing pauses, so clearing the field clears the filter.
   const clearFilters = () => setFilter('');
+  const total = query.data?.count ?? 0;
   const listing = {
     q: search.q,
     sort: search.sort,
     unreachable,
     loading: query.isPending,
     error: query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : undefined,
-    onSort: (sort: string | undefined) => setSearch({ sort, page: undefined }),
-    onClearFilters: clearFilters,
-  };
-
-  const total = query.data?.count ?? 0;
-
-  return (
-    <>
-      <Group justify="space-between">
-        <TextInput
-          ref={filterRef}
-          label="Filter by address or name"
-          placeholder="Address or divert/bridge name"
-          value={filter}
-          onChange={(e) => setFilter(e.currentTarget.value)}
-          w={280}
-          size="xs"
-        />
-        {tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : null}
-      </Group>
-
-      {tab === 'diverts' ? (
-        <DivertsTable clusterId={clusterId} rows={diverts.data?.data ?? NO_ROWS} {...listing} />
-      ) : (
-        <BridgesTable rows={bridges.data?.data ?? NO_ROWS} hasBuilder={hasBuilder} {...listing} />
-      )}
-
+    // Not before the first page lands: "No diverts" while loading would claim there are none.
+    pager: query.data ? (
       <Pager
         page={page}
         pageSize={PAGE_SIZE}
@@ -296,6 +286,34 @@ function RoutingListing({
         onChange={(next) => setSearch({ page: next > 1 ? next : undefined })}
         label={tab}
       />
+    ) : undefined,
+    onSort: (sort: string | undefined) => setSearch({ sort, page: undefined }),
+    onClearFilters: clearFilters,
+  };
+
+  return (
+    <>
+      <Toolbar
+        label="Routing filters"
+        start={
+          <TextInput
+            ref={filterRef}
+            label="Filter by address or name"
+            placeholder="Address or divert/bridge name"
+            value={filter}
+            onChange={(e) => setFilter(e.currentTarget.value)}
+            w="17.5rem"
+            size="xs"
+          />
+        }
+        end={tab === 'diverts' ? <CreateDivertAction clusterId={clusterId} /> : undefined}
+      />
+
+      {tab === 'diverts' ? (
+        <DivertsTable clusterId={clusterId} rows={diverts.data?.data ?? NO_ROWS} {...listing} />
+      ) : (
+        <BridgesTable rows={bridges.data?.data ?? NO_ROWS} hasBuilder={hasBuilder} {...listing} />
+      )}
     </>
   );
 }

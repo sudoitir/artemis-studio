@@ -86,6 +86,12 @@
   --as-row-h: var(--as-row-h-compact);
   --as-cell-pad: var(--as-cell-pad-compact);
 
+  /* Fields: the height of an extra-small Mantine control (Button size xs), for rows that hold its
+     place, and the reserved message line under a labelled input (rules below). */
+  --as-control-h-xs: calc(1.875rem * var(--mantine-scale));
+  --as-field-message-line: calc((var(--mantine-font-size-sm) - 0.125rem) * 1.2);
+  --as-field-message-h: calc(var(--mantine-spacing-xs) / 2 + var(--as-field-message-line));
+
   /* Focus. Mantine's own focus ring (.mantine-focus-auto) is pointed at it below. */
   --as-focus-ring: 0.125rem solid var(--as-accent);
   --as-focus-offset: 0.125rem;
@@ -173,11 +179,6 @@
   --xy-background-pattern-lines-color: var(--as-canvas-grid);
   --xy-background-pattern-cross-color: var(--as-canvas-grid);
 
-  /* Request-reply flow state (Phase 5). */
-  --as-rr-in-flight: var(--as-text-dimmed); /* awaiting reply — normal, not a warning */
-  --as-rr-resolved: var(--as-text); /* completed */
-  --as-rr-failed: var(--as-danger); /* timed out / orphaned / responder dropped / orphaned reply */
-
   /* Misc chrome. */
   --as-alert-dot: var(--as-danger);
   --as-palette-bg: var(--mantine-color-default);
@@ -250,6 +251,28 @@
 .mantine-focus-auto:focus-visible {
   outline: var(--as-focus-ring);
   outline-offset: var(--as-focus-offset);
+}
+
+/* Fields. A labelled field keeps room under its input for one line of message, so a validation
+   message appears without moving anything below or beside it; a longer one grows from there. The
+   message is Mantine's error line (its own font size at line height 1.2) plus the gap Mantine opens
+   above it. Toolbar filters carry no messages and keep their compact height. */
+.mantine-InputWrapper-root:has(> .mantine-InputWrapper-label):not(:has(> .mantine-InputWrapper-error)):not(
+    [data-as-toolbar] *
+  ) {
+  padding-block-end: var(--as-field-message-h);
+}
+
+.mantine-InputWrapper-error {
+  min-block-size: var(--as-field-message-line);
+}
+
+/* The smallest button is 24px tall, the target size WCAG 2.5.8 asks of a control however much
+   room it has around it; Mantine draws compact-xs at 22px. */
+.mantine-Button-root,
+.mantine-Button-groupSection {
+  --button-height-compact-xs: calc(1.5rem * var(--mantine-scale));
+  --section-height-compact-xs: calc(1.5rem * var(--mantine-scale));
 }
 
 /* Reduced motion is a token rule: components animate only through the durations, so none needs a

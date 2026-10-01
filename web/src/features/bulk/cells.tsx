@@ -1,6 +1,7 @@
-import { Anchor } from '@mantine/core';
+import { UnstyledButton } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
+import linkClasses from '../../ui/InlineLink.module.css';
 import { absoluteLabel } from '../../kernel/time/time.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { MiddleTruncate } from '../../ui/table/MiddleTruncate.tsx';
@@ -10,9 +11,9 @@ import { itemStatus, runStatus } from './words.ts';
 /** The run's time, as a real link, so each run is reachable from the keyboard. */
 export function RunLink({ run, clusterId }: Readonly<{ run: BulkRunView; clusterId: string }>) {
   return (
-    <Anchor component={Link} to={`/clusters/${clusterId}/bulk/${run.id}`} size="sm">
+    <Link to={`/clusters/${clusterId}/bulk/${run.id}`} className={linkClasses.link}>
       {absoluteLabel(run.startedAt ?? run.createdAt)}
-    </Anchor>
+    </Link>
   );
 }
 
@@ -25,16 +26,14 @@ export function RunOutcome({ run }: Readonly<{ run: BulkRunView }>) {
 /** A queue as a real button, so its node detail is reachable from the keyboard. */
 export function QueueButton({ item, onOpen }: Readonly<{ item: BulkItemView; onOpen: (queueName: string) => void }>) {
   return (
-    <Anchor
-      component="button"
-      type="button"
-      size="sm"
+    <UnstyledButton
+      className={linkClasses.link}
       maw="100%"
       aria-label={`Show node detail for ${item.queueName}`}
       onClick={() => onOpen(item.queueName)}
     >
       <MiddleTruncate text={item.queueName} />
-    </Anchor>
+    </UnstyledButton>
   );
 }
 

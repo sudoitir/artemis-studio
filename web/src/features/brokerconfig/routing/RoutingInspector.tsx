@@ -2,13 +2,13 @@ import { Button, Group, Stack, Text } from '@mantine/core';
 
 import type { ConfigDeclarationView } from '../api.ts';
 import { removeItem } from '../document.ts';
-import { KeyValueList } from '../KeyValueList.tsx';
-import { addressRows, bridgeRows, divertRows, type Row } from '../pretty.ts';
+import { addressRows, asItems, bridgeRows, divertRows, type Row } from '../pretty.ts';
 import { useSaveDocument } from '../useSaveDocument.ts';
 import { CapabilityGate } from '../../../ui/CapabilityGate.tsx';
+import { DescriptionList } from '../../../ui/DescriptionList.tsx';
+import { StatusBadge } from '../../../ui/StatusBadge.tsx';
 import type { GateVerdict } from '../../../ui/capabilityGate.ts';
 import { KIND_WORDS, STATE_WORDS, type RoutingKind, type RoutingNodeView } from './routingGraph.ts';
-import classes from '../Configuration.module.css';
 
 /** The kinds a declaration can drop, and the section each lives in. */
 const REMOVABLE: Partial<Record<RoutingKind, 'diverts' | 'bridges'>> = { divert: 'diverts', bridge: 'bridges' };
@@ -41,11 +41,11 @@ function rowsFor(declaration: ConfigDeclarationView, node: RoutingNodeView): Row
 /** The inspector before anything is chosen: says how to choose. */
 function NothingSelected() {
   return (
-    <Stack gap={4}>
+    <Stack gap="xs">
       <Text size="sm" fw={600}>
         Nothing selected
       </Text>
-      <Text size="xs" c="dimmed">
+      <Text size="sm" c="dimmed">
         Choose an element on the canvas, or enter the graph and move with the arrow keys. Everything it shows is also on
         the Configuration screen's Declared &amp; live tab, with the same editors.
       </Text>
@@ -69,7 +69,7 @@ function InspectorActions({
 }>) {
   if (!node.edit) {
     return (
-      <Text size="xs" c="dimmed">
+      <Text size="sm" c="dimmed">
         {node.kind === 'target'
           ? 'This is on another broker. Declare the bridge that reaches it, not the target itself.'
           : 'Studio does not declare this element, so there is nothing here to edit. Declare it to bring it under the declaration.'}
@@ -92,7 +92,6 @@ function InspectorActions({
         <CapabilityGate verdict={writeGate} what={`removing ${node.kind} ${node.name}`}>
           <Button
             variant="subtle"
-            color="red"
             size="xs"
             loading={removing}
             onClick={remove}
@@ -128,6 +127,7 @@ export function RoutingInspector({
   if (!node) return <NothingSelected />;
 
   const rows = rowsFor(declaration, node);
+  const stateText = node.fault ? `${STATE_WORDS[node.state]}; ${node.fault}` : STATE_WORDS[node.state];
   const attention = node.state === 'DECLARED_ONLY' || node.state === 'OBSERVED_ONLY' || node.fault !== null;
   const section = node.edit ? REMOVABLE[node.kind] : undefined;
   const remove = section
@@ -135,30 +135,29 @@ export function RoutingInspector({
     : null;
 
   return (
-    <Stack gap="xs">
-      <Stack gap={2}>
-        <Text size="xs" c="dimmed">
+    <Stack gap="sm">
+      <Stack gap="xs">
+        <Text size="sm" c="dimmed">
           {KIND_WORDS[node.kind]}
         </Text>
         <Text size="sm" fw={600}>
           {node.name}
         </Text>
-        <Text size="xs" c="dimmed">
+        <Text size="sm" c="dimmed">
           {node.connects}.
         </Text>
-        <Text size="xs" className={classes.state} data-tone={attention ? 'warning' : undefined} aria-live="polite">
-          {STATE_WORDS[node.state]}
-          {node.fault ? `; ${node.fault}` : ''}
-        </Text>
+        <div aria-live="polite">
+          <StatusBadge tone={attention ? 'warning' : 'neutral'}>{stateText}</StatusBadge>
+        </div>
         {node.state === 'OBSERVED_ONLY' ? (
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             That is a statement about this declaration, not about where the element came from. Artemis records nothing
             that would say.
           </Text>
         ) : null}
       </Stack>
 
-      {rows.length > 0 ? <KeyValueList rows={rows} limit={12} /> : null}
+      {rows.length > 0 ? <DescriptionList label={`${node.name} as declared`} items={asItems(rows)} /> : null}
 
       <InspectorActions node={node} writeGate={writeGate} onEdit={onEdit} remove={remove} removing={isPending} />
     </Stack>

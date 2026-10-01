@@ -52,3 +52,10 @@
   font-family: var(--mantine-font-family-monospace);
   overflow-wrap: anywhere;
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

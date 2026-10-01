@@ -1,0 +1,10 @@
+/* The padding of a routed view that sits directly in the application's main area. */
+.page {
+  padding: var(--mantine-spacing-lg);
+  min-inline-size: 0;
+}
+
+/* The account page reads as one column of prose and forms, so it keeps a readable width. */
+.narrow {
+  max-inline-size: 40rem;
+}

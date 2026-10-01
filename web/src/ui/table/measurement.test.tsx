@@ -123,6 +123,7 @@ describe('readMeasurement', () => {
           data: rows(2, (i) => (i === 0 ? 'queue' : 'a-longer-queue')),
           density: 'compact',
           isBusy: () => false,
+          shown: true,
         });
         return (
           <>
@@ -159,6 +160,16 @@ describe('MiddleTruncate', () => {
     expect(start).toHaveAttribute('data-clip');
     expect(container).toHaveTextContent(text);
   });
+
+  it('is found, and read, as the whole value, with the parts hidden from assistive technology', () => {
+    const text = 'artemis.internal.sf.cluster-1.0f8c2a1e-77aa-4c1d';
+    const { container } = render(<MiddleTruncate text={text} />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    const [start, tail] = [...container.querySelectorAll('span > span')];
+    expect(start).toHaveAttribute('aria-hidden', 'true');
+    expect(tail).toHaveAttribute('aria-hidden', 'true');
+  });
 });
 
 describe('live growth', () => {
@@ -175,10 +186,12 @@ describe('live growth', () => {
   function Probe({
     data,
     busy = false,
+    shown = true,
     onResume,
   }: {
     data: Row[];
     busy?: boolean;
+    shown?: boolean;
     onResume?: (fn: () => void) => void;
   }) {
     const { measurement, measurerProps, resume } = useMeasurement({
@@ -186,6 +199,7 @@ describe('live growth', () => {
       data,
       density: 'compact',
       isBusy: () => busy,
+      shown,
     });
     onResume?.(resume);
     return (
@@ -196,6 +210,20 @@ describe('live growth', () => {
     );
   }
   const width = () => Number(screen.getByRole('status').textContent);
+
+  it('measures the headers of an empty table, so its columns have a width before any row', () => {
+    render(<Probe data={[]} />);
+    // The header 'Name' is 4 characters at 10 px, plus 16 px of padding and 1 px for rounding.
+    expect(width()).toBeGreaterThan(16);
+  });
+
+  it('waits for a hidden table to be shown, then measures it', () => {
+    const data = rows(2, (i) => (i === 0 ? 'queue' : 'a-longer-queue'));
+    const { rerender } = render(<Probe data={data} shown={false} />);
+    expect(screen.getByRole('status').textContent).toBe('');
+    rerender(<Probe data={data} shown />);
+    expect(width()).toBe(14 * 10 + 16 + 1);
+  });
 
   it('widens columns for new rows at most every two seconds', () => {
     const { rerender } = render(<Probe data={rows(2)} />);
