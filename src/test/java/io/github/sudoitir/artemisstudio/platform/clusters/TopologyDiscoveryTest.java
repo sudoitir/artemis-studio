@@ -127,9 +127,8 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
     void aSeedWhoseHaReadFailedInsideAnOkResponseIsNotTakenForAStoppedBroker() {
         UUID clusterId = newCluster();
 
-        assertThatThrownBy(() -> discovery.discover(
-                        clusterId, List.of(seed("ha-read-instance-not-found.json", "topology.json"))))
-                .isInstanceOf(BrokerConnectionException.class);
+        List<ProbedSeed> seeds = List.of(seed("ha-read-instance-not-found.json", "topology.json"));
+        assertThatThrownBy(() -> discovery.discover(clusterId, seeds)).isInstanceOf(BrokerConnectionException.class);
 
         assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).isEmpty();
     }

@@ -231,7 +231,7 @@ class ScrapeSchedulerTest {
     }
 
     @Test
-    void aStalledNodeDoesNotDelayTheProbeOfItsSiblings() throws Exception {
+    void aStalledNodeDoesNotDelayTheProbeOfItsSiblings() {
         UUID clusterId = UUID.randomUUID();
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity stalled = node(clusterId, "stalled", STALLED);
@@ -404,7 +404,7 @@ class ScrapeSchedulerTest {
     }
 
     @Test
-    void aSlowNodesReadStillTakesPartInTheCorroborationOfItsOwnCycle() throws Exception {
+    void aSlowNodesReadStillTakesPartInTheCorroborationOfItsOwnCycle() {
         UUID clusterId = UUID.randomUUID();
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity slow = node(clusterId, "slow", STALLED);

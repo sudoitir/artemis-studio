@@ -123,7 +123,7 @@ public class BrokerEventWriter implements BrokerEventSink {
         }
         try {
             transaction.executeWithoutResult(status -> write(batch));
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             dropOrphans(batch);
         } catch (RuntimeException e) {
             requeue(batch);
@@ -152,8 +152,10 @@ public class BrokerEventWriter implements BrokerEventSink {
      * orphan to blame would repeat for ever, so then the whole batch is dropped.
      */
     private void dropOrphans(List<BrokerEvent> batch) {
-        Set<UUID> clusters = existing("cluster", batch.stream().map(BrokerEvent::clusterId));
-        Set<UUID> nodes = existing("broker_node", batch.stream().map(BrokerEvent::nodeId));
+        Set<UUID> clusters = existing(
+                "SELECT id FROM cluster WHERE id IN (:ids)", batch.stream().map(BrokerEvent::clusterId));
+        Set<UUID> nodes = existing(
+                "SELECT id FROM broker_node WHERE id IN (:ids)", batch.stream().map(BrokerEvent::nodeId));
         Map<Boolean, List<BrokerEvent>> byFate = batch.stream()
                 .collect(Collectors.partitioningBy(
                         e -> clusters.contains(e.clusterId()) && (e.nodeId() == null || nodes.contains(e.nodeId()))));
@@ -172,13 +174,12 @@ public class BrokerEventWriter implements BrokerEventSink {
         requeue(kept);
     }
 
-    private Set<UUID> existing(String table, Stream<UUID> ids) {
+    private Set<UUID> existing(String sql, Stream<UUID> ids) {
         Set<UUID> wanted = ids.filter(Objects::nonNull).collect(Collectors.toSet());
         if (wanted.isEmpty()) {
             return Set.of();
         }
-        return Set.copyOf(jdbc.queryForList(
-                "SELECT id FROM " + table + " WHERE id IN (:ids)", Map.of("ids", wanted), UUID.class));
+        return Set.copyOf(jdbc.queryForList(sql, Map.of("ids", wanted), UUID.class));
     }
 
     /** Back at the head in their original order. What no longer fits is counted as dropped, as on intake. */

@@ -57,7 +57,8 @@ class ClusterServiceNodeOverrideTest {
         when(nodes.existsByClusterIdAndJolokiaUrlAndIdNot(CLUSTER, TAKEN, nodeId))
                 .thenReturn(true);
 
-        assertThatThrownBy(() -> service.overrideNodeUrl(CLUSTER, nodeId, new NodeOverrideRequest(TAKEN, null)))
+        NodeOverrideRequest request = new NodeOverrideRequest(TAKEN, null);
+        assertThatThrownBy(() -> service.overrideNodeUrl(CLUSTER, nodeId, request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining(TAKEN);
 
