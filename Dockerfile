@@ -25,8 +25,11 @@ RUN mvn -q -B clean package -DskipTests
 
 # ── 3. Runtime (Ubuntu 26.04 LTS "resolute") ─────────────────────────────────
 FROM eclipse-temurin:25-jre-resolute@sha256:b8e5a7403fd1e1fd8cd09118f8a808ac0482736bef2946e89f261efbe71c52d8 AS runtime
+# The distribution's security updates are applied at build time: a fix often reaches the Ubuntu
+# archive days before a new base image does, and the image scan fails on a fixable high finding.
 RUN groupadd -r studio && useradd -r -g studio studio \
-    && apt-get update && apt-get install -y --no-install-recommends curl \
+    && apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=app /src/target/artemis-studio-exec.jar app.jar
