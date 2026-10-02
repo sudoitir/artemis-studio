@@ -17,6 +17,8 @@ type Scheme = 'light' | 'dark';
 
 const TEXT_MIN = 4.5;
 const NON_TEXT_MIN = 3;
+/** Two status colours that must be told apart differ in lightness too, not in hue alone. */
+const STATUS_APART_MIN = 1.5;
 
 const mantine = mergeMantineTheme(DEFAULT_THEME, theme);
 const css = readFileSync(resolve(process.cwd(), 'src/theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -178,6 +180,20 @@ const NON_TEXT_ON = [
   '--as-flow-node-bg',
 ];
 
+/** What a filled control sits on: the page, a raised surface and a header. */
+const FILL_ON = ['--as-surface', '--as-surface-raised', '--as-grid-header-bg'];
+
+/** What a table can lay under a strong border: a surface, a hovered row, and the selected and fresh tints. */
+const ROW_TINTS = ['--as-selected', '--as-grid-row-fresh'];
+const ROW_ON = [
+  '--as-surface',
+  '--as-surface-raised',
+  '--as-grid-row-hover',
+  ...ROW_TINTS.flatMap((tint) =>
+    ['--as-surface', '--as-surface-raised', '--as-code-bg'].map((u) => `${tint} over ${u}`),
+  ),
+];
+
 function surfaces(vars: Vars): Map<string, Rgba> {
   const out = new Map<string, Rgba>();
   for (const name of SURFACES) out.set(name, parse(value(vars, name)));
@@ -236,6 +252,29 @@ describe.each<Scheme>(['light', 'dark'])('contrast in the %s scheme', (scheme) =
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  it(`gives the primary fill ${NON_TEXT_MIN}:1 against the surfaces it sits on, resting and hovered`, () => {
+    const fillShade = theme.primaryShade as number;
+    const failures: string[] = [];
+    for (const step of [fillShade, fillShade + 1]) {
+      const fill = parse(mantine.colors.cobalt[step]);
+      for (const name of FILL_ON) {
+        const r = ratio(fill, all.get(name) as Rgba);
+        if (r < NON_TEXT_MIN) failures.push(`cobalt-${step} on ${name}: ${r.toFixed(2)}:1`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it(`keeps warning and danger ${STATUS_APART_MIN}:1 apart in lightness`, () => {
+    const r = ratio(parse(value(vars, '--as-warning')), parse(value(vars, '--as-danger')));
+    expect(r).toBeGreaterThanOrEqual(STATUS_APART_MIN);
+  });
+
+  it(`gives the strong border ${NON_TEXT_MIN}:1 on every row tint`, () => {
+    const on = new Map(ROW_ON.map((name) => [name, all.get(name) as Rgba]));
+    expect(below(vars, ['--as-border-strong'], on, NON_TEXT_MIN)).toEqual([]);
   });
 });
 

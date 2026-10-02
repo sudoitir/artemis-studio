@@ -44,7 +44,13 @@ const graphiteDark: MantineColorsTuple = [
   '#0A0C10',
 ];
 
-/** Cobalt: the one accent. Light fills use step 6, dark fills step 4 (primaryShade below). */
+/**
+ * Cobalt: the one accent. Steps 6 and 7 are the fill, resting and hovered, in both schemes (primaryShade
+ * below). A fill has to hold two floors at once: 3:1 against the darkest surfaces it sits on (WCAG 1.4.11,
+ * 3.5:1 on the raised dark surface) and 4.5:1 for its white label. That leaves a band of luminance
+ * between 0.143 and 0.179, and both steps are inside it. Step 6 is therefore too light to read as link
+ * text on a light surface; the light scheme's anchor takes step 8.
+ */
 const cobalt: MantineColorsTuple = [
   '#EEF2FF',
   '#DCE5FF',
@@ -52,21 +58,24 @@ const cobalt: MantineColorsTuple = [
   '#A5B9FF',
   '#86A2FF',
   '#5A7DEC',
-  '#2E55D6',
-  '#2447B8',
+  '#496CDF',
+  '#3E64DD',
   '#1B3896',
   '#142A73',
 ];
 
-/** Amber: degraded, lagging, at risk. */
+/**
+ * Amber: degraded, lagging, at risk. Warning and danger are told apart by lightness as well as hue: amber
+ * is the lighter of the two (4 on dark, 6 on light), signal the darker (see theme.css).
+ */
 const amber: MantineColorsTuple = [
   '#FFF7E8',
   '#FFEBC7',
   '#FFDDA0',
   '#FACB7C',
-  '#F2B45A',
+  '#F5C37C',
   '#C06A0C',
-  '#9A4A00',
+  '#9D5009',
   '#7E3B00',
   '#632E00',
   '#4A2200',
@@ -78,7 +87,7 @@ const signal: MantineColorsTuple = [
   '#FFDEDB',
   '#FFC5BF',
   '#FFA79F',
-  '#FF8A80',
+  '#F18279',
   '#E0574B',
   '#B42318',
   '#911A11',
@@ -107,9 +116,10 @@ const dialogTitle = {
 
 export const theme = createTheme({
   primaryColor: 'cobalt',
-  // One fill shade in both schemes: Mantine resolves `autoContrast` once, into an inline label colour,
-  // so a fill that changed shade with the scheme would keep the other scheme's label. Cobalt-6 carries a
-  // white label at 6.2:1 and stands at 3:1 against the dark surfaces.
+  // One fill shade in both schemes: Mantine resolves `autoContrast` once, from the light shade, into an
+  // inline label colour, so a fill that changed shade with the scheme would keep the other scheme's label.
+  // Cobalt-6 carries a white label at 4.7:1 and stands at 3.5:1 against the raised dark surface (3.8:1
+  // against the page); its hover, cobalt-7, keeps 3.2:1 (theme.contrast.test.ts measures both).
   primaryShade: 6,
   // The label of every filled control (Button, ActionIcon, Badge, Avatar) is white or black, whichever
   // measures higher. 0.179 is where the two contrast ratios are equal (4.58:1); Mantine's default of 0.3
@@ -209,7 +219,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (t) => {
       '--mantine-color-default-border': graphite[2],
       '--mantine-color-default-color': graphite[9],
       '--mantine-color-placeholder': graphite[6],
-      '--mantine-color-anchor': cobalt[6],
+      '--mantine-color-anchor': cobalt[8],
       '--mantine-color-error': signal[6],
     },
     dark: {

@@ -28,8 +28,9 @@
   --as-surface: var(--mantine-color-body);
   --as-surface-raised: var(--mantine-color-default);
   --as-border: var(--mantine-color-default-border);
-  /* A control's edge and any boundary a reader needs to find: 3:1 against the surface it sits on. */
-  --as-border-strong: var(--mantine-color-dark-4);
+  /* A control's edge and any boundary a reader needs to find: 3:1 against the surface it sits on and
+     against every row tint (hovered, selected, fresh) a table can lay under it. */
+  --as-border-strong: var(--mantine-color-dark-3);
   --as-text: var(--mantine-color-text);
   --as-text-dimmed: var(--mantine-color-dimmed);
   --as-link: var(--mantine-color-anchor);
@@ -207,13 +208,14 @@
 /* Light overrides. Dark is the base above; only the values that must change for
    a legible light theme are redefined here (non-negotiable #6 keeps colour out
    of components, so this is the whole surface). Amber and signal take their darker
-   step so a warning and a failure keep the 4.5:1 text floor on the light surfaces. */
+   steps so a warning and a failure keep the 4.5:1 text floor on the light surfaces, and signal takes
+   the darker of the two so the pair also differ in lightness (1.5:1), not in hue alone. */
 :root[data-mantine-color-scheme='light'] {
-  --as-border-strong: var(--mantine-color-gray-4);
+  --as-border-strong: var(--mantine-color-gray-5);
   --as-accent: var(--mantine-color-cobalt-6);
   --as-selected: rgba(46, 85, 214, 0.1);
   --as-warning: var(--mantine-color-amber-6);
-  --as-danger: var(--mantine-color-signal-6);
+  --as-danger: var(--mantine-color-signal-7);
   --as-grid-row-fresh: rgba(46, 85, 214, 0.08);
   --as-sticky-shadow: 0.375rem 0 0.375rem -0.375rem rgba(10, 12, 16, 0.25);
   --as-skeleton: var(--mantine-color-gray-2);
@@ -225,7 +227,7 @@
   --as-chart-2: var(--mantine-color-grape-7);
   /* Editor tokens are body text, so the AA 4.5:1 floor applies to all of them. The dark-scheme steps
      do not clear it on a light surface; these are the first steps down each ramp that do. */
-  --as-code-keyword: var(--mantine-color-cobalt-7);
+  --as-code-keyword: var(--mantine-color-cobalt-8);
   --as-code-string: var(--mantine-color-cyan-9);
   --as-code-number: var(--mantine-color-violet-9);
   --as-code-property: var(--mantine-color-indigo-8);
