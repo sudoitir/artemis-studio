@@ -3,12 +3,9 @@ import { Button, Modal, ScrollArea } from '@mantine/core';
 
 import { LoadingState } from '../../ui/LoadingState.tsx';
 
-/**
- * The registration form and the xyflow canvas it draws come with it, so they load when a dialog is
- * first opened, not with the shell that holds the switcher and the settings page.
- */
-const RegisterClusterPanel = lazy(() =>
-  import('./RegisterCluster.tsx').then((m) => ({ default: m.RegisterClusterPanel })),
+/** The registration form loads when a dialog is first opened, not with the shell that holds the switcher. */
+const RegisterClusterForm = lazy(() =>
+  import('./RegisterCluster.tsx').then((m) => ({ default: m.RegisterClusterForm })),
 );
 
 /** Registration in a dialog: the form arrives behind a loader, so opening it is never a wait on nothing. */
@@ -18,12 +15,12 @@ export function RegisterClusterDialog({ opened, onClose }: Readonly<{ opened: bo
       opened={opened}
       onClose={onClose}
       title="Register cluster"
-      size="xl"
+      size="lg"
       centered
       scrollAreaComponent={ScrollArea.Autosize}
     >
       <Suspense fallback={<LoadingState label="Loading the registration form" blockSize="24rem" />}>
-        <RegisterClusterPanel onRegistered={onClose} />
+        <RegisterClusterForm onDone={onClose} />
       </Suspense>
     </Modal>
   );

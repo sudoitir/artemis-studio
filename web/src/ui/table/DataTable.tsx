@@ -20,8 +20,16 @@ import { Measurer } from './measure.tsx';
 import { columnSpec, useMeasurement } from './measurement.ts';
 import { StaticTable } from './StaticTable.tsx';
 import { parseSort } from './sort.ts';
-import { RefetchBar, StateSlot } from './TableStates.tsx';
-import { orderColumns, useTableState, withoutWidth, withoutWidths, withVisibility, withWidth } from './tableState.ts';
+import { RefetchBar, SKELETON_ROWS, StateSlot } from './TableStates.tsx';
+import {
+  orderColumns,
+  useTableState,
+  withMovedColumn,
+  withoutWidth,
+  withoutWidths,
+  withVisibility,
+  withWidth,
+} from './tableState.ts';
 import classes from './DataTable.module.css';
 
 /** Above this many rows a static table is drawn as the grid, so a list that grows never falls off a cliff. */
@@ -68,7 +76,7 @@ export interface GridVariantProps<T> extends DataTableBaseProps<T>, GridOnlyProp
   variant?: 'grid';
 }
 
-export interface StaticVariantProps<T> extends DataTableBaseProps<T> {
+interface StaticVariantProps<T> extends DataTableBaseProps<T> {
   /** A small, read-only set in a native table. Above 200 rows it is drawn as the grid. */
   variant: 'static';
   caption?: ReactNode;
@@ -281,6 +289,18 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
     [update, refit, announce],
   );
 
+  const move = useCallback(
+    (id: string, by: -1 | 1) => {
+      const ids = orderColumns(columnsRef.current, state.order).map((c) => c.id);
+      const next = withMovedColumn(state, ids, id, by);
+      if (next === state) return;
+      update((s) => withMovedColumn(s, ids, id, by));
+      const header = columnsRef.current.find((c) => c.id === id)?.header ?? id;
+      announce(`${header} moved to position ${next.order.indexOf(id) + 1} of ${ids.length}`);
+    },
+    [state, update, announce],
+  );
+
   const rowHeight = useMemo(() => rowHeightPx(theme.other.density[density as Density].rowH), [theme, density]);
 
   const model: TableModel<T> = {
@@ -317,7 +337,9 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   }));
 
   let slot: ReactNode = null;
-  if (error) slot = <StateSlot>{error}</StateSlot>;
+  // A static table that never had rows shows placeholder rows while it loads; its failure holds their height.
+  if (error)
+    slot = <StateSlot reserveRows={renderStatic && data.length === 0 ? SKELETON_ROWS : undefined}>{error}</StateSlot>;
   else if (data.length === 0 && !loading) slot = <StateSlot>{empty}</StateSlot>;
 
   return (
@@ -339,6 +361,7 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
             columns={menuColumns}
             hiddenCount={hiddenCount}
             onToggle={(id, show) => update((s) => withVisibility(s, id, show))}
+            onMove={move}
             density={density}
             onDensity={setDensity}
             canResetWidths={columns.some((c) => c.id in state.widths)}

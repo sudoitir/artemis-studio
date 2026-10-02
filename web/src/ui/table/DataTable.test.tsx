@@ -1123,11 +1123,60 @@ describe('DataTable: columns control', () => {
     expect(screen.queryByRole('columnheader', { name: /depth/i })).not.toBeInTheDocument();
   });
 
-  it('orders the columns as the viewer chose', () => {
-    localStorage.setItem('as.table.q', JSON.stringify({ ...state({}), order: ['depth', 'name'] }));
-    renderWithProviders(<Grid label="Queues" storageKey="q" columns={columns} data={rows} rowKey={(r) => r.name} />);
+  it('orders the columns as the viewer chose, keeping the first one first', () => {
+    const three: Column<Q>[] = [
+      ...columns,
+      { id: 'extra', header: 'Extra', accessor: (r) => r.depth, kind: 'number', priority: 'high' },
+    ];
+    localStorage.setItem('as.table.q', JSON.stringify({ ...state({}), order: ['extra', 'name', 'depth'] }));
+    renderWithProviders(<Grid label="Queues" storageKey="q" columns={three} data={rows} rowKey={(r) => r.name} />);
     const names = screen.getAllByRole('columnheader').map((header) => header.textContent);
-    expect(names).toEqual(['Depth', 'Queue']);
+    expect(names).toEqual(['Queue', 'Extra', 'Depth']);
+  });
+
+  describe('moving a column', () => {
+    const three: Column<Q>[] = [
+      ...columns,
+      { id: 'extra', header: 'Extra', accessor: (r) => r.depth, kind: 'number', priority: 'high' },
+    ];
+    const grid = () => <Grid label="Queues" storageKey="q" columns={three} data={rows} rowKey={(r) => r.name} />;
+    const headers = () => screen.getAllByRole('columnheader').map((header) => header.textContent);
+
+    it('moves a column earlier and later, announces it, remembers it and keeps focus on the button', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(grid());
+      await user.click(screen.getByRole('button', { name: 'Columns' }));
+
+      await user.click(await screen.findByRole('button', { name: 'Move Extra earlier' }));
+      expect(headers()).toEqual(['Queue', 'Extra', 'Depth']);
+      expect(await screen.findByText('Extra moved to position 2 of 3')).toBeInTheDocument();
+      expect(JSON.parse(localStorage.getItem('as.table.q')!)).toMatchObject({ order: ['name', 'extra', 'depth'] });
+      // At the bound the pressed button is disabled, so focus moves to its sibling.
+      expect(screen.getByRole('button', { name: 'Move Extra earlier' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Move Extra later' })).toHaveFocus();
+
+      await user.click(screen.getByRole('button', { name: 'Move Extra later' }));
+      expect(headers()).toEqual(['Queue', 'Depth', 'Extra']);
+      expect(screen.getByRole('button', { name: 'Move Extra later' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Move Extra earlier' })).toHaveFocus();
+    });
+
+    it('keeps focus on a button that can still move, and never moves the first column', async () => {
+      const user = userEvent.setup();
+      const four: Column<Q>[] = [
+        ...three,
+        { id: 'more', header: 'More', accessor: (r) => r.depth, kind: 'number', priority: 'high' },
+      ];
+      renderWithProviders(<Grid label="Queues" storageKey="q" columns={four} data={rows} rowKey={(r) => r.name} />);
+      await user.click(screen.getByRole('button', { name: 'Columns' }));
+
+      await user.click(await screen.findByRole('button', { name: 'Move More earlier' }));
+      expect(screen.getByRole('button', { name: 'Move More earlier' })).toHaveFocus();
+      expect(screen.getByRole('button', { name: 'Move Queue earlier' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Move Queue later' })).toBeDisabled();
+      // Nothing moves before the column that identifies a row.
+      expect(screen.getByRole('button', { name: 'Move Depth earlier' })).toBeDisabled();
+    });
   });
 });
 

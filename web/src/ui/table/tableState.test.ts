@@ -7,6 +7,7 @@ import {
   parseTableState,
   readTableState,
   useTableState,
+  withMovedColumn,
   withoutWidth,
   withoutWidths,
   withVisibility,
@@ -82,7 +83,24 @@ describe('changing a state', () => {
   it('orders the columns the viewer listed first, ignoring ids that are gone', () => {
     const cols = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
     expect(orderColumns(cols, [])).toBe(cols);
-    expect(orderColumns(cols, ['c', 'gone', 'a']).map((c) => c.id)).toEqual(['c', 'a', 'b']);
+    expect(orderColumns(cols, ['c', 'gone', 'b']).map((c) => c.id)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('keeps the first declared column first, whatever the stored order says', () => {
+    const cols = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    expect(orderColumns(cols, ['c', 'a', 'b']).map((c) => c.id)).toEqual(['a', 'c', 'b']);
+    expect(orderColumns([], ['a'])).toEqual([]);
+  });
+
+  it('moves a column one place earlier or later, never before the first or past the last', () => {
+    const ids = ['a', 'b', 'c', 'd'];
+    const start = EMPTY_TABLE_STATE;
+    expect(withMovedColumn(start, ids, 'c', -1).order).toEqual(['a', 'c', 'b', 'd']);
+    expect(withMovedColumn(start, ids, 'b', 1).order).toEqual(['a', 'c', 'b', 'd']);
+    expect(withMovedColumn(start, ids, 'b', -1)).toBe(start);
+    expect(withMovedColumn(start, ids, 'a', 1)).toBe(start);
+    expect(withMovedColumn(start, ids, 'd', 1)).toBe(start);
+    expect(withMovedColumn(start, ids, 'gone', 1)).toBe(start);
   });
 });
 

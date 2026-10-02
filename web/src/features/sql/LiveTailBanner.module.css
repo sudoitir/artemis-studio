@@ -7,3 +7,12 @@
   z-index: 2;
   background: var(--mantine-color-body);
 }
+
+/* The figures that change with every read, under the notice that states what the tail is. */
+.figures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-block: 0.25rem;
+  padding-inline: var(--mantine-spacing-md);
+}

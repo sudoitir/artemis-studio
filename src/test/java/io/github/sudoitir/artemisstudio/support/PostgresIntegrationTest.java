@@ -1,15 +1,12 @@
 package io.github.sudoitir.artemisstudio.support;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -37,19 +34,9 @@ public abstract class PostgresIntegrationTest {
     @MockitoBean
     ScrapeScheduler scrapeScheduler;
 
-    /**
-     * Every cached context is a replica of the same database, so real ownership would spread a test's
-     * cluster over contexts that are not running the test. The context under test owns every cluster;
-     * {@code ClusterOwnershipTest} builds real ones.
-     */
-    @MockitoBean
+    /** Owns every cluster, from the moment it is made (see {@link OwnsEveryCluster}). */
+    @TestBean(methodName = "io.github.sudoitir.artemisstudio.support.OwnsEveryCluster#clusterOwnership")
     protected ClusterOwnership clusterOwnership;
-
-    @BeforeEach
-    void ownEveryCluster() {
-        // doReturn, not when(...): the bus thread may call the mock's listener while this stubs it.
-        doReturn(true).when(clusterOwnership).owns(any());
-    }
 
     /**
      * Spring keeps every distinct test context cached, each with its own connection pool, so the

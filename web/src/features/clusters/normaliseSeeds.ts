@@ -41,7 +41,9 @@ function normaliseOne(token: string): string | null {
   try {
     const u = new URL(candidate);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
-    if (!u.port) u.port = DEFAULT_PORT;
+    // `URL.port` is empty both when no port was typed and when the scheme's default (80, 443) was, so
+    // the typed text decides: only a URL with no port at all gets the conventional one.
+    if (!u.port && !hasExplicitPort(candidate)) u.port = DEFAULT_PORT;
     // `/console` is what an operator copies out of the browser's address bar. The
     // agent lives one level deeper, and posting to the console itself only bounces
     // to its login page, so fill the rest of the path in rather than let that fail.
@@ -50,4 +52,10 @@ function normaliseOne(token: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Whether the URL's authority names a port, `host:80` or `[::1]:443`, which `URL.port` hides when it is the default. */
+function hasExplicitPort(url: string): boolean {
+  const authority = url.replace(/^https?:\/\//i, '').split(/[/?#]/, 1)[0];
+  return /:\d+$/.test(authority.replace(/^.*@/, ''));
 }

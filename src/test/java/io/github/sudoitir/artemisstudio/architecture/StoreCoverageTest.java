@@ -49,6 +49,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("studio_setting", "configuration: one row per overridden setting"),
             Map.entry("shedlock", "one row per installation-wide job"),
             Map.entry("cluster_lease", "one row per cluster, removed with it"),
+            Map.entry("broker_identity", "one row per broker of a registered cluster, removed with it"),
             Map.entry("lifecycle_purge", "one row per store"),
             Map.entry("governance_policy", "configuration"),
             Map.entry("governance_rule", "configuration"),

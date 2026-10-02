@@ -136,7 +136,7 @@ describe('ReviewApplyDrawer: the plan', () => {
     const d = await drawer();
 
     const alert = await d.findByRole('alert');
-    expect(alert).toHaveTextContent('Some values are not valid');
+    expect(alert).toHaveTextContent('Invalid');
     expect(alert).toHaveTextContent('The declaration does not validate.');
     expect(d.getByText('Fix the declaration and come back; nothing was changed.')).toBeInTheDocument();
   });

@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
@@ -29,6 +30,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.VersionGate;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerIdentityClaims;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerTlsEntity;
@@ -52,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PostFilter;
@@ -81,6 +84,8 @@ public class ClusterService {
     private final BrokerNodeRepository nodes;
     private final BrokerCredentialRepository credentials;
     private final BrokerTlsRepository tlsRepository;
+    private final BrokerIdentityClaims identityClaims;
+    private final ClusterIdentityClaims clusterClaims;
 
     private final BrokerClientFactory clientFactory;
     private final BrokerConnections connections;
@@ -98,6 +103,7 @@ public class ClusterService {
     private final io.github.sudoitir.artemisstudio.kernel.security.ActorResolver actorResolver;
     private final ClusterEnvironmentIndex environmentIndex;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
@@ -137,8 +143,10 @@ public class ClusterService {
             return failed(event, tooOld);
         }
 
-        ClusterTopology preview =
-                topologyDiscovery.preview(reachable.stream().map(Probe::asSeed).toList());
+        TopologyDiscovery.Survey survey =
+                topologyDiscovery.survey(reachable.stream().map(Probe::asSeed).toList());
+        refuseIfRegistered(survey.identity(), () -> event);
+        ClusterTopology preview = topologyDiscovery.preview(survey);
 
         // Actually open a Core subscription rather than reporting NotAttempted. A
         // check that stays silent about the Core channel is how a wrong Core account
@@ -211,13 +219,23 @@ public class ClusterService {
             return failed(event, tooOld);
         }
 
-        ClusterEntity cluster = clusters.save(new ClusterEntity(
+        TopologyDiscovery.Survey survey =
+                topologyDiscovery.survey(reachable.stream().map(Probe::asSeed).toList());
+        ClusterIdentity identity = survey.identity();
+        refuseIfRegistered(identity, () -> refusedAttempt(request));
+
+        ClusterEntity cluster = clusters.saveAndFlush(new ClusterEntity(
                 request.name() != null
                         ? request.name()
                         : hostOf(request.seedUrls().get(0)),
                 request.description(),
                 null));
         UUID clusterId = cluster.getId();
+
+        // The check above sees committed clusters only. The claim settles two registrations of the same
+        // brokers running at once: it waits for the other to commit, then finds the brokers taken, and
+        // throwing rolls this cluster back (ADR-0167).
+        refuseIfClaimed(clusterId, identity, request);
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
@@ -253,8 +271,7 @@ public class ClusterService {
             tlsRepository.save(new BrokerTlsEntity(clusterId, request.tlsBundle(), null, true));
         }
 
-        ClusterTopology topology = topologyDiscovery.discover(
-                clusterId, reachable.stream().map(Probe::asSeed).toList());
+        ClusterTopology topology = topologyDiscovery.discover(clusterId, survey);
         BrokerCapabilities capabilities = capabilityProbe.probe(
                 reachable.get(0).client(),
                 coreSubscriptions.verdictFor(clusterId),
@@ -271,6 +288,88 @@ public class ClusterService {
                 viewMapper.capabilities(capabilities, VersionGate.assessAll(endpoints(topology))),
                 viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
                 cluster.getEnvironmentId()));
+    }
+
+    // ---- one registration per set of brokers (ADR-0167) ---------------------
+
+    /** Refuses brokers a registered cluster already holds, recording the refusal on the attempt's audit row. */
+    private void refuseIfRegistered(ClusterIdentity identity, Supplier<AuditEvent> attempt) {
+        Optional<ClusterIdentity.Overlap> overlap = registeredOverlap(identity);
+        if (overlap.isPresent()) {
+            throw refusal(overlap.get(), attempt.get());
+        }
+    }
+
+    /**
+     * Claims the brokers for the new cluster, or refuses them (ADR-0167). Another cluster's claim with no
+     * node behind it any more (its URL was overridden, its broker's journal replaced) is stale: it is
+     * released and the claim made again, so it never refuses an unrelated broker. A claim backed by a
+     * node is refused; that is how the second of two racing registrations ends.
+     */
+    private void refuseIfClaimed(UUID clusterId, ClusterIdentity identity, RegisterClusterRequest request) {
+        Optional<UUID> holder = identityClaims.claim(clusterId, identity.claims());
+        if (holder.isEmpty()) {
+            return;
+        }
+        Optional<ClusterIdentity.Overlap> overlap = registeredOverlap(identity);
+        if (overlap.isEmpty()) {
+            identityClaims.releaseHeldByOthers(clusterId, identity.claims());
+            holder = identityClaims.claim(clusterId, identity.claims());
+            if (holder.isEmpty()) {
+                return;
+            }
+            overlap = registeredOverlap(identity);
+        }
+        UUID holderId = holder.get();
+        throw refusal(
+                overlap.orElseGet(() -> new ClusterIdentity.Overlap(
+                        holderId,
+                        clusters.findById(holderId).map(ClusterEntity::getName).orElse(""),
+                        List.of())),
+                refusedAttempt(request));
+    }
+
+    /** The registered cluster holding any of these brokers, by NodeID or by a management URL's normal form. */
+    private Optional<ClusterIdentity.Overlap> registeredOverlap(ClusterIdentity identity) {
+        List<BrokerNodeEntity> candidates = new ArrayList<>(nodes.findByJolokiaUrlIsNotNull());
+        if (!identity.nodeIds().isEmpty()) {
+            candidates.addAll(nodes.findByArtemisNodeIdIn(identity.nodeIds()));
+        }
+        Map<UUID, String> names = new HashMap<>();
+        clusters.findAllById(candidates.stream()
+                        .map(BrokerNodeEntity::getClusterId)
+                        .distinct()
+                        .toList())
+                .forEach(c -> names.put(c.getId(), c.getName()));
+        return identity.overlapWith(candidates, names);
+    }
+
+    /**
+     * The refusal for an overlap. The caller is told which cluster only when they may read it (the
+     * authorization spec keeps a cluster hidden from anyone with no grant on it), and the audit row says
+     * exactly what the caller was told: the row belongs to no cluster, so no cluster's read grant guards
+     * it, and it must not name a cluster its actor could not see. Its seed URLs still let an administrator
+     * find the holder.
+     */
+    private ClusterAlreadyRegisteredException refusal(ClusterIdentity.Overlap overlap, AuditEvent attempt) {
+        ClusterAlreadyRegisteredException refusal = permissions.can(overlap.clusterId(), Permissions.CLUSTER_READ)
+                ? new ClusterAlreadyRegisteredException(overlap.clusterId(), overlap.clusterName(), overlap.nodes())
+                : ClusterAlreadyRegisteredException.hidden();
+        audit.fail(attempt, refusal.getMessage());
+        return refusal;
+    }
+
+    /** The audit row of a registration refused before it created a cluster. */
+    private AuditEvent refusedAttempt(RegisterClusterRequest request) {
+        return audit.begin(
+                actorResolver.resolve(),
+                REGISTER_CLUSTER,
+                CLUSTER,
+                request.name(),
+                null,
+                null,
+                Map.of("seedUrls", request.seedUrls()),
+                false);
     }
 
     // ---- reads ------------------------------------------------------------
@@ -435,6 +534,8 @@ public class ClusterService {
             node.applyManualCoreUrl(request.coreUrl());
         }
         nodes.save(node);
+        // A node known only by its URL is claimed by it: the old URL is released, the new one claimed.
+        clusterClaims.sync(clusterId);
         audit.succeed(event, 1);
         return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(node)));
     }

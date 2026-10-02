@@ -11,6 +11,19 @@ const navigateSpy = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => navigateSpy,
+  // A plain anchor that stays on the page: the router is not under test, and the document cannot navigate.
+  Link: ({ children, to, onClick, ...rest }: { children: React.ReactNode; to: string; onClick?: () => void }) => (
+    <a
+      href={to}
+      {...rest}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick?.();
+      }}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 const { RegisterClusterForm } = await import('./RegisterCluster.tsx');
@@ -79,48 +92,57 @@ function preview() {
   };
 }
 
+/** The refusal for brokers a registered cluster already holds; `visible` is whether the caller may see it. */
+function alreadyRegistered(visible = true) {
+  return HttpResponse.json(
+    {
+      type: 'https://artemis-studio.dev/problems/cluster-already-registered',
+      title: 'These brokers are already registered',
+      status: 409,
+      detail: visible
+        ? 'These brokers are already registered as the cluster "prod-emea" (node artemis-primary:61616). Open that cluster instead, or remove it before registering them again. If this is a cloned or restored broker, it carries the same node ID; give it a fresh journal so it gets its own.'
+        : 'These brokers already belong to a registered cluster you do not have access to. Ask someone who can see it to share it with you, or to remove it. If this is a cloned or restored broker, it carries the same node ID; give it a fresh journal so it gets its own.',
+      ...(visible
+        ? { existingClusterId: 'c1', existingClusterName: 'prod-emea', overlappingNodes: ['artemis-primary:61616'] }
+        : {}),
+    },
+    { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+  );
+}
+
 afterEach(() => act(() => notifications.clean()));
 
 describe('RegisterClusterForm', () => {
-  it('swaps the preview placeholder for the real discovered topology after a successful check', async () => {
-    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
-    const user = userEvent.setup();
-    renderWithProviders(<RegisterClusterForm />);
-
-    expect(screen.getByText('Topology preview')).toBeInTheDocument();
-
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
-    await user.click(screen.getByRole('button', { name: 'Check connection' }));
-
-    expect(await screen.findByText('Discovered topology')).toBeInTheDocument();
-    expect(screen.queryByText('Topology preview')).not.toBeInTheDocument();
-  });
-
-  it('tells the operator which URLs to enter for the setup they choose', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<RegisterClusterForm />);
-    const urls = screen.getByLabelText(/Broker management URLs/);
-    expect(urls).toHaveAccessibleDescription(/^One per line\./);
-
-    await user.click(screen.getByRole('radio', { name: /Primary and backup/ }));
-    expect(screen.getByRole('radio', { name: /Primary and backup/ })).toBeChecked();
-    expect(urls).toHaveAccessibleDescription(/Enter the primary's management URL\. Studio finds its backup/);
-
-    await user.click(screen.getByRole('radio', { name: /Cluster/ }));
-    expect(urls).toHaveAccessibleDescription(/one management URL per broker Studio can reach/);
-  });
-
-  it('marks the preview stale once the seeds are edited after a check', async () => {
+  it('says what the check found once it passes', async () => {
     server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+
+    expect(await screen.findByText(/^Connected\. Found \d+ nodes?\.$/)).toBeInTheDocument();
+  });
+
+  it('tells the operator what to enter as management URLs', () => {
+    renderWithProviders(<RegisterClusterForm />);
+    expect(screen.getByLabelText(/Broker management URLs/)).toHaveAccessibleDescription(
+      /^One per line\. Studio finds the rest of the cluster from these\./,
+    );
+  });
+
+  it('asks for a new check once the URLs are edited after a check', async () => {
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText(/^Connected\./);
 
     await user.type(screen.getByLabelText(/Broker management URLs/), '\nbroker-2');
-    expect(await screen.findByText('Changed since you checked')).toBeInTheDocument();
+    expect(await screen.findByText(/details changed since the last check/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
   });
 
   it('warns before registering a broker newer than Studio has tested, and still lets it register', async () => {
@@ -167,6 +189,64 @@ describe('RegisterClusterForm', () => {
     expect(screen.getByText('The check failed. Fix what it reports above, then check again.')).toBeInTheDocument();
   });
 
+  it('says which cluster already has the brokers, links to it and will not register them again', async () => {
+    server.use(http.post('*/api/v1/clusters', () => alreadyRegistered()));
+    const done = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm onDone={done} />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    const notice = await screen.findByRole('alert');
+    expect(notice).toHaveTextContent('These brokers are already registered');
+    expect(notice).toHaveTextContent(/as the cluster "prod-emea" \(node artemis-primary:61616\)/);
+    // A clone carries its original's node ID, so the notice says how to tell them apart.
+    expect(notice).toHaveTextContent(/cloned or restored broker.*give it a fresh journal/);
+    const open = screen.getByRole('link', { name: 'Open prod-emea' });
+    expect(open).toHaveAttribute('href', '/clusters/c1');
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    expect(
+      screen.getByText('These brokers are registered already, so there is nothing to register.'),
+    ).toBeInTheDocument();
+
+    // In the dialog, following the link closes it.
+    await user.click(open);
+    expect(done).toHaveBeenCalled();
+  });
+
+  it('keeps registration refused when another registration of the same brokers won the race', async () => {
+    server.use(
+      http.post('*/api/v1/clusters', ({ request }) =>
+        new URL(request.url).searchParams.get('dryRun') === 'true' ? HttpResponse.json(preview()) : alreadyRegistered(),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText(/^Connected\./);
+    await user.click(screen.getByRole('button', { name: 'Register cluster' }));
+
+    expect(await screen.findByRole('link', { name: 'Open prod-emea' })).toHaveAttribute('href', '/clusters/c1');
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('names no cluster the operator cannot see', async () => {
+    server.use(http.post('*/api/v1/clusters', () => alreadyRegistered(false)));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/a registered cluster you do not have access to/);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
+  });
+
   it('lists an operation the brokers are too old for with the release it needs', async () => {
     const gated = preview();
     (gated.capabilities.versionGates as unknown[]).push({
@@ -206,7 +286,7 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+    await screen.findByText(/^Connected\./);
 
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeEnabled();
   });
@@ -218,7 +298,7 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+    await screen.findByText(/^Connected\./);
 
     // A check that survived a password edit would vouch for credentials it never
     // saw — which is exactly how a wrong Core account reached a registered cluster.
@@ -282,7 +362,7 @@ describe('RegisterClusterForm', () => {
 
     await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
-    await screen.findByText('Discovered topology');
+    await screen.findByText(/^Connected\./);
     await user.click(screen.getByRole('button', { name: 'Register cluster' }));
 
     expect(await screen.findByText('Registered cluster prod-eu')).toBeInTheDocument();

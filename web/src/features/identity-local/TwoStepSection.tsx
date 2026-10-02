@@ -40,6 +40,9 @@ interface Outcome {
 
 const returnTo = () => `${globalThis.location.pathname}${globalThis.location.search}`;
 
+/** The height of the section for an account with an authenticator app, recovery codes and no passkeys or trusted devices. */
+const SECTION_BLOCK = '20.25rem';
+
 /**
  * Account section: the signed-in password user's second factors, local or a plugin's sign-in (ADR-0143, ADR-0156) — the authenticator app, passkeys,
  * recovery codes and the browsers they chose to trust — and how to change each. Every change that needs a fresh
@@ -48,9 +51,12 @@ const returnTo = () => `${globalThis.location.pathname}${globalThis.location.sea
 export function TwoStepSection() {
   const status = useMfaStatus();
 
-  // The frame holds the height of the sections that replace it, so nothing below moves when they arrive.
-  if (status.isPending) return <LoadingState label="Loading two-step verification" blockSize="22rem" />;
-  if (status.isError) return <ErrorState error={status.error} onRetry={() => void status.refetch()} />;
+  // The frame holds the height of the sections that replace it, and the failure the same, so nothing below
+  // moves when either arrives.
+  if (status.isPending) return <LoadingState label="Loading two-step verification" blockSize={SECTION_BLOCK} />;
+  if (status.isError) {
+    return <ErrorState error={status.error} onRetry={() => void status.refetch()} blockSize={SECTION_BLOCK} />;
+  }
   if (!status.data.passwordAccount) {
     return (
       <Text size="sm" c="dimmed">

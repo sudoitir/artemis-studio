@@ -159,7 +159,7 @@ Production build, every route at 1920/1440/1280 px in light, dark and system, 20
 - [ ] `account` (1280 dark error): axe aria-prohibited-attr on span[aria-label="Loading two-step verification"], span[aria-label="Loading sessions"] — sessions: fixed (the loading frame is a `LoadingState`, a `role="status"` whose label is its text, in place of a labelled `span`; `SessionsManager.test.tsx` asserts it); two-step verification is the identity unit's section and is left to it
 
 ## sql
-- [ ] `sql` (1280 dark default): axe scrollable-region-focusable on ._editorPane_3paie_46
+- [x] `sql` (1280 dark default): axe scrollable-region-focusable on ._editorPane_3paie_46 (fixed in sql-topology-3)
 - [ ] `sql` (zoom light default): layout shift CLS 0.0104
 
 ## transfer

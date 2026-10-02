@@ -27,13 +27,6 @@
   pointer-events: none;
 }
 
-.controls {
-  position: absolute;
-  inset-block-start: var(--mantine-spacing-sm);
-  inset-inline-end: var(--mantine-spacing-sm);
-  z-index: 5;
-}
-
 /* A box and its "⋯": the button fills the card; the "⋯" sits in its corner. */
 .card {
   position: relative;

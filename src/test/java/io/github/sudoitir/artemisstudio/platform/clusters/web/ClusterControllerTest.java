@@ -17,10 +17,13 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
@@ -30,6 +33,7 @@ import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +43,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.MockMvc;
@@ -298,6 +304,94 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[?(@.action == 'DELETE_CLUSTER')].clusterName")
                         .value("prod-emea"));
+    }
+
+    /** The reads before the identity check: connect, the version, then the one HA and topology read. */
+    private static String[] untilIdentityKnown() {
+        return new String[] {
+            "search-broker.json", "capability-version-read.json", "ha-read-primary.json", "topology.json"
+        };
+    }
+
+    /**
+     * The same brokers a second time, by the check or the registration, are refused naming the cluster that
+     * holds them, and nothing is stored (ADR-0167). The seed is spelled differently: the NodeID decides.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void theSameBrokersAreRegisteredOnlyOnce(boolean dryRun) throws Exception {
+        String alias = "http://BROKER-1.example:8161/console/jolokia/";
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        when(clientFactory.forNode(any(), eq(alias))).thenReturn(client(alias, untilIdentityKnown()));
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isCreated());
+        var existing = clusters.findAll().get(0).getId();
+        audits.deleteAll();
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", String.valueOf(dryRun))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "seedUrls": ["%s"], "name": "prod-emea-again",
+                                  "credentials": { "username": "artemis", "password": "artemis" } }
+                                """.formatted(alias)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type")
+                        .value(org.hamcrest.Matchers.endsWith("/problems/cluster-already-registered")))
+                .andExpect(jsonPath("$.title").value("These brokers are already registered"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("\"prod-emea\"")))
+                .andExpect(jsonPath("$.existingClusterId").value(existing.toString()))
+                .andExpect(jsonPath("$.existingClusterName").value("prod-emea"))
+                .andExpect(jsonPath("$.overlappingNodes")
+                        .value(org.hamcrest.Matchers.contains("artemis-backup:61616", "artemis-primary:61616")));
+
+        assertThat(clusters.findAll()).extracting(c -> c.getId()).containsExactly(existing);
+        assertThat(audits.findAll()).singleElement().satisfies(e -> {
+            assertThat(e.getAction()).isEqualTo("REGISTER_CLUSTER");
+            assertThat(e.getOutcome()).isEqualTo("FAILURE");
+            assertThat(e.isDryRun()).isEqualTo(dryRun);
+        });
+    }
+
+    /** A caller who cannot read the cluster holding the brokers is refused without being told which it is. */
+    @Test
+    void aClusterTheCallerCannotSeeIsNotNamed() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED)))
+                .thenReturn(client(SEED, registerSequence()), client(SEED, untilIdentityKnown()));
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isCreated());
+
+        StudioPrincipal writerOnly = new StudioPrincipal(
+                null,
+                "writer-only",
+                Set.of(new Grant(Grant.ScopeType.GLOBAL, null, Set.of(ClusterPermissions.CLUSTER_WRITE))),
+                false);
+        SecurityContextHolder.getContext()
+                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
+                        writerOnly, null, writerOnly.getAuthorities()));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("These brokers are already registered"))
+                .andExpect(jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("prod-emea"))))
+                .andExpect(jsonPath("$.existingClusterId").doesNotExist())
+                .andExpect(jsonPath("$.overlappingNodes").doesNotExist());
+        assertThat(clusters.count()).isEqualTo(1);
+        // The refused attempt's row belongs to no cluster, so it must not name the one the caller cannot see.
+        assertThat(audits.findAll())
+                .filteredOn(e -> "FAILURE".equals(e.getOutcome()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.getError())
+                        .contains("a registered cluster you do not have access to")
+                        .doesNotContain("prod-emea")
+                        .doesNotContain("artemis-primary"));
     }
 
     @Test

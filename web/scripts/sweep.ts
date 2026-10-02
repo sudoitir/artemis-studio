@@ -6,7 +6,8 @@
  *
  * Needs the sessions `just qa-up` saved to `web/.sweep/auth` and the content `scripts/qa-seed.sh` made. Writes
  * `web/.sweep/<label>/<area>/<id>/<width>-<scheme>-<state>.png` and `web/.sweep/<label>/report.json`, one entry
- * per capture with the result of every check, and prints a summary. Exits 1 when any capture failed a check.
+ * per capture with the result of every check, and prints a summary. Exits 1 when any capture failed a check, or
+ * when a signal stopped it (SIGINT or SIGTERM; the captures taken are still reported).
  *
  * The matrix (a full run is a few thousand captures: narrow it with the flags, and run one sweep at a time):
  *   widths    1920x1080, 1440x900, 1280x800, each light and dark; `system` once at 1440; `zoom` (below), light.
@@ -364,7 +365,17 @@ async function main() {
   if (jobs.length === 0) throw new Error('nothing to capture: check --only, --states and --widths');
   console.log(`sweep "${flags.label}": ${jobs.length} captures against ${BASE}`);
 
-  const browser = await chromium.launch();
+  // Playwright would close the browser on a signal and leave the capture in flight to fail with "browser has
+  // been closed", recorded as an `exception` of a route that did nothing wrong. A signal instead stops the
+  // sweep taking new captures, lets the one in flight finish and writes the report of the rest.
+  const browser = await chromium.launch({ handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false });
+  let stopped = false;
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+    process.once(signal, () => {
+      stopped = true;
+      console.log(`\n${signal}: finishing the captures in flight, then reporting what was captured`);
+    });
+  }
   const cluster = await clusterId(browser);
   const contexts = new Map<string, Promise<BrowserContext>>();
   const contextOf = (job: Job) => {
@@ -376,7 +387,7 @@ async function main() {
   const captures: Capture[] = [];
   const queue = [...jobs];
   const worker = async () => {
-    for (let job = queue.shift(); job; job = queue.shift()) {
+    for (let job = queue.shift(); job && !stopped; job = queue.shift()) {
       let result = await capture(await contextOf(job), job, cluster);
       // The capture machine's own network changing (Docker adding an interface) aborts the page's
       // requests with ERR_NETWORK_CHANGED. That says nothing about the console, so such a capture is
@@ -401,11 +412,11 @@ async function main() {
   const byCheck = new Map<string, number>();
   for (const c of captures) for (const f of c.failures) byCheck.set(f, (byCheck.get(f) ?? 0) + 1);
   const failedCount = captures.filter((c) => !c.ok).length;
-  console.log(`\n${captures.length} captures, ${failedCount} failed`);
+  console.log(`\n${captures.length} captures${stopped ? ` of ${jobs.length} (stopped)` : ''}, ${failedCount} failed`);
   for (const [check, count] of [...byCheck].sort((a, b) => b[1] - a[1]))
     console.log(`  ${String(count).padStart(5)}  ${check}`);
   console.log(`report: ${relative(process.cwd(), resolve(OUT, 'report.json'))}`);
-  process.exit(failedCount > 0 ? 1 : 0);
+  process.exit(failedCount > 0 || stopped ? 1 : 0);
 }
 
 main().catch((error) => {

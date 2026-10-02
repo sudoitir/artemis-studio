@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -140,7 +140,10 @@ describe('SqlConsoleView', () => {
     mockPlan();
     renderWithProviders(<SqlConsoleView />);
 
-    expect(await screen.findByText(/no scan — the broker filters/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText('The brokers filter; Studio examines at most 100 messages from 1 queue.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Broker-filtered')).toBeInTheDocument();
     expect(screen.getByText(/pushed down:/i)).toBeInTheDocument();
   });
 
@@ -156,11 +159,15 @@ describe('SqlConsoleView', () => {
     );
     renderWithProviders(<SqlConsoleView />);
 
-    expect(await screen.findByText(/scan — examines about 12,400 messages/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Studio reads and examines about 12,400 messages on 1 queue across 1 node.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Scan')).toBeInTheDocument();
     expect(screen.getByText(/scanned by studio:/i)).toBeInTheDocument();
   });
 
-  it('reports a rejected query with the offending token instead of a generic failure', async () => {
+  it('reports a rejected query on its offending token, and in words, instead of a generic failure', async () => {
+    search.current = { q: 'SELECT * FROM "A" JOIN "B"' };
     mockCluster();
     server.use(
       http.post('*/api/v1/clusters/c1/sql/plan', () =>
@@ -177,8 +184,11 @@ describe('SqlConsoleView', () => {
     );
     renderWithProviders(<SqlConsoleView />);
 
-    expect(await screen.findByText(/JOIN is not part of this dialect/i)).toBeInTheDocument();
-    expect(screen.getByText(/the problem is at/i)).toBeInTheDocument();
+    expect(await screen.findByText('Not estimated: JOIN is not part of this dialect.')).toBeInTheDocument();
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
+    // The token is marked in the editor as a lint diagnostic, at its position.
+    await vi.waitFor(() => expect(document.querySelector('.cm-lintRange-error')?.textContent).toBe('JOIN'));
+    search.current = {};
   });
 
   it('renders a partial result as a per-node outcome, not as an empty table', async () => {
@@ -337,10 +347,11 @@ describe('SqlConsoleView', () => {
 
     const notice = await screen.findByText(/is never seen/i);
     expect(notice).toBeInTheDocument();
-    // Non-dismissable: the whole alert offers no close control. Only "stop
+    // Non-dismissable: the whole notice offers no close control. Only "stop
     // tailing" removes it, and that ends the tail rather than hiding its caveat.
-    const alert = notice.closest('[role="alert"], .mantine-Alert-root') as HTMLElement;
-    expect(within(alert).queryByRole('button', { name: /close/i })).not.toBeInTheDocument();
+    const banner = notice.closest('output') as HTMLElement;
+    expect(within(banner).getByText('Live tail: a sample, not a capture')).toBeInTheDocument();
+    expect(within(banner).queryByRole('button', { name: /close/i })).not.toBeInTheDocument();
     // The observed gap is reported as a figure, not implied.
     expect(screen.getByText(/28 passed through between reads/i)).toBeInTheDocument();
   });
@@ -608,7 +619,8 @@ describe('SqlConsoleView result outcomes', () => {
 
     emit('failed', { status: 429, title: 'Too many queries', detail: 'You have 3 queries running.' });
 
-    expect(await screen.findByText('Too many queries')).toBeInTheDocument();
+    expect(await screen.findByText('Too many requests')).toBeInTheDocument();
+    expect(screen.getAllByText('You have 3 queries running.')).not.toHaveLength(0);
     expect(
       screen.getByText('Wait for one of your running queries to finish, then run this one again.'),
     ).toBeInTheDocument();
@@ -719,7 +731,9 @@ describe('SqlConsoleView permission and capability', () => {
     await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled());
     expect(screen.getByRole('switch', { name: /live tail/i })).toBeDisabled();
     expect(await screen.findByText('This console cannot read messages here')).toBeInTheDocument();
-    expect(screen.getByText(/You do not have the "Browse messages" permission/)).toBeInTheDocument();
+    // Said in the notice, and again where the cost would be: an estimate that cannot be made is stated.
+    expect(screen.getAllByText(/You do not have the "Browse messages" permission/)).toHaveLength(2);
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
   });
 
   it('says when message access is not yet established, and offers the console anyway', async () => {
@@ -819,9 +833,6 @@ describe('SqlConsoleView result columns and export', () => {
     navigate.mockReset();
   });
 
-  // The console's own picker comes before the table's, which has a Columns control of its own.
-  const consoleColumns = () => screen.getAllByRole('button', { name: 'Columns' })[0];
-
   async function withRows() {
     mockCluster();
     mockPlan();
@@ -830,63 +841,60 @@ describe('SqlConsoleView result columns and export', () => {
     await run(user);
     emit('row', messageRow(11, 'order, "4471"'));
     emit('done', doneFrame());
-    await screen.findAllByRole('button', { name: 'Columns' });
+    await screen.findByRole('button', { name: 'Columns' });
     return user;
   }
 
-  it('hides a column and shows it again in its place, remembering the choice in this browser', async () => {
-    const user = await withRows();
-    expect(await screen.findByRole('columnheader', { name: /Prio/ })).toBeInTheDocument();
+  const headers = () => screen.getAllByRole('columnheader').map((header) => header.textContent);
 
-    await user.click(consoleColumns());
+  it('leads with the message, then the queue and the node, as the table’s own columns', async () => {
+    await withRows();
+    expect(headers().map((h) => h?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Message ID',
+      'Queue',
+      'Node',
+      'Source',
+      'Enqueued',
+      'Body',
+      'Prio',
+      'Size',
+      'On broker',
+    ]);
+    // One Columns control, the table's: the console no longer has a picker of its own.
+    expect(screen.getAllByRole('button', { name: 'Columns' })).toHaveLength(1);
+  });
+
+  it('hides, shows and moves a column from the table’s menu, remembering it under the table’s key', async () => {
+    const user = await withRows();
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
+
     await user.click(await screen.findByLabelText('Prio'));
-
     await vi.waitFor(() => expect(screen.queryByRole('columnheader', { name: /Prio/ })).not.toBeInTheDocument());
-    expect(JSON.parse(window.localStorage.getItem('artemis-studio.sql.columns')!)).not.toContain('priority');
+    expect(JSON.parse(window.localStorage.getItem('as.table.sql.results')!)).toMatchObject({ hidden: ['priority'] });
 
-    await user.click(screen.getByLabelText('Prio'));
-    expect(await screen.findByRole('columnheader', { name: /Prio/ })).toBeInTheDocument();
-    const stored: string[] = JSON.parse(window.localStorage.getItem('artemis-studio.sql.columns')!);
-    expect(stored.indexOf('priority')).toBe(stored.indexOf('timestamp') + 1);
+    await user.click(screen.getByRole('button', { name: 'Move Node earlier' }));
+    expect(headers().slice(0, 3)).toEqual(['Message ID', 'Node', 'Queue']);
+    expect(JSON.parse(window.localStorage.getItem('as.table.sql.results')!).order.slice(0, 3)).toEqual([
+      'messageId',
+      'node',
+      'queue',
+    ]);
+    // The message identifies the row and stays first.
+    expect(screen.getByRole('button', { name: 'Move Message ID later' })).toBeDisabled();
   });
 
-  it('moves a column earlier and later, and leaves the first and last where they are', async () => {
-    const user = await withRows();
-    await user.click(consoleColumns());
+  it('neither reads nor writes the console’s old storage keys', async () => {
+    window.localStorage.setItem('artemis-studio.sql.columns', JSON.stringify(['body']));
+    window.localStorage.setItem('artemis-studio.sql.editorFraction', '0.7');
+    await withRows();
 
-    await user.click(await screen.findByLabelText('Move Node earlier'));
-    let stored: string[] = JSON.parse(window.localStorage.getItem('artemis-studio.sql.columns')!);
-    expect(stored.slice(0, 2)).toEqual(['node', 'source']);
-
-    await user.click(screen.getByLabelText('Move Node earlier'));
-    stored = JSON.parse(window.localStorage.getItem('artemis-studio.sql.columns')!);
-    expect(stored.slice(0, 2)).toEqual(['node', 'source']);
-
-    await user.click(screen.getByLabelText('Move Node later'));
-    stored = JSON.parse(window.localStorage.getItem('artemis-studio.sql.columns')!);
-    expect(stored.slice(0, 2)).toEqual(['source', 'node']);
-  });
-
-  it('starts from the columns this browser remembered, ignoring any it does not know', async () => {
-    window.localStorage.setItem('artemis-studio.sql.columns', JSON.stringify(['body', 'nonsense', 'node']));
-    const user = await withRows();
-    await user.click(consoleColumns());
-
-    expect(await screen.findByLabelText('Body')).toBeChecked();
-    expect(screen.getByLabelText('Node')).toBeChecked();
-    expect(screen.getByLabelText('Prio')).not.toBeChecked();
-  });
-
-  it.each([
-    ['not a list', JSON.stringify({ a: 1 })],
-    ['nothing known', JSON.stringify(['nonsense'])],
-    ['not JSON', '{'],
-  ])('falls back to every column when the remembered ones are %s', async (_name, stored) => {
-    window.localStorage.setItem('artemis-studio.sql.columns', stored);
-    const user = await withRows();
-    await user.click(consoleColumns());
-
-    expect(await screen.findByLabelText('Prio')).toBeChecked();
+    expect(screen.getByRole('columnheader', { name: /Prio/ })).toBeInTheDocument();
+    expect(screen.getByRole('separator', { name: 'Resize the editor and the results' })).toHaveAttribute(
+      'aria-valuenow',
+      '36',
+    );
+    expect(window.localStorage.getItem('artemis-studio.sql.columns')).toBe('["body"]');
+    expect(window.localStorage.getItem('artemis-studio.sql.editorFraction')).toBe('0.7');
   });
 
   it('exports exactly the rows in view as CSV and JSON, saying they may be a prefix', async () => {
@@ -919,72 +927,66 @@ describe('SqlConsoleView result columns and export', () => {
   });
 });
 
-describe('SqlConsoleView editor height', () => {
+describe('SqlConsoleView workspace split', () => {
   beforeEach(() => {
     window.localStorage.clear();
     navigate.mockReset();
   });
 
-  const handle = () => screen.getByRole('slider', { name: 'Editor height' });
+  const handle = () => screen.getByRole('separator', { name: 'Resize the editor and the results' });
 
-  it('starts at the height this browser remembered, held inside the limits', async () => {
-    window.localStorage.setItem('artemis-studio.sql.editorFraction', '0.9');
+  it('divides the editor from the results with a separator that starts at 36 percent', async () => {
     mockCluster();
     mockPlan();
     renderWithProviders(<SqlConsoleView />);
 
-    expect(await screen.findByRole('slider', { name: 'Editor height' })).toHaveAttribute('aria-valuenow', '70');
+    expect(await screen.findByRole('separator', { name: 'Resize the editor and the results' })).toHaveAttribute(
+      'aria-valuenow',
+      '36',
+    );
   });
 
-  it('falls back to the default height when the remembered one is not a number', async () => {
-    window.localStorage.setItem('artemis-studio.sql.editorFraction', 'tall');
+  it('starts where this browser remembered it, and ignores a split it cannot trust', async () => {
+    window.localStorage.setItem('as:sql:split', JSON.stringify([50, 50]));
     mockCluster();
     mockPlan();
-    renderWithProviders(<SqlConsoleView />);
+    const { unmount } = renderWithProviders(<SqlConsoleView />);
+    expect(await screen.findByRole('separator', { name: 'Resize the editor and the results' })).toHaveAttribute(
+      'aria-valuenow',
+      '50',
+    );
+    unmount();
 
-    expect(await screen.findByRole('slider', { name: 'Editor height' })).toHaveAttribute('aria-valuenow', '32');
+    window.localStorage.setItem('as:sql:split', JSON.stringify([2, 98]));
+    renderWithProviders(<SqlConsoleView />);
+    expect(await screen.findByRole('separator', { name: 'Resize the editor and the results' })).toHaveAttribute(
+      'aria-valuenow',
+      '36',
+    );
   });
 
-  it('resizes from the keyboard, says the value, stops at the limits and remembers it', async () => {
+  it('resizes from the keyboard by 5, and by 10 with Shift, within its limits', async () => {
     mockCluster();
     mockPlan();
     const user = userEvent.setup();
     renderWithProviders(<SqlConsoleView />);
-    await screen.findByRole('slider', { name: 'Editor height' });
+    await screen.findByRole('separator', { name: 'Resize the editor and the results' });
 
     handle().focus();
     await user.keyboard('{ArrowDown}');
-    expect(handle()).toHaveAttribute('aria-valuenow', '35');
-    expect(handle()).toHaveAttribute('aria-valuetext', 'Editor takes 35 percent of the console');
-    expect(Number(window.localStorage.getItem('artemis-studio.sql.editorFraction'))).toBeCloseTo(0.35);
+    expect(handle()).toHaveAttribute('aria-valuenow', '41');
+    expect(JSON.parse(window.localStorage.getItem('as:sql:split')!)).toEqual([41, 59]);
+    await user.keyboard('{Shift>}{ArrowDown}{/Shift}');
+    expect(handle()).toHaveAttribute('aria-valuenow', '51');
 
-    await user.keyboard('{ArrowUp}{ArrowUp}');
-    expect(handle()).toHaveAttribute('aria-valuenow', '29');
-
-    for (let i = 0; i < 20; i++) await user.keyboard('{ArrowUp}');
-    expect(handle()).toHaveAttribute('aria-valuenow', '15');
-
-    await user.keyboard('a');
-    expect(handle()).toHaveAttribute('aria-valuenow', '15');
-  });
-
-  it('resizes by dragging the handle, and remembers where it was let go', async () => {
-    mockCluster();
-    mockPlan();
-    renderWithProviders(<SqlConsoleView />);
-    await screen.findByRole('slider', { name: 'Editor height' });
-
-    // The jsdom box is 800 high, so 80 pixels down is a tenth of the console.
-    fireEvent.pointerDown(handle(), { clientY: 100 });
-    act(() => {
-      window.dispatchEvent(new MouseEvent('pointermove', { clientY: 180 }));
-    });
-    expect(handle()).toHaveAttribute('aria-valuenow', '42');
-    act(() => {
-      window.dispatchEvent(new MouseEvent('pointerup'));
-    });
-
-    expect(Number(window.localStorage.getItem('artemis-studio.sql.editorFraction'))).toBeCloseTo(0.42);
+    // The smallest editor is the share its floor needs of the measured workspace, never under 20.
+    await user.keyboard('{Home}');
+    const smallest = Number(handle().getAttribute('aria-valuenow'));
+    expect(smallest).toBeGreaterThanOrEqual(20);
+    await user.keyboard('{ArrowUp}');
+    expect(Number(handle().getAttribute('aria-valuenow'))).toBe(smallest);
+    await user.keyboard('{End}');
+    expect(Number(handle().getAttribute('aria-valuenow'))).toBeLessThanOrEqual(75);
   });
 });
 
@@ -1029,5 +1031,158 @@ describe('SqlConsoleView other panels', () => {
     const dialog = await screen.findByRole('dialog');
     await user.keyboard('{Escape}');
     await vi.waitFor(() => expect(dialog).not.toBeInTheDocument());
+  });
+});
+
+describe('SqlConsoleView cancelling, Escape and the cost line', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    navigate.mockReset();
+  });
+
+  const STARTER = 'SELECT *\nFROM "ORDER.IN"\nORDER BY timestamp DESC\nLIMIT 100';
+
+  it('cancels a running query from its button, closes the stream and says so', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    // Run and Cancel sit side by side, and there is nothing to cancel until a query runs.
+    expect(await screen.findByRole('button', { name: 'Cancel' })).toBeDisabled();
+    await run(user);
+    emit('row', messageRow(11));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await vi.waitFor(() => expect(EventSourceStub.instances[0].readyState).toBe(2));
+    expect(await screen.findByText('Query cancelled')).toBeInTheDocument();
+    expect(await screen.findAllByText(/Query cancelled\. 1 row had arrived and are kept\./)).not.toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  });
+
+  it('cancels from the editor with Mod+. and from the page with Mod+.', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await run(user);
+    await user.click(screen.getByRole('textbox', { name: 'Query' }));
+
+    await user.keyboard('{Control>}.{/Control}');
+    await vi.waitFor(() => expect(EventSourceStub.instances[0].readyState).toBe(2));
+    expect(await screen.findByText('Query cancelled')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Run' }));
+    await vi.waitFor(() => expect(EventSourceStub.instances).toHaveLength(2));
+    await user.click(document.body);
+    await user.keyboard('{Control>}.{/Control}');
+    await vi.waitFor(() => expect(EventSourceStub.instances[1].readyState).toBe(2));
+  });
+
+  it('never cancels on Escape: it leaves the editor for the Query toolbar, and the query keeps reading', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await run(user);
+    await user.click(screen.getByRole('textbox', { name: 'Query' }));
+
+    await user.keyboard('{Escape}');
+
+    // Run is busy while the query runs, so the first control that can take focus is Cancel.
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(EventSourceStub.instances[0].readyState).toBe(1);
+    expect(screen.queryByText('Query cancelled')).not.toBeInTheDocument();
+  });
+
+  it('collapses a selection on the first Escape and only the next one leaves the editor', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    const editor = await screen.findByRole('textbox', { name: 'Query' });
+    await user.click(editor);
+    await user.keyboard('{Control>}a{/Control}');
+
+    await user.keyboard('{Escape}');
+    expect(editor).toHaveFocus();
+    expect(window.getSelection()?.isCollapsed).toBe(true);
+
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveFocus();
+  });
+
+  it('stops a tail from its Cancel button and takes it out of the address', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await user.click(await screen.findByRole('switch', { name: /live tail/i }));
+    await run(user, 'Run and tail');
+    emit('done', doneFrame());
+    await screen.findByRole('button', { name: /stop tailing/i });
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await vi.waitFor(() => expect(EventSourceStub.instances[0].readyState).toBe(2));
+    expect(writtenSearch()).toEqual({ q: expect.stringContaining('SELECT') });
+    expect(screen.queryByText('Query cancelled')).not.toBeInTheDocument();
+  });
+
+  it('describes the editor and Run by the cost line, which is not a live region', async () => {
+    mockCluster();
+    mockPlan();
+    renderWithProviders(<SqlConsoleView />);
+
+    const cost = await screen.findByText('The brokers filter; Studio examines at most 100 messages from 1 queue.');
+    const line = cost.closest('[id]') as HTMLElement;
+    expect(screen.getByRole('textbox', { name: 'Query' })).toHaveAttribute('aria-describedby', line.id);
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-describedby', line.id);
+    expect(line.closest('[aria-live], [role="status"], [role="alert"], output')).toBeNull();
+  });
+
+  it('says an unavailable estimate is unavailable, while the text is edited and when it is empty', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await screen.findByText('The brokers filter; Studio examines at most 100 messages from 1 queue.');
+
+    await user.click(screen.getByRole('textbox', { name: 'Query' }));
+    await user.keyboard('{Control>}a{/Control}{Backspace}');
+
+    expect(await screen.findByText('Not estimated: the editor is empty.')).toBeInTheDocument();
+  });
+
+  it('records the SQL that ran in the history, once, even when the editor changed while it read', async () => {
+    mockCluster();
+    mockPlan();
+    const user = userEvent.setup();
+    renderWithProviders(<SqlConsoleView />);
+    await run(user);
+
+    // Change the text while the query reads.
+    await user.click(screen.getByRole('button', { name: 'Syntax and examples' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getAllByRole('button', { name: 'Load into editor' })[1]);
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    emit('row', messageRow(11));
+    emit('done', doneFrame());
+
+    await vi.waitFor(() => {
+      const stored = JSON.parse(window.localStorage.getItem('artemis-studio.sql.history') ?? '[]');
+      expect(stored.map((entry: { sql: string }) => entry.sql)).toEqual([STARTER]);
+    });
+  });
+
+  it('names its scrolling regions, and puts them in the tab order', async () => {
+    mockCluster();
+    mockPlan();
+    renderWithProviders(<SqlConsoleView />);
+
+    expect(await screen.findByRole('region', { name: 'Query and cost' })).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('region', { name: 'Results' })).toHaveAttribute('tabindex', '0');
   });
 });

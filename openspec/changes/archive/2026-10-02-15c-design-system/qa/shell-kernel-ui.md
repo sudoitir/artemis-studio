@@ -54,3 +54,28 @@ Baseline: 830 captures (default state at 1920/1440/1280 in light, dark and syste
 - Evidence: React "Cannot update a component while rendering a different component" on cluster routes.
 - Fix: move the update into an effect or derive it.
 - Status: fixed (the cause was `useFreshness` setting state on every query-cache event, including `added` and `observerResultsUpdated`, which TanStack Query fires while a component renders its `useQuery`. It now syncs only on the events that change what it reads: `updated`, `removed`, `observerAdded`, `observerRemoved`. `ClusterSwitcher.test.tsx` fails with the warning when that filter is removed)
+
+## Sweep findings after the pages (account)
+
+Found by the full sweep (`.sweep/final`): `shell/account` 1920 dark default, 1280 light error, 1920 light error and 1920 dark error, and `identity-local/enrol-second-factor` 1920 light default, all layout shift. Reproduced with the narrowed sweep (`--only account,enrol-second-factor`) against a Studio that includes the fixes: 0 of 56 captures fail.
+
+### shell-kernel-ui-cls-3 [S2 · performance · page] The account page moves when its sections load or fail
+
+- Where: `web/src/features/identity-local/TwoStepSection.tsx`, `web/src/features/security/SessionsManager.tsx`, `web/src/features/apitokens/ApiKeysPanel.tsx` through `web/src/ui/table/DataTable.tsx`
+- Evidence: three sections load on their own and each swapped a loading frame for content of another height. Measured in Chromium at 1920 x 1080: the two-step section loaded 28 px shorter than its `22rem` frame; the sessions list loaded 116 px taller than its `6rem` frame (and 17 sessions in the QA seed make it 30rem); a failed section was about 200 px shorter than its loading frame, so the sections below were pulled up by up to 0.02 of the viewport. The 0.01 budget failed whichever of the three queries landed last, which is why only some widths and runs showed it.
+- Fix: each section's loading frame and its failure hold the same height as the loaded content. Two-step: `20.25rem`, the section for an account with an authenticator app and recovery codes. Sessions: the list is a region of a fixed `12rem` (about four rows, scrolling past that), so the frame is that plus the button under it, whatever the number of sessions. `ErrorState` takes `blockSize`, and a static `DataTable` that never had rows holds the height of its eight loading rows when it fails (`StateSlot` `reserveRows`).
+- Status: fixed (`SessionsManager.shift.browser.test.tsx` and `TwoStepSection.shift.browser.test.tsx` measure what follows each section across loading to one, a few and 17 sessions, to the loaded status and to a failure; `DataTable.browser.test.tsx` holds a failed static table to the height of its loading rows; `ErrorState.browser.test.tsx` holds `blockSize`. Each fails without the fix.)
+
+### shell-kernel-ui-cls-4 [S3 · test harness · not a product defect] `enrol-second-factor` is the account page for the QA seed's admin
+
+- Where: `web/scripts/sweep/routes.ts` (`identity-local/enrol-second-factor`)
+- Evidence: the page opens only for an account that must enrol a second factor and has none. The seed's admin has one, so the console redirects to `/account` and the capture measures the account page (its shift was the same sessions and two-step shift as above, 0.0084 in one run, over the budget in another).
+- Fix: none to the product. The shift went with shell-kernel-ui-cls-3. The enrolment form itself is measured by `identity.browser.test.tsx` and by the sweep once the seed has an admin without a factor.
+- Status: fixed (the capture passes with the account page's shifts gone)
+
+### shell-kernel-ui-sweep-1 [S3 · test harness · not a product defect] A stopped sweep recorded the capture in flight as an exception
+
+- Where: `web/scripts/sweep.ts` (`resources/connections` 1440 light default, `exception`)
+- Evidence: "browserContext.newPage: Target page, context or browser has been closed". Playwright closes the browser when the sweep process gets SIGINT or SIGTERM, so the capture in flight failed and no `report.json` was written; the connections route has no error of its own (the narrowed sweep passes it at every width, scheme and state).
+- Fix: the sweep launches Chromium with `handleSIGINT`, `handleSIGTERM` and `handleSIGHUP` off, stops taking captures on a signal, lets the ones in flight finish, writes the report of what it has and exits 1.
+- Status: fixed (a SIGTERM during a run printed "finishing the captures in flight", wrote `report.json` with the 2 captures taken and exited 1)

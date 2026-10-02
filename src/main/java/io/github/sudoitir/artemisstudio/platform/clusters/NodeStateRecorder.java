@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.B
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -29,11 +30,16 @@ public class NodeStateRecorder {
     private final BrokerNodeRepository nodes;
     private final BrokerNodeMapper nodeMapper;
     private final HaStateEvaluator evaluator;
+    private final ClusterIdentityClaims identityClaims;
 
-    /** Apply a tier-A HA read to one node, tagged with the cycle it was observed in. */
+    /**
+     * Apply a tier-A HA read to one node, tagged with the cycle it was observed in. A NodeID that differs
+     * from the stored one (the broker's journal was replaced) moves the cluster's claim with it (ADR-0167).
+     */
     @Transactional
     public void applyTierA(UUID nodeId, JsonNode ha, long cycle) {
         nodes.findById(nodeId).ifPresent(node -> {
+            String nodeIdBefore = node.getArtemisNodeId();
             String state = evaluator.deriveState(boxedBool(ha, "Started"));
             String haRole = evaluator.deriveHaRole(boxedBool(ha, "Backup"), boxedBool(ha, "Clustered"));
             node.applyHaState(
@@ -46,6 +52,9 @@ public class NodeStateRecorder {
                             text(ha, "NodeID")),
                     cycle,
                     Instant.now());
+            if (!Objects.equals(nodeIdBefore, node.getArtemisNodeId())) {
+                identityClaims.sync(node.getClusterId());
+            }
         });
     }
 

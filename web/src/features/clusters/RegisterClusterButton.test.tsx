@@ -15,7 +15,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 const { RegisterClusterButton } = await import('./RegisterClusterButton.tsx');
 
 describe('RegisterClusterButton', () => {
-  it('opens the form, loaded on demand, and tells the operator this is an add when a cluster already exists', async () => {
+  it('opens the form in a dialog, loaded on demand', async () => {
     server.use(
       http.get('*/api/v1/clusters', () =>
         HttpResponse.json(
@@ -30,7 +30,6 @@ describe('RegisterClusterButton', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Register cluster' });
     expect(await screen.findByLabelText('Broker management URLs')).toBeInTheDocument();
-    expect(await screen.findByText(/one cluster is already registered\. this adds another\./i)).toBeInTheDocument();
     expect(dialog).toContainElement(screen.getByLabelText('Broker management URLs'));
   });
 });

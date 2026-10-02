@@ -21,6 +21,9 @@ const LABELS: Record<FreshnessState, string> = {
   paused: 'Paused',
 };
 
+/** The states a working screen moves between; the rare "Reconnecting…" is not reserved for. */
+const EVERYDAY = (['live', 'polling', 'offline', 'paused'] as const).map((state) => LABELS[state]);
+
 const STREAM_STATE: Record<string, FreshnessState> = {
   live: 'live',
   reconnecting: 'reconnecting',
@@ -77,8 +80,16 @@ export function FreshnessBar() {
       <StateAnnouncement state={state} />
       <span className={styles.dot} data-state={state} aria-hidden="true" />
       <Text size="xs" c="dimmed" className={`${styles.label} ${styles.state}`}>
-        {label}
-        {state === 'paused' && pending ? ' · new data available' : null}
+        <span className={styles.word}>
+          {label}
+          {state === 'paused' && pending ? ' · new data available' : null}
+        </span>
+        {/* The everyday words, drawn invisibly in the same cell from an attribute (so they are not
+            text a reader or a search finds), make it as wide as the widest of them in the font as
+            rendered: the controls beside it hold still on every transition. */}
+        {EVERYDAY.map((word) => (
+          <span key={word} className={styles.reserve} data-word={word} aria-hidden="true" />
+        ))}
       </Text>
       {updated && observed > 0 ? (
         <Text size="xs" c="dimmed" className={`${styles.label} ${styles.elapsed}`}>

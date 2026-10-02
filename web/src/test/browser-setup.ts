@@ -8,6 +8,11 @@ import { cleanup } from '@testing-library/react';
 import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
 import '@fontsource-variable/atkinson-hyperlegible-mono/index.css';
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
+import '@mantine/spotlight/styles.css';
+import '@mantine/charts/styles.css';
+import '@mantine/code-highlight/styles.css';
+import '@xyflow/react/dist/style.css';
 import '../theme.css';
 
 // A face downloads when text first uses it, so `document.fonts.ready` alone would resolve before the

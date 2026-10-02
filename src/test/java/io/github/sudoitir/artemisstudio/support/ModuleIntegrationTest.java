@@ -19,9 +19,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -35,6 +33,7 @@ import org.springframework.modulith.core.JavaPackage;
 import org.springframework.modulith.test.ModuleTestExecution;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.ClassUtils;
@@ -61,15 +60,9 @@ public abstract class ModuleIntegrationTest {
     @MockitoBean
     ScrapeScheduler scrapeScheduler;
 
-    /** The module under test owns every cluster; every cached context is a replica of the same database. */
-    @MockitoBean
+    /** The module under test owns every cluster, from the moment it is made (see {@link OwnsEveryCluster}). */
+    @TestBean(methodName = "io.github.sudoitir.artemisstudio.support.OwnsEveryCluster#clusterOwnership")
     protected ClusterOwnership clusterOwnership;
-
-    @BeforeEach
-    void ownEveryCluster() {
-        // doReturn, not when(...): the bus thread may call the mock's listener while this stubs it.
-        Mockito.doReturn(true).when(clusterOwnership).owns(ArgumentMatchers.any());
-    }
 
     @Autowired
     ConfigurableApplicationContext context;

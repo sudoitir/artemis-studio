@@ -27,14 +27,15 @@ import {
   type Node,
   type NodeProps,
 } from '@xyflow/react';
-import { ActionIcon, Loader, Menu, Tooltip, useComputedColorScheme } from '@mantine/core';
-import { IconDots, IconFocusCentered, IconPlus, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
+import { ActionIcon, Loader, Menu, useComputedColorScheme } from '@mantine/core';
+import { IconDots, IconPlus } from '@tabler/icons-react';
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
 import { ActionMenuItem } from './ActionMenuItem.tsx';
 import { AnchoredMenu } from './AnchoredMenu.tsx';
 import { EmptyState } from './EmptyState.tsx';
 import { runLayout } from './graph/elk.ts';
+import { ViewControls } from './graph/ViewControls.tsx';
 import {
   layoutSignature,
   nodeName,
@@ -385,31 +386,6 @@ function FitOnLayout({
   return null;
 }
 
-/** Zoom in, zoom out and fit, without animation so reduced motion needs nothing more. */
-function ViewControls() {
-  const flow = useReactFlow();
-  const controls = [
-    { label: 'Zoom in', icon: IconZoomIn, run: () => void flow.zoomIn({ duration: 0 }) },
-    { label: 'Zoom out', icon: IconZoomOut, run: () => void flow.zoomOut({ duration: 0 }) },
-    {
-      label: 'Fit the diagram to the view',
-      icon: IconFocusCentered,
-      run: () => void flow.fitView({ ...FIT, duration: 0 }),
-    },
-  ];
-  return (
-    <ActionIcon.Group orientation="vertical" className={classes.controls}>
-      {controls.map((c) => (
-        <Tooltip key={c.label} label={c.label} position="left" withArrow openDelay={300}>
-          <ActionIcon variant="default" size="md" aria-label={c.label} onClick={c.run}>
-            <c.icon size="1rem" stroke={1.75} />
-          </ActionIcon>
-        </Tooltip>
-      ))}
-    </ActionIcon.Group>
-  );
-}
-
 /**
  * A diagram of boxes and arrows, laid out automatically (ELK layered, in a worker) and drawn in
  * Studio's theme (ADR-0117). Nothing is dragged, connected or deleted: it shows a structure and
@@ -585,7 +561,7 @@ export function DiagramView({
             <FitOnLayout signature={layout.ready ? layout.signature : null} frame={frameRef} />
           </ReactFlow>
         </RovingContext.Provider>
-        <ViewControls />
+        <ViewControls fit={FIT} />
         <span className={classes.live} aria-live="polite">
           {announce}
         </span>

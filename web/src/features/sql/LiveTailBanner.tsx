@@ -1,5 +1,6 @@
-import { Alert, Badge, Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 
+import { Notice } from '../../ui/Notice.tsx';
 import type { SqlTailStatusView } from './api.ts';
 import classes from './LiveTailBanner.module.css';
 
@@ -74,13 +75,25 @@ export function LiveTailBanner({
 }>) {
   return (
     <div className={classes.pinned}>
-      <Alert
-        color={captured ? 'gray' : 'yellow'}
-        variant="light"
-        title={
-          captured
-            ? 'Live tail — capturing everything these addresses route'
-            : 'Live tail — this is a sample, not a capture'
+      <Notice
+        tone={captured ? 'neutral' : 'warning'}
+        title={captured ? 'Live tail: capturing everything' : 'Live tail: a sample, not a capture'}
+        action={
+          <>
+            {paused ? (
+              <Button size="compact-xs" onClick={onResume}>
+                Show {buffered.toLocaleString()} new row
+                {buffered === 1 ? '' : 's'}
+              </Button>
+            ) : (
+              <Button size="compact-xs" variant="default" onClick={onPause}>
+                Pause the view
+              </Button>
+            )}
+            <Button size="compact-xs" variant="default" onClick={onStop}>
+              Stop tailing
+            </Button>
+          </>
         }
       >
         <Stack gap={6}>
@@ -89,7 +102,6 @@ export function LiveTailBanner({
               ? 'A divert copies every message these addresses route into a queue Studio drains, so a message that is consumed the instant it arrives still appears here. It is address-scoped: for an address with several bound queues, which queue received a message is not recorded.'
               : 'Studio re-reads these queues every few seconds. A message that arrives and is consumed between two reads is never seen, so an empty tail is not evidence that nothing was sent.'}
           </Text>
-          <Text size="sm">{gapWords(tail)}</Text>
           {paused ? (
             <Text size="sm">
               The view is paused. The tail is still running and still reading — {buffered.toLocaleString()} row
@@ -97,43 +109,23 @@ export function LiveTailBanner({
               query are different things, and this is the first.
             </Text>
           ) : null}
-          <Group gap="xs" justify="space-between" wrap="wrap">
-            <Group gap="xs">
-              <Badge size="sm" variant="light" color="gray">
-                {shown.toLocaleString()} row{shown === 1 ? '' : 's'}
-                {discarding ? ' held' : ' so far'}
-              </Badge>
-              {/* ADR-0056: a bounded view says so. A tail left running would
-                  otherwise silently drop its oldest rows, and an operator
-                  scrolling back would read the absence as "it never arrived". */}
-              {discarding ? (
-                <Text size="xs" c="dimmed">
-                  the view is full — older rows are no longer shown
-                </Text>
-              ) : null}
-              <Text size="xs" c="dimmed">
-                {(tail?.polls ?? 0).toLocaleString()} read
-                {(tail?.polls ?? 0) === 1 ? '' : 's'} · last at {time(tail?.lastPollAt)}
-              </Text>
-            </Group>
-            <Group gap="xs">
-              {paused ? (
-                <Button size="compact-xs" onClick={onResume}>
-                  Show {buffered.toLocaleString()} new row
-                  {buffered === 1 ? '' : 's'}
-                </Button>
-              ) : (
-                <Button size="compact-xs" variant="default" onClick={onPause}>
-                  Pause the view
-                </Button>
-              )}
-              <Button size="compact-xs" variant="default" onClick={onStop}>
-                Stop tailing
-              </Button>
-            </Group>
-          </Group>
         </Stack>
-      </Alert>
+      </Notice>
+      {/* What changes with every read stays out of the notice, which is a live region: announcing each
+          poll would bury the one statement that matters. */}
+      <div className={classes.figures}>
+        <Text size="sm">{gapWords(tail)}</Text>
+        <Text size="xs" c="dimmed">
+          {shown.toLocaleString()} row{shown === 1 ? '' : 's'}
+          {discarding ? ' held' : ' so far'}
+          {/* ADR-0056: a bounded view says so. A tail left running would otherwise silently drop its
+              oldest rows, and an operator scrolling back would read the absence as "it never arrived". */}
+          {discarding ? ' · the view is full, older rows are no longer shown' : ''}
+          {' · '}
+          {(tail?.polls ?? 0).toLocaleString()} read
+          {(tail?.polls ?? 0) === 1 ? '' : 's'} · last at {time(tail?.lastPollAt)}
+        </Text>
+      </div>
     </div>
   );
 }

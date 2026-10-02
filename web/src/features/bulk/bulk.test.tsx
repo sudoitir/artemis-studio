@@ -274,7 +274,7 @@ describe('BulkPreviewDialog', () => {
 
     const dialog = await openPreview(user);
     const alert = await within(dialog).findByRole('alert');
-    expect(alert).toHaveTextContent('Some values are not valid');
+    expect(alert).toHaveTextContent('Bulk run refused');
     expect(alert).toHaveTextContent('140 queues matched; a bulk run is capped at 100 queues');
     expect(alert).toHaveTextContent('Narrow the selection.');
     expect(within(dialog).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();

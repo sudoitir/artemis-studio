@@ -5420,6 +5420,14 @@ export interface components {
             retryAfter?: number;
             featureId?: string;
             property?: string;
+            /**
+             * Format: uuid
+             * @description The registered cluster that already holds the brokers.
+             */
+            existingClusterId?: string;
+            existingClusterName?: string;
+            /** @description That cluster's nodes the request names. */
+            overlappingNodes?: string[];
         };
         RedactionView: {
             location: string;

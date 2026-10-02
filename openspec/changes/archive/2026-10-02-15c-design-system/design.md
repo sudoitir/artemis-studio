@@ -183,6 +183,148 @@ Both get a design step before implementation, appended here. The fixed points:
   - CLS from navigation start;
   - CSP violations, console errors and requests to other hosts.
 
+## SQL console and Topology redesigns
+
+### SQL console
+
+**Approach.** The console is one workspace on a full-height page:
+- **Split.** Editor above results, divided by Mantine's `Splitter` (from `@mantine/hooks` `use-splitter`: a `separator` with `aria-valuenow`, arrow keys, Home/End). The split is remembered per browser under `as:sql:split`, the way Flow remembers its split.
+- **Cost.** A cost verdict line sits under the editor: one sentence of words and numbers, worked out from the plan by a pure function.
+- **Run and cancel.** Run and Cancel sit side by side; Mod+. cancels and Escape never does. Cancelling closes the stream, which already releases the run on the server. It leaves a new `cancelled` state, which is announced.
+- **Errors.** A syntax error is a CodeMirror lint diagnostic on the offending token, which is found on the client from the problem's `offending` field. A run failure renders through `ErrorState`.
+- **Results.** Results use `DataTable` alone. Its Columns menu gains keyboard move up and down. That replaces the console's own picker and its storage key.
+- **Streaming.** Streamed rows are buffered and written once per animation frame.
+- **History.** History is keyed on the run's nonce and records the SQL that ran.
+
+Rejected:
+- The hand-rolled `role=slider` split handle (a second splitter).
+- A ceiling field on the plan (a server change; a refusal states the ceiling after a run).
+- `startTransition` alone (still O(N²) copies).
+
+**Cost verdict** (`costVerdict.ts`, pure). Its inputs are `{ text, debounced, blockedReason, plan, planError, planPending }` and it returns `{ badge, tone, sentence }`. An unknown figure is never shown as 0.
+
+| Case | Badge · tone | Sentence |
+|---|---|---|
+| empty text | Unavailable · neutral | "Not estimated: the editor is empty." |
+| gate blocked | Unavailable · neutral | "Not estimated: {reason}." |
+| edited or pending | Estimating · neutral | "Estimating the edited query…" |
+| syntax error | Unavailable · danger | "Not estimated: {detail}{ Did you mean X?}" |
+| other plan error | Unavailable · warning | "Not estimated: {ErrorState title}." |
+| no targets | No cost · neutral | "Reads nothing: no queue matches the FROM pattern." |
+| index source | Index · neutral | "Reads Studio's index, up to {limit} rows from {q} queues. No broker is read." |
+| requires scan | Scan · warning | "Studio reads and examines about {n} messages on {q} queues across {k} nodes." |
+| otherwise | Broker-filtered · neutral | "The brokers filter; Studio examines at most {n} messages from {q} queues." |
+
+The verdict is not a live region. It describes the editor and Run (`aria-describedby`).
+
+**Run state** (`useSqlTail`). `RunStatus` gains `cancelled`. `cancel()` closes the stream: from `running` it sets `cancelled`, and from `tailing` it sets `done`. The hook exposes `runId` and `sql`.
+- A row event pushes into a buffer that one `requestAnimationFrame` flush writes with a single `setRows`.
+- `setFreshKeys` and its timer run once per batch.
+- A paused tail's buffer stays bounded.
+- `done` and `failed` flush before they set the status.
+
+**Keyboard map:**
+
+| Keys | Where | Does |
+|---|---|---|
+| Mod+Enter | editor | run |
+| Mod+. | editor or page | cancel |
+| Ctrl+Space | editor | complete |
+| Escape | editor | closes completion, then collapses the selection, then moves focus to the Query toolbar; never cancels |
+| F8, Mod+Shift+M | editor | diagnostics |
+| ↑ ↓ (step 5, Shift 10), Home/End | split handle | resize |
+| grid keys | results | per ADR-0108; Enter opens the message |
+| Tab, Space, Enter | Columns menu | show/hide, move earlier/later |
+
+**State ownership:**
+
+| State | Owner |
+|---|---|
+| query text and live tail | URL (`?q=&live=`) |
+| split | `localStorage` `as:sql:split` |
+| columns | `as.table.sql.results` |
+| history | `artemis-studio.sql.history` |
+| everything else | local |
+
+**Columns.** The order is Message ID (essential, row header), Queue, Node, Source, Enqueued, Body, Prio, Size, On broker. The old `artemis-studio.sql.columns` and `artemis-studio.sql.editorFraction` keys are removed.
+
+**Columns menu reorder** (`ui/table`). Each entry gets "Move {header} earlier" and "Move {header} later" buttons, disabled at the bounds. The first declared column stays first. Focus stays on the pressed button, or moves to its sibling at a bound. The move is announced: "{header} moved to position i of n". `tableState` gains `withMovedColumn`.
+
+**ErrorState.** A 422 with no field errors reads as the problem's own title and detail. A string `problem.hint` is the next step.
+
+**IndexSubscriptions:**
+- Two h3 sections hold a static `DataTable` of subscriptions (Queues, Mode, Held, Retention, State switch, Delete).
+- Delete goes through `ConfirmDialog` with `tone="danger"` and `typedName` set to the pattern.
+- Warnings and refusals are `Notice`s; failures are `ErrorState`.
+- Loading uses `LoadingState`, and "Nothing is being indexed" is an `EmptyState`.
+- Toasts go through `notify`.
+
+**SyntaxHelp.** h3 sections. The column catalogue is a `DescriptionList`.
+
+### Topology
+
+**Approach:**
+- **Words.** Every endpoint is described in words by one pure function, `nodeFacts.ts`. The box, the table and the side panel all read from it.
+- **Keyboard.** The canvas is one tab stop with roving focus over boxes rendered as `<button>`. React Flow's own node focus is off.
+- **View controls.** `DiagramView`'s view controls are extracted to `ui/graph/ViewControls.tsx` and replace xyflow's `<Controls>`.
+- **URL.** Selection and view mode live in the URL (`?node=`, `?view=table`).
+- **Table equivalent.** A `DataTable` with the same facts.
+
+Rejected: rendering topology through `DiagramView`, because ELK cannot draw the pair axis or split brain.
+
+**Facts per endpoint** (`nodeFacts`):
+- **Role:** Primary, Backup, Standalone or Unknown.
+- **Liveness:** Live, serving (or "split brain" in danger); Backup, replicating, in sync; Backup, not caught up; Standby; Stopped; Unreachable (with the error); Not polled: no management URL.
+- **Pair:** "paired with …", or "no pair (standalone)". The pair state is in words.
+- **Version:** the version, with its support note.
+- **Last seen:** relative and absolute.
+- **Sentence:** the box's accessible name.
+
+The box shows four lines: name and version, the shape mark and liveness, the role and pair, and the address or the error. An unmanaged box no longer holds a nested button; that action moves to the panel.
+
+**Level of detail** (ADR-0056). Up to 24 logical nodes, every detail is drawn. Above 24, each pair is one box in a grid 8 columns wide. A neutral `Notice` states the bound, with a [Show as table] action.
+
+**Page:**
+- `PageHeader` "Topology" with a Show as [Graph | Table] control.
+- `LoadingState` while loading, `ErrorState` with retry on failure.
+- An `EmptyState` when no node has answered.
+- The canvas and a `NodePanel` aside: a `Section` with a `DescriptionList` (Role, Liveness, Pair, Version, Node ID, Management URL, Core URL, Last seen, Last error, How found) and an `OutcomeSummary` of the pair, plus [Add a management URL] for an unmanaged node.
+- The table view is a `DataTable` grid with the columns Node (essential, row header), Role, Pair, Liveness, Version, Address, Last seen and Node ID.
+
+**Keyboard:**
+
+| Keys | Where | Does |
+|---|---|---|
+| Tab | into the canvas | lands on the selected box, else the first |
+| ←/→ | canvas | moves between columns |
+| ↑/↓ | canvas | moves within a column |
+| Home/End | canvas | first or last box |
+| Enter/Space | box | selects it and announces it |
+| Escape | canvas | clears the selection and returns focus to the box |
+
+The focused box is kept in view with `setCenter` at duration 0.
+
+**Theme.** `colorMode` comes from the computed scheme. Fonts, spacing and colour come from tokens; px stays only in canvas geometry. Durations come from tokens, so reduced motion applies. Previews (`interactive={false}`) stay plain `<div>`s.
+
+### Tasks
+
+- **Unit A, SQL** (it owns `features/sql/**`, `ui/table/{ColumnsMenu,tableState,DataTable}`, `ui/ErrorState`, the sql entry in the test views, the SQL guide and the SQL section of the keyboard guide):
+  - A1 Columns reorder
+  - A2 ErrorState
+  - A3 useSqlTail
+  - A4 costVerdict
+  - A5 QueryEditor
+  - A6 SqlConsoleView
+  - A7 the meta bar, live-tail banner and syntax help
+  - A8 IndexSubscriptions
+  - A9 tests, guides and QA log
+- **Unit B, Topology** (it owns `features/clusters/{nodeFacts*,layout*,Topology*,NodePanel*,TopologyTable*,topologyColumns*,feature.ts}`, `ui/graph/ViewControls.tsx`, the `DiagramView` import, the topology entry in the test views, the Topology section of the keyboard guide and the high-availability guide):
+  - B1 nodeFacts and layout
+  - B2 ViewControls
+  - B3 TopologyCanvas
+  - B4 NodePanel, TopologyTable and the page
+  - B5 tests, guides and QA log
+
 ## Risks / Trade-offs
 
 - [The new identity changes every screenshot] → the README and site images are regenerated in the last pull request.

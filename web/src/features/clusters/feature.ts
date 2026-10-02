@@ -11,6 +11,7 @@ import { RemoveClusterSection } from './RemoveClusterSection.tsx';
 import { ClusterSwitcher } from './ClusterSwitcher.tsx';
 import { CapabilitiesSection, CredentialsSection, RegisterSection } from './ClusterSettings.tsx';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
+import { validateTopologySearch } from './topologySearch.ts';
 
 /** A cluster's own address opens its topology. */
 const clusterIndexRoute = createRoute({
@@ -24,6 +25,7 @@ const clusterIndexRoute = createRoute({
 const topologyRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'topology',
+  validateSearch: validateTopologySearch,
   component: lazyFeatureView('clusters', () => import('./TopologyView.tsx'), 'TopologyView'),
 });
 

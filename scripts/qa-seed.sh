@@ -189,9 +189,9 @@ for n in 1 2 3; do
 done
 
 say "creating a role and users"
-reader=$(ensure /roles name READER '{"name":"READER","requiresMfa":false,"permissions":["cluster:read","queue:read","message:browse","metric:read"]}')
+reader=$(ensure /roles name READER '{"name":"READER","requiresMfa":false,"permissions":["cluster:read","message:read"]}')
 long_role="qa-role-with-a-name-that-keeps-going-$(repeat 'and-going-' 8)"
-long_role_id=$(ensure /roles name "$long_role" "{\"name\":\"$long_role\",\"requiresMfa\":false,\"permissions\":[\"cluster:read\",\"queue:read\"]}")
+long_role_id=$(ensure /roles name "$long_role" "{\"name\":\"$long_role\",\"requiresMfa\":false,\"permissions\":[\"cluster:read\"]}")
 long_user="qa-operator-with-an-unreasonably-long-username-$(repeat 'abcdefghij' 4)"
 if [ -z "$(find_id /users username "$long_user")" ]; then
   api POST /users -d "{\"username\":\"$long_user\",\"email\":\"$long_user@an-equally-long-domain-name.example.com\",\"password\":\"$(openssl rand -hex 16)\"}" -o /dev/null -w '  user: HTTP %{http_code}\n'

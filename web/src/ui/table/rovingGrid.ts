@@ -10,7 +10,7 @@ export interface GridPos {
   col: number;
 }
 
-export interface GridShape {
+interface GridShape {
   /** Body rows; the header row is added on top as row 0. */
   rows: number;
   cols: number;
@@ -20,7 +20,7 @@ export interface GridShape {
   rtl?: boolean;
 }
 
-export interface GridKey {
+interface GridKey {
   key: string;
   ctrlKey?: boolean;
   metaKey?: boolean;

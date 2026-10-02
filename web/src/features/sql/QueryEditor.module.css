@@ -1,0 +1,22 @@
+/* The editor fills the pane the split gives it, and scrolls inside itself when the query is longer. It never
+   gives up its floor (its label and 4.5rem of text) to what follows it: a pane too short for everything
+   scrolls as a whole, by the region around it, instead of squeezing the editor under the cost line and
+   moving it again whenever the cost line changes size. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+.host {
+  flex: 1 1 auto;
+  min-block-size: 4.5rem;
+}
+
+.host :global(.cm-editor) {
+  block-size: 100%;
+}
+
+.host :global(.cm-scroller) {
+  overflow: auto;
+}

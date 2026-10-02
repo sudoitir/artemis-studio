@@ -31,10 +31,24 @@ describe('ShortcutsHelp', () => {
     expect(within(popover).getByRole('heading', { level: 2, name: 'Keyboard shortcuts' })).toBeInTheDocument();
     expect(within(popover).getByRole('heading', { level: 3, name: 'Everywhere' })).toBeInTheDocument();
     expect(within(popover).getByRole('heading', { level: 3, name: 'In a grid' })).toBeInTheDocument();
+    const topology = within(popover).getByRole('region', { name: 'In the topology' });
+    expect(within(topology).getByText('First or last node').nextElementSibling).toHaveTextContent('HomeorEnd');
     expect(within(popover).queryByRole('table')).not.toBeInTheDocument();
     const everywhere = within(popover).getByRole('region', { name: 'Everywhere' });
     const term = within(everywhere).getByText('Search views, clusters and queues');
     expect(term.tagName).toBe('DT');
     expect(term.nextElementSibling).toHaveTextContent('⌘KorCtrlK');
+  });
+
+  it('lists the SQL console’s keys: Mod+. cancels and Escape never does', async () => {
+    renderWithProviders(<ShortcutsHelp />);
+    await userEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
+    const popover = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
+
+    const sql = within(popover).getByRole('region', { name: 'In the SQL console' });
+    expect(
+      within(sql).getByText('Cancel the running query, from the editor or the page').nextElementSibling,
+    ).toHaveTextContent('⌘.orCtrl.');
+    expect(within(sql).getByText(/it never cancels/)).toBeInTheDocument();
   });
 });

@@ -54,6 +54,37 @@ Items are grouped as Open, Copy, Operate and Destroy. An item you cannot use sta
 menu with the reason. Select it and Studio explains why, with the `broker.xml` that
 would enable it. A destructive item opens its usual preview and typed confirmation.
 
+## SQL console
+
+| Keys | Where | Does |
+|---|---|---|
+| **Ctrl Enter** / **⌘ Enter** | Editor | Run the query |
+| **Ctrl .** / **⌘ .** | Editor or page | Cancel the running query or stop the tail |
+| **Ctrl Space** | Editor | Complete a column or queue name |
+| **Escape** | Editor | Close completion, then collapse the selection, then move focus to the Query toolbar. It never cancels |
+| **F8**, **Ctrl Shift M** | Editor | Step to the next diagnostic, or list them |
+| **↑ ↓** (5%, **Shift** 10%), **Home** / **End** | Separator | Resize the editor and the results |
+| **Tab**, **Space**, **Enter** | Columns menu | Show or hide a column, move it earlier or later |
+
+The results are a grid, so its keys apply, and **Enter** opens the message.
+
+## Topology
+
+The graph is one stop in the tab order. **Tab** lands on the node you chose, or on the first one.
+Each node is a button named by one sentence: its name, role, liveness, pair and version.
+
+| Keys | Does |
+|---|---|
+| **← →** | Move between columns: a pair is one column, its serving node above its backup |
+| **↑ ↓** | Move within a column |
+| **Home** / **End** | First or last node |
+| **Enter** / **Space** | Choose the node, show it in the panel and announce it |
+| **Escape** | Clear the choice and keep focus on the node |
+
+The node in focus is kept in view; the view moves only when the node is not already fully visible.
+The chosen node and the Graph or Table view are in the page's address, so a link reopens them.
+The table lists the same nodes and facts, and a row takes **Enter** to choose its node.
+
 ## Flow
 
 Graph nodes take **Enter** to open their details, **Escape** to close them, and

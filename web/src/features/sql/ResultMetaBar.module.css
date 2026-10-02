@@ -14,3 +14,8 @@
   margin-block-start: 0.5rem;
   border-block-start: 1px solid var(--as-border);
 }
+
+.statements {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+}

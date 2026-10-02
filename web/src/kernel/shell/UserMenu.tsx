@@ -61,7 +61,7 @@ export function UserMenu({ me }: Readonly<UserMenuProps>) {
           </Menu.RadioGroup>
           <Menu.Divider />
           <Menu.Item
-            color="red"
+            color="signal"
             onClick={() => logout.mutate(undefined, { onSuccess: () => navigate({ to: '/login' }) })}
           >
             Log out

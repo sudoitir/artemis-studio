@@ -208,9 +208,8 @@ for id in 4471 4472 4473 4474 4475 4476 4477 4478; do
     \"type\": 3,
     \"durable\": true,
     \"body\": \"{\\\"orderId\\\": \\\"$id\\\", \\\"tenant\\\": \\\"$tenant\\\", \\\"total\\\": $((id % 97 + 12)).50, \\\"currency\\\": \\\"EUR\\\"}\",
-    \"headers\": {\"priority\": 9},
     \"properties\": {\"tenant\": \"$tenant\", \"orderId\": \"$id\"}
-  }" >/dev/null || true
+  }" -o /dev/null -f || echo "  order $id: not sent" >&2
 done
 
 say "seeding governance: environments, a scoped role, and two operators"
@@ -230,11 +229,13 @@ ensure /environments name staging '{"name": "staging", "sortOrder": 2}' >/dev/nu
 
 reader=$(ensure /roles name READER '{
   "name": "READER",
-  "permissions": ["cluster:read", "queue:read", "message:browse", "metric:read"]
+  "requiresMfa": false,
+  "permissions": ["cluster:read", "message:read"]
 }')
 operator=$(ensure /roles name OPERATOR '{
   "name": "OPERATOR",
-  "permissions": ["cluster:read", "queue:read", "queue:pause", "message:browse", "message:move", "metric:read"]
+  "requiresMfa": false,
+  "permissions": ["cluster:read", "queue:pause", "message:read", "message:move"]
 }')
 
 # A random password per run, printed nowhere: these accounts exist to populate the

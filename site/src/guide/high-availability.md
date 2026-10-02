@@ -109,3 +109,25 @@ Any HTTP load balancer works if it:
 - While a cluster changes owner, broker notifications, the entries of the Events history, may be missed or
   recorded twice for the few seconds of the handover. Scraped state, such as queue depths and topology, is
   not affected.
+
+## Broker pairs in Topology
+
+Everything above is about Studio's own replicas. For the brokers Studio manages, **Topology** shows the
+high availability of each pair, with every state in words and colour only as emphasis. A pair shares one
+NodeID: its serving node sits above the axis and its backup below it.
+
+| The page says | Means |
+| --- | --- |
+| Live, serving | The node answers and reports itself active |
+| Backup, replicating, in sync | The backup is following its primary |
+| Backup, not caught up | Replication is behind; a failover now could lose messages |
+| Standby | Passive, with no replication state reported |
+| Split brain | Two nodes in one pair are serving. This is critical: both draw a square mark and the pair's axis turns red |
+| Stopped | The broker is not started |
+| Unreachable | Studio could not reach it; the error is shown beside the word |
+| Not polled | The node was found but has no management URL. Choose it and use **Add a management URL** |
+
+Choose a node to see its role, its pair, its version (with a note when the release is outside what Studio
+supports or has tested), its NodeID, its URLs, when it last answered and how Studio found it. **Show as**
+switches the graph for a table with the same facts. Above 24 pairs the graph draws one box per pair, in a
+grid eight wide, and says so; the table always lists every node.

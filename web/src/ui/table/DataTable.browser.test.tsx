@@ -233,6 +233,35 @@ describe('DataTable column widths in a real browser', () => {
       expect(screen.queryByRole('region')).not.toBeInTheDocument();
     });
 
+    it('holds the height its loading rows had when a failure replaces them', async () => {
+      const table = (state: { loading?: boolean; error?: boolean }) => (
+        <Frame width={960} height={900}>
+          <DataTable
+            variant="static"
+            height={{ maxRows: 8 }}
+            label="Queues"
+            columns={[nameColumn, depth]}
+            data={[]}
+            rowKey={(r) => r.name}
+            empty={null}
+            loading={state.loading}
+            error={state.error ? <div role="alert">Could not load the queues.</div> : undefined}
+          />
+          <p>Below the table</p>
+        </Frame>
+      );
+      const { rerender } = renderThemed(table({ loading: true }), 'light');
+      const below = screen.getByText('Below the table');
+      await settle(() => `${below.getBoundingClientRect().top}`);
+      const loading = below.getBoundingClientRect().top;
+
+      rerender(table({ error: true }));
+      await screen.findByRole('alert');
+      await settle(() => `${below.getBoundingClientRect().top}`);
+
+      expect(Math.abs(below.getBoundingClientRect().top - loading)).toBeLessThanOrEqual(1);
+    });
+
     it('lines each header cell up over its column and fits its box', async () => {
       renderThemed(staticTable(960), 'light');
       const table = await screen.findByRole('table');

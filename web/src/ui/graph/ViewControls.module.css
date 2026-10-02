@@ -1,0 +1,7 @@
+/* In the corner of the diagram's frame, above the canvas and its boxes. */
+.controls {
+  position: absolute;
+  inset-block-start: var(--mantine-spacing-sm);
+  inset-inline-end: var(--mantine-spacing-sm);
+  z-index: 5;
+}

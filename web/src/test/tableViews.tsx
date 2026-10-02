@@ -3,6 +3,8 @@ import type { ReactElement } from 'react';
 import { DataTable, type Column, type ColumnKind, type ColumnPriority } from '../ui/table/index.ts';
 import { AUTO } from '../kernel/time/timezone.ts';
 import { auditColumns } from '../features/audit/columns.tsx';
+import { nodeFacts, type NodeFacts } from '../features/clusters/nodeFacts.ts';
+import { topologyColumns } from '../features/clusters/topologyColumns.tsx';
 import { bridgeColumns, divertColumns } from '../features/routing/columns.ts';
 import { eventColumns } from '../features/events/columns.ts';
 import { healthColumns, storeColumns } from '../features/lifecycle/columns.ts';
@@ -16,6 +18,7 @@ import { resourceColumns } from '../features/resources/columns.tsx';
 import { resultColumns } from '../features/sql/columns.ts';
 import { transferColumns } from '../features/transfer/columns.ts';
 import type { AuditEventView } from '../features/audit/api.ts';
+import type { LogicalNodeView, NodeEndpointView } from '../features/clusters/api.ts';
 import type { BrokerEventView } from '../features/events/api.ts';
 import type { BulkItemView, BulkRunView } from '../features/bulk/api.ts';
 import type { ConsumerHealthView } from '../features/triage/api.ts';
@@ -97,6 +100,36 @@ function ident(f: Fixture, stem: string, i: number): string {
 function num(f: Fixture, value: number): number {
   return f === 'normal' ? value : value * 1_000_003;
 }
+
+/** Six nodes in the states the table words: serving, in step, stopped and not caught up, unreachable, and not polled. */
+const topologyNode = (f: Fixture, i: number): NodeFacts => {
+  const id = ident(f, 'node-id', i);
+  const endpoint: NodeEndpointView = {
+    id: `endpoint-${i}`,
+    name: name(f, 'broker', i),
+    artemisNodeId: id,
+    jolokiaUrl: `http://${name(f, 'broker', i)}:8161/jolokia`,
+    coreUrl: `${name(f, 'broker', i)}:61616`,
+    haRole: i % 2 ? 'BACKUP' : 'PRIMARY',
+    state: i === 3 ? 'STOPPED' : 'STARTED',
+    active: i % 2 === 0,
+    replicaSync: i % 2 ? i !== 3 : null,
+    version: '2.44.0',
+    versionSupport: i === 4 ? 'NEWER_THAN_TESTED' : 'SUPPORTED',
+    lastError: i === 4 ? 'Connection refused: no further information' : null,
+    lastSeenAt: at(i),
+    discovered: true,
+    manualOverride: false,
+    manageable: i !== 5,
+  };
+  const logical: LogicalNodeView = {
+    artemisNodeId: id,
+    splitBrain: 'NONE',
+    replicationBehind: i === 3,
+    endpoints: [endpoint],
+  };
+  return nodeFacts(endpoint, logical);
+};
 
 const ROWS = [0, 1, 2, 3, 4, 5];
 const NODE = (f: Fixture, i: number) => ({
@@ -786,7 +819,7 @@ export const VIEWS: TableView_[] = [
     rows: (f) => ROWS.map((i) => sqlRow(f, i)),
     rowKey: (r) => `${r.nodeId}/${r.messageId}`,
     identifiers: ['queue'],
-    visible1280: ['source', 'node', 'queue', 'messageId', 'timestamp', 'priority', 'size', 'body'],
+    visible1280: ['messageId', 'queue', 'node', 'source', 'timestamp', 'body', 'priority', 'size'],
   }),
   view({
     name: 'bulk runs',
@@ -852,6 +885,15 @@ export const VIEWS: TableView_[] = [
     rowKey: (r) => r.id,
     identifiers: ['from', 'to'],
     visible1280: ['from', 'relation', 'to', 'rate', 'source', 'clients', 'faults'],
+  }),
+  view({
+    name: 'topology',
+    label: 'Nodes',
+    columns: topologyColumns(Date.parse('2026-09-30T14:10:00Z')),
+    rows: (f) => ROWS.map((i) => topologyNode(f, i)),
+    rowKey: (r) => r.id,
+    identifiers: ['node', 'nodeId'],
+    visible1280: ['node', 'role', 'pair', 'liveness', 'version', 'address', 'seen', 'nodeId'],
   }),
   ...(
     [
