@@ -1,8 +1,10 @@
 name: OSV-Scanner
 
-# Known vulnerabilities in every dependency manifest (ADR-0124). Main and the weekly run fail on
-# any, so a CVE published against an existing dependency surfaces within a week. Pull requests are
-# scanned by ci.yml's `osv` job, behind the required `ci-ok` check, only when a manifest changed.
+# Known vulnerabilities in every dependency manifest (ADR-0124, ADR-0171). Every finding goes to
+# code scanning. Main and the weekly run fail on one that has a fixed version and warn on the rest,
+# so a fixable CVE published against an existing dependency surfaces within a week and an unfixable
+# one never blocks. Pull requests are scanned by ci.yml's `osv` job, behind the required `ci-ok`
+# check, only when a manifest changed.
 on:
   push:
     branches: [main]
@@ -12,6 +14,7 @@ on:
       - 'site/package-lock.json'
       - 'examples/plugin-template/pom.xml'
       - '.github/workflows/osv-scanner.yml'
+      - '.github/scripts/osv-gate*'
   schedule:
     - cron: "29 3 * * 1"
   workflow_dispatch:
@@ -28,8 +31,34 @@ jobs:
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
     with:
       runs-on: ubuntu-26.04
+      # Reporting is the reusable workflow's job; `gate` below decides what fails.
+      fail-on-vuln: false
       scan-args: |-
         -L pom.xml
         -L web/package-lock.json
         -L site/package-lock.json
         -L examples/plugin-template/pom.xml
+
+  gate:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan
+        uses: google/osv-scanner-action/osv-scanner-action@7f58dd6750d78fc29a900ba64b1a0f946f62fba4 # v2.6.0
+        env:
+          GOTOOLCHAIN: auto
+        # A scan with findings exits non-zero; the gate judges the results file.
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --format=json
+            --output=results.json
+            -L pom.xml
+            -L web/package-lock.json
+            -L site/package-lock.json
+            -L examples/plugin-template/pom.xml
+      - name: Fail on a finding that has a fix
+        run: .github/scripts/osv-gate.sh results.json

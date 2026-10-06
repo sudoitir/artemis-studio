@@ -1,0 +1,45 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "web/package-lock.json",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "tomcat-embed-core",
+            "version": "11.0.1",
+            "ecosystem": "Maven"
+          },
+          "vulnerabilities": [
+            {
+              "id": "GHSA-fixable-0001",
+              "affected": [
+                {
+                  "package": {
+                    "name": "tomcat-embed-core",
+                    "ecosystem": "Maven"
+                  },
+                  "ranges": [
+                    {
+                      "type": "SEMVER",
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "11.0.2"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
