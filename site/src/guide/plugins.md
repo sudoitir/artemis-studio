@@ -728,6 +728,18 @@ exports:
       `onNodeAction(nodeId, actionId)`. A box's actions open from its "⋯", a right-click or
       Shift+F10. Give an action that does not apply a `disabledReason` rather than leaving it out.
 
+### Moving a plugin from contract 9 to 10
+
+Contract 10 makes permissions resource-scoped. Studio refuses a plugin built for contract 9, so
+rebuild it against the new API and set `<studio.contract>10</studio.contract>` in its `pom.xml`:
+
+- In `plugin.json`, each permission declares `scope` (`global`, `cluster` or `resource`) in place of
+  `globalOnly`; a `resource` permission also lists `resourceKinds` (`queue`, `address`). A manifest
+  that still says `globalOnly` is refused at install.
+- `PermissionResolver`'s constructor changed (a plugin receives it as a bean and never builds it),
+  and `StudioPrincipal.grants()` is gone: ask `PermissionResolver.can(...)` instead of reading
+  grants. A check on one queue or address passes a `ResourceRef`.
+
 ### Moving a plugin from contract 8 to 9
 
 Contract 9 replaces `VirtualTable` with the parts above. Studio refuses a plugin built for contract
