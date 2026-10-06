@@ -27,6 +27,7 @@ import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -523,46 +524,71 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteDivert(UUID clusterId, String name, boolean dryRun) {
         refuseCaptureName(name);
-        return run(
-                clusterId,
-                LifecycleKind.DELETE_DIVERT,
-                name,
-                Map.of(),
-                dryRun,
-                false,
-                divertEnds(clusterId, name),
-                (client, broker) -> {
+        boolean wholeCluster = access.holds(clusterId, LifecycleKind.DELETE_DIVERT.permission());
+        Set<ResourceRef> ends = wholeCluster ? Set.of() : divertEnds(clusterId, name);
+        return new Attempt.Ok<>(commands.run(Command.builder()
+                .clusterId(clusterId)
+                .permission(LifecycleKind.DELETE_DIVERT.permission())
+                .resources(List.copyOf(ends))
+                .auditAction(LifecycleKind.DELETE_DIVERT.auditName())
+                .targetType(LifecycleKind.DELETE_DIVERT.targetType())
+                .targetName(name)
+                .params(Map.of())
+                .dryRun(dryRun)
+                // Each node's own divert is what is destroyed there: one that runs between addresses nobody
+                // checked is left alone, so a name that means something else on another node costs nothing.
+                .preflight((client, broker) -> wholeCluster
+                                || endsOn(client, name).stream().allMatch(ends::contains)
+                        ? Check.OK
+                        : Check.refuse("The divert on this node is not one you may delete, so it was left alone."))
+                .action((client, broker) -> {
                     divertOps.destroyDivert(client, broker, name);
                     return NodeStatus.APPLIED;
-                });
+                })
+                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
+                .build()));
     }
 
     /**
-     * The addresses a divert runs between, which deleting it needs {@code divert:write} on. Read from the
-     * first node that has it, and only for a caller whom no grant reaches the whole cluster for. A divert
-     * that no node has is not found to such a caller, as one they may not read is.
+     * The addresses the divert runs between on every node that has it, which deleting it needs
+     * {@code divert:write} on: it is destroyed wherever it is deployed. A caller who may not read or write
+     * all of them is told the divert does not exist, as is one whom nothing is known of it, so a name
+     * cannot be told from a missing one.
      */
-    private List<ResourceRef> divertEnds(UUID clusterId, String name) {
-        if (access.holds(clusterId, LifecycleKind.DELETE_DIVERT.permission())) {
-            return List.of();
-        }
+    private Set<ResourceRef> divertEnds(UUID clusterId, String name) {
+        access.requireVisible(clusterId);
+        Set<ResourceRef> ends = new LinkedHashSet<>();
         for (ClusterNode node : clusters.nodes(clusterId)) {
             if (node.getJolokiaUrl() == null) {
                 continue;
             }
             try {
-                JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-                Optional<DivertRow> divert = divertOps.find(client, name);
-                if (divert.isPresent()) {
-                    return List.of(
-                            ResourceRef.address(divert.get().address()),
-                            ResourceRef.address(divert.get().forwardingAddress()));
-                }
+                ends.addAll(endsOn(connections.forCluster(clusterId, node.getJolokiaUrl()), name));
             } catch (BrokerConnectionException _) {
-                // Another node may still answer.
+                // Another node may still answer; a node that cannot is checked again when it is acted on.
             }
         }
-        throw new NotFoundException("divert", name);
+        if (ends.isEmpty()) {
+            throw new NotFoundException("divert", name);
+        }
+        try {
+            access.requireAll(
+                    clusterId,
+                    ends.stream()
+                            .map(end ->
+                                    new ClusterAccessGuard.Requirement(end, LifecycleKind.DELETE_DIVERT.permission()))
+                            .toList());
+        } catch (NotFoundException _) {
+            throw new NotFoundException("divert", name);
+        }
+        return ends;
+    }
+
+    private List<ResourceRef> endsOn(JolokiaBrokerClient client, String name) {
+        return divertOps
+                .find(client, name)
+                .map(d -> List.of(ResourceRef.address(d.address()), ResourceRef.address(d.forwardingAddress())))
+                .orElse(List.of());
     }
 
     // ---- the fan-out -----------------------------------------------------
@@ -575,30 +601,10 @@ public class QueueLifecycleService {
             boolean dryRun,
             boolean override,
             NodeAction action) {
-        return run(
-                clusterId,
-                kind,
-                targetName,
-                params,
-                dryRun,
-                override,
-                kind.resource(targetName).stream().toList(),
-                action);
-    }
-
-    private Attempt<LifecycleOutcome> run(
-            UUID clusterId,
-            LifecycleKind kind,
-            String targetName,
-            Map<String, ?> params,
-            boolean dryRun,
-            boolean override,
-            List<ResourceRef> resources,
-            NodeAction action) {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
-                .resources(resources)
+                .resources(kind.resource(targetName).stream().toList())
                 .auditAction(kind.auditName())
                 .targetType(kind.targetType())
                 .targetName(targetName)
