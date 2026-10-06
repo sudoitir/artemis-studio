@@ -122,6 +122,9 @@ class MessageServiceTest {
                 access,
                 policy,
                 clearViews);
+        when(locator.locate(CLUSTER, "target"))
+                .thenReturn(List.of(new QueueLocation(NODE_A, "target", "target", "ANYCAST", 1)));
+        when(locator.locate(CLUSTER, "t")).thenReturn(List.of(new QueueLocation(NODE_A, "t", "t", "ANYCAST", 1)));
         when(locator.locate(CLUSTER, "orders"))
                 .thenReturn(List.of(
                         new QueueLocation(NODE_A, "orders", "orders.addr", "ANYCAST", 5),
@@ -835,15 +838,20 @@ class MessageServiceTest {
         assertThat(required())
                 .containsExactly(
                         new Requirement(ResourceRef.queue("orders"), MessagePermissions.MESSAGE_MOVE),
+                        new Requirement(ResourceRef.queue("billing"), Permissions.QUEUE_READ),
                         new Requirement(ResourceRef.address("billing.addr"), MessagePermissions.MESSAGE_SEND));
     }
 
     @Test
-    void aMoveToAQueueNoNodeKnowsIsCheckedAgainstTheNameAsAddress() {
-        service.execute(CLUSTER, "orders", null, MessageAction.MOVE, filter("f", "target"), true, false);
+    void aMoveToAQueueNoNodeKnowsIsRefusedAsOneThatMayNotBeReadIsAndNothingIsGuessedFromItsName() {
+        NotFoundException unknown = new NotFoundException("A queue or address named in the request does not exist.");
+        when(access.unreadableAmongSeveral(CLUSTER)).thenReturn(unknown);
 
-        assertThat(required())
-                .contains(new Requirement(ResourceRef.address("target"), MessagePermissions.MESSAGE_SEND));
+        assertThatThrownBy(() -> service.execute(
+                        CLUSTER, "orders", null, MessageAction.MOVE, filter("f", "ghost"), false, false))
+                .isSameAs(unknown);
+        verify(access, never()).requireAll(any(), any());
+        verify(messageOps, never()).moveByFilter(any(), anyString(), anyString(), anyString());
     }
 
     @Test

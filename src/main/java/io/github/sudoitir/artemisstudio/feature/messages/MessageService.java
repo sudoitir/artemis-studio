@@ -364,18 +364,24 @@ public class MessageService {
         if (action == MessageAction.MOVE
                 && req.targetQueue() != null
                 && !req.targetQueue().isBlank()) {
+            // Messages go into the target queue, so it is read and sent to through the address it is bound to.
+            needs.add(new Requirement(ResourceRef.queue(req.targetQueue()), Permissions.QUEUE_READ));
             needs.add(new Requirement(
                     ResourceRef.address(addressOf(clusterId, req.targetQueue())), MessagePermissions.MESSAGE_SEND));
         }
         clusterAccess.requireAll(clusterId, needs);
     }
 
-    /** The address a queue is bound to as far as the scrape knows; the queue's own name when it is not known. */
+    /**
+     * The address the queue is bound to, found on the scrape or the live nodes. A queue no node has is refused
+     * as one the caller may not read is, never guessed from its name.
+     */
     private String addressOf(UUID clusterId, String queueName) {
+        clusterAccess.requireVisible(clusterId);
         return queueLocator.locate(clusterId, queueName).stream()
                 .findFirst()
                 .map(QueueLocation::address)
-                .orElse(queueName);
+                .orElseThrow(() -> clusterAccess.unreadableAmongSeveral(clusterId));
     }
 
     /**

@@ -149,7 +149,11 @@ public class ClusterAccessGuard {
                 : new NotFoundException("cluster", clusterId);
     }
 
-    private NotFoundException unreadableAmongSeveral(UUID clusterId) {
+    /**
+     * The not-found for a queue or address that is not there, worded as {@link #requireAll} words one it may not
+     * read among several, so the two cannot be told apart.
+     */
+    public NotFoundException unreadableAmongSeveral(UUID clusterId) {
         return perm.canSeeCluster(clusterId)
                 ? new NotFoundException("A queue or address named in the request does not exist.")
                 : new NotFoundException("cluster", clusterId);
