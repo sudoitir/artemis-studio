@@ -790,7 +790,7 @@ describe('SqlConsoleView history', () => {
 
     await user.click(await screen.findByRole('button', { name: 'History' }));
     // The entry, then Clear history, are the whole menu.
-    const [entry] = await screen.findAllByRole('menuitem', { hidden: true });
+    const [entry] = await screen.findAllByRole('menuitem');
     expect(entry).toHaveTextContent('SELECT * FROM "REMEMBERED"');
     expect(entry).toHaveTextContent('2 rows · brokers');
 
@@ -800,12 +800,12 @@ describe('SqlConsoleView history', () => {
     expect(screen.getByRole('textbox', { name: 'Query' }).textContent).toContain('REMEMBERED');
     expect(EventSourceStub.instances).toHaveLength(streams);
 
-    await vi.waitFor(() => expect(screen.queryAllByRole('menuitem', { hidden: true })).toHaveLength(0));
+    await vi.waitFor(() => expect(screen.queryAllByRole('menuitem')).toHaveLength(0));
     await user.click(screen.getByRole('button', { name: 'History' }));
-    const items = await screen.findAllByRole('menuitem', { hidden: true });
+    const items = await screen.findAllByRole('menuitem');
     expect(items.at(-1)).toHaveTextContent('Clear history');
     await user.click(items.at(-1)!);
-    await vi.waitFor(() => expect(screen.queryAllByRole('menuitem', { hidden: true })).toHaveLength(0));
+    await vi.waitFor(() => expect(screen.queryAllByRole('menuitem')).toHaveLength(0));
     await user.click(screen.getByRole('button', { name: 'History' }));
     expect(await screen.findByText(/Nothing yet/)).toBeInTheDocument();
     expect(window.localStorage.getItem('artemis-studio.sql.history')).toBeNull();
