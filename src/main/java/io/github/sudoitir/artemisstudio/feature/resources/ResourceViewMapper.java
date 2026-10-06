@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.Conn
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConsumerView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ProducerView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.SessionView;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -32,7 +33,8 @@ public class ResourceViewMapper {
                 str(row, "name"),
                 str(row, "routingTypes"),
                 num(row, "queueCount"),
-                num(row, "messageCount"));
+                num(row, "messageCount"),
+                List.of());
     }
 
     public ConsumerView consumer(JsonNode row, NodeRef node) {
@@ -46,7 +48,8 @@ public class ResourceViewMapper {
                 str(row, PROTOCOL),
                 num(row, "messagesDelivered"),
                 num(row, "messagesAcknowledged"),
-                str(row, "status"));
+                str(row, "status"),
+                List.of());
     }
 
     public SessionView session(JsonNode row, NodeRef node) {
@@ -58,7 +61,8 @@ public class ResourceViewMapper {
                 str(row, "connectionID"),
                 num(row, "consumerCount"),
                 num(row, "producerCount"),
-                str(row, "creationTime"));
+                str(row, "creationTime"),
+                List.of());
     }
 
     public ConnectionView connection(JsonNode row, NodeRef node) {
@@ -70,7 +74,8 @@ public class ResourceViewMapper {
                 str(row, PROTOCOL),
                 str(row, "clientID"),
                 num(row, "sessionCount"),
-                str(row, "creationTime"));
+                str(row, "creationTime"),
+                List.of());
     }
 
     public ProducerView producer(JsonNode row, NodeRef node) {
@@ -82,6 +87,7 @@ public class ResourceViewMapper {
                 str(row, "session"),
                 str(row, "address"),
                 str(row, PROTOCOL),
-                num(row, "msgSent"));
+                num(row, "msgSent"),
+                List.of());
     }
 }

@@ -128,13 +128,14 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
                         .gauge()
                         .value())
                 .isEqualTo(9.0);
-        assertThat(firings.findOpenVisible(clusterId, false))
+        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
                 .singleElement()
                 .satisfies(f -> assertThat(f.getSubjectKey()).isEqualTo("note:daily"));
 
         System.setProperty(id + ".value", "1");
         tierB();
-        assertThat(firings.findOpenVisible(clusterId, false)).isEmpty();
+        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+                .isEmpty();
     }
 
     @Test
@@ -170,7 +171,8 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
         assertThat(meters.find("studio.plugin.metric").tag("plugin", id).gauges())
                 .allSatisfy(g -> assertThat(g.getId().getTag("subject")).isNull());
         assertThat(pluginMetrics.declared(id + ":edits")).isEmpty();
-        assertThat(firings.findOpenVisible(clusterId, false)).isEmpty();
+        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+                .isEmpty();
     }
 
     @Test

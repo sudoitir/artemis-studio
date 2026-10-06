@@ -7,6 +7,11 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 @PluginApi
 public record ResourceRef(ResourceKind kind, String name) {
 
+    /** The permission that lets a caller see a resource of this kind at all, and that every other permission on it requires. */
+    public String readPermission() {
+        return Permissions.readOf(kind);
+    }
+
     public static ResourceRef queue(String name) {
         return new ResourceRef(ResourceKind.QUEUE, name);
     }

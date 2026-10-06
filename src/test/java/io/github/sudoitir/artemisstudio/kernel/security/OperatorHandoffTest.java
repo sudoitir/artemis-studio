@@ -88,6 +88,19 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aWithdrawnGrantIsNoLongerHeldOnAQueueEither() {
+        Operator operator = handoff.capture();
+        ResourceRef queue = ResourceRef.queue("orders.in");
+        assertThat(handoff.stillHolds(operator, UUID.randomUUID(), queue, "queue:purge"))
+                .isTrue();
+
+        OperatorFixture.revokeAll(userRoles, accessChanges, userId);
+
+        assertThat(handoff.stillHolds(operator, UUID.randomUUID(), queue, "queue:purge"))
+                .isFalse();
+    }
+
+    @Test
     void aUserIsActedForAsTheirAccountStandsNow() {
         Operator operator = handoff.forUser(userId).orElseThrow();
 

@@ -5,6 +5,8 @@ public final class QueuePermissions {
 
     public static final String ADDRESS_CREATE = "address:create";
 
+    public static final String ADDRESS_DELETE = "address:delete";
+
     public static final String QUEUE_CREATE = "queue:create";
 
     public static final String QUEUE_DELETE = "queue:delete";

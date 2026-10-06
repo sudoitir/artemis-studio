@@ -108,7 +108,7 @@ class McpAuthorizationIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ));
+                Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, MessagePermissions.MESSAGE_READ));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -138,7 +138,7 @@ class McpAuthorizationIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ));
+                Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, MessagePermissions.MESSAGE_READ));
 
         JsonNode response = McpFixture.callTool(
                 mvc, key, "list_resources", Map.of("clusterId", clusterId.toString(), "kind", "queues"));

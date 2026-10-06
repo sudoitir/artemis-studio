@@ -2,15 +2,19 @@ package io.github.sudoitir.artemisstudio.feature.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConnectionView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConsumerView;
+import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.SessionView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
@@ -55,12 +59,22 @@ class PagedListServiceTest {
     @Mock
     ClusterAccessGuard clusterAccess;
 
+    /** Sees everything; what a restricted caller sees is covered by the integration tests. */
+    @Mock
+    PermissionResolver permissions;
+
+    @Mock
+    ResourceFilter everything;
+
     PagedListService service;
 
     @BeforeEach
     void setUp() {
-        service =
-                new PagedListService(nodes, connections, new BrokerListOps(), new ResourceViewMapper(), clusterAccess);
+        when(permissions.filter(any(), any())).thenReturn(everything);
+        when(everything.readable(any())).thenReturn(true);
+        when(everything.allowedActions(any())).thenReturn(List.of());
+        service = new PagedListService(
+                nodes, connections, new BrokerListOps(), new ResourceViewMapper(), clusterAccess, permissions);
     }
 
     private JolokiaBrokerClient client(String url, String... fixtures) {
@@ -102,9 +116,9 @@ class PagedListServiceTest {
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         BrokerNodeEntity b = node(clusterId, "node-b", URL_B);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a, b));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
-        when(connections.forCluster(eq(clusterId), eq(URL_B)))
+        when(connections.forCluster(clusterId, URL_B))
                 .thenReturn(client(URL_B, "search-broker.json", "list-consumers.json"));
 
         PagedView<ConsumerView> page = service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null));
@@ -119,7 +133,7 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity b = node(clusterId, "node-b", URL_B);
         when(nodes.nodes(clusterId)).thenReturn(List.of(b));
-        when(connections.forCluster(eq(clusterId), eq(URL_B)))
+        when(connections.forCluster(clusterId, URL_B))
                 .thenReturn(client(URL_B, "search-broker.json", "list-consumers.json"));
 
         // A session row links to its consumers by session id, which is not the field the listing
@@ -139,10 +153,12 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNAUTHORIZED));
 
-        assertThatThrownBy(() -> service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null)))
+        ResourceQuery firstPage = ResourceQuery.of(null, 1, 50, null);
+
+        assertThatThrownBy(() -> service.consumers(clusterId, firstPage))
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
                 .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
@@ -153,7 +169,7 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenReturn(client(URL_A, "search-broker.json", "list-consumers.json"));
 
         java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
@@ -182,7 +198,108 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         when(nodes.nodes(clusterId)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null)))
-                .isInstanceOf(BrokerConnectionException.class);
+        ResourceQuery firstPage = ResourceQuery.of(null, 1, 50, null);
+
+        assertThatThrownBy(() -> service.consumers(clusterId, firstPage)).isInstanceOf(BrokerConnectionException.class);
+    }
+
+    // ---- what the caller may see ---------------------------------------------------------------
+
+    private static final String QUEUE = "SPIKE.A.q000";
+
+    /** A filter that lets the named resources through and nothing else. */
+    private void readable(UUID clusterId, String[] queues, String[] addresses) {
+        ResourceFilter readableQueues = reading(queues);
+        ResourceFilter readableAddresses = reading(addresses);
+        when(permissions.filter(clusterId, io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind.QUEUE))
+                .thenReturn(readableQueues);
+        when(permissions.filter(clusterId, io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind.ADDRESS))
+                .thenReturn(readableAddresses);
+    }
+
+    private static ResourceFilter reading(String... names) {
+        ResourceFilter filter = org.mockito.Mockito.mock(ResourceFilter.class);
+        List<String> readable = List.of(names);
+        when(filter.readable(any())).thenAnswer(call -> readable.contains(call.<String>getArgument(0)));
+        when(filter.allowedActions(any())).thenReturn(List.of());
+        return filter;
+    }
+
+    private UUID oneNodeServing(String... fixtures) {
+        UUID clusterId = UUID.randomUUID();
+        when(nodes.nodes(clusterId)).thenReturn(List.of(node(clusterId, "node-b", URL_B)));
+        when(connections.forCluster(clusterId, URL_B)).thenReturn(client(URL_B, fixtures));
+        return clusterId;
+    }
+
+    @Test
+    void aConsumerOfAQueueTheCallerCannotReadIsNotListedOrCounted() {
+        UUID clusterId = oneNodeServing("search-broker.json", "list-consumers.json");
+        readable(clusterId, new String[] {"another.queue"}, new String[] {});
+
+        PagedView<ConsumerView> page = service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null));
+
+        assertThat(page.data()).isEmpty();
+        assertThat(page.count()).isZero();
+    }
+
+    @Test
+    void aSessionIsSeenOnlyThroughTheConsumersAndProducersTheCallerMayRead() {
+        UUID clusterId = oneNodeServing(
+                "search-broker.json", "list-sessions.json", "list-consumers.json", "list-producers.json");
+        // The queue of the one consumer is readable; the address of the one producer is not.
+        readable(clusterId, new String[] {QUEUE}, new String[] {});
+
+        PagedView<SessionView> page = service.sessions(clusterId, ResourceQuery.of(null, 1, 50, null));
+
+        assertThat(page.data()).hasSize(1);
+        assertThat(page.count()).isEqualTo(1);
+        SessionView seen = page.data().get(0);
+        assertThat(seen.sessionId()).startsWith("dbb33b79");
+        assertThat(seen.consumerCount()).isEqualTo(1);
+        assertThat(seen.producerCount()).isZero();
+    }
+
+    @Test
+    void aConnectionIsSeenOnlyThroughTheSessionsTheCallerSees() {
+        UUID clusterId = oneNodeServing(
+                "search-broker.json",
+                "list-connections.json",
+                "list-sessions.json",
+                "list-consumers.json",
+                "list-producers.json");
+        readable(clusterId, new String[] {QUEUE}, new String[] {});
+
+        PagedView<ConnectionView> page = service.connections(clusterId, ResourceQuery.of(null, 1, 50, null));
+
+        assertThat(page.data()).extracting(ConnectionView::connectionId).containsExactly("c1db1ea7");
+        assertThat(page.data().get(0).sessionCount()).isEqualTo(1);
+        assertThat(page.count()).isEqualTo(1);
+    }
+
+    @Test
+    void connectionReadOnTheClusterShowsEveryConnectionAndSessionUntrimmed() {
+        UUID clusterId = oneNodeServing("search-broker.json", "list-connections.json", "list-sessions.json");
+        when(permissions.can(clusterId, ResourcePermissions.CONNECTION_READ)).thenReturn(true);
+        when(permissions.can(clusterId, ResourcePermissions.CONNECTION_CLOSE)).thenReturn(true);
+
+        PagedView<ConnectionView> connectionsPage = service.connections(clusterId, ResourceQuery.of(null, 1, 50, null));
+        PagedView<SessionView> sessionsPage = service.sessions(clusterId, ResourceQuery.of(null, 1, 50, null));
+
+        assertThat(connectionsPage.data()).hasSize(5);
+        assertThat(connectionsPage.data())
+                .allSatisfy(c -> assertThat(c.allowedActions()).containsExactly(ResourcePermissions.CONNECTION_CLOSE));
+        assertThat(sessionsPage.data()).hasSize(4);
+    }
+
+    @Test
+    void aRowWithoutConnectionCloseCarriesNoConnectionAction() {
+        UUID clusterId = oneNodeServing("search-broker.json", "list-consumers.json");
+        readable(clusterId, new String[] {QUEUE}, new String[] {});
+
+        PagedView<ConsumerView> page = service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null));
+
+        assertThat(page.data()).hasSize(1);
+        assertThat(page.data().get(0).allowedActions()).isEmpty();
     }
 }

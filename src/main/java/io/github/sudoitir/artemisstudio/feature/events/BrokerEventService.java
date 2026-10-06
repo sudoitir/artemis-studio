@@ -5,8 +5,11 @@ import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.Brok
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -42,14 +45,28 @@ public class BrokerEventService {
      */
     private final ClusterAccessGuard clusterAccess;
 
+    private final PermissionResolver permissions;
+
     /** Notification props carry filter strings and user-supplied names; the detectors run over them. */
     private final ContentPolicy contentPolicy;
 
     @Transactional(readOnly = true)
     public BrokerEventPageView page(UUID clusterId, BrokerEventQuery query) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter addresses = permissions.filter(clusterId, ResourceKind.ADDRESS);
+        // Filtered in the query, before paging, so a total never counts an event about an address the caller
+        // may not read. An event about no address belongs to the cluster, and is read with it.
+        List<String> readable = addresses.everything()
+                ? List.of("")
+                : events.findDistinctAddressByClusterId(clusterId).stream()
+                        .filter(addresses::readable)
+                        .toList();
         Page<BrokerEventEntity> result = events.findPage(
                 clusterId,
+                addresses.everything(),
+                readable.isEmpty() ? List.of("") : readable,
+                addresses.everything() ? List.of("") : readableRoutingNames(clusterId, addresses),
+                clusterAccess.holds(clusterId, Permissions.CLUSTER_READ),
                 blankToNull(query.type()),
                 query.nodeId(),
                 blankToNull(query.address()),
@@ -66,10 +83,34 @@ public class BrokerEventService {
                 events.oldestRetained(clusterId));
     }
 
+    /**
+     * An event also names the queue a binding or a consumer concerns, and is left out for a reader who may not
+     * read that queue, as it would name it. A routing name that is no queue of theirs is such a name too.
+     */
+    private List<String> readableRoutingNames(UUID clusterId, ResourceFilter addresses) {
+        ResourceFilter queues = permissions.filter(clusterId, ResourceKind.QUEUE);
+        List<String> names = events.findDistinctRoutingNameByClusterId(clusterId).stream()
+                .filter(name -> queues.readable(name) || addresses.readable(name))
+                .toList();
+        return names.isEmpty() ? List.of("") : names;
+    }
+
+    private boolean namesOnlyWhatIsReadable(UUID clusterId, String routingName) {
+        if (routingName == null) {
+            return true;
+        }
+        return permissions.filter(clusterId, ResourceKind.QUEUE).readable(routingName)
+                || permissions.filter(clusterId, ResourceKind.ADDRESS).readable(routingName);
+    }
+
     @Transactional(readOnly = true)
     public BrokerEventView get(UUID clusterId, long seq) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter addresses = permissions.filter(clusterId, ResourceKind.ADDRESS);
+        boolean clusterWide = clusterAccess.holds(clusterId, Permissions.CLUSTER_READ);
         return events.findByClusterIdAndSeq(clusterId, seq)
+                .filter(e -> e.getAddress() == null ? clusterWide : addresses.readable(e.getAddress()))
+                .filter(e -> addresses.everything() || namesOnlyWhatIsReadable(clusterId, e.getRoutingName()))
                 .map(this::toView)
                 .orElseThrow(() -> new NotFoundException("event", seq));
     }
@@ -89,6 +130,10 @@ public class BrokerEventService {
         return events
                 .findPage(
                         clusterId,
+                        true,
+                        List.of(""),
+                        List.of(""),
+                        true,
                         blankToNull(type),
                         null,
                         null,

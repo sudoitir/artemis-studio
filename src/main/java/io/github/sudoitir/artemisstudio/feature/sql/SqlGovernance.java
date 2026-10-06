@@ -42,9 +42,12 @@ public class SqlGovernance {
 
     private final ContentPolicy policy;
 
-    /** Whether the current caller holds {@code message:clear} on the cluster. Only meaningful on a request thread. */
-    public boolean clearAccess(UUID clusterId) {
-        return policy.context(clusterId, null).clearAccess();
+    /**
+     * Whether the current caller holds {@code message:clear} on every queue the pattern can match. Only
+     * meaningful on a request thread.
+     */
+    public boolean clearAccess(UUID clusterId, String queuePattern) {
+        return policy.mayClear(clusterId, queuePattern);
     }
 
     /** A result row as the caller may see it. */
@@ -155,7 +158,7 @@ public class SqlGovernance {
      */
     public void guardPredicates(UUID clusterId, QueryAst ast) {
         String field = maskedField(ast);
-        if (field != null && !clearAccess(clusterId)) {
+        if (field != null && !clearAccess(clusterId, ast.queuePattern())) {
             throw new GovernanceRefusedException(field);
         }
     }

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -79,7 +81,9 @@ class MessageOperationsTest {
         when(client.batch(anyList()))
                 .thenThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "refused"));
 
-        assertThatThrownBy(() -> operations.moveByIds(client, QUEUE, List.of(1L, 2L), "DLQ"))
+        List<Long> ids = List.of(1L, 2L);
+
+        assertThatThrownBy(() -> operations.moveByIds(client, QUEUE, ids, "DLQ"))
                 .isInstanceOf(BrokerConnectionException.class);
     }
 
@@ -96,6 +100,21 @@ class MessageOperationsTest {
 
     private static List<Long> ids(long from, long to) {
         return LongStream.rangeClosed(from, to).boxed().toList();
+    }
+
+    @Test
+    void theOriginalAddressesAreTheKeysOfOneCountGroupedByThatProperty() {
+        when(client.single(any()))
+                .thenReturn(new JolokiaResponse(
+                        200, mapper.valueToTree("{\"orders.in\":2,\"billing.in\":1,\"null\":4}"), null, null, null));
+        when(client.parsed(any())).thenAnswer(i -> ((JolokiaResponse) i.getArgument(0)).valueParsed(mapper));
+
+        assertThat(operations.originalAddresses(client, QUEUE)).containsExactly("billing.in", "orders.in");
+
+        ArgumentCaptor<JolokiaRequest> sent = ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client).single(sent.capture());
+        assertThat(sent.getValue().operation()).isEqualTo("countMessages(java.lang.String,java.lang.String)");
+        assertThat(sent.getValue().arguments()).containsExactly("", "_AMQ_ORIG_ADDRESS");
     }
 
     private JolokiaResponse acted() {

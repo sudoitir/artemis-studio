@@ -3,8 +3,10 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowRepository;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.AddressStatsView;
 import io.github.sudoitir.artemisstudio.feature.rr.web.RrViews.StatsResponse;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -37,18 +39,21 @@ public class RrMetrics {
     private final QueueSnapshots queueSnapshots;
     private final Duration percentileWindow;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     public RrMetrics(
             MeterRegistry registry,
             RrFlowRepository flows,
             QueueSnapshots queueSnapshots,
             RrProperties properties,
-            ClusterAccessGuard clusterAccess) {
+            ClusterAccessGuard clusterAccess,
+            PermissionResolver permissions) {
         this.registry = registry;
         this.flows = flows;
         this.queueSnapshots = queueSnapshots;
         this.percentileWindow = properties.percentileWindow();
         this.clusterAccess = clusterAccess;
+        this.permissions = permissions;
     }
 
     // ponytail: a single in-process baseline reading per address, not a persisted
@@ -73,8 +78,11 @@ public class RrMetrics {
 
     @Transactional(readOnly = true)
     public StatsResponse stats(UUID clusterId, Duration window) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<String> addresses = flows.findDistinctRequestAddressByClusterId(clusterId);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter readable = permissions.filter(clusterId, ResourceKind.ADDRESS);
+        List<String> addresses = flows.findDistinctRequestAddressByClusterId(clusterId).stream()
+                .filter(readable::readable)
+                .toList();
         Instant since = Instant.now().minus(window);
         List<AddressStatsView> views = addresses.stream()
                 .map(a -> addressStats(clusterId, a, since, window))

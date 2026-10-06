@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -14,6 +16,8 @@ import tools.jackson.databind.JsonNode;
  */
 @Component
 public class MessageOperations {
+
+    private static final String ORIGINAL_ADDRESS = "_AMQ_ORIG_ADDRESS";
 
     private static final String SEND_SIG =
             "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String)";
@@ -61,11 +65,37 @@ public class MessageOperations {
     }
 
     /**
+     * The addresses the messages on the queue were first sent to, from the {@code _AMQ_ORIG_ADDRESS} the
+     * broker sets on a message it dead-letters or expires: one {@code countMessages} grouped by that
+     * property. A retry sends each message back to its address, so this is where a retry would write.
+     */
+    public Set<String> originalAddresses(JolokiaBrokerClient client, String queueMbean) {
+        JolokiaResponse res = client.single(JolokiaRequest.exec(
+                queueMbean, "countMessages(java.lang.String,java.lang.String)", "", ORIGINAL_ADDRESS));
+        requireOk(res, "countMessages");
+        Set<String> addresses = new TreeSet<>();
+        JsonNode grouped = client.parsed(res);
+        if (grouped != null) {
+            grouped.propertyNames().forEach(name -> {
+                if (!name.isBlank() && !"null".equals(name)) {
+                    addresses.add(name);
+                }
+            });
+        }
+        return addresses;
+    }
+
+    /**
      * The ids of every message on the queue, in queue order, from one {@code listMessages("")}. For a
      * queue known to be small, such as a transfer's staging queue: it lists the whole queue at once.
      */
     public List<Long> listIds(JolokiaBrokerClient client, String queueMbean) {
-        JolokiaResponse res = client.single(JolokiaRequest.exec(queueMbean, "listMessages(java.lang.String)", ""));
+        return listIds(client, queueMbean, "");
+    }
+
+    /** The ids of the messages on the queue that match the filter, in queue order. */
+    public List<Long> listIds(JolokiaBrokerClient client, String queueMbean, String filter) {
+        JolokiaResponse res = client.single(JolokiaRequest.exec(queueMbean, "listMessages(java.lang.String)", filter));
         requireOk(res, "listMessages");
         List<Long> ids = new java.util.ArrayList<>();
         JsonNode listed = client.parsed(res);
@@ -73,6 +103,11 @@ public class MessageOperations {
             listed.forEach(m -> ids.add(m.path("messageID").asLong()));
         }
         return ids;
+    }
+
+    /** The filter that selects the messages the broker dead-lettered or expired from this address. */
+    public String originalAddressFilter(String address) {
+        return ORIGINAL_ADDRESS + " = '" + address.replace("'", "''") + "'";
     }
 
     /** Current {@code MessageCount} of the queue — the purge / retry-all dry-run estimate. */
