@@ -29,6 +29,7 @@ import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
@@ -512,6 +513,22 @@ class TransferRunnerTest {
 
         assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
         assertThat(run.getLastError()).contains(MessagePermissions.MESSAGE_SEND).contains("target address");
+    }
+
+    @Test
+    void aWithdrawnReadOfTheTargetQueueStopsTheRunAndNamesIt() {
+        TransferRunEntity run = copyOfAll(0L);
+        when(handoff.stillHolds(
+                        any(),
+                        eq(TGT_CLUSTER),
+                        eq(ResourceRef.queue(run.getTargetQueue())),
+                        eq(Permissions.QUEUE_READ)))
+                .thenReturn(false);
+
+        execute();
+
+        assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
+        assertThat(run.getLastError()).contains(Permissions.QUEUE_READ).contains("target queue");
     }
 
     @Test
