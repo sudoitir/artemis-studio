@@ -14486,6 +14486,132 @@
         }
       }
     },
+    "/api/v1/users/{userId}/access-check" : {
+      "get" : {
+        "tags" : [ "users-controller" ],
+        "operationId" : "accessCheck",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "clusterId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "kind",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS" ]
+          }
+        }, {
+          "name" : "name",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewAccessCheckView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tokens/{tokenId}/usage" : {
       "get" : {
         "tags" : [ "tokens-controller" ],
@@ -14781,6 +14907,171 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PatternPreview"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/lookups/users" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "findUsers",
+        "parameters" : [ {
+          "name" : "q",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : ""
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewUserLookup"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/lookups/roles" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "teamRoles",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamRoleLookup"
                 }
               }
             }
@@ -15316,6 +15607,93 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PagedViewPermissionView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/access" : {
+      "get" : {
+        "tags" : [ "access-controller" ],
+        "operationId" : "mine",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccessSummary"
                 }
               }
             }
@@ -28764,6 +29142,95 @@
         },
         "required" : [ "data", "hasNext", "page", "pageSize" ]
       },
+      "AccessCheckView" : {
+        "type" : "object",
+        "description" : "One catalogue permission for a user, here, with every source that allows it.",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string",
+            "enum" : [ "GLOBAL", "CLUSTER", "RESOURCE" ]
+          },
+          "allowed" : {
+            "type" : "boolean"
+          },
+          "sources" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AccessSource"
+            }
+          }
+        },
+        "required" : [ "action", "allowed", "description", "scope", "sources" ]
+      },
+      "AccessSource" : {
+        "type" : "object",
+        "description" : "One way a user holds a permission: a role granted at a scope, a team role on the team that owns the resource, or a share from the owning team.",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "enum" : [ "ROLE_GRANT", "TEAM", "SHARE" ]
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "scopeType" : {
+            "type" : [ "string", "null" ],
+            "description" : "ROLE_GRANT only: GLOBAL, ENVIRONMENT or CLUSTER."
+          },
+          "scopeId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "ROLE_GRANT only: the environment or cluster of the grant."
+          },
+          "teamId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "TEAM and SHARE: the team whose role the user holds."
+          },
+          "teamName" : {
+            "type" : [ "string", "null" ]
+          },
+          "ownerTeamName" : {
+            "type" : [ "string", "null" ],
+            "description" : "SHARE only: the team that shared the pattern."
+          }
+        },
+        "required" : [ "roleName", "type" ]
+      },
+      "PagedViewAccessCheckView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AccessCheckView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total across all pages; null when it is not known."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
       "PagedViewTokenView" : {
         "type" : "object",
         "properties" : {
@@ -28924,9 +29391,12 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "patternCount" : {
-            "type" : "integer",
-            "format" : "int32"
+          "patterns" : {
+            "type" : "array",
+            "description" : "The patterns the team owns, with the cluster of each.",
+            "items" : {
+              "$ref" : "#/components/schemas/PatternView"
+            }
           },
           "sharesOut" : {
             "type" : "integer",
@@ -28937,7 +29407,7 @@
             "format" : "int32"
           }
         },
-        "required" : [ "createdAt", "id", "memberCount", "name", "patternCount", "sharesIn", "sharesOut" ]
+        "required" : [ "createdAt", "id", "memberCount", "name", "patterns", "sharesIn", "sharesOut" ]
       },
       "PatternConflict" : {
         "type" : "object",
@@ -29005,6 +29475,105 @@
           }
         },
         "required" : [ "addressExamples", "addressMatches", "clusterId", "conflicts", "kind", "pattern", "queueExamples", "queueMatches" ]
+      },
+      "PagedViewUserLookup" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UserLookup"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total across all pages; null when it is not known."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
+      "UserLookup" : {
+        "type" : "object",
+        "description" : "A user a team admin may add as a member: enabled accounts only.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "providerId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "providerId", "username" ]
+      },
+      "PermissionView" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "featureId" : {
+            "type" : "string"
+          },
+          "featureTitle" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string",
+            "enum" : [ "GLOBAL", "CLUSTER", "RESOURCE" ]
+          },
+          "resourceKinds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "QUEUE", "ADDRESS" ]
+            }
+          },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "action", "featureId", "featureTitle", "label", "requires", "resourceKinds", "scope" ]
+      },
+      "TeamRoleLookup" : {
+        "type" : "object",
+        "description" : "The team roles a team admin may give, and the catalogue entries their permissions name.",
+        "properties" : {
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoleView"
+            }
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PermissionView"
+            }
+          }
+        },
+        "required" : [ "permissions", "roles" ]
       },
       "JobStatusView" : {
         "type" : "object",
@@ -29424,40 +29993,61 @@
         },
         "required" : [ "data", "hasNext", "page", "pageSize" ]
       },
-      "PermissionView" : {
+      "AccessSummary" : {
         "type" : "object",
+        "description" : "What the caller holds, for the console to offer or withhold controls. The server stays the enforcement point.",
         "properties" : {
-          "action" : {
-            "type" : "string"
-          },
-          "label" : {
-            "type" : "string"
-          },
-          "featureId" : {
-            "type" : "string"
-          },
-          "featureTitle" : {
-            "type" : "string"
-          },
-          "scope" : {
-            "type" : "string",
-            "enum" : [ "GLOBAL", "CLUSTER", "RESOURCE" ]
-          },
-          "resourceKinds" : {
+          "permissions" : {
             "type" : "array",
-            "items" : {
-              "type" : "string",
-              "enum" : [ "QUEUE", "ADDRESS" ]
-            }
-          },
-          "requires" : {
-            "type" : "array",
+            "description" : "Every catalogue permission the caller holds on the cluster, or globally when no cluster is asked about: through a role grant at global, environment or cluster scope.",
             "items" : {
               "type" : "string"
             }
+          },
+          "anywhere" : {
+            "type" : "array",
+            "description" : "Resource permissions the caller holds on some queue or address of the cluster, through a grant, a team or a share. Empty when no cluster is asked about.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "canSeeCluster" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Whether the caller may see the cluster at all; null when no cluster is asked about."
+          },
+          "teams" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMembership"
+            }
           }
         },
-        "required" : [ "action", "featureId", "featureTitle", "label", "requires", "resourceKinds", "scope" ]
+        "required" : [ "anywhere", "permissions", "teams" ]
+      },
+      "TeamMembership" : {
+        "type" : "object",
+        "description" : "A team the caller belongs to, with the team role they hold in it.",
+        "properties" : {
+          "teamId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "teamName" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "teamAdmin" : {
+            "type" : "boolean",
+            "description" : "Whether the team role holds team:admin."
+          }
+        },
+        "required" : [ "roleId", "roleName", "teamAdmin", "teamId", "teamName" ]
       },
       "McpToolView" : {
         "type" : "object",

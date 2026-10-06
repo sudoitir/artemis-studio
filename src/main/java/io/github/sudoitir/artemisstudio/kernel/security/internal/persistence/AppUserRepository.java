@@ -22,6 +22,9 @@ public interface AppUserRepository extends JpaRepository<AppUserEntity, UUID> {
 
     List<AppUserEntity> findAllByOrderByUsername();
 
+    /** Enabled accounts whose name starts with the prefix, ignoring case, for picking a member. */
+    List<AppUserEntity> findTop20ByDisabledFalseAndUsernameStartingWithIgnoreCaseOrderByUsername(String prefix);
+
     /** A provider's accounts that can still sign in, as revalidation needs them (ADR-0156). */
     interface EnabledAccount {
         UUID getId();
