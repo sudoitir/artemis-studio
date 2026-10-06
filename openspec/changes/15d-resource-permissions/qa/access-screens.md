@@ -75,9 +75,11 @@ overflow, CLS, CSP, console and failed-request checks.
 - Fix: placeholders, as the pattern form's cluster select has.
 - Status: fixed.
 
-### Open, not fixed
-- access-13 [S1 · reliability · server] A team-only user cannot mint a key: `GET /permissions` needs `user:admin`
-  (`RoleService.catalogue`), so the mint form's catalogue is empty and it says "You hold nothing at this scope" at
-  every scope. Needs a decision on who may read the permission catalogue; no UI change can fix it.
-- access-14 [S4 · design · page] The Team admin notice on the Teams tab arrives after the access summary and shifts
-  the table by CLS 0.013 for a non-administrator (budget 0.01).
+### Fixed after the sweep
+- access-13 [S1 · reliability · server] A team-only user could not mint a key: `GET /permissions` needed
+  `user:admin`. Decision: any signed-in user reads the permission catalogue, which names permissions and not who
+  holds them; roles and grants stay behind `user:admin` (`RoleService.catalogue`, test in
+  `RoleServiceIntegrationTest`).
+- access-14 [S4 · design · page] The Team admin notice arrived after the access summary and shifted the table (CLS
+  0.013). The Teams list now shows its loading state until access is known, so the notice and the table arrive
+  together.
