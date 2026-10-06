@@ -34,8 +34,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -127,10 +130,22 @@ public class BrokerConfigController {
         return ImportResultView.of(config.importXml(clusterId, xml));
     }
 
-    /** The declaration as a {@code <core>} fragment, for a config-managed cluster. */
+    /**
+     * The declaration as a {@code <core>} fragment, for a config-managed cluster. It is an
+     * attachment, so a browser that is sent here saves the file and never renders what is in it
+     * (ADR-0168).
+     */
     @GetMapping(value = "/export-xml", produces = MediaType.APPLICATION_XML_VALUE)
-    public String exportXml(@PathVariable UUID clusterId, @RequestParam(required = false) Integer revision) {
-        return config.exportXml(clusterId, revision);
+    public ResponseEntity<String> exportXml(
+            @PathVariable UUID clusterId, @RequestParam(required = false) Integer revision) {
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("broker-config.xml")
+                                .build()
+                                .toString())
+                .body(config.exportXml(clusterId, revision));
     }
 
     /** Build a declaration from what the live nodes are running. Nothing is saved. */
