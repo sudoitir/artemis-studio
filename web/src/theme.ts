@@ -1,4 +1,11 @@
-import { createTheme, Drawer, Modal, type CSSVariablesResolver, type MantineColorsTuple } from '@mantine/core';
+import {
+  createTheme,
+  Drawer,
+  Modal,
+  Notification,
+  type CSSVariablesResolver,
+  type MantineColorsTuple,
+} from '@mantine/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Three-layer tokens (ADR-0157).
@@ -180,6 +187,10 @@ export const theme = createTheme({
     Drawer: Drawer.extend({
       defaultProps: { closeButtonProps: { 'aria-label': 'Close' } },
       styles: { title: dialogTitle },
+    }),
+    // A toast's close button is nameless the same way.
+    Notification: Notification.extend({
+      defaultProps: { closeButtonProps: { 'aria-label': 'Close' } },
     }),
   },
   other,
