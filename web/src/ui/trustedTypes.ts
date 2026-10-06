@@ -15,9 +15,14 @@ import DOMPurify from 'dompurify';
  * A fourth would be a new entry in the header and in this list, with a reason.
  */
 
+/** The browser's Trusted Types factory, absent where the API is (tests, older browsers). */
+function factory(): TrustedTypePolicyFactory | undefined {
+  return (globalThis as { trustedTypes?: TrustedTypePolicyFactory }).trustedTypes;
+}
+
 /** Installed once, before anything renders. Where Trusted Types is not enforced it changes nothing. */
 export function installDefaultPolicy(): void {
-  window.trustedTypes?.createPolicy('default', {
+  factory()?.createPolicy('default', {
     createHTML: (input) => (input.includes('<') ? (null as unknown as string) : input),
   });
 }
@@ -29,7 +34,7 @@ let workerPolicy: Pick<TrustedTypePolicy, 'createScriptURL'> | undefined;
  * Types (tests, older browsers) it is the string itself.
  */
 export function workerScriptUrl(url: string): string {
-  const trustedTypes = window.trustedTypes;
+  const trustedTypes = factory();
   if (!trustedTypes) return url;
   workerPolicy ??= trustedTypes.createPolicy('studio#worker', {
     createScriptURL: (input: string) => {
