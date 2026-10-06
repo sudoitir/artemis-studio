@@ -4,9 +4,9 @@
 - [x] 1.1 Wildcard pattern matcher and exact overlap test for Artemis syntax; property tests against brute-force enumeration pass
 - [x] 1.2 Catalogue: `PermissionDef` gains scope, resourceKinds, requires; `globalOnly` removed; every core permission classified; new permissions `queue:read`, `address:read`, `address:create`, `rr:write`, `connection:read`, `team:admin`; consistency check reports unknown requires and cycles (`PermissionCatalogueTest` passes)
 - [x] 1.3 Liquibase: team, team_pattern, team_member, team_share, role.team_assignable; re-seed built-in roles (Administrator, Operator, Viewer, Team Viewer, Team Operator, Team Admin); built-in coverage test fails on an unclassified new permission
-- [ ] 1.4 Team service and REST API (CRUD, patterns with overlap refusal, members, shares, pattern preview, unowned resources) with `user:admin` / `team:admin` rules; audited; service tests pass
-- [ ] 1.5 Resolver: `can(clusterId, ResourceRef, action)`, scope semantics, disabled-feature permissions grant nothing, TeamIndex, access version cache so changes apply next request; combination matrix tests (union of roles, team + share, platform + team, cross-cluster) pass
-- [ ] 1.6 Role save refuses missing requires and non-resource permissions in team-assignable roles; tests pass
+- [x] 1.4 Team service and REST API (CRUD, patterns with overlap refusal, members, shares, pattern preview, unowned resources) with `user:admin` / `team:admin` rules; audited; service tests pass
+- [x] 1.5 Resolver: `can(clusterId, ResourceRef, action)`, scope semantics, disabled-feature permissions grant nothing, TeamIndex, access version cache so changes apply next request; combination matrix tests (union of roles, team + share, platform + team, cross-cluster) pass
+- [x] 1.6 Role save refuses missing requires and non-resource permissions in team-assignable roles; tests pass
 
 ## 2. Enforcement
 - [ ] 2.1 `ClusterAccessGuard.requireResource` (404 when unreadable, 403 naming permission when readable); cluster listing includes team clusters; tests pass

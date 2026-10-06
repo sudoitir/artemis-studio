@@ -214,6 +214,497 @@
         }
       }
     },
+    "/api/v1/teams/{teamId}" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "get",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "rename",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TeamRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "delete",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{teamId}/members/{memberId}" : {
+      "put" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "changeMemberRole",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "memberId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MemberRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "removeMember",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "memberId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/{key}" : {
       "put" : {
         "tags" : [ "settings-controller" ],
@@ -508,7 +999,7 @@
       },
       "delete" : {
         "tags" : [ "roles-controller" ],
-        "operationId" : "delete",
+        "operationId" : "delete_1",
         "parameters" : [ {
           "name" : "roleId",
           "in" : "path",
@@ -809,7 +1300,7 @@
       },
       "delete" : {
         "tags" : [ "governance-controller" ],
-        "operationId" : "delete_1",
+        "operationId" : "delete_2",
         "parameters" : [ {
           "name" : "ruleId",
           "in" : "path",
@@ -1004,7 +1495,7 @@
       },
       "delete" : {
         "tags" : [ "environments-controller" ],
-        "operationId" : "delete_2",
+        "operationId" : "delete_3",
         "parameters" : [ {
           "name" : "environmentId",
           "in" : "path",
@@ -1604,7 +2095,7 @@
     "/api/v1/clusters/{clusterId}/config" : {
       "get" : {
         "tags" : [ "broker-config-controller" ],
-        "operationId" : "get",
+        "operationId" : "get_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -2314,7 +2805,7 @@
       },
       "delete" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "delete_3",
+        "operationId" : "delete_4",
         "parameters" : [ {
           "name" : "channelId",
           "in" : "path",
@@ -3346,6 +3837,519 @@
         }
       }
     },
+    "/api/v1/teams" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "list_2",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewTeamSummary"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "create_2",
+        "parameters" : [ {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TeamRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{teamId}/shares" : {
+      "post" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "addShare",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ShareRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShareView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{teamId}/patterns" : {
+      "post" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "addPattern",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PatternRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PatternView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{teamId}/members" : {
+      "post" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "addMember",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/secrets/rotations" : {
       "post" : {
         "tags" : [ "secrets-controller" ],
@@ -3438,7 +4442,7 @@
     "/api/v1/roles" : {
       "get" : {
         "tags" : [ "roles-controller" ],
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -3531,7 +4535,7 @@
       },
       "post" : {
         "tags" : [ "roles-controller" ],
-        "operationId" : "create_2",
+        "operationId" : "create_3",
         "parameters" : [ {
           "name" : "Idempotency-Key",
           "in" : "header",
@@ -3630,7 +4634,7 @@
     "/api/v1/identity/providers/{providerId}/group-mappings" : {
       "get" : {
         "tags" : [ "group-mapping-controller" ],
-        "operationId" : "list_3",
+        "operationId" : "list_4",
         "parameters" : [ {
           "name" : "providerId",
           "in" : "path",
@@ -3714,7 +4718,7 @@
       },
       "post" : {
         "tags" : [ "group-mapping-controller" ],
-        "operationId" : "create_3",
+        "operationId" : "create_4",
         "parameters" : [ {
           "name" : "providerId",
           "in" : "path",
@@ -3913,7 +4917,7 @@
       },
       "post" : {
         "tags" : [ "governance-controller" ],
-        "operationId" : "create_4",
+        "operationId" : "create_5",
         "parameters" : [ {
           "name" : "Idempotency-Key",
           "in" : "header",
@@ -4206,7 +5210,7 @@
     "/api/v1/environments" : {
       "get" : {
         "tags" : [ "environments-controller" ],
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -4299,7 +5303,7 @@
       },
       "post" : {
         "tags" : [ "environments-controller" ],
-        "operationId" : "create_5",
+        "operationId" : "create_6",
         "parameters" : [ {
           "name" : "Idempotency-Key",
           "in" : "header",
@@ -4504,7 +5508,7 @@
     "/api/v1/clusters" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "list_5",
+        "operationId" : "list_6",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -5679,7 +6683,7 @@
     "/api/v1/clusters/{clusterId}/sql/index" : {
       "get" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "list_6",
+        "operationId" : "list_7",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -5780,7 +6784,7 @@
       },
       "post" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "create_6",
+        "operationId" : "create_7",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -9460,7 +10464,7 @@
     "/api/v1/channels" : {
       "get" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "list_7",
+        "operationId" : "list_8",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -9553,7 +10557,7 @@
       },
       "post" : {
         "tags" : [ "notification-channels-controller" ],
-        "operationId" : "create_7",
+        "operationId" : "create_8",
         "parameters" : [ {
           "name" : "Idempotency-Key",
           "in" : "header",
@@ -12496,7 +13500,7 @@
     "/api/v1/clusters/{clusterId}/sql/index/{id}" : {
       "delete" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "delete_4",
+        "operationId" : "delete_5",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -13734,6 +14738,116 @@
         }
       }
     },
+    "/api/v1/teams/{teamId}/patterns/preview" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "preview_3",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "clusterId",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "kind",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          }
+        }, {
+          "name" : "pattern",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PatternPreview"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/system/jobs" : {
       "get" : {
         "tags" : [ "jobs-controller" ],
@@ -14021,7 +15135,7 @@
     "/api/v1/settings" : {
       "get" : {
         "tags" : [ "settings-controller" ],
-        "operationId" : "list_8",
+        "operationId" : "list_9",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -14272,7 +15386,7 @@
     "/api/v1/mcp/tools" : {
       "get" : {
         "tags" : [ "mcp-tools-controller" ],
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -14860,7 +15974,7 @@
     "/api/v1/clusters/{clusterId}" : {
       "get" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "get_1",
+        "operationId" : "get_2",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -14945,7 +16059,7 @@
       },
       "delete" : {
         "tags" : [ "cluster-controller" ],
-        "operationId" : "delete_5",
+        "operationId" : "delete_6",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -14968,6 +16082,117 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clusters/{clusterId}/unowned" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "unowned",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "kind",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS" ]
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedViewUnownedView"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -15138,7 +16363,7 @@
     "/api/v1/clusters/{clusterId}/transfers/runs/{runId}" : {
       "get" : {
         "tags" : [ "transfer-controller" ],
-        "operationId" : "get_2",
+        "operationId" : "get_3",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -17014,7 +18239,7 @@
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "list_10",
+        "operationId" : "list_11",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -17155,7 +18380,7 @@
     "/api/v1/clusters/{clusterId}/events/{seq}" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "get_3",
+        "operationId" : "get_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -18900,7 +20125,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs/{runId}" : {
       "get" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "get_4",
+        "operationId" : "get_5",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -19089,7 +20314,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_11",
+        "operationId" : "list_12",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -19237,7 +20462,7 @@
     "/api/v1/clusters/{clusterId}/audit/{id}" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "get_5",
+        "operationId" : "get_6",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -20272,7 +21497,7 @@
     "/api/v1/admin/tokens" : {
       "get" : {
         "tags" : [ "admin-tokens-controller" ],
-        "operationId" : "list_12",
+        "operationId" : "list_13",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -20463,7 +21688,7 @@
     "/api/v1/admin/plugins" : {
       "get" : {
         "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "list_13",
+        "operationId" : "list_14",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -20541,7 +21766,7 @@
     "/api/v1/admin/plugins/{id}" : {
       "get" : {
         "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "get_6",
+        "operationId" : "get_7",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -21296,10 +22521,206 @@
         }
       }
     },
+    "/api/v1/teams/{teamId}/shares/{shareId}" : {
+      "delete" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "removeShare",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "shareId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{teamId}/patterns/{patternId}" : {
+      "delete" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "removePattern",
+        "parameters" : [ {
+          "name" : "teamId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "patternId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}" : {
       "delete" : {
         "tags" : [ "group-mapping-controller" ],
-        "operationId" : "delete_6",
+        "operationId" : "delete_7",
         "parameters" : [ {
           "name" : "providerId",
           "in" : "path",
@@ -22320,6 +23741,168 @@
         },
         "required" : [ "disabled" ]
       },
+      "TeamRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "name" ]
+      },
+      "MemberView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "principalType" : {
+            "type" : "string",
+            "enum" : [ "USER", "GROUP" ]
+          },
+          "userId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "username" : {
+            "type" : [ "string", "null" ]
+          },
+          "providerId" : {
+            "type" : [ "string", "null" ]
+          },
+          "groupName" : {
+            "type" : [ "string", "null" ]
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "principalType", "roleId", "roleName" ]
+      },
+      "PatternView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "clusterId", "id", "kind", "pattern" ]
+      },
+      "ShareView" : {
+        "type" : "object",
+        "description" : "covered is false when the owner's patterns no longer contain the shared pattern; the share then grants nothing until they do again.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ownerTeamId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ownerTeamName" : {
+            "type" : "string"
+          },
+          "targetTeamId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "targetTeamName" : {
+            "type" : "string"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "covered" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "clusterId", "covered", "id", "kind", "ownerTeamId", "ownerTeamName", "pattern", "roleId", "roleName", "targetTeamId", "targetTeamName" ]
+      },
+      "TeamView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "patterns" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PatternView"
+            }
+          },
+          "members" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MemberView"
+            }
+          },
+          "sharesOut" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ShareView"
+            }
+          },
+          "sharesIn" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ShareView"
+            }
+          }
+        },
+        "required" : [ "createdAt", "id", "members", "name", "patterns", "sharesIn", "sharesOut" ]
+      },
+      "MemberRoleRequest" : {
+        "type" : "object",
+        "properties" : {
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "roleId" ]
+      },
       "UpdateSettingRequest" : {
         "type" : "object",
         "properties" : {
@@ -22346,9 +23929,13 @@
           "requiresMfa" : {
             "type" : "boolean",
             "description" : "Whether password accounts holding this role need a second factor. Single sign-on users rely on their identity provider's own MFA."
+          },
+          "teamAssignable" : {
+            "type" : "boolean",
+            "description" : "Whether the role may be given to a team's members or in a share. A team role holds only permissions that act on a queue or address, and team:admin."
           }
         },
-        "required" : [ "name", "permissions", "requiresMfa" ]
+        "required" : [ "name", "permissions", "requiresMfa", "teamAssignable" ]
       },
       "RoleView" : {
         "type" : "object",
@@ -22371,9 +23958,12 @@
           },
           "requiresMfa" : {
             "type" : "boolean"
+          },
+          "teamAssignable" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "builtin", "id", "name", "permissions", "requiresMfa" ]
+        "required" : [ "builtin", "id", "name", "permissions", "requiresMfa", "teamAssignable" ]
       },
       "DefaultRoleRequest" : {
         "type" : "object",
@@ -23889,6 +25479,75 @@
           }
         },
         "required" : [ "createdAt", "expiresAt", "grants", "id", "mcpTools", "name", "owner", "prefix", "stale" ]
+      },
+      "ShareRequest" : {
+        "type" : "object",
+        "properties" : {
+          "targetTeamId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          },
+          "pattern" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "clusterId", "kind", "pattern", "roleId", "targetTeamId" ]
+      },
+      "PatternRequest" : {
+        "type" : "object",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          },
+          "pattern" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "clusterId", "kind", "pattern" ]
+      },
+      "MemberRequest" : {
+        "type" : "object",
+        "description" : "A user (userId), or a directory group (providerId and groupName).",
+        "properties" : {
+          "principalType" : {
+            "type" : "string",
+            "enum" : [ "USER", "GROUP" ]
+          },
+          "userId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "providerId" : {
+            "type" : [ "string", "null" ]
+          },
+          "groupName" : {
+            "type" : [ "string", "null" ]
+          },
+          "roleId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "principalType", "roleId" ]
       },
       "RotationView" : {
         "type" : "object",
@@ -27219,6 +28878,134 @@
         },
         "required" : [ "nowMs" ]
       },
+      "PagedViewTeamSummary" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TeamSummary"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total across all pages; null when it is not known."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
+      "TeamSummary" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "memberCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "patternCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sharesOut" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "sharesIn" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "createdAt", "id", "memberCount", "name", "patternCount", "sharesIn", "sharesOut" ]
+      },
+      "PatternConflict" : {
+        "type" : "object",
+        "properties" : {
+          "teamId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "teamName" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind", "pattern", "teamId", "teamName" ]
+      },
+      "PatternPreview" : {
+        "type" : "object",
+        "properties" : {
+          "clusterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS", "BOTH" ]
+          },
+          "pattern" : {
+            "type" : "string"
+          },
+          "queueMatches" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Queues on the cluster the pattern matches."
+          },
+          "addressMatches" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Addresses on the cluster the pattern matches."
+          },
+          "queueExamples" : {
+            "type" : "array",
+            "description" : "Up to 20 matching queue names.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "addressExamples" : {
+            "type" : "array",
+            "description" : "Up to 20 matching address names.",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "conflicts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PatternConflict"
+            }
+          }
+        },
+        "required" : [ "addressExamples", "addressMatches", "clusterId", "conflicts", "kind", "pattern", "queueExamples", "queueMatches" ]
+      },
       "JobStatusView" : {
         "type" : "object",
         "properties" : {
@@ -28176,6 +29963,43 @@
           }
         },
         "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
+      "PagedViewUnownedView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UnownedView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total across all pages; null when it is not known."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
+      "UnownedView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ]
       },
       "PagedViewTransferRunView" : {
         "type" : "object",

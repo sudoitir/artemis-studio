@@ -5,6 +5,7 @@
 |Spring components
 |_Event listeners_
 
+* `i.g.s.a.k.s.AccessChanges`
 * `i.g.s.a.k.s.PluginSecretStore`
 
 _Configuration properties_
@@ -13,6 +14,7 @@ _Configuration properties_
 
 _Others_
 
+* `i.g.s.a.k.s.AccessLoader`
 * `i.g.s.a.k.s.AccountLockout`
 * `i.g.s.a.k.s.ActorResolver`
 * `i.g.s.a.k.s.ClusterAccessGuard`
@@ -28,15 +30,18 @@ _Others_
 * `i.g.s.a.k.s.SecretRotations`
 * `i.g.s.a.k.s.SecretVault`
 * `i.g.s.a.k.s.SessionAuthentication`
+* `i.g.s.a.k.s.TeamIndex`
 * `i.g.s.a.k.s.UserAccounts`
 * `i.g.s.a.k.s.IdentityProviders` (via `i.g.s.a.k.s.internal.PluginSignIn`)
 |Bean references
 |* `i.g.s.a.k.r.StudioBus` (in Replicas)
-* `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)
 * `i.g.s.a.k.p.PluginProperties` (in Plugin contract)
 * `i.g.s.a.k.p.IdentityProviderListing` (in Plugin contract)
 |Events listened to
-|* `i.g.s.a.k.p.PluginPurged` 
+|* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.a.k.p.PluginPurged` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

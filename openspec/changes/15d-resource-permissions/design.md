@@ -115,6 +115,37 @@ Non-obvious cases:
 - `queue:read` and `address:read` are named in the security kernel's `Permissions` because modules other
   than the queues' own require them.
 
+### D12. How access is held, resolved and kept fresh
+- **The principal holds no grants.** A session's `StudioPrincipal` is a user id and a name
+  (`StudioPrincipal.live`); `PermissionResolver` reads the user's `AccessSnapshot` (role grants, and the
+  permissions of each team role they hold, directly or through a directory group) from `AccessLoader`.
+  A principal that carries grants of its own (`pinned()`, an API key) is checked against those and gets no
+  team access until the token work (3.2).
+- **Freshness.** Every change goes through `AccessChanges`, which publishes `ReplicaSignal("access-changed")`
+  over `StudioBus` in the writing transaction and drops the local caches when it commits. `AccessLoader`
+  (Caffeine, one minute expiry as a backstop for a missed message) and `TeamIndex` (all patterns and shares
+  compiled, rebuilt on first use) reload on the next request. Granting a role or joining a team applies to
+  the next request of an open session. A role edit ends its members' sessions only when it adds a
+  second-factor requirement; removing a grant and disabling an account still end sessions (ADR-0123).
+- **Groups are stored.** `user_group` holds the groups an external user had at their last sign-in, replaced
+  at every sign-in by `IdentityProvisioner`, so a team can hold a directory group as a member. A user with
+  no mapped role and no default role is admitted when they are a team member, directly or through a group.
+  An external user who was never admitted has no account yet, so only a group can admit them first.
+- **Resolver API.** `can(String)` and `can(UUID, String)` keep their meaning, now scope-aware: `GLOBAL` only
+  through a global grant, `CLUSTER` through global, environment or cluster grants, and `RESOURCE` through
+  grants when asked about a cluster as a whole. `can(UUID, ResourceRef, String)` adds the team role of the
+  owner of the name and the shares that cover it, and requires the permission to act on the ref's kind.
+  `canAnywhere` and `canSeeCluster` are for gating and listing only. A permission outside the catalogue
+  grants nothing, wildcards included.
+- **Shares count only while covered.** `TeamIndex` keeps, per kind, only the part of a share that one of
+  the owner's patterns of that kind contains.
+- **Team administration.** `user:admin` does everything; `team:admin` held in a team (or globally) may add,
+  change and remove that team's members, and a team admin only to roles whose permissions they hold in that
+  team. A team admin of another team, or a plain member, gets not found.
+- **Roles.** Saving a role is refused when it lacks a permission that one it holds requires (a wildcard
+  satisfies what it covers and is expanded for what it stands for), and a team-assignable role may hold only
+  resource permissions and `team:admin`.
+
 ## Risks / Trade-offs
 
 - [Filtering large lists per row costs CPU] → compiled index lookup is a few token comparisons; a

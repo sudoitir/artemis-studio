@@ -7,6 +7,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import io.github.sudoitir.artemisstudio.app.StudioFeatures;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceNames;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import java.util.ArrayDeque;
@@ -55,6 +56,10 @@ public abstract class ModuleIntegrationTest {
 
     private static final String ROOT = "io.github.sudoitir.artemisstudio";
     private static final String FEATURES = ROOT + ".feature.";
+
+    /** Team administration previews what a pattern covers from the names the scrape module knows. */
+    @MockitoBean
+    ResourceNames resourceNames;
 
     /** Background scraping would call mocked broker beans; no module test relies on it. */
     @MockitoBean

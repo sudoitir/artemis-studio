@@ -9,13 +9,21 @@ import type { RoleView } from './api.ts';
 import { RolesPanel } from './RolesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
 
-const ADMIN: RoleView = { id: 'r-admin', name: 'ADMIN', builtin: true, permissions: ['*'], requiresMfa: true };
+const ADMIN: RoleView = {
+  id: 'r-admin',
+  name: 'ADMIN',
+  builtin: true,
+  permissions: ['*'],
+  requiresMfa: true,
+  teamAssignable: false,
+};
 const VIEWER: RoleView = {
   id: 'r-viewer',
   name: 'VIEWER',
   builtin: true,
   permissions: ['cluster:read'],
   requiresMfa: false,
+  teamAssignable: false,
 };
 const AUDITOR: RoleView = {
   id: 'r-auditor',
@@ -23,6 +31,7 @@ const AUDITOR: RoleView = {
   builtin: false,
   permissions: ['audit:read'],
   requiresMfa: false,
+  teamAssignable: false,
 };
 
 function serve(roles: RoleView[]) {
@@ -63,7 +72,7 @@ describe('RolesPanel two-step verification', () => {
     server.use(
       http.put('*/api/v1/roles/r-viewer', async ({ request }) => {
         sent = await request.json();
-        return HttpResponse.json({ ...VIEWER, requiresMfa: true });
+        return HttpResponse.json({ ...VIEWER, requiresMfa: true, teamAssignable: false });
       }),
     );
     const user = userEvent.setup();
@@ -88,7 +97,9 @@ describe('RolesPanel two-step verification', () => {
     expect(within(dialog).getByText('Saving signs out everyone who holds this role.')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(sent).toEqual({ name: 'VIEWER', permissions: ['cluster:read'], requiresMfa: true }));
+    await waitFor(() =>
+      expect(sent).toEqual({ name: 'VIEWER', permissions: ['cluster:read'], requiresMfa: true, teamAssignable: false }),
+    );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -110,6 +121,8 @@ describe('RolesPanel two-step verification', () => {
     await user.click(within(dialog).getByRole('switch', { name: /^Require two-step verification/ }));
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(sent).toEqual({ name: 'AUDITOR', permissions: ['audit:read'], requiresMfa: true }));
+    await waitFor(() =>
+      expect(sent).toEqual({ name: 'AUDITOR', permissions: ['audit:read'], requiresMfa: true, teamAssignable: false }),
+    );
   });
 });
