@@ -3,8 +3,10 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -24,7 +26,7 @@ public class StreamSignals {
     private final SseHub hub;
 
     private final Map<UUID, String> topologySignature = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> queueSignature = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, Long>> queueState = new ConcurrentHashMap<>();
 
     /** After a tier-A tick: publish topology + health if the endpoint set / roles / liveness moved. */
     public void afterTierA(UUID clusterId, List<NodeEndpoint> endpoints) {
@@ -40,23 +42,34 @@ public class StreamSignals {
         }
     }
 
-    /** After a tier-B/C queue scrape: publish queues if any counter in the page moved. */
+    /**
+     * After a tier-B/C queue scrape: publish queues, about the queues whose counters moved since they were
+     * last seen, so a subscriber who may read only some of the queues is told only of theirs. The first
+     * scrape of a cluster, and one that moved more queues than a frame can name, is about the cluster.
+     */
     public void afterQueueScrape(UUID clusterId, List<QueueRow> rows) {
         if (rows.isEmpty()) {
             return;
         }
-        long signature = rows.size() * 1_000_003L
-                + rows.stream()
-                        .mapToLong(r -> r.messageCount() + r.consumerCount() + r.deliveringCount() + r.scheduledCount())
-                        .sum();
-        Long previous = queueSignature.put(clusterId, signature);
-        if (previous == null || previous != signature) {
+        Map<String, Long> seen = queueState.computeIfAbsent(clusterId, k -> new ConcurrentHashMap<>());
+        boolean first = seen.isEmpty();
+        Set<String> moved = new LinkedHashSet<>();
+        for (QueueRow r : rows) {
+            long counters = r.messageCount() + r.consumerCount() + r.deliveringCount() + r.scheduledCount();
+            Long previous = seen.put(r.nodeId() + "|" + r.queueName(), counters);
+            if (previous == null || previous != counters) {
+                moved.add(r.queueName());
+            }
+        }
+        if (first) {
             hub.publish(clusterId, "queues");
+        } else if (!moved.isEmpty()) {
+            hub.publishAbout(clusterId, "queues", moved, List.of());
         }
     }
 
     public void forget(UUID clusterId) {
         topologySignature.remove(clusterId);
-        queueSignature.remove(clusterId);
+        queueState.remove(clusterId);
     }
 }

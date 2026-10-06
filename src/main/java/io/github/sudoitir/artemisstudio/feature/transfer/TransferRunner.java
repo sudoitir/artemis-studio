@@ -868,10 +868,27 @@ class TransferRunner {
                 run.getDelivered(),
                 run.getNotTransferred(),
                 run.getEstimate());
-        sse.publish(run.getSourceClusterId(), TOPIC, progress, null);
+        // A run is about its source queue on the cluster it is read from, and its target on the one it goes to.
+        sse.publishAbout(run.getSourceClusterId(), TOPIC, progress, sourceQueues(run), targetAddresses(run, true));
         if (!run.getTargetClusterId().equals(run.getSourceClusterId())) {
-            sse.publish(run.getTargetClusterId(), TOPIC, progress, null);
+            sse.publishAbout(run.getTargetClusterId(), TOPIC, progress, List.of(), targetAddresses(run, false));
         }
+    }
+
+    /** The queues of the cluster the run is read from that it is about: its source, and its target when it is on the same one. */
+    private static List<String> sourceQueues(TransferRunEntity run) {
+        boolean sameCluster = run.getSourceClusterId().equals(run.getTargetClusterId());
+        return named(run.getSourceQueue(), sameCluster ? run.getTargetQueue() : null);
+    }
+
+    /** The target address, for the cluster it is on: the source's cluster only when it is the same one. */
+    private static List<String> targetAddresses(TransferRunEntity run, boolean onSourceCluster) {
+        boolean sameCluster = run.getSourceClusterId().equals(run.getTargetClusterId());
+        return onSourceCluster && !sameCluster ? List.of() : named(run.getTargetAddress());
+    }
+
+    private static List<String> named(String... names) {
+        return java.util.Arrays.stream(names).filter(java.util.Objects::nonNull).toList();
     }
 
     /** Always reached: the run gets its state and the segment's audit events their outcome, whatever happened. */
@@ -886,9 +903,10 @@ class TransferRunner {
             run.finish(end.state(), end.error(), end.snippet(), Instant.now());
             save(s);
             publish(s);
-            sse.publish(run.getSourceClusterId(), "queues");
+            sse.publishAbout(run.getSourceClusterId(), "queues", sourceQueues(run), targetAddresses(run, true));
             if (!run.getTargetClusterId().equals(run.getSourceClusterId())) {
-                sse.publish(run.getTargetClusterId(), "queues");
+                sse.publishAbout(
+                        run.getTargetClusterId(), "queues", named(run.getTargetQueue()), targetAddresses(run, false));
             }
         } catch (RunLost e) {
             lost = true;

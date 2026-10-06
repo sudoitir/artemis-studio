@@ -202,7 +202,7 @@ public class MessageService {
                                     req.headers(),
                                     req.properties()));
             audit.succeed(event, 1);
-            publishQueuesAfterCommit(clusterId);
+            publishQueuesAfterCommit(clusterId, queueName);
             return new Attempt.Ok<>(new Outcome.Affected(1, resolved.node().getId()));
         } catch (BrokerConnectionException e) {
             audit.fail(event, e.getMessage());
@@ -264,11 +264,12 @@ public class MessageService {
             }
 
             if (idBased) {
-                return executeByIds(event, new QueueAction(client, mbean, action, req, scope), clusterId, node);
+                return executeByIds(
+                        event, new QueueAction(client, mbean, action, req, scope), clusterId, queueName, node);
             }
             long affected = perform(new QueueAction(client, mbean, action, req, scope));
             audit.succeed(event, affected);
-            publishQueuesAfterCommit(clusterId);
+            publishQueuesAfterCommit(clusterId, queueName);
             return new Attempt.Ok<>(new Outcome.Affected(affected, node));
         } catch (BrokerConnectionException e) {
             audit.fail(event, e.getMessage());
@@ -301,10 +302,11 @@ public class MessageService {
         return params;
     }
 
-    private Attempt<Outcome> executeByIds(AuditEvent event, QueueAction call, UUID clusterId, UUID node) {
+    private Attempt<Outcome> executeByIds(
+            AuditEvent event, QueueAction call, UUID clusterId, String queueName, UUID node) {
         MessageOperations.BulkResult result = performByIds(call);
         MessageActionRequest req = call.req();
-        publishQueuesAfterCommit(clusterId);
+        publishQueuesAfterCommit(clusterId, queueName);
         if (result.partial()) {
             // Reported as partial, never as a plain failure: some messages already moved.
             audit.failPartial(
@@ -342,7 +344,7 @@ public class MessageService {
             }
             long removed = messageOps.purge(client, mbean);
             audit.succeed(event, removed);
-            publishQueuesAfterCommit(clusterId);
+            publishQueuesAfterCommit(clusterId, queueName);
             return new Attempt.Ok<>(new Outcome.Affected(removed, node));
         } catch (BrokerConnectionException e) {
             audit.fail(event, e.getMessage());
@@ -527,16 +529,17 @@ public class MessageService {
         return audit.begin(actor, action, "QUEUE", queueName, clusterId, node, params, dryRun);
     }
 
-    private void publishQueuesAfterCommit(UUID clusterId) {
+    /** Tells the subscribers who read the queue that it changed, once the transaction commits. */
+    private void publishQueuesAfterCommit(UUID clusterId, String queueName) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    sseHub.publish(clusterId, "queues");
+                    sseHub.publishAbout(clusterId, "queues", List.of(queueName), List.of());
                 }
             });
         } else {
-            sseHub.publish(clusterId, "queues");
+            sseHub.publishAbout(clusterId, "queues", List.of(queueName), List.of());
         }
     }
 

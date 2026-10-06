@@ -171,7 +171,7 @@ public class QueueLifecycleService {
                     // so the delete reads as though it did nothing and the row that is
                     // left fails every action against a destroyed MBean.
                     snapshotWriter.forget(clusterId, queueName);
-                    sseHub.publish(clusterId, QUEUES_TOPIC);
+                    sseHub.publishAbout(clusterId, QUEUES_TOPIC, List.of(queueName), List.of());
                 })
                 .build()));
     }
@@ -467,7 +467,8 @@ public class QueueLifecycleService {
                 .dryRun(dryRun)
                 .preflight((client, broker) -> divertPreflight(client, broker, req))
                 .action((client, broker) -> divertOps.createVerified(client, broker, config))
-                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
+                .signal(() -> sseHub.publishAbout(
+                        clusterId, QUEUES_TOPIC, List.of(), List.of(req.address(), req.forwardingAddress())))
                 .build()));
     }
 
@@ -551,7 +552,7 @@ public class QueueLifecycleService {
                     divertOps.destroyDivert(client, broker, name);
                     return NodeStatus.APPLIED;
                 })
-                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
+                .signal(() -> sseHub.publishAbout(clusterId, QUEUES_TOPIC, ends))
                 .build()));
     }
 
@@ -618,7 +619,10 @@ public class QueueLifecycleService {
                 .dryRun(dryRun)
                 .override(override)
                 .action(action)
-                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
+                .signal(() -> sseHub.publishAbout(
+                        clusterId,
+                        QUEUES_TOPIC,
+                        kind.resource(targetName).stream().toList()))
                 .build()));
     }
 

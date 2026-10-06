@@ -42,7 +42,7 @@ public class RrDeadlineSweep {
             flow.setObservedAt(now);
             flows.save(flow);
             events.save(new RrEventEntity(flow.getId(), flow.getNodeId(), next.name(), now, null));
-            sseHub.publish(flow.getClusterId(), "rr");
+            sseHub.publishAboutAddress(flow.getClusterId(), "rr", flow.getRequestAddress());
         }
         if (!overdue.isEmpty()) {
             log.debug("Deadline sweep moved {} flows out of AWAITING_REPLY", overdue.size());

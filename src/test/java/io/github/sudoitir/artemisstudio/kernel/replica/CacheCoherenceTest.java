@@ -221,8 +221,8 @@ class CacheCoherenceTest extends PostgresIntegrationTest {
         SseEmitter kept = mock(SseEmitter.class);
         SseHub hubB = other.getBean(SseHub.class);
         UUID clusterId = UUID.randomUUID();
-        hubB.register(clusterId, new Subscriber(ended, Set.of("queues"), "session-ended-1"));
-        hubB.register(clusterId, new Subscriber(kept, Set.of("queues"), "session-kept"));
+        hubB.register(clusterId, new Subscriber(ended, Set.of("queues"), "session-ended-1", null, null));
+        hubB.register(clusterId, new Subscriber(kept, Set.of("queues"), "session-kept", null, null));
 
         busA.publish(new ReplicaSignal("session-ended", "session-ended-1"));
 
@@ -235,7 +235,7 @@ class CacheCoherenceTest extends PostgresIntegrationTest {
         SseEmitter revoked = mock(SseEmitter.class);
         SseHub hubB = other.getBean(SseHub.class);
         UUID tokenId = UUID.randomUUID();
-        hubB.register(UUID.randomUUID(), new Subscriber(revoked, Set.of("queues"), null, tokenId));
+        hubB.register(UUID.randomUUID(), new Subscriber(revoked, Set.of("queues"), null, tokenId, null));
 
         busA.publish(new ReplicaSignal("token-revoked", tokenId.toString()));
 

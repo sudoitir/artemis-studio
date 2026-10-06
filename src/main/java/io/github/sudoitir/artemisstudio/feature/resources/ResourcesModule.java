@@ -28,9 +28,9 @@ public final class ResourcesModule {
             .apiPrefix("/api/v1/clusters/{clusterId}/nodes/{nodeId}/sessions")
             .apiPrefix("/api/v1/clusters/{clusterId}/nodes/{nodeId}/consumers")
             .apiPrefix("/api/v1/clusters/{clusterId}/addresses/{address}/consumers")
-            .streamTopic(TopicDef.signal("consumers"))
-            .streamTopic(TopicDef.signal("sessions"))
-            .streamTopic(TopicDef.signal("connections"))
+            .streamTopic(TopicDef.signal("consumers", ResourcePermissions.CONNECTION_READ))
+            .streamTopic(TopicDef.signal("sessions", ResourcePermissions.CONNECTION_READ))
+            .streamTopic(TopicDef.signal("connections", ResourcePermissions.CONNECTION_READ))
             .mcpTool(new McpToolDef(
                     "list_resources",
                     McpToolDef.Posture.READ,

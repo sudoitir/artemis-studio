@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -137,7 +136,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
                         .header("Last-Event-ID", "10"))
                 .andExpect(request().asyncStarted());
 
-        verify(hub, times(2)).sendTo(any(Subscriber.class), eq("events"), any(), any());
+        verify(hub, times(2)).replayTo(any(), any(Subscriber.class), eq("events"), any(), any());
     }
 
     @Test
@@ -149,7 +148,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
                         .param("topics", "events"))
                 .andExpect(request().asyncStarted());
 
-        verify(hub, org.mockito.Mockito.never()).sendTo(any(), any(), any(), any());
+        verify(hub, org.mockito.Mockito.never()).replayTo(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -184,7 +183,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
         ArgumentCaptor<Subscriber> subscriber = ArgumentCaptor.forClass(Subscriber.class);
         InOrder order = inOrder(hub);
         order.verify(hub).register(eq(clusterId), subscriber.capture());
-        order.verify(hub).sendTo(eq(subscriber.getValue()), eq("events"), any(), eq("11"));
+        order.verify(hub).replayTo(any(), eq(subscriber.getValue()), eq("events"), any(), eq("11"));
         order.verify(hub).release(subscriber.getValue(), Map.of("events", 11L));
     }
 
@@ -205,8 +204,8 @@ class StreamControllerTest extends PostgresIntegrationTest {
         ArgumentCaptor<Subscriber> subscriber = ArgumentCaptor.forClass(Subscriber.class);
         verify(hub).register(eq(clusterId), subscriber.capture());
         InOrder order = inOrder(hub);
-        order.verify(hub).sendTo(eq(subscriber.getValue()), eq("events"), any(), eq("510"));
-        order.verify(hub).sendTo(eq(subscriber.getValue()), eq(SseHub.RESYNC), any(), isNull());
+        order.verify(hub).replayTo(any(), eq(subscriber.getValue()), eq("events"), any(), eq("510"));
+        order.verify(hub).sendTo(eq(subscriber.getValue()), eq(SseHub.RESYNC), any());
         order.verify(hub).release(subscriber.getValue(), Map.of("events", 510L));
     }
 

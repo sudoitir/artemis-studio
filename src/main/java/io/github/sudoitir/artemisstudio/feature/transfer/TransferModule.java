@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.transfer;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 
 /** Cross-broker message transfer. Module descriptor (ADR-0070, ADR-0097). */
 public final class TransferModule {
@@ -17,7 +18,7 @@ public final class TransferModule {
             .settingKey(TransferSettings.CAPACITY_THRESHOLD_PERCENT)
             .settingKey(TransferSettings.CAPACITY_WAIT)
             .apiPrefix("/api/v1/clusters/{clusterId}/transfers")
-            .streamTopic(new TopicDef(TransferRunner.TOPIC, true))
+            .streamTopic(TopicDef.data(TransferRunner.TOPIC, Permissions.QUEUE_READ))
             .build();
 
     private TransferModule() {}

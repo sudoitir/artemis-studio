@@ -104,7 +104,11 @@ public class PermissionResolver {
      * page or control be offered", and must never authorise a change: that is {@link #can(UUID, ResourceRef, String)}.
      */
     public boolean canAnywhere(UUID clusterId, String action) {
-        StudioPrincipal principal = currentPrincipal();
+        return canAnywhere(currentPrincipal(), clusterId, action);
+    }
+
+    /** The same question for a given principal rather than the current one. */
+    public boolean canAnywhere(StudioPrincipal principal, UUID clusterId, String action) {
         if (principal == null) {
             return false;
         }
@@ -134,9 +138,14 @@ public class PermissionResolver {
      * or address on it. Seeing a cluster through a team grants nothing cluster-wide.
      */
     public boolean canSeeCluster(UUID clusterId) {
-        return can(clusterId, Permissions.CLUSTER_READ)
-                || canAnywhere(clusterId, Permissions.QUEUE_READ)
-                || canAnywhere(clusterId, Permissions.ADDRESS_READ);
+        return canSeeCluster(currentPrincipal(), clusterId);
+    }
+
+    /** The same question for a given principal rather than the current one. */
+    public boolean canSeeCluster(StudioPrincipal principal, UUID clusterId) {
+        return can(principal, clusterId, Permissions.CLUSTER_READ)
+                || canAnywhere(principal, clusterId, Permissions.QUEUE_READ)
+                || canAnywhere(principal, clusterId, Permissions.ADDRESS_READ);
     }
 
     /**

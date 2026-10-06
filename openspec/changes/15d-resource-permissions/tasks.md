@@ -17,7 +17,7 @@
 - [x] 2.6 Architecture test fails any method taking a queue or address name without a resource check; passes on the codebase
 
 ## 3. Streams, tokens and audit
-- [ ] 3.1 Topics declare permission and resource extractor; per-subscriber per-event filtering and trimming; access changes apply to open streams; tests pass
+- [x] 3.1 Topics declare permission and resource extractor; per-subscriber per-event filtering and trimming; access changes apply to open streams; tests pass
 - [ ] 3.2 Token grants may carry kind + pattern; wildcard intersection fixed; token grants removed with their scope; tests pass
 - [ ] 3.3 Refusals audited with dedup count; `BrokerCommands` audits before the check; tests pass
 - [x] 3.4 `GET /api/v1/me/access` capability summary and access check endpoint (user × cluster × resource with sources); tests pass

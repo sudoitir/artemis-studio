@@ -24,6 +24,7 @@ public class StreamTopicRegistry {
 
     private static final Set<String> DEFAULT_TOPICS = Set.of("topology", "health", "queues");
 
+    private final Map<String, TopicDef> builtinDefs;
     private final Set<String> builtinTopics;
     private final Set<String> builtinDefaults;
     private final Map<String, EventReplay> builtinReplays;
@@ -36,10 +37,10 @@ public class StreamTopicRegistry {
     private volatile Map<String, EventReplay> replays;
 
     public StreamTopicRegistry(FeatureRegistry features, List<EventReplay> replayBeans) {
-        this.builtinTopics = features.enabled().stream()
+        this.builtinDefs = features.enabled().stream()
                 .flatMap(d -> d.streamTopics().stream())
-                .map(TopicDef::name)
-                .collect(Collectors.toUnmodifiableSet());
+                .collect(Collectors.toUnmodifiableMap(TopicDef::name, Function.identity()));
+        this.builtinTopics = builtinDefs.keySet();
         this.builtinDefaults =
                 DEFAULT_TOPICS.stream().filter(builtinTopics::contains).collect(Collectors.toUnmodifiableSet());
         this.builtinReplays = replayBeans.stream()
@@ -52,6 +53,18 @@ public class StreamTopicRegistry {
 
     public Set<String> known() {
         return known;
+    }
+
+    /**
+     * What a known topic needs of a subscriber. A plugin's topic is a signal that needs the cluster's read
+     * permission, as the manifest declares no more; an unknown topic has none, and nothing is delivered on it.
+     */
+    public TopicDef definition(String topic) {
+        TopicDef builtin = builtinDefs.get(topic);
+        if (builtin != null) {
+            return builtin;
+        }
+        return known.contains(topic) ? TopicDef.signal(topic) : null;
     }
 
     public Set<String> defaultTopics() {
