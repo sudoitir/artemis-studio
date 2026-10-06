@@ -190,7 +190,7 @@ describe('ResourceView addresses of teams', () => {
 
   it('shows the team that owns each address, and says when none does', async () => {
     serveAddresses([address('orders.in', { id: 't1', name: 'Orders' }), address('legacy.in')], {
-      permissions: ['address:read'],
+      permissions: ['address:read', 'user:admin'],
       anywhere: [],
     });
     renderWithProviders(<ResourceView kind="addresses" />);
