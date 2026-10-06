@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Tea
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -51,7 +52,14 @@ public class TeamIndex {
     private final TeamShareRepository shares;
     private final RolePermissionRepository rolePermissions;
 
-    private volatile Map<UUID, ClusterTeams> index;
+    /** How long a built index may be used with no announced change: a backstop for a missed message. */
+    private static final long EXPIRY_NANOS = Duration.ofMinutes(1).toNanos();
+
+    private record Built(Map<UUID, ClusterTeams> clusters, long at) {}
+
+    private final Object lock = new Object();
+    private long generation;
+    private volatile Built index;
 
     /** The team that owns the name on the cluster; at most one, because teams may not overlap on a cluster. */
     public Optional<UUID> ownerOf(UUID clusterId, ResourceRef ref) {
@@ -89,16 +97,29 @@ public class TeamIndex {
     }
 
     void invalidate() {
-        index = null;
+        synchronized (lock) {
+            generation++;
+            index = null;
+        }
     }
 
     private ClusterTeams of(UUID clusterId) {
-        Map<UUID, ClusterTeams> current = index;
-        if (current == null) {
-            current = build();
-            index = current;
+        Built current = index;
+        if (current == null || System.nanoTime() - current.at() > EXPIRY_NANOS) {
+            long startedAt;
+            synchronized (lock) {
+                startedAt = generation;
+            }
+            current = new Built(build(), System.nanoTime());
+            synchronized (lock) {
+                // A change announced while this was being read from the database may be missing from it:
+                // use what was read for this call, but do not keep it.
+                if (generation == startedAt) {
+                    index = current;
+                }
+            }
         }
-        return current.getOrDefault(clusterId, ClusterTeams.NONE);
+        return current.clusters().getOrDefault(clusterId, ClusterTeams.NONE);
     }
 
     private Map<UUID, ClusterTeams> build() {

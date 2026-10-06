@@ -35,16 +35,38 @@ public class AccessLoader {
     private final Cache<UUID, AccessSnapshot> cache =
             Caffeine.newBuilder().expireAfterWrite(EXPIRY).maximumSize(10_000).build();
 
+    /** Counts announced changes; a snapshot read while one was announced is used once and not kept. */
+    private final Object lock = new Object();
+
+    private long generation;
+
     public AccessSnapshot of(UUID userId) {
-        return cache.get(userId, this::load);
+        AccessSnapshot cached = cache.getIfPresent(userId);
+        if (cached != null) {
+            return cached;
+        }
+        long startedAt;
+        synchronized (lock) {
+            startedAt = generation;
+        }
+        AccessSnapshot loaded = load(userId);
+        synchronized (lock) {
+            if (generation == startedAt) {
+                cache.put(userId, loaded);
+            }
+        }
+        return loaded;
     }
 
     /** Forget one user's snapshot, or every snapshot when {@code userId} is null. */
     void invalidate(UUID userId) {
-        if (userId == null) {
-            cache.invalidateAll();
-        } else {
-            cache.invalidate(userId);
+        synchronized (lock) {
+            generation++;
+            if (userId == null) {
+                cache.invalidateAll();
+            } else {
+                cache.invalidate(userId);
+            }
         }
     }
 
