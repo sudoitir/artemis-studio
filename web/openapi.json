@@ -29506,7 +29506,7 @@
       },
       "UserLookup" : {
         "type" : "object",
-        "description" : "A user a team admin may add as a member: enabled accounts only.",
+        "description" : "A user a team admin may add as a member: enabled accounts only. Usernames are unique across providers.",
         "properties" : {
           "id" : {
             "type" : "string",
@@ -29514,12 +29514,9 @@
           },
           "username" : {
             "type" : "string"
-          },
-          "providerId" : {
-            "type" : "string"
           }
         },
-        "required" : [ "id", "providerId", "username" ]
+        "required" : [ "id", "username" ]
       },
       "PermissionView" : {
         "type" : "object",

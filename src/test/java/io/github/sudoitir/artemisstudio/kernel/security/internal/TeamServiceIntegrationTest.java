@@ -417,6 +417,19 @@ class TeamServiceIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aLookupNeedsTwoCharactersSoNobodyCanListEveryAccount() {
+        String tag = "short" + UUID.randomUUID().toString().substring(0, 8);
+        namedUser(tag, false);
+        UUID boss = teamAdminOf(team("orders"));
+
+        asUser(boss);
+
+        assertThat(teams.findUsers("")).isEmpty();
+        assertThat(teams.findUsers(" s ")).isEmpty();
+        assertThat(teams.findUsers(tag.substring(0, 2))).isNotEmpty();
+    }
+
+    @Test
     void aLookupReturnsAtMostTwentyUsers() {
         String tag = "many" + UUID.randomUUID().toString().substring(0, 8);
         IntStream.range(0, 25).forEach(i -> namedUser("%s-%02d".formatted(tag, i), false));

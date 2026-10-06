@@ -71,9 +71,12 @@ describe('TeamMembers', () => {
     const person = userEvent.setup();
     renderMembers();
 
-    await person.click(await screen.findByRole('combobox', { name: /^User/ }));
-    expect(screen.queryByRole('option', { name: 'alice', hidden: true })).not.toBeInTheDocument();
+    const picker = await screen.findByRole('combobox', { name: /^User/ });
+    await person.click(picker);
+    expect(await screen.findByText('Type at least two letters')).toBeInTheDocument();
+    await person.type(picker, 'bo');
     await person.click(await screen.findByRole('option', { name: 'bob', hidden: true }));
+    expect(screen.queryByRole('option', { name: 'alice', hidden: true })).not.toBeInTheDocument();
     await choose(person, screen, /Team role/, TEAM_VIEWER.name);
     await person.click(screen.getByRole('button', { name: 'Add member' }));
 
@@ -163,7 +166,7 @@ describe('TeamMembers', () => {
     const person = userEvent.setup();
     renderMembers();
 
-    await choose(person, screen, /^User/, 'bob');
+    await choose(person, screen, /^User/, 'bob', 'bo');
     await choose(person, screen, /Team role/, TEAM_VIEWER.name);
     await person.click(screen.getByRole('button', { name: 'Add member' }));
 
@@ -206,7 +209,7 @@ describe('TeamMembers as a team admin', () => {
     const person = userEvent.setup();
     renderMembers();
 
-    await choose(person, screen, /^User/, 'bob');
+    await choose(person, screen, /^User/, 'bob', 'bo');
     await choose(person, screen, /Team role/, TEAM_VIEWER.name);
     await person.click(screen.getByRole('button', { name: 'Add member' }));
 
@@ -220,8 +223,10 @@ describe('TeamMembers as a team admin', () => {
         HttpResponse.json({ title: 'Forbidden', detail: 'Access denied.' }, { status: 403 }),
       ),
     );
+    const person = userEvent.setup();
     renderMembers();
 
+    await person.type(await screen.findByRole('combobox', { name: /^User/ }), 'al');
     expect(await screen.findByText(/Only an administrator of a team can look users up/)).toBeInTheDocument();
   });
 });

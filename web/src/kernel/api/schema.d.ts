@@ -5381,12 +5381,11 @@ export interface components {
             count?: number | null;
             hasNext: boolean;
         };
-        /** @description A user a team admin may add as a member: enabled accounts only. */
+        /** @description A user a team admin may add as a member: enabled accounts only. Usernames are unique across providers. */
         UserLookup: {
             /** Format: uuid */
             id: string;
             username: string;
-            providerId: string;
         };
         PermissionView: {
             action: string;

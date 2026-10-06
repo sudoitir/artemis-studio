@@ -17,6 +17,7 @@ import {
   useChangeMemberRole,
   useRemoveMember,
   useTeamRoles,
+  USER_LOOKUP_MIN_PREFIX,
   useUserLookup,
   type MemberRequest,
   type MemberView,
@@ -236,8 +237,8 @@ function AddMember({
             error={form.errors.userId}
             onBlur={() => form.validateField('userId')}
             data-path="userId"
-            placeholder={users.isPending ? 'Loading' : 'Select a user'}
-            nothingFoundMessage={typed ? 'No enabled user starts with that' : 'No other users'}
+            placeholder="Type two letters of a username"
+            nothingFoundMessage={lookupMessage(typed, users.isFetching)}
             required
           />
         )}
@@ -291,4 +292,12 @@ function RemoveMember({
       }
     />
   );
+}
+
+/** What the user picker says when it lists nobody. */
+function lookupMessage(typed: string, searching: boolean): string {
+  if (typed.trim().length < USER_LOOKUP_MIN_PREFIX) {
+    return 'Type at least two letters';
+  }
+  return searching ? 'Searching' : 'No enabled user starts with that';
 }

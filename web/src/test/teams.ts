@@ -107,8 +107,8 @@ export const signedIn = (permissions: string[]) =>
   );
 
 export const LOOKUP_USERS = [
-  { id: 'u-alice', username: 'alice', providerId: 'local' },
-  { id: 'u-bob', username: 'bob', providerId: 'local' },
+  { id: 'u-alice', username: 'alice' },
+  { id: 'u-bob', username: 'bob' },
 ];
 
 /** The lookups every team screen reads, including the ones a team admin uses to find users and team roles. */
@@ -129,15 +129,22 @@ export function serveLookups(permissions: string[] = ['user:admin']) {
   );
 }
 
-/** Opens a Mantine select and picks one option; jsdom keeps the list `display: none`, so options are `hidden`. */
+/**
+ * Opens a Mantine select and picks one option; jsdom keeps the list `display: none`, so options are `hidden`.
+ * `typed` is entered first, for a searchable select that asks the server only once something is typed.
+ */
 export async function choose(
   person: ReturnType<typeof userEvent.setup>,
   scope: Pick<typeof screen, 'getByRole'>,
   select: RegExp | string,
   option: string,
+  typed?: string,
 ) {
   const box = scope.getByRole('combobox', { name: select });
   await person.click(box);
+  if (typed) {
+    await person.type(box, typed);
+  }
   // Every select keeps its own list in the document, so the option is looked up in the list this box controls.
   const list = await waitFor(() => {
     const found = document.getElementById(box.getAttribute('aria-controls') ?? '');

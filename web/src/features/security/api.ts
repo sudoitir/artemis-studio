@@ -297,13 +297,17 @@ export function useTeam(teamId: string): UseQueryResult<TeamView, ApiError> {
 
 const json = (body: unknown) => JSON.stringify(body);
 
+/** The server answers a lookup only for a prefix this long, so a team admin cannot page through every account. */
+export const USER_LOOKUP_MIN_PREFIX = 2;
+
 /**
  * Enabled users whose name starts with `q`, at most twenty, for choosing a member. Open to a team admin, who may
- * not list every user.
+ * not list every user. Sent only once `q` holds {@link USER_LOOKUP_MIN_PREFIX} characters.
  */
 export function useUserLookup(q: string): UseQueryResult<UserLookup[], ApiError> {
   return useQuery({
     queryKey: keys.userLookup(q),
+    enabled: q.trim().length >= USER_LOOKUP_MIN_PREFIX,
     queryFn: async () =>
       (await request<PagedView<UserLookup>>(`/teams/lookups/users?${new URLSearchParams({ q })}`)).data,
     placeholderData: (previous) => previous,

@@ -126,11 +126,12 @@ public final class TeamViews {
     public record UnownedView(
             @Schema(requiredMode = REQUIRED) String name) {}
 
-    @Schema(description = "A user a team admin may add as a member: enabled accounts only.")
+    @Schema(
+            description =
+                    "A user a team admin may add as a member: enabled accounts only. Usernames are unique across providers.")
     public record UserLookup(
             @Schema(requiredMode = REQUIRED) UUID id,
-            @Schema(requiredMode = REQUIRED) String username,
-            @Schema(requiredMode = REQUIRED) String providerId) {}
+            @Schema(requiredMode = REQUIRED) String username) {}
 
     @Schema(description = "The team roles a team admin may give, and the catalogue entries their permissions name.")
     public record TeamRoleLookup(

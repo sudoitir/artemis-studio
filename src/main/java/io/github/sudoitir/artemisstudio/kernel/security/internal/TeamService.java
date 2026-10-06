@@ -168,18 +168,24 @@ public class TeamService {
     // ---- lookups for who administers a team ---------------------------------------------------------
 
     private static final int LOOKUP_LIMIT = 20;
+    /** Shorter prefixes would let a team admin page through every account a letter at a time. */
+    private static final int LOOKUP_MIN_PREFIX = 2;
 
     /**
-     * Enabled users whose name starts with {@code prefix}, at most twenty, for a team admin choosing a
+     * Enabled users whose name starts with {@code prefix} (two characters at least), at most twenty, for a team admin choosing a
      * member. Open to anyone who may administer some team, because {@code user:admin} would otherwise be
      * needed just to look a colleague up.
      */
     @Transactional(readOnly = true)
     public List<UserLookup> findUsers(String prefix) {
         requireTeamAdministrator();
-        return users.findTop20ByDisabledFalseAndUsernameStartingWithIgnoreCaseOrderByUsername(prefix.strip()).stream()
+        String stripped = prefix.strip();
+        if (stripped.length() < LOOKUP_MIN_PREFIX) {
+            return List.of();
+        }
+        return users.findTop20ByDisabledFalseAndUsernameStartingWithIgnoreCaseOrderByUsername(stripped).stream()
                 .limit(LOOKUP_LIMIT)
-                .map(u -> new UserLookup(u.getId(), u.getUsername(), u.getProviderId()))
+                .map(u -> new UserLookup(u.getId(), u.getUsername()))
                 .toList();
     }
 
