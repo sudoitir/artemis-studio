@@ -19,7 +19,7 @@ permissions: {}
 
 jobs:
   update:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Update the PRs that wait to auto-merge

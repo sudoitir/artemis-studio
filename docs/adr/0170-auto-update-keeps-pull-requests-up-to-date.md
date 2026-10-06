@@ -38,6 +38,11 @@ usable, and the `merge_group` trigger it added to `ci.yml` was dead weight.
 5. **The merge queue is removed.** `ci.yml` loses its `merge_group` trigger and the
    `github.event_name != 'push'` conditions return to `== 'pull_request'`.
 
+6. **Everything used is free on a public repository.** The workflow runs on the standard
+   `ubuntu-latest` hosted runner, whose minutes are free for public repositories, and uses only the
+   `gh` CLI, the REST API, a fine-grained personal access token and auto-merge, none of which is
+   billed. It needs no larger runner, no Team or Enterprise feature and no paid marketplace app.
+
 ## Consequences
 
 - Merging one pull request no longer needs a hand update of the others; they update, re-run CI
