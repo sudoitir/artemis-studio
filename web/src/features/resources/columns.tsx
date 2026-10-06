@@ -73,10 +73,12 @@ export const resourceColumns = {
       id: 'owner',
       header: 'Owner',
       description: 'The team whose patterns own this address',
-      accessor: (r) => r.ownerTeam?.name ?? 'No owner',
+      accessor: (r) => r.ownerTeam?.name ?? '',
       cell: (r) => <OwnerChip team={r.ownerTeam} />,
       kind: 'status',
       badge: true,
+      // A team name fits in nine characters; any wider and the row would push a column out at 1280 px.
+      max: 9,
       priority: 'high',
     },
     { id: 'routing', header: 'Routing', accessor: (r) => r.routingTypes ?? '', kind: 'status', priority: 'low' },

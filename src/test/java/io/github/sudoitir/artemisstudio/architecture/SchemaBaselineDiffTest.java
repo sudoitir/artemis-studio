@@ -123,7 +123,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Console query references and API request windows shared by the replicas (ADR-0152, changesets
                     // feature-sql 0006, feature-apitokens 0004).
                     "sql_query_ticket",
-                    "api_request_window")
+                    "api_request_window",
+                    // A token grant can be limited to a queue or address name pattern, so the pattern is
+                    // part of its key (changeset feature-apitokens 0005).
+                    "CREATE TABLE api_token_grant ",
+                    "pk_api_token_grant")
             .map(Pattern::compile)
             .toList();
 

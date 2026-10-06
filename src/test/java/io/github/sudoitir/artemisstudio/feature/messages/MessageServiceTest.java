@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.messages;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -418,7 +419,7 @@ class MessageServiceTest {
                         ok -> assertThat(ok.value()).isEqualTo(new Outcome.DryRun(1, 100, false, NODE_B)));
         verify(audit).succeed(event, 1);
         verify(jolokia, never()).send(any(), any());
-        verify(hub, never()).publish(any(UUID.class), anyString());
+        verify(hub, never()).publishAbout(any(UUID.class), anyString(), anyCollection(), anyCollection());
     }
 
     @Test
@@ -458,7 +459,7 @@ class MessageServiceTest {
         assertThat(spec.getValue().body()).isEqualTo("{}");
         assertThat(spec.getValue().bodyBase64()).isFalse();
         verify(audit).succeed(event, 1);
-        verify(hub).publish(CLUSTER, "queues");
+        verify(hub).publishAbout(eq(CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     @Test
@@ -472,7 +473,7 @@ class MessageServiceTest {
         assertThat(result)
                 .isEqualTo(new Attempt.Failed<Outcome>(BrokerConnectionException.Kind.UNAUTHORIZED, "denied"));
         verify(audit).fail(event, "denied");
-        verify(hub, never()).publish(any(UUID.class), anyString());
+        verify(hub, never()).publishAbout(any(UUID.class), anyString(), anyCollection(), anyCollection());
     }
 
     @Test
@@ -481,9 +482,9 @@ class MessageServiceTest {
 
         service.send(CLUSTER, "orders", null, sendRequest(), false);
 
-        verify(hub, never()).publish(any(UUID.class), anyString());
+        verify(hub, never()).publishAbout(any(UUID.class), anyString(), anyCollection(), anyCollection());
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-        verify(hub).publish(CLUSTER, "queues");
+        verify(hub).publishAbout(eq(CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     // ---- move, retry, delete, expire ----------------------------------------------------------
@@ -592,7 +593,7 @@ class MessageServiceTest {
                 .isInstanceOfSatisfying(
                         Attempt.Ok.class, ok -> assertThat(ok.value()).isEqualTo(new Outcome.Affected(12, NODE_B)));
         verify(audit).succeed(event, 12);
-        verify(hub).publish(CLUSTER, "queues");
+        verify(hub).publishAbout(eq(CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     @Test
@@ -664,7 +665,7 @@ class MessageServiceTest {
                                 .isEqualTo(new Outcome.Partial(1, List.of(2L, 3L), "connection reset", NODE_B)));
         verify(audit).failPartial(event, 1, "Stopped after 1 of 3: connection reset");
         verify(audit, never()).succeed(any(), anyLong());
-        verify(hub).publish(CLUSTER, "queues");
+        verify(hub).publishAbout(eq(CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     @Test
@@ -753,7 +754,7 @@ class MessageServiceTest {
         assertThat(service.purge(CLUSTER, "orders", null, false, true))
                 .isInstanceOfSatisfying(
                         Attempt.Ok.class, ok -> assertThat(ok.value()).isEqualTo(new Outcome.Affected(150, NODE_B)));
-        verify(hub).publish(CLUSTER, "queues");
+        verify(hub).publishAbout(eq(CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     @Test

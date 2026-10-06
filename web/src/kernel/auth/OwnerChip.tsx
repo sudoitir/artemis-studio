@@ -1,4 +1,4 @@
-import { Text } from '@mantine/core';
+import { Text, VisuallyHidden } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import badge from '../../ui/StatusBadge.module.css';
@@ -13,9 +13,11 @@ import { useCan } from './useCan.ts';
 export function OwnerChip({ team }: Readonly<{ team?: { id: string; name: string } | null }>) {
   const { can, teams } = useCan();
   if (!team) {
+    // A dash keeps a grid of mostly unowned rows quiet; a screen reader still hears that no team owns it.
     return (
       <Text span size="xs" c="dimmed">
-        No owner
+        <span aria-hidden="true">—</span>
+        <VisuallyHidden>No owner</VisuallyHidden>
       </Text>
     );
   }
