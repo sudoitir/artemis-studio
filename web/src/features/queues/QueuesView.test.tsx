@@ -461,3 +461,16 @@ describe('QueuesView page structure', () => {
     expect(bar.querySelector('button button')).toBeNull();
   });
 });
+
+describe('QueuesView with a queue named like markup', () => {
+  it('shows the name as text and builds no element from it', async () => {
+    const name = '<img src=x onerror=alert(1)><script>alert(2)</script>';
+    search = {};
+    serve({ queues: [queue(name)] });
+    renderWithProviders(<QueuesView />);
+
+    const cells = await screen.findAllByRole('gridcell');
+    expect(cells.some((cell) => cell.textContent?.includes(name))).toBe(true);
+    expect(document.body.querySelector('script, img, [onerror]')).toBeNull();
+  });
+});
