@@ -556,4 +556,52 @@ class PermissionResolverTest {
         assertThat(resolver.patternsHolding(otherClusterId, ResourceKind.QUEUE, QUEUE_CREATE))
                 .isEmpty();
     }
+
+    // ---- patterns --------------------------------------------------------------------------------------
+
+    @Test
+    void aPatternIsHeldWhenOneOfTheCallersPatternsCoversEveryNameItCanMatch() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_OPERATOR));
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.#", QUEUE_PURGE))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.*.in", QUEUE_PURGE))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.in", QUEUE_PURGE))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "#", QUEUE_PURGE))
+                .isFalse();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "*.in", QUEUE_PURGE))
+                .isFalse();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "billing.in", QUEUE_PURGE))
+                .isFalse();
+    }
+
+    @Test
+    void aPatternNeedsThePermissionInTheRoleOfThePatternThatCoversIt() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        shares(orders, billing, clusterId, "BOTH", "orders.events.#", TEAM_VIEWER);
+        access(Set.of(), Map.of(billing, TEAM_OPERATOR));
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.events.*", QUEUE_READ))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.events.*", QUEUE_PURGE))
+                .as("the share's role does not purge")
+                .isFalse();
+    }
+
+    @Test
+    void aWildcardInsideAWordIsHeldOnlyThroughAGrantThatReachesTheCluster() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_OPERATOR));
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders*", QUEUE_READ))
+                .isFalse();
+
+        access(Set.of(new Grant(Grant.ScopeType.CLUSTER, clusterId, Set.of(QUEUE_READ))), Map.of());
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders*", QUEUE_READ))
+                .isTrue();
+    }
 }

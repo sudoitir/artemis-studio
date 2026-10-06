@@ -123,7 +123,7 @@ public class MessageService {
         // The broker serves at most BROKER_PAGE_CAP rows; the page size reported and used for hasNext is that one.
         int size = Math.min(requestedSize, BROKER_PAGE_CAP);
         BrowseResult result = browseAt(clusterId, queueName, resolved, page, size, filter);
-        GovernContext context = contentPolicy.context(clusterId, resolved.address());
+        GovernContext context = contentPolicy.context(clusterId, resolved.address(), queueName);
         List<BrowsedMessage> messages = result.page().messages();
         List<GovernedMessage> governed = messages.stream()
                 .map(m -> contentPolicy.govern(context, content(m)))
@@ -156,7 +156,7 @@ public class MessageService {
                 .filter(m -> m.messageId() == messageId)
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("message", messageId));
-        GovernContext context = contentPolicy.context(clusterId, resolved.address());
+        GovernContext context = contentPolicy.context(clusterId, resolved.address(), queueName);
         GovernedMessage governed = contentPolicy.govern(context, content(message));
         clearViews.recordClear(context, "MESSAGE", queueName + "/" + messageId, List.of(governed));
         return toDetail(

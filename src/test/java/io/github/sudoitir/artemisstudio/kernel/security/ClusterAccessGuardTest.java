@@ -177,4 +177,32 @@ class ClusterAccessGuardTest {
 
         assertThatCode(() -> guard.requireVisible(cluster)).doesNotThrowAnyException();
     }
+
+    @Test
+    void aPatternTheCallerHoldsOnEveryNameOfPasses() {
+        when(perm.canOnAll(cluster, ResourceKind.QUEUE, "orders.#", "capture:write"))
+                .thenReturn(true);
+
+        assertThatCode(() -> guard.requireOnAll(cluster, ResourceKind.QUEUE, "orders.#", "capture:write"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void aPatternThatCouldReachOtherNamesIsForbiddenAndAsksForANarrowerOne() {
+        when(perm.canSeeCluster(cluster)).thenReturn(true);
+
+        assertThatThrownBy(() -> guard.requireOnAll(cluster, ResourceKind.QUEUE, "#", "capture:write"))
+                .isInstanceOfSatisfying(ResourceForbiddenException.class, e -> {
+                    assertThat(e.permission()).isEqualTo("capture:write");
+                    assertThat(e.name()).isEqualTo("#");
+                    assertThat(e.getMessage()).contains("Narrow it");
+                });
+    }
+
+    @Test
+    void aPatternOnAClusterTheCallerCannotSeeIsTheClusterNotFound() {
+        assertThatThrownBy(() -> guard.requireOnAll(cluster, ResourceKind.QUEUE, "#", "capture:write"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage(new NotFoundException("cluster", cluster).getMessage());
+    }
 }

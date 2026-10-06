@@ -66,13 +66,15 @@ class MessageIndexServicePreviewTest {
                 Duration.ofSeconds(1));
         StudioInstance instance = mock(StudioInstance.class);
         when(instance.id()).thenReturn("abc12345");
+        ClusterAccessGuard access = mock(ClusterAccessGuard.class);
+        when(access.mayOnAll(any(), any(), any(), any())).thenReturn(true);
         return new MessageIndexService(
                 subscriptions,
                 mock(QueueSnapshots.class),
                 mock(MessageIndexCapture.class),
                 mock(MessageCaptureNodeRepository.class),
                 mock(ClusterDirectory.class),
-                mock(ClusterAccessGuard.class),
+                access,
                 mock(ActorResolver.class),
                 audit,
                 mock(JdbcTemplate.class),
@@ -176,13 +178,15 @@ class MessageIndexServicePreviewTest {
                 Duration.ofHours(24),
                 DataSize.ofMegabytes(64),
                 Duration.ofSeconds(1));
+        ClusterAccessGuard access = mock(ClusterAccessGuard.class);
+        when(access.mayOnAll(any(), any(), any(), any())).thenReturn(true);
         MessageIndexService service = new MessageIndexService(
                 subscriptions,
                 mock(QueueSnapshots.class),
                 mock(MessageIndexCapture.class),
                 mock(MessageCaptureNodeRepository.class),
                 mock(ClusterDirectory.class),
-                mock(ClusterAccessGuard.class),
+                access,
                 mock(ActorResolver.class),
                 audit,
                 jdbc,

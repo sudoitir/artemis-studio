@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
@@ -75,11 +76,12 @@ public class MessageIndexService {
      */
     @Transactional(readOnly = true)
     public Preview preview(UUID clusterId, Spec spec) {
-        clusterAccess.requireCluster(clusterId, SqlPermissions.CAPTURE_WRITE);
+        String pattern = validPattern(spec.queuePattern());
+        clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, pattern, SqlPermissions.CAPTURE_WRITE);
         MessageIndexSubscriptionEntity draft = new MessageIndexSubscriptionEntity();
         draft.setId(UUID.randomUUID());
         draft.setClusterId(clusterId);
-        draft.setQueuePattern(validPattern(spec.queuePattern()));
+        draft.setQueuePattern(pattern);
         draft.setMode(CaptureMode.CAPTURE);
         if (spec.retentionDays() != null) {
             draft.setRetentionDays(validRetention(spec.retentionDays()));
@@ -173,8 +175,9 @@ public class MessageIndexService {
 
     @Transactional(readOnly = true)
     public List<Subscription> list(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
+        clusterAccess.requireVisible(clusterId);
         return subscriptions.findByClusterId(clusterId).stream()
+                .filter(s -> readable(clusterId, s))
                 .map(s -> describe(s, footprint(s)))
                 .toList();
     }
@@ -182,8 +185,8 @@ public class MessageIndexService {
     @Transactional
     public Subscription create(UUID clusterId, Spec spec) {
         CaptureMode mode = spec.mode() == null ? CaptureMode.SAMPLE : spec.mode();
-        clusterAccess.requireCluster(clusterId, permissionFor(mode));
         String pattern = validPattern(spec.queuePattern());
+        requireMayChange(clusterId, mode, pattern);
 
         MessageIndexSubscriptionEntity entity = new MessageIndexSubscriptionEntity();
         entity.setId(UUID.randomUUID());
@@ -227,16 +230,18 @@ public class MessageIndexService {
         MessageIndexSubscriptionEntity entity = subscriptions
                 .findById(id)
                 .filter(sub -> sub.getClusterId().equals(clusterId))
+                .filter(sub -> readable(clusterId, sub))
                 .orElseThrow(() -> new NotFoundException("Index subscription", id));
         CaptureMode target = spec.mode() == null ? entity.getMode() : spec.mode();
         // Gated on what the subscription will be as well as what it is: turning capture
         // on is the act that needs the authority, and turning it off needs it too —
         // stopping capture stops recording payload someone is relying on.
-        clusterAccess.requireCluster(
+        requireMayChange(
                 clusterId,
                 target == CaptureMode.CAPTURE || entity.getMode() == CaptureMode.CAPTURE
-                        ? SqlPermissions.CAPTURE_WRITE
-                        : SettingsPermissions.SETTINGS_WRITE);
+                        ? CaptureMode.CAPTURE
+                        : CaptureMode.SAMPLE,
+                entity.getQueuePattern());
 
         Map<String, Object> before = bounds(entity);
         CaptureMode modeBefore = entity.getMode();
@@ -306,7 +311,10 @@ public class MessageIndexService {
     @Transactional
     public Deleted delete(UUID clusterId, UUID id) {
         MessageIndexSubscriptionEntity entity = require(clusterId, id);
-        clusterAccess.requireCluster(clusterId, permissionFor(entity.getMode()));
+        if (!readable(clusterId, entity)) {
+            throw new NotFoundException("Index subscription", id);
+        }
+        requireMayChange(clusterId, entity.getMode(), entity.getQueuePattern());
         Footprint before = footprint(entity);
 
         AuditEvent event = audit.begin(
@@ -343,8 +351,22 @@ public class MessageIndexService {
 
     // ---- internals ------------------------------------------------------
 
-    private static String permissionFor(CaptureMode mode) {
-        return mode == CaptureMode.CAPTURE ? SqlPermissions.CAPTURE_WRITE : SettingsPermissions.SETTINGS_WRITE;
+    /**
+     * A capture records the messages of every queue its pattern can match, so it is changed only by a caller
+     * who holds {@code capture:write} on all of them. A sample is a cluster-level setting.
+     */
+    private void requireMayChange(UUID clusterId, CaptureMode mode, String pattern) {
+        if (mode == CaptureMode.CAPTURE) {
+            clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, pattern, SqlPermissions.CAPTURE_WRITE);
+        } else {
+            clusterAccess.requireCluster(clusterId, SettingsPermissions.SETTINGS_WRITE);
+        }
+    }
+
+    /** A subscription is seen by a caller who may read every message it indexes. */
+    private boolean readable(UUID clusterId, MessageIndexSubscriptionEntity subscription) {
+        return clusterAccess.mayOnAll(
+                clusterId, ResourceKind.QUEUE, subscription.getQueuePattern(), MessagePermissions.MESSAGE_READ);
     }
 
     /** The largest capture queue, in messages (ADR-0079). The byte bound on the broker is the other half. */

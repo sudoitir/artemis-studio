@@ -114,7 +114,7 @@ public class IndexQueryExecutor {
 
         // Resolved on the caller's thread. Only a caller with clear access has stored originals unsealed; everyone
         // else reads the masked stored row, which the console governs again under the current policy.
-        boolean clearAccess = governance.clearAccess(clusterId);
+        boolean clearAccess = governance.clearAccess(clusterId, plan.ast().queuePattern());
         List<Row> rows = jdbc.query(sql.toString(), (rs, n) -> toRow(rs, clusterId, clearAccess), binds.toArray());
 
         List<Bound> bounds = new ArrayList<>();

@@ -134,7 +134,8 @@ class MessageServiceTest {
         when(settings.intValue(BrokerSettings.BULK_CAP)).thenReturn(100);
         when(connections.forCluster(eq(CLUSTER), anyString())).thenReturn(client);
         when(client.resolveBrokerObjectName()).thenReturn(BROKER);
-        when(policy.context(eq(CLUSTER), anyString())).thenReturn(GovernContext.masked(CLUSTER, "orders.addr"));
+        when(policy.context(eq(CLUSTER), anyString(), anyString()))
+                .thenReturn(GovernContext.masked(CLUSTER, "orders.addr"));
         when(policy.govern(any(), any())).thenAnswer(invocation -> {
             MessageContent content = invocation.getArgument(1);
             return new GovernedMessage(

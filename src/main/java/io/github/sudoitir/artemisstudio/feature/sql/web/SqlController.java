@@ -37,7 +37,6 @@ public class SqlController {
     private final MessageVerifier verifier;
     private final SqlViewMapper mapper;
     private final SqlQueryTickets tickets;
-    private final io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard clusterAccess;
 
     /** Parse, validate and cost a query without running it. */
     @PostMapping("/plan")
@@ -56,8 +55,6 @@ public class SqlController {
      */
     @PostMapping("/query")
     public SqlQueryTicketView query(@PathVariable UUID clusterId, @RequestBody SqlExecuteRequest request) {
-        clusterAccess.requireCluster(
-                clusterId, io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions.MESSAGE_READ);
         console.plan(clusterId, request.sql());
         UUID id = tickets.issue(clusterId, request.sql(), Boolean.TRUE.equals(request.tail()), tickets.currentOwner());
         return new SqlQueryTicketView(

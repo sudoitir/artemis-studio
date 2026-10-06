@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -113,6 +114,33 @@ public class ClusterAccessGuard {
                 kindOf(resource),
                 resource.name(),
                 "You do not hold " + permission + " on " + kindOf(resource) + " " + resource.name() + "." + where);
+    }
+
+    /**
+     * An operation on every queue or address a pattern can match, such as a capture or a query: allowed
+     * when a grant reaches the cluster, or when one of the caller's team patterns or shares that carries
+     * the permission covers the whole pattern. Otherwise a caller who sees the cluster is refused and told
+     * to narrow the pattern; one who does not is told the cluster does not exist.
+     */
+    public void requireOnAll(UUID clusterId, ResourceKind kind, String pattern, String permission) {
+        if (perm.canOnAll(clusterId, kind, pattern, permission)) {
+            return;
+        }
+        if (!perm.canSeeCluster(clusterId)) {
+            throw new NotFoundException("cluster", clusterId);
+        }
+        String noun = kind.name().toLowerCase(Locale.ROOT);
+        throw new ResourceForbiddenException(
+                permission,
+                noun,
+                pattern,
+                "You do not hold " + permission + " on every " + noun + " that '" + pattern
+                        + "' can match. Narrow it to names your teams own.");
+    }
+
+    /** Whether {@link #requireOnAll} would pass, for filtering a list rather than refusing a request. */
+    public boolean mayOnAll(UUID clusterId, ResourceKind kind, String pattern, String permission) {
+        return perm.canOnAll(clusterId, kind, pattern, permission);
     }
 
     private NotFoundException unreadable(UUID clusterId, ResourceRef resource) {

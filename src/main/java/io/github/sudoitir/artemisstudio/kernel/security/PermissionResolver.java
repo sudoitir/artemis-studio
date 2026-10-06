@@ -158,6 +158,43 @@ public class PermissionResolver {
     }
 
     /**
+     * Whether the current principal holds {@code action} on every name the pattern can match: through a
+     * grant that reaches the cluster, or because one of their team's patterns or shares that carries the
+     * action covers the whole pattern. A pattern only a union of several of them would cover is not
+     * covered, and neither is a pattern that mixes a wildcard with other characters in a word, which only a
+     * grant reaches. For a capture or a rule that watches a set of names, which must not reach names the
+     * caller may not use.
+     */
+    public boolean canOnAll(UUID clusterId, ResourceKind kind, String patternText, String action) {
+        StudioPrincipal principal = currentPrincipal();
+        CatalogueEntry entry =
+                principal == null ? null : features.permission(action).orElse(null);
+        if (entry == null) {
+            return false;
+        }
+        if (grantsAllow(principal, entry, clusterId, action)) {
+            return true;
+        }
+        ResourcePattern pattern = parsedOrNull(patternText);
+        if (pattern == null
+                || !teamsApply(principal, entry, clusterId)
+                || !entry.resourceKinds().contains(kind)) {
+            return false;
+        }
+        AccessSnapshot snapshot = access.of(principal.userId());
+        Set<UUID> member = snapshot.teamPermissions().keySet();
+        return teams.ownedOn(clusterId).stream()
+                        .anyMatch(o -> o.kinds().contains(kind)
+                                && snapshot.holdsInTeam(o.teamId(), action)
+                                && ResourcePattern.covers(o.pattern(), pattern))
+                || teams.sharedOn(clusterId).stream()
+                        .anyMatch(s -> s.kinds().contains(kind)
+                                && member.contains(s.targetTeamId())
+                                && Grant.covers(s.permissions(), action)
+                                && ResourcePattern.covers(s.pattern(), pattern));
+    }
+
+    /**
      * The patterns of the cluster on which the current principal holds {@code action} through a team or a
      * share, as the text they were written in: where they may create names, for a refusal to say so.
      */
@@ -216,6 +253,14 @@ public class PermissionResolver {
 
     private static boolean teamsApply(StudioPrincipal principal, CatalogueEntry entry, UUID clusterId) {
         return clusterId != null && entry.scope() == PermissionScope.RESOURCE && !principal.pinned();
+    }
+
+    private static ResourcePattern parsedOrNull(String text) {
+        try {
+            return ResourcePattern.parse(text);
+        } catch (IllegalArgumentException _) {
+            return null;
+        }
     }
 
     private static boolean intersects(Set<ResourceKind> a, Set<ResourceKind> b) {
