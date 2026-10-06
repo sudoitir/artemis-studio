@@ -24,6 +24,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.TeamIndex;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +74,7 @@ class PermissionStreamAccessTest {
         PermissionResolver resolver = new PermissionResolver(
                 mock(ScopeHierarchy.class),
                 access,
-                new TeamIndex(patterns, shares, mock(RolePermissionRepository.class)),
+                new TeamIndex(mock(TeamRepository.class), patterns, shares, mock(RolePermissionRepository.class)),
                 features);
         when(topics.definition("queues")).thenReturn(TopicDef.signal("queues", Permissions.QUEUE_READ));
         when(topics.definition("alerts")).thenReturn(TopicDef.signal("alerts", AlertPermissions.ALERT_READ));
