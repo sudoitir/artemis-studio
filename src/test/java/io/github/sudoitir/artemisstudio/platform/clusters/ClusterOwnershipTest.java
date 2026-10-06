@@ -37,6 +37,13 @@ class ClusterOwnershipTest extends PostgresIntegrationTest {
     private static final HaProperties TTL_15S =
             new HaProperties(Duration.ofSeconds(5), Duration.ofSeconds(15), Duration.ZERO, Duration.ZERO);
 
+    /**
+     * The replicas' ids are fixed and the clusters are made to split evenly between them. Rendezvous
+     * hashing over random ids leaves one replica with nothing (or everything) in about one run of
+     * twelve clusters in two thousand, which these tests would read as a failure.
+     */
+    private static final List<UUID> REPLICA_IDS = List.of(new UUID(0, 1), new UUID(0, 2));
+
     @Autowired
     JdbcTemplate jdbc;
 
@@ -45,6 +52,7 @@ class ClusterOwnershipTest extends PostgresIntegrationTest {
 
     private final List<UUID> clusters = new ArrayList<>();
     private final List<Replica> live = new ArrayList<>();
+    private int nodes;
 
     @AfterEach
     void clean() {
@@ -53,7 +61,7 @@ class ClusterOwnershipTest extends PostgresIntegrationTest {
 
     private Node node(HaProperties ha) {
         ReplicaRegistry registry = mock(ReplicaRegistry.class);
-        UUID id = UUID.randomUUID();
+        UUID id = REPLICA_IDS.get(nodes++);
         when(registry.id()).thenReturn(id);
         when(registry.state()).thenReturn(ReplicaRegistry.State.READY);
         when(registry.live()).thenAnswer(_ -> List.copyOf(live));
@@ -82,13 +90,15 @@ class ClusterOwnershipTest extends PostgresIntegrationTest {
 
     private List<UUID> register(int count) {
         List<UUID> created = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            created.add(jdbc.queryForObject(
-                    "INSERT INTO cluster (name) VALUES (?) RETURNING id",
-                    UUID.class,
-                    "ownership-" + UUID.randomUUID()));
+        while (created.size() < count) {
+            UUID id = UUID.randomUUID();
+            UUID wanted = REPLICA_IDS.get(created.size() % REPLICA_IDS.size());
+            if (wanted.equals(ClusterOwnership.ownerOf(id, Set.copyOf(REPLICA_IDS)))) {
+                jdbc.update("INSERT INTO cluster (id, name) VALUES (?, ?)", id, "ownership-" + id);
+                created.add(id);
+                clusters.add(id);
+            }
         }
-        clusters.addAll(created);
         return created;
     }
 
