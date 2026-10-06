@@ -21,7 +21,7 @@ need no separate approval. Stop only for a blocker or a question only the user c
 | Verify | `just verify` passes, and every task in `tasks.md` is checked. |
 | Archive | `/opsx:archive` on the same branch, commit `docs(openspec): archive <change>`, so specs and code land together. |
 | PR | Rebase on a fresh `main`, push, `gh pr create`. |
-| Merge | Once every CI check is green, `gh pr merge --merge --delete-branch`. A red check is fixed on the branch. |
+| Merge | Once every CI check is green, `gh pr merge --merge --auto` adds the PR to the merge queue (ADR-0169), which re-runs CI on the exact commit it merges and deletes the branch. A red check is fixed on the branch. |
 | Finish | `git switch main && git pull --ff-only`, delete the local branch. |
 
 ## Red Flags
