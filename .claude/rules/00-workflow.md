@@ -44,7 +44,7 @@ sessions do not share a dev stack.
 
 **Merging is automatic** (ADR-0170): once the PR is ready, `gh pr merge <n> --merge --auto`. The
 `pr-auto-update` workflow keeps one PR with auto-merge on up to date at a time, oldest auto-merge
-first; CI re-runs on it and it merges when green, then the next is updated. A PR whose `ci-ok`
+first; CI re-runs on it and it merges when green, then the next is updated. A PR that is up to date and whose `ci-ok`
 failed is skipped until its author pushes a fix, so nobody updates a branch by hand. Wait for the merge with
 `gh pr view <n> --json state,mergedAt`.
 
