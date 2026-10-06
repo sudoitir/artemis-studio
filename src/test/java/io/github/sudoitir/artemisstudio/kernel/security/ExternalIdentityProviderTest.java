@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.github.sudoitir.artemisstudio.kernel.security.internal.TeamService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;
@@ -17,7 +18,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Gro
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserGroupRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +37,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -92,6 +98,17 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
     @Autowired
     DefaultRoleRepository defaultRoles;
 
+    @Autowired
+    UserGroupRepository userGroups;
+
+    @Autowired
+    AccessLoader access;
+
+    @Autowired
+    TeamService teamService;
+
+    final List<UUID> teams = new java.util.ArrayList<>();
+
     MockMvc mvc;
 
     @BeforeEach
@@ -104,6 +121,10 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
 
     @AfterEach
     void cleanUp() {
+        new AdminAuthenticationExtension().beforeEach(null);
+        teams.forEach(teamService::delete);
+        teams.clear();
+        SecurityContextHolder.clearContext();
         mappings.deleteAll();
         defaultRoles.deleteAll();
         users.findAll().stream()
@@ -172,5 +193,73 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
         assertThat(dana("dir-b").getUsername()).isEqualTo("dana@dir-b");
         assertThat(rolesOf(dana("dir-a"))).containsExactly("OPERATOR");
         assertThat(rolesOf(dana("dir-b"))).containsExactly("VIEWER");
+    }
+
+    private UUID team() {
+        new AdminAuthenticationExtension().beforeEach(null);
+        UUID id = teamService.create("directory-" + UUID.randomUUID()).id();
+        teams.add(id);
+        return id;
+    }
+
+    private Set<String> groupsOf(AppUserEntity user) {
+        return userGroups.findByIdUserId(user.getId()).stream()
+                .map(g -> g.getProviderId() + "/" + g.getGroupName())
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    @Test
+    void theGroupsAProviderReportsAreKeptAndReplacedAtEverySignIn() throws Exception {
+        defaultRoles.save(new DefaultRoleEntity("dir-a", role("VIEWER")));
+        GROUPS.set(Set.of("eng", "support"));
+
+        login("dir-a").andExpect(status().isOk());
+        assertThat(groupsOf(dana("dir-a"))).containsExactlyInAnyOrder("dir-a/eng", "dir-a/support");
+
+        GROUPS.set(Set.of("support", "ops"));
+        login("dir-a").andExpect(status().isOk());
+        assertThat(groupsOf(dana("dir-a"))).containsExactlyInAnyOrder("dir-a/support", "dir-a/ops");
+    }
+
+    @Test
+    void aUserWithNoRoleIsAdmittedWhenTheyAreATeamMember() throws Exception {
+        UUID team = team();
+        mappings.save(new GroupMappingEntity("dir-a", "eng", role("VIEWER"), "GLOBAL", ScopeIds.GLOBAL));
+        login("dir-a").andExpect(status().isOk());
+        GROUPS.set(Set.of("left-the-directory-group"));
+        login("dir-a").andExpect(status().isUnauthorized());
+
+        new AdminAuthenticationExtension().beforeEach(null);
+        teamService.addMember(
+                team, new MemberRequest(PrincipalType.USER, dana("dir-a").getId(), null, null, role("TEAM_VIEWER")));
+
+        login("dir-a").andExpect(status().isOk());
+        assertThat(rolesOf(dana("dir-a"))).isEmpty();
+    }
+
+    @Test
+    void aUserWithNoRoleIsAdmittedWhenOneOfTheirGroupsIsATeamMember() throws Exception {
+        UUID team = team();
+        new AdminAuthenticationExtension().beforeEach(null);
+        teamService.addMember(team, new MemberRequest(PrincipalType.GROUP, null, "dir-a", "eng", role("TEAM_VIEWER")));
+
+        GROUPS.set(Set.of("other"));
+        login("dir-a").andExpect(status().isUnauthorized());
+
+        GROUPS.set(Set.of("eng"));
+        login("dir-a").andExpect(status().isOk());
+    }
+
+    @Test
+    void aGroupMembersUsersHoldTheTeamRoleOnTheNextRequest() throws Exception {
+        UUID team = team();
+        new AdminAuthenticationExtension().beforeEach(null);
+        teamService.addMember(team, new MemberRequest(PrincipalType.GROUP, null, "dir-a", "eng", role("TEAM_ADMIN")));
+        GROUPS.set(Set.of("eng"));
+        login("dir-a").andExpect(status().isOk());
+        StudioPrincipal principal = StudioPrincipal.live(dana("dir-a").getId(), "dana", false);
+
+        assertThat(access.of(principal.userId()).holdsInTeam(team, Permissions.TEAM_ADMIN))
+                .isTrue();
     }
 }

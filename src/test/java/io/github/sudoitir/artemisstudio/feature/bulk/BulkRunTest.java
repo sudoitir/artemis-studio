@@ -229,7 +229,7 @@ class BulkRunTest extends BulkTestSupport {
         fourQueues();
         when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
             seen.add(call.getArgument(1));
-            io.github.sudoitir.artemisstudio.support.OperatorFixture.revokeAll(userRoles, userId);
+            io.github.sudoitir.artemisstudio.support.OperatorFixture.revokeAll(userRoles, accessChanges, userId);
             return ok(NodeStatus.APPLIED);
         });
 

@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.feature.identitylocal;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginAttemptLimiter;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
@@ -26,7 +25,6 @@ public class AuthService {
 
     private final UserAccounts accounts;
     private final PasswordEncoder passwordEncoder;
-    private final GrantLoader grantLoader;
     private final SessionAuthentication sessions;
     private final AuditService auditService;
     private final ActorResolver actorResolver;
@@ -65,7 +63,7 @@ public class AuthService {
         // immediately, without forcing a separate login. The user's other sessions end with it. A required
         // user without a second factor moves on from the password to enrolment, so the flag is worked out anew.
         sessions.reestablishEndingOthers(
-                new StudioPrincipal(user.id(), user.username(), grantLoader.loadFor(user.id()), false)
+                StudioPrincipal.live(user.id(), user.username(), false)
                         .withSecondFactorEnrolmentRequired(secondFactors.enrolmentRequired(user.id())),
                 request,
                 response);

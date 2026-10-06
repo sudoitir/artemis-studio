@@ -18,13 +18,15 @@ public record Grant(ScopeType scopeType, UUID scopeId, Set<String> permissions) 
 
     /** True if this grant's permission set contains, or wildcard-covers, the requested permission. */
     public boolean grants(String permission) {
-        if (permissions.contains(Permissions.WILDCARD) || permissions.contains(permission)) {
+        return covers(permissions, permission);
+    }
+
+    /** True if {@code held} contains, or wildcard-covers, the requested permission. */
+    public static boolean covers(Set<String> held, String permission) {
+        if (held.contains(Permissions.WILDCARD) || held.contains(permission)) {
             return true;
         }
         int colon = permission.indexOf(':');
-        if (colon < 0) {
-            return false;
-        }
-        return permissions.contains(permission.substring(0, colon) + ":*");
+        return colon >= 0 && held.contains(permission.substring(0, colon) + ":*");
     }
 }

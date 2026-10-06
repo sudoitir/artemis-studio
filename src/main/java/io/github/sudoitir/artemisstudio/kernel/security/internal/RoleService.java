@@ -2,14 +2,21 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.CatalogueEntry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
+import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
@@ -41,8 +48,11 @@ public class RoleService {
     private final RolePermissionRepository rolePermissions;
     private final FeatureRegistry features;
     private final UserRoleRepository userRoles;
+    private final TeamMemberRepository teamMembers;
+    private final TeamShareRepository teamShares;
     private final AdministrationAudit audit;
     private final AppUserRepository users;
+    private final AccessChanges accessChanges;
     private final SessionTerminator sessions;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -71,11 +81,14 @@ public class RoleService {
         if (roles.findByName(request.name()).isPresent()) {
             throw new ConflictException("duplicate-role-name", "A role named '" + request.name() + "' already exists.");
         }
+        requireConsistent(request);
         RoleEntity role = new RoleEntity(request.name(), false);
         role.setRequiresMfa(request.requiresMfa());
+        role.setTeamAssignable(request.teamAssignable());
         role = roles.save(role);
         savePermissions(role.getId(), request.permissions());
         audit.changed("ROLE_CREATE", "role", role.getName(), null);
+        accessChanges.changed();
         return toView(role);
     }
 
@@ -87,16 +100,24 @@ public class RoleService {
         if (role.isBuiltin()) {
             requireOnlyMfaChanges(role, request);
         } else {
+            requireConsistent(request);
+            if (role.isTeamAssignable() && !request.teamAssignable() && usedByATeam(roleId)) {
+                throw new ConflictException(
+                        "role-in-use",
+                        "This role is still the role of a team member or a share, so it must stay a team role.");
+            }
             role.setName(request.name());
+            role.setTeamAssignable(request.teamAssignable());
             rolePermissions.deleteByIdRoleId(roleId);
             savePermissions(roleId, request.permissions());
         }
         role.setRequiresMfa(request.requiresMfa());
         roles.save(role);
         audit.changed("ROLE_UPDATE", "role", role.getName(), null);
-        // Members' sessions carry the role's old permissions, or were signed in without the factor it
-        // now requires; end them so the change applies now. A built-in role's permissions cannot change.
-        if (!role.isBuiltin() || mfaChanged) {
+        accessChanges.changed();
+        // Members who were signed in without the factor the role now requires must sign in again; what the
+        // role grants applies to their next request without it.
+        if (mfaChanged) {
             sessions.endSessionsOf(userRoles.findByIdRoleId(roleId).stream()
                     .map(UserRoleEntity::getUserId)
                     .distinct()
@@ -111,11 +132,59 @@ public class RoleService {
     @Transactional
     public void delete(UUID roleId) {
         RoleEntity role = requireEditable(roleId);
-        if (userRoles.countByIdRoleId(roleId) > 0) {
-            throw new ConflictException("role-in-use", "This role is still granted to at least one user.");
+        if (userRoles.countByIdRoleId(roleId) > 0 || usedByATeam(roleId)) {
+            throw new ConflictException(
+                    "role-in-use", "This role is still granted to a user, or is the role of a team member or share.");
         }
         roles.delete(role); // cascades role_permission
         audit.changed("ROLE_DELETE", "role", role.getName(), null);
+        accessChanges.changed();
+    }
+
+    private boolean usedByATeam(UUID roleId) {
+        return teamMembers.existsByRoleId(roleId) || teamShares.existsByRoleId(roleId);
+    }
+
+    /**
+     * A role holds every permission its permissions require, and a team role holds only permissions that
+     * act on a resource, plus team administration. A wildcard satisfies what it covers, and is checked for
+     * the catalogued permissions it stands for.
+     */
+    private void requireConsistent(RoleRequest request) {
+        Set<String> held = new HashSet<>(request.permissions());
+        List<CatalogueEntry> catalogue = features.catalogue();
+        List<String> missing = new java.util.ArrayList<>();
+        for (CatalogueEntry entry : catalogue) {
+            if (Grant.covers(held, entry.action())) {
+                entry.requires().stream()
+                        .filter(required -> !Grant.covers(held, required))
+                        .forEach(required -> missing.add(entry.action() + " needs " + required));
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new ConflictException(
+                    "role-missing-requirements",
+                    "The role lacks permissions that the ones it holds require: "
+                            + missing.stream().distinct().sorted().collect(Collectors.joining(", "))
+                            + ".");
+        }
+        if (request.teamAssignable()) {
+            List<String> notForTeams = held.stream()
+                    .filter(action -> !Permissions.TEAM_ADMIN.equals(action))
+                    .filter(action -> features.permission(action)
+                            .map(entry -> entry.scope() != PermissionScope.RESOURCE)
+                            .orElse(true))
+                    .sorted()
+                    .toList();
+            if (!notForTeams.isEmpty()) {
+                throw new ConflictException(
+                        "team-role-permissions",
+                        "A team role may hold only permissions that act on a queue or address, and team:admin;"
+                                + " remove "
+                                + String.join(", ", notForTeams)
+                                + ".");
+            }
+        }
     }
 
     private void savePermissions(UUID roleId, List<String> permissions) {
@@ -136,10 +205,13 @@ public class RoleService {
         Set<String> current = rolePermissions.findByIdRoleId(role.getId()).stream()
                 .map(RolePermissionEntity::getAction)
                 .collect(Collectors.toSet());
-        if (!role.getName().equals(request.name()) || !current.equals(new HashSet<>(request.permissions()))) {
+        if (!role.getName().equals(request.name())
+                || !current.equals(new HashSet<>(request.permissions()))
+                || role.isTeamAssignable() != request.teamAssignable()) {
             throw new ConflictException(
                     "builtin-role",
-                    "Built-in roles keep their name and permissions; only whether they require two-step verification can change.");
+                    "Built-in roles keep their name, permissions and use as a team role; only whether they require"
+                            + " two-step verification can change.");
         }
     }
 
@@ -147,6 +219,12 @@ public class RoleService {
         List<String> permissions = rolePermissions.findByIdRoleId(role.getId()).stream()
                 .map(RolePermissionEntity::getAction)
                 .toList();
-        return new RoleView(role.getId(), role.getName(), role.isBuiltin(), permissions, role.isRequiresMfa());
+        return new RoleView(
+                role.getId(),
+                role.getName(),
+                role.isBuiltin(),
+                permissions,
+                role.isRequiresMfa(),
+                role.isTeamAssignable());
     }
 }

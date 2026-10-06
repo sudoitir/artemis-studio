@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRun
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeFactory;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -85,6 +86,9 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     UserRoleRepository userRoles;
+
+    @Autowired
+    AccessChanges accessChanges;
 
     @Autowired
     GrantLoader grants;
@@ -201,7 +205,7 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
         var query = depthQuery(now.minusSeconds(900));
         assertThat(history.read(user, clusterId, query).series()).isNotEmpty();
 
-        OperatorFixture.revokeAll(userRoles, user);
+        OperatorFixture.revokeAll(userRoles, accessChanges, user);
 
         assertThatThrownBy(() -> history.read(user, clusterId, query)).isInstanceOf(NotFoundException.class);
     }

@@ -32,6 +32,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("role", "configuration"),
             Map.entry("role_permission", "configuration"),
             Map.entry("user_role", "configuration"),
+            Map.entry("user_group", "configuration: replaced at every sign-in, removed with its user"),
             Map.entry("team", "configuration"),
             Map.entry("team_pattern", "configuration: removed with its team or its cluster"),
             Map.entry("team_member", "configuration: removed with its team or its user"),

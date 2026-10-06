@@ -76,14 +76,21 @@ public final class UserViews {
                     requiredMode = REQUIRED,
                     description = "Whether password accounts holding this role need a second factor. "
                             + "Single sign-on users rely on their identity provider's own MFA.")
-            boolean requiresMfa) {}
+            boolean requiresMfa,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether the role may be given to a team's members or in a share. A team role "
+                            + "holds only permissions that act on a queue or address, and team:admin.")
+            boolean teamAssignable) {}
 
     public record RoleView(
             @Schema(requiredMode = REQUIRED) UUID id,
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) boolean builtin,
             @Schema(requiredMode = REQUIRED) List<String> permissions,
-            @Schema(requiredMode = REQUIRED) boolean requiresMfa) {}
+            @Schema(requiredMode = REQUIRED) boolean requiresMfa,
+            @Schema(requiredMode = REQUIRED) boolean teamAssignable) {}
 
     public record PermissionView(
             @Schema(requiredMode = REQUIRED) String action,

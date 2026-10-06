@@ -106,6 +106,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Teams, their patterns, members and shares (changeset kernel-security 0010); the table
                     // role itself is covered above (role.team_assignable).
                     "team(_pattern|_member|_share)?",
+                    // A user's directory groups at their last sign-in (changeset kernel-security 0012).
+                    "user_group",
                     // Idempotency keys (ADR-0150, changeset kernel-security 0009).
                     "idempotency_record",
                     // Usernames are unique ignoring case (kernel-security 0008).

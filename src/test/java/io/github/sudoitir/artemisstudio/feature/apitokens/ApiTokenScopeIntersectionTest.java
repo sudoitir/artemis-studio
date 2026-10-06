@@ -96,7 +96,7 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
                 authenticateKeyFor(user, new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(Permissions.CLUSTER_READ)));
 
         assertThat(principal).isNotNull();
-        assertThat(principal.grants())
+        assertThat(principal.pinnedGrants())
                 .describedAs("a global owner narrowing a key to one cluster used to get an empty grant set")
                 .containsExactly(new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(Permissions.CLUSTER_READ)));
 
@@ -113,7 +113,7 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
                 user, new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of(Permissions.CLUSTER_READ)));
 
         assertThat(principal).isNotNull();
-        assertThat(principal.grants())
+        assertThat(principal.pinnedGrants())
                 .describedAs("widening must not run in this direction — a key cannot exceed its owner")
                 .isEmpty();
 
@@ -131,7 +131,7 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         StudioPrincipal principal =
                 authenticateKeyFor(user, new Grant(Grant.ScopeType.CLUSTER, theirs, Set.of(Permissions.CLUSTER_READ)));
 
-        assertThat(principal.grants()).isEmpty();
+        assertThat(principal.pinnedGrants()).isEmpty();
 
         clusters.deleteById(mine);
         clusters.deleteById(theirs);
@@ -146,7 +146,7 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         StudioPrincipal principal = authenticateKeyFor(
                 user, new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(MessagePermissions.QUEUE_PURGE)));
 
-        assertThat(principal.grants())
+        assertThat(principal.pinnedGrants())
                 .describedAs("the scope walk widens the scope, never the permission set")
                 .isEmpty();
 

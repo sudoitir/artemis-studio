@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Trans
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferRunView;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferSelection;
 import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
@@ -101,6 +102,9 @@ abstract class TransferTestSupport extends PostgresIntegrationTest {
 
     @Autowired
     UserRoleRepository userRoles;
+
+    @Autowired
+    AccessChanges accessChanges;
 
     @Autowired
     GrantLoader grants;

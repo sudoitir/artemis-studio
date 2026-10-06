@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal;
 
-import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Component;
 public class AccessCheck {
 
     private final UserAccounts accounts;
-    private final GrantLoader grants;
     private final PermissionResolver perm;
 
     /** Why the user may not, in words, or empty when they may. */
@@ -35,8 +33,7 @@ public class AccessCheck {
         if (account.get().disabled()) {
             return Optional.of("The acting user '" + account.get().username() + "' is disabled.");
         }
-        StudioPrincipal principal =
-                new StudioPrincipal(userId, account.get().username(), grants.loadFor(userId), false);
+        StudioPrincipal principal = StudioPrincipal.live(userId, account.get().username(), false);
         for (String permission : permissions) {
             if (!perm.can(principal, clusterId, permission)) {
                 return Optional.of("The acting user '" + account.get().username() + "' does not hold " + permission

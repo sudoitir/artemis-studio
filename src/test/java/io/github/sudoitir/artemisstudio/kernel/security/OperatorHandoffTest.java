@@ -42,6 +42,9 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
     UserRoleRepository userRoles;
 
     @Autowired
+    AccessChanges accessChanges;
+
+    @Autowired
     GrantLoader grants;
 
     private UUID userId;
@@ -79,7 +82,7 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
         Operator operator = handoff.capture();
         assertThat(handoff.stillHolds(operator, null, "queue:delete")).isTrue();
 
-        OperatorFixture.revokeAll(userRoles, userId);
+        OperatorFixture.revokeAll(userRoles, accessChanges, userId);
 
         assertThat(handoff.stillHolds(operator, null, "queue:delete")).isFalse();
     }
@@ -91,7 +94,7 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
         assertThat(operator.actor().userId()).isEqualTo(userId);
         assertThat(handoff.stillHolds(operator, null, "queue:delete")).isTrue();
 
-        OperatorFixture.revokeAll(userRoles, userId);
+        OperatorFixture.revokeAll(userRoles, accessChanges, userId);
 
         assertThat(handoff.forUser(userId).orElseThrow().principal().getAuthorities())
                 .isEmpty();

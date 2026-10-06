@@ -61,6 +61,11 @@ public class FeatureRegistry implements PluginBridge {
 
     private volatile String manifestVersion = manifestVersionOf(Map.of());
 
+    /** The catalogue by action, as of {@link #catalogueVersion}; rebuilt when the plugin set changes. */
+    private volatile Map<String, CatalogueEntry> catalogueByAction = Map.of();
+
+    private volatile String catalogueVersion;
+
     public FeatureRegistry(InstalledFeatures installed, Environment environment, ApplicationEventPublisher events) {
         this.events = events;
         for (FeatureDescriptor d : installed.descriptors()) {
@@ -273,6 +278,18 @@ public class FeatureRegistry implements PluginBridge {
         return java.util.stream.Stream.concat(enabled().stream(), plugins.values().stream())
                 .flatMap(d -> d.permissions().stream().map(p -> CatalogueEntry.of(d, p)))
                 .toList();
+    }
+
+    /** One catalogue entry by its action; empty when no enabled module or active plugin declares it. */
+    public Optional<CatalogueEntry> permission(String action) {
+        String version = manifestVersion;
+        if (!version.equals(catalogueVersion)) {
+            Map<String, CatalogueEntry> byAction = new HashMap<>();
+            catalogue().forEach(entry -> byAction.putIfAbsent(entry.action(), entry));
+            catalogueByAction = Map.copyOf(byAction);
+            catalogueVersion = version;
+        }
+        return Optional.ofNullable(catalogueByAction.get(action));
     }
 
     public List<FeatureDescriptor> enabled() {

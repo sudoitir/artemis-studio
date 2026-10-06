@@ -57,7 +57,7 @@ class TransferPermissionsTest extends TransferTestSupport {
     void aGrantWithdrawnMidRunStopsTheRunWithTheReason() {
         TransferRunView run = slowRun(queue(p, "revoke.src"), queue(d, "revoke.dst"));
 
-        OperatorFixture.revokeAll(userRoles, userId);
+        OperatorFixture.revokeAll(userRoles, accessChanges, userId);
         TransferRunView stopped = awaitEnded(run);
 
         assertThat(stopped.state()).isEqualTo(TransferState.STOPPED);

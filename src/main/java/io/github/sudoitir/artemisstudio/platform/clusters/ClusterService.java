@@ -376,8 +376,7 @@ public class ClusterService {
 
     // ---- reads ------------------------------------------------------------
 
-    @PostFilter(
-            "@perm.can(filterObject.id(), T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).CLUSTER_READ)")
+    @PostFilter("@perm.canSeeCluster(filterObject.id())")
     @Transactional(readOnly = true)
     public List<ClusterSummary> list() {
         List<ClusterSummary> out = new ArrayList<>();

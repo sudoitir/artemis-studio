@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
@@ -60,6 +61,9 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
         SecurityContextHolder.setContext(context);
     }
 
+    @Autowired
+    AccessLoader access;
+
     @AfterEach
     void signOut() {
         SecurityContextHolder.clearContext();
@@ -81,7 +85,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     @Test
     void removingAGrantEndsTheUsersSessions() {
         AppUserEntity user = newUser("revoke-grant");
-        var role = roleService.create(new RoleRequest("revoke-grant-role", List.of("cluster:read"), false));
+        var role = roleService.create(new RoleRequest("revoke-grant-role", List.of("cluster:read"), false, false));
         userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
         openSession(user.getUsername());
 
@@ -91,19 +95,20 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void changingARolesPermissionsEndsEveryMembersSessions() {
+    void changingARolesPermissionsLeavesItsMembersSessionsOpenBecauseTheChangeAppliesAtOnce() {
         AppUserEntity first = newUser("revoke-role-a");
-        AppUserEntity second = newUser("revoke-role-b");
-        var role = roleService.create(new RoleRequest("revoke-role", List.of("cluster:read", "queue:purge"), false));
+        var role = roleService.create(
+                new RoleRequest("revoke-role", List.of("cluster:read", "queue:read", "queue:purge"), false, false));
         userService.addGrant(first.getId(), new GrantRequest(role.id(), "GLOBAL", null));
-        userService.addGrant(second.getId(), new GrantRequest(role.id(), "GLOBAL", null));
         openSession(first.getUsername());
-        openSession(second.getUsername());
 
-        roleService.update(role.id(), new RoleRequest("revoke-role", List.of("cluster:read"), false));
+        roleService.update(
+                role.id(), new RoleRequest("revoke-role", List.of("cluster:read", "queue:read"), false, false));
 
-        assertThat(sessions.findByPrincipalName(first.getUsername())).isEmpty();
-        assertThat(sessions.findByPrincipalName(second.getUsername())).isEmpty();
+        assertThat(sessions.findByPrincipalName(first.getUsername())).hasSize(1);
+        assertThat(access.of(first.getId()).grants())
+                .flatExtracting(Grant::permissions)
+                .containsExactlyInAnyOrder("cluster:read", "queue:read");
     }
 
     @Test
@@ -121,7 +126,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     @Test
     void addingAGrantLeavesSessionsAlone() {
         AppUserEntity user = newUser("revoke-add");
-        var role = roleService.create(new RoleRequest("revoke-add-role", List.of("cluster:read"), false));
+        var role = roleService.create(new RoleRequest("revoke-add-role", List.of("cluster:read"), false, false));
         openSession(user.getUsername());
 
         userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
@@ -132,7 +137,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     @Test
     void grantingARoleThatRequiresMfaEndsTheUsersSessions() {
         AppUserEntity user = newUser("revoke-mfa-grant");
-        var role = roleService.create(new RoleRequest("revoke-mfa-role", List.of("cluster:read"), true));
+        var role = roleService.create(new RoleRequest("revoke-mfa-role", List.of("cluster:read"), true, false));
         openSession(user.getUsername());
 
         userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
@@ -143,12 +148,12 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
     @Test
     void makingARoleRequireMfaEndsItsMembersSessions() {
         AppUserEntity user = newUser("revoke-mfa-switch");
-        var role = roleService.create(new RoleRequest("revoke-mfa-switch-role", List.of("cluster:read"), false));
+        var role = roleService.create(new RoleRequest("revoke-mfa-switch-role", List.of("cluster:read"), false, false));
         userService.addGrant(user.getId(), new GrantRequest(role.id(), "GLOBAL", null));
         openSession(user.getUsername());
 
-        var updated =
-                roleService.update(role.id(), new RoleRequest("revoke-mfa-switch-role", List.of("cluster:read"), true));
+        var updated = roleService.update(
+                role.id(), new RoleRequest("revoke-mfa-switch-role", List.of("cluster:read"), true, false));
 
         assertThat(updated.requiresMfa()).isTrue();
         assertThat(sessions.findByPrincipalName(user.getUsername())).isEmpty();
@@ -174,17 +179,18 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         try {
-            var changed = roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), true));
+            var changed =
+                    roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), true, false));
             assertThat(changed.requiresMfa()).isTrue();
             assertThat(changed.permissions()).containsExactlyInAnyOrderElementsOf(viewer.permissions());
 
-            var renamed = new RoleRequest("RENAMED", viewer.permissions(), true);
-            var everything = new RoleRequest(viewer.name(), List.of("*"), true);
+            var renamed = new RoleRequest("RENAMED", viewer.permissions(), true, false);
+            var everything = new RoleRequest(viewer.name(), List.of("*"), true, false);
             assertThatThrownBy(() -> roleService.update(viewer.id(), renamed)).isInstanceOf(ConflictException.class);
             assertThatThrownBy(() -> roleService.update(viewer.id(), everything))
                     .isInstanceOf(ConflictException.class);
         } finally {
-            roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), false));
+            roleService.update(viewer.id(), new RoleRequest(viewer.name(), viewer.permissions(), false, false));
         }
     }
 

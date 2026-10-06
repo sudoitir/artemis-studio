@@ -51,7 +51,7 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
                 .extracting(RoleEntity::getName)
                 .containsExactlyInAnyOrder("ADMIN", "OPERATOR", "VIEWER", "TEAM_VIEWER", "TEAM_OPERATOR", "TEAM_ADMIN");
         assertThat(all)
-                .filteredOn(RoleEntity::isTeamAssignable)
+                .filteredOn(r -> r.isBuiltin() && r.isTeamAssignable())
                 .extracting(RoleEntity::getName)
                 .containsExactlyInAnyOrder("TEAM_VIEWER", "TEAM_OPERATOR", "TEAM_ADMIN");
     }

@@ -277,7 +277,7 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
                     assertThat(p.scope()).isEqualTo(PermissionScope.CLUSTER);
                 });
         UUID roleId = roleService
-                .create(new UserViews.RoleRequest("role-" + id, List.of(id + ":read"), false))
+                .create(new UserViews.RoleRequest("role-" + id, List.of(id + ":read"), false, false))
                 .id();
 
         activeRuntime.close();
