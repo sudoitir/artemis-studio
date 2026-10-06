@@ -1,0 +1,11 @@
+/* A section whose contributions all hid themselves for this caller draws nothing, not a bare heading.
+   Dividers sit between the sections that show something, so a hidden one leaves no stray rule. */
+.section:not(:has([data-menu-item])) {
+  display: none;
+}
+
+.section:has([data-menu-item]) ~ .section:has([data-menu-item]) {
+  margin-block-start: var(--mantine-spacing-xs);
+  padding-block-start: var(--mantine-spacing-xs);
+  border-block-start: 1px solid var(--as-border);
+}

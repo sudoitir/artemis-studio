@@ -1,10 +1,11 @@
-import { Fragment, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Menu, Text } from '@mantine/core';
 
 import type { ComponentType } from 'react';
 
 import { useSlot, type SlotName } from '../slots.ts';
 import { useActionHost } from './hostContext.ts';
+import classes from './ResourceActions.module.css';
 import { ACTION_SECTIONS, type ActionHost, type ActionKind, type ActionMode, type ActionTargets } from './types.ts';
 
 type ActionSlot<K extends ActionKind> = `${K}.actions` & SlotName;
@@ -60,15 +61,14 @@ export function ResourceActions<K extends ActionKind>({
   const props: object = { clusterId, target, host, mode };
   return (
     <>
-      {sections.map((section, i) => (
-        <Fragment key={section.id}>
-          {i > 0 ? <Menu.Divider /> : null}
+      {sections.map((section) => (
+        <div key={section.id} role="group" aria-label={section.label} className={classes.section}>
           <Menu.Label>{section.label}</Menu.Label>
           {section.items.map(({ id, Component }) => {
             const Item = Component as ComponentType<object>;
             return <Item key={id} {...props} />;
           })}
-        </Fragment>
+        </div>
       ))}
       {mode === 'navigate' ? (
         <>
