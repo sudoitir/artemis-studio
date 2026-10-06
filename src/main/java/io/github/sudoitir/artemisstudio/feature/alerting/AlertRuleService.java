@@ -11,9 +11,11 @@ import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.PluginMe
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Alert rule CRUD. Every mutation is audited in-transaction, following
@@ -54,6 +57,7 @@ public class AlertRuleService {
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver perm;
     private final PluginMetricCondition pluginMetrics;
+    private final ObjectMapper json;
 
     /** Every rule kind's predicate, so validation accepts exactly what evaluation can run. */
     private final java.util.List<AlertCondition> conditions;
@@ -66,6 +70,7 @@ public class AlertRuleService {
     public List<AlertRuleView> list(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
         return rules.findVisible(clusterId, perm.can(AlertPermissions.ALERT_READ)).stream()
+                .filter(r -> seen(clusterId, r))
                 .map(r -> view(r, channelIds(r.getId())))
                 .toList();
     }
@@ -88,6 +93,7 @@ public class AlertRuleService {
     public AlertRuleView create(UUID clusterId, AlertRuleRequest request) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity rule = validated(request, false);
+        requireMayWatch(clusterId, rule);
         rule.setClusterId(clusterId);
         rules.save(rule);
         bindChannels(rule.getId(), request.channelIds());
@@ -110,6 +116,7 @@ public class AlertRuleService {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_WRITE);
         AlertRuleEntity existing = requireRule(clusterId, ruleId);
         AlertRuleEntity updated = validated(request, existing.getClusterId() == null);
+        requireMayWatch(clusterId, updated);
 
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
@@ -155,6 +162,35 @@ public class AlertRuleService {
                 false);
         rules.delete(rule); // cascades alert_state / alert_firing / alert_delivery / alert_rule_channel
         audit.succeed(event, 1);
+    }
+
+    // ---- what a caller may see of a rule -------------------------------------------------
+
+    /**
+     * Alert permissions are held on the cluster, through a grant, and never through a team. A threshold rule
+     * watches queues, which it names by a pattern, so a rule is seen and changed by a caller who may read
+     * every queue that pattern can match, and a state rule or the installation's, which watch no queue, by
+     * any holder of the permission.
+     */
+    public boolean seen(UUID clusterId, AlertRuleEntity rule) {
+        return rule.getClusterId() == null
+                || !rule.isThreshold()
+                || clusterAccess.mayOnAll(
+                        clusterId,
+                        ResourceKind.QUEUE,
+                        AlertScope.parse(rule.getScope(), json).queueNames(),
+                        Permissions.QUEUE_READ);
+    }
+
+    /** A rule is created or changed only to watch queues the caller may read: it would report on the rest. */
+    private void requireMayWatch(UUID clusterId, AlertRuleEntity rule) {
+        if (rule.isThreshold()) {
+            clusterAccess.requireOnAll(
+                    clusterId,
+                    ResourceKind.QUEUE,
+                    AlertScope.parse(rule.getScope(), json).queueNames(),
+                    Permissions.QUEUE_READ);
+        }
     }
 
     // ---- helpers ------------------------------------------------------------
@@ -239,7 +275,7 @@ public class AlertRuleService {
         AlertRuleEntity rule = rules.findById(ruleId).orElseThrow(() -> new NotFoundException("AlertRule", ruleId));
         boolean visible = rule.getClusterId() == null
                 ? perm.can(AlertPermissions.ALERT_WRITE)
-                : clusterId.equals(rule.getClusterId());
+                : clusterId.equals(rule.getClusterId()) && seen(clusterId, rule);
         if (!visible) {
             throw new NotFoundException("AlertRule", ruleId);
         }

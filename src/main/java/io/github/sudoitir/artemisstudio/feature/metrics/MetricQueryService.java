@@ -5,8 +5,10 @@ import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricPo
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeries;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleStore;
@@ -80,7 +82,7 @@ public class MetricQueryService {
         String splitBy = query.splitBy();
         // Before input validation, so a caller with no grant cannot use the
         // difference between a 400 and a 404 to probe which clusters exist.
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        requireReadable(clusterId, query);
         requireValid(metrics, query.subjectType(), query.subject(), splitBy);
         String subjectName = "QUEUE".equals(query.subjectType()) ? query.subject() : null;
 
@@ -104,6 +106,20 @@ public class MetricQueryService {
                 series,
                 SPLIT_BY_NODE,
                 split.nodes());
+    }
+
+    /**
+     * A series of one queue needs read access to it. A cluster's totals add up every queue, so they are
+     * read only by a caller who may read every queue of the cluster.
+     */
+    private void requireReadable(UUID clusterId, MetricQuery query) {
+        if ("QUEUE".equals(query.subjectType())
+                && query.subject() != null
+                && !query.subject().isBlank()) {
+            clusterAccess.requireResource(clusterId, ResourceRef.queue(query.subject()), Permissions.QUEUE_READ);
+        } else {
+            clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, "#", Permissions.QUEUE_READ);
+        }
     }
 
     private static void requireValid(List<String> metrics, String subjectType, String subject, String splitBy) {
