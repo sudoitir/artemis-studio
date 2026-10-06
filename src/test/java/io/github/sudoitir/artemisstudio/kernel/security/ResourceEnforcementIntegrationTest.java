@@ -639,6 +639,17 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
         assertThat(page.get("count").asLong()).isEqualTo(1);
     }
 
+    @Test
+    void aCallerWhoSeesTheClusterOnlyThroughATeamIsNotToldWhereItsNodesAreReached() throws Exception {
+        for (String path : List.of("/api/v1/clusters/" + cluster, base() + "/topology")) {
+            String team = call(get(path), ordersViewer).getContentAsString();
+            String platform = call(get(path), platformOperator).getContentAsString();
+
+            assertThat(team).as(path).doesNotContain("127.0.0.1");
+            assertThat(platform).as(path).contains("127.0.0.1");
+        }
+    }
+
     // ---- alert rules -------------------------------------------------------------------------------------
 
     /** A user with alert:read and alert:write on the cluster through a grant, and a Team Operator role in Orders. */

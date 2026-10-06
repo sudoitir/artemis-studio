@@ -405,17 +405,45 @@ public class ClusterService {
                 clusterId,
                 cluster.getName(),
                 cluster.getDescription(),
-                viewMapper.topology(topology),
-                viewMapper.capabilities(assessCapabilities(clusterId), VersionGate.assessAll(endpoints(topology))),
+                withheld(clusterId, viewMapper.topology(topology)),
+                capabilitiesFor(clusterId, topology),
                 viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
                 cluster.getEnvironmentId());
+    }
+
+    /**
+     * Where a node is reached, and what went wrong reaching it, is shown to a caller who reads the cluster. One who
+     * sees it only through a team's queues is shown the nodes without those details.
+     */
+    private TopologyView withheld(UUID clusterId, TopologyView topology) {
+        return clusterAccess.holds(clusterId, Permissions.CLUSTER_READ)
+                ? topology
+                : topology.withoutConnectionDetails();
+    }
+
+    /**
+     * The capabilities, probed live. For a caller who reads the cluster the reasons say what was tried and where;
+     * for one who does not, the statuses alone, and a probe that could not connect says only that.
+     */
+    private CapabilitiesView capabilitiesFor(UUID clusterId, ClusterTopology topology) {
+        boolean wholeCluster = clusterAccess.holds(clusterId, Permissions.CLUSTER_READ);
+        try {
+            CapabilitiesView view =
+                    viewMapper.capabilities(assessCapabilities(clusterId), VersionGate.assessAll(endpoints(topology)));
+            return wholeCluster ? view : view.withoutConnectionDetails();
+        } catch (BrokerConnectionException e) {
+            if (wholeCluster) {
+                throw e;
+            }
+            throw new BrokerConnectionException(e.kind(), "The cluster's brokers could not be reached.");
+        }
     }
 
     @Transactional(readOnly = true)
     public TopologyView topology(UUID clusterId) {
         clusterAccess.requireVisible(clusterId);
         requireCluster(clusterId);
-        return viewMapper.topology(topologyDiscovery.currentTopology(clusterId));
+        return withheld(clusterId, viewMapper.topology(topologyDiscovery.currentTopology(clusterId)));
     }
 
     @Transactional(readOnly = true)
@@ -433,9 +461,8 @@ public class ClusterService {
      */
     @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
-        return viewMapper.capabilities(
-                assessCapabilities(clusterId),
-                VersionGate.assessAll(endpoints(topologyDiscovery.currentTopology(clusterId))));
+        clusterAccess.requireVisible(clusterId);
+        return capabilitiesFor(clusterId, topologyDiscovery.currentTopology(clusterId));
     }
 
     /** The same assessment as {@link #capabilities}, before it becomes a DTO. */
