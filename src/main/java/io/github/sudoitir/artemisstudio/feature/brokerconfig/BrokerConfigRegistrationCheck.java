@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.BrokerConfigViews.RecommendationsView;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccountRoles;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationCheckContributor;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 class BrokerConfigRegistrationCheck implements RegistrationCheckContributor {
 
     private final BrokerConfigOperations operations;
+    private final BrokerAccountRoles accountRoles;
 
     @Override
     public String featureId() {
@@ -28,8 +30,10 @@ class BrokerConfigRegistrationCheck implements RegistrationCheckContributor {
     }
 
     @Override
-    public RecommendationsView contribute(BrokerCapabilities capabilities, JolokiaBrokerClient seed) {
-        return RecommendationsView.of(BrokerConfigRecommendations.from(capabilities, observe(seed)));
+    public RecommendationsView contribute(
+            BrokerCapabilities capabilities, JolokiaBrokerClient seed, String coreUsername) {
+        return RecommendationsView.of(
+                BrokerConfigRecommendations.from(capabilities, observe(seed), accountRoles.read(seed, coreUsername)));
     }
 
     /**

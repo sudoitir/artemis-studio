@@ -18,6 +18,8 @@ const SETTING: ConfigRecommendationView = {
   match: 'activemq.management#',
   values: { managementMessageAttributeSizeLimit: 262144, maxSizeBytes: 1024 },
   roles: {},
+  accountRoles: [],
+  accountRolesSource: null,
   keys: ['managementMessageAttributeSizeLimit'],
   manualSnippet: null,
 };
@@ -31,6 +33,8 @@ const SECURITY: ConfigRecommendationView = {
   match: 'activemq.management#',
   values: {},
   roles: { manage: ['monitor'] },
+  accountRoles: [],
+  accountRolesSource: { kind: 'SECURITY_SETTINGS', reason: 'the broker has no user store to list' },
   keys: ['manage'],
   manualSnippet: null,
 };
@@ -44,6 +48,8 @@ const MANUAL: ConfigRecommendationView = {
   match: null,
   values: {},
   roles: {},
+  accountRoles: [],
+  accountRolesSource: null,
   keys: [],
   manualSnippet: '<metrics><plugin class-name="x"/></metrics>',
 };
@@ -129,6 +135,47 @@ describe('RecommendedConfiguration', () => {
 
     expect(screen.getByText('At least one role, or this grants nobody anything.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Declare & review the plan' })).toBeDisabled();
+  });
+
+  it("says the roles were read from Studio's account, and which of them the broker already names", () => {
+    const fromAccount: ConfigRecommendationView = {
+      ...SECURITY,
+      roles: { manage: ['amq'] },
+      accountRoles: ['amq', 'ops'],
+      accountRolesSource: { kind: 'BROKER_ACCOUNT', reason: null },
+    };
+    renderWithProviders(<RecommendedConfiguration clusterId="c1" recommendations={view(fromAccount)} />);
+
+    expect(
+      screen.getByText(
+        "Read from Studio's broker account (amq, ops). Narrowed to the roles the broker already names for this address.",
+      ),
+    ).toBeInTheDocument();
+    // Only the role the broker already names is prefilled, not every role the account holds.
+    expect(screen.getByText('amq')).toBeInTheDocument();
+    expect(screen.queryByText('ops')).toBeNull();
+  });
+
+  it("states why the account's roles were not used when the broker's own are prefilled", () => {
+    renderWithProviders(<RecommendedConfiguration clusterId="c1" recommendations={view(SECURITY)} />);
+
+    expect(
+      screen.getByText(
+        "Studio's account roles could not be read: the broker has no user store to list. These are the roles the broker names for this address.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('asks the operator to name a role when neither source has one', () => {
+    const neither: ConfigRecommendationView = {
+      ...SECURITY,
+      roles: {},
+      accountRolesSource: { kind: 'NONE', reason: 'the broker lists no roles for artemis' },
+    };
+    renderWithProviders(<RecommendedConfiguration clusterId="c1" recommendations={view(neither)} />);
+
+    expect(screen.getByText(/the broker lists no roles for artemis\. The broker names no role/)).toBeInTheDocument();
+    expect(screen.getByText('At least one role, or this grants nobody anything.')).toBeInTheDocument();
   });
 
   it('states a failed declaration with its cause and offers it again', async () => {

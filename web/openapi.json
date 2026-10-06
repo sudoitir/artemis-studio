@@ -33507,6 +33507,20 @@
             },
             "description" : "Permission type to role names, prefilled from the broker"
           },
+          "accountRoles" : {
+            "type" : "array",
+            "description" : "For a security setting: the roles of the account Studio connects to Core with, as the broker's user management reports them; empty when it could not",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "accountRolesSource" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/ConfigRolesSource"
+            }, {
+              "type" : "null"
+            } ]
+          },
           "keys" : {
             "type" : "array",
             "description" : "The keys this recommendation itself sets",
@@ -33518,7 +33532,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
+        "required" : [ "accountRoles", "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
       },
       "ConfigRecommendationsView" : {
         "type" : "object",
@@ -33536,6 +33550,21 @@
           }
         },
         "required" : [ "recommendations" ]
+      },
+      "ConfigRolesSource" : {
+        "type" : "object",
+        "description" : "Where a recommended security setting's roles were read from",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "BROKER_ACCOUNT", "SECURITY_SETTINGS", "NONE" ]
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why the account's roles were not used; null when they were"
+          }
+        },
+        "required" : [ "kind" ]
       },
       "ConfigNodeConnectorsView" : {
         "type" : "object",

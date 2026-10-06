@@ -21,6 +21,7 @@ _Configuration properties_
 _Others_
 
 * `i.g.s.a.p.b.AcceptanceProbe`
+* `i.g.s.a.p.b.BrokerAccountRoles`
 * `i.g.s.a.p.b.BrokerClientFactory`
 * `i.g.s.a.p.b.BrokerConnections`
 * `i.g.s.a.p.b.BrokerConnectors`

@@ -1,0 +1,11 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": ["artemis"],
+    "type": "exec",
+    "operation": "listUser(java.lang.String)"
+  },
+  "error_type": "java.lang.IllegalStateException",
+  "error": "java.lang.IllegalStateException : Failed to locate the PropertiesLoginModule configuration",
+  "status": 500
+}
