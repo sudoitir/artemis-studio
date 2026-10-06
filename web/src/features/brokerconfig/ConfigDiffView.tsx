@@ -1,224 +1,217 @@
 import { useMemo, useState } from 'react';
-import { Accordion, Select, Switch, Text } from '@mantine/core';
-import { useParams } from '@tanstack/react-router';
+import { MultiSelect, SegmentedControl, Text, TextInput } from '@mantine/core';
+import { useDebouncedCallback } from '@mantine/hooks';
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
-import { useConfigDiff, type ConfigSectionView } from './api.ts';
-import { useTopology } from '../clusters/index.ts';
+import { useConfigDiff, type ConfigDiffView as Diff } from './api.ts';
+import { configDiffColumns } from './configDiffColumns.tsx';
+import { diffRows, filterRows, rowKey, summaryWords, type DiffFilter } from './configDiffRows.ts';
+import type { ConfigDiffSearch } from './feature.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
-import { Section } from '../../ui/Section.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { DataTable } from '../../ui/table/index.ts';
-import { diffEntryColumns } from './configDiffColumns.tsx';
-import classes from './ConfigDiffView.module.css';
 
-/** One section's keys, side by side: a table, or what its emptiness means. */
-function SectionTable({
-  section,
-  driftOnly,
-  onShowAll,
-}: Readonly<{ section: ConfigSectionView; driftOnly: boolean; onShowAll: () => void }>) {
-  const columns = useMemo(diffEntryColumns, []);
-  if (section.entries.length > 0) {
+const VIEWS = [
+  { value: 'drift', label: 'Drift' },
+  { value: 'expected', label: 'Expected' },
+  { value: 'all', label: 'All keys' },
+];
+
+/** What the table says when it lists nothing: clean, filtered away, or not known because a node is silent. */
+function NoRows({
+  data,
+  filter,
+  filtered,
+  onClear,
+}: Readonly<{ data: Diff; filter: DiffFilter; filtered: boolean; onClear: () => void }>) {
+  const silent = data.nodes.filter((n) => !n.available).map((n) => n.nodeName);
+  if (silent.length > 0 && !filtered) {
     return (
-      <DataTable
-        variant="static"
-        label={`${section.label} configuration of the two nodes`}
-        columns={columns}
-        data={section.entries}
-        rowKey={(e) => e.key}
-        storageKey="brokerconfig.diff"
-        rowClassName={(e) => (e.drift ? classes.drift : undefined)}
-        height={{ maxRows: section.entries.length }}
-        empty={null}
+      <EmptyState
+        kind="unreachable"
+        title="Nothing listed for the nodes that answered"
+        description="The nodes below did not answer, so this may not be everything."
+        nodes={silent}
       />
     );
   }
-  // Filtered-empty is not empty: with "Drift only" on, say that, and offer the whole section.
-  return driftOnly ? (
-    <EmptyState
-      kind="filtered"
-      title="No drift in this section"
-      description="Drift only is on, so keys that agree are not listed."
-      onClearFilters={onShowAll}
-    />
-  ) : (
-    <Text size="sm" c="dimmed">
-      Nothing to compare in this section.
-    </Text>
-  );
-}
-
-type DiffData = NonNullable<ReturnType<typeof useConfigDiff>['data']>;
-
-function driftLabel(count: number): string {
-  if (count === 0) return 'no drift';
-  return `${count} drift${count === 1 ? '' : 's'}`;
-}
-
-/** Why the pair cannot be compared: the note, and each side that did not answer with its reason. */
-function NoComparison({ data }: Readonly<{ data: DiffData }>) {
-  const sides = [data.left, data.right];
-  const reasons = (
-    <>
-      {data.note ? <Text size="sm">{data.note}</Text> : null}
-      {sides
-        .filter((s) => s.unavailableReason)
-        .map((s) => (
-          <Text key={s.nodeId} size="sm">
-            <strong>{s.nodeName}:</strong> {s.unavailableReason}
-          </Text>
-        ))}
-    </>
-  );
-  const unreachable = sides.filter((s) => !s.available).map((s) => s.nodeName);
-  // Never a half-diff: when a side is unreachable or answers thinly, say so.
-  return unreachable.length > 0 ? (
-    <EmptyState kind="unreachable" title="No comparison shown" description={reasons} nodes={unreachable} />
-  ) : (
-    <EmptyState kind="empty" title="No comparison shown" description={reasons} />
-  );
-}
-
-/** The comparison itself: the pair, why it cannot be compared when it cannot, and the sections. */
-function DiffResult({
-  data,
-  sections,
-  driftOnly,
-  onShowAll,
-}: Readonly<{ data: DiffData; sections: ConfigSectionView[]; driftOnly: boolean; onShowAll: () => void }>) {
+  if (filtered) {
+    return <EmptyState kind="filtered" title="No key matches" onClearFilters={onClear} />;
+  }
+  if (filter === 'drift') {
+    return (
+      <EmptyState
+        kind="empty"
+        title="Nothing drifts"
+        description="Every node has the same value for every configuration key. Expected differences, such as each broker's name and paths, are under Expected."
+      />
+    );
+  }
   return (
-    <Section
-      title={`${data.left.nodeName} ↔ ${data.right.nodeName}`}
+    <EmptyState
+      kind="empty"
+      title="No expected differences"
+      description="No key differs between nodes in a way that is correct by design."
+    />
+  );
+}
+
+/** Why no comparison could be made: the note, and every node that did not answer with its reason. */
+function NoComparison({ data }: Readonly<{ data: Diff }>) {
+  const silent = data.nodes.filter((n) => !n.available);
+  return (
+    <EmptyState
+      kind="unreachable"
+      title="No comparison shown"
       description={
-        data.comparable ? (
-          <>
-            <div>Differences in configuration keys, excluding expected and unclassified ones.</div>
-            {data.note ? <div>{data.note}</div> : null}
-          </>
-        ) : undefined
-      }
-      actions={
         <>
-          {data.comparable ? (
-            <StatusBadge tone={data.driftCount > 0 ? 'warning' : 'neutral'}>{driftLabel(data.driftCount)}</StatusBadge>
-          ) : null}
-          {[data.left, data.right].map((side) =>
-            side.available ? null : (
-              <StatusBadge key={side.nodeId} tone="danger">
-                {`${side.nodeName} unavailable`}
-              </StatusBadge>
-            ),
-          )}
+          {data.notes.map((note) => (
+            <Text key={note} size="sm">
+              {note}
+            </Text>
+          ))}
+          {silent.map((n) => (
+            <Text key={n.nodeId} size="sm">
+              <strong>{n.nodeName}:</strong> {n.unavailableReason}
+            </Text>
+          ))}
         </>
       }
-    >
-      {data.comparable ? (
-        <Accordion multiple defaultValue={['broker', 'addressSettings']} variant="separated" order={3}>
-          {sections.map((s) => (
-            <Accordion.Item key={s.section} value={s.section}>
-              <Accordion.Control>
-                <span className={classes.sectionHead}>
-                  <Text size="sm" fw={600} component="span">
-                    {s.label}
-                  </Text>
-                  <Text size="sm" c="dimmed" component="span">
-                    {s.entries.length} key{s.entries.length === 1 ? '' : 's'}
-                  </Text>
-                  {s.driftCount > 0 ? <StatusBadge tone="warning">{`${s.driftCount} drift`}</StatusBadge> : null}
-                </span>
-              </Accordion.Control>
-              <Accordion.Panel>
-                <SectionTable section={s} driftOnly={driftOnly} onShowAll={onShowAll} />
-              </Accordion.Panel>
-            </Accordion.Item>
-          ))}
-        </Accordion>
-      ) : (
-        <NoComparison data={data} />
-      )}
-    </Section>
+      nodes={silent.map((n) => n.nodeName)}
+    />
   );
+}
+
+/** A node that did not answer, with why, beside the comparison of those that did. */
+function Silent({ data }: Readonly<{ data: Diff }>) {
+  const silent = data.nodes.filter((n) => !n.available);
+  return silent.map((n) => (
+    <div key={n.nodeId}>
+      <StatusBadge tone="danger">{`${n.nodeName} unavailable`}</StatusBadge>{' '}
+      <Text size="sm" component="span">
+        {n.unavailableReason}
+      </Text>
+    </div>
+  ));
 }
 
 /**
- * Broker configuration compared across two nodes (ADR-0043). Drift between a primary and its backup is
- * silent until failover, when it is expensive.
+ * Broker configuration of every node set against the others (ADR-0043, ADR-0178). Drift between
+ * nodes is silent until failover, when it is expensive, and the node that differs is the one a pair
+ * cannot name.
  *
- * The screen's job is to make a clean pair *read* as clean: expected differences
- * (a broker's name, its node-local paths) and unclassified keys (runtime counters)
- * are shown but kept out of the drift count, so the operator is not trained to
- * ignore the list.
+ * The screen opens on drift and says in one sentence how much there is. Expected differences (a
+ * broker's name, its node-local paths) and unclassified keys (runtime counters) are one switch
+ * away, so a clean cluster reads as clean and the operator is not trained to ignore the list.
  */
 export function ConfigDiffView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const topology = useTopology(clusterId);
-  const [left, setLeft] = useState<string | null>(null);
-  const [right, setRight] = useState<string | null>(null);
-  const [driftOnly, setDriftOnly] = useState(false);
+  const search = useSearch({ strict: false }) as ConfigDiffSearch;
+  const navigate = useNavigate();
+  const diff = useConfigDiff(clusterId);
+  const columns = useMemo(configDiffColumns, []);
 
-  const nodeOptions = useMemo(
-    () =>
-      (topology.data?.nodes ?? []).flatMap((n) =>
-        n.endpoints.map((e) => ({ value: e.id, label: e.name, disabled: !e.manageable })),
-      ),
-    [topology.data],
-  );
+  const filter: DiffFilter = search.view ?? 'drift';
+  const nodes = useMemo(() => search.nodes ?? [], [search.nodes]);
+  const [text, setText] = useState(search.q ?? '');
 
-  const diff = useConfigDiff(clusterId, left, right);
+  const setSearch = (patch: Partial<ConfigDiffSearch>) =>
+    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }), replace: true });
+  const commitText = useDebouncedCallback((q: string) => void setSearch({ q: q || undefined }), 250);
 
-  const sections: ConfigSectionView[] = useMemo(() => {
-    const all = diff.data?.sections ?? [];
-    if (!driftOnly) return all;
-    return all.map((s) => ({ ...s, entries: s.entries.filter((e) => e.drift) }));
-  }, [diff.data, driftOnly]);
+  const data = diff.data;
+  const rows = useMemo(() => (data ? diffRows(data) : []), [data]);
+  const shown = useMemo(() => filterRows(rows, { filter, text, nodes }), [rows, filter, text, nodes]);
+  const filtered = text.trim() !== '' || nodes.length > 0;
+  const clear = () => {
+    setText('');
+    void setSearch({ q: undefined, nodes: undefined });
+  };
 
   return (
-    <Page>
+    <Page fill={data?.comparable}>
       <PageHeader
         title="Config diff"
-        description="Broker configuration compared across two nodes. Drift between a primary and its backup is silent until failover, when it is expensive."
+        description="Every node's broker configuration set against the majority, so the node that differs stands out."
       />
-
-      <Toolbar
-        label="Nodes to compare"
-        start={
-          <>
-            <Select
-              label="Left node"
-              placeholder="Auto"
-              data={nodeOptions}
-              value={left}
-              onChange={setLeft}
-              clearable
-              w="12.5rem"
-            />
-            <Select
-              label="Right node"
-              placeholder="Its pair"
-              data={nodeOptions}
-              value={right}
-              onChange={setRight}
-              clearable
-              w="12.5rem"
-            />
-          </>
-        }
-        end={<Switch label="Drift only" checked={driftOnly} onChange={(e) => setDriftOnly(e.currentTarget.checked)} />}
-      />
-
-      {topology.isError ? <ErrorState error={topology.error} onRetry={() => void topology.refetch()} /> : null}
 
       {diff.isPending ? <LoadingState label="Comparing the nodes" blockSize="20rem" /> : null}
-
       {diff.isError ? <ErrorState error={diff.error} onRetry={() => void diff.refetch()} /> : null}
 
-      {diff.data ? (
-        <DiffResult data={diff.data} sections={sections} driftOnly={driftOnly} onShowAll={() => setDriftOnly(false)} />
+      {data && !data.comparable ? <NoComparison data={data} /> : null}
+
+      {data?.comparable ? (
+        <>
+          <div>
+            <Text size="sm" fw={600}>
+              {summaryWords(data)}
+            </Text>
+            <Silent data={data} />
+            {data.notes.map((note) => (
+              <Text key={note} size="sm" c="dimmed">
+                {note}
+              </Text>
+            ))}
+            <Text size="sm" c="dimmed">
+              This compares the nodes with each other; the{' '}
+              <Link to={`/clusters/${clusterId}/configuration`} className={linkClasses.link}>
+                declared configuration
+              </Link>{' '}
+              reports drift of every live node against what you declared.
+            </Text>
+          </div>
+
+          <Toolbar
+            label="Comparison filters"
+            start={
+              <>
+                <SegmentedControl
+                  size="xs"
+                  aria-label="Keys to list"
+                  data={VIEWS}
+                  value={filter}
+                  onChange={(v) => setSearch({ view: v === 'drift' ? undefined : (v as ConfigDiffSearch['view']) })}
+                />
+                <TextInput
+                  label="Search keys and values"
+                  size="xs"
+                  w="16rem"
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.currentTarget.value);
+                    commitText(e.currentTarget.value);
+                  }}
+                />
+                <MultiSelect
+                  label="Differs on node"
+                  placeholder={nodes.length > 0 ? undefined : 'Any node'}
+                  size="xs"
+                  w="16rem"
+                  clearable
+                  data={data.nodes.filter((n) => n.available).map((n) => ({ value: n.nodeId, label: n.nodeName }))}
+                  value={nodes}
+                  onChange={(v) => setSearch({ nodes: v.length > 0 ? v : undefined })}
+                />
+              </>
+            }
+          />
+
+          <DataTable
+            label="Configuration keys"
+            storageKey="brokerconfig.diff"
+            height="fill"
+            columns={columns}
+            data={shown}
+            rowKey={rowKey}
+            empty={<NoRows data={data} filter={filter} filtered={filtered} onClear={clear} />}
+          />
+        </>
       ) : null}
     </Page>
   );

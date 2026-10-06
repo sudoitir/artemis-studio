@@ -1,214 +1,257 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import type { ConfigDiffView as Diff, ConfigEntryView } from './api.ts';
+import type { ConfigDiffView as Diff } from './api.ts';
+import { A, B, C, cleanDiff, diff, node, same } from './configDiffFixtures.ts';
+import type { ConfigDiffSearch } from './feature.ts';
+
+// The address is the view's state: the route's search is a variable the test sets, and every change the
+// view makes to it is recorded. The round trip through a real router is the browser test's.
+let search: ConfigDiffSearch = {};
+const navigate = vi.fn();
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useParams: () => ({ clusterId: 'c1' }),
+  useSearch: () => search,
+  useNavigate: () => navigate,
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
 }));
 
 const { ConfigDiffView } = await import('./ConfigDiffView.tsx');
 
-const endpoint = (id: string, name: string, manageable = true) => ({
-  id,
-  name,
-  haRole: 'PRIMARY',
-  state: 'UP',
-  active: true,
-  discovered: true,
-  manualOverride: false,
-  manageable,
-});
+function serve(d: Diff | Response = diff()) {
+  server.use(http.get('*/api/v1/clusters/c1/config-diff', () => (d instanceof Response ? d : HttpResponse.json(d))));
+}
 
-const TOPOLOGY = {
-  clusterId: 'c1',
-  nodes: [
-    {
-      splitBrain: 'NONE',
-      replicationBehind: false,
-      endpoints: [endpoint('n-a', 'broker-1'), endpoint('n-b', 'broker-2')],
-    },
-    { splitBrain: 'NONE', replicationBehind: false, endpoints: [endpoint('n-c', 'broker-3', false)] },
-  ],
-};
-
-const entry = (over: Partial<ConfigEntryView>): ConfigEntryView => ({
-  key: 'k',
-  left: 'a',
-  right: 'a',
-  status: 'SAME',
-  statusWord: 'same',
-  classification: 'CONFIGURATION',
-  drift: false,
-  ...over,
-});
-
-const side = (nodeId: string, nodeName: string, over = {}) => ({
-  nodeId,
-  nodeName,
-  available: true,
-  active: true,
-  reducedSurface: false,
-  ...over,
-});
-
-function diff(over: Partial<Diff> = {}): Diff {
-  return {
-    clusterId: 'c1',
-    left: side('n-a', 'broker-1'),
-    right: side('n-b', 'broker-2'),
-    comparable: true,
-    driftCount: 1,
-    matchesCompared: 1,
-    matchesAvailable: 1,
-    note: null,
-    sections: [
-      {
-        section: 'broker',
-        label: 'Broker',
-        driftCount: 1,
-        entries: [
-          entry({
-            key: 'max-disk-usage',
-            left: '90',
-            right: '80',
-            status: 'DIFFERENT',
-            statusWord: 'differs',
-            drift: true,
-          }),
-          entry({
-            key: 'name',
-            left: 'broker-1',
-            right: 'broker-2',
-            classification: 'EXPECTED',
-            statusWord: 'differs',
-          }),
-          entry({
-            key: 'message-counter',
-            left: '4',
-            right: '9',
-            classification: 'UNCLASSIFIED',
-            statusWord: 'differs',
-          }),
-          entry({ key: 'journal-type', left: 'NIO', right: 'NIO' }),
-        ],
-      },
-      { section: 'addressSettings', label: 'Address settings', driftCount: 0, entries: [] },
-    ],
-    ...over,
+/** What the last navigation asked the search to become, from the empty one. */
+function lastSearch(): Record<string, unknown> {
+  const call = navigate.mock.calls.at(-1)?.[0] as {
+    search: (prev: Record<string, unknown>) => Record<string, unknown>;
   };
+  return call.search({});
 }
 
-function serve(d: Diff | Response = diff(), seen?: (params: URLSearchParams) => void) {
-  server.use(
-    http.get('*/api/v1/clusters/c1/topology', () => HttpResponse.json(TOPOLOGY)),
-    http.get('*/api/v1/clusters/c1/config-diff', ({ request }) => {
-      seen?.(new URL(request.url).searchParams);
-      return d instanceof Response ? d : HttpResponse.json(d);
-    }),
-  );
-}
+beforeEach(() => {
+  search = {};
+  navigate.mockReset();
+});
 
 describe('ConfigDiffView', () => {
-  it('shows the pair, the drift count, and every key with its status in words', async () => {
+  it('opens on the drift: the keys that drift, in one sentence and one table, and nothing else', async () => {
     serve();
     renderWithProviders(<ConfigDiffView />);
 
-    expect(await screen.findByRole('heading', { name: 'broker-1 ↔ broker-2' })).toBeInTheDocument();
-    // The pair's total and the section's own count.
-    expect(screen.getAllByText('1 drift')).toHaveLength(2);
-    expect(screen.getByText('4 keys')).toBeInTheDocument();
+    expect(await screen.findByText(/2 keys drift on 1 node\./)).toHaveTextContent('1 expected difference set aside.');
+    expect(screen.getByRole('radio', { name: 'Drift' })).toBeChecked();
 
-    // Only real drift is flagged; expected and unclassified differences are labelled, not counted.
-    const drift = screen.getByRole('row', { name: /max-disk-usage/ });
-    expect(drift).toHaveTextContent('90');
-    expect(drift).toHaveTextContent('80');
-    expect(within(drift).getByText('drift')).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('row', { name: /^name/ })).getByTitle('Correct by design for two distinct nodes'),
-    ).toHaveTextContent('expected');
-    expect(within(screen.getByRole('row', { name: /message-counter/ })).getByText('unclassified')).toBeInTheDocument();
-    expect(within(screen.getByRole('row', { name: /journal-type/ })).queryByText('drift')).toBeNull();
+    const table = await screen.findByRole('grid', { name: 'Configuration keys' });
+    expect(within(table).getByRole('row', { name: /\/MaxDiskUsage/ })).toBeInTheDocument();
+    expect(within(table).getByRole('row', { name: /\/orders\.#\/maxSizeBytes/ })).toBeInTheDocument();
+    // Expected, unclassified and agreeing keys are one switch away, not in the list.
+    expect(within(table).queryByRole('row', { name: /\/Name/ })).toBeNull();
+    expect(within(table).queryByRole('row', { name: /\/TotalMessageCount/ })).toBeNull();
+    expect(within(table).queryByRole('row', { name: /\/JournalType/ })).toBeNull();
   });
 
-  it('says a pair with no drift has none, and a single drift in the singular', async () => {
-    serve(diff({ driftCount: 0, sections: [] }));
+  it('states the majority and each outlier in words, with its value or that it is missing', async () => {
+    serve();
     renderWithProviders(<ConfigDiffView />);
 
-    expect(await screen.findByText('no drift')).toBeInTheDocument();
+    const differs = await screen.findByRole('row', { name: /\/MaxDiskUsage/ });
+    expect(differs).toHaveTextContent('90');
+    expect(differs).toHaveTextContent('broker-3 differs: 80');
+    expect(within(differs).getByText('different')).toBeInTheDocument();
+
+    const missing = screen.getByRole('row', { name: /\/orders\.#\/maxSizeBytes/ });
+    expect(missing).toHaveTextContent('1024');
+    expect(missing).toHaveTextContent('broker-3 missing');
+    expect(within(missing).getByText('missing on some')).toBeInTheDocument();
   });
 
-  it('counts several drifts and a one-key section in the singular', async () => {
-    const d = diff({ driftCount: 2 });
-    d.sections = [
-      {
-        section: 'broker',
-        label: 'Broker',
-        driftCount: 0,
-        entries: [entry({ key: 'only-key' })],
-      },
-    ];
-    serve(d);
+  it('says there is no majority and lists every value with its nodes', async () => {
+    search = { view: 'expected' };
+    serve();
     renderWithProviders(<ConfigDiffView />);
 
-    expect(await screen.findByText('2 drifts')).toBeInTheDocument();
-    expect(screen.getByText('1 key')).toBeInTheDocument();
+    const row = await screen.findByRole('row', { name: /\/Name/ });
+    expect(row).toHaveTextContent('no majority');
+    expect(row).toHaveTextContent('1 on broker-1 · 2 on broker-2 · 3 on broker-3');
+    expect(within(row).getByText('expected')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Expected' })).toBeChecked();
   });
 
-  it('shows a missing value as a dash and says so for an empty section', async () => {
-    const d = diff();
-    d.sections = [
-      {
-        section: 'broker',
-        label: 'Broker',
-        driftCount: 1,
-        entries: [entry({ key: 'only-left', left: 'x', right: null, drift: true, statusWord: 'only on broker-1' })],
-      },
-      { section: 'addressSettings', label: 'Address settings', driftCount: 0, entries: [] },
-    ];
-    serve(d);
+  it('lists every key, agreeing and unclassified ones included, under All keys', async () => {
+    search = { view: 'all' };
+    serve();
     renderWithProviders(<ConfigDiffView />);
 
-    const row = await screen.findByRole('row', { name: /only-left/ });
-    expect(within(row).getByText('—')).toBeInTheDocument();
-    expect(within(row).getByText('only on broker-1')).toBeInTheDocument();
-    expect(screen.getByText('Nothing to compare in this section.')).toBeInTheDocument();
-    expect(screen.getAllByText('1 drift')).toHaveLength(2);
+    const unclassified = await screen.findByRole('row', { name: /\/TotalMessageCount/ });
+    expect(within(unclassified).getByText('unclassified')).toBeInTheDocument();
+    const agreeing = screen.getByRole('row', { name: /\/JournalType/ });
+    expect(within(agreeing).getByText('same')).toBeInTheDocument();
   });
 
-  it('refuses a half-diff: an unreachable side is named with its reason and no section is shown', async () => {
+  it('writes the chosen view into the address, and omits the default', async () => {
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigDiffView />);
+
+    await screen.findByRole('row', { name: /\/MaxDiskUsage/ });
+    await user.click(screen.getByRole('radio', { name: 'All keys' }));
+    expect(lastSearch()).toEqual({ view: 'all' });
+  });
+
+  it('leaves the view out of the address when it returns to drift', async () => {
+    search = { view: 'all' };
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigDiffView />);
+
+    await screen.findByRole('row', { name: /\/JournalType/ });
+    await user.click(screen.getByRole('radio', { name: 'Drift' }));
+    expect(lastSearch()).toEqual({ view: undefined });
+  });
+
+  it('says a cluster with no drift is clean, counting the expected differences it set aside, and lists no rows', async () => {
+    serve(cleanDiff());
+    renderWithProviders(<ConfigDiffView />);
+
+    expect(await screen.findByText(/No key drifts across the 3 nodes compared\./)).toHaveTextContent(
+      '1 expected difference set aside.',
+    );
+    expect(screen.getByText('Nothing drifts')).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /\/Name/ })).toBeNull();
+  });
+
+  it('says a search that matches nothing is filtered, not clean, and clears it', async () => {
+    search = { q: 'zzz' };
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigDiffView />);
+
+    expect(await screen.findByText('No key matches')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing drifts')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(lastSearch()).toEqual({ q: undefined, nodes: undefined });
+    expect(screen.getByRole('textbox', { name: 'Search keys and values' })).toHaveValue('');
+  });
+
+  it('searches the keys and the values, and keeps the text in the address', async () => {
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigDiffView />);
+
+    await screen.findByRole('row', { name: /\/MaxDiskUsage/ });
+    await user.type(screen.getByRole('textbox', { name: 'Search keys and values' }), '1024');
+
+    expect(await screen.findByRole('row', { name: /\/orders\.#\/maxSizeBytes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /\/MaxDiskUsage/ })).toBeNull();
+    await waitFor(() => expect(lastSearch()).toEqual({ q: '1024' }));
+  });
+
+  it('keeps the keys that differ on the chosen node, and writes the node into the address', async () => {
+    const user = userEvent.setup();
+    serve(
+      diff({
+        sections: [
+          {
+            section: 'broker',
+            label: 'Broker',
+            keys: [diff().sections[0].keys[0], { ...diff().sections[0].keys[0], key: '/OtherDrift' }],
+          },
+        ],
+      }),
+    );
+    search = { nodes: ['n-a'] };
+    const { unmount } = renderWithProviders(<ConfigDiffView />);
+    // broker-1 holds the majority on every key, so it differs on none.
+    expect(await screen.findByText('No key matches')).toBeInTheDocument();
+    unmount();
+
+    search = { nodes: ['n-c'] };
+    renderWithProviders(<ConfigDiffView />);
+    expect(await screen.findByRole('row', { name: /\/MaxDiskUsage/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /\/OtherDrift/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: 'Differs on node' }));
+    await user.click(await screen.findByRole('option', { name: 'broker-1' }));
+    expect(lastSearch()).toEqual({ nodes: ['n-c', 'n-a'] });
+  });
+
+  it('names a node that did not answer, with its reason, and says the others were compared without it', async () => {
+    serve(
+      diff({
+        nodes: [
+          node(A),
+          node(B),
+          node(C, { available: false, unavailableKind: 'UNREACHABLE', unavailableReason: 'connection refused' }),
+        ],
+        sections: [{ section: 'broker', label: 'Broker', keys: [same('/JournalType', 'NIO')] }],
+        summary: { driftKeys: 0, driftNodes: 0, expectedKeys: 0 },
+      }),
+    );
+    renderWithProviders(<ConfigDiffView />);
+
+    expect(await screen.findByText('broker-3 unavailable')).toBeInTheDocument();
+    expect(screen.getByText('connection refused')).toBeInTheDocument();
+    expect(screen.getByText(/No key drifts across the 2 nodes compared\./)).toHaveTextContent(
+      'broker-3 did not answer, so it was not compared.',
+    );
+    // A clean result over fewer nodes is not a clean cluster: the empty table says so.
+    expect(screen.getByText('Nothing listed for the nodes that answered')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing drifts')).toBeNull();
+  });
+
+  it('states why no comparison was made when fewer than two nodes answered, naming each node and reason', async () => {
     serve(
       diff({
         comparable: false,
-        note: 'Only one node answered.',
-        right: side('n-b', 'broker-2', { available: false, unavailableReason: 'connection refused' }),
+        sections: [],
+        nodes: [
+          node(A),
+          node(B, { available: false, unavailableKind: 'UNAUTHORIZED', unavailableReason: 'credentials rejected' }),
+          node(C, { available: false, unavailableKind: 'UNREACHABLE', unavailableReason: 'connection refused' }),
+        ],
+        notes: ['Fewer than two nodes answered, so no comparison could be made.'],
       }),
     );
     renderWithProviders(<ConfigDiffView />);
 
     expect(await screen.findByText('No comparison shown')).toBeInTheDocument();
-    expect(screen.getByText('Only one node answered.')).toBeInTheDocument();
-    expect(screen.getByText('broker-2 unavailable')).toBeInTheDocument();
-    expect(screen.getByText(/connection refused/)).toBeInTheDocument();
-    // No drift badge for a pair that could not be compared, and no accordion of half-known keys.
-    expect(screen.queryByText(/drift/i, { selector: '.mantine-Badge-label' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Broker/ })).toBeNull();
+    expect(screen.getByText('Fewer than two nodes answered, so no comparison could be made.')).toBeInTheDocument();
+    expect(screen.getByText(/credentials rejected/)).toBeInTheDocument();
+    const unreachable = screen.getByRole('list', { name: 'Nodes that could not be reached' });
+    expect(within(unreachable).getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByRole('grid')).toBeNull();
   });
 
-  it('shows the note beside a comparable pair without treating it as a refusal', async () => {
-    serve(diff({ note: 'Compared 1 of 3 address matches.' }));
+  it('shows the notes the comparison states, such as the address-setting cap', async () => {
+    serve(diff({ notes: ['Compared 25 of 41 address settings (the default match "#" is always included).'] }));
     renderWithProviders(<ConfigDiffView />);
 
-    expect(await screen.findByText('Compared 1 of 3 address matches.')).toBeInTheDocument();
-    expect(screen.queryByText('No comparison shown')).toBeNull();
+    expect(await screen.findByText(/Compared 25 of 41 address settings/)).toBeInTheDocument();
   });
 
-  it('states why the comparison failed when the request fails', async () => {
+  it('links to the declared configuration and says how the two differ', async () => {
+    serve();
+    renderWithProviders(<ConfigDiffView />);
+
+    const link = await screen.findByRole('link', { name: 'declared configuration' });
+    expect(link).toHaveAttribute('href', '/clusters/c1/configuration');
+    expect(link.parentElement).toHaveTextContent('compares the nodes with each other');
+    expect(link.parentElement).toHaveTextContent('every live node against what you declared');
+  });
+
+  it('states why the comparison failed when the request fails, and offers it again', async () => {
     serve(
       HttpResponse.json({ title: 'Cluster unreachable', detail: 'No node answered the comparison.' }, { status: 502 }),
     );
@@ -217,125 +260,14 @@ describe('ConfigDiffView', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Studio failed to complete the request');
     expect(within(alert).getByText('No node answered the comparison.')).toBeInTheDocument();
-    // The failure offers the comparison again.
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeEnabled();
   });
 
-  it('narrows to drift only, keeping the sections', async () => {
-    serve();
-    const user = userEvent.setup();
-    renderWithProviders(<ConfigDiffView />);
-
-    await screen.findByRole('row', { name: /journal-type/ });
-    await user.click(screen.getByRole('switch', { name: 'Drift only' }));
-
-    expect(screen.getByRole('row', { name: /max-disk-usage/ })).toBeInTheDocument();
-    expect(screen.queryByRole('row', { name: /journal-type/ })).toBeNull();
-    expect(screen.queryByRole('row', { name: /message-counter/ })).toBeNull();
-  });
-
-  it('picks each side from the nodes, disabling those Studio cannot manage, and asks for that pair', async () => {
-    const seen: string[] = [];
-    serve(diff(), (p) => seen.push(p.toString()));
-    const user = userEvent.setup();
-    renderWithProviders(<ConfigDiffView />);
-
-    await screen.findByRole('heading', { name: 'broker-1 ↔ broker-2' });
-    expect(seen).toEqual(['']);
-
-    await user.click(screen.getByRole('combobox', { name: 'Left node' }));
-    const leftList = await screen.findByRole('listbox', { name: 'Left node' });
-    expect(within(leftList).getByRole('option', { name: 'broker-3' })).toHaveAttribute(
-      'data-combobox-disabled',
-      'true',
-    );
-    await user.click(within(leftList).getByRole('option', { name: 'broker-2' }));
-    await waitFor(() => expect(seen).toContain('left=n-b'));
-
-    await user.click(screen.getByRole('combobox', { name: 'Right node' }));
-    const rightList = await screen.findByRole('listbox', { name: 'Right node' });
-    await user.click(within(rightList).getByRole('option', { name: 'broker-1' }));
-    await waitFor(() => expect(seen).toContain('left=n-b&right=n-a'));
-  });
-
-  it('is one page: a single h1, the pair as its h2 and each section as an h3', async () => {
+  it('is one page with a single h1', async () => {
     serve();
     renderWithProviders(<ConfigDiffView />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Config diff' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(await screen.findByRole('heading', { level: 2, name: 'broker-1 ↔ broker-2' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: /^Broker/ })).toBeInTheDocument();
-  });
-
-  it('draws each section as a native table whose first column heads its rows, with no scroll box around it', async () => {
-    serve();
-    renderWithProviders(<ConfigDiffView />);
-
-    const table = await screen.findByRole('table', { name: 'Broker configuration of the two nodes' });
-    expect(within(table).getByRole('rowheader', { name: 'max-disk-usage' })).toBeInTheDocument();
-    for (const header of ['Key', 'Left', 'Right', 'Status']) {
-      expect(within(table).getByRole('columnheader', { name: header })).toBeInTheDocument();
-    }
-    expect(table.closest('[tabindex]')).toBeNull();
-  });
-
-  it('says a section with no drift is filtered, not empty, and offers to show every key again', async () => {
-    const d = diff();
-    d.sections = [
-      { section: 'broker', label: 'Broker', driftCount: 1, entries: diff().sections[0].entries },
-      {
-        section: 'addressSettings',
-        label: 'Address settings',
-        driftCount: 0,
-        entries: [entry({ key: 'agreeing-key' })],
-      },
-    ];
-    serve(d);
-    const user = userEvent.setup();
-    renderWithProviders(<ConfigDiffView />);
-
-    await screen.findByRole('row', { name: /agreeing-key/ });
-    await user.click(screen.getByRole('switch', { name: 'Drift only' }));
-
-    expect(screen.getByText('No drift in this section')).toBeInTheDocument();
-    expect(screen.queryByText('Nothing to compare in this section.')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(screen.getByRole('switch', { name: 'Drift only' })).not.toBeChecked();
-    expect(await screen.findByRole('row', { name: /agreeing-key/ })).toBeInTheDocument();
-  });
-
-  it('names an unreachable side as unreachable, not as an empty comparison', async () => {
-    serve(
-      diff({
-        comparable: false,
-        note: 'Only one node answered.',
-        right: side('n-b', 'broker-2', { available: false, unavailableReason: 'connection refused' }),
-      }),
-    );
-    renderWithProviders(<ConfigDiffView />);
-
-    const unreachable = await screen.findByRole('list', { name: 'Nodes that could not be reached' });
-    expect(within(unreachable).getByText('broker-2')).toBeInTheDocument();
-  });
-
-  it('states why the nodes could not be listed, and lists them again on retry', async () => {
-    let attempts = 0;
-    server.use(
-      http.get('*/api/v1/clusters/c1/topology', () => {
-        attempts += 1;
-        return attempts === 1
-          ? HttpResponse.json({ title: 'Down', detail: 'The topology is not answering.' }, { status: 503 })
-          : HttpResponse.json(TOPOLOGY);
-      }),
-      http.get('*/api/v1/clusters/c1/config-diff', () => HttpResponse.json(diff())),
-    );
-    const user = userEvent.setup();
-    renderWithProviders(<ConfigDiffView />);
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('The topology is not answering.');
-    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
   });
 });
