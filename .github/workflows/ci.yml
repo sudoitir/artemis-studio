@@ -1,21 +1,15 @@
 name: CI
 
-# Pull requests carry the whole verification; main only releases (ADR-0126). A PR is verified
-# twice before it merges: on its own branch, then in the merge queue (ADR-0169), where the
-# `merge_group` run tests the exact commit the queue merges. The ruleset requires `ci-ok` on both,
-# so the merge commit is the commit CI tested. The verification jobs run on every event but
-# `push`; the release jobs run only on `push`.
+# Pull requests carry the whole verification; main only releases (ADR-0126). The ruleset requires
+# `ci-ok` on a branch that is up to date with main, so the merge commit is the commit CI tested.
 # This file's name is load-bearing: npm trusted publishing is bound to `ci.yml`.
 on:
   push:
     branches: [main]
   pull_request:
-  merge_group:
-    types: [checks_requested]
 
 # A newer push supersedes a PR's run, but never main's: main's run is a release, which tags
-# before it pushes the image, so cancelling it burns a version with nothing published. A merge
-# group has its own ref (`gh-readonly-queue/...`), so a PR's run never cancels it.
+# before it pushes the image, so cancelling it burns a version with nothing published.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -32,10 +26,8 @@ env:
   GIT_CLIFF: git-cliff@2.13.1
 
 jobs:
-  # Which parts of the tree this push, PR or merge group touches (ADR-0088, ADR-0126). A push
-  # compares against the commit before it, a PR against its base, and a merge group against the
-  # base commit in its event (dorny/paths-filter reads it when `base` is empty). Every later job
-  # keys off these outputs.
+  # Which parts of the tree this push or PR touches (ADR-0088, ADR-0126). A push compares
+  # against the commit before it, a PR against its base. Every later job keys off these outputs.
   changes:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
@@ -136,7 +128,7 @@ jobs:
   backend:
     needs: changes
     if: >-
-      github.event_name != 'push'
+      github.event_name == 'pull_request'
       && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true')
     runs-on: ubuntu-26.04
     timeout-minutes: 30
@@ -181,7 +173,7 @@ jobs:
   frontend:
     needs: changes
     if: >-
-      github.event_name != 'push'
+      github.event_name == 'pull_request'
       && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true')
     runs-on: ubuntu-26.04
     timeout-minutes: 30
@@ -233,7 +225,7 @@ jobs:
   # `just api-diff` runs the same script.
   api-compat:
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.web == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.web == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
@@ -249,7 +241,7 @@ jobs:
   client-java:
     needs: changes
     if: >-
-      github.event_name != 'push'
+      github.event_name == 'pull_request'
       && (needs.changes.outputs.web == 'true' || needs.changes.outputs.clients == 'true')
     runs-on: ubuntu-26.04
     timeout-minutes: 15
@@ -271,7 +263,7 @@ jobs:
   plugin-template:
     needs: changes
     if: >-
-      github.event_name != 'push'
+      github.event_name == 'pull_request'
       && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
       || needs.changes.outputs.plugin == 'true')
     runs-on: ubuntu-26.04
@@ -360,7 +352,7 @@ jobs:
   # (ADR-0152). Single-arch, no push, in parallel with the tests.
   image:
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.image == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.image == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
@@ -427,7 +419,7 @@ jobs:
   # The documentation site builds (ADR-0061 D5). pages.yml deploys it from main.
   site:
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.site == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.site == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     defaults:
@@ -453,7 +445,7 @@ jobs:
   # scans main and the whole tree weekly.
   osv:
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.manifests == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.manifests == 'true'
     permissions:
       actions: read
       contents: read
@@ -469,7 +461,7 @@ jobs:
 
   actionlint:
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.workflows == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -486,7 +478,7 @@ jobs:
   # ObservabilityAssetsIntegrationTest, in the backend job.
   observability:
     needs: changes
-    if: github.event_name != 'push' && needs.changes.outputs.observability == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.observability == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -506,7 +498,7 @@ jobs:
   # so its checksum is verified) against the compiled classes. Informational (ADR-0128).
   coverage:
     needs: backend
-    if: github.event_name == 'pull_request' && needs.backend.result == 'success'
+    if: needs.backend.result == 'success'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
@@ -557,8 +549,7 @@ jobs:
   # (ADR-0126), so its analysis reuses the coverage of the PR run that the merge commit came from,
   # which keeps the main dashboard and the README badges current. Fork PRs get no token and skip;
   # so do Dependabot PRs (ADR-0155): their runs get Dependabot secrets, not SONAR_TOKEN, and they
-  # change only manifests, which the analysis of the main push after the merge covers. A merge
-  # group has no PR to decorate and its content was analysed as the PR, so Sonar skips it.
+  # change only manifests, which the analysis of the main push after the merge covers.
   sonar:
     needs: [changes, coverage, frontend]
     if: >-

@@ -140,8 +140,8 @@ just db-status / db-sql / db-rollback [n] / db-shell
 live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
 
 Pull requests carry the verification: parallel, path-filtered jobs behind the one required
-`ci-ok` check, which the merge queue re-runs on the exact commit it merges (ADR-0169), so a PR need not
-be up to date with `main`. `main` does not re-test. Every push to `main`
+`ci-ok` check, on a branch up to date with `main`; `gh pr merge <n> --merge --auto` merges a ready PR, and
+the `pr-auto-update` workflow updates it when `main` moves (ADR-0170). `main` does not re-test. Every push to `main`
 that changes a build input cuts a CalVer release to Docker Hub (image, git tag, GitHub
 pre-release), and Central and npm get it only when their inputs changed; docs-, site- and
 CI-only pushes release nothing (ADR-0088, ADR-0126). See `.claude/rules/10-release.md` for the versioning. There is no
