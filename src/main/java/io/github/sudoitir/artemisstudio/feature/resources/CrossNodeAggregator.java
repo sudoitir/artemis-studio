@@ -1,11 +1,14 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
+import static io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind.QUEUE;
+
 import io.github.sudoitir.artemisstudio.feature.resources.QueueViewMapper.QueueKey;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -38,18 +41,21 @@ public class CrossNodeAggregator {
     private final QueueViewMapper mapper;
     private final ScrapeProperties properties;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     @Transactional(readOnly = true)
     public PagedView<QueueView> queues(UUID clusterId, ResourceQuery query) {
-        List<QueueView> rows = accessibleQueues(clusterId).stream()
+        ResourceFilter readable = permissions.filter(clusterId, QUEUE);
+        List<QueueView> rows = accessibleQueues(clusterId, readable).stream()
                 .filter(v -> query.matches(v.queueName()) || query.matches(v.address()))
                 .toList();
-        return query.paginate(rows, comparatorFor(query.sortField()));
+        return query.paginate(rows, comparatorFor(query.sortField()))
+                .map(v -> v.withAllowedActions(readable.allowedActions(v.queueName())));
     }
 
     /**
-     * Every queue in the cluster, rolled up across nodes and unpaged, for a caller
-     * acting on behalf of a user.
+     * Every queue in the cluster that the caller may read, rolled up across nodes and unpaged, for a
+     * caller acting on behalf of a user.
      *
      * <p>Exists because {@link ResourceQuery} caps a page at 500 rows, which is right for
      * a grid and wrong for a caller that must consider every queue before it can rank
@@ -58,12 +64,15 @@ public class CrossNodeAggregator {
      */
     @Transactional(readOnly = true)
     public List<QueueView> allQueues(UUID clusterId) {
-        return accessibleQueues(clusterId);
+        return accessibleQueues(clusterId, permissions.filter(clusterId, QUEUE));
     }
 
-    private List<QueueView> accessibleQueues(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return rolledUp(clusterId);
+    /** The cluster's queues that the caller may read, so a total never counts a hidden one. */
+    private List<QueueView> accessibleQueues(UUID clusterId, ResourceFilter readable) {
+        clusterAccess.requireVisible(clusterId);
+        return rolledUp(clusterId).stream()
+                .filter(v -> readable.readable(v.queueName()))
+                .toList();
     }
 
     /**

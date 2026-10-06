@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -48,8 +49,7 @@ public class SqlConsoleService {
 
     /** Parse, validate and cost a query. Contacts no broker and no database beyond the cache. */
     public QueryPlan plan(UUID clusterId, String sql) {
-        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
-        QueryAst ast = parser.parse(sql);
+        QueryAst ast = parseReadable(clusterId, sql);
         governance.guardPredicates(clusterId, ast);
         return governance.withAtRestNotice(planner.plan(clusterId, ast));
     }
@@ -60,8 +60,7 @@ public class SqlConsoleService {
      * narrow it.
      */
     public Executed run(UUID clusterId, String sql, BrokerQueryExecutor.Sink sink) {
-        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
-        QueryAst ast = parser.parse(sql);
+        QueryAst ast = parseReadable(clusterId, sql);
         governance.guardPredicates(clusterId, ast);
         QueryPlan plan = governance.withAtRestNotice(planner.plan(clusterId, ast));
         planner.enforceCostCeiling(plan);
@@ -115,6 +114,25 @@ public class SqlConsoleService {
         } finally {
             running.decrementAndGet();
         }
+    }
+
+    /**
+     * The query, once the caller is known to hold {@code message:read} on every queue its {@code FROM} can
+     * match. A query is refused rather than trimmed, so a result never silently omits a queue the text names.
+     */
+    private QueryAst parseReadable(UUID clusterId, String sql) {
+        clusterAccess.requireVisible(clusterId);
+        QueryAst ast = parser.parse(sql);
+        clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, ast.queuePattern(), MessagePermissions.MESSAGE_READ);
+        return ast;
+    }
+
+    /**
+     * Whether the caller may see the clear values of what the query reads: {@code message:clear} on every
+     * queue its {@code FROM} can match. Resolved on the request thread, which a stream's rows are not.
+     */
+    public boolean clearAccessFor(UUID clusterId, String sql) {
+        return governance.clearAccess(clusterId, parser.parse(sql).queuePattern());
     }
 
     private String describeBounds(QueryResult result) {

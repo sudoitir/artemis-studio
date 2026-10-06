@@ -106,7 +106,11 @@ class McpDryRunIntegrationTest extends PostgresIntegrationTest {
                 tokens,
                 Grant.ScopeType.CLUSTER,
                 clusterId,
-                Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ, MessagePermissions.MESSAGE_DELETE));
+                Set.of(
+                        Permissions.CLUSTER_READ,
+                        Permissions.QUEUE_READ,
+                        MessagePermissions.MESSAGE_READ,
+                        MessagePermissions.MESSAGE_DELETE));
     }
 
     @AfterEach

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.rr.internal.persistence;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,6 +54,7 @@ public interface RrFlowRepository extends JpaRepository<RrFlowEntity, UUID> {
             select f from RrFlowEntity f
             where f.clusterId = :clusterId
               and (:state is null or f.state = :state)
+              and (:everything = true or f.requestAddress in :readable)
               and (:address is null or f.requestAddress = :address)
               and (:correlationId is null or f.correlationId = :correlationId)
               and f.requestedAt >= :from
@@ -61,6 +63,8 @@ public interface RrFlowRepository extends JpaRepository<RrFlowEntity, UUID> {
             """)
     Page<RrFlowEntity> findPage(
             @Param("clusterId") UUID clusterId,
+            @Param("everything") boolean everything,
+            @Param("readable") Collection<String> readable,
             @Param("state") String state,
             @Param("address") String address,
             @Param("correlationId") String correlationId,

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.TransportTarget;
@@ -52,7 +53,7 @@ public class MessageVerifier {
 
     @Transactional(readOnly = true)
     public Verdict verify(UUID clusterId, UUID nodeId, String queueName, long messageId, long timestamp) {
-        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
+        clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), MessagePermissions.MESSAGE_READ);
 
         Optional<ClusterNode> node = nodes.nodes(clusterId).stream()
                 .filter(n -> n.getId().equals(nodeId))

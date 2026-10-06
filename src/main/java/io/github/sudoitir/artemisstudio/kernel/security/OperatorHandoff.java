@@ -81,4 +81,17 @@ public class OperatorHandoff {
         }
         return perm.can(StudioPrincipal.live(captured.userId(), captured.getUsername(), false), clusterId, permission);
     }
+
+    /** {@link #stillHolds(Operator, UUID, String)} for the permission on one queue or address. */
+    public boolean stillHolds(Operator operator, UUID clusterId, ResourceRef resource, String permission) {
+        StudioPrincipal captured = operator.principal();
+        if (captured.userId() == null || !perm.can(captured, clusterId, resource, permission)) {
+            return false;
+        }
+        return perm.can(
+                StudioPrincipal.live(captured.userId(), captured.getUsername(), false),
+                clusterId,
+                resource,
+                permission);
+    }
 }

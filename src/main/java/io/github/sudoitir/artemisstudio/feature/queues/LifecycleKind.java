@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
+import java.util.Optional;
+
 /**
  * The lifecycle operations Studio exposes (ADR-0049). One enum shared by the HTTP
  * API and the single MCP {@code queue_lifecycle} tool, so a kind cannot be
@@ -21,12 +24,13 @@ public enum LifecycleKind {
     PAUSE_QUEUE("PAUSE_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_PAUSE, false),
     RESUME_QUEUE("RESUME_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_PAUSE, false),
     RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_UPDATE, false),
-    CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_CREATE, false),
-    DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", QueuePermissions.QUEUE_DELETE, true),
+    CREATE_ADDRESS("CREATE_ADDRESS", LifecycleKind.ADDRESS_TARGET, QueuePermissions.ADDRESS_CREATE, false),
+    DELETE_ADDRESS("DELETE_ADDRESS", LifecycleKind.ADDRESS_TARGET, QueuePermissions.ADDRESS_DELETE, true),
     CREATE_DIVERT("CREATE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, false),
     DELETE_DIVERT("DELETE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, true);
 
     private static final String QUEUE_TARGET = "QUEUE";
+    private static final String ADDRESS_TARGET = "ADDRESS";
 
     private final String auditName;
     private final String targetType;
@@ -64,6 +68,18 @@ public enum LifecycleKind {
     /** Whether re-running this kind leaves the cluster in the same state. */
     public boolean idempotent() {
         return this != RESET_QUEUE_COUNTER;
+    }
+
+    /**
+     * The queue or address this kind acts on when it is given {@code name}, which its permission is
+     * checked against; empty for a divert, whose check names the two addresses it runs between.
+     */
+    public Optional<ResourceRef> resource(String name) {
+        return switch (targetType) {
+            case QUEUE_TARGET -> Optional.of(ResourceRef.queue(name));
+            case ADDRESS_TARGET -> Optional.of(ResourceRef.address(name));
+            default -> Optional.empty();
+        };
     }
 
     public boolean isAddressKind() {

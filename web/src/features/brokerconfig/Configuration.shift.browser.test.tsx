@@ -11,6 +11,7 @@ import {
 import type { ReactElement } from 'react';
 
 import { paged } from '../../kernel/api/paging.ts';
+import { accessFor } from '../../test/accessSummary.ts';
 import { contentWidth, Frame, renderThemed, settle } from '../../test/browser.tsx';
 import { ConfigDiffView } from './ConfigDiffView.tsx';
 import { ConfigurationView } from './ConfigurationView.tsx';
@@ -112,6 +113,7 @@ function bodyFor(path: string): unknown {
     : declaration({ nodes: [{ ...NODE_A, state: 'DRIFTED', findings: [] }, NODE_B] });
   const routes: [RegExp, unknown][] = [
     [/\/auth\/me$/, ME],
+    [/\/me\/access$/, accessFor(ME.grants)],
     [/\/clusters\/c1$/, cluster()],
     [/\/clusters\/c1\/topology$/, TOPOLOGY],
     [/\/config\/catalogue$/, CATALOGUE],

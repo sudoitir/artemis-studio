@@ -24,9 +24,11 @@ import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard.Requirement;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BulkCapExceededException;
@@ -61,7 +63,7 @@ import tools.jackson.databind.ObjectMapper;
 public class BulkService {
 
     static final Duration PREVIEW_LIFETIME = Duration.ofMinutes(10);
-    private static final int HISTORY = 100;
+    private static final int HISTORY_SCAN = 200;
 
     private final BulkRunRepository runs;
     private final BulkRunItemRepository items;
@@ -84,11 +86,14 @@ public class BulkService {
      */
     public BulkRunDetailView preview(UUID clusterId, BulkPreviewRequest request) {
         BulkOperation operation = Objects.requireNonNull(request.operation(), "operation");
-        clusterAccess.requireCluster(clusterId, operation.permission());
+        clusterAccess.requireVisible(clusterId);
         Map<String, QueueView> byName = new LinkedHashMap<>();
         queues.allQueues(clusterId).forEach(q -> byName.putIfAbsent(q.queueName(), q));
 
         List<String> names = resolve(request, byName);
+        // Every queue of the plan, before anything is stored: one the caller may not read is not found,
+        // one they may read and not change is refused, and the run is not planned at all.
+        clusterAccess.requireAll(clusterId, requirements(names, operation.permission()));
         int queueCap = settings.intValue(BrokerSettings.BULK_QUEUE_CAP);
         if (names.isEmpty()) {
             throw new BulkRefusedException(
@@ -242,7 +247,7 @@ public class BulkService {
     public BulkRunView execute(UUID clusterId, UUID runId, BulkExecuteRequest request) {
         BulkRunEntity run = load(clusterId, runId);
         BulkOperation operation = run.getOperation();
-        clusterAccess.requireCluster(clusterId, operation.permission());
+        requireOnRun(clusterId, run, operation.permission());
         if (run.getStatus() != BulkRunStatus.PREVIEWED) {
             throw new ConflictException(
                     "bulk-run-started", "This bulk run has already been executed. Preview again to run it again.");
@@ -316,7 +321,7 @@ public class BulkService {
     /** Ask a running run to stop, on whichever replica executes it: the queue in flight finishes, the rest are cancelled. */
     public BulkRunView stop(UUID clusterId, UUID runId) {
         BulkRunEntity run = load(clusterId, runId);
-        clusterAccess.requireCluster(clusterId, run.getOperation().permission());
+        requireOnRun(clusterId, run, run.getOperation().permission());
         boolean here = runner.requestStop(runId);
         if (!here && run.getStatus() != BulkRunStatus.RUNNING) {
             throw new ConflictException(
@@ -333,18 +338,62 @@ public class BulkService {
 
     // ---- read --------------------------------------------------------------
 
+    /** A run is read by a caller who may read every queue it acts on. */
     public BulkRunDetailView get(UUID clusterId, UUID runId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return detail(load(clusterId, runId));
+        clusterAccess.requireVisible(clusterId);
+        BulkRunEntity run = load(clusterId, runId);
+        requireOnRun(clusterId, run, Permissions.QUEUE_READ);
+        return detail(run);
     }
 
-    /** Runs that were executed, newest first. */
+    /**
+     * Runs that were executed, newest first. A caller who reads every queue of the cluster sees them all; any
+     * other sees the runs whose queues they may all read, among the latest {@value #HISTORY_SCAN}.
+     */
     public PagedView<BulkRunView> history(UUID clusterId, ResourceQuery query) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        return PagedView.of(
-                runs.findByClusterIdAndStatusNotOrderByCreatedAtDesc(
-                        clusterId, BulkRunStatus.PREVIEWED, PageRequest.of(query.page() - 1, query.size())),
-                this::view);
+        clusterAccess.requireVisible(clusterId);
+        if (clusterAccess.holds(clusterId, Permissions.QUEUE_READ)) {
+            return PagedView.of(
+                    runs.findByClusterIdAndStatusNotOrderByCreatedAtDesc(
+                            clusterId, BulkRunStatus.PREVIEWED, PageRequest.of(query.page() - 1, query.size())),
+                    this::view);
+        }
+        List<BulkRunView> readable = runs
+                .findByClusterIdAndStatusNotOrderByCreatedAtDesc(
+                        clusterId, BulkRunStatus.PREVIEWED, PageRequest.of(0, HISTORY_SCAN))
+                .stream()
+                .filter(run -> clusterAccess.mayAll(clusterId, requirements(run, Permissions.QUEUE_READ)))
+                .map(this::view)
+                .toList();
+        return query.paginate(readable, null);
+    }
+
+    /**
+     * The permission on every queue the run acts on. A queue the caller may not read is answered with the run's own
+     * not-found, which names no queue and says nothing of what the run touches.
+     */
+    private void requireOnRun(UUID clusterId, BulkRunEntity run, String permission) {
+        try {
+            clusterAccess.requireAll(clusterId, requirements(run, permission));
+        } catch (NotFoundException _) {
+            throw new NotFoundException("bulk run", run.getId());
+        }
+    }
+
+    /** What acting on {@code names} with the permission needs: the permission on each queue. */
+    private static List<Requirement> requirements(List<String> names, String permission) {
+        return names.stream()
+                .map(name -> new Requirement(ResourceRef.queue(name), permission))
+                .toList();
+    }
+
+    /** The stored plan's requirements: the permission on each queue the run acts on. */
+    private List<Requirement> requirements(BulkRunEntity run, String permission) {
+        return requirements(
+                items.findByRunIdOrderByOrdinal(run.getId()).stream()
+                        .map(BulkRunItemEntity::getQueueName)
+                        .toList(),
+                permission);
     }
 
     private BulkRunEntity load(UUID clusterId, UUID runId) {

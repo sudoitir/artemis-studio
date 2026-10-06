@@ -38,7 +38,7 @@ describe('a plugin address with no page', () => {
     );
     renderAppAt('/clusters/c1/p/acme-notes/notes');
     expect(await screen.findByRole('heading', { name: 'Notes is installed but disabled.' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See Notes in Administration → Plugins' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'See Notes in Administration → Plugins' })).toHaveAttribute(
       'href',
       '/admin?tab=plugins&plugin=acme-notes',
     );

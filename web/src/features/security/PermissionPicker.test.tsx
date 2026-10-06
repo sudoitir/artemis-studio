@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -46,11 +46,63 @@ const CATALOGUE: PermissionView[] = [
   },
 ];
 
-function Harness({ initial = [] as string[] }) {
+const RESOURCE_CATALOGUE: PermissionView[] = [
+  {
+    action: 'queue:read',
+    label: 'Read queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'RESOURCE',
+    resourceKinds: ['QUEUE'],
+    requires: [],
+  },
+  {
+    action: 'queue:purge',
+    label: 'Purge queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'RESOURCE',
+    resourceKinds: ['QUEUE'],
+    requires: ['queue:read'],
+  },
+  {
+    action: 'queue:delete',
+    label: 'Delete queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'RESOURCE',
+    resourceKinds: ['QUEUE'],
+    requires: ['queue:purge'],
+  },
+  {
+    action: 'broker:restart',
+    label: 'Restart brokers',
+    featureId: 'brokers',
+    featureTitle: 'Brokers',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
+  {
+    action: 'team:admin',
+    label: 'Manage teams',
+    featureId: 'security',
+    featureTitle: 'Security',
+    scope: 'GLOBAL',
+    resourceKinds: [],
+    requires: [],
+  },
+];
+
+function Harness({
+  initial = [] as string[],
+  catalogue = CATALOGUE,
+  teamRole = false,
+}: Readonly<{ initial?: string[]; catalogue?: PermissionView[]; teamRole?: boolean }>) {
   const [value, setValue] = useState(initial);
   return (
     <>
-      <PermissionPicker catalogue={CATALOGUE} value={value} onChange={setValue} />
+      <PermissionPicker catalogue={catalogue} value={value} onChange={setValue} teamRole={teamRole} />
       <div data-value>{[...value].sort().join(',')}</div>
     </>
   );
@@ -96,13 +148,108 @@ describe('PermissionPicker', () => {
     expect(screen.getByRole('status')).toHaveTextContent('0 of 2 permissions selected in Queues');
   });
 
-  it('marks a global-only permission', async () => {
+  it('marks where each permission takes effect', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Harness />);
+    renderWithProviders(<Harness catalogue={[...CATALOGUE, ...RESOURCE_CATALOGUE.slice(0, 1)]} />);
 
     await user.click(screen.getByRole('button', { name: /Security/ }));
-    expect(screen.getByText('Global only')).toBeInTheDocument();
+    expect(screen.getByText('Global')).toBeInTheDocument();
     expect(screen.getByText(/Has no effect when granted on an environment or cluster/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Acme notes/ }));
+    expect(screen.getAllByText('Cluster').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /Queues, 0 of 3 selected/ }));
+    expect(screen.getAllByText('Resource: queue').length).toBeGreaterThan(0);
+  });
+
+  it('adds what a chosen permission requires, and says so', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} />);
+
+    await user.click(screen.getByRole('button', { name: /Queues, 0 of 3 selected/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /queue:delete/ }));
+
+    expect(selected()).toBe('queue:delete,queue:purge,queue:read');
+    const note = screen.getByRole('status', { name: 'Permissions added' });
+    expect(note).toHaveTextContent('Added queue:purge, required by queue:delete');
+    expect(note).toHaveTextContent('Added queue:read, required by queue:purge');
+  });
+
+  it('adds nothing when a wildcard already holds the requirement', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:*']} />);
+
+    await user.click(screen.getByRole('button', { name: /Queues, 0 of 3 selected/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /queue:purge/ }));
+
+    expect(selected()).toBe('queue:*,queue:purge');
+    expect(screen.queryByRole('status', { name: 'Permissions added' })).not.toBeInTheDocument();
+  });
+
+  it('asks before removing a permission that others require, and removes them too', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:read', 'queue:purge', 'queue:delete']} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Queues, 3 of 3 selected/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /queue:read/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Remove queue:read' });
+    expect(selected()).toBe('queue:delete,queue:purge,queue:read');
+    expect(dialog).toHaveTextContent('queue:purge (needs queue:read)');
+    expect(dialog).toHaveTextContent('queue:delete (needs queue:purge)');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Remove them all' }));
+    await waitFor(() => expect(selected()).toBe(''));
+  });
+
+  it('keeps everything when the removal is cancelled', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:read', 'queue:purge']} />);
+
+    await user.click(screen.getByRole('button', { name: /Queues, 2 of 3 selected/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /queue:read/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove queue:read' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(selected()).toBe('queue:purge,queue:read');
+  });
+
+  it('removes a permission nobody requires without asking', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:read', 'queue:purge']} />);
+
+    await user.click(screen.getByRole('button', { name: /Queues, 2 of 3 selected/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /queue:purge/ }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(selected()).toBe('queue:read');
+  });
+
+  it('offers a team role only resource permissions and team:admin', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} teamRole />);
+
+    expect(screen.queryByRole('button', { name: /Brokers/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Queues, 0 of 3 selected/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Security, 0 of 1 selected/ }));
+    expect(await screen.findByRole('checkbox', { name: /team:admin/ })).toBeInTheDocument();
+    expect(screen.getByText('Team')).toBeInTheDocument();
+  });
+
+  it('lists what a team role holds that it may not, and removes it on request', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['broker:restart', 'queue:read']} teamRole />);
+
+    const notice = screen.getByText('Not allowed in a team role').closest('output')!;
+    expect(notice).toHaveTextContent('Not allowed in a team role');
+    expect(notice).toHaveTextContent('broker:restart');
+
+    await user.click(screen.getByRole('button', { name: 'Remove them' }));
+    expect(selected()).toBe('queue:read');
   });
 
   it('keeps a held permission the catalogue lacks, under its own group', async () => {

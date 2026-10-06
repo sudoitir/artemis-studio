@@ -79,13 +79,15 @@ class AlertEvaluatorIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(states.findByRuleId(rule.getId())).hasSize(1);
         assertThat(states.findByRuleId(rule.getId()).get(0).getState()).isEqualTo("FIRING");
-        assertThat(firings.findOpenVisible(clusterId, false)).hasSize(1);
+        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+                .hasSize(1);
 
         snapshot(clusterId, node.getId(), "orders", 10);
         evaluator.evaluate(clusterId, "METRIC_THRESHOLD");
 
         assertThat(states.findByRuleId(rule.getId())).isEmpty(); // resolved back to OK, row dropped
-        assertThat(firings.findOpenVisible(clusterId, false)).isEmpty();
+        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+                .isEmpty();
     }
 
     @Test

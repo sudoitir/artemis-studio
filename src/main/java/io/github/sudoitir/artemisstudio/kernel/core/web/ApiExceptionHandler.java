@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.core.web;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +71,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 "invalid-api-version",
                 "Unsupported API version",
                 "API version '" + e.getVersion() + "' is not supported. Use v1.");
+    }
+
+    @ExceptionHandler(ResourceForbiddenException.class)
+    ProblemDetail onResourceForbidden(ResourceForbiddenException e) {
+        ProblemDetail problem =
+                Problems.of(HttpStatus.FORBIDDEN, "resource-forbidden", "Access denied", e.getMessage());
+        problem.setProperty("permission", e.permission());
+        problem.setProperty("resource", Map.of("kind", e.kind(), "name", e.name()));
+        return problem;
     }
 
     @ExceptionHandler(AccessDeniedException.class)

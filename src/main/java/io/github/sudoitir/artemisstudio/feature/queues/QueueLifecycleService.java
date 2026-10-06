@@ -5,9 +5,15 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateD
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
@@ -16,12 +22,15 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Check;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAction;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,12 +83,20 @@ public class QueueLifecycleService {
     private final DivertOperations divertOps;
     private final SseHub sseHub;
     private final BrokerCommands commands;
+    private final ClusterAccessGuard access;
+    private final PermissionResolver permissions;
+    private final ClusterDirectory clusters;
+    private final BrokerConnections connections;
     private final ObjectMapper mapper;
     private final jakarta.validation.Validator validator;
 
     // ---- entry points ----------------------------------------------------
 
     public Attempt<LifecycleOutcome> createQueue(UUID clusterId, CreateQueueRequest req, boolean dryRun) {
+        // The queue is created as a name the caller's patterns cover, on an address they may also create:
+        // a queue bound to someone else's address would receive what is sent to it.
+        access.requireCreate(clusterId, ResourceRef.queue(req.name()), QueuePermissions.QUEUE_CREATE);
+        access.requireCreate(clusterId, ResourceRef.address(req.address()), QueuePermissions.ADDRESS_CREATE);
         ResolvedQueue asked = new ResolvedQueue(req.name(), req.address(), req.routingType());
         return run(clusterId, LifecycleKind.CREATE_QUEUE, req.name(), params(req), dryRun, false, (client, broker) -> {
             try {
@@ -107,6 +124,7 @@ public class QueueLifecycleService {
 
     public Attempt<LifecycleOutcome> updateQueue(
             UUID clusterId, String queueName, UpdateQueueRequest req, boolean dryRun) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.UPDATE_QUEUE.permission());
         Map<String, Object> patch = patch(req);
         if (patch.isEmpty()) {
             throw new IllegalArgumentException("An update must change at least one field.");
@@ -127,12 +145,14 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteQueue(
             UUID clusterId, String queueName, boolean dryRun, boolean override, boolean disconnectConsumers) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.DELETE_QUEUE.permission());
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         Set<String> declared = declaredDiverts.map(d -> d.names(clusterId)).orElse(Set.of());
         LifecycleKind kind = LifecycleKind.DELETE_QUEUE;
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
+                .resources(List.of(ResourceRef.queue(queueName)))
                 .auditAction(kind.auditName())
                 .targetType(kind.targetType())
                 .targetName(queueName)
@@ -341,8 +361,9 @@ public class QueueLifecycleService {
     }
 
     public Attempt<LifecycleOutcome> setPaused(UUID clusterId, String queueName, boolean paused, boolean dryRun) {
-        ResolvedQueue queue = resolveQueue(clusterId, queueName);
         LifecycleKind kind = paused ? LifecycleKind.PAUSE_QUEUE : LifecycleKind.RESUME_QUEUE;
+        access.requireResource(clusterId, ResourceRef.queue(queueName), kind.permission());
+        ResolvedQueue queue = resolveQueue(clusterId, queueName);
         return run(clusterId, kind, queueName, Map.of("paused", paused), dryRun, false, (client, broker) -> {
             String mbean = queueMbean(client, queue);
             if (ops.isPaused(client, mbean) == paused) {
@@ -358,6 +379,7 @@ public class QueueLifecycleService {
     }
 
     public Attempt<LifecycleOutcome> resetCounter(UUID clusterId, String queueName, boolean dryRun) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.RESET_QUEUE_COUNTER.permission());
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         return run(
                 clusterId, LifecycleKind.RESET_QUEUE_COUNTER, queueName, Map.of(), dryRun, false, (client, broker) -> {
@@ -367,6 +389,7 @@ public class QueueLifecycleService {
     }
 
     public Attempt<LifecycleOutcome> createAddress(UUID clusterId, CreateAddressRequest req, boolean dryRun) {
+        access.requireCreate(clusterId, ResourceRef.address(req.name()), LifecycleKind.CREATE_ADDRESS.permission());
         return run(
                 clusterId,
                 LifecycleKind.CREATE_ADDRESS,
@@ -389,13 +412,16 @@ public class QueueLifecycleService {
      * a safe default, and the safe path costs one extra step.
      */
     public Attempt<LifecycleOutcome> deleteAddress(UUID clusterId, String address, boolean dryRun) {
+        access.requireResource(clusterId, ResourceRef.address(address), LifecycleKind.DELETE_ADDRESS.permission());
+        // Taken here, on the caller's thread: the nodes' actions carry no security context.
+        ResourceFilter readable = permissions.filter(clusterId, ResourceKind.QUEUE);
         return run(clusterId, LifecycleKind.DELETE_ADDRESS, address, Map.of(), dryRun, false, (client, broker) -> {
             try {
                 ops.deleteAddress(client, broker, address);
             } catch (ManagementRefusal e) {
                 if (e.kind() == ManagementRefusal.Kind.BOUND_QUEUES) {
                     throw new ManagementRefusal(
-                            ManagementRefusal.Kind.BOUND_QUEUES, boundQueuesMessage(client, broker, address));
+                            ManagementRefusal.Kind.BOUND_QUEUES, boundQueuesMessage(client, broker, address, readable));
                 }
                 throw e;
             }
@@ -432,6 +458,8 @@ public class QueueLifecycleService {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(LifecycleKind.CREATE_DIVERT.permission())
+                // A divert copies what reaches one address into another: it needs both.
+                .resources(List.of(ResourceRef.address(req.address()), ResourceRef.address(req.forwardingAddress())))
                 .auditAction(LifecycleKind.CREATE_DIVERT.auditName())
                 .targetType(LifecycleKind.CREATE_DIVERT.targetType())
                 .targetName(req.name())
@@ -502,10 +530,71 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteDivert(UUID clusterId, String name, boolean dryRun) {
         refuseCaptureName(name);
-        return run(clusterId, LifecycleKind.DELETE_DIVERT, name, Map.of(), dryRun, false, (client, broker) -> {
-            divertOps.destroyDivert(client, broker, name);
-            return NodeStatus.APPLIED;
-        });
+        boolean wholeCluster = access.holds(clusterId, LifecycleKind.DELETE_DIVERT.permission());
+        Set<ResourceRef> ends = wholeCluster ? Set.of() : divertEnds(clusterId, name);
+        return new Attempt.Ok<>(commands.run(Command.builder()
+                .clusterId(clusterId)
+                .permission(LifecycleKind.DELETE_DIVERT.permission())
+                .resources(List.copyOf(ends))
+                .auditAction(LifecycleKind.DELETE_DIVERT.auditName())
+                .targetType(LifecycleKind.DELETE_DIVERT.targetType())
+                .targetName(name)
+                .params(Map.of())
+                .dryRun(dryRun)
+                // Each node's own divert is what is destroyed there: one that runs between addresses nobody
+                // checked is left alone, so a name that means something else on another node costs nothing.
+                .preflight((client, broker) -> wholeCluster
+                                || endsOn(client, name).stream().allMatch(ends::contains)
+                        ? Check.OK
+                        : Check.refuse("The divert on this node is not one you may delete, so it was left alone."))
+                .action((client, broker) -> {
+                    divertOps.destroyDivert(client, broker, name);
+                    return NodeStatus.APPLIED;
+                })
+                .signal(() -> sseHub.publish(clusterId, QUEUES_TOPIC))
+                .build()));
+    }
+
+    /**
+     * The addresses the divert runs between on every node that has it, which deleting it needs
+     * {@code divert:write} on: it is destroyed wherever it is deployed. A caller who may not read or write
+     * all of them is told the divert does not exist, as is one whom nothing is known of it, so a name
+     * cannot be told from a missing one.
+     */
+    private Set<ResourceRef> divertEnds(UUID clusterId, String name) {
+        access.requireVisible(clusterId);
+        Set<ResourceRef> ends = new LinkedHashSet<>();
+        for (ClusterNode node : clusters.nodes(clusterId)) {
+            if (node.getJolokiaUrl() == null) {
+                continue;
+            }
+            try {
+                ends.addAll(endsOn(connections.forCluster(clusterId, node.getJolokiaUrl()), name));
+            } catch (BrokerConnectionException _) {
+                // Another node may still answer; a node that cannot is checked again when it is acted on.
+            }
+        }
+        if (ends.isEmpty()) {
+            throw new NotFoundException("divert", name);
+        }
+        try {
+            access.requireAll(
+                    clusterId,
+                    ends.stream()
+                            .map(end ->
+                                    new ClusterAccessGuard.Requirement(end, LifecycleKind.DELETE_DIVERT.permission()))
+                            .toList());
+        } catch (NotFoundException _) {
+            throw new NotFoundException("divert", name);
+        }
+        return ends;
+    }
+
+    private List<ResourceRef> endsOn(JolokiaBrokerClient client, String name) {
+        return divertOps
+                .find(client, name)
+                .map(d -> List.of(ResourceRef.address(d.address()), ResourceRef.address(d.forwardingAddress())))
+                .orElse(List.of());
     }
 
     // ---- the fan-out -----------------------------------------------------
@@ -521,6 +610,7 @@ public class QueueLifecycleService {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
+                .resources(kind.resource(targetName).stream().toList())
                 .auditAction(kind.auditName())
                 .targetType(kind.targetType())
                 .targetName(targetName)
@@ -554,13 +644,29 @@ public class QueueLifecycleService {
                 client.resolveBrokerObjectName(), queue.address(), queue.queueName(), queue.routingType());
     }
 
-    private String boundQueuesMessage(JolokiaBrokerClient client, String brokerMbean, String address) {
+    /**
+     * What stops an address from being deleted. It names the queues the caller may read and counts the rest,
+     * so deleting an address does not list another team's queues.
+     */
+    private String boundQueuesMessage(
+            JolokiaBrokerClient client, String brokerMbean, String address, ResourceFilter readable) {
         List<String> queues = ops.boundQueues(client, BrokerMBeans.address(brokerMbean, address));
         if (queues.isEmpty()) {
             return "Address '" + address + "' still has queues bound to it.";
         }
-        return "Address '" + address + "' still has " + queues.size() + " queue(s) bound to it: "
-                + String.join(", ", queues) + ". Delete them first — this operation will not remove them for you.";
+        List<String> named = queues.stream().filter(readable::readable).toList();
+        int others = queues.size() - named.size();
+        String who = named.isEmpty() ? " (none of them yours)" : ": " + String.join(", ", named) + andOthers(others);
+        return "Address '" + address + "' still has " + queues.size() + " queue(s) bound to it" + who
+                + ". Delete them first — this operation will not remove them for you.";
+    }
+
+    private static String andOthers(int others) {
+        return others == 0 ? "" : " and " + others + " other" + plural(others);
+    }
+
+    private static String plural(int count) {
+        return count == 1 ? "" : "s";
     }
 
     // ---- request -> broker configuration ---------------------------------

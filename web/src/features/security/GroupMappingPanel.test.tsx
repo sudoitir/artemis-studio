@@ -19,6 +19,12 @@ function serve(mappings: unknown[] = [MAPPING]) {
         paged([{ id: 'r-viewer', name: 'VIEWER', builtin: true, permissions: ['cluster:read'], requiresMfa: false }]),
       ),
     ),
+    http.get('*/api/v1/clusters', () =>
+      HttpResponse.json(
+        paged([{ id: 'c-prod', name: 'prod', health: 'OK', nodeCount: 1, updatedAt: '2026-10-01T00:00:00Z' }]),
+      ),
+    ),
+    http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/identity/providers/okta/group-mappings', () =>
       HttpResponse.json({ defaultRoleId: null, mappings }),
     ),
@@ -87,5 +93,42 @@ describe('GroupMappingPanel', () => {
     expect(await within(dialog).findByText(/Enter the group name/)).toBeInTheDocument();
     expect(within(dialog).getByText('Choose the role the group grants.')).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: /Group/ })).toHaveFocus();
+  });
+
+  it('shows where each mapping applies, naming the cluster', async () => {
+    serve([MAPPING, { ...MAPPING, id: 'm2', groupName: 'dev', scopeType: 'CLUSTER', scopeId: 'c-prod' }]);
+    renderMappings();
+
+    const scoped = await screen.findByRole('row', { name: /dev/ });
+    expect(scoped).toHaveTextContent('Cluster prod');
+    expect(screen.getByRole('row', { name: /ops/ })).toHaveTextContent('Global');
+  });
+
+  it('adds a mapping scoped to a cluster', async () => {
+    serve([]);
+    let body: unknown;
+    server.use(
+      http.post('*/api/v1/identity/providers/okta/group-mappings', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...MAPPING, id: 'm9' });
+      }),
+    );
+    const user = userEvent.setup();
+    renderMappings();
+
+    await user.click(await screen.findByRole('button', { name: 'New mapping' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New group mapping' });
+    await user.type(within(dialog).getByRole('textbox', { name: /Group/ }), 'dev');
+    await user.click(within(dialog).getByRole('combobox', { name: /Role/ }));
+    await user.click((await screen.findAllByRole('option', { name: 'VIEWER', hidden: true })).at(-1)!);
+    await user.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
+    await user.click(await screen.findByRole('option', { name: 'Cluster', hidden: true }));
+    await user.click(within(dialog).getByRole('combobox', { name: /Cluster/ }));
+    await user.click(await screen.findByRole('option', { name: 'prod', hidden: true }));
+    await user.click(within(dialog).getByRole('button', { name: 'Add mapping' }));
+
+    await waitFor(() =>
+      expect(body).toEqual({ groupName: 'dev', roleId: 'r-viewer', scopeType: 'CLUSTER', scopeId: 'c-prod' }),
+    );
   });
 });

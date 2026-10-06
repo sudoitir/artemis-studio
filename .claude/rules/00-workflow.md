@@ -42,10 +42,11 @@ Liquibase changesets, the second to merge rebases and renumbers its own. A sessi
 runs Studio for screenshots uses its own ports and compose project name, so parallel
 sessions do not share a dev stack.
 
-**Merging is automatic** (ADR-0170): once the PR is ready, `gh pr merge <n> --merge --auto`. When
-`main` moves, the `pr-auto-update` workflow merges it into every open PR that has auto-merge on,
-CI re-runs on the updated branch, and the PR merges when it is green, so nobody updates a branch
-by hand. Wait for the merge with `gh pr view <n> --json state,mergedAt`.
+**Merging is automatic** (ADR-0170): once the PR is ready, `gh pr merge <n> --merge --auto`. The
+`pr-auto-update` workflow keeps one PR with auto-merge on up to date at a time, oldest auto-merge
+first; CI re-runs on it and it merges when green, then the next is updated. A PR that is up to date and whose `ci-ok`
+failed is skipped until its author pushes a fix, so nobody updates a branch by hand. Wait for the merge with
+`gh pr view <n> --json state,mergedAt`.
 
 **A change is finished only when it is cleaned up:** the PR is merged, the worktree is
 removed, the branch is deleted locally and on the remote, anything it started is stopped

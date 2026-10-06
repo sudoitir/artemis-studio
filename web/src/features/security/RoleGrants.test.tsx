@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { EffectivePermissionView } from './api.ts';
-import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
+import { RoleGrants } from './RoleGrants.tsx';
 import { paged } from '../../kernel/api/paging.ts';
 
 const USER = { id: 'u-1', username: 'alice' };
@@ -49,20 +49,13 @@ function serve(body: EffectivePermissionView[] | Response) {
   );
 }
 
-const renderDrawer = (user: typeof USER | null = USER, onClose = vi.fn()) =>
-  renderWithProviders(<EffectivePermissionsDrawer user={user} onClose={onClose} />);
+const renderGrants = () => renderWithProviders(<RoleGrants userId={USER.id} />);
 
-describe('EffectivePermissionsDrawer', () => {
-  it('is closed without a user', () => {
-    renderDrawer(null);
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
+describe('RoleGrants', () => {
   it('says what a user with no role can do', async () => {
     serve([]);
-    renderDrawer();
+    renderGrants();
 
-    expect(await screen.findByRole('dialog', { name: 'Effective permissions of alice' })).toBeInTheDocument();
     expect(await screen.findByText('This user holds no role')).toBeInTheDocument();
     expect(screen.getByText(/So they can do nothing/)).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Filter by permission or role' })).toBeNull();
@@ -71,7 +64,7 @@ describe('EffectivePermissionsDrawer', () => {
   it('states the failure and retries it', async () => {
     serve(HttpResponse.json({ title: 'Down', detail: 'permissions unavailable' }, { status: 503 }));
     const user = userEvent.setup();
-    renderDrawer();
+    renderGrants();
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Studio failed to complete the request');
@@ -84,7 +77,7 @@ describe('EffectivePermissionsDrawer', () => {
 
   it('groups permissions per scope and names the role and wildcard each came through', async () => {
     serve(PERMISSIONS);
-    renderDrawer();
+    renderGrants();
 
     await screen.findByText('queue:read');
     expect(screen.getByText('Global')).toBeInTheDocument();
@@ -105,7 +98,7 @@ describe('EffectivePermissionsDrawer', () => {
 
   it('states a permission that has no effect at its scope, with the reason', async () => {
     serve(PERMISSIONS);
-    renderDrawer();
+    renderGrants();
 
     const row = await screen.findByRole('row', { name: /cluster:manage/ });
     expect(row).toHaveTextContent('No effect at this scope');
@@ -116,7 +109,7 @@ describe('EffectivePermissionsDrawer', () => {
   it('filters by permission or role, and offers to clear a filter that matches nothing', async () => {
     serve(PERMISSIONS);
     const user = userEvent.setup();
-    renderDrawer();
+    renderGrants();
 
     const filter = await screen.findByRole('textbox', { name: 'Filter by permission or role' });
     await user.type(filter, 'AUDITOR');
@@ -136,16 +129,5 @@ describe('EffectivePermissionsDrawer', () => {
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(filter).toHaveValue('');
     expect(screen.getByText('queue:read')).toBeInTheDocument();
-  });
-
-  it('closes on escape', async () => {
-    serve([]);
-    const onClose = vi.fn();
-    const user = userEvent.setup();
-    renderDrawer(USER, onClose);
-
-    await screen.findByText('This user holds no role');
-    await user.keyboard('{Escape}');
-    expect(onClose).toHaveBeenCalled();
   });
 });

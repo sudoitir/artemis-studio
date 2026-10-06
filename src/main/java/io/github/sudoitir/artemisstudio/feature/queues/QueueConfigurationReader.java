@@ -1,6 +1,9 @@
 package io.github.sudoitir.artemisstudio.feature.queues;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
@@ -26,6 +29,9 @@ import org.springframework.stereotype.Component;
  * {@link QueueLifecycleOperations#updateQueue} does for itself, exposed so the
  * screen can do it first.
  *
+ * <p>The configuration of a queue the caller may not read is not found, exactly as one that does not
+ * exist is.
+ *
  * <p>One read per node that has the queue, and a node that cannot be read says so
  * rather than dropping out of the list — an absent node reads as a queue that is
  * not there.
@@ -38,6 +44,7 @@ public class QueueConfigurationReader {
     private final ClusterDirectory clusters;
     private final BrokerConnections connections;
     private final QueueLifecycleOperations ops;
+    private final ClusterAccessGuard access;
 
     /** One node's copy of the queue: its configuration, or why it could not be read. */
     public record NodeConfiguration(
@@ -48,6 +55,7 @@ public class QueueConfigurationReader {
             String queueName, String address, String routingType, List<NodeConfiguration> nodes) {}
 
     public QueueConfiguration read(UUID clusterId, String queueName) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), Permissions.QUEUE_READ);
         List<QueueLocation> locations = queueLocator.locate(clusterId, queueName);
         if (locations.isEmpty()) {
             throw new NotFoundException("queue", queueName);

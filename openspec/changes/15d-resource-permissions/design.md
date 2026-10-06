@@ -98,13 +98,13 @@ against a cluster that is not a queue or an address: `cluster:read`, `cluster:wr
 `rr:write` and `settings:write` (credential rotation checks it against a cluster). `RESOURCE` acts on one
 queue or address: `QUEUE` for `queue:read`, `queue:create`, `queue:update`, `queue:delete`,
 `queue:pause`, `queue:purge`, `message:read`, `message:move`, `message:delete`, `message:clear`
-and `capture:write`; `ADDRESS` for `address:read`, `address:create`, `message:send` and `divert:write`.
+and `capture:write`; `ADDRESS` for `address:read`, `address:create`, `address:delete`, `message:send` and `divert:write`.
 Non-obvious cases:
 
 - `capture:write` is `QUEUE`: a capture subscription is defined by a queue-name pattern, and the
   addresses it taps are derived from it, so the owner of the queues owns the capture.
-- `message:clear` is `QUEUE` and `queue:delete` stays `QUEUE` although it also destroys addresses
-  (`DELETE_ADDRESS`); an `address:delete` is decided with the enforcement work (2.2).
+- `message:clear` is `QUEUE`. `queue:delete` destroys queues only: destroying an address is `address:delete`
+  (`ADDRESS`, requires `address:read`), held by Operator, Team Operator and Team Admin.
 - `cluster:write` registers or removes a cluster (a global check) and also gates cluster-level writes;
   it is `CLUSTER`, so a global grant makes the global checks pass.
 - `requires` follows the reads a screen needs: the queue-acting permissions require `queue:read`;
@@ -145,6 +145,35 @@ Non-obvious cases:
 - **Roles.** Saving a role is refused when it lacks a permission that one it holds requires (a wildcard
   satisfies what it covers and is expanded for what it stands for), and a team-assignable role may hold only
   resource permissions and `team:admin`.
+
+### D13. How each feature enforces it
+- **Guard.** `ClusterAccessGuard` has `requireResource` and `requireAll` (read first: an unreadable
+  resource is not found, naming none of several; then each permission: 403 `resource-forbidden`),
+  `requireCreate` (names the patterns where the caller may create), `requireOnAll` (a pattern: every name
+  it can match must be covered by a grant, or by one team pattern or share; otherwise 403 asking to
+  narrow it) and `requireVisible` (for lists, which filter their rows). A command run through
+  `BrokerCommands` lists its `resources`, and a call that lists none is checked on the cluster. The
+  architecture test `ResourceCheckCoverageTest` fails a service, controller or tool method that takes a
+  queue or address name and reaches none of these.
+- **Lists** drop rows before the text filter, sort, page and count. A client row is read through its queue
+  (consumer) or address (producer); a session or connection with `connection:read`, else only through
+  those, trimmed. Diverts need both addresses readable (a capture's or plugin's tap, its source). A flow
+  graph draws the clients, queues, diverts and bridges the caller reads, and what belongs to the cluster
+  (hops, temporary queues) only for a caller who reads everything. Events are read through their address;
+  an event about no address belongs to the cluster (`cluster:read`). Request-reply expectations and flows
+  are read through their request and reply addresses. Metric series are read per queue, and cluster totals
+  need `queue:read` on every queue. The audit trail is whole with `cluster:read`, else only events whose
+  target is a queue or address the caller reads.
+- **Capture and queries.** A capture needs `capture:write` on every queue its pattern can match, and a SQL
+  query `message:read` on every queue its `FROM` can match: refused, not trimmed, so a result never silently
+  omits what the text names. A query's rows are shown in clear only with `message:clear` on all of them.
+- **Alerts.** `alert:read` and `alert:write` stay cluster permissions, held through a grant and never
+  through a team. A threshold rule watches queues named by its `queuePattern` (none: all), so it is seen,
+  created, changed and deleted only by a caller who reads every queue the pattern can match; a state rule
+  and the installation's watch none and follow the permission alone. A firing is seen with its rule.
+- **Request-reply** writes need `rr:write` (a cluster permission) and read access to the request and
+  every reply address. Payloads in a flow need `message:read` and `message:clear` on the cluster.
+- **Connection control** stays a cluster permission (`connection:close`): a connection is not a resource.
 
 ## Risks / Trade-offs
 

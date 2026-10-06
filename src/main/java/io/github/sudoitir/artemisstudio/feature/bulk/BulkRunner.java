@@ -17,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
@@ -177,9 +178,9 @@ class BulkRunner {
         LifecycleOutcome[] result = new LifecycleOutcome[1];
         String[] failure = new String[1];
         String permission = run.getOperation().permission();
-        if (!handoff.stillHolds(operator, run.getClusterId(), permission)) {
-            failure[0] = "The permission %s on this cluster is no longer held, so this queue was not acted on."
-                    .formatted(permission);
+        if (!handoff.stillHolds(operator, run.getClusterId(), ResourceRef.queue(item.getQueueName()), permission)) {
+            failure[0] =
+                    "The permission %s on this queue is no longer held, so it was not acted on.".formatted(permission);
         } else {
             handoff.runAs(
                     operator,

@@ -11,8 +11,9 @@ import {
 } from '@tanstack/react-router';
 
 import { clusterKey } from '../../kernel/api/request.ts';
-import { keys as authKeys } from '../../kernel/auth/api.ts';
+import { accessKeys, keys as authKeys } from '../../kernel/auth/api.ts';
 import { FeatureProvider } from '../../kernel/FeatureProvider.tsx';
+import { accessFor } from '../../test/accessSummary.ts';
 import { axeViolations, contentWidth, renderThemed, SCHEMES, settle, type Scheme } from '../../test/browser.tsx';
 import { keys } from './api.ts';
 import { SqlConsoleView } from './SqlConsoleView.tsx';
@@ -147,12 +148,10 @@ function seeded(permissions: string[]): QueryClient {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } },
   });
-  client.setQueryData(authKeys.me, {
-    id: 'u1',
-    username: 'admin',
-    mustChangePassword: false,
-    grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions }],
-  });
+  const grants = [{ scopeType: 'GLOBAL', scopeId: null, permissions }];
+  client.setQueryData(authKeys.me, { id: 'u1', username: 'admin', mustChangePassword: false, grants });
+  client.setQueryData(accessKeys.of(), accessFor(grants));
+  client.setQueryData(accessKeys.of('c1'), accessFor(grants, 'c1'));
   client.setQueryData(clusterKey('c1'), {
     id: 'c1',
     name: 'prod',

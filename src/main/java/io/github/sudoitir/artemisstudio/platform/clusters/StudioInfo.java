@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.plugin.StudioVersion;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -40,23 +39,26 @@ public class StudioInfo {
         return clusters.allNodes().size();
     }
 
-    /** The cluster's display name, when the current caller holds {@code cluster:read} on it. */
+    /**
+     * The cluster's display name, when the current caller may see it: they hold {@code cluster:read} on
+     * it, or a team of theirs has queues or addresses on it.
+     */
     public Optional<String> clusterName(UUID clusterId) {
-        if (clusterId == null || !perm.can(clusterId, Permissions.CLUSTER_READ)) {
+        if (clusterId == null || !perm.canSeeCluster(clusterId)) {
             return Optional.empty();
         }
         return clusters.cluster(clusterId).map(RegisteredCluster::getName);
     }
 
     /**
-     * The clusters the current caller holds {@code cluster:read} on, by id, with their display
+     * The clusters the current caller may see (as {@link #clusterName}), by id, with their display
      * names, ordered by name. Names are not unique, so a plugin that accepts a name must say when
      * it matches more than one cluster.
      */
     public Map<UUID, String> clusters() {
         Map<UUID, String> visible = new LinkedHashMap<>();
         clusters.clusters().stream()
-                .filter(c -> perm.can(c.getId(), Permissions.CLUSTER_READ))
+                .filter(c -> perm.canSeeCluster(c.getId()))
                 .sorted(Comparator.comparing(RegisteredCluster::getName, String.CASE_INSENSITIVE_ORDER))
                 .forEach(c -> visible.put(c.getId(), c.getName()));
         return visible;
