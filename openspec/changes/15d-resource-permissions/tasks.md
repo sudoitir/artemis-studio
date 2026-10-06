@@ -1,7 +1,7 @@
 # Tasks
 
 ## 1. Model, catalogue and resolver
-- [ ] 1.1 Wildcard pattern matcher and exact overlap test for Artemis syntax; property tests against brute-force enumeration pass
+- [x] 1.1 Wildcard pattern matcher and exact overlap test for Artemis syntax; property tests against brute-force enumeration pass
 - [ ] 1.2 Catalogue: `PermissionDef` gains scope, resourceKinds, requires; `globalOnly` removed; every core permission classified; new permissions `queue:read`, `address:read`, `address:create`, `rr:write`, `connection:read`, `team:admin`; consistency check reports unknown requires and cycles (`PermissionCatalogueTest` passes)
 - [ ] 1.3 Liquibase: team, team_pattern, team_member, team_share, role.team_assignable; re-seed built-in roles (Administrator, Operator, Viewer, Team Viewer, Team Operator, Team Admin); built-in coverage test fails on an unclassified new permission
 - [ ] 1.4 Team service and REST API (CRUD, patterns with overlap refusal, members, shares, pattern preview, unowned resources) with `user:admin` / `team:admin` rules; audited; service tests pass
