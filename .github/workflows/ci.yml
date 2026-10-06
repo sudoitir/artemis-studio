@@ -948,12 +948,22 @@ jobs:
             echo "Backend changed since ${LAST:-nothing on Central}: publishing $V."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Compare the contract version with the previous release
+          echo "last=$LAST" >> "$GITHUB_OUTPUT"
+      # japicmp compares with the newest version on Central (`RELEASE`), so the contract is compared with
+      # that version too, not with the previous tag: after a publish that failed, the previous tag may
+      # already carry the raised contract while Central still has the old one.
+      - name: Compare the contract version with the newest on Central
         id: contract
         if: steps.needed.outputs.publish == 'true'
+        env:
+          LAST: ${{ steps.needed.outputs.last }}
         run: |
           V="${{ needs.release.outputs.version }}"
-          PREV=$(git tag -l | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | awk -v v="$V" '$0 == v { print p; exit } { p = $0 }')
+          if [ -n "$LAST" ] && git rev-parse -q --verify "refs/tags/$LAST" >/dev/null; then
+            PREV="$LAST"
+          else
+            PREV=$(git tag -l | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | awk -v v="$V" '$0 == v { print p; exit } { p = $0 }')
+          fi
           FILE=src/main/java/io/github/sudoitir/artemisstudio/kernel/plugin/Contract.java
           contract() { git show "$1:$FILE" | sed -n 's/.*int VERSION = \([0-9]*\);.*/\1/p'; }
           NOW=$(contract "$V")
