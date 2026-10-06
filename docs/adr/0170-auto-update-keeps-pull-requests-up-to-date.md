@@ -19,19 +19,34 @@ usable, and the `merge_group` trigger it added to `ci.yml` was dead weight.
 
 **We will keep the up-to-date rule and update the pull requests automatically.**
 
-1. **A workflow updates the waiting pull requests.** `pr-auto-update.yml` runs on every push to
-   `main` (and by hand). It lists the open pull requests against `main` and, for each one that
-   has auto-merge enabled, is not a draft, is not from a fork and lacks commits of `main`, merges
-   `main` into its branch with `PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`. CI re-runs on
-   the updated branch, and auto-merge merges it when `ci-ok` is green, so what `main` receives is
-   exactly the tree CI verified.
+1. **A workflow updates the waiting pull requests one at a time, like a serial queue.**
+   `pr-auto-update.yml` walks the open pull requests against `main` that have auto-merge
+   enabled, are not drafts and are not from forks, oldest auto-merge first (`enabledAt`, then the
+   PR number). Updating all of them at once would waste CI: only the first to merge counts, and
+   the rest are behind `main` again. For each PR, in order:
+   - `ci-ok` failed on its current head: skipped and logged; its author has to fix it. (A merge
+     of `main` would not fix a failure the PR caused, and this stays simple rather than guess
+     whether `main` caused it.)
+   - Up to date with `main` and `ci-ok` pending, running or green: it is **in flight**, the walk
+     stops, and the PRs after it wait. Green means the merge is about to happen.
+   - Behind `main`: `main` is merged into its branch with
+     `PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`. It is now in flight and the walk stops.
+   - Conflicting with `main` (the update answers 422): skipped with a warning, and the walk goes on.
+
+   CI re-runs on the updated branch and auto-merge merges it when `ci-ok` is green, so what `main`
+   receives is exactly the tree CI verified.
+   The walk runs on a push to `main` (the in-flight PR merged, so advance), when a `CI` run
+   completes (the in-flight PR failed, so advance past it), every 30 minutes as a backstop, and by
+   hand. `workflow_run` is used rather than `pull_request_target` so the token never meets an event
+   a pull request controls. Runs never cancel each other (`cancel-in-progress: false`) so two walks
+   cannot update at once; every run is a full walk, so a run that was replaced loses nothing.
 2. **A merge update, not a rebase.** The endpoint merges; a rebase would rewrite authors' branches.
    The request carries `expected_head_sha`, so a push to the branch after the listing makes the
    call fail instead of merging into a branch nobody saw.
 3. **A fine-grained personal access token pushes the update.** A push made with `GITHUB_TOKEN`
    starts no workflow, so CI would not re-run and auto-merge would wait forever. The
    `PR_UPDATE_TOKEN` secret holds a token scoped to this repository only, with Contents and Pull
-   requests read and write. Without the secret the workflow warns and exits successfully, so
+   requests read and write, and Checks read to see `ci-ok`. Without the secret the workflow warns and exits successfully, so
    it does nothing until the token exists.
 4. **Pull requests are marked for merging with `gh pr merge <n> --merge --auto`.** Only those are
    updated, so a pull request someone is still working on, or has not marked ready, is left alone.
@@ -47,12 +62,14 @@ usable, and the `merge_group` trigger it added to `ci.yml` was dead weight.
 
 - Merging one pull request no longer needs a hand update of the others; they update, re-run CI
   and merge on their own.
-- Each push to `main` re-runs CI on every waiting pull request, one run per update. That is the
-  cost ADR-0126's rule always had, now paid without anyone's time. A burst of merges may
-  update a pull request more than once; a newer run of the workflow cancels the one in progress.
-- Pull requests update one after another rather than being tested together as a queue does, so a
-  pull request can be updated again before its CI finishes. It converges, and the last one in is
-  never merged untested.
+- Merging one pull request no longer needs a hand update of the others; they update one at a
+  time, re-run CI and merge on their own. CI runs on one updated branch at a time, which is the
+  cost ADR-0126's rule always had, and none is spent on a branch that goes stale before it merges.
+- The queue is serial, so the last of several pull requests waits for each CI run ahead of it
+  (about fifteen minutes each), where a merge queue would test them together.
+- A pull request that fails CI is skipped, not retried; it is not updated again until its author
+  pushes a fix.
+- The schedule is a backstop, so a missed event delays the next update by at most 30 minutes.
 - The token is a long-lived credential tied to its owner. It can push to every branch of the
   repository, so it expires, is limited to this repository, and is read only by this workflow,
   which never checks out or runs pull request code and passes pull request fields to the shell
