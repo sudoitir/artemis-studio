@@ -47,6 +47,7 @@ export function queueColumns(): Column<QueueView>[] {
       accessor: (r) => r.ownerTeam?.name ?? 'No owner',
       cell: (r) => createElement(OwnerChip, { team: r.ownerTeam }),
       kind: 'status',
+      badge: true,
       priority: 'high',
     },
     {

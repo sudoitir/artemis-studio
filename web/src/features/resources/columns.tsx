@@ -76,6 +76,7 @@ export const resourceColumns = {
       accessor: (r) => r.ownerTeam?.name ?? 'No owner',
       cell: (r) => <OwnerChip team={r.ownerTeam} />,
       kind: 'status',
+      badge: true,
       priority: 'high',
     },
     { id: 'routing', header: 'Routing', accessor: (r) => r.routingTypes ?? '', kind: 'status', priority: 'low' },
