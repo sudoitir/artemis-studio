@@ -4,6 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.QueueView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
+import io.github.sudoitir.artemisstudio.kernel.security.TeamRef;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
@@ -41,6 +47,15 @@ class CrossNodeAggregatorTest extends PostgresIntegrationTest {
 
     @Autowired
     NamedParameterJdbcTemplate jdbc;
+
+    @Autowired
+    TeamRepository teams;
+
+    @Autowired
+    TeamPatternRepository teamPatterns;
+
+    @Autowired
+    AccessChanges accessChanges;
 
     private UUID clusterId;
 
@@ -135,5 +150,27 @@ class CrossNodeAggregatorTest extends PostgresIntegrationTest {
                 .queues(clusterId, ResourceQuery.of("bet", 1, 50, null))
                 .data();
         assertThat(filtered).extracting(QueueView::queueName).containsExactly("beta");
+    }
+
+    @Test
+    void aQueueRowNamesTheTeamThatOwnsItAndAnUnownedOneNamesNone() {
+        Fixture f = pairPlusStandalone();
+        upsert.upsertBatch(List.of(row(f.nodeA(), "ORDERS", "orders.in", 1), row(f.nodeA(), "OTHER", "other", 1)));
+        TeamEntity team = teams.save(new TeamEntity("owner-" + UUID.randomUUID()));
+        teamPatterns.save(new TeamPatternEntity(team.getId(), clusterId, "QUEUE", "orders.#"));
+        accessChanges.changed();
+
+        try {
+            List<QueueView> rows = aggregator
+                    .queues(clusterId, ResourceQuery.of(null, 1, 50, "name"))
+                    .data();
+
+            assertThat(rows).extracting(QueueView::queueName).containsExactly("orders.in", "other");
+            assertThat(rows.get(0).ownerTeam()).isEqualTo(new TeamRef(team.getId(), team.getName()));
+            assertThat(rows.get(1).ownerTeam()).isNull();
+        } finally {
+            teams.deleteById(team.getId());
+            accessChanges.changed();
+        }
     }
 }

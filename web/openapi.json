@@ -17716,6 +17716,108 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}/resource-access" : {
+      "get" : {
+        "tags" : [ "teams-controller" ],
+        "operationId" : "resourceAccess",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "kind",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS" ]
+          }
+        }, {
+          "name" : "name",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResourceAccessView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/queues/{queueName}/messages/{messageId}" : {
       "get" : {
         "tags" : [ "message-controller" ],
@@ -30017,9 +30119,32 @@
             "items" : {
               "$ref" : "#/components/schemas/TeamMembership"
             }
+          },
+          "createPatterns" : {
+            "$ref" : "#/components/schemas/CreatePatterns",
+            "description" : "Patterns on which the caller may create a queue or address through a team or a share. A grant that reaches the cluster allows any name and shows in permissions."
           }
         },
-        "required" : [ "anywhere", "permissions", "teams" ]
+        "required" : [ "anywhere", "createPatterns", "permissions", "teams" ]
+      },
+      "CreatePatterns" : {
+        "type" : "object",
+        "description" : "Name patterns, as written, that the caller may create under. Empty when none.",
+        "properties" : {
+          "queue" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "address" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "address", "queue" ]
       },
       "TeamMembership" : {
         "type" : "object",
@@ -31545,6 +31670,74 @@
         },
         "required" : [ "code", "remedy", "summary" ]
       },
+      "ResourceAccessView" : {
+        "type" : "object",
+        "description" : "Who has access to one queue or address through teams: its owner and every share.",
+        "properties" : {
+          "ownerTeam" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/TeamRef"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "grants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ResourceTeamGrant"
+            }
+          }
+        },
+        "required" : [ "grants" ]
+      },
+      "ResourceTeamGrant" : {
+        "type" : "object",
+        "description" : "One team role that reaches a queue or address, and how many members hold it: a role of the owning team, or the role a share gives another team.",
+        "properties" : {
+          "teamId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "teamName" : {
+            "type" : "string"
+          },
+          "roleName" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string",
+            "enum" : [ "OWNER", "SHARE" ]
+          },
+          "sharedByTeamName" : {
+            "type" : [ "string", "null" ],
+            "description" : "SHARE only: the owning team that shared the pattern."
+          },
+          "pattern" : {
+            "type" : [ "string", "null" ],
+            "description" : "SHARE only: the pattern the owning team shared."
+          },
+          "memberCount" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "OWNER: the team's members holding the role. SHARE: all members of the receiving team."
+          }
+        },
+        "required" : [ "memberCount", "roleName", "source", "teamId", "teamName" ]
+      },
+      "TeamRef" : {
+        "type" : "object",
+        "description" : "A team, by id and name.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ]
+      },
       "PagedViewQueueView" : {
         "type" : "object",
         "properties" : {
@@ -31667,6 +31860,13 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "ownerTeam" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/TeamRef"
+            }, {
+              "type" : "null"
+            } ]
           }
         },
         "required" : [ "address", "allowedActions", "durable", "nodesPresent", "nodesTotal", "paused", "perNode", "queueName", "routingType", "totalConsumerCount", "totalDeliveringCount", "totalMessageCount", "totalScheduledCount" ]
@@ -33972,6 +34172,13 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "ownerTeam" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/TeamRef"
+            }, {
+              "type" : "null"
+            } ]
           }
         },
         "required" : [ "allowedActions", "messageCount", "name", "nodeId", "nodeName", "queueCount" ]
