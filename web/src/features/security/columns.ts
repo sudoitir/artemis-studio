@@ -2,8 +2,9 @@ import { createElement } from 'react';
 
 import type { Column } from '../../ui/table/index.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
+import type { AccessCheckView, EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
 import {
+  AccessSources,
   Effect,
   GrantedThrough,
   MappingActions,
@@ -17,7 +18,7 @@ import {
   UserName,
   type UserControls,
 } from './cells.tsx';
-import { grantText, twoStepText } from './words.ts';
+import { grantText, sourceText, twoStepText, type ScopeLabel } from './words.ts';
 
 /** What a users table needs from its panel: the controls the panel owns, each gated and busy as it is now. */
 export interface UserRows {
@@ -61,7 +62,7 @@ export function userColumns({ controls }: UserRows): Column<UserView>[] {
     {
       id: 'grants',
       header: 'Roles',
-      accessor: (u) => u.grants.map(grantText).join(', ') || 'none',
+      accessor: (u) => u.grants.map((g) => grantText(g, controls.scopeLabel)).join(', ') || 'none',
       cell: (u) => createElement(UserGrants, { user: u, controls }),
       kind: 'text',
       wrap: true,
@@ -78,7 +79,7 @@ export function userColumns({ controls }: UserRows): Column<UserView>[] {
     {
       id: 'actions',
       header: 'Actions',
-      accessor: () => 'Unlock Sessions Effective permissions',
+      accessor: () => 'Unlock Sessions Access check',
       cell: (u) => createElement(UserActions, { user: u, controls }),
       kind: 'status',
       wrap: true,
@@ -117,6 +118,13 @@ export function roleColumns({ onEdit, onDelete }: RoleRows): Column<RoleView>[] 
       priority: 'low',
     },
     {
+      id: 'team',
+      header: 'Team role',
+      accessor: (r) => (r.teamAssignable ? 'Yes' : 'No'),
+      kind: 'status',
+      priority: 'low',
+    },
+    {
       id: 'mfa',
       header: 'Two-step verification',
       accessor: (r) => (r.requiresMfa ? 'Required' : 'Not required'),
@@ -137,10 +145,18 @@ export function roleColumns({ onEdit, onDelete }: RoleRows): Column<RoleView>[] 
 /** The group mappings' columns: the group names what is mapped, the delete is never hidden. */
 export function mappingColumns({
   onDelete,
-}: Readonly<{ onDelete: (mapping: GroupMappingView) => void }>): Column<GroupMappingView>[] {
+  scopeLabel,
+}: Readonly<{ onDelete: (mapping: GroupMappingView) => void; scopeLabel: ScopeLabel }>): Column<GroupMappingView>[] {
   return [
     { id: 'group', header: 'Group', accessor: (m) => m.groupName, kind: 'identifier', priority: 'essential' },
     { id: 'role', header: 'Role', accessor: (m) => m.roleName, kind: 'text', priority: 'essential' },
+    {
+      id: 'scope',
+      header: 'Scope',
+      accessor: (m) => scopeLabel(m.scopeType, m.scopeId),
+      kind: 'text',
+      priority: 'high',
+    },
     {
       id: 'actions',
       header: 'Actions',
@@ -181,6 +197,37 @@ export function effectColumns(): Column<EffectivePermissionView>[] {
       kind: 'text',
       wrap: true,
       priority: 'essential',
+    },
+  ];
+}
+
+/** What a user may do here: each permission, whether it is allowed, and every source that allows it. */
+export function accessColumns({ scopeLabel }: Readonly<{ scopeLabel: ScopeLabel }>): Column<AccessCheckView>[] {
+  return [
+    {
+      id: 'permission',
+      header: 'Permission',
+      accessor: (v) => v.action,
+      kind: 'code',
+      priority: 'essential',
+    },
+    {
+      id: 'allowed',
+      header: 'Result',
+      accessor: (v) => (v.allowed ? 'Allowed' : 'Not allowed'),
+      cell: (v) => createElement(StatusBadge, null, v.allowed ? 'Allowed' : 'Not allowed'),
+      kind: 'status',
+      badge: true,
+      priority: 'essential',
+    },
+    {
+      id: 'sources',
+      header: 'Through',
+      accessor: (v) => v.sources.map((s) => sourceText(s, scopeLabel)).join('; '),
+      cell: (v) => createElement(AccessSources, { view: v, scopeLabel }),
+      kind: 'text',
+      wrap: true,
+      priority: 'high',
     },
   ];
 }

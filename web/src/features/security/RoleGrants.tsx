@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Drawer, Stack, TextInput } from '@mantine/core';
+import { Stack, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
 import { EmptyState } from '../../ui/EmptyState.tsx';
@@ -34,15 +34,12 @@ function permissionsNotice(result: ReturnType<typeof useEffectivePermissions>): 
   return null;
 }
 
-/** A user's effective permissions per scope, with the role and wildcard each came through (operator-ui spec). */
-export function EffectivePermissionsDrawer({
-  user,
-  onClose,
-}: Readonly<{
-  user: { id: string; username: string } | null;
-  onClose: () => void;
-}>) {
-  const result = useEffectivePermissions(user?.id ?? null);
+/**
+ * The roles a user holds, as permissions per grant scope, with the role and wildcard each came through, and the
+ * ones that have no effect at their scope (operator-ui spec).
+ */
+export function RoleGrants({ userId }: Readonly<{ userId: string }>) {
+  const result = useEffectivePermissions(userId);
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const rows = (result.data ?? []).filter(
@@ -52,44 +49,36 @@ export function EffectivePermissionsDrawer({
   const columns = effectColumns();
 
   return (
-    <Drawer
-      opened={user !== null}
-      onClose={onClose}
-      position="right"
-      size="xl"
-      title={user ? `Effective permissions of ${user.username}` : ''}
-    >
-      {permissionsNotice(result) ?? (
-        <Stack gap="md">
-          <TextInput
-            label="Filter by permission or role"
-            leftSection={<IconSearch size="1rem" aria-hidden />}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
+    permissionsNotice(result) ?? (
+      <Stack gap="md">
+        <TextInput
+          label="Filter by permission or role"
+          leftSection={<IconSearch size="1rem" aria-hidden />}
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+        />
+        {rows.length === 0 ? (
+          <EmptyState
+            kind="filtered"
+            title={`Nothing matches “${query}”`}
+            description="No permission or role has that in its name."
+            onClearFilters={() => setQuery('')}
           />
-          {rows.length === 0 ? (
-            <EmptyState
-              kind="filtered"
-              title={`Nothing matches “${query}”`}
-              description="No permission or role has that in its name."
-              onClearFilters={() => setQuery('')}
-            />
-          ) : (
-            scopes.map((scope) => (
-              <Section key={scope} title={scope} headingLevel={3}>
-                <DataTable
-                  variant="static"
-                  label={`Permissions at ${scope}`}
-                  columns={columns}
-                  data={rows.filter((v) => scopeLabel(v) === scope)}
-                  rowKey={rowKey}
-                  empty={null}
-                />
-              </Section>
-            ))
-          )}
-        </Stack>
-      )}
-    </Drawer>
+        ) : (
+          scopes.map((scope) => (
+            <Section key={scope} title={scope} headingLevel={3}>
+              <DataTable
+                variant="static"
+                label={`Permissions at ${scope}`}
+                columns={columns}
+                data={rows.filter((v) => scopeLabel(v) === scope)}
+                rowKey={rowKey}
+                empty={null}
+              />
+            </Section>
+          ))
+        )}
+      </Stack>
+    )
   );
 }

@@ -1684,6 +1684,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{userId}/access-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["accessCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tokens/{tokenId}/usage": {
         parameters: {
             query?: never;
@@ -1740,6 +1756,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["preview_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/lookups/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["findUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/lookups/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["teamRoles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1836,6 +1884,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["mine"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5153,6 +5217,49 @@ export interface components {
             count?: number | null;
             hasNext: boolean;
         };
+        /** @description One catalogue permission for a user, here, with every source that allows it. */
+        AccessCheckView: {
+            action: string;
+            description: string;
+            /** @enum {string} */
+            scope: "GLOBAL" | "CLUSTER" | "RESOURCE";
+            allowed: boolean;
+            sources: components["schemas"]["AccessSource"][];
+        };
+        /** @description One way a user holds a permission: a role granted at a scope, a team role on the team that owns the resource, or a share from the owning team. */
+        AccessSource: {
+            /** @enum {string} */
+            type: "ROLE_GRANT" | "TEAM" | "SHARE";
+            roleName: string;
+            /** @description ROLE_GRANT only: GLOBAL, ENVIRONMENT or CLUSTER. */
+            scopeType?: string | null;
+            /**
+             * Format: uuid
+             * @description ROLE_GRANT only: the environment or cluster of the grant.
+             */
+            scopeId?: string | null;
+            /**
+             * Format: uuid
+             * @description TEAM and SHARE: the team whose role the user holds.
+             */
+            teamId?: string | null;
+            teamName?: string | null;
+            /** @description SHARE only: the team that shared the pattern. */
+            ownerTeamName?: string | null;
+        };
+        PagedViewAccessCheckView: {
+            data: components["schemas"]["AccessCheckView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
         PagedViewTokenView: {
             data: components["schemas"]["TokenView"][];
             /** Format: int32 */
@@ -5224,8 +5331,8 @@ export interface components {
             createdAt: string;
             /** Format: int32 */
             memberCount: number;
-            /** Format: int32 */
-            patternCount: number;
+            /** @description The patterns the team owns, with the cluster of each. */
+            patterns: components["schemas"]["PatternView"][];
             /** Format: int32 */
             sharesOut: number;
             /** Format: int32 */
@@ -5260,6 +5367,40 @@ export interface components {
             /** @description Up to 20 matching address names. */
             addressExamples: string[];
             conflicts: components["schemas"]["PatternConflict"][];
+        };
+        PagedViewUserLookup: {
+            data: components["schemas"]["UserLookup"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
+        };
+        /** @description A user a team admin may add as a member: enabled accounts only. Usernames are unique across providers. */
+        UserLookup: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+        };
+        PermissionView: {
+            action: string;
+            label: string;
+            featureId: string;
+            featureTitle: string;
+            /** @enum {string} */
+            scope: "GLOBAL" | "CLUSTER" | "RESOURCE";
+            resourceKinds: ("QUEUE" | "ADDRESS")[];
+            requires: string[];
+        };
+        /** @description The team roles a team admin may give, and the catalogue entries their permissions name. */
+        TeamRoleLookup: {
+            roles: components["schemas"]["RoleView"][];
+            permissions: components["schemas"]["PermissionView"][];
         };
         JobStatusView: {
             id: string;
@@ -5457,15 +5598,26 @@ export interface components {
             count?: number | null;
             hasNext: boolean;
         };
-        PermissionView: {
-            action: string;
-            label: string;
-            featureId: string;
-            featureTitle: string;
-            /** @enum {string} */
-            scope: "GLOBAL" | "CLUSTER" | "RESOURCE";
-            resourceKinds: ("QUEUE" | "ADDRESS")[];
-            requires: string[];
+        /** @description What the caller holds, for the console to offer or withhold controls. The server stays the enforcement point. */
+        AccessSummary: {
+            /** @description Every catalogue permission the caller holds on the cluster, or globally when no cluster is asked about: through a role grant at global, environment or cluster scope. */
+            permissions: string[];
+            /** @description Resource permissions the caller holds on some queue or address of the cluster, through a grant, a team or a share. Empty when no cluster is asked about. */
+            anywhere: string[];
+            /** @description Whether the caller may see the cluster at all; null when no cluster is asked about. */
+            canSeeCluster?: boolean | null;
+            teams: components["schemas"]["TeamMembership"][];
+        };
+        /** @description A team the caller belongs to, with the team role they hold in it. */
+        TeamMembership: {
+            /** Format: uuid */
+            teamId: string;
+            teamName: string;
+            /** Format: uuid */
+            roleId: string;
+            roleName: string;
+            /** @description Whether the team role holds team:admin. */
+            teamAdmin: boolean;
         };
         McpToolView: {
             name: string;
@@ -16041,6 +16193,69 @@ export interface operations {
             };
         };
     };
+    accessCheck: {
+        parameters: {
+            query?: {
+                clusterId?: string;
+                kind?: "QUEUE" | "ADDRESS";
+                name?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewAccessCheckView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     usage: {
         parameters: {
             query?: {
@@ -16232,6 +16447,118 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PatternPreview"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    findUsers: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PagedViewUserLookup"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    teamRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamRoleLookup"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16574,6 +16901,63 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewPermissionView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    mine: {
+        parameters: {
+            query?: {
+                clusterId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccessSummary"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */

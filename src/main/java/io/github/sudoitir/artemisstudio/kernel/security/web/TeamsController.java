@@ -14,9 +14,11 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PatternVie
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamRequest;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamRoleLookup;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamSummary;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.UnownedView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.UserLookup;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +48,18 @@ public class TeamsController {
     public PagedView<TeamSummary> list(
             @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
         return ResourceQuery.ofPage(page, size).paginate(teams.list(), null);
+    }
+
+    /** Enabled users by name prefix, for a team admin choosing a member; needs no more than {@code team:admin}. */
+    @GetMapping("/teams/lookups/users")
+    public PagedView<UserLookup> findUsers(@RequestParam(defaultValue = "") String q) {
+        return ResourceQuery.ofPage(null, null).paginate(teams.findUsers(q), null);
+    }
+
+    /** The team roles with their permissions, for the same caller. */
+    @GetMapping("/teams/lookups/roles")
+    public TeamRoleLookup teamRoles() {
+        return teams.teamRoles();
     }
 
     @GetMapping("/teams/{teamId}")

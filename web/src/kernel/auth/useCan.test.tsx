@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { screen, waitFor } from '@testing-library/react';
+
+import { renderWithProviders } from '../../test/render.tsx';
+import { server } from '../../test/setup.ts';
+import { useCan } from './useCan.ts';
+
+type Summary = {
+  permissions: string[];
+  anywhere?: string[];
+  canSeeCluster?: boolean | null;
+  teams?: { teamId: string; teamName: string; roleId: string; roleName: string; teamAdmin: boolean }[];
+};
+
+/** Serves `/me/access`: the installation summary, and each cluster's by id. */
+function serveAccess(installation: Summary, byCluster: Record<string, Summary> = {}) {
+  server.use(
+    http.get('*/api/v1/me/access', ({ request }) => {
+      const clusterId = new URL(request.url).searchParams.get('clusterId');
+      const summary = clusterId ? (byCluster[clusterId] ?? { permissions: [] }) : installation;
+      return HttpResponse.json({ anywhere: [], canSeeCluster: clusterId ? false : null, teams: [], ...summary });
+    }),
+  );
+}
+
+function Probe({ permission, clusterId }: Readonly<{ permission: string; clusterId?: string }>) {
+  const { can, loading } = useCan();
+  return (
+    <p>
+      {permission} {clusterId ?? 'installation'}: {can(permission, clusterId) ? 'yes' : 'no'}
+      {loading ? ' (loading)' : ''}
+    </p>
+  );
+}
+
+describe('useCan', () => {
+  it('answers from the server summary, not from the grants of /auth/me', async () => {
+    serveAccess({ permissions: ['settings:read'] });
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({
+          id: 'u1',
+          username: 'u',
+          mustChangePassword: false,
+          grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
+        }),
+      ),
+    );
+    renderWithProviders(
+      <>
+        <Probe permission="settings:read" />
+        <Probe permission="user:admin" />
+      </>,
+    );
+
+    expect(await screen.findByText('settings:read installation: yes')).toBeInTheDocument();
+    expect(screen.getByText('user:admin installation: no')).toBeInTheDocument();
+  });
+
+  it('counts a grant on the environment of a cluster, which the grants of /auth/me cannot show', async () => {
+    serveAccess({ permissions: [] }, { 'c-live': { permissions: ['queue:purge'] } });
+    renderWithProviders(
+      <>
+        <Probe permission="queue:purge" clusterId="c-live" />
+        <Probe permission="queue:purge" clusterId="c-other" />
+      </>,
+    );
+
+    expect(await screen.findByText('queue:purge c-live: yes')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('queue:purge c-other: no')).toBeInTheDocument());
+  });
+
+  it('offers the control until the cluster it was asked about has answered, then follows the answer', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get('*/api/v1/me/access', async ({ request }) => {
+        const clusterId = new URL(request.url).searchParams.get('clusterId');
+        if (clusterId) await gate;
+        return HttpResponse.json({ permissions: [], anywhere: [], canSeeCluster: clusterId ? false : null, teams: [] });
+      }),
+    );
+    renderWithProviders(<Probe permission="queue:purge" clusterId="c-live" />);
+
+    expect(await screen.findByText('queue:purge c-live: yes')).toBeInTheDocument();
+    release();
+    await waitFor(() => expect(screen.getByText('queue:purge c-live: no')).toBeInTheDocument());
+  });
+
+  it('counts the admin of a team as holding team:admin, though no role grants it globally', async () => {
+    serveAccess({
+      permissions: [],
+      teams: [{ teamId: 't1', teamName: 'Orders', roleId: 'r1', roleName: 'TEAM_ADMIN', teamAdmin: true }],
+    });
+    renderWithProviders(
+      <>
+        <Probe permission="team:admin" />
+        <Probe permission="user:admin" />
+      </>,
+    );
+
+    expect(await screen.findByText('team:admin installation: yes')).toBeInTheDocument();
+    expect(screen.getByText('user:admin installation: no')).toBeInTheDocument();
+  });
+
+  it('does not count a team member who is not a team admin', async () => {
+    serveAccess({
+      permissions: [],
+      teams: [{ teamId: 't1', teamName: 'Orders', roleId: 'r1', roleName: 'TEAM_VIEWER', teamAdmin: false }],
+    });
+    renderWithProviders(<Probe permission="team:admin" />);
+
+    await waitFor(() => expect(screen.getByText('team:admin installation: no')).toBeInTheDocument());
+  });
+});

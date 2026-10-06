@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -44,5 +44,50 @@ describe('UserMenu', () => {
     expect(document.documentElement.dataset.density).toBe('comfortable');
     expect(await radio('Comfortable')).toBeChecked();
     expect(JSON.parse(window.localStorage.getItem('as:density') ?? 'null')).toBe('comfortable');
+  });
+
+  const item = (name: string) => screen.queryByRole('menuitem', { name, hidden: true });
+
+  it('offers Administration to a user administrator, opening its first tab', async () => {
+    server.use(
+      http.get('*/api/v1/me/access', () =>
+        HttpResponse.json({ permissions: ['user:admin'], anywhere: [], canSeeCluster: null, teams: [] }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderAppAt('/');
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+
+    await waitFor(() => expect(item('Administration')).toHaveAttribute('href', '/admin'));
+  });
+
+  it('offers Administration to the admin of a team, who holds nothing globally, opening the Teams tab', async () => {
+    server.use(
+      http.get('*/api/v1/me/access', () =>
+        HttpResponse.json({
+          permissions: [],
+          anywhere: [],
+          canSeeCluster: null,
+          teams: [{ teamId: 't1', teamName: 'Orders', roleId: 'r1', roleName: 'TEAM_ADMIN', teamAdmin: true }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderAppAt('/');
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+
+    await waitFor(() => expect(item('Administration')).toHaveAttribute('href', '/admin?tab=teams'));
+  });
+
+  it('does not offer Administration to anyone else', async () => {
+    const user = userEvent.setup();
+    renderAppAt('/');
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+    await screen.findByRole('menuitem', { name: 'Account', hidden: true });
+
+    expect(item('Administration')).toBeNull();
   });
 });

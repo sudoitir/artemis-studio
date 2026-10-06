@@ -1,19 +1,32 @@
 name: Update auto-merge PRs
 
-# A push to main leaves every open PR behind it, and the ruleset requires a branch that is up to
-# date (ADR-0126). This brings each PR that has auto-merge enabled up to date, so CI re-runs on
-# it and auto-merge merges it when green: the merged tree is the tested tree (ADR-0170).
+# The ruleset requires a branch that is up to date with main (ADR-0126). This acts as a serial
+# queue for the PRs that have auto-merge enabled (ADR-0170): it walks them oldest auto-merge
+# first and keeps exactly one PR up to date, the one in flight. CI re-runs on it and auto-merge
+# merges it when green, so the merged tree is the tested tree. Updating every PR at once would
+# only spend CI on branches that go stale again when the first one merges.
 # The update is pushed with a personal access token, because a push made with GITHUB_TOKEN does
-# not trigger CI. The workflow never checks out or runs PR code.
+# not trigger CI. The workflow never checks out or runs PR code, and `workflow_run` (not
+# `pull_request_target`) keeps the token away from PR-controlled events.
 on:
+  # The in-flight PR merged: advance to the next.
   push:
     branches: [main]
+  # A CI run finished: if the in-flight PR failed, advance past it. Every run is a full walk,
+  # so a run for another event only finds nothing to do.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # The backstop for a missed event.
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
-# A newer push to main supersedes a run still going: it lists the PRs again.
+# Never cancel a run: two walks that update at once would race. A waiting run is replaced by a
+# newer one, which sees everything the older one would have.
 concurrency:
   group: pr-auto-update
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -22,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Update the PRs that wait to auto-merge
+      - name: Keep the next PR to merge up to date
         env:
           GH_TOKEN: ${{ secrets.PR_UPDATE_TOKEN }}
         run: |
@@ -32,22 +45,49 @@ jobs:
             exit 0
           fi
           export GH_REPO="$GITHUB_REPOSITORY"
-          gh pr list --base main --state open --limit 100 \
+          # Oldest auto-merge first, the PR number breaking a tie. Without auto-merge a PR sorts last.
+          prs=$(gh pr list --base main --state open --limit 100 \
             --json number,headRefOid,isDraft,isCrossRepository,autoMergeRequest \
-            --jq '.[] | [.number, .headRefOid, .isDraft, .isCrossRepository, (.autoMergeRequest != null)] | @tsv' |
-            while IFS=$'\t' read -r number sha draft fork auto; do
-              if [ "$draft" = true ]; then echo "#$number skipped: draft"; continue; fi
-              if [ "$fork" = true ]; then echo "#$number skipped: from a fork"; continue; fi
-              if [ "$auto" != true ]; then echo "#$number skipped: auto-merge is not enabled"; continue; fi
-              # mergeStateStatus is computed lazily and reads BLOCKED while checks are pending, so
-              # ask git whether main has commits the PR lacks.
-              behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq .ahead_by)
-              if [ "$behind" -eq 0 ]; then echo "#$number skipped: already up to date"; continue; fi
-              # expected_head_sha makes a push to the PR since the listing a 422, not a lost commit.
-              if out=$(gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$number/update-branch" \
-                  -f expected_head_sha="$sha" --jq .message 2>&1); then
-                echo "#$number updated: merged main ($behind commits) into the branch"
-              else
-                echo "::warning::#$number not updated: $out"
-              fi
-            done
+            --jq 'sort_by([(.autoMergeRequest.enabledAt // "9"), .number])
+              | .[] | [.number, .headRefOid, .isDraft, .isCrossRepository, (.autoMergeRequest.enabledAt // "")] | @tsv')
+          if [ -z "$prs" ]; then echo "No open pull requests."; exit 0; fi
+          while IFS=$'\t' read -r number sha draft fork enabled; do
+            if [ "$draft" = true ]; then echo "#$number skipped: draft"; continue; fi
+            if [ "$fork" = true ]; then echo "#$number skipped: from a fork"; continue; fi
+            if [ -z "$enabled" ]; then echo "#$number skipped: auto-merge is not enabled"; continue; fi
+            # The state of the required check on the head the PR has now.
+            ci=$(gh pr view "$number" --json statusCheckRollup --jq '
+              [.statusCheckRollup[] | select(.name == "ci-ok")] | sort_by(.startedAt) | last
+              | if . == null then "none" elif .status != "COMPLETED" then "running"
+                else (.conclusion | ascii_downcase) end')
+            case "$ci" in
+              failure|timed_out|startup_failure)
+                echo "#$number skipped: ci-ok is $ci on its current head; its author has to fix it"
+                continue ;;
+            esac
+            # mergeStateStatus is computed lazily and reads BLOCKED while checks are pending, so
+            # ask git whether main has commits the PR lacks.
+            behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq .ahead_by)
+            # A cancelled or stale run says nothing about the code: one that is behind is updated
+            # below, which runs CI again; one that is up to date needs someone to re-run it.
+            if [ "$behind" -eq 0 ] && { [ "$ci" = cancelled ] || [ "$ci" = stale ]; }; then
+              echo "::warning::#$number skipped: ci-ok is $ci on an up-to-date head; re-run its CI"
+              continue
+            fi
+            if [ "$behind" -eq 0 ]; then
+              echo "#$number is in flight: up to date with main, ci-ok is $ci; the PRs after it wait"
+              break
+            fi
+            # expected_head_sha makes a push to the PR since the listing a 422, not a lost commit.
+            if out=$(gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$number/update-branch" \
+                -f expected_head_sha="$sha" --jq .message 2>&1); then
+              echo "#$number updated: merged main ($behind commits) into the branch; it is in flight, the PRs after it wait"
+              break
+            fi
+            if printf '%s' "$out" | grep -qi conflict; then
+              echo "::warning::#$number skipped: it conflicts with main, its author has to resolve it"
+              continue
+            fi
+            echo "::warning::#$number not updated, so the walk stops: $out"
+            break
+          done <<< "$prs"
