@@ -103,6 +103,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "local_(totp|recovery_code|recovery_key|trusted_device)",
                     "user_(entities|credentials)",
                     "CREATE TABLE role ",
+                    // Teams, their patterns, members and shares (changeset kernel-security 0010); the table
+                    // role itself is covered above (role.team_assignable).
+                    "team(_pattern|_member|_share)?",
                     // Idempotency keys (ADR-0150, changeset kernel-security 0009).
                     "idempotency_record",
                     // Usernames are unique ignoring case (kernel-security 0008).

@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopedGrants;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
@@ -104,6 +105,7 @@ public class ClusterService {
     private final ClusterEnvironmentIndex environmentIndex;
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
+    private final ScopedGrants grants;
 
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
@@ -579,6 +581,7 @@ public class ClusterService {
                 Map.of(),
                 false);
         clusters.delete(cluster);
+        grants.revoke("CLUSTER", clusterId);
         bus.publish(new ReplicaSignal("cluster-deleted", clusterId.toString()));
         environmentIndex.invalidate();
         audit.succeed(event, 1);

@@ -1,6 +1,8 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.GroupMappingRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +16,20 @@ public class ScopedGrants {
 
     private final UserRoleRepository userRoles;
     private final GroupMappingRepository groupMappings;
+    private final TeamPatternRepository teamPatterns;
+    private final TeamShareRepository teamShares;
 
-    /** Drop every role assignment and group mapping scoped to {@code scopeId}, in the caller's transaction. */
+    /**
+     * Drop every role assignment and group mapping scoped to {@code scopeId}, and for a cluster the
+     * team patterns and shares on it, in the caller's transaction.
+     */
     @Transactional
     public void revoke(String scopeType, UUID scopeId) {
         userRoles.deleteByIdScopeTypeAndIdScopeId(scopeType, scopeId);
         groupMappings.deleteByScopeTypeAndScopeId(scopeType, scopeId);
+        if (scopeType.equals("CLUSTER")) {
+            teamPatterns.deleteByClusterId(scopeId);
+            teamShares.deleteByClusterId(scopeId);
+        }
     }
 }
