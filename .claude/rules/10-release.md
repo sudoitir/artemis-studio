@@ -24,7 +24,7 @@ See [ADR-0042](../../docs/adr/0042-calver-releases-on-docker-hub.md) for why.
 Pull requests carry the whole verification; `main` does not re-test ([ADR-0126](../../docs/adr/0126-pull-requests-verify-main-releases-what-changed.md)).
 The ruleset requires the one `ci-ok` check on a branch that is up to date with `main`,
 so the merge commit is the tree CI verified. A ready PR gets `gh pr merge <n> --merge --auto`; the
-`pr-auto-update` workflow brings it up to date when `main` moves, and it merges when CI is green
+`pr-auto-update` workflow brings it up to date in its turn (one PR at a time, oldest auto-merge first), and it merges when CI is green
 ([ADR-0170](../../docs/adr/0170-auto-update-keeps-pull-requests-up-to-date.md)).
 
 A push to `main` releases when it changes what the image is built from
