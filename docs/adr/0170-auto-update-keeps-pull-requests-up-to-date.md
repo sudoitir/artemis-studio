@@ -24,13 +24,14 @@ usable, and the `merge_group` trigger it added to `ci.yml` was dead weight.
    enabled, are not drafts and are not from forks, oldest auto-merge first (`enabledAt`, then the
    PR number). Updating all of them at once would waste CI: only the first to merge counts, and
    the rest are behind `main` again. For each PR, in order:
-   - `ci-ok` failed on its current head: skipped and logged; its author has to fix it. (A merge
-     of `main` would not fix a failure the PR caused, and this stays simple rather than guess
-     whether `main` caused it.)
+   - Behind `main`: `main` is merged into its branch with
+     `PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`, whatever its last `ci-ok` says. A result
+     on a head that is behind is about old code, and a cancelled run makes `ci-ok` fail too, so
+     only the fresh run counts. It is now in flight and the walk stops.
+   - Up to date with `main` and `ci-ok` failed: skipped and logged; its author has to fix it.
+     Cancelled or stale on an up-to-date head: skipped with a warning to re-run its CI.
    - Up to date with `main` and `ci-ok` pending, running or green: it is **in flight**, the walk
      stops, and the PRs after it wait. Green means the merge is about to happen.
-   - Behind `main`: `main` is merged into its branch with
-     `PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`. It is now in flight and the walk stops.
    - Conflicting with `main` (the update answers 422): skipped with a warning, and the walk goes on.
 
    CI re-runs on the updated branch and auto-merge merges it when `ci-ok` is green, so what `main`
@@ -67,8 +68,8 @@ usable, and the `merge_group` trigger it added to `ci.yml` was dead weight.
   cost ADR-0126's rule always had, and none is spent on a branch that goes stale before it merges.
 - The queue is serial, so the last of several pull requests waits for each CI run ahead of it
   (about fifteen minutes each), where a merge queue would test them together.
-- A pull request that fails CI is skipped, not retried; it is not updated again until its author
-  pushes a fix.
+- A pull request that fails CI on an up-to-date head is skipped until its author pushes a fix, or
+  until `main` moves and the walk reaches it again, which costs one CI run to confirm the failure.
 - The schedule is a backstop, so a missed event delays the next update by at most 30 minutes.
 - The token is a long-lived credential tied to its owner. It can push to every branch of the
   repository, so it expires, is limited to this repository, and is read only by this workflow,
