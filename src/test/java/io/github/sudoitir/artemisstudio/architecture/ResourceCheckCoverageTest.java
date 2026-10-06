@@ -157,7 +157,13 @@ class ResourceCheckCoverageTest {
                     "names what a signal is about; the stream decides per subscriber who may see it"),
             Map.entry(
                     "feature.identitylocal.mfa.SecondFactorService.trustDevice",
-                    "'source' is where a sign-in came from"));
+                    "'source' is where a sign-in came from"),
+            Map.entry(
+                    "feature.plugins.messaging.internal.AccessCheck.needsOf",
+                    "only lists the needs of a registration; AccessCheck.denial checks them for the acting user"),
+            Map.entry(
+                    "feature.plugins.messaging.internal.AccessCheck.sendNeeds",
+                    "only lists the needs of a send; AccessCheck.denial checks them for the acting user"));
 
     /** What a scan found: the methods it looked at, each with how it fares, and how many check call sites it reaches. */
     private record Subject(String id, boolean checked, boolean composite, boolean coversEachName, int sites) {}
