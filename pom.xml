@@ -57,7 +57,7 @@
         <!-- Pinned; verified against Maven Central during workspace setup. -->
         <artemis.version>2.57.0</artemis.version>
         <testcontainers.version>2.0.5</testcontainers.version>
-        <spotless.version>3.10.2</spotless.version>
+        <spotless.version>3.10.3</spotless.version>
         <!-- Publishing the plugin API (ADR-0102); verified against Maven Central 2026-09-23. -->
         <central-publishing.version>0.11.0</central-publishing.version>
         <maven-gpg.version>3.2.8</maven-gpg.version>
@@ -99,7 +99,7 @@
         <skip.frontend>true</skip.frontend>
 
         <!-- SonarQube Cloud analysis (ADR-0140), run by CI's `sonar` job. -->
-        <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
+        <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
         <sonar.organization>sudoitir</sonar.organization>
         <sonar.projectKey>sudoitir_artemis-studio</sonar.projectKey>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
