@@ -1,0 +1,53 @@
+name: Update auto-merge PRs
+
+# A push to main leaves every open PR behind it, and the ruleset requires a branch that is up to
+# date (ADR-0126). This brings each PR that has auto-merge enabled up to date, so CI re-runs on
+# it and auto-merge merges it when green: the merged tree is the tested tree (ADR-0170).
+# The update is pushed with a personal access token, because a push made with GITHUB_TOKEN does
+# not trigger CI. The workflow never checks out or runs PR code.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to main supersedes a run still going: it lists the PRs again.
+concurrency:
+  group: pr-auto-update
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: Update the PRs that wait to auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.PR_UPDATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::The PR_UPDATE_TOKEN secret is not set, so no pull request is updated (ADR-0170)."
+            exit 0
+          fi
+          export GH_REPO="$GITHUB_REPOSITORY"
+          gh pr list --base main --state open --limit 100 \
+            --json number,headRefOid,isDraft,isCrossRepository,autoMergeRequest \
+            --jq '.[] | [.number, .headRefOid, .isDraft, .isCrossRepository, (.autoMergeRequest != null)] | @tsv' |
+            while IFS=$'\t' read -r number sha draft fork auto; do
+              if [ "$draft" = true ]; then echo "#$number skipped: draft"; continue; fi
+              if [ "$fork" = true ]; then echo "#$number skipped: from a fork"; continue; fi
+              if [ "$auto" != true ]; then echo "#$number skipped: auto-merge is not enabled"; continue; fi
+              # mergeStateStatus is computed lazily and reads BLOCKED while checks are pending, so
+              # ask git whether main has commits the PR lacks.
+              behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq .ahead_by)
+              if [ "$behind" -eq 0 ]; then echo "#$number skipped: already up to date"; continue; fi
+              # expected_head_sha makes a push to the PR since the listing a 422, not a lost commit.
+              if out=$(gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$number/update-branch" \
+                  -f expected_head_sha="$sha" --jq .message 2>&1); then
+                echo "#$number updated: merged main ($behind commits) into the branch"
+              else
+                echo "::warning::#$number not updated: $out"
+              fi
+            done

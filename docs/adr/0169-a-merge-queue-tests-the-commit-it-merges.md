@@ -1,7 +1,7 @@
 # ADR-0169: A merge queue tests the commit it merges
 
-- **Status**: accepted; supersedes in part [ADR-0126](0126-pull-requests-verify-main-releases-what-changed.md)
-  (the strict "up to date with `main`" rule)
+- **Status**: superseded by [ADR-0170](0170-auto-update-keeps-pull-requests-up-to-date.md): a merge queue
+  needs an organisation-owned repository, and this one is owned by a personal account
 - **Date**: 2026-10-06
 - **Deciders**: Mahdi Amirabdollahi
 
