@@ -141,7 +141,7 @@ live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
 
 Pull requests carry the verification: parallel, path-filtered jobs behind the one required
 `ci-ok` check, on a branch up to date with `main`; `gh pr merge <n> --merge --auto` merges a ready PR, and
-the `pr-auto-update` workflow updates it when `main` moves (ADR-0170). `main` does not re-test. Every push to `main`
+the `pr-auto-update` workflow updates the waiting PRs from `main` one at a time, oldest auto-merge first (ADR-0170). `main` does not re-test. Every push to `main`
 that changes a build input cuts a CalVer release to Docker Hub (image, git tag, GitHub
 pre-release), and Central and npm get it only when their inputs changed; docs-, site- and
 CI-only pushes release nothing (ADR-0088, ADR-0126). See `.claude/rules/10-release.md` for the versioning. There is no
