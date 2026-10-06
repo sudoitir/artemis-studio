@@ -5,7 +5,10 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateD
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
@@ -81,6 +84,7 @@ public class QueueLifecycleService {
     private final SseHub sseHub;
     private final BrokerCommands commands;
     private final ClusterAccessGuard access;
+    private final PermissionResolver permissions;
     private final ClusterDirectory clusters;
     private final BrokerConnections connections;
     private final ObjectMapper mapper;
@@ -409,13 +413,15 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteAddress(UUID clusterId, String address, boolean dryRun) {
         access.requireResource(clusterId, ResourceRef.address(address), LifecycleKind.DELETE_ADDRESS.permission());
+        // Taken here, on the caller's thread: the nodes' actions carry no security context.
+        ResourceFilter readable = permissions.filter(clusterId, ResourceKind.QUEUE);
         return run(clusterId, LifecycleKind.DELETE_ADDRESS, address, Map.of(), dryRun, false, (client, broker) -> {
             try {
                 ops.deleteAddress(client, broker, address);
             } catch (ManagementRefusal e) {
                 if (e.kind() == ManagementRefusal.Kind.BOUND_QUEUES) {
                     throw new ManagementRefusal(
-                            ManagementRefusal.Kind.BOUND_QUEUES, boundQueuesMessage(client, broker, address));
+                            ManagementRefusal.Kind.BOUND_QUEUES, boundQueuesMessage(client, broker, address, readable));
                 }
                 throw e;
             }
@@ -638,13 +644,27 @@ public class QueueLifecycleService {
                 client.resolveBrokerObjectName(), queue.address(), queue.queueName(), queue.routingType());
     }
 
-    private String boundQueuesMessage(JolokiaBrokerClient client, String brokerMbean, String address) {
+    /**
+     * What stops an address from being deleted. It names the queues the caller may read and counts the rest,
+     * so deleting an address does not list another team's queues.
+     */
+    private String boundQueuesMessage(
+            JolokiaBrokerClient client, String brokerMbean, String address, ResourceFilter readable) {
         List<String> queues = ops.boundQueues(client, BrokerMBeans.address(brokerMbean, address));
         if (queues.isEmpty()) {
             return "Address '" + address + "' still has queues bound to it.";
         }
-        return "Address '" + address + "' still has " + queues.size() + " queue(s) bound to it: "
-                + String.join(", ", queues) + ". Delete them first — this operation will not remove them for you.";
+        List<String> named = queues.stream().filter(readable::readable).toList();
+        int others = queues.size() - named.size();
+        String who = named.isEmpty()
+                ? " (none of them yours)"
+                : ": " + String.join(", ", named) + (others == 0 ? "" : " and " + others + " other" + plural(others));
+        return "Address '" + address + "' still has " + queues.size() + " queue(s) bound to it" + who
+                + ". Delete them first — this operation will not remove them for you.";
+    }
+
+    private static String plural(int count) {
+        return count == 1 ? "" : "s";
     }
 
     // ---- request -> broker configuration ---------------------------------

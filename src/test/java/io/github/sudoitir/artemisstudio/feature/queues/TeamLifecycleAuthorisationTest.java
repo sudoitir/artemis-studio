@@ -4,6 +4,7 @@ import static io.github.sudoitir.artemisstudio.support.SignedInSession.authentic
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.App
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
@@ -44,10 +46,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * A divert is destroyed wherever it is deployed, so a team may delete it only when it runs between addresses of
- * theirs on every node, and a divert that is anyone else's is not found, like one that does not exist.
+ * theirs on every node, and a divert that is anyone else's is not found, like one that does not exist. A refusal to
+ * delete an address names only the queues the team may read.
  */
 @ExtendWith(AdminAuthenticationExtension.class)
-class DivertDeletionAuthorisationTest extends PostgresIntegrationTest {
+class TeamLifecycleAuthorisationTest extends PostgresIntegrationTest {
 
     private static final String ONE = "http://one:8161/console/jolokia";
     private static final String TWO = "http://two:8161/console/jolokia";
@@ -161,5 +164,24 @@ class DivertDeletionAuthorisationTest extends PostgresIntegrationTest {
                 .isEqualTo("divert feed does not exist.");
         assertThat(json.readTree(missing.getContentAsString()).get("detail").asString())
                 .isEqualTo("divert nothing does not exist.");
+    }
+
+    @Test
+    void anAddressThatStillHasQueuesBoundNamesOnlyTheTeamsAndCountsTheRest() throws Exception {
+        when(divertOps.listDiverts(any(), any(), any())).thenReturn(java.util.List.of());
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.BOUND_QUEUES, "bound"))
+                .when(ops)
+                .deleteAddress(any(), any(), eq("orders.in"));
+        when(ops.boundQueues(any(), any())).thenReturn(java.util.List.of("orders.a", "billing.x", "billing.y"));
+
+        MockHttpServletResponse response = mvc.perform(delete("/api/v1/clusters/" + cluster + "/addresses/orders.in")
+                        .with(authentication(ordersOperator))
+                        .with(csrf()))
+                .andReturn()
+                .getResponse();
+
+        assertThat(response.getContentAsString())
+                .contains("3 queue(s) bound to it: orders.a and 2 others")
+                .doesNotContain("billing");
     }
 }
