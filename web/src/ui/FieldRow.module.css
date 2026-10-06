@@ -22,7 +22,9 @@
   flex: 1 1 12rem;
   min-inline-size: 0;
   display: flex;
+  flex: 1 1 12rem;
   flex-direction: column;
+  min-inline-size: 0;
 }
 
 .row > :global(.mantine-InputWrapper-root) > :global(.mantine-InputWrapper-label) {
