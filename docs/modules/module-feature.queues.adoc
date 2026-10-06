@@ -22,4 +22,5 @@ _Others_
 * `i.g.s.a.p.s.QueueSnapshotUpsert` (in Scraping)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.p.c.BrokerCommands` (in Clusters)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 |===
