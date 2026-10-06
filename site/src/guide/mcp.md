@@ -80,7 +80,7 @@ can be run again.
 | Tool | `diagnose` | a cluster (HA role per node, split-brain, replication lag, firing alerts) or one queue end to end |
 | Tool | `list_resources` | queues, addresses, consumers, sessions, connections, producers, diverts, bridges |
 | Tool | `metric_series` | a bucketed timeseries for one metric |
-| Tool | `config_diff` | classified configuration differences between two nodes |
+| Tool | `config_diff` | every node's configuration against the majority: the keys that drift and the nodes that differ |
 | Tool | `broker_config` | the cluster's declaration, its drift per node, the `broker.xml` fragment, or past applies |
 | Tool | `browse_messages` | headers, or one body by id |
 | Tool | `trace_request_reply` | flows, latency and timeout statistics, configured expectations |
