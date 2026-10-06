@@ -43,7 +43,18 @@ public final class AccessViews {
                     description = "Whether the caller may see the cluster at all; null when no cluster is asked about.")
             Boolean canSeeCluster,
 
-            @Schema(requiredMode = REQUIRED) List<TeamMembership> teams) {}
+            @Schema(requiredMode = REQUIRED) List<TeamMembership> teams,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Patterns on which the caller may create a queue or address through a team or a "
+                            + "share. A grant that reaches the cluster allows any name and shows in permissions.")
+            CreatePatterns createPatterns) {}
+
+    @Schema(description = "Name patterns, as written, that the caller may create under. Empty when none.")
+    public record CreatePatterns(
+            @Schema(requiredMode = REQUIRED) List<String> queue,
+            @Schema(requiredMode = REQUIRED) List<String> address) {}
 
     public enum SourceType {
         ROLE_GRANT,

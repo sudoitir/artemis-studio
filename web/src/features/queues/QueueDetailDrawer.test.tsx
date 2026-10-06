@@ -9,7 +9,21 @@ import type { QueueView } from './api.ts';
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useParams: () => ({ clusterId: 'c1' }),
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
+  Link: ({
+    children,
+    to,
+    search,
+    'aria-label': label,
+  }: {
+    children: React.ReactNode;
+    to: string;
+    search?: Record<string, string>;
+    'aria-label'?: string;
+  }) => (
+    <a href={`${to}?${new URLSearchParams(search ?? {})}`} aria-label={label}>
+      {children}
+    </a>
+  ),
 }));
 
 const { QueueDetailDrawer } = await import('./QueueDetailDrawer.tsx');
@@ -30,6 +44,15 @@ function cell(nodeId: string, nodeName: string, messageCount: number, stale = fa
 const QUEUE = {
   address: 'orders',
   queueName: 'orders.in',
+  allowedActions: [
+    'queue:read',
+    'queue:pause',
+    'queue:update',
+    'queue:delete',
+    'queue:purge',
+    'message:read',
+    'message:move',
+  ],
   routingType: 'ANYCAST',
   durable: true,
   totalMessageCount: 42,
@@ -82,5 +105,25 @@ describe('QueueDetailDrawer', () => {
     expect(screen.getByText('durable')).toBeInTheDocument();
     expect(screen.getByText('2/3 nodes')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+  });
+
+  it('names the team that owns the queue, as a link to it', async () => {
+    serve();
+    renderWithProviders(
+      <QueueDetailDrawer queue={{ ...QUEUE, ownerTeam: { id: 't1', name: 'Orders' } }} onClose={() => {}} />,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Owner: team Orders' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('team=t1'),
+    );
+  });
+
+  it('says the queue is not found, instead of closing silently, when it can no longer be seen', async () => {
+    serve();
+    renderWithProviders(<QueueDetailDrawer queue={null} missing="orders.in" onClose={() => {}} />);
+
+    expect(await screen.findByText('Queue not found')).toBeInTheDocument();
+    expect(screen.getByText(/your access to it may have been removed/)).toBeInTheDocument();
   });
 });

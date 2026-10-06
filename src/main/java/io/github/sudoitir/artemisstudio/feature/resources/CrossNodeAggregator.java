@@ -9,6 +9,8 @@ import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
+import io.github.sudoitir.artemisstudio.kernel.security.TeamIndex;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -42,6 +44,7 @@ public class CrossNodeAggregator {
     private final ScrapeProperties properties;
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
+    private final TeamIndex teams;
 
     @Transactional(readOnly = true)
     public PagedView<QueueView> queues(UUID clusterId, ResourceQuery query) {
@@ -50,7 +53,10 @@ public class CrossNodeAggregator {
                 .filter(v -> query.matches(v.queueName()) || query.matches(v.address()))
                 .toList();
         return query.paginate(rows, comparatorFor(query.sortField()))
-                .map(v -> v.withAllowedActions(readable.allowedActions(v.queueName())));
+                .map(v -> v.withAccess(
+                        readable.allowedActions(v.queueName()),
+                        teams.ownerTeamOf(clusterId, ResourceRef.queue(v.queueName()))
+                                .orElse(null)));
     }
 
     /**

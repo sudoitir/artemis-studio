@@ -49,6 +49,7 @@ public class QueueViewMapper {
                 nodesTotal,
                 cells.stream().anyMatch(QueueNodeCell::paused),
                 cells,
-                List.of());
+                List.of(),
+                null);
     }
 }

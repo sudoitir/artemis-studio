@@ -58,5 +58,6 @@ export function accessFor(grants: Grant[], clusterId: string | null = null) {
     anywhere: [],
     canSeeCluster: clusterId === null ? null : reaching.length > 0,
     teams: [],
+    createPatterns: { queue: [], address: [] },
   };
 }

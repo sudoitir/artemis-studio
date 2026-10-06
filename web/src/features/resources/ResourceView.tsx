@@ -30,6 +30,7 @@ import { ResourceActions } from '../../kernel/actions/ResourceActions.tsx';
 import type { ActionKind, ActionTargets } from '../../kernel/actions/types.ts';
 import type { ApiError } from '../../kernel/api/request.ts';
 import type { UseQueryResult } from '@tanstack/react-query';
+import { useCan } from '../../kernel/auth/useCan.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
 const PAGE_SIZE = 200;
@@ -176,12 +177,15 @@ function ResourceEmpty({
   about,
   filterText,
   unreachable,
+  reach,
   onClearFilter,
 }: Readonly<{
   noun: string;
   about: string;
   filterText: string;
   unreachable: string[];
+  /** How the caller reaches this resource on the cluster; only addresses are owned by teams. */
+  reach: 'grant' | 'teams' | 'none' | 'unknown';
   onClearFilter: () => void;
 }>) {
   const nouns = plural(noun);
@@ -211,10 +215,19 @@ function ResourceEmpty({
       />
     );
   }
+  if (reach === 'none') {
+    return (
+      <EmptyState
+        kind="empty"
+        title="You're not in any team on this cluster"
+        description={`${nouns.charAt(0).toUpperCase()}${nouns.slice(1)} here belong to teams, and you are in none that owns ${nouns} on this cluster. Ask a platform administrator to add you to a team.`}
+      />
+    );
+  }
   return (
     <EmptyState
       kind="empty"
-      title={`No ${nouns} right now`}
+      title={reach === 'teams' ? `No ${nouns} in your teams on this cluster` : `No ${nouns} right now`}
       description={`${about} This view is a live read across every serving node, one request per node per load.`}
     />
   );
@@ -254,6 +267,7 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
     size: PAGE_SIZE,
   });
   const unreachable = useUnreachableNodes(clusterId);
+  const { reach } = useCan();
 
   const fetchedAt = query.dataUpdatedAt > 0 ? query.dataUpdatedAt : null;
   const columns = useMemo(() => config.columns({ clusterId, fetchedAt }), [config, clusterId, fetchedAt]);
@@ -324,6 +338,7 @@ export function ResourceView({ kind }: Readonly<{ kind: Kind }>) {
             about={config.about}
             filterText={search.q ?? ''}
             unreachable={unreachable}
+            reach={kind === 'addresses' ? reach('address:read', clusterId) : 'grant'}
             onClearFilter={() => {
               setFilter('');
               void navigate({

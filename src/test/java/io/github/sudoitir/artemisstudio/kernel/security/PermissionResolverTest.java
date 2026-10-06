@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Rol
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
@@ -92,7 +93,10 @@ class PermissionResolverTest {
                         .map(action -> new RolePermissionEntity(i.getArgument(0), action))
                         .toList());
         resolver = new PermissionResolver(
-                environments, access, new TeamIndex(patterns, shares, rolePermissions), features);
+                environments,
+                access,
+                new TeamIndex(mock(TeamRepository.class), patterns, shares, rolePermissions),
+                features);
         access(Set.of(), Map.of());
     }
 

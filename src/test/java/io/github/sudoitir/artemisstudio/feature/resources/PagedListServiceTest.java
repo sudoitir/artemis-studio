@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.AddressView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConnectionView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConsumerView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.SessionView;
@@ -15,6 +16,9 @@ import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
+import io.github.sudoitir.artemisstudio.kernel.security.TeamIndex;
+import io.github.sudoitir.artemisstudio.kernel.security.TeamRef;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
@@ -66,6 +70,9 @@ class PagedListServiceTest {
     @Mock
     ResourceFilter everything;
 
+    @Mock
+    TeamIndex teams;
+
     PagedListService service;
 
     @BeforeEach
@@ -74,7 +81,7 @@ class PagedListServiceTest {
         when(everything.readable(any())).thenReturn(true);
         when(everything.allowedActions(any())).thenReturn(List.of());
         service = new PagedListService(
-                nodes, connections, new BrokerListOps(), new ResourceViewMapper(), clusterAccess, permissions);
+                nodes, connections, new BrokerListOps(), new ResourceViewMapper(), clusterAccess, permissions, teams);
     }
 
     private JolokiaBrokerClient client(String url, String... fixtures) {
@@ -108,6 +115,22 @@ class PagedListServiceTest {
             throw new IllegalStateException(e);
         }
         return n;
+    }
+
+    @Test
+    void anAddressRowNamesTheTeamThatOwnsIt() {
+        UUID clusterId = oneNodeServing("search-broker.json", "list-addresses.json");
+        TeamRef orders = new TeamRef(UUID.randomUUID(), "Orders");
+        when(teams.ownerTeamOf(clusterId, ResourceRef.address("orders.in"))).thenReturn(java.util.Optional.of(orders));
+        when(teams.ownerTeamOf(clusterId, ResourceRef.address("billing.in"))).thenReturn(java.util.Optional.empty());
+
+        PagedView<AddressView> page = service.addresses(clusterId, ResourceQuery.of(null, 1, 50, null));
+
+        assertThat(page.data())
+                .extracting(AddressView::name, AddressView::ownerTeam)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple("orders.in", orders),
+                        org.assertj.core.groups.Tuple.tuple("billing.in", null));
     }
 
     @Test

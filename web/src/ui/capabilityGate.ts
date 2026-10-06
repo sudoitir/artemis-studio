@@ -8,6 +8,14 @@ export type GateVerdict =
 /** What a permission is held on: one cluster, or Studio itself. */
 export type GateScope = 'cluster' | 'installation';
 
+/** What is known of a refusal on one queue or address: the permission, and who owns it, to say who can grant it. */
+export interface ResourceDenial {
+  permission: string;
+  noun: 'queue' | 'address';
+  /** The name of the team that owns the resource; none when no team does. */
+  owner?: string | null;
+}
+
 /**
  * Whether a lifecycle control may act, and why not when it may not.
  *
@@ -33,6 +41,8 @@ export function gateFor(
   /** True while the caller's grants are still being fetched. */
   loading = false,
   scope: GateScope = 'cluster',
+  /** Given for a control on one queue or address the caller can see: the reason then names the permission and whom to ask. */
+  denial?: ResourceDenial,
 ): GateVerdict {
   // Nothing is known yet. Saying "you do not have permission" here would be a
   // claim about the operator that has not been checked, and it would flash on
@@ -40,6 +50,13 @@ export function gateFor(
   // way, so the honest interim answer is to offer the control.
   if (loading) {
     return { kind: 'allowed', uncertain: false };
+  }
+  if (!permitted && denial) {
+    const ask = denial.owner ? `Ask an admin of team ${denial.owner}.` : 'Ask a platform administrator.';
+    return {
+      kind: 'blocked',
+      reason: `You do not have the "${permissionLabel}" permission (${denial.permission}) on this ${denial.noun}. ${ask}`,
+    };
   }
   if (!permitted) {
     return {

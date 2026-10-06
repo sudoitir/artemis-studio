@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Menu, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Menu, Stack, Text } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
 import { useActionHost } from '../../kernel/actions/hostContext.ts';
@@ -12,6 +12,7 @@ import { useMessageAction, type MessageActionKind } from './api.ts';
 import { BulkActionPreview } from './BulkActionPreview.tsx';
 import { useActionGate } from './gates.ts';
 import { announceFailure, announceResult, destroys, messageCount, VERBS } from './outcomes.ts';
+import { AddressPicker } from '../queues/index.ts';
 
 const ACTIONS = ['move', 'retry', 'delete', 'expire'] as const;
 
@@ -168,11 +169,13 @@ export function MessageActions({
           <Stack gap="sm">
             <Text size="sm">{consequenceOf(action, ids.length, queueName)}</Text>
             {action === 'move' ? (
-              <TextInput
+              <AddressPicker
+                clusterId={clusterId}
                 label="Target queue"
                 description="The queue receives the messages on the same node."
+                permission="message:send"
                 {...form.getInputProps('target')}
-                data-autofocus
+                value={form.values.target}
               />
             ) : null}
           </Stack>

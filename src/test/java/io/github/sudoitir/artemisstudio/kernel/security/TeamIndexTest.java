@@ -6,21 +6,25 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /** The index is rebuilt after a change, and never keeps what was read from before one (design D12). */
 class TeamIndexTest {
 
+    final TeamRepository teams = mock(TeamRepository.class);
     final TeamPatternRepository patterns = mock(TeamPatternRepository.class);
     final TeamShareRepository shares = mock(TeamShareRepository.class);
     final RolePermissionRepository rolePermissions = mock(RolePermissionRepository.class);
-    final TeamIndex index = new TeamIndex(patterns, shares, rolePermissions);
+    final TeamIndex index = new TeamIndex(teams, patterns, shares, rolePermissions);
 
     final UUID cluster = UUID.randomUUID();
     final UUID orders = UUID.randomUUID();
@@ -60,5 +64,25 @@ class TeamIndexTest {
         index.invalidate();
         assertThat(index.ownerOf(cluster, ResourceRef.queue("orders.in"))).isEmpty();
         org.mockito.Mockito.verify(rolePermissions, org.mockito.Mockito.never()).findByIdRoleId(any());
+    }
+
+    @Test
+    void theOwnerTeamIsNamedAndARenameShowsOnceTheIndexIsInvalidated() {
+        TeamEntity team = new TeamEntity("Orders");
+        ReflectionTestUtils.setField(team, "id", orders);
+        rows.add(new TeamPatternEntity(orders, cluster, "BOTH", "orders.#"));
+        when(patterns.findAll()).thenAnswer(read -> List.copyOf(rows));
+        when(shares.findAll()).thenReturn(List.of());
+        when(teams.findAll()).thenAnswer(read -> List.of(team));
+
+        assertThat(index.ownerTeamOf(cluster, ResourceRef.queue("orders.in"))).contains(new TeamRef(orders, "Orders"));
+        assertThat(index.ownerTeamOf(cluster, ResourceRef.address("billing.in")))
+                .isEmpty();
+
+        team.setName("Orders and returns");
+        index.invalidate();
+
+        assertThat(index.ownerTeamOf(cluster, ResourceRef.queue("orders.in")))
+                .contains(new TeamRef(orders, "Orders and returns"));
     }
 }

@@ -2,6 +2,7 @@ import { createElement } from 'react';
 
 import type { Column } from '../../ui/table/index.ts';
 import type { QueueView } from './api.ts';
+import { OwnerChip } from '../../kernel/auth/OwnerChip.tsx';
 import { StaleBadge } from './cells.tsx';
 
 type NodeCell = QueueView['perNode'][number];
@@ -38,6 +39,15 @@ export function queueColumns(): Column<QueueView>[] {
       kind: 'identifier',
       priority: 'essential',
       sortKey: 'queueName',
+    },
+    {
+      id: 'owner',
+      header: 'Owner',
+      description: 'The team whose patterns own this queue',
+      accessor: (r) => r.ownerTeam?.name ?? 'No owner',
+      cell: (r) => createElement(OwnerChip, { team: r.ownerTeam }),
+      kind: 'status',
+      priority: 'high',
     },
     {
       id: 'routingType',

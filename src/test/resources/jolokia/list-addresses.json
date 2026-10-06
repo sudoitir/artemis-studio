@@ -1,0 +1,14 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": [
+      "",
+      1,
+      50
+    ],
+    "type": "exec",
+    "operation": "listAddresses(java.lang.String,int,int)"
+  },
+  "value": "{\"data\":[{\"id\":\"1\",\"name\":\"orders.in\",\"routingTypes\":\"ANYCAST\",\"queueCount\":\"1\",\"messageCount\":\"0\"},{\"id\":\"2\",\"name\":\"billing.in\",\"routingTypes\":\"ANYCAST\",\"queueCount\":\"1\",\"messageCount\":\"0\"}],\"count\":2}",
+  "status": 200
+}

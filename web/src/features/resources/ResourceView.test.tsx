@@ -13,7 +13,21 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
   useParams: () => ({ clusterId: 'c1' }),
   useSearch: () => search,
   useNavigate: () => navigate,
-  Link: ({ children, ...rest }: { children: React.ReactNode }) => <a {...(rest as object)}>{children}</a>,
+  Link: ({
+    children,
+    to,
+    search,
+    'aria-label': label,
+  }: {
+    children: React.ReactNode;
+    to?: string;
+    search?: Record<string, string>;
+    'aria-label'?: string;
+  }) => (
+    <a href={`${to ?? ''}?${new URLSearchParams(search ?? {})}`} aria-label={label}>
+      {children}
+    </a>
+  ),
 }));
 
 const { ResourceView } = await import('./ResourceView.tsx');
@@ -139,6 +153,66 @@ describe('ResourceView', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Studio failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+});
+
+describe('ResourceView addresses of teams', () => {
+  function address(name: string, ownerTeam?: { id: string; name: string }) {
+    return {
+      nodeId: 'n1',
+      nodeName: 'node-a',
+      name,
+      routingTypes: 'ANYCAST',
+      queueCount: 1,
+      messageCount: 3,
+      allowedActions: ['address:read'],
+      ...(ownerTeam ? { ownerTeam } : {}),
+    };
+  }
+
+  function serveAddresses(rows: object[], access: { permissions: string[]; anywhere: string[] }) {
+    serve();
+    server.use(
+      http.get('*/api/v1/clusters/c1/addresses', () =>
+        HttpResponse.json({ data: rows, count: rows.length, page: 1, pageSize: 200, hasNext: false }),
+      ),
+      http.get('*/api/v1/me/access', ({ request }) => {
+        const clusterId = new URL(request.url).searchParams.get('clusterId');
+        return HttpResponse.json({
+          ...access,
+          canSeeCluster: clusterId ? true : null,
+          teams: [],
+          createPatterns: { queue: [], address: [] },
+        });
+      }),
+    );
+  }
+
+  it('shows the team that owns each address, and says when none does', async () => {
+    serveAddresses([address('orders.in', { id: 't1', name: 'Orders' }), address('legacy.in')], {
+      permissions: ['address:read'],
+      anywhere: [],
+    });
+    renderWithProviders(<ResourceView kind="addresses" />);
+
+    const grid = await screen.findByRole('grid', { name: 'Addresses' });
+    expect(await within(grid).findByRole('link', { name: 'Owner: team Orders' })).toBeInTheDocument();
+    expect(within(grid).getByText('No owner')).toBeInTheDocument();
+  });
+
+  it("says there are no addresses in the caller's teams when they reach addresses only through a team", async () => {
+    serveAddresses([], { permissions: [], anywhere: ['address:read'] });
+    renderWithProviders(<ResourceView kind="addresses" />);
+
+    expect(await screen.findByText('No addresses in your teams on this cluster')).toBeInTheDocument();
+  });
+
+  it('says the caller is in no team on the cluster, and whom to ask, when they reach nothing', async () => {
+    serveAddresses([], { permissions: [], anywhere: [] });
+    renderWithProviders(<ResourceView kind="addresses" />);
+
+    expect(await screen.findByText("You're not in any team on this cluster")).toBeInTheDocument();
+    expect(screen.getByText(/Ask a platform administrator to add you to a team/)).toBeInTheDocument();
   });
 });
 
