@@ -25,12 +25,15 @@ public final class MessagingProbe {
     private MessagingProbe() {}
 
     public static Disposition received(String pluginId, PluginMessage message) {
+        // Taken before the message is visible: a test that sees it and changes the answer is changing the
+        // answer to the next one, not to this one.
+        Disposition answer = ANSWER.getOrDefault(pluginId, Disposition.ACCEPT);
         INBOX.computeIfAbsent(pluginId, k -> new LinkedBlockingQueue<>()).add(message);
         Semaphore gate = GATE.get(pluginId);
         if (gate != null) {
             gate.acquireUninterruptibly();
         }
-        return ANSWER.getOrDefault(pluginId, Disposition.ACCEPT);
+        return answer;
     }
 
     public static BlockingQueue<PluginMessage> inbox(String pluginId) {
