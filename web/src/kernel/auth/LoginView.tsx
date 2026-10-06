@@ -8,6 +8,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
+import { safeHref } from '../../ui/safeHref.ts';
 import { ApiError, SESSION_ENDED_REASON } from '../api/request.ts';
 import {
   useAuthProviders,
@@ -231,7 +232,7 @@ function FirstStep({
           {showForm ? <Divider label="or" labelPosition="center" /> : null}
           <Stack gap="xs">
             {redirect.map((p) => (
-              <Button key={p.id} component="a" href={p.startPath ?? undefined} variant="default" fullWidth>
+              <Button key={p.id} component="a" href={safeHref(p.startPath)} variant="default" fullWidth>
                 Sign in with {p.label}
               </Button>
             ))}

@@ -9,6 +9,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import linkClasses from '../../ui/InlineLink.module.css';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
+import { safeHref } from '../../ui/safeHref.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { ConfirmAction } from './ConfirmAction.tsx';
@@ -39,12 +40,12 @@ const VERBS: Record<Exclude<Pending, null>, ActionVerb> = {
 
 type PluginInfo = NonNullable<PluginView['info']>;
 
-/** Only an `http(s)` vendor link is ever made a link, and it never gets the opener. */
+/** Only a safe vendor link is ever made a link (`ui/safeHref.ts`), and it never gets the opener. */
 function VendorLink({ url }: { url: string | null | undefined }) {
   if (!url) return null;
-  const safe = /^https?:\/\//i.test(url);
-  return safe ? (
-    <a href={url} target="_blank" rel="noopener noreferrer" className={linkClasses.link}>
+  const href = safeHref(url);
+  return href ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={linkClasses.link}>
       {url}
     </a>
   ) : (

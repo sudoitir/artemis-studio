@@ -4,6 +4,7 @@ import { useForm } from '@mantine/form';
 
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { safeHref } from '../../ui/safeHref.ts';
 import { needsReauthentication, useMe, useReauthenticate, type SecondFactorMethod } from './api.ts';
 import { useFreshSignIn } from './freshSignIn.ts';
 import { SecondFactorForm } from './SecondFactorForm.tsx';
@@ -29,7 +30,7 @@ export function StepUp({ returnTo }: Readonly<{ returnTo: string }>) {
   if (fresh || !reauth) return null;
 
   if (reauth.method === 'REDIRECT' && reauth.startPath) {
-    const href = `${reauth.startPath}&returnTo=${encodeURIComponent(returnTo)}`;
+    const href = safeHref(`${reauth.startPath}&returnTo=${encodeURIComponent(returnTo)}`);
     return (
       <Paper withBorder p="md">
         <Stack gap="xs">
