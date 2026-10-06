@@ -746,6 +746,19 @@ React, Mantine and the SDK's components work as they are. A library of your own 
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
 
+### Moving a plugin from contract 9 to 10
+
+Contract 10 makes permissions resource-scoped. Studio refuses a plugin built for contract 9, so
+rebuild it against the new API and set `<studio.contract>10</studio.contract>` in its `pom.xml`:
+
+- In `plugin.json`, each permission declares `scope` (`global`, `cluster` or `resource`) in place of
+  `globalOnly`; a `resource` permission also lists `resourceKinds` (`queue`, `address`). A manifest
+  that still says `globalOnly` is refused at install.
+- `PermissionResolver`'s constructor changed (a plugin receives it as a bean and never builds it),
+  and `StudioPrincipal.grants()` is gone: ask `PermissionResolver.can(...)` instead of reading
+  grants. A check on one queue or address passes a `ResourceRef`.
+- A plugin's UI runs under Trusted Types: see [what the browser allows a plugin's UI](#what-the-browser-allows-a-plugin-s-ui).
+
 ### Moving a plugin from contract 8 to 9
 
 Contract 9 replaces `VirtualTable` with the parts above. Studio refuses a plugin built for contract
