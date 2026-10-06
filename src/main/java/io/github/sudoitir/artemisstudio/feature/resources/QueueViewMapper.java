@@ -48,6 +48,7 @@ public class QueueViewMapper {
                 (int) cells.stream().map(QueueNodeCell::nodeId).distinct().count(),
                 nodesTotal,
                 cells.stream().anyMatch(QueueNodeCell::paused),
-                cells);
+                cells,
+                List.of());
     }
 }

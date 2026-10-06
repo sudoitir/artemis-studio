@@ -26,6 +26,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.AcceptanceProbe;
 import io.github.sudoitir.artemisstudio.platform.broker.AcceptanceProbe.Facts;
@@ -110,8 +111,11 @@ public class TransferService {
      */
     public TransferRunView preview(UUID clusterId, TransferPreviewRequest request) {
         TransferMode mode = request.mode();
-        access.requireCluster(clusterId, mode.sourcePermission());
-        access.requireCluster(request.targetClusterId(), MessagePermissions.MESSAGE_SEND);
+        access.requireResource(clusterId, ResourceRef.queue(request.sourceQueue()), mode.sourcePermission());
+        access.requireResource(
+                request.targetClusterId(),
+                ResourceRef.address(targetAddressOf(request)),
+                MessagePermissions.MESSAGE_SEND);
         TransferSelection selection = normalise(request.selection());
 
         ClusterNode source = nodes.node(clusterId, request.sourceNodeId());
@@ -248,6 +252,17 @@ public class TransferService {
                 .or(() -> found.stream()
                         .filter(l -> sameBroker.contains(l.nodeId()))
                         .findFirst());
+    }
+
+    /** The address a transfer sends to: the one asked for, else the one the target queue is bound to. */
+    private String targetAddressOf(TransferPreviewRequest request) {
+        if (request.targetAddress() != null && !request.targetAddress().isBlank()) {
+            return request.targetAddress().strip();
+        }
+        return locator.locate(request.targetClusterId(), request.targetQueue()).stream()
+                .findFirst()
+                .map(QueueLocation::address)
+                .orElse(request.targetQueue());
     }
 
     /**
@@ -538,7 +553,8 @@ public class TransferService {
     /** Put every message a stopped, interrupted or failed move holds in staging back on its source queue. */
     public TransferRunView returnToSource(UUID clusterId, UUID runId) {
         TransferRunEntity run = load(clusterId, runId);
-        access.requireCluster(run.getSourceClusterId(), MessagePermissions.MESSAGE_MOVE);
+        access.requireResource(
+                run.getSourceClusterId(), ResourceRef.queue(run.getSourceQueue()), MessagePermissions.MESSAGE_MOVE);
         requireReadable(run);
         requireResumable(run);
         if (run.getMode() != TransferMode.MOVE || run.isSameNode()) {
@@ -658,18 +674,22 @@ public class TransferService {
     // ---- read ---------------------------------------------------------------
 
     public TransferRunView get(UUID clusterId, UUID runId) {
-        access.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        access.requireVisible(clusterId);
         TransferRunEntity run = load(clusterId, runId);
         requireReadable(run);
         return view(run);
     }
 
-    /** Runs where this cluster is the source or the target, newest first; a run whose other cluster the operator cannot read is left out. */
+    /** Runs where this cluster is the source or the target, newest first; a run whose queue or address the operator cannot read is left out. */
     public List<TransferRunView> history(UUID clusterId) {
-        access.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        access.requireVisible(clusterId);
         return runs.history(clusterId, Limit.of(HISTORY)).stream()
-                .filter(r -> permissions.can(r.getSourceClusterId(), Permissions.CLUSTER_READ)
-                        && permissions.can(r.getTargetClusterId(), Permissions.CLUSTER_READ))
+                .filter(r -> permissions.can(
+                                r.getSourceClusterId(), ResourceRef.queue(r.getSourceQueue()), Permissions.QUEUE_READ)
+                        && permissions.can(
+                                r.getTargetClusterId(),
+                                ResourceRef.address(r.getTargetAddress()),
+                                Permissions.ADDRESS_READ))
                 .map(this::view)
                 .toList();
     }
@@ -789,15 +809,22 @@ public class TransferService {
         return runs.findById(runId).orElseThrow(() -> new NotFoundException("transfer", runId));
     }
 
-    /** Acting on a run needs its mode's permission on the source and {@code message:send} on the target. */
+    /** Acting on a run needs its mode's permission on the source queue and {@code message:send} on the target address. */
     private void requireRunPermissions(TransferRunEntity run) {
-        access.requireCluster(run.getSourceClusterId(), run.getMode().sourcePermission());
-        access.requireCluster(run.getTargetClusterId(), MessagePermissions.MESSAGE_SEND);
+        access.requireResource(
+                run.getSourceClusterId(),
+                ResourceRef.queue(run.getSourceQueue()),
+                run.getMode().sourcePermission());
+        access.requireResource(
+                run.getTargetClusterId(), ResourceRef.address(run.getTargetAddress()), MessagePermissions.MESSAGE_SEND);
     }
 
+    /** A run is read through its source queue and its target address. */
     private void requireReadable(TransferRunEntity run) {
-        access.requireCluster(run.getSourceClusterId(), Permissions.CLUSTER_READ);
-        access.requireCluster(run.getTargetClusterId(), Permissions.CLUSTER_READ);
+        access.requireResource(
+                run.getSourceClusterId(), ResourceRef.queue(run.getSourceQueue()), Permissions.QUEUE_READ);
+        access.requireResource(
+                run.getTargetClusterId(), ResourceRef.address(run.getTargetAddress()), Permissions.ADDRESS_READ);
     }
 
     List<Finding> findings(TransferRunEntity run) {

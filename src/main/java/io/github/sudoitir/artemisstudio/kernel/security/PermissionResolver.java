@@ -6,8 +6,11 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -134,6 +137,53 @@ public class PermissionResolver {
         return can(clusterId, Permissions.CLUSTER_READ)
                 || canAnywhere(clusterId, Permissions.QUEUE_READ)
                 || canAnywhere(clusterId, Permissions.ADDRESS_READ);
+    }
+
+    /**
+     * The queues or addresses of the cluster the current principal may read, for filtering a list before it
+     * is sorted, paged and counted, and for stating what they may do with each row.
+     */
+    public ResourceFilter filter(UUID clusterId, ResourceKind kind) {
+        StudioPrincipal principal = currentPrincipal();
+        List<String> actions = features.catalogue().stream()
+                .filter(e -> e.scope() == PermissionScope.RESOURCE
+                        && e.resourceKinds().contains(kind))
+                .map(CatalogueEntry::action)
+                .sorted()
+                .toList();
+        Set<String> wholeCluster = principal == null
+                ? Set.of()
+                : actions.stream().filter(a -> can(principal, clusterId, a)).collect(Collectors.toSet());
+        return new ResourceFilter(this, principal, clusterId, kind, Permissions.readOf(kind), actions, wholeCluster);
+    }
+
+    /**
+     * The patterns of the cluster on which the current principal holds {@code action} through a team or a
+     * share, as the text they were written in: where they may create names, for a refusal to say so.
+     */
+    public List<String> patternsHolding(UUID clusterId, ResourceKind kind, String action) {
+        StudioPrincipal principal = currentPrincipal();
+        CatalogueEntry entry =
+                principal == null ? null : features.permission(action).orElse(null);
+        if (entry == null
+                || !teamsApply(principal, entry, clusterId)
+                || !entry.resourceKinds().contains(kind)) {
+            return List.of();
+        }
+        AccessSnapshot snapshot = access.of(principal.userId());
+        Set<UUID> member = snapshot.teamPermissions().keySet();
+        return Stream.concat(
+                        teams.ownedOn(clusterId).stream()
+                                .filter(o -> o.kinds().contains(kind) && snapshot.holdsInTeam(o.teamId(), action))
+                                .map(o -> o.pattern().text()),
+                        teams.sharedOn(clusterId).stream()
+                                .filter(s -> s.kinds().contains(kind)
+                                        && member.contains(s.targetTeamId())
+                                        && Grant.covers(s.permissions(), action))
+                                .map(s -> s.pattern().text()))
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     /** The grants a principal acts on right now: its own when it carries them, else the user's current ones. */

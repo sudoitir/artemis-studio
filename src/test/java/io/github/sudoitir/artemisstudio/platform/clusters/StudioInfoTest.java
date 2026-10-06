@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.StudioVersion;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,7 +66,7 @@ class StudioInfoTest {
         RegisteredCluster cluster = mock(RegisteredCluster.class);
         when(cluster.getName()).thenReturn("payments");
         when(clusters.cluster(CLUSTER)).thenReturn(Optional.of(cluster));
-        when(perm.can(CLUSTER, Permissions.CLUSTER_READ)).thenReturn(true);
+        when(perm.canSeeCluster(CLUSTER)).thenReturn(true);
 
         assertThat(info(null).clusterName(CLUSTER)).contains("payments");
     }
@@ -77,7 +76,7 @@ class StudioInfoTest {
         RegisteredCluster cluster = mock(RegisteredCluster.class);
         when(cluster.getName()).thenReturn("payments");
         when(clusters.cluster(CLUSTER)).thenReturn(Optional.of(cluster));
-        when(perm.can(CLUSTER, Permissions.CLUSTER_READ)).thenReturn(false);
+        when(perm.canSeeCluster(CLUSTER)).thenReturn(false);
 
         assertThat(info(null).clusterName(CLUSTER)).isEmpty();
         assertThat(info(null).clusterName(UUID.randomUUID())).isEmpty();
@@ -90,8 +89,8 @@ class StudioInfoTest {
         List<RegisteredCluster> all =
                 List.of(cluster(CLUSTER, "payments"), cluster(hidden, "audit"), cluster(other, "Orders"));
         when(clusters.clusters()).thenReturn(all);
-        when(perm.can(CLUSTER, Permissions.CLUSTER_READ)).thenReturn(true);
-        when(perm.can(other, Permissions.CLUSTER_READ)).thenReturn(true);
+        when(perm.canSeeCluster(CLUSTER)).thenReturn(true);
+        when(perm.canSeeCluster(other)).thenReturn(true);
 
         assertThat(info(null).clusters()).containsExactly(Map.entry(other, "Orders"), Map.entry(CLUSTER, "payments"));
     }

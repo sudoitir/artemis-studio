@@ -5,6 +5,8 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateD
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -74,12 +76,17 @@ public class QueueLifecycleService {
     private final DivertOperations divertOps;
     private final SseHub sseHub;
     private final BrokerCommands commands;
+    private final ClusterAccessGuard access;
     private final ObjectMapper mapper;
     private final jakarta.validation.Validator validator;
 
     // ---- entry points ----------------------------------------------------
 
     public Attempt<LifecycleOutcome> createQueue(UUID clusterId, CreateQueueRequest req, boolean dryRun) {
+        // The queue is created as a name the caller's patterns cover, on an address they may also create:
+        // a queue bound to someone else's address would receive what is sent to it.
+        access.requireCreate(clusterId, ResourceRef.queue(req.name()), QueuePermissions.QUEUE_CREATE);
+        access.requireCreate(clusterId, ResourceRef.address(req.address()), QueuePermissions.ADDRESS_CREATE);
         ResolvedQueue asked = new ResolvedQueue(req.name(), req.address(), req.routingType());
         return run(clusterId, LifecycleKind.CREATE_QUEUE, req.name(), params(req), dryRun, false, (client, broker) -> {
             try {
@@ -107,6 +114,7 @@ public class QueueLifecycleService {
 
     public Attempt<LifecycleOutcome> updateQueue(
             UUID clusterId, String queueName, UpdateQueueRequest req, boolean dryRun) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.UPDATE_QUEUE.permission());
         Map<String, Object> patch = patch(req);
         if (patch.isEmpty()) {
             throw new IllegalArgumentException("An update must change at least one field.");
@@ -127,12 +135,14 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteQueue(
             UUID clusterId, String queueName, boolean dryRun, boolean override, boolean disconnectConsumers) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.DELETE_QUEUE.permission());
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         Set<String> declared = declaredDiverts.map(d -> d.names(clusterId)).orElse(Set.of());
         LifecycleKind kind = LifecycleKind.DELETE_QUEUE;
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
+                .resources(List.of(ResourceRef.queue(queueName)))
                 .auditAction(kind.auditName())
                 .targetType(kind.targetType())
                 .targetName(queueName)
@@ -341,8 +351,9 @@ public class QueueLifecycleService {
     }
 
     public Attempt<LifecycleOutcome> setPaused(UUID clusterId, String queueName, boolean paused, boolean dryRun) {
-        ResolvedQueue queue = resolveQueue(clusterId, queueName);
         LifecycleKind kind = paused ? LifecycleKind.PAUSE_QUEUE : LifecycleKind.RESUME_QUEUE;
+        access.requireResource(clusterId, ResourceRef.queue(queueName), kind.permission());
+        ResolvedQueue queue = resolveQueue(clusterId, queueName);
         return run(clusterId, kind, queueName, Map.of("paused", paused), dryRun, false, (client, broker) -> {
             String mbean = queueMbean(client, queue);
             if (ops.isPaused(client, mbean) == paused) {
@@ -358,6 +369,7 @@ public class QueueLifecycleService {
     }
 
     public Attempt<LifecycleOutcome> resetCounter(UUID clusterId, String queueName, boolean dryRun) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.RESET_QUEUE_COUNTER.permission());
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         return run(
                 clusterId, LifecycleKind.RESET_QUEUE_COUNTER, queueName, Map.of(), dryRun, false, (client, broker) -> {
@@ -367,6 +379,7 @@ public class QueueLifecycleService {
     }
 
     public Attempt<LifecycleOutcome> createAddress(UUID clusterId, CreateAddressRequest req, boolean dryRun) {
+        access.requireCreate(clusterId, ResourceRef.address(req.name()), LifecycleKind.CREATE_ADDRESS.permission());
         return run(
                 clusterId,
                 LifecycleKind.CREATE_ADDRESS,
@@ -389,6 +402,7 @@ public class QueueLifecycleService {
      * a safe default, and the safe path costs one extra step.
      */
     public Attempt<LifecycleOutcome> deleteAddress(UUID clusterId, String address, boolean dryRun) {
+        access.requireResource(clusterId, ResourceRef.address(address), LifecycleKind.DELETE_ADDRESS.permission());
         return run(clusterId, LifecycleKind.DELETE_ADDRESS, address, Map.of(), dryRun, false, (client, broker) -> {
             try {
                 ops.deleteAddress(client, broker, address);
@@ -521,6 +535,7 @@ public class QueueLifecycleService {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
+                .resources(kind.resource(targetName).stream().toList())
                 .auditAction(kind.auditName())
                 .targetType(kind.targetType())
                 .targetName(targetName)

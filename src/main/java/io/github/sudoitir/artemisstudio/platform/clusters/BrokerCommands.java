@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
@@ -35,7 +36,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * Runs one cluster-wide broker write the same way every time (ADR-0071, ADR-0049):
  *
  * <ol>
- *   <li>the caller's permission on the cluster;
+ *   <li>the caller's permission, on each queue or address the command acts on, or on the cluster when
+ *       it acts on none;
  *   <li>one target per logical node, liveness from the polled {@code Active} attribute
  *       (non-negotiable #4);
  *   <li>the audit row, written before any broker call (non-negotiable #3);
@@ -116,6 +118,8 @@ public class BrokerCommands {
     /**
      * One command.
      *
+     * @param resources the queues or addresses the command acts on, each of which the caller needs
+     *     {@code permission} on; empty for a command on the cluster as a whole, which needs it cluster-wide
      * @param estimate {@code null} for a command that destroys nothing
      * @param preflight {@code null} for a command with nothing to check first
      * @param requires the operation's version gate (ADR-0142), or {@code null}; a node whose
@@ -127,6 +131,7 @@ public class BrokerCommands {
     public record Command(
             UUID clusterId,
             String permission,
+            List<ResourceRef> resources,
             String auditAction,
             String targetType,
             String targetName,
@@ -141,6 +146,7 @@ public class BrokerCommands {
             Runnable signal) {
 
         public Command {
+            resources = resources == null ? List.of() : List.copyOf(resources);
             params = params == null ? Map.of() : params;
             auditDetail = auditDetail == null ? nodes -> nodes : auditDetail;
             signal = signal == null ? () -> {} : signal;
@@ -150,7 +156,7 @@ public class BrokerCommands {
     private record Target(BrokerNodeEntity node, boolean live) {}
 
     public LifecycleOutcome run(Command c) {
-        clusterAccess.requireCluster(c.clusterId(), c.permission());
+        authorise(c);
         List<Target> targets = targets(c.clusterId());
         long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
@@ -208,6 +214,18 @@ public class BrokerCommands {
                 c.auditDetail().apply(outcomes));
         signalAfterCommit(c.signal());
         return outcome;
+    }
+
+    private void authorise(Command c) {
+        if (c.resources().isEmpty()) {
+            clusterAccess.requireCluster(c.clusterId(), c.permission());
+        } else {
+            clusterAccess.requireAll(
+                    c.clusterId(),
+                    c.resources().stream()
+                            .map(r -> new ClusterAccessGuard.Requirement(r, c.permission()))
+                            .toList());
+        }
     }
 
     /** Each live node's estimate; a node that could not be counted maps to {@code null}. */

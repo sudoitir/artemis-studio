@@ -398,7 +398,7 @@ public class ClusterService {
 
     @Transactional(readOnly = true)
     public ClusterDetail get(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
         ClusterEntity cluster = requireCluster(clusterId);
         ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
         return new ClusterDetail(
@@ -413,14 +413,14 @@ public class ClusterService {
 
     @Transactional(readOnly = true)
     public TopologyView topology(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
         requireCluster(clusterId);
         return viewMapper.topology(topologyDiscovery.currentTopology(clusterId));
     }
 
     @Transactional(readOnly = true)
     public HealthView health(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
         requireCluster(clusterId);
         ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
         return viewMapper.health(evaluator.toHealth(clusterId, topology.nodes()));
@@ -445,7 +445,7 @@ public class ClusterService {
     }
 
     private BrokerCapabilities assessCapabilities(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
         requireCluster(clusterId);
         BrokerNodeEntity manageable = manageableNode(clusterId);
         JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());

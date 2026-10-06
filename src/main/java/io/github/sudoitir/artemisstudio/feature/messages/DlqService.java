@@ -4,7 +4,10 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqAdd
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqQueue;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqQueueDepth;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.DlqView;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
@@ -27,7 +30,8 @@ import tools.jackson.databind.JsonNode;
  * own {@code getAddressSettingsAsJSON("#")}, never a name match — if that read
  * fails the view says so ({@code settingsAvailable = false}) and infers nothing.
  * Queues on those addresses and their per-node depth come from the
- * {@code queue_snapshot} cache.
+ * {@code queue_snapshot} cache. A queue the caller may not read is left out, and an address appears only
+ * through a queue they may read or when they may read the address.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,10 +41,13 @@ public class DlqService {
     private final ClusterDirectory brokerNodes;
     private final BrokerConnections connections;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     @Transactional(readOnly = true)
     public DlqView view(UUID clusterId) {
-        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter readableQueues = permissions.filter(clusterId, ResourceKind.QUEUE);
+        ResourceFilter readableAddresses = permissions.filter(clusterId, ResourceKind.ADDRESS);
         ClusterNode manageable = brokerNodes.nodes(clusterId).stream()
                 .filter(n -> n.getJolokiaUrl() != null)
                 .findFirst()
@@ -86,6 +93,9 @@ public class DlqService {
             }
             List<DlqQueue> queues = new ArrayList<>();
             byQueue.forEach((queueName, rows) -> {
+                if (!readableQueues.readable(queueName)) {
+                    return;
+                }
                 List<DlqQueueDepth> perNode = rows.stream()
                         .map(r -> new DlqQueueDepth(
                                 r.nodeId(), nodeNames.getOrDefault(r.nodeId(), "unknown"), r.messageCount()))
@@ -94,7 +104,9 @@ public class DlqService {
                         perNode.stream().mapToLong(DlqQueueDepth::depth).sum();
                 queues.add(new DlqQueue(queueName, address, totalDepth, perNode));
             });
-            addresses.add(new DlqAddress(address, entry.getValue(), queues));
+            if (!queues.isEmpty() || readableAddresses.readable(address)) {
+                addresses.add(new DlqAddress(address, entry.getValue(), queues));
+            }
         }
         return new DlqView(addresses, true);
     }

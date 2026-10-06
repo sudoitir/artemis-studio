@@ -30567,9 +30567,16 @@
           },
           "creationTime" : {
             "type" : [ "string", "null" ]
+          },
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this.",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "consumerCount", "nodeId", "nodeName", "producerCount" ]
+        "required" : [ "allowedActions", "consumerCount", "nodeId", "nodeName", "producerCount" ]
       },
       "AddressStatsView" : {
         "type" : "object",
@@ -31066,9 +31073,16 @@
             "items" : {
               "$ref" : "#/components/schemas/QueueNodeCell"
             }
+          },
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this.",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "address", "durable", "nodesPresent", "nodesTotal", "paused", "perNode", "queueName", "routingType", "totalConsumerCount", "totalDeliveringCount", "totalMessageCount", "totalScheduledCount" ]
+        "required" : [ "address", "allowedActions", "durable", "nodesPresent", "nodesTotal", "paused", "perNode", "queueName", "routingType", "totalConsumerCount", "totalDeliveringCount", "totalMessageCount", "totalScheduledCount" ]
       },
       "MessagePageView" : {
         "type" : "object",
@@ -31374,9 +31388,16 @@
           "messagesSent" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this.",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "messagesSent", "nodeId", "nodeName" ]
+        "required" : [ "allowedActions", "messagesSent", "nodeId", "nodeName" ]
       },
       "NodeConfigEntryView" : {
         "type" : "object",
@@ -32243,9 +32264,16 @@
           },
           "status" : {
             "type" : [ "string", "null" ]
+          },
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this.",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "messagesAcknowledged", "messagesDelivered", "nodeId", "nodeName" ]
+        "required" : [ "allowedActions", "messagesAcknowledged", "messagesDelivered", "nodeId", "nodeName" ]
       },
       "PagedViewConsumerView" : {
         "type" : "object",
@@ -32429,9 +32457,16 @@
           },
           "creationTime" : {
             "type" : [ "string", "null" ]
+          },
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this.",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "nodeId", "nodeName", "sessionCount" ]
+        "required" : [ "allowedActions", "nodeId", "nodeName", "sessionCount" ]
       },
       "PagedViewConnectionView" : {
         "type" : "object",
@@ -33343,9 +33378,16 @@
           "messageCount" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this.",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "messageCount", "name", "nodeId", "nodeName", "queueCount" ]
+        "required" : [ "allowedActions", "messageCount", "name", "nodeId", "nodeName", "queueCount" ]
       },
       "PagedViewAddressView" : {
         "type" : "object",

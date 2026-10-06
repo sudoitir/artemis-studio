@@ -24,15 +24,14 @@ public final class QueuesModule {
                     ResourceKind.ADDRESS,
                     Permissions.ADDRESS_READ))
             .permission(PermissionDef.resource(
-                    QueuePermissions.QUEUE_CREATE,
-                    "Create queues and addresses",
-                    ResourceKind.QUEUE,
-                    Permissions.QUEUE_READ))
+                    QueuePermissions.ADDRESS_DELETE,
+                    "Destroy addresses",
+                    ResourceKind.ADDRESS,
+                    Permissions.ADDRESS_READ))
             .permission(PermissionDef.resource(
-                    QueuePermissions.QUEUE_DELETE,
-                    "Destroy queues and addresses",
-                    ResourceKind.QUEUE,
-                    Permissions.QUEUE_READ))
+                    QueuePermissions.QUEUE_CREATE, "Create queues", ResourceKind.QUEUE, Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.QUEUE_DELETE, "Destroy queues", ResourceKind.QUEUE, Permissions.QUEUE_READ))
             .permission(PermissionDef.resource(
                     QueuePermissions.QUEUE_UPDATE,
                     "Change a queue's configuration",

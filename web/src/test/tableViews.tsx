@@ -210,6 +210,7 @@ const queue = (f: Fixture, i: number): QueueView => ({
   nodesTotal: 2,
   paused: i === 2,
   perNode: [],
+  allowedActions: [],
 });
 
 const address_ = (f: Fixture, i: number): AddressView => ({
@@ -218,6 +219,7 @@ const address_ = (f: Fixture, i: number): AddressView => ({
   routingTypes: 'ANYCAST, MULTICAST',
   queueCount: num(f, 3 + i),
   messageCount: num(f, 9_200 + i),
+  allowedActions: [],
 });
 
 const consumer = (f: Fixture, i: number): ConsumerView => ({
@@ -230,6 +232,7 @@ const consumer = (f: Fixture, i: number): ConsumerView => ({
   messagesDelivered: num(f, 8_431 + i),
   messagesAcknowledged: num(f, 8_400 + i),
   status: i === 1 ? 'slow' : 'ok',
+  allowedActions: [],
 });
 
 const session = (f: Fixture, i: number): SessionView => ({
@@ -240,6 +243,7 @@ const session = (f: Fixture, i: number): SessionView => ({
   consumerCount: num(f, 2 + i),
   producerCount: num(f, 1 + i),
   creationTime: at(i),
+  allowedActions: [],
 });
 
 const connection = (f: Fixture, i: number): ConnectionView => ({
@@ -250,6 +254,7 @@ const connection = (f: Fixture, i: number): ConnectionView => ({
   clientId: ident(f, 'client', i),
   sessionCount: num(f, 3 + i),
   creationTime: at(i),
+  allowedActions: [],
 });
 
 const producer = (f: Fixture, i: number): ProducerView => ({
@@ -260,6 +265,7 @@ const producer = (f: Fixture, i: number): ProducerView => ({
   address: address(f, i),
   protocol: 'CORE',
   messagesSent: num(f, 55_120 + i),
+  allowedActions: [],
 });
 
 const divert = (f: Fixture, i: number): DivertView => ({

@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -14,6 +16,8 @@ import tools.jackson.databind.JsonNode;
  */
 @Component
 public class MessageOperations {
+
+    private static final String ORIGINAL_ADDRESS = "_AMQ_ORIG_ADDRESS";
 
     private static final String SEND_SIG =
             "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String)";
@@ -58,6 +62,27 @@ public class MessageOperations {
         rejectBadFilter(res);
         requireOk(res, "countMessages");
         return res.value() == null ? 0L : res.value().asLong();
+    }
+
+    /**
+     * The addresses the messages on the queue were first sent to, from the {@code _AMQ_ORIG_ADDRESS} the
+     * broker sets on a message it dead-letters or expires: one {@code countMessages} grouped by that
+     * property. A retry sends each message back to its address, so this is where a retry would write.
+     */
+    public Set<String> originalAddresses(JolokiaBrokerClient client, String queueMbean) {
+        JolokiaResponse res = client.single(JolokiaRequest.exec(
+                queueMbean, "countMessages(java.lang.String,java.lang.String)", "", ORIGINAL_ADDRESS));
+        requireOk(res, "countMessages");
+        Set<String> addresses = new TreeSet<>();
+        JsonNode grouped = client.parsed(res);
+        if (grouped != null) {
+            grouped.propertyNames().forEach(name -> {
+                if (!name.isBlank() && !"null".equals(name)) {
+                    addresses.add(name);
+                }
+            });
+        }
+        return addresses;
     }
 
     /**

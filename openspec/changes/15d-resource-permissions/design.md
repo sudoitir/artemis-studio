@@ -98,13 +98,13 @@ against a cluster that is not a queue or an address: `cluster:read`, `cluster:wr
 `rr:write` and `settings:write` (credential rotation checks it against a cluster). `RESOURCE` acts on one
 queue or address: `QUEUE` for `queue:read`, `queue:create`, `queue:update`, `queue:delete`,
 `queue:pause`, `queue:purge`, `message:read`, `message:move`, `message:delete`, `message:clear`
-and `capture:write`; `ADDRESS` for `address:read`, `address:create`, `message:send` and `divert:write`.
+and `capture:write`; `ADDRESS` for `address:read`, `address:create`, `address:delete`, `message:send` and `divert:write`.
 Non-obvious cases:
 
 - `capture:write` is `QUEUE`: a capture subscription is defined by a queue-name pattern, and the
   addresses it taps are derived from it, so the owner of the queues owns the capture.
-- `message:clear` is `QUEUE` and `queue:delete` stays `QUEUE` although it also destroys addresses
-  (`DELETE_ADDRESS`); an `address:delete` is decided with the enforcement work (2.2).
+- `message:clear` is `QUEUE`. `queue:delete` destroys queues only: destroying an address is `address:delete`
+  (`ADDRESS`, requires `address:read`), held by Operator, Team Operator and Team Admin.
 - `cluster:write` registers or removes a cluster (a global check) and also gates cluster-level writes;
   it is `CLUSTER`, so a global grant makes the global checks pass.
 - `requires` follows the reads a screen needs: the queue-acting permissions require `queue:read`;

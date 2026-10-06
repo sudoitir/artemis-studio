@@ -29,6 +29,7 @@ import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.AcceptanceProbe;
@@ -132,7 +133,7 @@ class TransferRunnerTest {
         when(client.resolveBrokerObjectName()).thenReturn("broker");
         when(relay.link(any(), any(), any())).thenReturn(link);
         when(probe.read(any(), any(), any(), any())).thenReturn(facts(null));
-        when(handoff.stillHolds(any(), any(), any())).thenReturn(true);
+        when(handoff.stillHolds(any(), any(), any(), any())).thenReturn(true);
         when(settings.intValue(TransferSettings.BATCH_SIZE)).thenReturn(BATCH);
         when(settings.intValue(TransferSettings.MESSAGES_PER_SECOND)).thenReturn(1_000_000);
         when(settings.intValue(TransferSettings.CAPACITY_THRESHOLD_PERCENT)).thenReturn(90);
@@ -485,7 +486,11 @@ class TransferRunnerTest {
     @Test
     void aWithdrawnSourcePermissionStopsTheRunAndNamesIt() {
         TransferRunEntity run = copyOfAll(0L);
-        when(handoff.stillHolds(any(), eq(SRC_CLUSTER), eq(run.getMode().sourcePermission())))
+        when(handoff.stillHolds(
+                        any(),
+                        eq(SRC_CLUSTER),
+                        eq(ResourceRef.queue("SRC.Q")),
+                        eq(run.getMode().sourcePermission())))
                 .thenReturn(false);
 
         execute();
@@ -493,19 +498,20 @@ class TransferRunnerTest {
         assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
         assertThat(run.getLastError())
                 .contains(run.getMode().sourcePermission())
-                .contains("source cluster");
+                .contains("source queue");
     }
 
     @Test
     void aWithdrawnTargetPermissionStopsTheRunAndNamesIt() {
         TransferRunEntity run = copyOfAll(0L);
-        when(handoff.stillHolds(any(), eq(TGT_CLUSTER), eq(MessagePermissions.MESSAGE_SEND)))
+        when(handoff.stillHolds(
+                        any(), eq(TGT_CLUSTER), eq(ResourceRef.address("TGT.A")), eq(MessagePermissions.MESSAGE_SEND)))
                 .thenReturn(false);
 
         execute();
 
         assertThat(run.getState()).isEqualTo(TransferState.STOPPED);
-        assertThat(run.getLastError()).contains(MessagePermissions.MESSAGE_SEND).contains("target cluster");
+        assertThat(run.getLastError()).contains(MessagePermissions.MESSAGE_SEND).contains("target address");
     }
 
     @Test

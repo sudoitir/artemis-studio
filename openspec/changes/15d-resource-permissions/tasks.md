@@ -9,9 +9,9 @@
 - [x] 1.6 Role save refuses missing requires and non-resource permissions in team-assignable roles; tests pass
 
 ## 2. Enforcement
-- [ ] 2.1 `ClusterAccessGuard.requireResource` (404 when unreadable, 403 naming permission when readable); cluster listing includes team clusters; tests pass
+- [x] 2.1 `ClusterAccessGuard.requireResource` (404 when unreadable, 403 naming permission when readable); cluster listing includes team clusters; tests pass
 - [ ] 2.2 Queue, address, message, DLQ, divert, capture, request-reply, transfer and bulk endpoints check their resources, including composites (move, retry, divert, bulk plan and run); queue configuration endpoint checked; integration tests as a team-only user pass
-- [ ] 2.3 Lists and counts filtered before paging (`PagedListService`, `CrossNodeAggregator`); rows carry `allowedActions`; connections and sessions trimmed; summary totals filtered; tests pass
+- [x] 2.3 Lists and counts filtered before paging (`PagedListService`, `CrossNodeAggregator`); rows carry `allowedActions`; connections and sessions trimmed; summary totals filtered; tests pass
 - [ ] 2.4 Create inside patterns only (`queue:create`, `address:create`); request-reply writes use `rr:write`; tests pass
 - [ ] 2.5 Alerts, metric history, search, governance content policy, SQL and audit read honour resource access; tests pass
 - [ ] 2.6 Architecture test fails any method taking a queue or address name without a resource check; passes on the codebase
