@@ -20424,20 +20424,16 @@
             "format" : "uuid"
           }
         }, {
-          "name" : "left",
+          "name" : "nodes",
           "in" : "query",
           "required" : false,
           "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "right",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "uniqueItems" : true
           }
         } ],
         "responses" : {
@@ -33804,17 +33800,17 @@
       },
       "ConfigDiffView" : {
         "type" : "object",
-        "description" : "Broker configuration compared across two nodes",
+        "description" : "Broker configuration compared across every node of a cluster",
         "properties" : {
           "clusterId" : {
             "type" : "string",
             "format" : "uuid"
           },
-          "left" : {
-            "$ref" : "#/components/schemas/ConfigSideView"
-          },
-          "right" : {
-            "$ref" : "#/components/schemas/ConfigSideView"
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeView"
+            }
           },
           "comparable" : {
             "type" : "boolean"
@@ -33825,9 +33821,8 @@
               "$ref" : "#/components/schemas/ConfigSectionView"
             }
           },
-          "driftCount" : {
-            "type" : "integer",
-            "format" : "int32"
+          "summary" : {
+            "$ref" : "#/components/schemas/ConfigSummaryView"
           },
           "matchesCompared" : {
             "type" : "integer",
@@ -33837,29 +33832,26 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "note" : {
-            "type" : [ "string", "null" ]
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "clusterId", "comparable", "driftCount", "left", "matchesAvailable", "matchesCompared", "right", "sections" ]
+        "required" : [ "clusterId", "comparable", "matchesAvailable", "matchesCompared", "nodes", "notes", "sections", "summary" ]
       },
-      "ConfigEntryView" : {
+      "ConfigKeyView" : {
         "type" : "object",
-        "description" : "One configuration key, compared across both nodes",
+        "description" : "One configuration key, compared across every node",
         "properties" : {
           "key" : {
             "type" : "string"
           },
-          "left" : {
-            "type" : [ "string", "null" ]
-          },
-          "right" : {
-            "type" : [ "string", "null" ]
-          },
-          "status" : {
+          "state" : {
             "type" : "string"
           },
-          "statusWord" : {
+          "stateWord" : {
             "type" : "string"
           },
           "classification" : {
@@ -33867,34 +33859,52 @@
           },
           "drift" : {
             "type" : "boolean"
-          }
-        },
-        "required" : [ "classification", "drift", "key", "status", "statusWord" ]
-      },
-      "ConfigSectionView" : {
-        "type" : "object",
-        "description" : "One section of the comparison",
-        "properties" : {
-          "section" : {
-            "type" : "string"
           },
-          "label" : {
-            "type" : "string"
-          },
-          "entries" : {
+          "values" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/ConfigEntryView"
+              "$ref" : "#/components/schemas/ConfigNodeValueView"
             }
           },
-          "driftCount" : {
-            "type" : "integer",
-            "format" : "int32"
+          "majority" : {
+            "type" : [ "string", "null" ]
+          },
+          "outliers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeValueView"
+            }
+          },
+          "valueGroups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigValueGroupView"
+            }
           }
         },
-        "required" : [ "driftCount", "entries", "label", "section" ]
+        "required" : [ "classification", "drift", "key", "outliers", "state", "stateWord", "valueGroups", "values" ]
       },
-      "ConfigSideView" : {
+      "ConfigNodeValueView" : {
+        "type" : "object",
+        "description" : "One node's value for a configuration key",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : [ "string", "null" ]
+          },
+          "missing" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "missing", "nodeId", "nodeName" ]
+      },
+      "ConfigNodeView" : {
         "type" : "object",
         "description" : "One node in a configuration comparison",
         "properties" : {
@@ -33914,11 +33924,68 @@
           "reducedSurface" : {
             "type" : "boolean"
           },
+          "unavailableKind" : {
+            "type" : [ "string", "null" ]
+          },
           "unavailableReason" : {
             "type" : [ "string", "null" ]
           }
         },
         "required" : [ "active", "available", "nodeId", "nodeName", "reducedSurface" ]
+      },
+      "ConfigSectionView" : {
+        "type" : "object",
+        "description" : "One section of the comparison",
+        "properties" : {
+          "section" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "keys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigKeyView"
+            }
+          }
+        },
+        "required" : [ "keys", "label", "section" ]
+      },
+      "ConfigSummaryView" : {
+        "type" : "object",
+        "description" : "Counts for a configuration comparison",
+        "properties" : {
+          "driftKeys" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "driftNodes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "expectedKeys" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "driftKeys", "driftNodes", "expectedKeys" ]
+      },
+      "ConfigValueGroupView" : {
+        "type" : "object",
+        "description" : "A distinct value and the nodes that hold it",
+        "properties" : {
+          "value" : {
+            "type" : "string"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeValueView"
+            }
+          }
+        },
+        "required" : [ "nodes", "value" ]
       },
       "PagedViewBulkRunView" : {
         "type" : "object",

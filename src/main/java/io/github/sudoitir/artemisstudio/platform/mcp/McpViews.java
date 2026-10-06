@@ -171,12 +171,29 @@ public final class McpViews {
     /** A log-shaped row, shared by {@code activity_log} over both sources. */
     public record ActivityRow(Instant at, String kind, String actor, String subject, String outcome, String detail) {}
 
-    /** One classified difference between two nodes' configuration (ADR-0043). */
-    public record ConfigDifference(String pointer, String classification, String nodeA, String nodeB) {}
+    /** A node's value for one key; {@code value} is null when the key is missing on that node. */
+    public record ConfigNodeValue(String node, String value) {}
 
-    /** {@code config_diff} result. */
+    /**
+     * One key whose nodes disagree (ADR-0178). {@code differing} holds the outlier nodes with
+     * their values when a majority exists; with none, {@code majority} is null and it holds
+     * every node's value.
+     */
+    public record ConfigDrift(String pointer, String state, String majority, List<ConfigNodeValue> differing) {}
+
+    /** A node that could not be read, with the classified reason. */
+    public record ConfigUnavailable(String node, String kind, String reason) {}
+
+    /** {@code config_diff} result: every node against the majority, drift keys only. */
     public record ConfigDiff(
-            UUID clusterId, String nodeA, String nodeB, int differences, List<ConfigDifference> items) {}
+            UUID clusterId,
+            List<String> nodes,
+            List<ConfigUnavailable> unavailable,
+            int driftKeys,
+            int driftNodes,
+            int expectedKeys,
+            List<ConfigDrift> items,
+            List<String> notes) {}
 
     /** A message header row from {@code browse_messages}; bodies are a separate, explicit call. */
     public record MessageHeader(
