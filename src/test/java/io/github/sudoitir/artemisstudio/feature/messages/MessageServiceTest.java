@@ -579,6 +579,7 @@ class MessageServiceTest {
     @Test
     void aRetryAllRetriesEverythingAndRefreshesTheQueues() {
         when(messageOps.messageCount(client, queueMbean())).thenReturn(12L);
+        when(access.holds(CLUSTER, MessagePermissions.MESSAGE_SEND)).thenReturn(true);
         when(messageOps.retryAll(client, queueMbean())).thenReturn(12L);
 
         Attempt<Outcome> result = service.execute(
@@ -628,6 +629,7 @@ class MessageServiceTest {
 
     @Test
     void byIdOperationsCallTheirOwnBrokerOperation() {
+        when(access.holds(CLUSTER, MessagePermissions.MESSAGE_SEND)).thenReturn(true);
         MessageOperations.BulkResult done = new MessageOperations.BulkResult(2, List.of(), null);
         when(messageOps.moveByIds(client, queueMbean(), List.of(1L, 2L), "target"))
                 .thenReturn(done);
@@ -869,6 +871,45 @@ class MessageServiceTest {
                 CLUSTER, "orders", null, MessageAction.RETRY, new MessageActionRequest(null, null, null), true, false);
 
         verify(messageOps, never()).originalAddresses(any(), anyString());
+    }
+
+    @Test
+    void aRetryOfEverythingByACallerWhoMayNotSendEverywhereRetriesOnlyTheMessagesFromTheCheckedAddresses() {
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a", "b")));
+        when(messageOps.originalAddressFilter("a")).thenReturn("from a");
+        when(messageOps.originalAddressFilter("b")).thenReturn("from b");
+        when(messageOps.listIds(client, queueMbean(), "from a")).thenReturn(List.of(1L, 2L));
+        when(messageOps.listIds(client, queueMbean(), "from b")).thenReturn(List.of(3L));
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(4L);
+        when(messageOps.retryByIds(client, queueMbean(), List.of(1L, 2L, 3L)))
+                .thenReturn(new MessageOperations.BulkResult(3, List.of(), null));
+
+        Attempt<Outcome> result = service.execute(
+                CLUSTER, "orders", null, MessageAction.RETRY, new MessageActionRequest(null, null, null), false, false);
+
+        assertThat(result).isEqualTo(new Attempt.Ok<Outcome>(new Outcome.Affected(3, NODE_B)));
+        verify(messageOps, never()).retryAll(any(), anyString());
+    }
+
+    @Test
+    void aRetryByIdsLeavesOutAMessageThatDidNotComeFromACheckedAddress() {
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a")));
+        when(messageOps.originalAddressFilter("a")).thenReturn("from a");
+        when(messageOps.listIds(client, queueMbean(), "from a")).thenReturn(List.of(1L));
+        when(messageOps.retryByIds(client, queueMbean(), List.of(1L)))
+                .thenReturn(new MessageOperations.BulkResult(1, List.of(), null));
+
+        service.execute(
+                CLUSTER,
+                "orders",
+                null,
+                MessageAction.RETRY,
+                new MessageActionRequest(List.of(1L, 99L), null, null),
+                false,
+                false);
+
+        verify(messageOps).retryByIds(client, queueMbean(), List.of(1L));
+        verify(messageOps, never()).retryByIds(client, queueMbean(), List.of(1L, 99L));
     }
 
     @Test

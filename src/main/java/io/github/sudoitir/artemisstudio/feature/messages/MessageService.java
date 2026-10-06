@@ -44,8 +44,10 @@ import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -221,9 +223,10 @@ public class MessageService {
         requireAllowed(clusterId, queueName, action, req);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
+        Set<String> checkedOrigins = null;
         if (action == MessageAction.RETRY) {
             try {
-                requireOriginalAddresses(clusterId, queueName, resolved);
+                checkedOrigins = requireOriginalAddresses(clusterId, queueName, resolved);
             } catch (BrokerConnectionException e) {
                 return new Attempt.Failed<>(e.kind(), e.getMessage());
             }
@@ -265,9 +268,9 @@ public class MessageService {
             }
 
             if (idBased) {
-                return executeByIds(event, client, mbean, action, req, clusterId, node);
+                return executeByIds(event, client, mbean, action, req, clusterId, node, checkedOrigins);
             }
-            long affected = perform(client, mbean, action, req);
+            long affected = perform(client, mbean, action, req, checkedOrigins);
             audit.succeed(event, affected);
             publishQueuesAfterCommit(clusterId);
             return new Attempt.Ok<>(new Outcome.Affected(affected, node));
@@ -301,8 +304,9 @@ public class MessageService {
             MessageAction action,
             MessageActionRequest req,
             UUID clusterId,
-            UUID node) {
-        MessageOperations.BulkResult result = performByIds(client, mbean, action, req);
+            UUID node,
+            Set<String> checkedOrigins) {
+        MessageOperations.BulkResult result = performByIds(client, mbean, action, req, checkedOrigins);
         publishQueuesAfterCommit(clusterId);
         if (result.partial()) {
             // Reported as partial, never as a plain failure: some messages already moved.
@@ -377,11 +381,12 @@ public class MessageService {
     /**
      * A retry sends each message back to the address it came from, so the caller needs
      * {@code message:send} on every address the queue's messages came from, unless they hold it on the
-     * whole cluster. It is the queue's whole content that is checked, not only the messages chosen.
+     * whole cluster. It is the queue's whole content that is checked, not only the messages chosen. The
+     * addresses checked are returned (null when no check was needed), for the retry to keep to.
      */
-    private void requireOriginalAddresses(UUID clusterId, String queueName, ResolvedQueue resolved) {
+    private Set<String> requireOriginalAddresses(UUID clusterId, String queueName, ResolvedQueue resolved) {
         if (clusterAccess.holds(clusterId, MessagePermissions.MESSAGE_SEND)) {
-            return;
+            return null;
         }
         JolokiaBrokerClient client = clientFor(clusterId, resolved);
         Set<String> origins = messageOps.originalAddresses(client, queueMbean(client, resolved, queueName));
@@ -390,6 +395,7 @@ public class MessageService {
                 origins.stream()
                         .map(a -> new Requirement(ResourceRef.address(a), MessagePermissions.MESSAGE_SEND))
                         .toList());
+        return origins;
     }
 
     private static String permissionFor(MessageAction action) {
@@ -412,9 +418,16 @@ public class MessageService {
     }
 
     /** A retry-all or a by-filter operation: one broker call, which returns its own count. */
-    private long perform(JolokiaBrokerClient client, String mbean, MessageAction action, MessageActionRequest req) {
+    private long perform(
+            JolokiaBrokerClient client,
+            String mbean,
+            MessageAction action,
+            MessageActionRequest req,
+            Set<String> checkedOrigins) {
         if (action == MessageAction.RETRY && req.ids().isEmpty()) {
-            return messageOps.retryAll(client, mbean);
+            return checkedOrigins == null
+                    ? messageOps.retryAll(client, mbean)
+                    : retryFromCheckedOrigins(client, mbean, checkedOrigins);
         }
         return switch (action) {
             case MOVE -> messageOps.moveByFilter(client, mbean, req.filter(), req.targetQueue());
@@ -424,9 +437,36 @@ public class MessageService {
         };
     }
 
+    /**
+     * A retry sends each message back to the address it came from, which the caller was checked against
+     * a moment ago. Retrying the whole queue would also retry what arrived since, so the messages to
+     * retry are fixed now, by the checked addresses, and retried by id: a message that came from another
+     * address in the meantime is not among them.
+     */
+    private long retryFromCheckedOrigins(JolokiaBrokerClient client, String mbean, Set<String> checkedOrigins) {
+        List<Long> ids = new ArrayList<>();
+        for (String origin : checkedOrigins) {
+            ids.addAll(messageOps.listIds(client, mbean, messageOps.originalAddressFilter(origin)));
+        }
+        return ids.isEmpty() ? 0 : messageOps.retryByIds(client, mbean, ids).affected();
+    }
+
     private MessageOperations.BulkResult performByIds(
-            JolokiaBrokerClient client, String mbean, MessageAction action, MessageActionRequest req) {
+            JolokiaBrokerClient client,
+            String mbean,
+            MessageAction action,
+            MessageActionRequest req,
+            Set<String> checkedOrigins) {
         List<Long> ids = req.ids();
+        if (action == MessageAction.RETRY && checkedOrigins != null) {
+            // Only messages that came from the addresses checked: an id of a message that arrived since, from
+            // another address, is not retried.
+            Set<Long> fromChecked = new HashSet<>();
+            for (String origin : checkedOrigins) {
+                fromChecked.addAll(messageOps.listIds(client, mbean, messageOps.originalAddressFilter(origin)));
+            }
+            ids = ids.stream().filter(fromChecked::contains).toList();
+        }
         return switch (action) {
             case MOVE -> messageOps.moveByIds(client, mbean, ids, req.targetQueue());
             case RETRY -> messageOps.retryByIds(client, mbean, ids);
