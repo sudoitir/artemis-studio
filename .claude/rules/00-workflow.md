@@ -42,6 +42,11 @@ Liquibase changesets, the second to merge rebases and renumbers its own. A sessi
 runs Studio for screenshots uses its own ports and compose project name, so parallel
 sessions do not share a dev stack.
 
+**Merging goes through the merge queue** (ADR-0169): once the PR's CI is green, `gh pr merge <n> --merge --auto`
+queues it, and it merges when CI is green on `main` plus the PRs ahead of it. The PR need not be
+updated to `main` first; the queue does the test a rebase would. Wait for the merge with
+`gh pr view <n> --json state,mergedAt`.
+
 **A change is finished only when it is cleaned up:** the PR is merged, the worktree is
 removed, the branch is deleted locally and on the remote, anything it started is stopped
 (its compose stack, dev servers, test containers), and the main checkout is pulled with
