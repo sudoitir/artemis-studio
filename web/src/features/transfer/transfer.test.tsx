@@ -33,9 +33,6 @@ function Actions({ selection = ALL, total = 1200 }: { selection?: MessageSelecti
   );
 }
 
-/** Mantine renders its dropdown in a portal the modal marks aria-hidden, so options are queried hidden. */
-const opt = { hidden: true } as const;
-
 async function openDialog(user: ReturnType<typeof userEvent.setup>, label = 'Transfer…') {
   await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled());
   await user.click(screen.getByRole('button', { name: label }));
@@ -73,7 +70,7 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    await user.click(await screen.findByRole('option', { name: 'node-b', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'node-b' }));
     await user.click(within(dialog).getByRole('button', { name: 'Preview' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));
@@ -97,7 +94,7 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    await user.click(await screen.findByRole('option', { name: 'node-b', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'node-b' }));
     await user.click(within(dialog).getByRole('button', { name: 'Preview' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));
@@ -111,12 +108,10 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    expect(await screen.findByRole('option', { name: /node-a: the source node/, ...opt })).toHaveAttribute(
+    expect(await screen.findByRole('option', { name: /node-a: the source node/ })).toHaveAttribute(
       'data-combobox-disabled',
     );
-    expect(screen.getByRole('option', { name: /node-b-backup: a backup/, ...opt })).toHaveAttribute(
-      'data-combobox-disabled',
-    );
+    expect(screen.getByRole('option', { name: /node-b-backup: a backup/ })).toHaveAttribute('data-combobox-disabled');
   });
 
   it('lists a cluster the operator may not send to, disabled, saying why', async () => {
@@ -127,7 +122,7 @@ describe('TransferDialog', () => {
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target cluster' }));
     expect(
-      await screen.findByRole('option', { name: /dr-site: you do not have the "Send messages" permission/, ...opt }),
+      await screen.findByRole('option', { name: /dr-site: you do not have the "Send messages" permission/ }),
     ).toHaveAttribute('data-combobox-disabled');
   });
 
@@ -165,7 +160,7 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    await user.click(await screen.findByRole('option', { name: 'node-b', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'node-b' }));
     await user.click(within(dialog).getByRole('button', { name: 'Preview' }));
 
     expect(await within(dialog).findByText(/Move 1,200 messages \(84 MB\)/)).toBeInTheDocument();
@@ -199,7 +194,7 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    await user.click(await screen.findByRole('option', { name: 'node-b', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'node-b' }));
     await user.click(within(dialog).getByRole('button', { name: 'Preview' }));
 
     // The unknown is stated as unknown, never as a pass.
@@ -244,7 +239,7 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    await user.click(await screen.findByRole('option', { name: 'node-b', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'node-b' }));
     await user.click(within(dialog).getByRole('button', { name: 'Preview' }));
     // A copy does not take the source's messages, so it needs no typed confirmation.
     await user.click(await within(dialog).findByRole('button', { name: 'Copy 1,200 messages' }));
@@ -268,7 +263,7 @@ describe('TransferDialog', () => {
 
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    await user.click(await screen.findByRole('option', { name: 'node-b', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'node-b' }));
     await user.click(within(dialog).getByRole('button', { name: 'Preview' }));
 
     const alert = await within(dialog).findByRole('alert');

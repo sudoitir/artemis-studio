@@ -12,9 +12,7 @@ import { server } from '../../test/setup.ts';
 import { paged } from '../../kernel/api/paging.ts';
 import type { ClusterSummary, EnvironmentView } from './api.ts';
 
-// jsdom has no layout, so Mantine's popover treats its anchor as detached and keeps the list `display: none`.
-// The list is queried with `hidden` for that reason, not because it is closed.
-const option = (name: RegExp | string) => screen.findByRole('option', { name, hidden: true });
+const option = (name: RegExp | string) => screen.findByRole('option', { name });
 
 const ENVIRONMENTS: EnvironmentView[] = [
   { id: 'e-prod', name: 'Production', colour: '#b3541e', sortOrder: 1 },
@@ -107,9 +105,9 @@ describe('ClusterSwitcher', () => {
     renderAppAt('/clusters/c1/queues', [QUEUES]);
     await user.click(await screen.findByRole('button', { name: /prod-emea/ }));
 
-    const list = await screen.findByRole('listbox', { name: 'Clusters', hidden: true });
+    const list = await screen.findByRole('listbox', { name: 'Clusters' });
     const groups = within(list)
-      .getAllByRole('group', { hidden: true })
+      .getAllByRole('group')
       .map((g) => g.getAttribute('aria-labelledby'))
       .map((id) => document.getElementById(id ?? '')?.textContent);
     expect(groups).toEqual(['Production', 'Staging', 'No environment']);
@@ -118,7 +116,7 @@ describe('ClusterSwitcher', () => {
     expect(emea).toHaveTextContent('Production');
     expect(emea).toHaveTextContent('Degraded');
     expect(emea).toHaveAttribute('aria-selected', 'true');
-    const options = within(list).getAllByRole('option', { hidden: true });
+    const options = within(list).getAllByRole('option');
     expect(options.at(-1)).toHaveTextContent('Register cluster');
   });
 
@@ -147,11 +145,11 @@ describe('ClusterSwitcher', () => {
 
     trigger.focus();
     await user.keyboard('{ArrowDown}');
-    const search = await screen.findByRole('textbox', { name: 'Search clusters', hidden: true });
+    const search = await screen.findByRole('textbox', { name: 'Search clusters' });
     await waitFor(() => expect(search).toHaveFocus());
     fireEvent.change(search, { target: { value: 'apac' } });
     expect(await option(/prod-apac/)).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /stage-eu/, hidden: true })).toBeNull();
+    expect(screen.queryByRole('option', { name: /stage-eu/ })).toBeNull();
     await user.keyboard('{Enter}');
 
     await screen.findByRole('button', { name: /prod-apac/ });
@@ -168,7 +166,7 @@ describe('ClusterSwitcher', () => {
     renderAppAt('/clusters/c1/queues', [QUEUES]);
     await user.click(await screen.findByRole('button', { name: /prod-emea/ }));
 
-    fireEvent.change(await screen.findByRole('textbox', { name: 'Search clusters', hidden: true }), {
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Search clusters' }), {
       target: { value: 'zzz' },
     });
 
@@ -184,13 +182,13 @@ describe('ClusterSwitcher', () => {
     renderAppAt('/clusters/m0/queues', [QUEUES]);
     await user.click(await screen.findByRole('button', { name: /cluster-00/ }));
 
-    const list = await screen.findByRole('listbox', { name: 'Clusters', hidden: true });
-    expect(within(list).getAllByRole('option', { hidden: true })).toHaveLength(41);
+    const list = await screen.findByRole('listbox', { name: 'Clusters' });
+    expect(within(list).getAllByRole('option')).toHaveLength(41);
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Search clusters', hidden: true }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search clusters' }), {
       target: { value: 'cluster-3' },
     });
-    expect(within(list).getAllByRole('option', { hidden: true })).toHaveLength(11);
+    expect(within(list).getAllByRole('option')).toHaveLength(11);
   });
 
   it('opens registration from the end of the list', async () => {

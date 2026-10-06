@@ -14,8 +14,6 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 
 const { ConfigDiffView } = await import('./ConfigDiffView.tsx');
 
-const opt = { hidden: true } as const;
-
 const endpoint = (id: string, name: string, manageable = true) => ({
   id,
   name,
@@ -246,17 +244,17 @@ describe('ConfigDiffView', () => {
     expect(seen).toEqual(['']);
 
     await user.click(screen.getByRole('combobox', { name: 'Left node' }));
-    const leftList = await screen.findByRole('listbox', { name: 'Left node', ...opt });
-    expect(within(leftList).getByRole('option', { name: 'broker-3', ...opt })).toHaveAttribute(
+    const leftList = await screen.findByRole('listbox', { name: 'Left node' });
+    expect(within(leftList).getByRole('option', { name: 'broker-3' })).toHaveAttribute(
       'data-combobox-disabled',
       'true',
     );
-    await user.click(within(leftList).getByRole('option', { name: 'broker-2', ...opt }));
+    await user.click(within(leftList).getByRole('option', { name: 'broker-2' }));
     await waitFor(() => expect(seen).toContain('left=n-b'));
 
     await user.click(screen.getByRole('combobox', { name: 'Right node' }));
-    const rightList = await screen.findByRole('listbox', { name: 'Right node', ...opt });
-    await user.click(within(rightList).getByRole('option', { name: 'broker-1', ...opt }));
+    const rightList = await screen.findByRole('listbox', { name: 'Right node' });
+    await user.click(within(rightList).getByRole('option', { name: 'broker-1' }));
     await waitFor(() => expect(seen).toContain('left=n-b&right=n-a'));
   });
 

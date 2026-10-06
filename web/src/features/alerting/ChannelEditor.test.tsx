@@ -60,7 +60,7 @@ async function fill(user: ReturnType<typeof userEvent.setup>, field: HTMLElement
 async function chooseKind(user: ReturnType<typeof userEvent.setup>, label: string) {
   const d = await dialog();
   await user.click(d.getByRole('combobox', { name: /^Kind/ }));
-  await user.click(await screen.findByRole('option', { name: label, hidden: true }));
+  await user.click(await screen.findByRole('option', { name: label }));
 }
 
 afterEach(() => act(() => notifications.clean()));
@@ -135,9 +135,7 @@ describe('ChannelEditor: adding', () => {
     expect(d.queryByLabelText(/^Events API v2 URL/)).not.toBeInTheDocument();
 
     await user.click(d.getByRole('combobox', { name: /^Endpoint/ }));
-    await user.click(
-      await screen.findByRole('option', { name: 'Another PagerDuty-compatible receiver', hidden: true }),
-    );
+    await user.click(await screen.findByRole('option', { name: 'Another PagerDuty-compatible receiver' }));
     await fill(user, d.getByLabelText(/^Name/), 'pd');
     await user.type(d.getByLabelText(/^Routing key/), 'k'.repeat(32));
     await user.click(d.getByRole('button', { name: 'Add channel' }));

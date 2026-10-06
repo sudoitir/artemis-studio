@@ -10,14 +10,11 @@ import { declaration } from './fixtures.ts';
 import { ModeControl } from './ModeControl.tsx';
 
 const PATCH = '*/api/v1/clusters/c1/config/mode';
-const HIDDEN = { hidden: true } as const;
-
 async function openPopover(canWrite: boolean) {
   const user = userEvent.setup();
   renderWithProviders(<ModeControl declaration={declaration()} canWrite={canWrite} />);
   await user.click(screen.getByRole('button', { name: /Apply mode: Managed by Studio/ }));
-  // A popover's content stays display: none while it transitions in, so its roles are asked for hidden.
-  const popover = await screen.findByRole('dialog', HIDDEN);
+  const popover = await screen.findByRole('dialog');
   return { user, popover };
 }
 
@@ -28,9 +25,9 @@ describe('ModeControl', () => {
     server.use(http.patch(PATCH, () => HttpResponse.json(saved())));
     const { popover } = await openPopover(false);
 
-    expect(within(popover).getByRole('combobox', { name: 'Apply mode', ...HIDDEN })).toBeDisabled();
-    expect(within(popover).getByRole('switch', { name: /Report undeclared items/, ...HIDDEN })).toBeDisabled();
-    expect(within(popover).getByRole('button', { name: 'Save', ...HIDDEN })).toBeDisabled();
+    expect(within(popover).getByRole('combobox', { name: 'Apply mode' })).toBeDisabled();
+    expect(within(popover).getByRole('switch', { name: /Report undeclared items/ })).toBeDisabled();
+    expect(within(popover).getByRole('button', { name: 'Save' })).toBeDisabled();
     expect(within(popover).getByText(/needs the "Edit declared configuration" permission/)).toBeInTheDocument();
     expect(saved).not.toHaveBeenCalled();
   });
@@ -46,11 +43,11 @@ describe('ModeControl', () => {
     const succeeded = vi.spyOn(notify, 'succeeded');
     const { user, popover } = await openPopover(true);
 
-    await user.click(within(popover).getByRole('switch', { name: /Report undeclared items/, ...HIDDEN }));
-    await user.click(within(popover).getByRole('button', { name: 'Save', ...HIDDEN }));
+    await user.click(within(popover).getByRole('switch', { name: /Report undeclared items/ }));
+    await user.click(within(popover).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(body).toMatchObject({ applyMode: 'STUDIO_MANAGED', reportUndeclared: true }));
-    await waitFor(() => expect(screen.queryByRole('dialog', HIDDEN)).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(succeeded).toHaveBeenCalledWith(
       expect.objectContaining({ subject: expect.stringContaining('Managed by Studio') }),
     );
@@ -65,10 +62,10 @@ describe('ModeControl', () => {
     );
     const { user, popover } = await openPopover(true);
 
-    await user.click(within(popover).getByRole('button', { name: 'Save', ...HIDDEN }));
+    await user.click(within(popover).getByRole('button', { name: 'Save' }));
 
-    const alert = await within(popover).findByRole('alert', HIDDEN);
+    const alert = await within(popover).findByRole('alert');
     expect(alert).toHaveTextContent('The configuration store is not answering.');
-    expect(within(popover).getByRole('button', { name: 'Save', ...HIDDEN })).toBeEnabled();
+    expect(within(popover).getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 });

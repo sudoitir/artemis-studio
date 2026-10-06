@@ -1,6 +1,6 @@
 # ADR-0122: Studio sends a Content-Security-Policy
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0168](0168-xss-is-defended-at-output-and-in-the-browser.md)
 - **Date**: 2026-09-28
 - **Deciders**: Mahdi Amirabdollahi
 
