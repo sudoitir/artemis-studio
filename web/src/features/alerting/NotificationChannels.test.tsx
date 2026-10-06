@@ -139,7 +139,7 @@ describe('NotificationChannels', () => {
     await user.click(screen.getByRole('button', { name: 'Add channel' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('combobox', { name: /^Kind/ }));
-    await user.click(await screen.findByRole('option', { name: 'Email (SMTP)', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'Email (SMTP)' }));
 
     const to = within(dialog).getByLabelText(/^Recipients/);
     await user.type(to, 'oncall@example.com, not-an-address');
@@ -169,7 +169,7 @@ describe('NotificationChannels', () => {
     await user.click(screen.getByRole('button', { name: 'Add channel' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('combobox', { name: /^Kind/ }));
-    await user.click(await screen.findByRole('option', { name: 'Microsoft Teams', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'Microsoft Teams' }));
     await user.type(within(dialog).getByLabelText(/^Workflow webhook URL/), 'https://example.logic.azure.com/x');
     await user.click(within(dialog).getByRole('button', { name: 'Send a test' }));
 

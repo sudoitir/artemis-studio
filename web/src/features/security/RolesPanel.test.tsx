@@ -298,8 +298,8 @@ describe('RolesPanel compare', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Compare roles' });
     const pick = async (label: string, role: string) => {
       await user.click(within(dialog).getByRole('combobox', { name: label }));
-      const list = await screen.findByRole('listbox', { name: label, hidden: true });
-      await user.click(within(list).getByRole('option', { name: role, hidden: true }));
+      const list = await screen.findByRole('listbox', { name: label });
+      await user.click(within(list).getByRole('option', { name: role }));
     };
     return { dialog, pick };
   }
