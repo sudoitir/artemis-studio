@@ -156,9 +156,9 @@ class PagedListServiceTest {
         when(connections.forCluster(clusterId, URL_A))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNAUTHORIZED));
 
-        ResourceQuery everything = ResourceQuery.of(null, 1, 50, null);
+        ResourceQuery firstPage = ResourceQuery.of(null, 1, 50, null);
 
-        assertThatThrownBy(() -> service.consumers(clusterId, everything))
+        assertThatThrownBy(() -> service.consumers(clusterId, firstPage))
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
                 .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
@@ -198,10 +198,9 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         when(nodes.nodes(clusterId)).thenReturn(List.of());
 
-        ResourceQuery everything = ResourceQuery.of(null, 1, 50, null);
+        ResourceQuery firstPage = ResourceQuery.of(null, 1, 50, null);
 
-        assertThatThrownBy(() -> service.consumers(clusterId, everything))
-                .isInstanceOf(BrokerConnectionException.class);
+        assertThatThrownBy(() -> service.consumers(clusterId, firstPage)).isInstanceOf(BrokerConnectionException.class);
     }
 
     // ---- what the caller may see ---------------------------------------------------------------
