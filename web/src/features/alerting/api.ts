@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import { type PagedView, requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
+import { useCan } from '../../kernel/auth/useCan.ts';
 
 type Schemas = components['schemas'];
 
@@ -77,11 +78,14 @@ export function useDeleteAlertRule(clusterId: string) {
   });
 }
 
+/** Waits for the caller's access to this cluster, so someone who holds nothing on alerts here (a team member) gets none, and no refused request. */
 export function useFiringAlerts(clusterId: string): UseQueryResult<AlertFiringView[], ApiError> {
+  const { reach } = useCan();
   return useQuery({
     queryKey: keys.alertFiring(clusterId),
     queryFn: () => requestAll<AlertFiringView>(`/clusters/${clusterId}/alerts/firing`),
     refetchInterval: 15_000,
+    enabled: ['grant', 'teams'].includes(reach('alert:read', clusterId)),
   });
 }
 

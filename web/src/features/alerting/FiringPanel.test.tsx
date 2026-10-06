@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 
 import { paged } from '../../kernel/api/paging.ts';
+import { holding } from '../../test/access.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { AlertFiringView } from './api.ts';
@@ -22,6 +23,8 @@ const firing = (seq: number, over: Partial<AlertFiringView> = {}): AlertFiringVi
 });
 
 describe('FiringPanel', () => {
+  beforeEach(() => server.use(holding('alert:read')));
+
   it('teaches what an empty list means', async () => {
     server.use(http.get('*/api/v1/clusters/c-1/alerts/firing', () => HttpResponse.json(paged([]))));
     renderWithProviders(<FiringPanel clusterId="c-1" />);
