@@ -247,7 +247,7 @@ public class BulkService {
     public BulkRunView execute(UUID clusterId, UUID runId, BulkExecuteRequest request) {
         BulkRunEntity run = load(clusterId, runId);
         BulkOperation operation = run.getOperation();
-        clusterAccess.requireAll(clusterId, requirements(run, operation.permission()));
+        requireOnRun(clusterId, run, operation.permission());
         if (run.getStatus() != BulkRunStatus.PREVIEWED) {
             throw new ConflictException(
                     "bulk-run-started", "This bulk run has already been executed. Preview again to run it again.");
@@ -321,7 +321,7 @@ public class BulkService {
     /** Ask a running run to stop, on whichever replica executes it: the queue in flight finishes, the rest are cancelled. */
     public BulkRunView stop(UUID clusterId, UUID runId) {
         BulkRunEntity run = load(clusterId, runId);
-        clusterAccess.requireAll(clusterId, requirements(run, run.getOperation().permission()));
+        requireOnRun(clusterId, run, run.getOperation().permission());
         boolean here = runner.requestStop(runId);
         if (!here && run.getStatus() != BulkRunStatus.RUNNING) {
             throw new ConflictException(
@@ -342,7 +342,7 @@ public class BulkService {
     public BulkRunDetailView get(UUID clusterId, UUID runId) {
         clusterAccess.requireVisible(clusterId);
         BulkRunEntity run = load(clusterId, runId);
-        clusterAccess.requireAll(clusterId, requirements(run, Permissions.QUEUE_READ));
+        requireOnRun(clusterId, run, Permissions.QUEUE_READ);
         return detail(run);
     }
 
@@ -366,6 +366,18 @@ public class BulkService {
                 .map(this::view)
                 .toList();
         return query.paginate(readable, null);
+    }
+
+    /**
+     * The permission on every queue the run acts on. A queue the caller may not read is answered with the run's own
+     * not-found, which names no queue and says nothing of what the run touches.
+     */
+    private void requireOnRun(UUID clusterId, BulkRunEntity run, String permission) {
+        try {
+            clusterAccess.requireAll(clusterId, requirements(run, permission));
+        } catch (NotFoundException _) {
+            throw new NotFoundException("bulk run", run.getId());
+        }
     }
 
     /** What acting on {@code names} with the permission needs: the permission on each queue. */

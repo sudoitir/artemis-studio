@@ -573,9 +573,14 @@ public class TransferService {
 
     /** Put every message a stopped, interrupted or failed move holds in staging back on its source queue. */
     public TransferRunView returnToSource(UUID clusterId, UUID runId) {
-        TransferRunEntity run = load(clusterId, runId);
-        access.requireResource(
-                run.getSourceClusterId(), ResourceRef.queue(run.getSourceQueue()), MessagePermissions.MESSAGE_MOVE);
+        TransferRunEntity loaded = load(clusterId, runId);
+        asRun(
+                loaded,
+                () -> access.requireResource(
+                        loaded.getSourceClusterId(),
+                        ResourceRef.queue(loaded.getSourceQueue()),
+                        MessagePermissions.MESSAGE_MOVE));
+        TransferRunEntity run = loaded;
         requireReadable(run);
         requireResumable(run);
         if (run.getMode() != TransferMode.MOVE || run.isSameNode()) {
@@ -832,23 +837,40 @@ public class TransferService {
 
     /** Acting on a run needs its mode's permission on the source queue and {@code message:send} on the target address. */
     private void requireRunPermissions(TransferRunEntity run) {
-        access.requireResource(
-                run.getSourceClusterId(),
-                ResourceRef.queue(run.getSourceQueue()),
-                run.getMode().sourcePermission());
-        access.requireAll(
-                run.getTargetClusterId(),
-                List.of(
-                        new Requirement(ResourceRef.queue(run.getTargetQueue()), Permissions.QUEUE_READ),
-                        new Requirement(ResourceRef.address(run.getTargetAddress()), MessagePermissions.MESSAGE_SEND)));
+        asRun(run, () -> {
+            access.requireResource(
+                    run.getSourceClusterId(),
+                    ResourceRef.queue(run.getSourceQueue()),
+                    run.getMode().sourcePermission());
+            access.requireAll(
+                    run.getTargetClusterId(),
+                    List.of(
+                            new Requirement(ResourceRef.queue(run.getTargetQueue()), Permissions.QUEUE_READ),
+                            new Requirement(
+                                    ResourceRef.address(run.getTargetAddress()), MessagePermissions.MESSAGE_SEND)));
+        });
+    }
+
+    /**
+     * Runs a check on a run's queues and addresses, and answers a queue the caller may not read with the
+     * run's own not-found: the run is not theirs to know, and its queues are not named.
+     */
+    private static void asRun(TransferRunEntity run, Runnable check) {
+        try {
+            check.run();
+        } catch (NotFoundException _) {
+            throw new NotFoundException("transfer", run.getId());
+        }
     }
 
     /** A run is read through its source queue and its target address. */
     private void requireReadable(TransferRunEntity run) {
-        access.requireResource(
-                run.getSourceClusterId(), ResourceRef.queue(run.getSourceQueue()), Permissions.QUEUE_READ);
-        access.requireResource(
-                run.getTargetClusterId(), ResourceRef.address(run.getTargetAddress()), Permissions.ADDRESS_READ);
+        asRun(run, () -> {
+            access.requireResource(
+                    run.getSourceClusterId(), ResourceRef.queue(run.getSourceQueue()), Permissions.QUEUE_READ);
+            access.requireResource(
+                    run.getTargetClusterId(), ResourceRef.address(run.getTargetAddress()), Permissions.ADDRESS_READ);
+        });
     }
 
     List<Finding> findings(TransferRunEntity run) {
