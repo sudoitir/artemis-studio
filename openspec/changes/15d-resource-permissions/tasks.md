@@ -34,7 +34,7 @@
 - [x] 5.3 Role editor: team-assignable toggle, scope badges, requires auto-add with note; grant dialogs offer global/environment/cluster scope; component tests pass
 - [x] 5.4 Access check drawer with sources; queue/address Access panel; owner chip in lists; component tests pass
 - [x] 5.5 Gating: hide vs disabled-with-reason, send-target pickers filtered, create shows allowed patterns and validates live, team-aware empty states, revoked resource turns not-found; component tests pass
-- [ ] 5.6 Visual QA sweep (team user vs admin, light and dark, empty and error states) on an isolated stack; findings fixed; stack removed
+- [x] 5.6 Visual QA sweep (team user vs admin, light and dark, empty and error states) on an isolated stack; findings fixed; stack removed
 
 ## 6. Docs and release
 - [x] 6.1 ADR for resource-scoped authorization and teams; user docs for teams and permissions; `just verify` passes
