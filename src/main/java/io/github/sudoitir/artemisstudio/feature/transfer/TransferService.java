@@ -748,7 +748,19 @@ public class TransferService {
 
     /** Put an orphaned staging queue's messages on a queue of the same node, then remove the staging queue. */
     public OrphanReturnView returnOrphan(UUID clusterId, OrphanReturnRequest request) {
-        access.requireCluster(clusterId, MessagePermissions.MESSAGE_MOVE);
+        // A staging queue is named by no team's pattern, so only a grant that reaches the cluster passes; the queue the
+        // messages go back into is read and sent to through its own address, as in a transfer.
+        access.requireVisible(clusterId);
+        String returnAddress = locator.locate(clusterId, request.targetQueue()).stream()
+                .findFirst()
+                .map(QueueLocation::address)
+                .orElseThrow(() -> access.unreadableAmongSeveral(clusterId));
+        access.requireAll(
+                clusterId,
+                List.of(
+                        new Requirement(ResourceRef.queue(request.stagingQueue()), MessagePermissions.MESSAGE_MOVE),
+                        new Requirement(ResourceRef.queue(request.targetQueue()), Permissions.QUEUE_READ),
+                        new Requirement(ResourceRef.address(returnAddress), MessagePermissions.MESSAGE_SEND)));
         ClusterNode node = nodes.node(clusterId, request.nodeId());
         String queue = request.stagingQueue();
         if (!queue.startsWith(StagingQueues.PREFIX)) {
