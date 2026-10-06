@@ -327,7 +327,7 @@ describe('AuditView filters', () => {
     renderWithProviders(<AuditView />);
 
     await user.click(await screen.findByPlaceholderText('Any user'));
-    await user.click(await screen.findByRole('option', { name: 'bob', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'bob' }));
 
     expect(nextSearch({ page: 2 })).toEqual({ page: undefined, user: 'bob' });
     expect(screen.queryByRole('textbox', { name: 'Filter by user' })).not.toBeInTheDocument();
@@ -342,13 +342,13 @@ describe('AuditView filters', () => {
     const action = await screen.findByPlaceholderText('Any action');
     expect(action).toHaveValue('PURGE_QUEUE');
     await user.click(action);
-    await user.click(await screen.findByRole('option', { name: 'MOVE_MESSAGES', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'MOVE_MESSAGES' }));
     expect(nextSearch()).toEqual({ action: 'MOVE_MESSAGES', page: undefined });
 
     const outcome = screen.getByPlaceholderText('Any outcome');
     expect(outcome).toHaveValue('FAILURE');
     await user.click(outcome);
-    await user.click(await screen.findByRole('option', { name: 'SUCCESS', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'SUCCESS' }));
     expect(nextSearch()).toEqual({ outcome: 'SUCCESS', page: undefined });
   });
 });

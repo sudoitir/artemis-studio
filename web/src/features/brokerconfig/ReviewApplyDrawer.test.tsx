@@ -270,7 +270,7 @@ describe('ReviewApplyDrawer: nodes and canary', () => {
   it('sends the chosen canary, and drops it when its node is unticked', async () => {
     const { user, d } = await planned();
     await user.click(d.getByRole('combobox', { name: /^Canary/ }));
-    await user.click(await screen.findByRole('option', { name: 'broker-2', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'broker-2' }));
 
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1].body.canaryNodeId).toBe('n-b');

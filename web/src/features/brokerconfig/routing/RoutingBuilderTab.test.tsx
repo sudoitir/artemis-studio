@@ -16,12 +16,6 @@ import { paged } from '../../../kernel/api/paging.ts';
  * router and the composed feature list rather than rendered on its own.
  */
 
-/**
- * Options are queried with `hidden: true`: Mantine hides a dropdown whose target it cannot
- * measure, and jsdom measures nothing (see `AddressPicker.test.tsx`).
- */
-const opt = { hidden: true } as const;
-
 const capability = { status: 'AVAILABLE', reason: null, brokerXmlSnippet: null };
 
 /** What the shell itself reads on any cluster screen, plus the Routing listings. */
@@ -139,7 +133,7 @@ describe('the Routing screen’s Builder tab', () => {
     // Typing an address that is not declared offers to create its queue, last.
     await user.keyboard('orders.spool');
     await user.keyboard('{ArrowDown}');
-    const create = await screen.findByRole('option', { name: /Create queue “orders\.spool”/, ...opt });
+    const create = await screen.findByRole('option', { name: /Create queue “orders\.spool”/ });
     await waitFor(() => expect(create).toHaveAttribute('data-combobox-selected'));
     await user.keyboard('{Enter}');
 
@@ -157,7 +151,7 @@ describe('the Routing screen’s Builder tab', () => {
     // Again, and this time a bad name is refused beside its field, on blur.
     await user.keyboard('{ArrowDown}');
     await waitFor(() =>
-      expect(screen.getByRole('option', { name: /Create queue/, ...opt })).toHaveAttribute('data-combobox-selected'),
+      expect(screen.getByRole('option', { name: /Create queue/ })).toHaveAttribute('data-combobox-selected'),
     );
     await user.keyboard('{Enter}');
     const again = await within(drawer).findByRole('group', { name: 'Create queue on address orders.spool' });
@@ -195,7 +189,7 @@ describe('the Routing screen’s Builder tab', () => {
     expect(await within(drawer).findByRole('button', { name: 'Save as revision 5' })).toBeInTheDocument();
 
     // The canvas draws it at once, as declared and not yet applied.
-    expect(await screen.findByRole('button', { name: /^Queue orders\.spool\./, hidden: true })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Queue orders\.spool\./ })).toBeInTheDocument();
   }, 20_000);
 
   it('states why the declaration could not be read, says what the builder needs, and reads it again on retry', async () => {

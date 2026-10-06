@@ -471,15 +471,15 @@ describe('FlowView controls', () => {
 
     await screen.findByRole('region', { name: 'Totals across every path' });
     await user.click(selectInput('Rank paths by'));
-    await user.click(await screen.findByRole('option', { name: 'messages out', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'messages out' }));
     expect(nextSearch({ tab: 'table' })).toEqual({ tab: 'table', rank: 'OUT' });
 
     await user.click(selectInput('Group clients by'));
-    await user.click(await screen.findByRole('option', { name: 'User', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'User' }));
     expect(nextSearch()).toEqual({ groupBy: 'USER' });
 
     await user.click(selectInput('Show'));
-    await user.click(await screen.findByRole('option', { name: '100 busiest paths', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: '100 busiest paths' }));
     expect(nextSearch()).toEqual({ limit: 100 });
   });
 
@@ -491,15 +491,15 @@ describe('FlowView controls', () => {
 
     await screen.findByRole('region', { name: 'Totals across every path' });
     await user.click(selectInput('Rank paths by'));
-    await user.click(await screen.findByRole('option', { name: 'messages in', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'messages in' }));
     expect(nextSearch()).toEqual({ rank: undefined });
 
     await user.click(selectInput('Group clients by'));
-    await user.click(await screen.findByRole('option', { name: 'Client ID', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'Client ID' }));
     expect(nextSearch()).toEqual({ groupBy: undefined });
 
     await user.click(selectInput('Show'));
-    await user.click(await screen.findByRole('option', { name: '40 busiest paths', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: '40 busiest paths' }));
     expect(nextSearch()).toEqual({ limit: undefined });
   });
 
@@ -598,7 +598,7 @@ describe('FlowView controls', () => {
 
     await screen.findByRole('region', { name: 'Totals across every path' });
     await user.click(selectInput('Find in this view'));
-    await user.click(await screen.findByRole('option', { name: 'order-svc', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: 'order-svc' }));
 
     expect(nextSearch({ node: 'queue:ORDERS.inbound', hops: 3 })).toEqual({
       node: undefined,
