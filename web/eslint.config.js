@@ -94,10 +94,47 @@ export default tseslint.config(
     },
   },
   {
+    // Nothing turns a string into markup or code (ADR-0168). Studio's CSP refuses these sinks at run
+    // time (Trusted Types, no `eval`); this stops them at review. The one place HTML is rendered is the
+    // code highlighter, inside Mantine, behind `ui/trustedTypes.ts`. A real exception is an inline
+    // disable with its reason, never an allow-list here.
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-script-url': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message: 'Render text, or highlight code through CodeHighlight. Never set raw HTML.',
+        },
+        {
+          selector: "Property[key.name='dangerouslySetInnerHTML']",
+          message: 'Render text, or highlight code through CodeHighlight. Never set raw HTML.',
+        },
+        {
+          selector: "AssignmentExpression[left.type='MemberExpression'][left.property.name=/^(innerHTML|outerHTML)$/]",
+          message: 'Assigning HTML to an element is an XSS sink. Build elements, or render text.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+          message: 'insertAdjacentHTML is an XSS sink. Build elements, or render text.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='document'][callee.property.name=/^write(ln)?$/]",
+          message: 'document.write is an XSS sink.',
+        },
+      ],
+    },
+  },
+  {
     // Test files and test helpers legitimately export non-components and use
     // Node globals (MSW server lifecycle, jsdom shims).
     files: ['src/test/**', '**/*.test.{ts,tsx}'],
     languageOptions: { globals: { ...globals.node } },
-    rules: { 'react-refresh/only-export-components': 'off' },
+    // A test feeds `javascript:` addresses to the code that must refuse them.
+    rules: { 'react-refresh/only-export-components': 'off', 'no-script-url': 'off' },
   },
 );

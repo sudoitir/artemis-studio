@@ -2,9 +2,20 @@ import { describe, expect, it } from 'vitest';
 
 import { focusFirstInvalid, serverFieldErrors } from './formErrors.ts';
 
+/** Replaces the page's fields with one input per path. */
+function fields(...paths: string[]) {
+  document.body.replaceChildren(
+    ...paths.map((path) => {
+      const input = document.createElement('input');
+      input.dataset.path = path;
+      return input;
+    }),
+  );
+}
+
 describe('focusFirstInvalid', () => {
   it('focuses the first invalid field in reading order, not in the order the errors were found', () => {
-    document.body.innerHTML = '<input data-path="first" /><input data-path="second" />';
+    fields('first', 'second');
     const byPath = (path: string) => document.querySelector<HTMLElement>(`[data-path="${path}"]`);
 
     focusFirstInvalid(byPath)({ second: 'wrong', first: 'wrong' });
@@ -13,7 +24,7 @@ describe('focusFirstInvalid', () => {
   });
 
   it('does nothing when no invalid field is on the page', () => {
-    document.body.innerHTML = '<input data-path="first" />';
+    fields('first');
 
     expect(() => focusFirstInvalid(() => null)({ gone: 'wrong' })).not.toThrow();
     expect(document.activeElement).toBe(document.body);

@@ -24,6 +24,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify } from '../../ui/notify.ts';
+import { safeHref } from '../../ui/safeHref.ts';
 
 const COPY = { verb: 'Copy', past: 'Copied', progressive: 'Copying' } as const;
 
@@ -74,7 +75,8 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
         });
       }
     }
-    window.open(link.url, '_blank', 'noopener,noreferrer');
+    const target = safeHref(link.url);
+    if (target) window.open(target, '_blank', 'noopener,noreferrer');
   }, focusFirstInvalid(form.getInputNode));
 
   return (

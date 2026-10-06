@@ -8,8 +8,10 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,6 +23,9 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import tools.jackson.databind.json.JsonMapper;
@@ -47,11 +52,37 @@ public class SecurityConfig {
      * style injection runs no script. {@code 'wasm-unsafe-eval'} lets the code highlighter compile its
      * WebAssembly regex engine; it allows no JavaScript eval. Plugin remotes are served from this
      * origin, so they fit.
+     *
+     * <p>Defence in depth against a script that gets in anyway (ADR-0168): inline event-handler
+     * attributes never run, and the DOM's script sinks accept only Trusted Types. Three policies
+     * may exist: {@code dompurify} (the sanitiser the code highlighter's markup goes through),
+     * {@code studio#worker} (the layout worker's script URL) and {@code default} (text without
+     * markup into a style element, which Mantine needs).
      */
     static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; "
-            + "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
-            + "connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; "
-            + "form-action 'self'; frame-ancestors 'none'";
+            + "script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+            + "font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; "
+            + "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; "
+            + "require-trusted-types-for 'script'; trusted-types default dompurify studio#worker";
+
+    /** Nothing a page needs from a camera, a sensor, a payment sheet or a USB port. */
+    static final String PERMISSIONS_POLICY = "accelerometer=(), autoplay=(), camera=(), display-capture=(), "
+            + "fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), "
+            + "payment=(), usb=(), xr-spatial-tracking=()";
+
+    /**
+     * The headers every response carries, API answers, the SPA shell, static assets and refusals
+     * alike (ADR-0168). HSTS stays Spring's default: sent over HTTPS only, never on plain HTTP.
+     */
+    private static void responseHeaders(HeadersConfigurer<HttpSecurity> headers) {
+        headers.contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
+                .contentTypeOptions(Customizer.withDefaults())
+                .frameOptions(frame -> frame.deny())
+                .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+                .permissionsPolicyHeader(permissions -> permissions.policy(PERMISSIONS_POLICY))
+                .crossOriginOpenerPolicy(coop -> coop.policy(CrossOriginOpenerPolicy.SAME_ORIGIN))
+                .crossOriginResourcePolicy(corp -> corp.policy(CrossOriginResourcePolicy.SAME_ORIGIN));
+    }
 
     @Bean
     SecurityFilterChain filterChain(
@@ -75,7 +106,7 @@ public class SecurityConfig {
                         // BearerAuthenticationFilter answers it with a 401 problem.
                         .ignoringRequestMatchers(
                                 request -> request.getAttribute(BearerAuthenticationFilter.AUTHENTICATED) != null))
-                .headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY)))
+                .headers(SecurityConfig::responseHeaders)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(new ProblemAccessDeniedHandler(json)))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(

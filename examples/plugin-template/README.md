@@ -137,5 +137,8 @@ update signed by a different trusted key is allowed, but the installer must conf
 - **In the UI, import from `@artemis-studio/plugin-sdk`, `@mantine/core`, `@mantine/hooks`, React and TanStack
   only** — Studio shares those with your bundle, and the build refuses anything else from Mantine. Show
   notifications with the SDK's `notify`.
+- **Never turn a string into markup or script.** Studio's page refuses `innerHTML`, `outerHTML`,
+  `insertAdjacentHTML`, `document.write`, `eval`, `new Worker(url)` and inline event attributes, and
+  `javascript:` is not a link. Render with React, and keep a library that sets raw HTML out of the bundle.
 
 The full guide: <https://sudoitir.github.io/artemis-studio/guide/plugins>.

@@ -15,6 +15,11 @@ import '@mantine/code-highlight/styles.css';
 import '@xyflow/react/dist/style.css';
 import '../theme.css';
 
+import { installDefaultPolicy } from '../ui/trustedTypes.ts';
+
+// What main.tsx does before it renders; a test renders without main.tsx.
+installDefaultPolicy();
+
 // A face downloads when text first uses it, so `document.fonts.ready` alone would resolve before the
 // bundled typefaces had been asked for. Ask for the weights the console draws, then wait.
 beforeAll(async () => {

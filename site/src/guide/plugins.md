@@ -728,6 +728,24 @@ exports:
       `onNodeAction(nodeId, actionId)`. A box's actions open from its "⋯", a right-click or
       Shift+F10. Give an action that does not apply a `disabledReason` rather than leaving it out.
 
+### What the browser allows a plugin's UI
+
+A plugin's UI runs in Studio's page, under the page's Content-Security-Policy. Beyond keeping scripts,
+connections and workers on Studio's own origin, the policy has the browser refuse code that turns a
+string into markup or script (Trusted Types):
+
+- Assigning a string with markup to `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `document.write`
+  throws. Render with React, or build elements with `createElement` and `textContent`. Text without
+  any `<` in it is still accepted.
+- A script `src`, `new Worker(url)` and `eval` throw. Bundle what you need into your own files.
+- An inline event-handler attribute such as `onclick="…"` never runs. Use React's `onClick`.
+- `javascript:` addresses are not links. Studio's own links to a plugin's vendor, icon and start
+  paths go through a check that allows only `http:`, `https:`, `mailto:` and Studio's own address.
+
+React, Mantine and the SDK's components work as they are. A library of your own that sets `innerHTML`
+(a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
+through React, or show the text as text.
+
 ### Moving a plugin from contract 9 to 10
 
 Contract 10 makes permissions resource-scoped. Studio refuses a plugin built for contract 9, so
@@ -739,6 +757,7 @@ rebuild it against the new API and set `<studio.contract>10</studio.contract>` i
 - `PermissionResolver`'s constructor changed (a plugin receives it as a bean and never builds it),
   and `StudioPrincipal.grants()` is gone: ask `PermissionResolver.can(...)` instead of reading
   grants. A check on one queue or address passes a `ResourceRef`.
+- A plugin's UI runs under Trusted Types: see [what the browser allows a plugin's UI](#what-the-browser-allows-a-plugin-s-ui).
 
 ### Moving a plugin from contract 8 to 9
 

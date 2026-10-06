@@ -2,6 +2,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 
+import { TRUSTED_TYPES_DIRECTIVES } from './src/test/trustedTypesPolicy.ts';
+
 // Standalone from vite.config.ts: the app config carries a dev-server proxy we
 // don't want here, and the test run needs the jsdom environment + setup file.
 // Same @vitejs/plugin-react transform, so component behaviour matches the build.
@@ -61,11 +63,22 @@ export default defineConfig({
             'dayjs',
             'dayjs/plugin/timezone',
             'dayjs/plugin/utc',
+            'dompurify',
             'elkjs/lib/elk-api.js',
             'elkjs/lib/elk.bundled.js',
+            'shiki/core',
+            'shiki/engine/oniguruma',
+            'shiki/wasm',
+            '@shikijs/langs/json',
+            '@shikijs/langs/properties',
+            '@shikijs/langs/sql',
+            '@shikijs/langs/xml',
+            '@shikijs/langs/yaml',
             'uqr',
           ],
         },
+        // Every browser test runs with Trusted Types enforced, as Studio's pages do (ADR-0168).
+        server: { headers: { 'Content-Security-Policy': TRUSTED_TYPES_DIRECTIVES } },
         test: {
           name: 'browser',
           setupFiles: ['./src/test/browser-setup.ts'],
