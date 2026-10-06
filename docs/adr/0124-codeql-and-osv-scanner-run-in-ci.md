@@ -1,7 +1,9 @@
 # ADR-0124: CodeQL and OSV-Scanner run in CI
 
 - **Status**: accepted, amended by [ADR-0126](0126-pull-requests-verify-main-releases-what-changed.md)
-  (pull requests are scanned only when a manifest changes)
+  (pull requests are scanned only when a manifest changes) and by
+  [ADR-0171](0171-unfixable-vulnerabilities-warn-and-do-not-fail-ci.md) (only a finding with a
+  fixed version fails; the rest warn)
 - **Date**: 2026-09-28
 - **Deciders**: Mahdi Amirabdollahi
 
