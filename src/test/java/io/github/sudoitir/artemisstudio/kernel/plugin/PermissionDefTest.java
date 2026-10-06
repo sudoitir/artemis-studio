@@ -18,8 +18,10 @@ class PermissionDefTest {
 
     @Test
     void onlyAResourcePermissionNamesKinds() {
-        assertThatThrownBy(() -> new PermissionDef(
-                        "cluster:read", "Read", PermissionScope.CLUSTER, Set.of(ResourceKind.QUEUE), Set.of()))
+        Set<ResourceKind> kinds = Set.of(ResourceKind.QUEUE);
+        Set<String> noRequirements = Set.of();
+        assertThatThrownBy(
+                        () -> new PermissionDef("cluster:read", "Read", PermissionScope.CLUSTER, kinds, noRequirements))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cluster:read");
     }

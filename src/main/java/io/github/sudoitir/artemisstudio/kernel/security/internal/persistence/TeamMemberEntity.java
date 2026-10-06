@@ -63,11 +63,11 @@ public class TeamMemberEntity {
         this.roleId = roleId;
     }
 
-    public static TeamMemberEntity user(UUID teamId, UUID userId, UUID roleId) {
+    public static TeamMemberEntity ofUser(UUID teamId, UUID userId, UUID roleId) {
         return new TeamMemberEntity(teamId, USER, userId, null, null, roleId);
     }
 
-    public static TeamMemberEntity group(UUID teamId, String providerId, String groupName, UUID roleId) {
+    public static TeamMemberEntity ofGroup(UUID teamId, String providerId, String groupName, UUID roleId) {
         return new TeamMemberEntity(teamId, GROUP, null, providerId, groupName, roleId);
     }
 }

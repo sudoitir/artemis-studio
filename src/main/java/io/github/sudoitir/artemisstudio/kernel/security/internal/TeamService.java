@@ -72,6 +72,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class TeamService {
 
     private static final int EXAMPLES = 20;
+    private static final String PATTERN = "pattern";
+    private static final String CLUSTER_ID = "clusterId";
+    private static final String MEMBER = "member";
 
     private static final String USER_ADMIN =
             "@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)";
@@ -192,9 +195,12 @@ public class TeamService {
                 "team",
                 team.getName(),
                 Map.of(
-                        "pattern", pattern.text(),
-                        "kind", request.kind().name(),
-                        "clusterId", request.clusterId().toString()));
+                        PATTERN,
+                        pattern.text(),
+                        "kind",
+                        request.kind().name(),
+                        CLUSTER_ID,
+                        request.clusterId().toString()));
         accessChanges.changed();
         return patternView(saved);
     }
@@ -211,9 +217,12 @@ public class TeamService {
                 "team",
                 team.getName(),
                 Map.of(
-                        "pattern", pattern.getPattern(),
-                        "kind", pattern.getKind(),
-                        "clusterId", pattern.getClusterId().toString()));
+                        PATTERN,
+                        pattern.getPattern(),
+                        "kind",
+                        pattern.getKind(),
+                        CLUSTER_ID,
+                        pattern.getClusterId().toString()));
         accessChanges.changed();
     }
 
@@ -263,37 +272,44 @@ public class TeamService {
             throw new AccessDeniedException(
                     "Only a user administrator can add a directory group as a member of a team.");
         }
-        TeamMemberEntity member;
-        String description;
-        if (request.principalType() == PrincipalType.USER) {
-            AppUserEntity user = request.userId() == null
-                    ? null
-                    : users.findById(request.userId()).orElse(null);
-            if (user == null) {
-                throw new NotFoundException("user", request.userId());
-            }
-            member = TeamMemberEntity.user(teamId, user.getId(), role.getId());
-            description = "user " + user.getUsername();
-        } else {
-            String provider =
-                    request.providerId() == null ? "" : request.providerId().strip();
-            String group =
-                    request.groupName() == null ? "" : request.groupName().strip();
-            if (provider.isEmpty() || group.isEmpty()) {
-                throw new IllegalArgumentException("A group member needs the identity provider and the group name.");
-            }
-            requireExternalProvider(provider);
-            member = TeamMemberEntity.group(teamId, provider, group, role.getId());
-            description = "group " + group + " of " + provider;
-        }
+        Candidate candidate = request.principalType() == PrincipalType.USER
+                ? userCandidate(teamId, request, role)
+                : groupCandidate(teamId, request, role);
+        TeamMemberEntity member = candidate.member();
+        String description = candidate.description();
         if (existing(teamId, member).isPresent()) {
             throw new ConflictException("team-member-exists", "The " + description + " is already a member.");
         }
         TeamMemberEntity saved = members.save(member);
-        audit.changed("TEAM_MEMBER_ADD", "team", team.getName(), Map.of("member", description, "role", role.getName()));
+        audit.changed("TEAM_MEMBER_ADD", "team", team.getName(), Map.of(MEMBER, description, "role", role.getName()));
         accessChanges.changed();
         endSessionsWhereASecondFactorIsNowRequired(saved, role);
         return memberView(saved, roleNames(), usernames(List.of(saved)));
+    }
+
+    /** A member about to be added, and how the audit trail names them. */
+    private record Candidate(TeamMemberEntity member, String description) {}
+
+    private Candidate userCandidate(UUID teamId, MemberRequest request, RoleEntity role) {
+        AppUserEntity user = request.userId() == null
+                ? null
+                : users.findById(request.userId()).orElse(null);
+        if (user == null) {
+            throw new NotFoundException("user", request.userId());
+        }
+        return new Candidate(TeamMemberEntity.ofUser(teamId, user.getId(), role.getId()), "user " + user.getUsername());
+    }
+
+    private Candidate groupCandidate(UUID teamId, MemberRequest request, RoleEntity role) {
+        String provider =
+                request.providerId() == null ? "" : request.providerId().strip();
+        String group = request.groupName() == null ? "" : request.groupName().strip();
+        if (provider.isEmpty() || group.isEmpty()) {
+            throw new IllegalArgumentException("A group member needs the identity provider and the group name.");
+        }
+        requireExternalProvider(provider);
+        return new Candidate(
+                TeamMemberEntity.ofGroup(teamId, provider, group, role.getId()), "group " + group + " of " + provider);
     }
 
     @Transactional
@@ -312,7 +328,7 @@ public class TeamService {
                 "TEAM_MEMBER_ROLE",
                 "team",
                 team.getName(),
-                Map.of("member", describe(member, usernames(List.of(member))), "role", role.getName()));
+                Map.of(MEMBER, describe(member, usernames(List.of(member))), "role", role.getName()));
         accessChanges.changed();
         endSessionsWhereASecondFactorIsNowRequired(member, role);
         return memberView(member, roleNames(), usernames(List.of(member)));
@@ -331,7 +347,7 @@ public class TeamService {
                 "TEAM_MEMBER_REMOVE",
                 "team",
                 team.getName(),
-                Map.of("member", describe(member, usernames(List.of(member)))));
+                Map.of(MEMBER, describe(member, usernames(List.of(member)))));
         accessChanges.changed();
     }
 
@@ -378,11 +394,16 @@ public class TeamService {
                 "team",
                 owner.getName(),
                 Map.of(
-                        "with", target.getName(),
-                        "pattern", pattern.text(),
-                        "kind", request.kind().name(),
-                        "role", role.getName(),
-                        "clusterId", request.clusterId().toString()));
+                        "with",
+                        target.getName(),
+                        PATTERN,
+                        pattern.text(),
+                        "kind",
+                        request.kind().name(),
+                        "role",
+                        role.getName(),
+                        CLUSTER_ID,
+                        request.clusterId().toString()));
         accessChanges.changed();
         return shareView(saved, teamNames(), roleNames());
     }
@@ -398,7 +419,7 @@ public class TeamService {
                 "TEAM_SHARE_REMOVE",
                 "team",
                 owner.getName(),
-                Map.of("pattern", share.getPattern(), "kind", share.getKind()));
+                Map.of(PATTERN, share.getPattern(), "kind", share.getKind()));
         accessChanges.changed();
     }
 

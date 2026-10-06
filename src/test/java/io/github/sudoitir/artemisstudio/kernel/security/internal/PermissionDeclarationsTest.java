@@ -24,13 +24,19 @@ class PermissionDeclarationsTest {
 
     static class Guarded {
         @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-        public void constant() {}
+        public void constant() {
+            // Only the annotation is read.
+        }
 
         @PreAuthorize("@perm.can(#clusterId, 'queue:read') and @perm.can(#clusterId, #permission)")
-        public void literalWithCluster(String clusterId, String permission) {}
+        public void literalWithCluster(String clusterId, String permission) {
+            // Only the annotation is read.
+        }
 
         @PreAuthorize("@perm.can('*')")
-        public void wildcard() {}
+        public void wildcard() {
+            // Only the annotation is read.
+        }
     }
 
     private final FeatureRegistry registry = mock(FeatureRegistry.class);

@@ -47,6 +47,7 @@ public class PluginValidator {
     private static final String REUPLOAD = "Re-upload the jar.";
 
     private static final Pattern METRIC_NAME = Pattern.compile("[a-z0-9-]+:[a-z][a-z0-9_.]{0,63}");
+    private static final String RESOURCE_KINDS_CODE = "permission-resource-kinds";
     private static final Set<String> SCOPES = Set.of("global", "cluster", "resource");
     private static final Set<String> RESOURCE_KINDS = Set.of("queue", "address");
     private static final Set<String> METRIC_UNITS = Set.of("count", "per_second", "ms", "ratio");
@@ -518,12 +519,12 @@ public class PluginValidator {
                         "Declare scope as \"global\", \"cluster\" or \"resource\"."));
             } else if (resource && permission.resourceKinds().isEmpty()) {
                 violations.add(new Violation(
-                        "permission-resource-kinds",
+                        RESOURCE_KINDS_CODE,
                         "Permission \"%s\" has scope \"resource\" but names no resourceKinds.".formatted(action),
                         "Declare resourceKinds as [\"queue\"], [\"address\"] or both."));
             } else if (!resource && !permission.resourceKinds().isEmpty()) {
                 violations.add(new Violation(
-                        "permission-resource-kinds",
+                        RESOURCE_KINDS_CODE,
                         "Permission \"%s\" names resourceKinds but its scope is \"%s\"."
                                 .formatted(action, permission.scope()),
                         "Remove resourceKinds, or change the scope to \"resource\"."));
@@ -531,7 +532,7 @@ public class PluginValidator {
             permission.resourceKinds().stream()
                     .filter(kind -> !RESOURCE_KINDS.contains(kind))
                     .forEach(kind -> violations.add(new Violation(
-                            "permission-resource-kinds",
+                            RESOURCE_KINDS_CODE,
                             "Permission \"%s\" names resource kind \"%s\", which is not queue or address."
                                     .formatted(action, kind),
                             "Name \"queue\", \"address\" or both.")));

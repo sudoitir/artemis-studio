@@ -60,32 +60,33 @@ public record ResourcePattern(String text, List<String> words) {
     public static boolean overlaps(ResourcePattern a, ResourcePattern b) {
         List<String> x = a.words;
         List<String> y = b.words;
-        int m = x.size();
-        int n = y.size();
         // meet[i][j]: some name sequence matches both x[i..] and y[j..].
-        boolean[][] meet = new boolean[m + 1][n + 1];
-        for (int i = m; i >= 0; i--) {
-            for (int j = n; j >= 0; j--) {
-                boolean xMany = i < m && x.get(i).equals(MANY);
-                boolean yMany = j < n && y.get(j).equals(MANY);
-                boolean met = i == m && j == n;
-                if (xMany) {
-                    // '#' takes no word, or takes the word y's next token takes and stays.
-                    met = meet[i + 1][j] || (j < n && !yMany && meet[i][j + 1]);
-                }
-                if (yMany) {
-                    met = met || meet[i][j + 1] || (i < m && !xMany && meet[i + 1][j]);
-                }
-                if (i < m && j < n && !xMany && !yMany) {
-                    met = (x.get(i).equals(ONE)
-                                    || y.get(j).equals(ONE)
-                                    || x.get(i).equals(y.get(j)))
-                            && meet[i + 1][j + 1];
-                }
-                meet[i][j] = met;
+        boolean[][] meet = new boolean[x.size() + 1][y.size() + 1];
+        for (int i = x.size(); i >= 0; i--) {
+            for (int j = y.size(); j >= 0; j--) {
+                meet[i][j] = meets(x, y, meet, i, j);
             }
         }
         return meet[0][0];
+    }
+
+    private static boolean meets(List<String> x, List<String> y, boolean[][] meet, int i, int j) {
+        if (i == x.size() && j == y.size()) {
+            return true;
+        }
+        boolean xMany = i < x.size() && x.get(i).equals(MANY);
+        boolean yMany = j < y.size() && y.get(j).equals(MANY);
+        if (!xMany && !yMany) {
+            return i < x.size() && j < y.size() && sameWord(x.get(i), y.get(j)) && meet[i + 1][j + 1];
+        }
+        // A '#' takes no word, or takes the word the other side's next token takes, and stays.
+        boolean viaX = xMany && (meet[i + 1][j] || (j < y.size() && !yMany && meet[i][j + 1]));
+        boolean viaY = yMany && (meet[i][j + 1] || (i < x.size() && !xMany && meet[i + 1][j]));
+        return viaX || viaY;
+    }
+
+    private static boolean sameWord(String x, String y) {
+        return x.equals(ONE) || y.equals(ONE) || x.equals(y);
     }
 
     /**
@@ -101,13 +102,8 @@ public record ResourcePattern(String text, List<String> words) {
         Nfa innerNfa = new Nfa(inner.words);
         Set<String> alphabet = new TreeSet<>();
         alphabet.add(OTHER);
-        for (String word : outer.words) {
-            addLiteral(alphabet, word);
-        }
-        for (String word : inner.words) {
-            addLiteral(alphabet, word);
-        }
-        record Pair(BitSet inner, BitSet outer) {}
+        outer.words.forEach(word -> addLiteral(alphabet, word));
+        inner.words.forEach(word -> addLiteral(alphabet, word));
         Pair start = new Pair(innerNfa.start(), outerNfa.start());
         Set<Pair> seen = new HashSet<>(Set.of(start));
         ArrayDeque<Pair> queue = new ArrayDeque<>(List.of(start));
@@ -115,20 +111,24 @@ public record ResourcePattern(String text, List<String> words) {
             Pair pair = queue.poll();
             for (String word : alphabet) {
                 BitSet next = innerNfa.step(pair.inner, word);
-                if (!next.isEmpty()) {
-                    Pair successor = new Pair(next, outerNfa.step(pair.outer, word));
-                    // A name has at least one word, so the empty sequence a '#' alone would match is not checked.
-                    if (innerNfa.accepts(next) && !outerNfa.accepts(successor.outer)) {
-                        return false;
-                    }
-                    if (seen.add(successor)) {
-                        queue.add(successor);
-                    }
+                if (next.isEmpty()) {
+                    continue;
+                }
+                Pair successor = new Pair(next, outerNfa.step(pair.outer, word));
+                // A name has at least one word, so the empty sequence a '#' alone would match is not checked.
+                if (innerNfa.accepts(next) && !outerNfa.accepts(successor.outer)) {
+                    return false;
+                }
+                if (seen.add(successor)) {
+                    queue.add(successor);
                 }
             }
         }
         return true;
     }
+
+    /** Where the inner and the outer pattern are after the same words. */
+    private record Pair(BitSet inner, BitSet outer) {}
 
     private static void addLiteral(Set<String> alphabet, String word) {
         if (!word.equals(ONE) && !word.equals(MANY)) {

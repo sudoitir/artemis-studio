@@ -200,7 +200,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
         var role = roleService.create(new RoleRequest("group-mfa-role", List.of("queue:read"), true, true));
         openSession(user.getUsername());
 
-        teamMembers.save(TeamMemberEntity.group(team, "dir", "eng", role.id()));
+        teamMembers.save(TeamMemberEntity.ofGroup(team, "dir", "eng", role.id()));
 
         assertThat(accounts.holdsMfaRole(user.getId())).isTrue();
         // The role is what requires the factor, so the requirement ends with it.
@@ -216,7 +216,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
         UUID team = teams.create("switch-" + UUID.randomUUID()).id();
         var role = roleService.create(new RoleRequest("team-switch-role", List.of("queue:read"), false, true));
         teams.addMember(team, new MemberRequest(PrincipalType.USER, direct.getId(), null, null, role.id()));
-        teamMembers.save(TeamMemberEntity.group(team, "dir", "ops", role.id()));
+        teamMembers.save(TeamMemberEntity.ofGroup(team, "dir", "ops", role.id()));
         openSession(direct.getUsername());
         openSession(viaGroup.getUsername());
 

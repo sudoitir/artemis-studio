@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -59,7 +60,7 @@ public class TeamIndex {
 
     private final Object lock = new Object();
     private long generation;
-    private volatile Built index;
+    private final AtomicReference<Built> index = new AtomicReference<>();
 
     /** The team that owns the name on the cluster; at most one, because teams may not overlap on a cluster. */
     public Optional<UUID> ownerOf(UUID clusterId, ResourceRef ref) {
@@ -99,12 +100,12 @@ public class TeamIndex {
     void invalidate() {
         synchronized (lock) {
             generation++;
-            index = null;
+            index.set(null);
         }
     }
 
     private ClusterTeams of(UUID clusterId) {
-        Built current = index;
+        Built current = index.get();
         if (current == null || System.nanoTime() - current.at() > EXPIRY_NANOS) {
             long startedAt;
             synchronized (lock) {
@@ -115,7 +116,7 @@ public class TeamIndex {
                 // A change announced while this was being read from the database may be missing from it:
                 // use what was read for this call, but do not keep it.
                 if (generation == startedAt) {
-                    index = current;
+                    index.set(current);
                 }
             }
         }

@@ -87,19 +87,24 @@ class PermissionDeclarations implements PluginBridge {
                 });
         catalogue.values().stream()
                 .filter(e -> e.description() == null || e.description().isBlank())
-                .forEach(e -> found.add("'" + e.action() + "' of " + e.featureId() + " has no description"));
+                .forEach(e -> found.add(describe(e) + " has no description"));
         catalogue.values().forEach(e -> {
             if (e.scope() == PermissionScope.RESOURCE && e.resourceKinds().isEmpty()) {
-                found.add("'" + e.action() + "' of " + e.featureId() + " acts on a resource but names no kind");
+                found.add(describe(e) + " acts on a resource but names no kind");
             }
             e.requires().stream()
                     .filter(required -> !catalogue.containsKey(required))
                     .sorted()
-                    .forEach(required -> found.add("'" + e.action() + "' of " + e.featureId() + " requires '" + required
-                            + "', which is not in the permission catalogue"));
+                    .forEach(required -> found.add(
+                            describe(e) + " requires '" + required + "', which is not in the permission catalogue"));
         });
         requirementCycles(catalogue).forEach(cycle -> found.add("Permissions require each other: " + cycle));
         return found.stream().distinct().toList();
+    }
+
+    /** How a catalogue entry is named in a mismatch: its action and the feature that declares it. */
+    private static String describe(CatalogueEntry entry) {
+        return "'" + entry.action() + "' of " + entry.featureId();
     }
 
     /** Each cycle of the requires graph once, written as the chain that closes it. */

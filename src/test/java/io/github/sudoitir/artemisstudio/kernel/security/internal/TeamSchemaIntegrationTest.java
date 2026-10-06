@@ -53,7 +53,8 @@ class TeamSchemaIntegrationTest extends PostgresIntegrationTest {
         String name = "Orders-" + UUID.randomUUID();
         jdbc.update("INSERT INTO team (name) VALUES (?)", name);
 
-        assertThatThrownBy(() -> jdbc.update("INSERT INTO team (name) VALUES (?)", name.toUpperCase()))
+        var value = name.toUpperCase();
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO team (name) VALUES (?)", value))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -95,12 +96,9 @@ class TeamSchemaIntegrationTest extends PostgresIntegrationTest {
                         "INSERT INTO team_member (principal_type, team_id, role_id) VALUES ('USER', ?, ?)", team, role))
                 .as("a user member without a user")
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> jdbc.update(
-                        "INSERT INTO team_member (principal_type, user_id, group_name, provider_id, team_id, role_id)"
-                                + " VALUES ('GROUP', ?, 'g', 'ldap', ?, ?)",
-                        user,
-                        team,
-                        role))
+        var value2 = "INSERT INTO team_member (principal_type, user_id, group_name, provider_id, team_id, role_id)"
+                + " VALUES ('GROUP', ?, 'g', 'ldap', ?, ?)";
+        assertThatThrownBy(() -> jdbc.update(value2, user, team, role))
                 .as("a group member that is also a user")
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -114,7 +112,8 @@ class TeamSchemaIntegrationTest extends PostgresIntegrationTest {
 
         jdbc.update(share, owner, team("target"), UUID.randomUUID(), role);
 
-        assertThatThrownBy(() -> jdbc.update(share, owner, owner, UUID.randomUUID(), role))
+        var id = UUID.randomUUID();
+        assertThatThrownBy(() -> jdbc.update(share, owner, owner, id, role))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

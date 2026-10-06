@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.transfer;
 
+import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Finding;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.FindingKind;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.SelectionKind;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferExecuteRequest;
@@ -173,7 +174,7 @@ abstract class TransferTestSupport extends PostgresIntegrationTest {
     private static void quietly(Runnable r) {
         try {
             r.run();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // best effort
         }
     }
@@ -260,7 +261,7 @@ abstract class TransferTestSupport extends PostgresIntegrationTest {
     TransferRunView execute(TransferRunView preview, boolean override) {
         List<String> warnings = preview.findings().stream()
                 .filter(f -> f.kind() == FindingKind.WARN)
-                .map(f -> f.code())
+                .map(Finding::code)
                 .toList();
         TransferRunView run = transfers.execute(
                 preview.source().clusterId(),

@@ -61,10 +61,10 @@ public class FeatureRegistry implements PluginBridge {
 
     private volatile String manifestVersion = manifestVersionOf(Map.of());
 
-    /** The catalogue by action, as of {@link #catalogueVersion}; rebuilt when the plugin set changes. */
-    private volatile Map<String, CatalogueEntry> catalogueByAction = Map.of();
+    /** The catalogue by action as of one manifest version, replaced whole when the plugin set changes. */
+    private record CatalogueIndex(String version, Map<String, CatalogueEntry> byAction) {}
 
-    private volatile String catalogueVersion;
+    private final AtomicReference<CatalogueIndex> catalogueIndex = new AtomicReference<>();
 
     public FeatureRegistry(InstalledFeatures installed, Environment environment, ApplicationEventPublisher events) {
         this.events = events;
@@ -283,13 +283,14 @@ public class FeatureRegistry implements PluginBridge {
     /** One catalogue entry by its action; empty when no enabled module or active plugin declares it. */
     public Optional<CatalogueEntry> permission(String action) {
         String version = manifestVersion;
-        if (!version.equals(catalogueVersion)) {
+        CatalogueIndex current = catalogueIndex.get();
+        if (current == null || !current.version().equals(version)) {
             Map<String, CatalogueEntry> byAction = new HashMap<>();
             catalogue().forEach(entry -> byAction.putIfAbsent(entry.action(), entry));
-            catalogueByAction = Map.copyOf(byAction);
-            catalogueVersion = version;
+            current = new CatalogueIndex(version, Map.copyOf(byAction));
+            catalogueIndex.set(current);
         }
-        return Optional.ofNullable(catalogueByAction.get(action));
+        return Optional.ofNullable(current.byAction().get(action));
     }
 
     public List<FeatureDescriptor> enabled() {
