@@ -13,6 +13,32 @@ function emptyQueues() {
   );
 }
 
+/** Signed in with every grant, so the name is not held to a team's patterns. */
+function admin() {
+  return http.get('*/api/v1/auth/me', () =>
+    HttpResponse.json({
+      id: 'u1',
+      username: 'admin',
+      mustChangePassword: false,
+      grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
+    }),
+  );
+}
+
+/** A team member: nothing is granted on the cluster, and a team lets them create under these patterns. */
+function teamMember(createPatterns: { queue: string[]; address: string[] }) {
+  return http.get('*/api/v1/me/access', ({ request }) => {
+    const clusterId = new URL(request.url).searchParams.get('clusterId');
+    return HttpResponse.json({
+      permissions: [],
+      anywhere: ['queue:create', 'address:create'],
+      canSeeCluster: clusterId ? true : null,
+      teams: [],
+      createPatterns,
+    });
+  });
+}
+
 function Harness() {
   return <CreateQueueForm clusterId="c1" opened onClose={() => {}} />;
 }
@@ -68,6 +94,7 @@ describe('CreateQueueForm', () => {
 
   it('previews the per-node outcome without creating anything', async () => {
     server.use(
+      admin(),
       emptyQueues(),
       http.post('*/api/v1/clusters/c1/queues', ({ request }) => {
         const url = new URL(request.url);
@@ -100,5 +127,50 @@ describe('CreateQueueForm', () => {
 
     expect(await screen.findByText('Would apply to 1 of 2 nodes, 1 not live and will be skipped')).toBeInTheDocument();
     expect(screen.getByText('Nothing has been created yet. This is what would happen:')).toBeInTheDocument();
+  });
+
+  describe('for a member of a team', () => {
+    it('shows the patterns they may create under, and checks the name as it is typed', async () => {
+      server.use(teamMember({ queue: ['orders.#'], address: ['orders.#'] }), emptyQueues());
+      const user = userEvent.setup();
+      renderWithProviders(<Harness />);
+
+      const name = await screen.findByRole('textbox', { name: /queue name/i });
+      expect(await screen.findByText('You may create queues under: orders.#.')).toBeInTheDocument();
+
+      // No blur, no submit: the problem shows while the name is being typed.
+      await user.type(name, 'billing.in');
+      expect(
+        await screen.findByText(/billing\.in is outside the patterns you may create queues under/),
+      ).toBeInTheDocument();
+
+      await user.clear(name);
+      await user.type(name, 'orders.in');
+      await waitFor(() => expect(screen.queryByText(/is outside the patterns/)).not.toBeInTheDocument());
+    });
+
+    it('checks the address against the address patterns, which may differ from the queue ones', async () => {
+      server.use(teamMember({ queue: ['orders.#'], address: ['orders.addr.#'] }), emptyQueues());
+      const user = userEvent.setup();
+      renderWithProviders(<Harness />);
+
+      const address = await screen.findByRole('textbox', { name: /address/i });
+      expect(await screen.findByText(/You may create addresses under: orders\.addr\.#\./)).toBeInTheDocument();
+      await user.type(address, 'orders.in');
+
+      expect(
+        await screen.findByText(/orders\.in is outside the patterns you may create addresses under/),
+      ).toBeInTheDocument();
+    });
+
+    it('does not restrict the name of someone whose grant reaches the cluster', async () => {
+      server.use(admin(), emptyQueues());
+      const user = userEvent.setup();
+      renderWithProviders(<Harness />);
+
+      await user.type(await screen.findByRole('textbox', { name: /queue name/i }), 'anything.at.all');
+      expect(screen.queryByText(/You may create queues under/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/is outside the patterns/)).not.toBeInTheDocument();
+    });
   });
 });

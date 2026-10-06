@@ -12,7 +12,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router';
 
 import { useCluster } from '../clusters/index.ts';
-import { useCan } from '../../kernel/auth/useCan.ts';
+import { useResourceGate } from '../../kernel/auth/useResourceGate.ts';
 import type {
   ActionProps,
   AddressTarget,
@@ -25,7 +25,6 @@ import type {
 import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { queueHref } from './queueHref.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
-import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Notice } from '../../ui/Notice.tsx';
@@ -36,16 +35,21 @@ import { EditQueueForm } from './EditQueueForm.tsx';
 import { DeleteQueueDialog } from './QueueLifecycleActions.tsx';
 import linkClasses from '../../ui/InlineLink.module.css';
 
-/** Whether a management write on this cluster may be attempted, and why not (non-negotiable #5). */
-function useWriteGate(clusterId: string, permission: string, label: string): GateVerdict {
-  const { can, loading } = useCan();
+/**
+ * The state of a management write on one queue: hidden when the caller cannot take it anywhere on the cluster,
+ * otherwise a verdict, which is blocked on this queue when the row does not allow it (non-negotiable #5).
+ */
+function useWriteGate(clusterId: string, target: QueueTarget, permission: string, label: string) {
   const cluster = useCluster(clusterId);
-  return gateFor(
-    can(permission, clusterId),
+  return useResourceGate({
+    clusterId,
+    noun: 'queue',
+    permission,
     label,
-    cluster.data?.capabilities.managementWrite,
-    loading || cluster.isPending,
-  );
+    resource: target.snapshot,
+    capability: cluster.data?.capabilities.managementWrite,
+    pending: cluster.isPending,
+  });
 }
 
 /**
@@ -193,10 +197,11 @@ function pauseLabel(paused: boolean | undefined): string {
 }
 
 export function PauseResumeQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
-  const gate = useWriteGate(clusterId, 'queue:pause', 'Pause and resume queues');
+  const { hidden, verdict: gate } = useWriteGate(clusterId, target, 'queue:pause', 'Pause and resume queues');
   const { queue } = useQueue(clusterId, target.queueName, target.snapshot);
   const paused = queue ? queue.perNode.some((n) => n.paused) : undefined;
   const label = pauseLabel(paused);
+  if (hidden) return null;
   return (
     <ActionMenuItem
       label={label}
@@ -215,7 +220,8 @@ export function PauseResumeQueue({ clusterId, target, host }: Readonly<ActionPro
 }
 
 export function EditQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
-  const gate = useWriteGate(clusterId, 'queue:update', "Change a queue's configuration");
+  const { hidden, verdict: gate } = useWriteGate(clusterId, target, 'queue:update', "Change a queue's configuration");
+  if (hidden) return null;
   return (
     <ActionMenuItem
       label="Edit configuration…"
@@ -234,7 +240,8 @@ export function EditQueue({ clusterId, target, host }: Readonly<ActionProps<Queu
 }
 
 export function DeleteQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
-  const gate = useWriteGate(clusterId, 'queue:delete', 'Destroy queues and addresses');
+  const { hidden, verdict: gate } = useWriteGate(clusterId, target, 'queue:delete', 'Destroy queues and addresses');
+  if (hidden) return null;
   return (
     <ActionMenuItem
       label="Delete queue…"

@@ -52,6 +52,15 @@ function queue(over: Partial<QueueView> = {}): QueueView {
   return {
     address: 'orders.addr',
     queueName: 'orders',
+    allowedActions: [
+      'queue:read',
+      'queue:pause',
+      'queue:update',
+      'queue:delete',
+      'queue:purge',
+      'message:read',
+      'message:move',
+    ],
     routingType: 'ANYCAST',
     durable: true,
     totalMessageCount: 12,
@@ -125,17 +134,87 @@ describe('QueueLifecycleActions capability gating', () => {
     expect(screen.getByText(/security-setting match/)).toBeInTheDocument();
   });
 
-  it('disables an action the caller has no permission for, and says which permission', async () => {
-    // Every lifecycle permission except delete.
+  it('hides an action the caller cannot take anywhere on the cluster', async () => {
+    // Every lifecycle permission except delete, held on the cluster itself: delete is not theirs to be offered.
     server.use(meHandler(['queue:create', 'queue:update', 'queue:pause', 'cluster:read']), clusterHandler(AVAILABLE));
-    const user = userEvent.setup();
     renderWithProviders(<Harness />);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete queue' })).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Why deleting this queue is unavailable' })).not.toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole('button', { name: 'Why deleting this queue is unavailable' }));
-    expect(await screen.findByText(/Destroy queues and addresses/)).toBeInTheDocument();
+  describe('for a team member on a queue the team does not own', () => {
+    /** Holds pause, edit and delete through teams somewhere on the cluster, and on this queue only pause. */
+    function teamAccess() {
+      return http.get('*/api/v1/me/access', ({ request }) => {
+        const clusterId = new URL(request.url).searchParams.get('clusterId');
+        return HttpResponse.json({
+          permissions: [],
+          anywhere: ['queue:pause', 'queue:update', 'queue:delete'],
+          canSeeCluster: clusterId ? true : null,
+          teams: [],
+          createPatterns: { queue: [], address: [] },
+        });
+      });
+    }
+
+    function SharedQueue() {
+      return (
+        <QueueLifecycleActions
+          clusterId="c1"
+          queue={queue({
+            allowedActions: ['queue:read', 'queue:pause'],
+            ownerTeam: { id: 't1', name: 'Orders' },
+          })}
+          onClose={() => {}}
+        />
+      );
+    }
+
+    it('shows the others disabled, naming the permission and the team to ask', async () => {
+      server.use(teamAccess(), clusterHandler(AVAILABLE));
+      const user = userEvent.setup();
+      renderWithProviders(<SharedQueue />);
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Delete queue' })).toBeDisabled());
+      expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
+
+      await user.click(screen.getByRole('button', { name: 'Why deleting this queue is unavailable' }));
+      expect(
+        await screen.findByText(
+          'You do not have the "Destroy queues and addresses" permission (queue:delete) on this queue. Ask an admin of team Orders.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('puts the reason one Tab from the enabled control, and opens it from the keyboard', async () => {
+      server.use(teamAccess(), clusterHandler(AVAILABLE));
+      const user = userEvent.setup();
+      renderWithProviders(<SharedQueue />);
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled());
+      screen.getByRole('button', { name: 'Pause' }).focus();
+      // The disabled Edit takes no focus; the control beside it that carries its reason does.
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Why editing this queue is unavailable' })).toHaveFocus();
+
+      await user.keyboard('{Enter}');
+      expect(
+        await screen.findByText(/\(queue:update\) on this queue\. Ask an admin of team Orders\./),
+      ).toBeInTheDocument();
+    });
+
+    it('points at a platform administrator when no team owns the queue', async () => {
+      server.use(teamAccess(), clusterHandler(AVAILABLE));
+      const user = userEvent.setup();
+      renderWithProviders(
+        <QueueLifecycleActions clusterId="c1" queue={queue({ allowedActions: ['queue:read'] })} onClose={() => {}} />,
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Why deleting this queue is unavailable' }));
+      expect(await screen.findByText(/Ask a platform administrator\./)).toBeInTheDocument();
+    });
   });
 });
 

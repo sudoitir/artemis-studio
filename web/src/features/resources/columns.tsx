@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { OwnerChip } from '../../kernel/auth/OwnerChip.tsx';
 import { ResourceLink } from '../../kernel/actions/ResourceLink.tsx';
 import { MiddleTruncate, type Column } from '../../ui/table/index.ts';
 import type { AddressView, ConnectionView, ConsumerView, ProducerView, SessionView } from './api.ts';
@@ -67,6 +68,15 @@ export const resourceColumns = {
       kind: 'identifier',
       priority: 'essential',
       sortKey: 'name',
+    },
+    {
+      id: 'owner',
+      header: 'Owner',
+      description: 'The team whose patterns own this address',
+      accessor: (r) => r.ownerTeam?.name ?? 'No owner',
+      cell: (r) => <OwnerChip team={r.ownerTeam} />,
+      kind: 'status',
+      priority: 'high',
     },
     { id: 'routing', header: 'Routing', accessor: (r) => r.routingTypes ?? '', kind: 'status', priority: 'low' },
     { id: 'queues', header: 'Queues', accessor: (r) => r.queueCount, kind: 'number', priority: 'high' },

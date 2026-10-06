@@ -29,19 +29,24 @@ export function TransferActions({
   total,
   clear,
 }: Readonly<SlotProps['messages.selection']>) {
-  const { can, loading } = useCan();
+  const { canAnywhere, loading } = useCan();
   const cluster = useCluster(clusterId);
   const [opened, setOpened] = useState<'transfer' | 'redistribute' | null>(null);
   const pending = loading || cluster.isPending;
 
   // Either mode will do here; the dialog gates each one on its own permission.
   const transferGate = withSelection(
-    gateFor(can('message:move', clusterId) || can('message:read', clusterId), 'Browse messages', undefined, pending),
+    gateFor(
+      canAnywhere('message:move', clusterId) || canAnywhere('message:read', clusterId),
+      'Browse messages',
+      undefined,
+      pending,
+    ),
     total,
   );
   const live = endpointsOf(cluster.data?.topology).filter(serving).length;
   const moveGate = gateFor(
-    can('message:move', clusterId),
+    canAnywhere('message:move', clusterId),
     'Move or retry messages',
     cluster.data?.capabilities.managementWrite,
     pending,

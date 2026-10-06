@@ -13,16 +13,41 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
   useParams: () => ({ clusterId: 'c1' }),
   useSearch: () => search,
   useNavigate: () => navigate,
+  Link: ({
+    children,
+    to,
+    search,
+    'aria-label': label,
+  }: {
+    children: React.ReactNode;
+    to?: string;
+    search?: Record<string, string>;
+    'aria-label'?: string;
+  }) => (
+    <a href={`${to ?? ''}?${new URLSearchParams(search ?? {})}`} aria-label={label}>
+      {children}
+    </a>
+  ),
 }));
 
 // The drawer and the create form have their own tests; here they only show that the view opened them.
 vi.mock('./QueueDetailDrawer.tsx', () => ({
-  QueueDetailDrawer: ({ queue, onClose }: { queue: { queueName: string } | null; onClose: () => void }) =>
+  QueueDetailDrawer: ({
+    queue,
+    missing,
+    onClose,
+  }: {
+    queue: { queueName: string } | null;
+    missing?: string;
+    onClose: () => void;
+  }) =>
     queue ? (
       <div role="dialog" aria-label="Queue detail">
         {queue.queueName}
         <button onClick={onClose}>Close detail</button>
       </div>
+    ) : missing ? (
+      <div role="dialog" aria-label={`Queue not found: ${missing}`} />
     ) : null,
 }));
 vi.mock('./CreateQueueForm.tsx', () => ({
@@ -41,6 +66,15 @@ function queue(name: string) {
   return {
     address: name,
     queueName: name,
+    allowedActions: [
+      'queue:read',
+      'queue:pause',
+      'queue:update',
+      'queue:delete',
+      'queue:purge',
+      'message:read',
+      'message:move',
+    ],
     routingType: 'ANYCAST',
     durable: true,
     totalMessageCount: 1,
@@ -118,6 +152,26 @@ function serve({
       HttpResponse.json({ data: queues, count: count ?? queues.length, page: 1, pageSize: 200 }),
     ),
   );
+}
+
+/** What `/me/access` says for someone who holds nothing on the cluster itself, and some rights through teams. */
+function teamAccess({
+  anywhere = [],
+  createPatterns = { queue: [], address: [] },
+}: {
+  anywhere?: string[];
+  createPatterns?: { queue: string[]; address: string[] };
+} = {}) {
+  return http.get('*/api/v1/me/access', ({ request }) => {
+    const clusterId = new URL(request.url).searchParams.get('clusterId');
+    return HttpResponse.json({
+      permissions: [],
+      anywhere,
+      canSeeCluster: clusterId ? true : null,
+      teams: [],
+      createPatterns,
+    });
+  });
 }
 
 /** What the last navigate() call does to the address it starts from. */
@@ -385,6 +439,49 @@ describe('QueuesView empty grid', () => {
   });
 });
 
+describe('QueuesView ownership and teams', () => {
+  it('shows each queue with the team that owns it, as a link to the team, and says when none does', async () => {
+    search = {};
+    serve({
+      queues: [{ ...queue('orders.in'), ownerTeam: { id: 't1', name: 'Orders' } }, queue('legacy.in')] as never,
+    });
+    renderWithProviders(<QueuesView />);
+
+    const grid = await screen.findByRole('grid', { name: 'Queues' });
+    const owner = await within(grid).findByRole('link', { name: 'Owner: team Orders' });
+    expect(owner).toHaveAttribute('href', expect.stringContaining('/admin'));
+    expect(owner).toHaveAttribute('href', expect.stringContaining('team=t1'));
+    expect(within(grid).getByText('No owner')).toBeInTheDocument();
+  });
+
+  it("says there are no queues in the caller's teams when they reach queues only through a team", async () => {
+    search = {};
+    serve({ permissions: [] });
+    server.use(teamAccess({ anywhere: ['queue:read'] }));
+    renderWithProviders(<QueuesView />);
+
+    expect(await screen.findByText('No queues in your teams on this cluster')).toBeInTheDocument();
+  });
+
+  it('says the caller is in no team on the cluster, and whom to ask, when they reach nothing', async () => {
+    search = {};
+    serve({ permissions: [] });
+    server.use(teamAccess());
+    renderWithProviders(<QueuesView />);
+
+    expect(await screen.findByText("You're not in any team on this cluster")).toBeInTheDocument();
+    expect(screen.getByText(/Ask a platform administrator to add you to a team/)).toBeInTheDocument();
+  });
+
+  it('turns the open queue into the not-found state when it is no longer in what the caller can list', async () => {
+    search = { queue: 'orders.in' };
+    serve({ queues: [] });
+    renderWithProviders(<QueuesView />);
+
+    expect(await screen.findByRole('dialog', { name: 'Queue not found: orders.in' })).toBeInTheDocument();
+  });
+});
+
 describe('QueuesView creating a queue', () => {
   it('opens the create form from New queue', async () => {
     search = {};
@@ -397,16 +494,29 @@ describe('QueuesView creating a queue', () => {
     expect(await screen.findByRole('dialog', { name: 'New queue form' })).toBeInTheDocument();
   });
 
-  it('keeps New queue visible but disabled, with the permission it lacks, for a read-only operator', async () => {
+  it('does not offer New queue to a read-only operator, who has nothing to create with', async () => {
     search = {};
     serve({ queues: [queue('a')], permissions: ['queue:read'] });
-    const user = userEvent.setup();
     renderWithProviders(<QueuesView />);
 
-    // While grants load the control is offered; it settles to disabled once they say so.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'New queue' })).toBeDisabled());
-    await user.click(await screen.findByRole('button', { name: 'Why creating a queue is unavailable' }));
-    expect(await screen.findByText(/You do not have the "Create queues and addresses" permission/)).toBeInTheDocument();
+    // While grants load the control is offered; it goes once they say the caller can create nowhere.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'New queue' })).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Why creating a queue is unavailable' })).not.toBeInTheDocument();
+  });
+
+  it('offers New queue to a team member whose patterns let them create, though no grant does', async () => {
+    search = {};
+    serve({ queues: [queue('a')], permissions: [] });
+    server.use(
+      teamAccess({ anywhere: ['queue:read'], createPatterns: { queue: ['orders.#'], address: ['orders.#'] } }),
+    );
+    renderWithProviders(<QueuesView />);
+
+    await screen.findByRole('grid', { name: 'Queues' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New queue' })).toBeEnabled());
+    // Settled: the answer is the team's patterns, not the loading state's benefit of the doubt.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole('button', { name: 'New queue' })).toBeEnabled();
   });
 
   it('says why when the broker connection cannot write', async () => {
@@ -450,7 +560,11 @@ describe('QueuesView page structure', () => {
 
   it('never nests a button inside another, when creating is not allowed and the selection bar is shown', async () => {
     search = {};
-    serve({ queues: [queue('a')], permissions: ['queue:read'] });
+    serve({
+      queues: [queue('a')],
+      permissions: ['queue:read'],
+      managementWrite: { status: 'UNAVAILABLE', reason: 'Read-only.', brokerXmlSnippet: null },
+    });
     const { container } = renderWithProviders(<QueuesView />);
 
     await screen.findByRole('button', { name: 'Why creating a queue is unavailable' });

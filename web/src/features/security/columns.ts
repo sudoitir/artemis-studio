@@ -2,7 +2,14 @@ import { createElement } from 'react';
 
 import type { Column } from '../../ui/table/index.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { AccessCheckView, EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
+import type {
+  AccessCheckView,
+  EffectivePermissionView,
+  GroupMappingView,
+  ResourceTeamGrant,
+  RoleView,
+  UserView,
+} from './api.ts';
 import {
   AccessSources,
   Effect,
@@ -227,6 +234,30 @@ export function accessColumns({ scopeLabel }: Readonly<{ scopeLabel: ScopeLabel 
       cell: (v) => createElement(AccessSources, { view: v, scopeLabel }),
       kind: 'text',
       wrap: true,
+      priority: 'high',
+    },
+  ];
+}
+
+/** The teams and roles that reach one queue or address. The team and the role are never hidden. */
+export function resourceGrantColumns(): Column<ResourceTeamGrant>[] {
+  return [
+    { id: 'team', header: 'Team', accessor: (g) => g.teamName, kind: 'identifier', priority: 'essential' },
+    { id: 'role', header: 'Role', accessor: (g) => g.roleName, kind: 'identifier', priority: 'essential' },
+    {
+      id: 'via',
+      header: 'Through',
+      accessor: (g) => (g.source === 'OWNER' ? 'Owns it' : `Shared by ${g.sharedByTeamName} (${g.pattern})`),
+      kind: 'text',
+      wrap: true,
+      priority: 'high',
+    },
+    {
+      id: 'members',
+      header: 'People',
+      description: 'Members holding this role through the team',
+      accessor: (g) => g.memberCount,
+      kind: 'number',
       priority: 'high',
     },
   ];

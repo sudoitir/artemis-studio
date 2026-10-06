@@ -3,9 +3,8 @@ import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 
 import { useCluster } from '../clusters/index.ts';
 import { useDeleteQueue, useSetQueuePaused, type LifecycleOutcomeView, type QueueView } from './api.ts';
-import { useCan } from '../../kernel/auth/useCan.ts';
+import { useResourceGate } from '../../kernel/auth/useResourceGate.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
-import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { appliedEverywhere } from '../../ui/nodeOutcome.ts';
@@ -30,7 +29,6 @@ export function QueueLifecycleActions({
   queue: QueueView;
   onClose: () => void;
 }>) {
-  const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const write = cluster.data?.capabilities.managementWrite;
 
@@ -40,10 +38,13 @@ export function QueueLifecycleActions({
 
   const setPaused = useSetQueuePaused(clusterId, queue.queueName);
 
-  const pending = loading || cluster.isPending;
-  const pauseGate = gateFor(can('queue:pause', clusterId), 'Pause and resume queues', write, pending);
-  const updateGate = gateFor(can('queue:update', clusterId), "Change a queue's configuration", write, pending);
-  const deleteGate = gateFor(can('queue:delete', clusterId), 'Destroy queues and addresses', write, pending);
+  const base = { clusterId, noun: 'queue', resource: queue, capability: write, pending: cluster.isPending } as const;
+  const pause = useResourceGate({ ...base, permission: 'queue:pause', label: 'Pause and resume queues' });
+  const update = useResourceGate({ ...base, permission: 'queue:update', label: "Change a queue's configuration" });
+  const remove = useResourceGate({ ...base, permission: 'queue:delete', label: 'Destroy queues and addresses' });
+  const pauseGate = pause.verdict;
+  const updateGate = update.verdict;
+  const deleteGate = remove.verdict;
 
   // What the queue runs, from the scrape snapshot the listing is built from — and,
   // until that catches up, what this screen just had the broker do. A pause applied
@@ -59,39 +60,45 @@ export function QueueLifecycleActions({
   return (
     <Stack gap="xs">
       <Group gap="xs">
-        <CapabilityGate verdict={pauseGate} what={paused ? 'resuming this queue' : 'pausing this queue'}>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={pauseGate.kind === 'blocked'}
-            loading={setPaused.isPending}
-            onClick={() => setPaused.mutate({ paused: !paused }, { onSuccess: setPauseOutcome })}
-          >
-            {paused ? 'Resume' : 'Pause'}
-          </Button>
-        </CapabilityGate>
+        {pause.hidden ? null : (
+          <CapabilityGate verdict={pauseGate} what={paused ? 'resuming this queue' : 'pausing this queue'}>
+            <Button
+              size="xs"
+              variant="default"
+              disabled={pauseGate.kind === 'blocked'}
+              loading={setPaused.isPending}
+              onClick={() => setPaused.mutate({ paused: !paused }, { onSuccess: setPauseOutcome })}
+            >
+              {paused ? 'Resume' : 'Pause'}
+            </Button>
+          </CapabilityGate>
+        )}
 
-        <CapabilityGate verdict={updateGate} what="editing this queue">
-          <Button
-            size="xs"
-            variant="default"
-            disabled={updateGate.kind === 'blocked'}
-            onClick={() => setEditOpen(true)}
-          >
-            Edit
-          </Button>
-        </CapabilityGate>
+        {update.hidden ? null : (
+          <CapabilityGate verdict={updateGate} what="editing this queue">
+            <Button
+              size="xs"
+              variant="default"
+              disabled={updateGate.kind === 'blocked'}
+              onClick={() => setEditOpen(true)}
+            >
+              Edit
+            </Button>
+          </CapabilityGate>
+        )}
 
-        <CapabilityGate verdict={deleteGate} what="deleting this queue">
-          <Button
-            size="xs"
-            variant="default"
-            disabled={deleteGate.kind === 'blocked'}
-            onClick={() => setDeleteOpen(true)}
-          >
-            Delete queue
-          </Button>
-        </CapabilityGate>
+        {remove.hidden ? null : (
+          <CapabilityGate verdict={deleteGate} what="deleting this queue">
+            <Button
+              size="xs"
+              variant="default"
+              disabled={deleteGate.kind === 'blocked'}
+              onClick={() => setDeleteOpen(true)}
+            >
+              Delete queue
+            </Button>
+          </CapabilityGate>
+        )}
       </Group>
 
       {/* Stated once, next to the controls it qualifies, rather than as a banner

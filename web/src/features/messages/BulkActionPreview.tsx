@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { useMessageAction, type DryRunView, type MessageActionKind } from './api.ts';
 import { announceFailure, announceResult, destroys, messageCount, VERBS } from './outcomes.ts';
+import { AddressPicker } from '../queues/index.ts';
 
 /**
  * By-selector action with a mandatory preview (ADR-0022). "Preview" runs `dryRun=true` and takes the
@@ -105,7 +106,15 @@ export function BulkActionPreview({
                 data-autofocus
               />
             )}
-            {action === 'move' ? <TextInput label="Target queue" {...form.getInputProps('target')} size="xs" /> : null}
+            {action === 'move' ? (
+              <AddressPicker
+                clusterId={clusterId}
+                label="Target queue"
+                permission="message:send"
+                {...form.getInputProps('target')}
+                value={form.values.target}
+              />
+            ) : null}
             <div>
               <Button type="submit" size="xs" variant="default" loading={run.isPending}>
                 Preview

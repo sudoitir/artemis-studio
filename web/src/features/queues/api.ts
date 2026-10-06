@@ -12,6 +12,7 @@ import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
 
+export type AddressView = Schemas['AddressView'];
 export type CapabilityView = Schemas['CapabilityView'];
 export type CreateAddressRequest = Schemas['CreateAddressRequest'];
 export type CreateQueueRequest = Schemas['CreateQueueRequest'];
@@ -42,6 +43,23 @@ export function useQueues(
     // claimed Studio had lost the brokers.
     enabled: id !== '' && (options.enabled ?? true),
     refetchInterval: options.live === false ? false : 5_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * The addresses matching `q`, each with the actions the caller holds on it, for a picker that offers only those
+ * the caller may use. Held while `enabled` is false.
+ */
+export function useAddresses(
+  id: string,
+  params: ResourceParams,
+  enabled: boolean,
+): UseQueryResult<PagedView<AddressView>, ApiError> {
+  return useQuery({
+    queryKey: keys.resource(id, 'addresses', params),
+    queryFn: () => request<PagedView<AddressView>>(`/clusters/${id}/addresses${resourceSearch(params)}`),
+    enabled: id !== '' && enabled,
     placeholderData: (prev) => prev,
   });
 }

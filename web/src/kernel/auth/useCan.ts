@@ -14,6 +14,11 @@ import { accessQuery, type AccessSummary } from './api.ts';
  * while grants load: blocking on an answer not yet known would lock out someone the server lets in. For a resource
  * permission the cluster answer counts grants only; what a team or share gives on some queue or address is in the
  * summary's `anywhere`.
+ *
+ * <p>`canAnywhere` is the page-level right: held on the cluster by a grant, or on some queue or address through a team
+ * or a share. A control is hidden only when it is false. `canOn` is the right on one row the server sent, from the
+ * row's `allowedActions`: false there is a control shown disabled, with its reason. `createPatterns` are the name
+ * patterns a team or share lets the caller create queues and addresses under.
  */
 export function useCan() {
   const installation = useQuery(accessQuery());
@@ -45,8 +50,39 @@ export function useCan() {
     return known.permissions.includes(permission);
   }
 
+  function canAnywhere(permission: string, clusterId: string): boolean {
+    const known = byCluster.get(clusterId);
+    if (!known) {
+      ask(clusterId);
+      return true;
+    }
+    return known.permissions.includes(permission) || known.anywhere.includes(permission);
+  }
+
+  /** How the caller reaches a kind of resource on a cluster: by a grant, only through teams, or not at all. */
+  function reach(permission: string, clusterId: string): 'grant' | 'teams' | 'none' | 'unknown' {
+    const known = byCluster.get(clusterId);
+    if (!known) {
+      ask(clusterId);
+      return 'unknown';
+    }
+    if (known.permissions.includes(permission)) return 'grant';
+    return known.anywhere.includes(permission) ? 'teams' : 'none';
+  }
+
+  function createPatterns(clusterId: string, kind: 'queue' | 'address'): string[] | undefined {
+    const known = byCluster.get(clusterId);
+    if (!known) ask(clusterId);
+    return known?.createPatterns[kind];
+  }
+
   return {
     can,
+    canAnywhere,
+    reach,
+    /** Whether the row the server sent allows the action to the caller. */
+    canOn: (permission: string, resource: { allowedActions: string[] }) => resource.allowedActions.includes(permission),
+    createPatterns,
     /** The teams the caller belongs to, with their role in each. */
     teams: summary?.teams ?? [],
     loading: installation.isLoading,

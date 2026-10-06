@@ -13,7 +13,21 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
   useSearch: () => search,
   useNavigate: () => () => {},
   // The drawer's "Browse messages" and the queue link need no router to be asserted here.
-  Link: ({ children, ...rest }: { children: React.ReactNode }) => <a {...(rest as object)}>{children}</a>,
+  Link: ({
+    children,
+    to,
+    search,
+    'aria-label': label,
+  }: {
+    children: React.ReactNode;
+    to?: string;
+    search?: Record<string, string>;
+    'aria-label'?: string;
+  }) => (
+    <a href={`${to ?? ''}?${new URLSearchParams(search ?? {})}`} aria-label={label}>
+      {children}
+    </a>
+  ),
 }));
 
 const { QueuesView } = await import('./QueuesView.tsx');
@@ -24,6 +38,15 @@ function queue(name: string, over: Record<string, unknown> = {}) {
   return {
     address: name,
     queueName: name,
+    allowedActions: [
+      'queue:read',
+      'queue:pause',
+      'queue:update',
+      'queue:delete',
+      'queue:purge',
+      'message:read',
+      'message:move',
+    ],
     routingType: 'ANYCAST',
     durable: true,
     totalMessageCount: 12,
@@ -135,7 +158,29 @@ describe('the queue row menu (ADR-0107)', () => {
 
   it('keeps a blocked action reachable, and explains it in full', async () => {
     search = {};
-    server.use(...handlers(['cluster:read', 'queue:pause']));
+    // Delete is held through a team, somewhere on the cluster, and not on payments, which Payments owns.
+    server.use(
+      ...handlers(
+        ['cluster:read'],
+        [
+          queue('orders'),
+          queue('payments', {
+            allowedActions: ['queue:read'],
+            ownerTeam: { id: 't9', name: 'Payments' },
+          }),
+        ],
+      ),
+      http.get('*/api/v1/me/access', ({ request }) => {
+        const clusterId = new URL(request.url).searchParams.get('clusterId');
+        return HttpResponse.json({
+          permissions: ['cluster:read'],
+          anywhere: ['queue:delete', 'queue:pause', 'queue:update'],
+          canSeeCluster: clusterId ? true : null,
+          teams: [],
+          createPatterns: { queue: [], address: [] },
+        });
+      }),
+    );
     const user = userEvent.setup();
     renderWithProviders(<QueuesView />);
 
@@ -143,13 +188,27 @@ describe('the queue row menu (ADR-0107)', () => {
     const menu = await screen.findByRole('menu', { name: 'Actions for payments' });
     const del = await within(menu).findByRole('menuitem', { name: /Delete queue/ });
     await waitFor(() => expect(del).toHaveAttribute('aria-disabled', 'true'));
-    expect(del).toHaveAccessibleDescription(/do not have the "Destroy queues and addresses" permission/);
+    expect(del).toHaveAccessibleDescription(
+      /do not have the "Destroy queues and addresses" permission \(queue:delete\)/,
+    );
 
     // Reachable with the arrow keys — a disabled item would be skipped.
     while (document.activeElement !== del) await user.keyboard('{ArrowDown}');
     await user.keyboard('{Enter}');
     const why = await screen.findByRole('dialog', { name: 'Why deleting this queue is unavailable' });
-    expect(within(why).getByText(/An administrator can grant it in Settings → Roles/)).toBeInTheDocument();
+    expect(within(why).getByText(/Ask an admin of team Payments/)).toBeInTheDocument();
+  });
+
+  it('leaves out an action the caller cannot take anywhere on the cluster', async () => {
+    search = {};
+    server.use(...handlers(['cluster:read', 'queue:pause']));
+    const user = userEvent.setup();
+    renderWithProviders(<QueuesView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for payments' }));
+    const menu = await screen.findByRole('menu', { name: 'Actions for payments' });
+    await within(menu).findByRole('menuitem', { name: /Open details/ });
+    await waitFor(() => expect(within(menu).queryByRole('menuitem', { name: /Delete queue/ })).not.toBeInTheDocument());
   });
 
   it('opens a linked queue that is not on the loaded page', async () => {

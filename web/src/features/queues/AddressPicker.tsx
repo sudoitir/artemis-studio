@@ -5,7 +5,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import styles from './AddressPicker.module.css';
 
-import { useQueues, type QueueView } from './api.ts';
+import { useAddresses, useQueues, type QueueView } from './api.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 
 const SUGGESTION_LIMIT = 300;
@@ -19,6 +19,11 @@ export interface AddressPickerProps {
   label?: string;
   description?: string;
   placeholder?: string;
+  /**
+   * Offer only the addresses the caller holds this permission on (such as `message:send`), and say so when a typed
+   * name is an address they do not hold it on. A name that is not on the broker yet is left to the server.
+   */
+  permission?: string;
   /** Shown under the field when what was typed matches no address on the broker. */
   unknownHint?: string;
   w?: number | string;
@@ -72,6 +77,7 @@ export function AddressPicker({
   label,
   description,
   placeholder,
+  permission,
   unknownHint,
   w,
   disabled,
@@ -90,8 +96,15 @@ export function AddressPicker({
 
   const queues = useQueues(clusterId, { q: debounced || undefined, size: SUGGESTION_LIMIT });
 
+  const addresses = useAddresses(clusterId, { q: debounced || undefined, size: SUGGESTION_LIMIT }, Boolean(permission));
+  // Until the addresses arrive nothing is withheld: an answer not yet known is no refusal.
+  const barred = useMemo(() => {
+    if (!permission || !addresses.data) return new Set<string>();
+    return new Set(addresses.data.data.filter((a) => !a.allowedActions.includes(permission)).map((a) => a.name));
+  }, [addresses.data, permission]);
+
   const options = useMemo(() => {
-    const rows = queues.data?.data ?? [];
+    const rows = (queues.data?.data ?? []).filter((q) => !barred.has(q.address));
     const wanted = types.length === 0 ? null : new Set<string>(types);
     // One row per address: the same address on several nodes is one thing to
     // whoever is picking it, so keep the busiest and count the rest as coverage.
@@ -102,10 +115,12 @@ export function AddressPicker({
       if (!seen || row.totalMessageCount > seen.totalMessageCount) byAddress.set(row.address, row);
     }
     return [...byAddress.values()].sort((a, b) => a.address.localeCompare(b.address));
-  }, [queues.data, types]);
+  }, [queues.data, types, barred]);
 
   const matchesKnownAddress = options.some((o) => o.address === value);
   const unknown = Boolean(unknownHint) && value.trim() !== '' && !queues.isFetching && !matchesKnownAddress;
+  const notAllowed =
+    permission && barred.has(value) ? `You do not hold ${permission} on the address ${value}.` : undefined;
 
   return (
     <div ref={root} className={styles.root}>
@@ -149,7 +164,7 @@ export function AddressPicker({
               queues.isFetching ? <LoadingState variant="inline" label="Loading addresses" /> : <Combobox.Chevron />
             }
             rightSectionPointerEvents="none"
-            error={error ?? (unknown ? unknownHint : undefined)}
+            error={error ?? notAllowed ?? (unknown ? unknownHint : undefined)}
             classNames={{ error: styles.error }}
           />
         </Combobox.Target>

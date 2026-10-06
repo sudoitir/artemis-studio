@@ -17,7 +17,7 @@ const ORDER: BulkOperation[] = ['PAUSE', 'RESUME', 'PURGE', 'DELETE'];
  * permission of the single-queue command it applies, and opens its preview; nothing acts from here.
  */
 export function BulkActionBar({ clusterId, selection, count, clear }: Readonly<SlotProps['queues.selection']>) {
-  const { can, loading } = useCan();
+  const { canAnywhere, loading } = useCan();
   const cluster = useCluster(clusterId);
   const write = cluster.data?.capabilities.managementWrite;
   // The dialog stays mounted and is opened and closed, so the modal hands focus back to the button
@@ -30,7 +30,7 @@ export function BulkActionBar({ clusterId, selection, count, clear }: Readonly<S
       {ORDER.map((each) => {
         const op = OPERATIONS[each];
         const permitted = gateFor(
-          can(op.permission, clusterId),
+          canAnywhere(op.permission, clusterId),
           op.permissionLabel,
           write,
           loading || cluster.isPending,

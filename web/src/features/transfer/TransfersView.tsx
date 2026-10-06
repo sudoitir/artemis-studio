@@ -31,14 +31,14 @@ import { plural } from './words.ts';
 function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   const query = useOrphans(clusterId);
   const returnOrphan = useReturnOrphan(clusterId);
-  const { can, loading } = useCan();
+  const { canAnywhere, loading } = useCan();
   const [chosen, setChosen] = useState<OrphanView | null>(null);
   const form = useForm({
     initialValues: { queue: '' },
     validateInputOnBlur: true,
     validate: { queue: (v) => (v.trim() ? null : 'Name the queue the messages go back to.') },
   });
-  const gate = gateFor(can('message:move', clusterId), 'Move or retry messages', undefined, loading);
+  const gate = gateFor(canAnywhere('message:move', clusterId), 'Move or retry messages', undefined, loading);
 
   const returnMessages = form.onSubmit(({ queue }) => {
     if (!chosen) return;
@@ -115,6 +115,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
             <AddressPicker
               clusterId={clusterId}
               label="Return them to"
+              permission="message:send"
               description="The queue the transfer took them from."
               {...form.getInputProps('queue')}
               value={form.values.queue}

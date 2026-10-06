@@ -11,6 +11,7 @@ type Summary = {
   anywhere?: string[];
   canSeeCluster?: boolean | null;
   teams?: { teamId: string; teamName: string; roleId: string; roleName: string; teamAdmin: boolean }[];
+  createPatterns?: { queue: string[]; address: string[] };
 };
 
 /** Serves `/me/access`: the installation summary, and each cluster's by id. */
@@ -19,7 +20,13 @@ function serveAccess(installation: Summary, byCluster: Record<string, Summary> =
     http.get('*/api/v1/me/access', ({ request }) => {
       const clusterId = new URL(request.url).searchParams.get('clusterId');
       const summary = clusterId ? (byCluster[clusterId] ?? { permissions: [] }) : installation;
-      return HttpResponse.json({ anywhere: [], canSeeCluster: clusterId ? false : null, teams: [], ...summary });
+      return HttpResponse.json({
+        anywhere: [],
+        canSeeCluster: clusterId ? false : null,
+        teams: [],
+        createPatterns: { queue: [], address: [] },
+        ...summary,
+      });
     }),
   );
 }
@@ -78,7 +85,13 @@ describe('useCan', () => {
       http.get('*/api/v1/me/access', async ({ request }) => {
         const clusterId = new URL(request.url).searchParams.get('clusterId');
         if (clusterId) await gate;
-        return HttpResponse.json({ permissions: [], anywhere: [], canSeeCluster: clusterId ? false : null, teams: [] });
+        return HttpResponse.json({
+          permissions: [],
+          anywhere: [],
+          canSeeCluster: clusterId ? false : null,
+          teams: [],
+          createPatterns: { queue: [], address: [] },
+        });
       }),
     );
     renderWithProviders(<Probe permission="queue:purge" clusterId="c-live" />);
@@ -112,5 +125,46 @@ describe('useCan', () => {
     renderWithProviders(<Probe permission="team:admin" />);
 
     await waitFor(() => expect(screen.getByText('team:admin installation: no')).toBeInTheDocument());
+  });
+
+  describe('on a cluster where the caller has a role only through a team', () => {
+    function Reach({ clusterId }: Readonly<{ clusterId: string }>) {
+      const { can, canAnywhere, canOn, reach, createPatterns } = useCan();
+      return (
+        <ul>
+          <li>grant: {can('queue:purge', clusterId) ? 'yes' : 'no'}</li>
+          <li>anywhere: {canAnywhere('queue:purge', clusterId) ? 'yes' : 'no'}</li>
+          <li>anywhere other: {canAnywhere('queue:delete', clusterId) ? 'yes' : 'no'}</li>
+          <li>on mine: {canOn('queue:purge', { allowedActions: ['queue:purge'] }) ? 'yes' : 'no'}</li>
+          <li>on theirs: {canOn('queue:purge', { allowedActions: ['queue:read'] }) ? 'yes' : 'no'}</li>
+          <li>reach: {reach('queue:purge', clusterId)}</li>
+          <li>patterns: {createPatterns(clusterId, 'queue')?.join(',') ?? 'unknown'}</li>
+        </ul>
+      );
+    }
+
+    it('separates the page-level right from the right on one row', async () => {
+      serveAccess(
+        { permissions: [] },
+        { c1: { permissions: [], anywhere: ['queue:purge'], createPatterns: { queue: ['orders.#'], address: [] } } },
+      );
+      renderWithProviders(<Reach clusterId="c1" />);
+
+      await waitFor(() => expect(screen.getByText('reach: teams')).toBeInTheDocument());
+      expect(screen.getByText('grant: no')).toBeInTheDocument();
+      expect(screen.getByText('anywhere: yes')).toBeInTheDocument();
+      expect(screen.getByText('anywhere other: no')).toBeInTheDocument();
+      expect(screen.getByText('on mine: yes')).toBeInTheDocument();
+      expect(screen.getByText('on theirs: no')).toBeInTheDocument();
+      expect(screen.getByText('patterns: orders.#')).toBeInTheDocument();
+    });
+
+    it('says the caller reaches nothing on a cluster where they hold nothing', async () => {
+      serveAccess({ permissions: [] }, { c1: { permissions: [] } });
+      renderWithProviders(<Reach clusterId="c1" />);
+
+      await waitFor(() => expect(screen.getByText('reach: none')).toBeInTheDocument());
+      expect(screen.getByText('anywhere: no')).toBeInTheDocument();
+    });
   });
 });

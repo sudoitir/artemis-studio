@@ -1,10 +1,9 @@
 import { IconEraser } from '@tabler/icons-react';
 
 import { useCluster } from '../clusters/index.ts';
-import { useCan } from '../../kernel/auth/useCan.ts';
+import { useResourceGate } from '../../kernel/auth/useResourceGate.ts';
 import type { ActionProps, QueueTarget } from '../../kernel/actions/types.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
-import { gateFor } from '../../ui/capabilityGate.ts';
 import { BulkPreviewDialog } from './BulkPreviewDialog.tsx';
 import { OPERATIONS } from './words.ts';
 
@@ -14,15 +13,18 @@ import { OPERATIONS } from './words.ts';
  * Accepting it opens the run, so focus is not handed back to a row the operator has left.
  */
 export function PurgeQueue({ clusterId, target, host }: Readonly<ActionProps<QueueTarget>>) {
-  const { can, loading } = useCan();
   const cluster = useCluster(clusterId);
   const op = OPERATIONS.PURGE;
-  const gate = gateFor(
-    can(op.permission, clusterId),
-    op.permissionLabel,
-    cluster.data?.capabilities.managementWrite,
-    loading || cluster.isPending,
-  );
+  const { hidden, verdict: gate } = useResourceGate({
+    clusterId,
+    noun: 'queue',
+    permission: op.permission,
+    label: op.permissionLabel,
+    resource: target.snapshot,
+    capability: cluster.data?.capabilities.managementWrite,
+    pending: cluster.isPending,
+  });
+  if (hidden) return null;
   return (
     <ActionMenuItem
       label="Purge messages…"
