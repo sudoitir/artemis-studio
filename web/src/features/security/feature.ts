@@ -2,10 +2,11 @@ import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { GroupMappingPanel } from './GroupMappingPanel.tsx';
 import { RolesPanel } from './RolesPanel.tsx';
 import { SessionsSection } from './sections.tsx';
+import { TeamsPanel } from './TeamsPanel.tsx';
 import { UsersPanel } from './UsersPanel.tsx';
 
 /**
- * Administration of users, roles and grants, and each identity provider's group mappings (authorization spec),
+ * Administration of users, roles, teams and grants, and each identity provider's group mappings (authorization spec),
  * and the signed-in user's own sessions on the account page.
  */
 export const securityFeature = defineFeature({
@@ -17,6 +18,7 @@ export const securityFeature = defineFeature({
     'admin.tabs': [
       { id: 'users', order: 10, title: 'Users', Component: UsersPanel },
       { id: 'roles', order: 20, title: 'Roles', Component: RolesPanel },
+      { id: 'teams', order: 22, title: 'Teams', Component: TeamsPanel },
       { id: 'group-mappings', order: 40, title: 'Group mappings', Component: GroupMappingPanel },
     ],
   },
