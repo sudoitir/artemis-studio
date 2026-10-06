@@ -269,6 +269,12 @@
   min-block-size: var(--as-field-message-line);
 }
 
+/* Mantine hovers a menu item with a fixed grey that is too light under its text in the dark scheme (3.1:1);
+   the hover every other control takes holds the text above 4.5:1. */
+:root[data-mantine-color-scheme='dark'] .mantine-Menu-item {
+  --menu-item-hover: var(--mantine-color-default-hover);
+}
+
 /* The smallest button is 24px tall, the target size WCAG 2.5.8 asks of a control however much
    room it has around it; Mantine draws compact-xs at 22px. */
 .mantine-Button-root,
