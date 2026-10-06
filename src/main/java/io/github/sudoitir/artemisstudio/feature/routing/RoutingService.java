@@ -12,8 +12,10 @@ import io.github.sudoitir.artemisstudio.feature.routing.web.RoutingViews.NodeRef
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerXmlSnippets;
@@ -66,11 +68,13 @@ public class RoutingService {
     private final DivertOperations divertOps;
     private final BridgeOperations bridgeOps;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
     private final AuditService audit;
 
     @Transactional(readOnly = true)
     public PagedView<DivertView> diverts(UUID clusterId, ResourceQuery query) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter addresses = permissions.filter(clusterId, ResourceKind.ADDRESS);
         List<ClusterNode> serving = servingManageableNodes(clusterId);
         int nodesTotal = serving.size();
         Set<String> ownedByOperator = operatorOwnedDivertNames(clusterId);
@@ -87,6 +91,7 @@ public class RoutingService {
 
         List<DivertView> views = merged.values().stream()
                 .map(group -> toDivertView(group, nodesTotal, ownedByOperator))
+                .filter(v -> seen(v, addresses))
                 .toList();
 
         // Filtering by address is the question "what touches this address", so the
@@ -100,7 +105,8 @@ public class RoutingService {
 
     @Transactional(readOnly = true)
     public PagedView<BridgeView> bridges(UUID clusterId, ResourceQuery query) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter queues = permissions.filter(clusterId, ResourceKind.QUEUE);
         List<ClusterNode> serving = servingManageableNodes(clusterId);
         int nodesTotal = serving.size();
 
@@ -113,10 +119,23 @@ public class RoutingService {
         }
         List<BridgeView> views = merged.values().stream()
                 .map(group -> toBridgeView(group, nodesTotal))
+                .filter(v -> queues.readable(v.queueName()))
                 .filter(v ->
                         query.matches(v.name()) || query.matches(v.queueName()) || query.matches(v.forwardingAddress()))
                 .toList();
         return query.paginate(views, Comparator.comparing(BridgeView::name, nullSafe()));
+    }
+
+    /**
+     * A divert is seen by a caller who may read both addresses it runs between, since showing it names the
+     * other one. A capture's or a plugin's tap forwards into an address Studio made, so only its source counts.
+     */
+    private static boolean seen(DivertView divert, ResourceFilter addresses) {
+        String name = divert.name();
+        boolean tap = name != null
+                && (name.startsWith(DivertOperations.CAPTURE_PREFIX)
+                        || name.startsWith(DivertOperations.PLUGIN_TAP_PREFIX));
+        return addresses.readable(divert.address()) && (tap || addresses.readable(divert.forwardingAddress()));
     }
 
     // ---- fan-out ---------------------------------------------------------

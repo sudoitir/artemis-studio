@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerMBeans;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.ManagementRefusal;
@@ -18,6 +19,8 @@ import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Check;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Command;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.Estimate;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands.NodeAction;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
@@ -77,6 +80,8 @@ public class QueueLifecycleService {
     private final SseHub sseHub;
     private final BrokerCommands commands;
     private final ClusterAccessGuard access;
+    private final ClusterDirectory clusters;
+    private final BrokerConnections connections;
     private final ObjectMapper mapper;
     private final jakarta.validation.Validator validator;
 
@@ -446,6 +451,8 @@ public class QueueLifecycleService {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(LifecycleKind.CREATE_DIVERT.permission())
+                // A divert copies what reaches one address into another: it needs both.
+                .resources(List.of(ResourceRef.address(req.address()), ResourceRef.address(req.forwardingAddress())))
                 .auditAction(LifecycleKind.CREATE_DIVERT.auditName())
                 .targetType(LifecycleKind.CREATE_DIVERT.targetType())
                 .targetName(req.name())
@@ -516,10 +523,46 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteDivert(UUID clusterId, String name, boolean dryRun) {
         refuseCaptureName(name);
-        return run(clusterId, LifecycleKind.DELETE_DIVERT, name, Map.of(), dryRun, false, (client, broker) -> {
-            divertOps.destroyDivert(client, broker, name);
-            return NodeStatus.APPLIED;
-        });
+        return run(
+                clusterId,
+                LifecycleKind.DELETE_DIVERT,
+                name,
+                Map.of(),
+                dryRun,
+                false,
+                divertEnds(clusterId, name),
+                (client, broker) -> {
+                    divertOps.destroyDivert(client, broker, name);
+                    return NodeStatus.APPLIED;
+                });
+    }
+
+    /**
+     * The addresses a divert runs between, which deleting it needs {@code divert:write} on. Read from the
+     * first node that has it, and only for a caller whom no grant reaches the whole cluster for. A divert
+     * that no node has is not found to such a caller, as one they may not read is.
+     */
+    private List<ResourceRef> divertEnds(UUID clusterId, String name) {
+        if (access.holds(clusterId, LifecycleKind.DELETE_DIVERT.permission())) {
+            return List.of();
+        }
+        for (ClusterNode node : clusters.nodes(clusterId)) {
+            if (node.getJolokiaUrl() == null) {
+                continue;
+            }
+            try {
+                JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
+                Optional<DivertRow> divert = divertOps.find(client, name);
+                if (divert.isPresent()) {
+                    return List.of(
+                            ResourceRef.address(divert.get().address()),
+                            ResourceRef.address(divert.get().forwardingAddress()));
+                }
+            } catch (BrokerConnectionException _) {
+                // Another node may still answer.
+            }
+        }
+        throw new NotFoundException("divert", name);
     }
 
     // ---- the fan-out -----------------------------------------------------
@@ -532,10 +575,30 @@ public class QueueLifecycleService {
             boolean dryRun,
             boolean override,
             NodeAction action) {
+        return run(
+                clusterId,
+                kind,
+                targetName,
+                params,
+                dryRun,
+                override,
+                kind.resource(targetName).stream().toList(),
+                action);
+    }
+
+    private Attempt<LifecycleOutcome> run(
+            UUID clusterId,
+            LifecycleKind kind,
+            String targetName,
+            Map<String, ?> params,
+            boolean dryRun,
+            boolean override,
+            List<ResourceRef> resources,
+            NodeAction action) {
         return new Attempt.Ok<>(commands.run(Command.builder()
                 .clusterId(clusterId)
                 .permission(kind.permission())
-                .resources(kind.resource(targetName).stream().toList())
+                .resources(resources)
                 .auditAction(kind.auditName())
                 .targetType(kind.targetType())
                 .targetName(targetName)

@@ -71,7 +71,7 @@ public enum LifecycleKind {
 
     /**
      * The queue or address this kind acts on when it is given {@code name}, which its permission is
-     * checked against; empty for a divert, whose check is not on one resource yet.
+     * checked against; empty for a divert, whose check names the two addresses it runs between.
      */
     public Optional<ResourceRef> resource(String name) {
         return switch (targetType) {
