@@ -27,7 +27,7 @@ const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: 'login',
  * The open tab is an `admin.tabs` contribution's id; the page falls back to the first tab for any
  * other. `plugin` is the plugin whose details are open on the Plugins tab; `upload` reopens an
  * inspected upload's review, which is where a single-sign-on step-up returns to. `view` is the Data
- * tab's open view.
+ * tab's open view. `team` is the team open on the Teams tab, and `teamTab` the section of it.
  */
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -35,11 +35,20 @@ const adminRoute = createRoute({
   component: lazyRouteComponent(() => import('../shell/AdminView.tsx'), 'AdminView'),
   validateSearch: (
     raw: Record<string, unknown>,
-  ): { tab?: string; plugin?: string; upload?: string; view?: 'retention' | 'health' } => ({
+  ): {
+    tab?: string;
+    plugin?: string;
+    upload?: string;
+    view?: 'retention' | 'health';
+    team?: string;
+    teamTab?: string;
+  } => ({
     ...(typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {}),
     ...(typeof raw.plugin === 'string' && raw.plugin ? { plugin: raw.plugin } : {}),
     ...(typeof raw.upload === 'string' && /^[0-9a-f]{64}$/.test(raw.upload) ? { upload: raw.upload } : {}),
     ...(raw.view === 'retention' || raw.view === 'health' ? { view: raw.view } : {}),
+    ...(typeof raw.team === 'string' && raw.team ? { team: raw.team } : {}),
+    ...(typeof raw.teamTab === 'string' && raw.teamTab ? { teamTab: raw.teamTab } : {}),
   }),
 });
 

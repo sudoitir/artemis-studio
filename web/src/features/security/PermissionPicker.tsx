@@ -13,25 +13,52 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PermissionView } from './api.ts';
+import { dependentsOf, withRequired, type AddedPermission, type DependentPermission } from './permissionRequires.ts';
 import classes from './Security.module.css';
 
 const UNCATALOGUED = '__uncatalogued__';
 const WILDCARDS = '__wildcards__';
 
-type Entry = { action: string; label: string; global: boolean };
+type Entry = { action: string; label: string; scope?: PermissionView['scope']; kinds: string[] };
 type PermissionGroup = { id: string; title: string; entries: Entry[] };
 
+const SCOPE_WORDS = { GLOBAL: 'Global', CLUSTER: 'Cluster', RESOURCE: 'Resource' } as const;
+
+/** Whether a team role may hold the permission: it acts on a resource, or it is `team:admin`. */
+const teamRoleMay = (p: PermissionView) => p.scope === 'RESOURCE' || p.action === 'team:admin';
+
+/** Where a permission takes effect, in words: its scope, and the kinds of resource a resource permission acts on. */
+function scopeBadge(entry: Entry, teamRole: boolean): string | null {
+  if (entry.action === 'team:admin' && teamRole) return 'Team';
+  if (!entry.scope) return null;
+  const word = SCOPE_WORDS[entry.scope];
+  return entry.scope === 'RESOURCE' && entry.kinds.length > 0
+    ? `${word}: ${entry.kinds.map((k) => k.toLowerCase()).join(', ')}`
+    : word;
+}
+
+function describe(entry: Entry, teamRole: boolean): string {
+  if (entry.scope === 'GLOBAL' && !(teamRole && entry.action === 'team:admin')) {
+    return `${entry.label}. Has no effect when granted on an environment or cluster.`;
+  }
+  return entry.label;
+}
+
 /** Groups the catalogue by owning module or plugin, plus the held permissions the catalogue lacks. */
-function groupPermissions(catalogue: PermissionView[], selected: string[]): PermissionGroup[] {
+function groupPermissions(catalogue: PermissionView[], selected: string[], teamRole: boolean): PermissionGroup[] {
   const groups = new Map<string, PermissionGroup>();
   for (const p of catalogue) {
     const group = groups.get(p.featureId) ?? { id: p.featureId, title: p.featureTitle, entries: [] };
-    group.entries.push({ action: p.action, label: p.label, global: p.scope === 'GLOBAL' });
+    group.entries.push({ action: p.action, label: p.label, scope: p.scope, kinds: p.resourceKinds });
     groups.set(p.featureId, group);
   }
+  // A team role holds only what the catalogue offers it; what else it holds is listed apart, to be removed.
+  if (teamRole) return [...groups.values()];
   const known = new Set(catalogue.map((p) => p.action));
   const isWildcard = (a: string) => a === '*' || a.endsWith(':*');
   const wildcards = selected.filter((a) => isWildcard(a) && !known.has(a));
@@ -47,7 +74,7 @@ function groupPermissions(catalogue: PermissionView[], selected: string[]): Perm
           action === '*'
             ? 'Grants every permission, including those of modules and plugins added later.'
             : `Grants every ${action.slice(0, -1)} permission, including ones added later.`,
-        global: false,
+        kinds: [],
       })),
     });
   }
@@ -58,7 +85,7 @@ function groupPermissions(catalogue: PermissionView[], selected: string[]): Perm
       entries: missing.map((action) => ({
         action,
         label: 'Its module or plugin is not active. The role keeps it unless you clear it.',
-        global: false,
+        kinds: [],
       })),
     });
   }
@@ -88,40 +115,75 @@ function pickerNotice(groupCount: number, visibleCount: number, query: string, c
 
 /**
  * The role editor's permission picker (operator-ui spec): grouped by module or plugin, searchable,
- * with each permission's description and whether it acts only at global scope, and select-all or
- * clear per group, announced.
+ * with each permission's description and the scope it acts at, and select-all or clear per group,
+ * announced. Choosing a permission adds the ones it requires, with a note; removing one that others
+ * require asks first. `teamRole` offers only what a team role may hold.
  */
 export function PermissionPicker({
   catalogue,
   value,
   onChange,
+  teamRole = false,
 }: Readonly<{
   catalogue: PermissionView[];
   value: string[];
   onChange: (next: string[]) => void;
+  teamRole?: boolean;
 }>) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
+  const [added, setAdded] = useState<AddedPermission[]>([]);
+  const [removal, setRemoval] = useState<{ actions: string[]; dependents: DependentPermission[] } | null>(null);
 
-  const groups = useMemo(() => groupPermissions(catalogue, value), [catalogue, value]);
+  const offered = useMemo(() => (teamRole ? catalogue.filter(teamRoleMay) : catalogue), [catalogue, teamRole]);
+  const groups = useMemo(() => groupPermissions(offered, value, teamRole), [offered, value, teamRole]);
   const visible = groups
     .map((g) => ({ ...g, entries: g.entries.filter((e) => matches(e, query)) }))
     .filter((g) => g.entries.length > 0);
   const selected = new Set(value);
+  const barred = teamRole ? value.filter((a) => !offered.some((p) => p.action === a)) : [];
+
+  function add(actions: string[]) {
+    const result = withRequired(catalogue, value, actions);
+    setAdded(result.added);
+    onChange(result.next);
+  }
+
+  /** Removes at once, or asks first when a held permission needs one of them. Whether it removed. */
+  function remove(actions: string[]): boolean {
+    const dependents = dependentsOf(catalogue, value, actions);
+    if (dependents.length > 0) {
+      setRemoval({ actions, dependents });
+      return false;
+    }
+    setAdded([]);
+    onChange(value.filter((a) => !actions.includes(a)));
+    return true;
+  }
 
   function toggle(action: string) {
-    onChange(selected.has(action) ? value.filter((a) => a !== action) : [...value, action]);
+    if (selected.has(action)) remove([action]);
+    else add([action]);
   }
 
   function setGroup(group: PermissionGroup, on: boolean) {
     const actions = group.entries.map((e) => e.action);
-    const next = on
-      ? [...value, ...actions.filter((a) => !selected.has(a))]
-      : value.filter((a) => !actions.includes(a));
-    onChange(next);
-    const held = actions.filter((a) => next.includes(a)).length;
-    setAnnouncement(`${held} of ${actions.length} permissions selected in ${group.title}`);
+    const total = actions.length;
+    if (on) {
+      add(actions.filter((a) => !selected.has(a)));
+      setAnnouncement(`${total} of ${total} permissions selected in ${group.title}`);
+    } else if (remove(actions.filter((a) => selected.has(a)))) {
+      setAnnouncement(`0 of ${total} permissions selected in ${group.title}`);
+    }
+  }
+
+  function confirmRemoval() {
+    if (!removal) return;
+    const gone = new Set([...removal.actions, ...removal.dependents.map((d) => d.permission)]);
+    setAdded([]);
+    onChange(value.filter((a) => !gone.has(a)));
+    setRemoval(null);
   }
 
   return (
@@ -142,6 +204,31 @@ export function PermissionPicker({
       <VisuallyHidden role="status" aria-live="polite">
         {announcement}
       </VisuallyHidden>
+
+      {barred.length > 0 ? (
+        <Notice
+          title="Not allowed in a team role"
+          tone="warning"
+          action={
+            <Button size="xs" variant="default" onClick={() => onChange(value.filter((a) => !barred.includes(a)))}>
+              Remove them
+            </Button>
+          }
+        >
+          A team role holds only permissions that act on a queue or address, and team:admin. Saving is refused while it
+          holds {barred.join(', ')}.
+        </Notice>
+      ) : null}
+
+      {added.length > 0 ? (
+        <Stack gap={2} role="status" aria-label="Permissions added">
+          {added.map((a) => (
+            <Text key={a.permission} size="sm">
+              Added {a.permission}, required by {a.requiredBy}
+            </Text>
+          ))}
+        </Stack>
+      ) : null}
 
       {pickerNotice(groups.length, visible.length, query, () => setQuery('')) ?? (
         <Accordion
@@ -176,24 +263,25 @@ export function PermissionPicker({
                 </Center>
                 <Accordion.Panel>
                   <Stack gap="xs">
-                    {group.entries.map((e) => (
-                      <Checkbox
-                        key={e.action}
-                        label={
-                          <Group gap={6} wrap="nowrap">
-                            <Text size="sm" ff="monospace">
-                              {e.action}
-                            </Text>
-                            {e.global ? <StatusBadge>Global only</StatusBadge> : null}
-                          </Group>
-                        }
-                        description={
-                          e.global ? `${e.label}. Has no effect when granted on an environment or cluster.` : e.label
-                        }
-                        checked={selected.has(e.action)}
-                        onChange={() => toggle(e.action)}
-                      />
-                    ))}
+                    {group.entries.map((e) => {
+                      const badge = scopeBadge(e, teamRole);
+                      return (
+                        <Checkbox
+                          key={e.action}
+                          label={
+                            <Group gap={6} wrap="nowrap">
+                              <Text size="sm" ff="monospace">
+                                {e.action}
+                              </Text>
+                              {badge ? <StatusBadge>{badge}</StatusBadge> : null}
+                            </Group>
+                          }
+                          description={describe(e, teamRole)}
+                          checked={selected.has(e.action)}
+                          onChange={() => toggle(e.action)}
+                        />
+                      );
+                    })}
                   </Stack>
                 </Accordion.Panel>
               </Accordion.Item>
@@ -201,6 +289,22 @@ export function PermissionPicker({
           })}
         </Accordion>
       )}
+
+      <ConfirmDialog
+        opened={removal !== null}
+        onClose={() => setRemoval(null)}
+        title={removal ? `Remove ${removal.actions.join(', ')}` : 'Remove permission'}
+        confirmLabel="Remove them all"
+        consequence={removal ? removalConsequence(removal.actions, removal.dependents) : ''}
+        onConfirm={confirmRemoval}
+      />
     </Stack>
   );
+}
+
+/** What removing permissions takes with it: the ones that need them, by name. */
+function removalConsequence(actions: string[], dependents: DependentPermission[]): string {
+  const needing = dependents.map((d) => `${d.permission} (needs ${d.needs})`).join(', ');
+  const are = dependents.length === 1 ? 'it is' : 'they are';
+  return `${needing} would stop working without ${actions.join(', ')}, so ${are} removed too.`;
 }

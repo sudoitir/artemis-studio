@@ -440,8 +440,11 @@ describe('TransferRunView permissions', () => {
     show({ state: 'STOPPED', held: 3, returnable: true, resumable: true }, ['message:move']);
 
     expect(await screen.findByRole('button', { name: 'Return to source…' })).toBeEnabled();
+    // Each cluster's rights arrive on their own, and the control is offered until they do.
+    expect(
+      await screen.findByRole('button', { name: 'Why resuming this transfer is unavailable' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Why returning these messages is unavailable' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Why resuming this transfer is unavailable' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Resume' })).toBeDisabled();
   });
 });

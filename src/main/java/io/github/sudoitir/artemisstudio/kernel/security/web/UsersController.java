@@ -2,9 +2,11 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
+import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.AccessCheckView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.AccountSessionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.SessionViews.EndedSessionsView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.CreateUserRequest;
@@ -45,6 +47,22 @@ public class UsersController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         return ResourceQuery.ofPage(page, size).paginate(effectivePermissions.of(userId), null);
+    }
+
+    /**
+     * Every catalogue permission for the user, here, and each way they hold it. Name a queue or address, with its
+     * cluster, to include the team roles and shares that reach it.
+     */
+    @GetMapping("/{userId}/access-check")
+    public PagedView<AccessCheckView> accessCheck(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) UUID clusterId,
+            @RequestParam(required = false) ResourceKind kind,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size)
+                .paginate(effectivePermissions.check(userId, clusterId, kind, name), null);
     }
 
     @GetMapping("/{userId}/sessions")

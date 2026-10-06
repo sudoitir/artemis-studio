@@ -55,3 +55,28 @@
 .field {
   max-inline-size: 26rem;
 }
+
+/* The names a pattern matches: a short list in the code face, wrapping by width. */
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+}
+
+/* A reason a group of controls is unavailable, kept beside them. */
+.reason {
+  max-inline-size: 48rem;
+}
+
+/* The ways a permission is held, one to a line. */
+.sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--mantine-font-size-sm);
+}

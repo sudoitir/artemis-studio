@@ -385,6 +385,125 @@ class TeamServiceIntegrationTest extends PostgresIntegrationTest {
         assertThat(teams.list()).extracting(s -> s.id()).containsExactly(orders);
     }
 
+    // ---- lookups for who administers a team ---------------------------------------------------------
+
+    private AppUserEntity namedUser(String name, boolean disabled) {
+        AppUserEntity user = AppUserEntity.local(name, null, "{noop}x");
+        user.setMustChangePassword(false);
+        user.setDisabled(disabled);
+        return users.save(user);
+    }
+
+    private UUID teamAdminOf(UUID team) {
+        UUID boss = user();
+        teams.addMember(team, new MemberRequest(PrincipalType.USER, boss, null, null, role("TEAM_ADMIN")));
+        return boss;
+    }
+
+    @Test
+    void aTeamAdminLooksUpEnabledUsersByNamePrefixAndNeverSeesADisabledOne() {
+        String tag = "lookup" + UUID.randomUUID().toString().substring(0, 8);
+        namedUser(tag + "-ada", false);
+        namedUser(tag + "-ben", true);
+        namedUser("other-" + tag, false);
+        UUID boss = teamAdminOf(team("orders"));
+
+        asUser(boss);
+
+        assertThat(teams.findUsers(tag.toUpperCase()))
+                .extracting(u -> u.username())
+                .containsExactly(tag + "-ada");
+        assertThat(teams.findUsers(tag + "-b")).isEmpty();
+    }
+
+    @Test
+    void aLookupNeedsTwoCharactersSoNobodyCanListEveryAccount() {
+        String tag = "short" + UUID.randomUUID().toString().substring(0, 8);
+        namedUser(tag, false);
+        UUID boss = teamAdminOf(team("orders"));
+
+        asUser(boss);
+
+        assertThat(teams.findUsers("")).isEmpty();
+        assertThat(teams.findUsers(" s ")).isEmpty();
+        assertThat(teams.findUsers(tag.substring(0, 2))).isNotEmpty();
+    }
+
+    @Test
+    void aLookupReturnsAtMostTwentyUsers() {
+        String tag = "many" + UUID.randomUUID().toString().substring(0, 8);
+        IntStream.range(0, 25).forEach(i -> namedUser("%s-%02d".formatted(tag, i), false));
+        UUID boss = teamAdminOf(team("orders"));
+
+        asUser(boss);
+
+        assertThat(teams.findUsers(tag)).hasSize(20);
+    }
+
+    @Test
+    void aLookupTreatsWildcardCharactersInThePrefixAsText() {
+        String tag = "wild" + UUID.randomUUID().toString().substring(0, 8);
+        namedUser(tag + "-x", false);
+        UUID boss = teamAdminOf(team("orders"));
+
+        asUser(boss);
+
+        assertThat(teams.findUsers("%" + tag)).isEmpty();
+    }
+
+    @Test
+    void theLookupsOfARoleListHoldOnlyTeamRolesAndTheCatalogueEntriesTheyUse() {
+        roleService.create(
+                new RoleRequest("not-a-team-role-" + UUID.randomUUID(), List.of("user:admin"), false, false));
+        UUID boss = teamAdminOf(team("orders"));
+
+        asUser(boss);
+        var lookup = teams.teamRoles();
+
+        assertThat(lookup.roles()).isNotEmpty().allMatch(r -> r.teamAssignable());
+        assertThat(lookup.roles()).extracting(r -> r.name()).contains("TEAM_VIEWER", "TEAM_OPERATOR", "TEAM_ADMIN");
+        assertThat(lookup.permissions())
+                .extracting(p -> p.action())
+                .contains("queue:read", "team:admin")
+                .doesNotContain("user:admin");
+        assertThat(lookup.roles()).flatExtracting(r -> r.permissions()).contains("queue:read");
+    }
+
+    @Test
+    void aMemberWhoAdministersNoTeamCannotUseTheLookups() {
+        UUID viewer = user();
+        teams.addMember(team("orders"), new MemberRequest(PrincipalType.USER, viewer, null, null, role("TEAM_VIEWER")));
+
+        asUser(viewer);
+
+        assertThatThrownBy(() -> teams.findUsers("")).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> teams.teamRoles()).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void aUserAdministratorUsesTheLookupsToo() {
+        namedUser("admin-lookup-" + UUID.randomUUID(), false);
+
+        assertThat(teams.findUsers("admin-lookup-")).isNotEmpty();
+        assertThat(teams.teamRoles().roles()).isNotEmpty();
+    }
+
+    @Test
+    void theTeamListSummarisesEachTeamsPatternsWithTheirCluster() {
+        UUID orders = team("orders");
+        teams.addPattern(orders, pattern(prod, PatternKind.QUEUE, "orders.#"));
+        teams.addPattern(orders, pattern(staging, PatternKind.ADDRESS, "orders.*"));
+
+        var summary = teams.list().stream()
+                .filter(t -> t.id().equals(orders))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(summary.patterns())
+                .extracting(p -> p.clusterId() + " " + p.kind() + " " + p.pattern())
+                .containsExactlyInAnyOrder(prod + " QUEUE orders.#", staging + " ADDRESS orders.*");
+    }
+
     @Test
     void aMemberWhoIsNotATeamAdminCannotManageMembers() {
         UUID orders = team("orders");

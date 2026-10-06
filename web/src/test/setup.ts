@@ -3,16 +3,18 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 
+import { accessHandler } from './access.ts';
 import { manifestHandler } from './manifest.ts';
 
 /**
  * Shared MSW network mock (ADR-0024). Tests add per-case handlers with
  * `server.use(http.get(...))`; anything unhandled is a hard error so a missing
- * mock fails loudly instead of hanging on a real fetch. The one default is the
- * manifest, with every feature enabled, since the shell reads it on every screen;
+ * mock fails loudly instead of hanging on a real fetch. The defaults are the
+ * manifest, with every feature enabled, since the shell reads it on every screen, and
+ * `/me/access`, worked out from whatever a test mocks for `/auth/me`;
  * a test disables features with `server.use(manifestHandler([...]))`.
  */
-export const server = setupServer(manifestHandler());
+export const server = setupServer(manifestHandler(), accessHandler);
 
 // findBy* and waitFor give up after 1 s by default, and a screen behind a lazy route, a query and a
 // virtualised grid takes longer than that to appear when the whole suite is running. The wait ends the moment

@@ -2,9 +2,9 @@ import { ActionIcon, Button, Group, Stack, Switch, Text } from '@mantine/core';
 import { IconPencil, IconTrash, IconX } from '@tabler/icons-react';
 
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
+import type { AccessCheckView, EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
 import classes from './Security.module.css';
-import { factorWords, grantText, twoStepText } from './words.ts';
+import { factorWords, grantText, sourceText, twoStepText, type ScopeLabel } from './words.ts';
 
 /** A user's name, with what is wrong with the account beside it: a lock, or a password to change. */
 export function UserName({ user }: Readonly<{ user: UserView }>) {
@@ -119,6 +119,8 @@ export interface UserControls {
   onUnlock: (user: UserView) => void;
   onSessions: (user: UserView) => void;
   onPermissions: (user: UserView) => void;
+  /** A grant's scope in words, naming its environment or cluster. */
+  scopeLabel: ScopeLabel;
 }
 
 /** The roles a user holds, each removable, and the way to grant another. */
@@ -127,11 +129,11 @@ export function UserGrants({ user: u, controls }: Readonly<{ user: UserView; con
     <ul className={classes.grants} aria-label={`Roles of ${u.username}`}>
       {u.grants.map((g) => (
         <li key={`${g.roleId}-${g.scopeType}-${g.scopeId ?? 'global'}`} className={classes.grant}>
-          {grantText(g)}
+          {grantText(g, controls.scopeLabel)}
           <ActionIcon
             variant="subtle"
             size="sm"
-            aria-label={`Remove ${grantText(g)} from ${u.username}`}
+            aria-label={`Remove ${grantText(g, controls.scopeLabel)} from ${u.username}`}
             onClick={() => controls.onRemoveGrant(u, g)}
           >
             <IconX size="0.875rem" aria-hidden />
@@ -192,10 +194,10 @@ export function UserActions({ user: u, controls }: Readonly<{ user: UserView; co
       <Button
         size="xs"
         variant="subtle"
-        aria-label={`Effective permissions of ${u.username}`}
+        aria-label={`Access check of ${u.username}`}
         onClick={() => controls.onPermissions(u)}
       >
-        Effective permissions
+        Access check
       </Button>
     </span>
   );
@@ -230,5 +232,22 @@ export function MappingActions({
     <ActionIcon variant="subtle" onClick={() => onDelete(m)} aria-label={`Delete mapping for ${m.groupName}`}>
       <IconTrash size="1rem" aria-hidden />
     </ActionIcon>
+  );
+}
+
+/** Every source that allows a permission, one to a line; what a permission that is not allowed lacks is not said. */
+export function AccessSources({ view, scopeLabel }: Readonly<{ view: AccessCheckView; scopeLabel: ScopeLabel }>) {
+  if (view.sources.length === 0)
+    return (
+      <Text size="sm" c="dimmed">
+        None
+      </Text>
+    );
+  return (
+    <ul className={classes.sources} aria-label={`Sources of ${view.action}`}>
+      {view.sources.map((s, i) => (
+        <li key={`${s.type}-${s.roleName}-${s.teamId ?? s.scopeId ?? ''}-${i}`}>{sourceText(s, scopeLabel)}</li>
+      ))}
+    </ul>
   );
 }

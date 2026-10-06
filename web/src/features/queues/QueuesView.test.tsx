@@ -378,7 +378,10 @@ describe('QueuesView empty grid', () => {
     renderWithProviders(<QueuesView />);
 
     expect(await screen.findByText('No queues yet')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Create the first queue' })).not.toBeInTheDocument();
+    // The cluster's rights arrive after the page; until they do, creating is offered.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Create the first queue' })).not.toBeInTheDocument(),
+    );
   });
 });
 

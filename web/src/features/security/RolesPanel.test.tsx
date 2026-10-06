@@ -186,6 +186,62 @@ describe('RolesPanel editor', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New role' })).toBeNull());
   });
 
+  it('offers a team role only resource permissions, and saves it as team-assignable', async () => {
+    const mixed: PermissionView[] = [
+      ...CATALOGUE,
+      {
+        action: 'queue:read',
+        label: 'Read queues',
+        featureId: 'queues',
+        featureTitle: 'Queues',
+        scope: 'RESOURCE',
+        resourceKinds: ['QUEUE'],
+        requires: [],
+      },
+    ];
+    serve(ROLES, mixed);
+    let body: unknown;
+    server.use(
+      http.post('*/api/v1/roles', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...ROLES[1], id: 'r-9' });
+      }),
+    );
+    const user = userEvent.setup();
+    renderRoles();
+
+    await user.click(await screen.findByRole('button', { name: 'New role' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New role' });
+    expect(await within(dialog).findByRole('button', { name: /Queues, 0 of 3 selected/ })).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox', { name: /Name/ }), 'orders-reader');
+    await user.click(within(dialog).getByRole('switch', { name: /Team role/ }));
+
+    expect(await within(dialog).findByRole('button', { name: /Queues, 0 of 1 selected/ })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Select all in Queues' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(body).toEqual({
+        name: 'orders-reader',
+        permissions: ['queue:read'],
+        requiresMfa: false,
+        teamAssignable: true,
+      }),
+    );
+  });
+
+  it('shows a built-in role as a team role or not, as a fact', async () => {
+    serve([{ ...ROLES[0], id: 'r-team', name: 'Team Viewer', teamAssignable: true }]);
+    const user = userEvent.setup();
+    renderRoles();
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Team Viewer' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit "Team Viewer"' });
+    expect(within(dialog).getByText('Team role')).toBeInTheDocument();
+    expect(within(dialog).getByText('Yes')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('switch', { name: /Team role/ })).not.toBeInTheDocument();
+  });
+
   it('edits a role with its name and permissions filled in, and saves it under its id', async () => {
     serve();
     let put: { url: string; body: unknown } | undefined;

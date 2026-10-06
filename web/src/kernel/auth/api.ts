@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { requestAll } from '../api/paging.ts';
 import { ApiError, request } from '../api/request.ts';
 import { clearDismissedNotices } from '../useDismissedNotice.ts';
@@ -10,6 +10,7 @@ export type GrantView = Schemas['GrantView'];
 export type IdentityProviderView = Schemas['IdentityProviderView'];
 export type LoginRequest = Schemas['LoginRequest'];
 export type MeView = Schemas['MeView'];
+export type AccessSummary = Schemas['AccessSummary'];
 export type AuthResult = Schemas['AuthResult'];
 export type SecondFactorRequest = Schemas['SecondFactorRequest'];
 /** How a person can prove a second factor: an authenticator code, a passkey, or a recovery code. */
@@ -26,6 +27,25 @@ export const keys = {
   authProviders: ['auth', 'providers'] as const,
   me: ['auth', 'me'] as const,
 };
+
+export const accessKeys = {
+  all: ['access'] as const,
+  of: (clusterId?: string) => ['access', clusterId ?? 'global'] as const,
+};
+
+/**
+ * What the signed-in user holds, globally or on one cluster, as the server's resolver decides it: through role
+ * grants at any scope, and for a cluster the resource permissions held somewhere on it through teams and shares.
+ * The console only uses it to offer or withhold controls; the server enforces.
+ */
+export function accessQuery(clusterId?: string) {
+  return queryOptions({
+    queryKey: accessKeys.of(clusterId),
+    queryFn: () => request<AccessSummary>(clusterId ? `/me/access?clusterId=${clusterId}` : '/me/access'),
+    retry: false,
+    staleTime: 30_000,
+  });
+}
 
 /** `retry: false` — a 401 here means "not logged in," which retrying cannot fix. */
 export function useMe(): UseQueryResult<MeView, ApiError> {
@@ -59,6 +79,7 @@ export function useLogin() {
       if (result.me) {
         // Whoever signs in next sees every notice again, including on a shared browser.
         clearDismissedNotices();
+        qc.removeQueries({ queryKey: accessKeys.all });
         qc.setQueryData(keys.me, result.me);
       }
     },
@@ -107,6 +128,7 @@ export function useSecondFactor() {
       if (result.me) {
         // Whoever signs in next sees every notice again, including on a shared browser.
         clearDismissedNotices();
+        qc.removeQueries({ queryKey: accessKeys.all });
         qc.setQueryData(keys.me, result.me);
       }
       void qc.invalidateQueries({ queryKey: keys.me });
@@ -125,6 +147,7 @@ export function useLogout() {
     mutationFn: () => request<void>('/auth/logout', { method: 'POST' }),
     onSuccess: () => {
       clearDismissedNotices();
+      qc.removeQueries({ queryKey: accessKeys.all });
       qc.setQueryData(keys.me, undefined);
     },
   });
