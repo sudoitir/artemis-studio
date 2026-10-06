@@ -2,6 +2,8 @@ import type { ElkNode } from 'elkjs/lib/elk-api';
 
 import elkWorkerUrl from 'elkjs/lib/elk-worker.min.js?url';
 
+import { workerScriptUrl } from '../trustedTypes.ts';
+
 /** What an ELK instance offers, whichever way the bundler hands the CommonJS module over. */
 type Elk = { layout(graph: ElkNode): Promise<ElkNode> };
 type ElkConstructor = new (options?: { workerUrl?: string }) => Elk;
@@ -27,7 +29,9 @@ function elkInstance(): Promise<Elk> {
   elk ??=
     typeof Worker === 'undefined'
       ? import('elkjs/lib/elk.bundled.js').then((m) => new (constructorOf(m))())
-      : import('elkjs/lib/elk-api.js').then((m) => new (constructorOf(m))({ workerUrl: elkWorkerUrl }));
+      : import('elkjs/lib/elk-api.js').then(
+          (m) => new (constructorOf(m))({ workerUrl: workerScriptUrl(elkWorkerUrl) }),
+        );
   return elk;
 }
 
