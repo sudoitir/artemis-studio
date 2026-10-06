@@ -39,6 +39,15 @@ const CATALOGUE = [
     resourceKinds: [],
     requires: [],
   },
+  {
+    action: 'message:read',
+    label: 'Read messages',
+    featureId: 'messages',
+    featureTitle: 'Messages',
+    scope: 'RESOURCE',
+    resourceKinds: ['QUEUE'],
+    requires: [],
+  },
 ];
 
 const DAY = 86_400_000;
@@ -157,6 +166,60 @@ describe('ApiKeysPanel', () => {
     const days = (Date.parse(posted.expiresAt!) - Date.now()) / DAY;
     expect(days).toBeGreaterThan(29);
     expect(days).toBeLessThanOrEqual(30);
+  });
+
+  it('limits the permissions that act on queues to the names a pattern matches', async () => {
+    let posted: { grants?: unknown[] } = {};
+    mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read', 'message:read'] }]);
+    server.use(
+      http.post('*/api/v1/tokens', async ({ request }) => {
+        posted = (await request.json()) as typeof posted;
+        return HttpResponse.json(
+          { token: token({ id: 't9', name: 'orders' }), value: 'as_zzzz_secret' },
+          { status: 201 },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    renderKeys();
+
+    await user.click(await screen.findByRole('button', { name: 'New key' }));
+    await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'orders');
+    await user.click(await screen.findByRole('checkbox', { name: 'Select all in Clusters' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Select all in Messages' }));
+    await user.click(screen.getByRole('combobox', { name: 'Limit to' }));
+    await user.click(await screen.findByRole('option', { name: 'Queues whose names match a pattern', hidden: true }));
+    await user.type(await screen.findByRole('textbox', { name: /Name pattern/ }), 'orders.#');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByDisplayValue('as_zzzz_secret')).toBeInTheDocument();
+    expect(posted.grants).toEqual(
+      expect.arrayContaining([
+        { action: 'cluster:read', scopeType: 'GLOBAL', scopeId: null },
+        {
+          action: 'message:read',
+          scopeType: 'GLOBAL',
+          scopeId: null,
+          resourceKind: 'QUEUE',
+          resourcePattern: 'orders.#',
+        },
+      ]),
+    );
+  });
+
+  it('asks for the pattern when the key is limited to names', async () => {
+    mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['message:read'] }]);
+    const user = userEvent.setup();
+    renderKeys();
+
+    await user.click(await screen.findByRole('button', { name: 'New key' }));
+    await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'orders');
+    await user.click(await screen.findByRole('checkbox', { name: 'Select all in Messages' }));
+    await user.click(screen.getByRole('combobox', { name: 'Limit to' }));
+    await user.click(await screen.findByRole('option', { name: 'Queues whose names match a pattern', hidden: true }));
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText('Give the pattern the names must match, such as orders.#')).toBeInTheDocument();
   });
 
   it('rotates a key and says until when the old secret works', async () => {

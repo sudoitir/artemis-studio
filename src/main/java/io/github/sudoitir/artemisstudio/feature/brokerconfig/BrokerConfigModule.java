@@ -25,7 +25,7 @@ public final class BrokerConfigModule {
             .apiPrefix("/api/v1/clusters/{clusterId}/config-diff")
             .settingKey(BrokerConfigSettings.DRIFT_INTERVAL)
             .settingKey(BrokerConfigSettings.APPLY_STEP_CAP)
-            .streamTopic(new TopicDef(BrokerConfigDriftService.SSE_TOPIC, true))
+            .streamTopic(TopicDef.data(BrokerConfigDriftService.SSE_TOPIC, null))
             .mcpTool(new McpToolDef(
                     "config_diff",
                     McpToolDef.Posture.READ,

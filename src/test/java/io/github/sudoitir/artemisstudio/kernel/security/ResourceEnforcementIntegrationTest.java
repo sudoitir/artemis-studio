@@ -701,6 +701,99 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
                 .isEqualTo(404);
     }
 
+    // ---- refusals are audited ----------------------------------------------------------------------------
+
+    private List<JsonNode> refusals(UsernamePasswordAuthenticationToken session) throws Exception {
+        return body(call(get(base() + "/audit?outcome=REFUSED"), session))
+                .get("data")
+                .valueStream()
+                .toList();
+    }
+
+    @Test
+    void aRefusedPurgeIsAnAuditEventNamingThePermissionAndTheQueue() throws Exception {
+        assertThat(call(delete(base() + "/queues/orders.in/messages?dryRun=true"), ordersViewer)
+                        .getStatus())
+                .isEqualTo(403);
+
+        List<JsonNode> events = refusals(platformOperator);
+
+        assertThat(events).hasSize(1);
+        JsonNode refused = events.get(0);
+        assertThat(refused.get("action").asString()).isEqualTo("ACCESS_REFUSED");
+        assertThat(refused.get("targetType").asString()).isEqualTo("QUEUE");
+        assertThat(refused.get("targetName").asString()).isEqualTo("orders.in");
+        assertThat(refused.get("username").asString()).isEqualTo(ordersViewerName());
+        assertThat(json.readTree(refused.get("params").asString())
+                        .get("permission")
+                        .asString())
+                .isEqualTo("queue:purge");
+        assertThat(json.readTree(refused.get("params").asString())
+                        .get("visibility")
+                        .asString())
+                .isEqualTo("forbidden");
+    }
+
+    @Test
+    void aQueueHiddenFromTheCallerIsRecordedAsHidden() throws Exception {
+        assertThat(call(delete(base() + "/queues/billing.in/messages?dryRun=true"), ordersViewer)
+                        .getStatus())
+                .isEqualTo(404);
+
+        List<JsonNode> events = refusals(platformOperator);
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).get("targetName").asString()).isEqualTo("billing.in");
+        assertThat(json.readTree(events.get(0).get("params").asString())
+                        .get("visibility")
+                        .asString())
+                .isEqualTo("hidden");
+    }
+
+    @Test
+    void theSameRefusalRepeatedIsOneEventWithACount() throws Exception {
+        for (int i = 0; i < 50; i++) {
+            call(delete(base() + "/queues/orders.in/messages?dryRun=true"), ordersViewer);
+        }
+
+        List<JsonNode> events = refusals(platformOperator);
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).get("affectedCount").asLong()).isEqualTo(50);
+    }
+
+    @Test
+    void aRefusedBrokerChangeLeavesOneRefusedEventNamingThePermission() throws Exception {
+        assertThat(postJson(base() + "/queues/orders.in/pause?dryRun=true", "", ordersViewer)
+                        .getStatus())
+                .isEqualTo(403);
+
+        List<JsonNode> events = refusals(platformOperator);
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).get("targetName").asString()).isEqualTo("orders.in");
+        assertThat(events.get(0).get("outcome").asString()).isEqualTo("REFUSED");
+        assertThat(json.readTree(events.get(0).get("params").asString())
+                        .get("permission")
+                        .asString())
+                .isEqualTo("queue:pause");
+    }
+
+    @Test
+    void aTeamMemberSeesTheRefusalsAboutTheirOwnQueuesOnly() throws Exception {
+        call(delete(base() + "/queues/orders.in/messages?dryRun=true"), ordersViewer);
+        call(delete(base() + "/queues/billing.in/messages?dryRun=true"), ordersViewer);
+
+        assertThat(refusals(ordersViewer))
+                .extracting(e -> e.get("targetName").asString())
+                .containsExactly("orders.in");
+        assertThat(refusals(platformOperator)).hasSize(2);
+    }
+
+    private String ordersViewerName() {
+        return ((StudioPrincipal) ordersViewer.getPrincipal()).getUsername();
+    }
+
     // ---- helpers for the above ---------------------------------------------------------------------------
 
     @Autowired

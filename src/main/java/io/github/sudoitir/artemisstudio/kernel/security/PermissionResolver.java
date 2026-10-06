@@ -6,9 +6,11 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +30,9 @@ import org.springframework.stereotype.Component;
  * is disabled or gone, grants nothing, wildcards included.
  *
  * <p>A signed-in user's grants and teams are read from their current {@link AccessSnapshot}, so a change
- * applies on their next request. A principal that carries its own grants (an API key, which acts within
- * grants narrowed when it was authenticated) is checked against those, and gets no team access.
+ * applies on their next request. An API key acts within what both its grants and its owner's current access
+ * allow, teams included: it is asked what its grants say, and then what its owner holds. Any other principal
+ * that carries its own grants is checked against those, and gets no team access.
  */
 @Component("perm")
 @PluginApi
@@ -61,7 +64,14 @@ public class PermissionResolver {
             return false;
         }
         CatalogueEntry entry = features.permission(permission).orElse(null);
-        return entry != null && grantsAllow(principal, entry, clusterId, permission);
+        if (entry == null) {
+            return false;
+        }
+        if (principal instanceof TokenPrincipal token) {
+            return tokenAllows(token, entry, clusterId, permission, g -> !g.limited())
+                    && can(token.owner(), clusterId, permission);
+        }
+        return grantsAllow(principal, entry, clusterId, permission);
     }
 
     /**
@@ -81,6 +91,17 @@ public class PermissionResolver {
         CatalogueEntry entry = features.permission(action).orElse(null);
         if (entry == null) {
             return false;
+        }
+        if (principal instanceof TokenPrincipal token) {
+            return tokenAllows(
+                            token,
+                            entry,
+                            clusterId,
+                            action,
+                            g -> !g.limited()
+                                    || (g.kind() == resource.kind()
+                                            && g.pattern().matches(resource.name())))
+                    && can(token.owner(), clusterId, resource, action);
         }
         if (grantsAllow(principal, entry, clusterId, action)) {
             return true;
@@ -104,13 +125,26 @@ public class PermissionResolver {
      * page or control be offered", and must never authorise a change: that is {@link #can(UUID, ResourceRef, String)}.
      */
     public boolean canAnywhere(UUID clusterId, String action) {
-        StudioPrincipal principal = currentPrincipal();
+        return canAnywhere(currentPrincipal(), clusterId, action);
+    }
+
+    /** The same question for a given principal rather than the current one. */
+    public boolean canAnywhere(StudioPrincipal principal, UUID clusterId, String action) {
         if (principal == null) {
             return false;
         }
         CatalogueEntry entry = features.permission(action).orElse(null);
         if (entry == null) {
             return false;
+        }
+        if (principal instanceof TokenPrincipal token) {
+            return tokenAllows(
+                            token,
+                            entry,
+                            clusterId,
+                            action,
+                            g -> !g.limited() || entry.resourceKinds().contains(g.kind()))
+                    && canAnywhere(token.owner(), clusterId, action);
         }
         if (grantsAllow(principal, entry, clusterId, action)) {
             return true;
@@ -134,9 +168,14 @@ public class PermissionResolver {
      * or address on it. Seeing a cluster through a team grants nothing cluster-wide.
      */
     public boolean canSeeCluster(UUID clusterId) {
-        return can(clusterId, Permissions.CLUSTER_READ)
-                || canAnywhere(clusterId, Permissions.QUEUE_READ)
-                || canAnywhere(clusterId, Permissions.ADDRESS_READ);
+        return canSeeCluster(currentPrincipal(), clusterId);
+    }
+
+    /** The same question for a given principal rather than the current one. */
+    public boolean canSeeCluster(StudioPrincipal principal, UUID clusterId) {
+        return can(principal, clusterId, Permissions.CLUSTER_READ)
+                || canAnywhere(principal, clusterId, Permissions.QUEUE_READ)
+                || canAnywhere(principal, clusterId, Permissions.ADDRESS_READ);
     }
 
     /**
@@ -166,16 +205,32 @@ public class PermissionResolver {
      * caller may not use.
      */
     public boolean canOnAll(UUID clusterId, ResourceKind kind, String patternText, String action) {
-        StudioPrincipal principal = currentPrincipal();
+        return canOnAll(currentPrincipal(), clusterId, kind, patternText, action);
+    }
+
+    private boolean canOnAll(
+            StudioPrincipal principal, UUID clusterId, ResourceKind kind, String patternText, String action) {
         CatalogueEntry entry =
                 principal == null ? null : features.permission(action).orElse(null);
         if (entry == null) {
             return false;
         }
+        ResourcePattern pattern = parsedOrNull(patternText);
+        if (principal instanceof TokenPrincipal token) {
+            return tokenAllows(
+                            token,
+                            entry,
+                            clusterId,
+                            action,
+                            g -> !g.limited()
+                                    || (pattern != null
+                                            && g.kind() == kind
+                                            && ResourcePattern.covers(g.pattern(), pattern)))
+                    && canOnAll(token.owner(), clusterId, kind, patternText, action);
+        }
         if (grantsAllow(principal, entry, clusterId, action)) {
             return true;
         }
-        ResourcePattern pattern = parsedOrNull(patternText);
         if (pattern == null
                 || !teamsApply(principal, entry, clusterId)
                 || !entry.resourceKinds().contains(kind)) {
@@ -223,11 +278,90 @@ public class PermissionResolver {
                 .toList();
     }
 
-    /** The grants a principal acts on right now: its own when it carries them, else the user's current ones. */
+    /**
+     * The grants a principal acts on right now, for showing them: its own when it carries them, else the
+     * user's current ones. An API key's are the whole-scope grants of the key that its owner also holds;
+     * what a key is limited to by name is not a grant of a scope, and is left out.
+     */
     public Set<Grant> grantsOf(StudioPrincipal principal) {
+        if (principal instanceof TokenPrincipal token) {
+            return keyGrants(token);
+        }
         return principal.pinned()
                 ? principal.pinnedGrants()
                 : access.of(principal.userId()).grants();
+    }
+
+    /**
+     * What the key's grants and its owner's grants have in common: for each scope the key addresses that an
+     * owner grant reaches, the permissions of the key that the owner holds there, and the owner's that a
+     * wildcard of the key covers, so a wildcard allows whatever the owner holds that it matches.
+     */
+    private Set<Grant> keyGrants(TokenPrincipal token) {
+        Set<Grant> owned = access.of(token.userId()).grants();
+        Set<Grant> result = new HashSet<>();
+        for (TokenGrant tg : token.grants()) {
+            if (tg.limited()) {
+                continue;
+            }
+            for (Grant og : owned) {
+                if (!reaches(og, tg)) {
+                    continue;
+                }
+                Set<String> shared = new HashSet<>();
+                if (og.grants(tg.action())) {
+                    shared.add(tg.action());
+                }
+                og.permissions().stream().filter(tg::covers).forEach(shared::add);
+                if (!shared.isEmpty()) {
+                    result.add(new Grant(tg.scopeType(), tg.scopeId(), Set.copyOf(shared)));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Whether an owner grant reaches the scope a key grant addresses: global reaches everything, an
+     * environment its clusters, a cluster itself. Never the other way, so a key cannot exceed its owner: a
+     * cluster grant of the owner does not reach a global grant of the key.
+     */
+    private boolean reaches(Grant owner, TokenGrant token) {
+        return switch (owner.scopeType()) {
+            case GLOBAL -> true;
+            case ENVIRONMENT ->
+                switch (token.scopeType()) {
+                    case GLOBAL -> false;
+                    case ENVIRONMENT -> owner.scopeId().equals(token.scopeId());
+                    case CLUSTER -> owner.scopeId().equals(environments.environmentOf(token.scopeId()));
+                };
+            case CLUSTER ->
+                token.scopeType() == Grant.ScopeType.CLUSTER && owner.scopeId().equals(token.scopeId());
+        };
+    }
+
+    /**
+     * Whether one of the key's own grants allows {@code permission} on the cluster, at a scope that reaches it,
+     * and is of the kind the question needs. The owner's side is asked separately.
+     */
+    private boolean tokenAllows(
+            TokenPrincipal token, CatalogueEntry entry, UUID clusterId, String permission, Predicate<TokenGrant> fits) {
+        UUID environmentId = clusterId == null || entry.scope() == PermissionScope.GLOBAL
+                ? null
+                : environments.environmentOf(clusterId);
+        return token.grants().stream()
+                .anyMatch(g -> g.covers(permission)
+                        && fits.test(g)
+                        && scopeMatches(g.scopeType(), g.scopeId(), entry, clusterId, environmentId));
+    }
+
+    private static boolean scopeMatches(
+            Grant.ScopeType type, UUID scopeId, CatalogueEntry entry, UUID clusterId, UUID environmentId) {
+        return switch (type) {
+            case GLOBAL -> true;
+            case ENVIRONMENT -> environmentId != null && environmentId.equals(scopeId);
+            case CLUSTER -> entry.scope() != PermissionScope.GLOBAL && clusterId != null && clusterId.equals(scopeId);
+        };
     }
 
     private boolean grantsAllow(StudioPrincipal principal, CatalogueEntry entry, UUID clusterId, String permission) {
@@ -235,16 +369,8 @@ public class PermissionResolver {
                 ? null
                 : environments.environmentOf(clusterId);
         for (Grant grant : grantsOf(principal)) {
-            boolean scopeMatches =
-                    switch (grant.scopeType()) {
-                        case GLOBAL -> true;
-                        case ENVIRONMENT -> environmentId != null && environmentId.equals(grant.scopeId());
-                        case CLUSTER ->
-                            entry.scope() != PermissionScope.GLOBAL
-                                    && clusterId != null
-                                    && clusterId.equals(grant.scopeId());
-                    };
-            if (scopeMatches && grant.grants(permission)) {
+            if (scopeMatches(grant.scopeType(), grant.scopeId(), entry, clusterId, environmentId)
+                    && grant.grants(permission)) {
                 return true;
             }
         }

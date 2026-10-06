@@ -153,6 +153,9 @@ class ResourceCheckCoverageTest {
                     "masking rules are installation-wide and match addresses by pattern; governance:write is a global"
                             + " permission"),
             Map.entry(
+                    "kernel.stream.SseHub.publishAboutAddress",
+                    "names what a signal is about; the stream decides per subscriber who may see it"),
+            Map.entry(
                     "feature.identitylocal.mfa.SecondFactorService.trustDevice",
                     "'source' is where a sign-in came from"));
 

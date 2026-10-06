@@ -5,8 +5,10 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
@@ -51,6 +53,9 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
     @Autowired
     UserRoleRepository userRoles;
 
+    @Autowired
+    AccessChanges accessChanges;
+
     private MockMvc mvc() {
         return MockMvcBuilders.webAppContextSetup(webContext)
                 .apply(springSecurity())
@@ -76,7 +81,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
 
@@ -92,7 +97,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
 
@@ -117,7 +122,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
         jdbc.sql("UPDATE api_token SET expires_at = now() - interval '1 minute' WHERE id = ?")
@@ -136,7 +141,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
         apiTokenService.revoke(user.getId(), minted.entity().getId());
@@ -153,7 +158,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
         String prefix = minted.plaintext().substring(0, minted.plaintext().indexOf('_', 3));
@@ -171,7 +176,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("environment:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "environment:read")),
                 List.of(),
                 false);
 
@@ -180,6 +185,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
 
         // Demote: strip every grant the owner holds, without disabling the account.
         userRoles.findByIdUserId(user.getId()).forEach(userRoles::delete);
+        accessChanges.changedFor(user.getId());
 
         mvc().perform(get("/api/v1/environments").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isForbidden());
@@ -193,7 +199,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
 
@@ -258,7 +264,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
                 user.getId(),
                 "ci-name",
                 Instant.now().plusSeconds(3600),
-                List.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
+                List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read")),
                 List.of(),
                 false);
 

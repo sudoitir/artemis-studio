@@ -7,12 +7,12 @@ import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.support.AccountIntegrationTest;
 import io.github.sudoitir.artemisstudio.support.Browser;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,7 +122,7 @@ class TokenMfaIntegrationTest extends AccountIntegrationTest {
     void mintingChecksTheSecondFactorItselfToo() {
         UUID id = newUser("tk-direct");
         requireMfa(id);
-        Grant grant = new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"));
+        TokenGrant grant = TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read");
         var expiry = inAnHour();
         var grants = List.of(grant);
 
@@ -136,7 +136,7 @@ class TokenMfaIntegrationTest extends AccountIntegrationTest {
     void aSingleSignOnUserIsNotChallengedForASecondFactor() throws Exception {
         AppUserEntity sso = users.save(AppUserEntity.external("oidc-corp", "subject-1", "tk-sso", "sso@example.test"));
         requireMfa(sso.getId());
-        Grant grant = new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"));
+        TokenGrant grant = TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "cluster:read");
 
         String token = tokens.mint(sso.getId(), "sso", inAnHour(), List.of(grant), List.of(), false)
                 .plaintext();

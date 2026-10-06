@@ -3871,6 +3871,10 @@ export interface components {
             scopeType: string;
             /** Format: uuid */
             scopeId?: string | null;
+            /** @description QUEUE or ADDRESS: limits the grant to names matching resourcePattern */
+            resourceKind?: string | null;
+            /** @description An Artemis wildcard pattern, with resourceKind; absent for the whole scope */
+            resourcePattern?: string | null;
         };
         CreatedTokenView: {
             token: components["schemas"]["TokenView"];
@@ -3881,6 +3885,8 @@ export interface components {
             scopeType: string;
             /** Format: uuid */
             scopeId: string;
+            resourceKind?: string | null;
+            resourcePattern?: string | null;
         };
         TokenView: {
             /** Format: uuid */

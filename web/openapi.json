@@ -25874,6 +25874,14 @@
           "scopeId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid"
+          },
+          "resourceKind" : {
+            "type" : [ "string", "null" ],
+            "description" : "QUEUE or ADDRESS: limits the grant to names matching resourcePattern"
+          },
+          "resourcePattern" : {
+            "type" : [ "string", "null" ],
+            "description" : "An Artemis wildcard pattern, with resourceKind; absent for the whole scope"
           }
         },
         "required" : [ "action", "scopeType" ]
@@ -25902,6 +25910,12 @@
           "scopeId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "resourceKind" : {
+            "type" : [ "string", "null" ]
+          },
+          "resourcePattern" : {
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "action", "scopeId", "scopeType" ]

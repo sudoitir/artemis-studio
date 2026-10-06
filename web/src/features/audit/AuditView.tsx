@@ -126,7 +126,7 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
         clearable
         value={search.outcome ?? null}
         onChange={(v) => setParam({ outcome: v || undefined })}
-        data={['SUCCESS', 'FAILURE', 'PENDING']}
+        data={['SUCCESS', 'FAILURE', 'REFUSED', 'PENDING']}
       />
     </>
   );

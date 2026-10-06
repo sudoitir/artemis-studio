@@ -178,7 +178,7 @@ public class RrCorrelator implements RrObservationSink {
                                 r.at(),
                                 r.bodyPreview())
                         : null);
-        sseHub.publish(r.clusterId(), "rr");
+        sseHub.publishAboutAddress(r.clusterId(), "rr", r.requestAddress());
     }
 
     private void onReplySeen(Observation.ReplySeen r) {
@@ -250,7 +250,7 @@ public class RrCorrelator implements RrObservationSink {
                                 r.at(),
                                 r.bodyPreview())
                         : null);
-        sseHub.publish(r.clusterId(), "rr");
+        sseHub.publishAboutAddress(r.clusterId(), "rr", flow.getRequestAddress());
     }
 
     private void onResponderUp(Observation.ResponderUp r) {
@@ -312,7 +312,7 @@ public class RrCorrelator implements RrObservationSink {
         flow.setObservedAt(at);
         flows.save(flow);
         recordEvent(flow.getId(), flow.getNodeId(), t.eventKind(), at, null);
-        sseHub.publish(flow.getClusterId(), "rr");
+        sseHub.publishAboutAddress(flow.getClusterId(), "rr", flow.getRequestAddress());
     }
 
     /**

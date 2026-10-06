@@ -38,7 +38,7 @@ class SseHubTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final StudioBus bus = mock(StudioBus.class);
-    private final SseHub hub = new SseHub(bus, mapper);
+    private final SseHub hub = new SseHub(bus, mapper, (s, c, f) -> f);
 
     /** What the bus would do: hand the message back to this replica, which is how every frame arrives. */
     private void loopback() {
@@ -56,8 +56,8 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter queuesEmitter = mock(SseEmitter.class);
         SseEmitter topologyEmitter = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(queuesEmitter, Set.of("queues"), null));
-        hub.register(clusterId, new Subscriber(topologyEmitter, Set.of("topology"), null));
+        hub.register(clusterId, new Subscriber(queuesEmitter, Set.of("queues"), null, null, null));
+        hub.register(clusterId, new Subscriber(topologyEmitter, Set.of("topology"), null, null, null));
 
         hub.publish(clusterId, "queues");
 
@@ -71,7 +71,7 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter dead = mock(SseEmitter.class);
         doThrow(new IOException("client gone")).when(dead).send(any(SseEmitter.SseEventBuilder.class));
-        hub.register(clusterId, new Subscriber(dead, Set.of("queues"), null));
+        hub.register(clusterId, new Subscriber(dead, Set.of("queues"), null, null, null));
         assertThat(hub.subscriberCount(clusterId)).isEqualTo(1);
 
         hub.publish(clusterId, "queues");
@@ -99,7 +99,7 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
         // Subscribed to nothing: the keep-alive is not a topic.
-        hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of(), null, null, null));
 
         hub.heartbeat();
 
@@ -112,7 +112,7 @@ class SseHubTest {
     void aNewSubscriberIsGreetedWithAPingSoItsClientSeesTheStreamOpenAtOnce() throws IOException {
         SseEmitter emitter = mock(SseEmitter.class);
 
-        hub.greet(new Subscriber(emitter, Set.of("queues"), null));
+        hub.greet(new Subscriber(emitter, Set.of("queues"), null, null, null));
 
         ArgumentCaptor<SseEmitter.SseEventBuilder> frame = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
         verify(emitter).send(frame.capture());
@@ -124,7 +124,7 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter dead = mock(SseEmitter.class);
         doThrow(new IOException("client gone")).when(dead).send(any(SseEmitter.SseEventBuilder.class));
-        hub.register(clusterId, new Subscriber(dead, Set.of("queues"), null));
+        hub.register(clusterId, new Subscriber(dead, Set.of("queues"), null, null, null));
 
         hub.heartbeat();
 
@@ -135,7 +135,7 @@ class SseHubTest {
     void publishBroadcastsAFrameAndDeliversNothingItself() throws IOException {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null, null, null));
 
         hub.publish(clusterId, "events", Map.of("seq", 7), "7");
 
@@ -174,8 +174,8 @@ class SseHubTest {
         UUID clusterId = UUID.randomUUID();
         SseEmitter wants = mock(SseEmitter.class);
         SseEmitter other = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(wants, Set.of("events"), null));
-        hub.register(clusterId, new Subscriber(other, Set.of("queues"), null));
+        hub.register(clusterId, new Subscriber(wants, Set.of("events"), null, null, null));
+        hub.register(clusterId, new Subscriber(other, Set.of("queues"), null, null, null));
 
         hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("{\"seq\":7}"), "7"));
 
@@ -189,11 +189,11 @@ class SseHubTest {
     void aBufferingSubscriberGetsLiveFramesAfterTheReplayAndNoRepeat() throws IOException {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
-        Subscriber subscriber = new Subscriber(emitter, Set.of("events", "queues"), null);
+        Subscriber subscriber = new Subscriber(emitter, Set.of("events", "queues"), null, null, null);
         subscriber.buffer();
         hub.register(clusterId, subscriber);
-        hub.sendTo(subscriber, "events", "replayed", "11");
-        hub.sendTo(subscriber, "events", "replayed", "12");
+        hub.replayTo(clusterId, subscriber, "events", "replayed", "11");
+        hub.replayTo(clusterId, subscriber, "events", "replayed", "12");
 
         hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree("12"), "12"));
         hub.onFrame(new BusFrame(clusterId, "queues", null, null));
@@ -218,7 +218,7 @@ class SseHubTest {
     void theBusComingBackTellsEverySubscriberToResync() throws IOException {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of(), null, null, null));
 
         hub.onBusResumed(new BusResumed());
 
@@ -231,7 +231,7 @@ class SseHubTest {
     void closingTellsEverySubscriberToReconnectBeforeItIsCompleted() throws IOException {
         UUID clusterId = UUID.randomUUID();
         SseEmitter emitter = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(emitter, Set.of(), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of(), null, null, null));
 
         hub.closeAll();
 
@@ -255,8 +255,8 @@ class SseHubTest {
                 .when(stalled)
                 .send(any(SseEmitter.SseEventBuilder.class));
         SseEmitter healthy = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(stalled, Set.of("queues"), null));
-        hub.register(clusterId, new Subscriber(healthy, Set.of("queues"), null));
+        hub.register(clusterId, new Subscriber(stalled, Set.of("queues"), null, null, null));
+        hub.register(clusterId, new Subscriber(healthy, Set.of("queues"), null, null, null));
 
         long start = System.nanoTime();
         for (int i = 0; i < 3; i++) {
@@ -282,7 +282,7 @@ class SseHubTest {
                 })
                 .when(emitter)
                 .send(any(SseEmitter.SseEventBuilder.class));
-        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null, null, null));
 
         for (int i = 0; i < total; i++) {
             hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
@@ -310,7 +310,7 @@ class SseHubTest {
                 })
                 .when(emitter)
                 .send(any(SseEmitter.SseEventBuilder.class));
-        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of("events"), null, null, null));
 
         for (int i = 0; i < 300; i++) {
             hub.onFrame(new BusFrame(clusterId, "events", mapper.readTree(Integer.toString(i)), Integer.toString(i)));
@@ -333,9 +333,45 @@ class SseHubTest {
     @Test
     void removeDeregistersOneSubscriber() {
         UUID clusterId = UUID.randomUUID();
-        Subscriber s = new Subscriber(mock(SseEmitter.class), Set.of("topology"), null);
+        Subscriber s = new Subscriber(mock(SseEmitter.class), Set.of("topology"), null, null, null);
         hub.register(clusterId, s);
         hub.remove(clusterId, s);
         assertThat(hub.subscriberCount(clusterId)).isZero();
+    }
+
+    @Test
+    void aSubscriberIsSentOnlyWhatItsAccessLeavesOfAFrame() throws IOException {
+        SseHub trimming = new SseHub(bus, mapper, (subscriber, clusterId, frame) -> {
+            if (frame.about() == null) {
+                return null;
+            }
+            List<String> kept = frame.about().queues().stream()
+                    .filter(q -> q.startsWith("orders."))
+                    .toList();
+            return kept.isEmpty()
+                    ? null
+                    : new Subscriber.Held(frame.topic(), frame.data(), frame.id(), BusFrame.About.of(kept, List.of()));
+        });
+        doAnswer(invocation -> {
+                    trimming.onFrame((BusFrame) invocation.getArgument(0));
+                    return null;
+                })
+                .when(bus)
+                .publish(any(BusMessage.class));
+        UUID clusterId = UUID.randomUUID();
+        SseEmitter emitter = mock(SseEmitter.class);
+        trimming.register(clusterId, new Subscriber(emitter, Set.of("queues"), null, null, null));
+
+        trimming.publishAbout(clusterId, "queues", List.of("billing.in"), List.of());
+        trimming.publish(clusterId, "queues");
+        trimming.publishAbout(clusterId, "queues", List.of("orders.in", "billing.in"), List.of());
+
+        ArgumentCaptor<SseEmitter.SseEventBuilder> sent = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+        verify(emitter, timeout(2_000)).send(sent.capture());
+        verify(emitter, after(200).times(1)).send(any(SseEmitter.SseEventBuilder.class));
+        String wire = sent.getValue().build().stream()
+                .map(d -> String.valueOf(d.getData()))
+                .collect(java.util.stream.Collectors.joining());
+        assertThat(wire).contains("orders.in").doesNotContain("billing.in");
     }
 }

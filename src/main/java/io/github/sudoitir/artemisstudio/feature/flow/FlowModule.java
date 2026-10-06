@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.flow;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 
 /** Client connectivity and message flow. Module descriptor (ADR-0070). */
 public final class FlowModule {
@@ -17,7 +18,7 @@ public final class FlowModule {
             .settingKey(FlowSettings.SAMPLE_INTERVAL)
             .settingKey(FlowSettings.MAX_ROWS_PER_NODE)
             .settingKey(FlowSettings.DEMAND_LEASE)
-            .streamTopic(TopicDef.signal(TOPIC))
+            .streamTopic(TopicDef.signal(TOPIC, Permissions.QUEUE_READ))
             .build();
 
     private FlowModule() {}

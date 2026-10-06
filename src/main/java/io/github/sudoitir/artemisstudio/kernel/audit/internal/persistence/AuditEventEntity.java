@@ -134,6 +134,13 @@ public class AuditEventEntity implements AuditEvent {
         this.affectedCount = affectedCount;
     }
 
+    /** The request was refused for lack of a permission, {@code count} times so far. */
+    public void markRefused(String reason, long count) {
+        this.outcome = "REFUSED";
+        this.error = reason;
+        this.affectedCount = count;
+    }
+
     public void markFailure(String error) {
         this.outcome = "FAILURE";
         this.error = error;
