@@ -599,6 +599,46 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
                 .isGreaterThanOrEqualTo(4);
     }
 
+    @Test
+    void aRunOfAnotherTeamsQueuesIsNotFoundByItsOwnIdWithoutNamingAQueue() throws Exception {
+        MockHttpServletResponse planned =
+                postJson(base() + "/bulk/preview", bulk("\"names\":[\"orders.in\",\"billing.in\"]"), platformOperator);
+        String run = body(planned).get("run").get("id").asString();
+
+        for (MockHttpServletResponse response : List.of(
+                call(get(base() + "/bulk/runs/" + run), ordersViewer),
+                postJson(base() + "/bulk/runs/" + run + "/stop", "", ordersOperator))) {
+            assertThat(response.getStatus()).isEqualTo(404);
+            assertThat(body(response).get("detail").asString())
+                    .isEqualTo("bulk run " + run + " does not exist.")
+                    .doesNotContain("billing");
+        }
+    }
+
+    @Test
+    void anAuditEventDoesNotNameAQueueTheReaderMayNotReadInItsParameters() throws Exception {
+        audited("QUEUE", "orders.in", Map.of("target", "billing.in"));
+        audited("QUEUE", "orders.out", Map.of("target", "orders.in"));
+
+        String trail = call(get(base() + "/audit"), ordersViewer).getContentAsString();
+
+        assertThat(trail).doesNotContain("billing.in").contains("orders.in");
+        assertThat(call(get(base() + "/audit"), platformOperator).getContentAsString())
+                .contains("billing.in");
+    }
+
+    @Test
+    void anEventThatNamesAnotherTeamsQueueIsLeftOut() throws Exception {
+        event("orders.in", "billing.in");
+        event("orders.in", "orders.out");
+
+        JsonNode page = body(call(get(base() + "/events"), ordersViewer));
+
+        assertThat(page.get("data").valueStream().map(e -> e.get("routingName").asString()))
+                .containsExactly("orders.out");
+        assertThat(page.get("count").asLong()).isEqualTo(1);
+    }
+
     // ---- alert rules -------------------------------------------------------------------------------------
 
     /** A user with alert:read and alert:write on the cluster through a grant, and a Team Operator role in Orders. */
@@ -659,13 +699,22 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
     AuditService audit;
 
     private void event(String address) {
+        event(address, null);
+    }
+
+    private void event(String address, String routingName) {
         jdbc.update(
-                "INSERT INTO broker_event (occurred_at, type, address, cluster_id) VALUES (now(), 'CONSUMER_SLOW', ?, ?)",
+                "INSERT INTO broker_event (occurred_at, type, address, routing_name, cluster_id) VALUES (now(), 'CONSUMER_SLOW', ?, ?, ?)",
                 address,
+                routingName,
                 cluster);
     }
 
     private void audited(String targetType, String targetName) {
+        audited(targetType, targetName, Map.of());
+    }
+
+    private void audited(String targetType, String targetName, Map<String, String> params) {
         AuditEvent event = audit.begin(
                 new Actor("alice", "127.0.0.1", "req", null),
                 "TEST",
@@ -673,7 +722,7 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
                 targetName,
                 cluster,
                 null,
-                Map.of(),
+                params,
                 false);
         audit.succeed(event, 1);
     }

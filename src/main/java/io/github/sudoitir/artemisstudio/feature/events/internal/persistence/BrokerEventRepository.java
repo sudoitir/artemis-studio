@@ -41,6 +41,7 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
               and (:everything = true
                    or (e.address is not null and e.address in :readable)
                    or (e.address is null and :unaddressed = true))
+              and (:everything = true or e.routingName is null or e.routingName in :readableNames)
               and (:address is null or e.address = :address)
               and e.occurredAt >= :from
               and e.occurredAt <= :to
@@ -50,6 +51,7 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
             @Param("clusterId") UUID clusterId,
             @Param("everything") boolean everything,
             @Param("readable") Collection<String> readable,
+            @Param("readableNames") Collection<String> readableNames,
             @Param("unaddressed") boolean unaddressed,
             @Param("type") String type,
             @Param("nodeId") UUID nodeId,
@@ -57,6 +59,11 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
             @Param("from") Instant from,
             @Param("to") Instant to,
             Pageable pageable);
+
+    /** The names events of the cluster carry as their routing name, which for a binding is a queue. */
+    @Query("select distinct e.routingName from BrokerEventEntity e"
+            + " where e.clusterId = :clusterId and e.routingName is not null")
+    List<String> findDistinctRoutingNameByClusterId(@Param("clusterId") UUID clusterId);
 
     /** The addresses events of the cluster are about, for deciding which of them a reader may see. */
     @Query(

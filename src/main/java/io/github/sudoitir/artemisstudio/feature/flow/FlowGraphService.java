@@ -227,10 +227,17 @@ public class FlowGraphService {
                             && (captureOwned(route.name()) || addresses.readable(route.target()));
                 case BRIDGE -> queues.readable(route.source()) || addresses.readable(route.source());
                 case QUEUE_FILTER -> queues.readable(route.target());
-                case DEAD_LETTER, EXPIRY -> addresses.readable(route.target());
+                case DEAD_LETTER, EXPIRY ->
+                    addresses.readable(route.target())
+                            && (isPattern(route.source()) || addresses.readable(route.source()));
                 case STORE_AND_FORWARD, TEMPORARY_QUEUE -> queues.everything() && addresses.everything();
             };
         }
+    }
+
+    /** Whether a routing source is a match such as {@code #}, which names no address of its own. */
+    private static boolean isPattern(String source) {
+        return source == null || source.contains("#") || source.contains("*");
     }
 
     private static Set<String> temporaryQueues(List<StoredRoute> routes) {

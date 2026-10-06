@@ -13,12 +13,16 @@ import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Read side of the audit trail — filtered, paged, newest first (non-negotiable #3). */
 @Service
@@ -28,6 +32,13 @@ public class AuditQueryService {
     private final AuditEventRepository events;
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
+    private final ObjectMapper mapper;
+
+    /** The parameters that name a queue or address other than the one the event is about. */
+    private static final Set<String> RESOURCE_PARAMS =
+            Set.of("source", "target", "targetQueue", "stagingQueue", "queue", "address", "forwardingAddress");
+
+    private static final String HIDDEN = "(a queue or address you may not read)";
 
     @Transactional(readOnly = true)
     public PagedView<AuditEventView> page(UUID clusterId, AuditQuery query) {
@@ -47,7 +58,8 @@ public class AuditQueryService {
                 query.from() != null ? query.from() : Instant.EPOCH,
                 query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
                 PageRequest.of(query.page() - 1, query.size()));
-        return PagedView.of(result, AuditQueryService::toView);
+        Redaction redaction = everything ? null : redaction(clusterId);
+        return PagedView.of(result, e -> toView(e, redaction));
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +72,7 @@ public class AuditQueryService {
                 .filter(e -> everything
                         || ("QUEUE".equals(e.getTargetType()) && queues.readable(e.getTargetName()))
                         || ("ADDRESS".equals(e.getTargetType()) && addresses.readable(e.getTargetName())))
-                .map(AuditQueryService::toView)
+                .map(e -> toView(e, everything ? null : redaction(clusterId)))
                 .orElseThrow(() -> new NotFoundException("audit event", id));
     }
 
@@ -73,7 +85,7 @@ public class AuditQueryService {
         return PagedView.of(
                 events.findByTargetTypeAndTargetNameOrderByTsDesc(
                         targetType, targetName, PageRequest.of(query.page() - 1, query.size())),
-                AuditQueryService::toView);
+                e -> toView(e, null));
     }
 
     /** The names of one target type that the caller may read; never empty, as an empty collection cannot be bound. */
@@ -89,7 +101,28 @@ public class AuditQueryService {
         return v == null || v.isBlank() ? null : v;
     }
 
-    private static AuditEventView toView(AuditEventEntity e) {
+    /** What a reader who does not read the whole trail may see of the resources an event's parameters name. */
+    private record Redaction(ResourceFilter queues, ResourceFilter addresses) {
+
+        boolean sees(String value) {
+            // A transfer names its ends as "node/queue".
+            String name = value.substring(value.lastIndexOf('/') + 1);
+            return queues.readable(name) || addresses.readable(name);
+        }
+    }
+
+    private Redaction redaction(UUID clusterId) {
+        return new Redaction(
+                permissions.filter(clusterId, ResourceKind.QUEUE), permissions.filter(clusterId, ResourceKind.ADDRESS));
+    }
+
+    /**
+     * An event about a queue the caller may read can still name another in its parameters, such as where a
+     * message was moved or a transfer sent them. A parameter that names a queue or address the caller may not read
+     * is replaced, and so is the cluster a transfer went to when one was.
+     */
+    private AuditEventView toView(AuditEventEntity e, Redaction redaction) {
+        String params = redaction == null || e.getParams() == null ? e.getParams() : redacted(e.getParams(), redaction);
         return new AuditEventView(
                 e.getId(),
                 e.getParentId(),
@@ -103,9 +136,28 @@ public class AuditQueryService {
                 e.getAffectedCount(),
                 e.getOutcome(),
                 e.isDryRun(),
-                e.getParams(),
+                params,
                 e.getError(),
                 e.getClusterName(),
                 e.getNodeId());
+    }
+
+    private String redacted(String paramsJson, Redaction redaction) {
+        JsonNode params = mapper.readTree(paramsJson);
+        if (!(params instanceof ObjectNode object)) {
+            return paramsJson;
+        }
+        boolean hidden = false;
+        for (String key : RESOURCE_PARAMS) {
+            JsonNode value = object.get(key);
+            if (value != null && value.isString() && !redaction.sees(value.asString())) {
+                object.put(key, HIDDEN);
+                hidden = true;
+            }
+        }
+        if (hidden) {
+            object.remove("targetClusterId");
+        }
+        return mapper.writeValueAsString(object);
     }
 }
