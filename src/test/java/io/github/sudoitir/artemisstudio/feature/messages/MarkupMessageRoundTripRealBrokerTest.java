@@ -119,7 +119,7 @@ class MarkupMessageRoundTripRealBrokerTest extends PostgresIntegrationTest {
         try {
             queueOps.destroyQueue(client, broker, queue, true);
             queueOps.deleteAddress(client, broker, queue);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // already gone
         }
         auditEvents.deleteAll();

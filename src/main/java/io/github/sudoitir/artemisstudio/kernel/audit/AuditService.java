@@ -51,8 +51,8 @@ public class AuditService {
             UUID nodeId,
             Map<String, ?> params,
             boolean dryRun) {
-        AuditEventEntity row =
-                writer.insert(entity(actor, action, targetType, targetName, clusterId, nodeId, params, dryRun));
+        AuditEventEntity row = writer.insert(
+                entity(actor, action, new Subject(targetType, targetName, clusterId, nodeId), params, dryRun));
         failIfCallerRollsBack(row.getId());
         return row;
     }
@@ -69,7 +69,8 @@ public class AuditService {
             UUID clusterId,
             Map<String, ?> params,
             String reason) {
-        AuditEventEntity entity = entity(actor, action, targetType, targetName, clusterId, null, params, false);
+        AuditEventEntity entity =
+                entity(actor, action, new Subject(targetType, targetName, clusterId, null), params, false);
         entity.markRefused(reason, 1);
         return writer.insert(entity);
     }
@@ -84,15 +85,11 @@ public class AuditService {
         writer.recount(event.getId(), count);
     }
 
+    /** What an event is about, as the caller names it. */
+    private record Subject(String targetType, String targetName, UUID clusterId, UUID nodeId) {}
+
     private AuditEventEntity entity(
-            Actor actor,
-            String action,
-            String targetType,
-            String targetName,
-            UUID clusterId,
-            UUID nodeId,
-            Map<String, ?> params,
-            boolean dryRun) {
+            Actor actor, String action, Subject subject, Map<String, ?> params, boolean dryRun) {
         Map<String, ?> written = params;
         if (params != null && !params.isEmpty()) {
             for (AuditParamsFilter filter : paramsFilter.orderedStream().toList()) {
@@ -105,11 +102,11 @@ public class AuditService {
                 action,
                 a,
                 new AuditEventEntity.Target(
-                        targetType,
-                        targetName,
-                        clusterId,
-                        clusterId == null ? null : clusters.clusterName(clusterId),
-                        nodeId),
+                        subject.targetType(),
+                        subject.targetName(),
+                        subject.clusterId(),
+                        subject.clusterId() == null ? null : clusters.clusterName(subject.clusterId()),
+                        subject.nodeId()),
                 paramsJson,
                 dryRun);
         entity.attachParent(AuditScope.PARENT.isBound() ? AuditScope.PARENT.get() : null);

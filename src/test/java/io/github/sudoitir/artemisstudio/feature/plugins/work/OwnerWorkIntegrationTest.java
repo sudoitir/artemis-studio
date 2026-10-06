@@ -184,14 +184,17 @@ class OwnerWorkIntegrationTest extends PostgresIntegrationTest {
         users.save(account);
 
         assertThat(work.beforeRun("forward").reason()).contains("unknown or disabled");
-        assertThatThrownBy(() -> work.publish("other", UUID.randomUUID(), needs()))
+        UUID someone = UUID.randomUUID();
+        List<WorkNeed> needs = needs();
+        assertThatThrownBy(() -> work.publish("other", someone, needs))
                 .isInstanceOf(WorkRefusedException.class)
                 .hasMessageContaining("unknown or disabled");
     }
 
     @Test
     void aClusterWideNeedIsMetByAGrantAndNotByATeam() {
-        assertThatThrownBy(() -> work.publish("scan", owner, List.of(WorkNeed.onCluster(cluster, "message:read"))))
+        List<WorkNeed> clusterWide = List.of(WorkNeed.onCluster(cluster, "message:read"));
+        assertThatThrownBy(() -> work.publish("scan", owner, clusterWide))
                 .isInstanceOf(WorkRefusedException.class)
                 .hasMessageContaining("message:read on cluster " + cluster);
     }
@@ -222,14 +225,16 @@ class OwnerWorkIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aMalformedKeyOrNoNeedsListIsRefused() {
-        assertThatThrownBy(() -> work.publish("has space", owner, needs())).isInstanceOf(WorkRefusedException.class);
+        List<WorkNeed> needs = needs();
+        assertThatThrownBy(() -> work.publish("has space", owner, needs)).isInstanceOf(WorkRefusedException.class);
         assertThatThrownBy(() -> work.publish("forward", owner, null)).isInstanceOf(WorkRefusedException.class);
-        assertThatThrownBy(() -> work.publish("forward", null, needs())).isInstanceOf(WorkRefusedException.class);
+        assertThatThrownBy(() -> work.publish("forward", null, needs)).isInstanceOf(WorkRefusedException.class);
     }
 
     @Test
     void aNeedOnAResourceNamesItsCluster() {
-        assertThatThrownBy(() -> WorkNeed.on(null, ResourceRef.queue("orders.in"), "message:read"))
+        ResourceRef ordersIn = ResourceRef.queue("orders.in");
+        assertThatThrownBy(() -> WorkNeed.on(null, ordersIn, "message:read"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

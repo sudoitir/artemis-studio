@@ -50,7 +50,9 @@ public class PluginValidator {
 
     private static final Pattern METRIC_NAME = Pattern.compile("[a-z0-9-]+:[a-z][a-z0-9_.]{0,63}");
     private static final String RESOURCE_KINDS_CODE = "permission-resource-kinds";
-    private static final Set<String> SCOPES = Set.of("global", "cluster", "resource");
+    private static final String SCOPE_RESOURCE = "resource";
+    private static final String MCP_TOOL_RESOURCE = "mcp-tool-resource";
+    private static final Set<String> SCOPES = Set.of("global", "cluster", SCOPE_RESOURCE);
     private static final Set<String> RESOURCE_KINDS = Set.of("queue", "address");
     private static final Set<String> METRIC_UNITS = Set.of("count", "per_second", "ms", "ratio");
     private static final Set<String> DENIED_MANIFEST_ATTRIBUTES =
@@ -512,7 +514,7 @@ public class PluginValidator {
                                 + " \"cluster\" for one checked against a cluster, or \"resource\" for one checked"
                                 + " against a queue or address."));
             }
-            boolean resource = "resource".equals(permission.scope());
+            boolean resource = SCOPE_RESOURCE.equals(permission.scope());
             if (permission.scope() == null || !SCOPES.contains(permission.scope())) {
                 violations.add(new Violation(
                         "permission-scope",
@@ -582,24 +584,24 @@ public class PluginValidator {
     /** A resource tool names the argument that holds the queue or address, and its kind; no other tool does. */
     private void checkResourceTool(
             PluginDescriptor.McpTool tool, PluginDescriptor.Permission permission, List<Violation> violations) {
-        boolean resource = "resource".equals(tool.scope());
+        boolean resource = SCOPE_RESOURCE.equals(tool.scope());
         boolean named = tool.resourceArg() != null && !tool.resourceArg().isBlank();
         if (resource && (!named || tool.resourceKind() == null)) {
             violations.add(new Violation(
-                    "mcp-tool-resource",
+                    MCP_TOOL_RESOURCE,
                     "Assistant tool \"%s\" has scope \"resource\" but does not name resourceArg and resourceKind."
                             .formatted(tool.name()),
                     "Name the tool's string argument that holds the queue or address, as resourceArg, and its"
                             + " resourceKind, \"queue\" or \"address\"."));
         } else if (!resource && (named || tool.resourceKind() != null)) {
             violations.add(new Violation(
-                    "mcp-tool-resource",
+                    MCP_TOOL_RESOURCE,
                     "Assistant tool \"%s\" names a resourceArg or resourceKind but its scope is \"%s\"."
                             .formatted(tool.name(), tool.scope()),
                     "Remove them, or change the scope to \"resource\"."));
         } else if (resource && permission != null && !permission.resourceKinds().contains(tool.resourceKind())) {
             violations.add(new Violation(
-                    "mcp-tool-resource",
+                    MCP_TOOL_RESOURCE,
                     "Assistant tool \"%s\" acts on a %s but its permission \"%s\" acts on %s."
                             .formatted(tool.name(), tool.resourceKind(), tool.permission(), permission.resourceKinds()),
                     "Name a resourceKind the permission's resourceKinds include."));
