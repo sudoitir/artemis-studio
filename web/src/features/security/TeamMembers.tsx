@@ -185,6 +185,36 @@ function AddMember({
     });
   }, focusFirstInvalid(form.getInputNode));
 
+  const userField = users.isError ? (
+    <ErrorState
+      variant="inline"
+      error={users.error}
+      onRetry={() => void users.refetch()}
+      next="Only an administrator of a team can look users up. Ask a user administrator to add the member."
+    />
+  ) : (
+    <Select
+      label="User"
+      description="Type the start of a username."
+      data={userOptions}
+      searchable
+      searchValue={search}
+      onSearchChange={setSearch}
+      filter={({ options }) => options}
+      onChange={(id, option) => {
+        form.setFieldValue('userId', id);
+        setChosen(option ? { value: option.value, label: option.label } : null);
+      }}
+      value={form.values.userId}
+      error={form.errors.userId}
+      onBlur={() => form.validateField('userId')}
+      data-path="userId"
+      placeholder="Type two letters of a username"
+      nothingFoundMessage={lookupMessage(typed, users.isFetching)}
+      required
+    />
+  );
+
   return (
     <form noValidate onSubmit={submit}>
       <Stack gap="sm">
@@ -213,34 +243,8 @@ function AddMember({
             />
             <TextInput label="Group" {...form.getInputProps('groupName')} required />
           </FieldRow>
-        ) : users.isError ? (
-          <ErrorState
-            variant="inline"
-            error={users.error}
-            onRetry={() => void users.refetch()}
-            next="Only an administrator of a team can look users up. Ask a user administrator to add the member."
-          />
         ) : (
-          <Select
-            label="User"
-            description="Type the start of a username."
-            data={userOptions}
-            searchable
-            searchValue={search}
-            onSearchChange={setSearch}
-            filter={({ options }) => options}
-            onChange={(id, option) => {
-              form.setFieldValue('userId', id);
-              setChosen(option ? { value: option.value, label: option.label } : null);
-            }}
-            value={form.values.userId}
-            error={form.errors.userId}
-            onBlur={() => form.validateField('userId')}
-            data-path="userId"
-            placeholder="Type two letters of a username"
-            nothingFoundMessage={lookupMessage(typed, users.isFetching)}
-            required
-          />
+          userField
         )}
         <Select
           label="Team role"
@@ -268,6 +272,7 @@ function RemoveMember({
 }: Readonly<{ team: TeamView; member: MemberView | null; opened: boolean; onClose: () => void }>) {
   const remove = useRemoveMember(team.id);
   const name = member ? memberName(member) : '';
+  const theirs = member?.principalType === 'GROUP' ? 'its users' : 'them';
 
   return (
     <ConfirmDialog
@@ -280,7 +285,7 @@ function RemoveMember({
       confirmLabel="Remove member"
       consequence={
         member
-          ? `${name} loses the ${member.roleName} access that ${team.name} gave ${member.principalType === 'GROUP' ? 'its users' : 'them'} on the next request. You can add them again.`
+          ? `${name} loses the ${member.roleName} access that ${team.name} gave ${theirs} on the next request. You can add them again.`
           : ''
       }
       onConfirm={() =>

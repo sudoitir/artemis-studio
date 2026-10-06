@@ -25,7 +25,7 @@ import { withNotice } from './outcomes.ts';
 import classes from './Security.module.css';
 import { useTeamAccess } from './teamAccess.ts';
 import { patternColumns } from './teamColumns.tsx';
-import { conflictText, KIND_OPTIONS, patternFault, problemSlug } from './teamWords.ts';
+import { conflictText, countOf, KIND_OPTIONS, patternFault, problemSlug } from './teamWords.ts';
 
 const ADD: ActionVerb = { verb: 'Add', past: 'Added', progressive: 'Adding' };
 const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Removing' };
@@ -113,8 +113,12 @@ function Matches({
   cluster,
 }: Readonly<{ preview: PatternPreview; kind: PatternKind; cluster: string }>) {
   const parts = [
-    kind === 'ADDRESS' ? null : { word: 'queue', count: preview.queueMatches, examples: preview.queueExamples },
-    kind === 'QUEUE' ? null : { word: 'address', count: preview.addressMatches, examples: preview.addressExamples },
+    kind === 'ADDRESS'
+      ? null
+      : { word: 'queue', plural: 'queues', count: preview.queueMatches, examples: preview.queueExamples },
+    kind === 'QUEUE'
+      ? null
+      : { word: 'address', plural: 'addresses', count: preview.addressMatches, examples: preview.addressExamples },
   ].filter((p) => p !== null);
   const total = parts.reduce((sum, p) => sum + p.count, 0);
   if (total === 0) {
@@ -125,11 +129,7 @@ function Matches({
   return (
     <Stack gap={4}>
       <Text size="sm">
-        Matches{' '}
-        {parts
-          .map((p) => `${p.count} ${p.word}${p.count === 1 ? '' : p.word === 'address' ? 'es' : 's'}`)
-          .join(' and ')}{' '}
-        on {cluster} now.
+        Matches {parts.map((p) => countOf(p.count, p.word, p.plural)).join(' and ')} on {cluster} now.
       </Text>
       {parts.map((p) =>
         p.examples.length === 0 ? null : (

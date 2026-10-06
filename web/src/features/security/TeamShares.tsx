@@ -251,6 +251,8 @@ function RemoveShare({
   clusterName: (clusterId: string) => string;
 }>) {
   const remove = useRemoveShare(team.id);
+  const uncovered =
+    share && !share.covered ? "The share is not covered by this team's patterns, so it grants nothing today. " : '';
   return (
     <ConfirmDialog
       opened={opened}
@@ -262,7 +264,7 @@ function RemoveShare({
       confirmLabel="Remove share"
       consequence={
         share
-          ? `Members of ${share.targetTeamName} lose the ${share.roleName} access to ${share.pattern} on ${clusterName(share.clusterId)} on their next request, unless another grant still gives it. ${share.covered ? '' : "The share is not covered by this team's patterns, so it grants nothing today. "}You can share it again.`
+          ? `Members of ${share.targetTeamName} lose the ${share.roleName} access to ${share.pattern} on ${clusterName(share.clusterId)} on their next request, unless another grant still gives it. ${uncovered}You can share it again.`
           : ''
       }
       onConfirm={() =>

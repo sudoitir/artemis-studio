@@ -19,7 +19,7 @@ import { withNotice } from './outcomes.ts';
 import { teamColumns } from './teamColumns.tsx';
 import { useTeamAccess } from './teamAccess.ts';
 import { TeamPage } from './TeamPage.tsx';
-import { problemSlug } from './teamWords.ts';
+import { countOf, problemSlug } from './teamWords.ts';
 
 const CREATE: ActionVerb = { verb: 'Create', past: 'Created', progressive: 'Creating' };
 const RENAME: ActionVerb = { verb: 'Rename', past: 'Renamed', progressive: 'Renaming' };
@@ -205,7 +205,7 @@ function DeleteTeam({
       confirmLabel="Delete team"
       consequence={
         team
-          ? `This removes the team's ${team.patterns.length} pattern${team.patterns.length === 1 ? '' : 's'}, ${team.memberCount} member${team.memberCount === 1 ? '' : 's'} and ${team.sharesOut + team.sharesIn} share${team.sharesOut + team.sharesIn === 1 ? '' : 's'}. Its members lose the access the team gave them on their next request. The queues and addresses themselves are not touched.`
+          ? `This removes the team's ${countOf(team.patterns.length, 'pattern')}, ${countOf(team.memberCount, 'member')} and ${countOf(team.sharesOut + team.sharesIn, 'share')}. Its members lose the access the team gave them on their next request. The queues and addresses themselves are not touched.`
           : ''
       }
       onConfirm={() => team && confirm(team)}

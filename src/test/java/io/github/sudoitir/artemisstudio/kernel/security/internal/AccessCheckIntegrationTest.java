@@ -221,22 +221,22 @@ class AccessCheckIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theKindAndNameComeTogetherAndNeedACluster() {
-        AppUserEntity someone = user();
+        UUID someone = user().getId();
         UUID prod = cluster(null);
 
-        assertThatThrownBy(() -> effective.check(someone.getId(), prod, ResourceKind.QUEUE, null))
+        assertThatThrownBy(() -> effective.check(someone, prod, ResourceKind.QUEUE, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> effective.check(someone.getId(), prod, null, "orders.in"))
+        assertThatThrownBy(() -> effective.check(someone, prod, null, "orders.in"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> effective.check(someone.getId(), null, ResourceKind.QUEUE, "orders.in"))
+        assertThatThrownBy(() -> effective.check(someone, null, ResourceKind.QUEUE, "orders.in"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void anUnknownUserIsNotFoundAndACallerWithoutUserAdminIsRefusedFirst() {
-        AppUserEntity someone = user();
-        assertThatThrownBy(() -> effective.check(UUID.randomUUID(), null, null, null))
-                .isInstanceOf(NotFoundException.class);
+        UUID someone = user().getId();
+        UUID unknown = UUID.randomUUID();
+        assertThatThrownBy(() -> effective.check(unknown, null, null, null)).isInstanceOf(NotFoundException.class);
 
         StudioPrincipal viewer = new StudioPrincipal(
                 UUID.randomUUID(),
@@ -247,9 +247,7 @@ class AccessCheckIntegrationTest extends PostgresIntegrationTest {
                 .setAuthentication(
                         UsernamePasswordAuthenticationToken.authenticated(viewer, null, viewer.getAuthorities()));
 
-        assertThatThrownBy(() -> effective.check(someone.getId(), null, null, null))
-                .isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> effective.check(UUID.randomUUID(), null, null, null))
-                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> effective.check(someone, null, null, null)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> effective.check(unknown, null, null, null)).isInstanceOf(AccessDeniedException.class);
     }
 }

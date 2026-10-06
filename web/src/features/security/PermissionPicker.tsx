@@ -295,13 +295,16 @@ export function PermissionPicker({
         onClose={() => setRemoval(null)}
         title={removal ? `Remove ${removal.actions.join(', ')}` : 'Remove permission'}
         confirmLabel="Remove them all"
-        consequence={
-          removal
-            ? `${removal.dependents.map((d) => `${d.permission} (needs ${d.needs})`).join(', ')} would stop working without ${removal.actions.join(', ')}, so ${removal.dependents.length === 1 ? 'it is' : 'they are'} removed too.`
-            : ''
-        }
+        consequence={removal ? removalConsequence(removal.actions, removal.dependents) : ''}
         onConfirm={confirmRemoval}
       />
     </Stack>
   );
+}
+
+/** What removing permissions takes with it: the ones that need them, by name. */
+function removalConsequence(actions: string[], dependents: DependentPermission[]): string {
+  const needing = dependents.map((d) => `${d.permission} (needs ${d.needs})`).join(', ');
+  const are = dependents.length === 1 ? 'it is' : 'they are';
+  return `${needing} would stop working without ${actions.join(', ')}, so ${are} removed too.`;
 }

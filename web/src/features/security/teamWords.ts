@@ -1,6 +1,11 @@
 import type { ApiError } from '../../kernel/api/request.ts';
 import type { PatternConflict, PatternKind } from './api.ts';
 
+/** A count with its noun, `1 pattern` or `3 patterns`. */
+export function countOf(count: number, noun: string, plural = `${noun}s`): string {
+  return `${count} ${count === 1 ? noun : plural}`;
+}
+
 export const KIND_WORDS: Record<PatternKind, string> = {
   QUEUE: 'Queues',
   ADDRESS: 'Addresses',
@@ -21,7 +26,7 @@ export function patternFault(pattern: string): string | null {
     return 'Enter a name pattern. Words are separated by dots; * stands for one word and # for any number of words.';
   }
   const words = pattern.split('.');
-  if (words.some((w) => w === '')) {
+  if (words.includes('')) {
     return 'The pattern has an empty word. Remove the leading, trailing or doubled dot.';
   }
   const mixed = words.find((w) => w.length > 1 && /[*#]/.test(w));

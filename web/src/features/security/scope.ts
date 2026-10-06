@@ -37,6 +37,7 @@ export function useScopeLabel(): ScopeLabel {
       scopeType === 'ENVIRONMENT'
         ? environments.data?.find((e) => e.id === scopeId)
         : clusters.data?.find((c) => c.id === scopeId);
-    return named ? `${word} ${named.name}` : `${word} ${scopeId ? 'not found' : ''}`.trim();
+    if (named) return `${word} ${named.name}`;
+    return scopeId ? `${word} not found` : word;
   };
 }

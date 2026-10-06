@@ -124,69 +124,106 @@ public class EffectiveAccess {
             throw new IllegalArgumentException("A queue or address belongs to a cluster: choose the cluster too.");
         }
         ResourceRef resource = name == null ? null : new ResourceRef(kind, name.strip());
-        UUID environmentId = clusterId == null ? null : environments.environmentOf(clusterId);
         Map<UUID, RoleEntity> roleById =
                 roles.findAll().stream().collect(Collectors.toMap(RoleEntity::getId, Function.identity()));
         Map<UUID, Set<String>> rolePerms = new HashMap<>();
         roleById.keySet().forEach(id -> rolePerms.put(id, permissionsOf(id)));
-        List<UserRoleEntity> grants = user.isDisabled() ? List.of() : userRoles.findByIdUserId(userId);
-        List<TeamMemberEntity> held = user.isDisabled() ? List.of() : members.findHeldBy(userId);
-        Map<UUID, String> teamNames =
-                teams.findAll().stream().collect(Collectors.toMap(TeamEntity::getId, TeamEntity::getName));
-        Optional<UUID> owner = resource == null ? Optional.empty() : teamIndex.ownerOf(clusterId, resource);
-        List<TeamIndex.Shared> covering = resource == null ? List.of() : teamIndex.sharesCovering(clusterId, resource);
+        CheckContext context = new CheckContext(
+                clusterId,
+                clusterId == null ? null : environments.environmentOf(clusterId),
+                resource,
+                user.isDisabled() ? List.of() : userRoles.findByIdUserId(userId),
+                user.isDisabled() ? List.of() : members.findHeldBy(userId),
+                roleById,
+                rolePerms,
+                teams.findAll().stream().collect(Collectors.toMap(TeamEntity::getId, TeamEntity::getName)),
+                resource == null ? Optional.empty() : teamIndex.ownerOf(clusterId, resource),
+                resource == null ? List.of() : teamIndex.sharesCovering(clusterId, resource));
 
         List<AccessCheckView> result = new ArrayList<>();
         for (CatalogueEntry entry : features.catalogue()) {
-            List<AccessSource> sources = new ArrayList<>();
-            for (UserRoleEntity row : grants) {
-                RoleEntity role = roleById.get(row.getRoleId());
-                Grant.ScopeType scope = Grant.ScopeType.valueOf(row.getScopeType());
-                if (role != null
-                        && reaches(scope, row.getScopeId(), entry, clusterId, environmentId)
-                        && Grant.covers(rolePerms.get(role.getId()), entry.action())) {
-                    UUID scopeId = scope == Grant.ScopeType.GLOBAL ? null : row.getScopeId();
-                    sources.add(new AccessSource(
-                            SourceType.ROLE_GRANT, role.getName(), scope.name(), scopeId, null, null, null));
-                }
-            }
+            List<AccessSource> sources = new ArrayList<>(roleGrantSources(entry, context));
             if (entry.scope() == PermissionScope.RESOURCE
                     && resource != null
                     && entry.resourceKinds().contains(resource.kind())) {
-                for (TeamMemberEntity member : held) {
-                    RoleEntity role = roleById.get(member.getRoleId());
-                    if (role != null
-                            && owner.filter(member.getTeamId()::equals).isPresent()
-                            && Grant.covers(rolePerms.get(role.getId()), entry.action())) {
-                        sources.add(new AccessSource(
-                                SourceType.TEAM,
-                                role.getName(),
-                                null,
-                                null,
-                                member.getTeamId(),
-                                teamNames.get(member.getTeamId()),
-                                null));
-                    }
-                }
-                for (TeamIndex.Shared share : covering) {
-                    if (held.stream().anyMatch(m -> m.getTeamId().equals(share.targetTeamId()))
-                            && Grant.covers(share.permissions(), entry.action())) {
-                        sources.add(new AccessSource(
-                                SourceType.SHARE,
-                                shareRoleName(share, roleById),
-                                null,
-                                null,
-                                share.targetTeamId(),
-                                teamNames.get(share.targetTeamId()),
-                                teamNames.get(share.ownerTeamId())));
-                    }
-                }
+                sources.addAll(teamSources(entry, context));
+                sources.addAll(shareSources(entry, context));
             }
             result.add(new AccessCheckView(
                     entry.action(), entry.description(), entry.scope(), !sources.isEmpty(), sources));
         }
         result.sort(Comparator.comparing(AccessCheckView::action));
         return result;
+    }
+
+    /** What {@link #check} reads once, so each source of access can be worked out on its own. */
+    private record CheckContext(
+            UUID clusterId,
+            UUID environmentId,
+            ResourceRef resource,
+            List<UserRoleEntity> grants,
+            List<TeamMemberEntity> held,
+            Map<UUID, RoleEntity> roleById,
+            Map<UUID, Set<String>> rolePerms,
+            Map<UUID, String> teamNames,
+            Optional<UUID> owner,
+            List<TeamIndex.Shared> covering) {}
+
+    /** The role grants of the user that reach the cluster and carry the permission. */
+    private static List<AccessSource> roleGrantSources(CatalogueEntry entry, CheckContext context) {
+        List<AccessSource> sources = new ArrayList<>();
+        for (UserRoleEntity row : context.grants()) {
+            RoleEntity role = context.roleById().get(row.getRoleId());
+            Grant.ScopeType scope = Grant.ScopeType.valueOf(row.getScopeType());
+            if (role != null
+                    && reaches(scope, row.getScopeId(), entry, context.clusterId(), context.environmentId())
+                    && Grant.covers(context.rolePerms().get(role.getId()), entry.action())) {
+                UUID scopeId = scope == Grant.ScopeType.GLOBAL ? null : row.getScopeId();
+                sources.add(new AccessSource(
+                        SourceType.ROLE_GRANT, role.getName(), scope.name(), scopeId, null, null, null));
+            }
+        }
+        return sources;
+    }
+
+    /** The team roles of the user on the team that owns the resource that carry the permission. */
+    private static List<AccessSource> teamSources(CatalogueEntry entry, CheckContext context) {
+        List<AccessSource> sources = new ArrayList<>();
+        for (TeamMemberEntity member : context.held()) {
+            RoleEntity role = context.roleById().get(member.getRoleId());
+            if (role != null
+                    && context.owner().filter(member.getTeamId()::equals).isPresent()
+                    && Grant.covers(context.rolePerms().get(role.getId()), entry.action())) {
+                sources.add(new AccessSource(
+                        SourceType.TEAM,
+                        role.getName(),
+                        null,
+                        null,
+                        member.getTeamId(),
+                        context.teamNames().get(member.getTeamId()),
+                        null));
+            }
+        }
+        return sources;
+    }
+
+    /** The shares that cover the resource, are received by a team of the user, and carry the permission. */
+    private List<AccessSource> shareSources(CatalogueEntry entry, CheckContext context) {
+        List<AccessSource> sources = new ArrayList<>();
+        for (TeamIndex.Shared share : context.covering()) {
+            if (context.held().stream().anyMatch(m -> m.getTeamId().equals(share.targetTeamId()))
+                    && Grant.covers(share.permissions(), entry.action())) {
+                sources.add(new AccessSource(
+                        SourceType.SHARE,
+                        shareRoleName(share, context.roleById()),
+                        null,
+                        null,
+                        share.targetTeamId(),
+                        context.teamNames().get(share.targetTeamId()),
+                        context.teamNames().get(share.ownerTeamId())));
+            }
+        }
+        return sources;
     }
 
     /** Whether a grant at {@code scope} reaches the cluster for this permission, as the resolver decides it. */

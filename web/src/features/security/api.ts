@@ -87,7 +87,8 @@ export function useAccessCheck(
         qs.set('kind', where.kind);
         qs.set('name', name);
       }
-      return requestAll<AccessCheckView>(`/users/${userId}/access-check${qs.size > 0 ? `?${qs}` : ''}`);
+      const query = qs.size > 0 ? `?${qs}` : '';
+      return requestAll<AccessCheckView>(`/users/${userId}/access-check${query}`);
     },
     enabled: userId !== null,
   });

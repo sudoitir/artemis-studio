@@ -33,6 +33,7 @@ export function ScopeFields({
   const clusters = useClusters();
   const environment = value.scopeType === 'ENVIRONMENT';
   const source = environment ? environments : clusters;
+  const noun = environment ? 'an environment' : 'a cluster';
   const options = (source.data ?? []).map((item) => ({ value: item.id, label: item.name }));
 
   return (
@@ -56,7 +57,7 @@ export function ScopeFields({
           error={error}
           searchable
           nothingFoundMessage={environment ? 'No environments' : 'No clusters'}
-          placeholder={source.isPending ? 'Loading' : `Select ${environment ? 'an environment' : 'a cluster'}`}
+          placeholder={source.isPending ? 'Loading' : `Select ${noun}`}
           required
         />
       )}

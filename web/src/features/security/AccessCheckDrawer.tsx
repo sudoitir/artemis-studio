@@ -25,7 +25,8 @@ function placeText(where: Where, cluster: string | undefined): string {
   if (!where.clusterId) return 'Studio itself, with no cluster';
   const name = where.name.trim();
   const on = cluster ?? 'the cluster';
-  return name ? `${where.kind === 'QUEUE' ? 'queue' : 'address'} ${name} on ${on}` : `${on} as a whole`;
+  const noun = where.kind === 'QUEUE' ? 'queue' : 'address';
+  return name ? `${noun} ${name} on ${on}` : `${on} as a whole`;
 }
 
 /**
