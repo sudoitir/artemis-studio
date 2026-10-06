@@ -46,8 +46,14 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
     @Test
     void builtinRolesAreSeeded() {
         List<RoleEntity> all = roles.findAllByOrderByName();
-        assertThat(all).extracting(RoleEntity::getName).contains("ADMIN", "OPERATOR", "VIEWER");
-        assertThat(all).filteredOn(RoleEntity::isBuiltin).hasSize(3);
+        assertThat(all)
+                .filteredOn(RoleEntity::isBuiltin)
+                .extracting(RoleEntity::getName)
+                .containsExactlyInAnyOrder("ADMIN", "OPERATOR", "VIEWER", "TEAM_VIEWER", "TEAM_OPERATOR", "TEAM_ADMIN");
+        assertThat(all)
+                .filteredOn(RoleEntity::isTeamAssignable)
+                .extracting(RoleEntity::getName)
+                .containsExactlyInAnyOrder("TEAM_VIEWER", "TEAM_OPERATOR", "TEAM_ADMIN");
     }
 
     @Test
