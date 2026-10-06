@@ -6,10 +6,13 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.App
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -26,6 +29,7 @@ public class UserAccounts {
     private final AppUserRepository users;
     private final RoleRepository roles;
     private final UserRoleRepository userRoles;
+    private final TeamMemberRepository teamMembers;
     private final PluginInstallers installers;
 
     /** A user as sign-in needs it. {@code passwordHash} is {@code null} for a user an external provider created. */
@@ -58,13 +62,17 @@ public class UserAccounts {
         return users.findById(userId).map(UserAccounts::account);
     }
 
-    /** Whether the user holds, at any scope, a role that requires a second factor (ADR-0143). */
+    /**
+     * Whether the user holds a role that requires a second factor (ADR-0143): at any scope, or as a team
+     * member, directly or through a directory group.
+     */
     @Transactional(readOnly = true)
     public boolean holdsMfaRole(UUID userId) {
-        return userRoles.findByIdUserId(userId).stream()
-                .anyMatch(ur -> roles.findById(ur.getRoleId())
-                        .map(RoleEntity::isRequiresMfa)
-                        .orElse(false));
+        return Stream.concat(
+                        userRoles.findByIdUserId(userId).stream().map(UserRoleEntity::getRoleId),
+                        teamMembers.findHeldBy(userId).stream().map(TeamMemberEntity::getRoleId))
+                .anyMatch(roleId ->
+                        roles.findById(roleId).map(RoleEntity::isRequiresMfa).orElse(false));
     }
 
     @Transactional(readOnly = true)

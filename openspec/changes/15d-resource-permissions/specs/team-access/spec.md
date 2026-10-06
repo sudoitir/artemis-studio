@@ -36,9 +36,12 @@ shares, and SHALL end the access they gave on the next request.
 A team member SHALL be a user or a directory group, and SHALL hold exactly one team-assignable role
 in that team. A team-assignable role SHALL hold only permissions that act on a resource, plus
 `team:admin`. Studio SHALL ship Team Viewer, Team Operator and Team Admin as built-in team roles.
-A holder of `team:admin` in a team SHALL be able to add, change and remove that team's members, but
-SHALL NOT be able to change the team's patterns or shares, or grant a role that holds a permission
-they do not hold themselves in that team.
+A holder of `team:admin` in a team SHALL be able to add, change and remove that team's user members, but
+SHALL NOT be able to change the team's patterns or shares, to grant a role that holds a permission they do
+not hold themselves in that team, or to change or remove a member whose role holds one. Adding, changing or
+removing a directory group as a member SHALL need `user:admin`, because a group can admit users to Studio. A
+team role that requires a second factor SHALL apply to its members, directly or through a group, as any role
+does, and sessions opened before the member held it SHALL end.
 
 #### Scenario: A group member's users get the team role
 - **WHEN** a directory group is a member of team Orders as Team Operator and a user signs in with that group
@@ -47,6 +50,18 @@ they do not hold themselves in that team.
 #### Scenario: A team admin manages members
 - **WHEN** a Team Admin of Orders adds a user to Orders as Team Viewer
 - **THEN** the user is a member, and the change is audited
+
+#### Scenario: A team admin cannot add a directory group
+- **WHEN** a Team Admin of Orders, without `user:admin`, adds a directory group to Orders
+- **THEN** the request is refused, and a user administrator can add it
+
+#### Scenario: A team admin cannot demote or remove someone above them
+- **WHEN** a Team Admin of Orders, without `user:admin`, changes or removes a member whose role holds a permission the admin does not hold in Orders
+- **THEN** the request is refused
+
+#### Scenario: A team role that requires a second factor applies to its members
+- **WHEN** a user is added to a team with a role that requires a second factor
+- **THEN** the user must hold one at their next sign-in, and their open sessions end
 
 #### Scenario: A team admin cannot widen the team
 - **WHEN** a Team Admin of Orders, without `user:admin`, adds a pattern to Orders

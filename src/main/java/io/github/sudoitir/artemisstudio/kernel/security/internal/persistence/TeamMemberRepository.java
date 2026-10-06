@@ -28,6 +28,16 @@ public interface TeamMemberRepository extends JpaRepository<TeamMemberEntity, UU
             """)
     List<TeamMemberEntity> findHeldBy(@Param("userId") UUID userId);
 
+    /** The users who hold the role in some team: the members themselves, and those in a member group. */
+    @Query("""
+            select m.userId from TeamMemberEntity m where m.roleId = :roleId and m.userId is not null
+            union
+            select g.id.userId from UserGroupEntity g, TeamMemberEntity m
+            where m.roleId = :roleId and m.principalType = 'GROUP'
+              and g.id.providerId = m.providerId and g.id.groupName = m.groupName
+            """)
+    List<UUID> findUserIdsHoldingRole(@Param("roleId") UUID roleId);
+
     /** Whether the user is a member of any team, directly or through a group. */
     default boolean isMemberOfAny(UUID userId) {
         return !findHeldBy(userId).isEmpty();

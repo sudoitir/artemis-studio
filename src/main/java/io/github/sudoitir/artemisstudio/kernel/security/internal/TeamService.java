@@ -30,6 +30,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Tea
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserGroupRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PatternConflict;
@@ -41,6 +42,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareReque
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamSummary;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamView;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -49,6 +51,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -88,6 +91,9 @@ public class TeamService {
     private final ScopeHierarchy clusters;
     private final IdentityProviderCatalog providers;
     private final ResourceNames names;
+    private final UserGroupRepository userGroups;
+    private final SessionTerminator sessions;
+    private final JdbcTemplate jdbc;
 
     // ---- teams --------------------------------------------------------------------------------------
 
@@ -162,6 +168,7 @@ public class TeamService {
         TeamEntity team = requireTeam(teamId);
         ResourcePattern pattern = ResourcePattern.parse(request.pattern().strip());
         requireCluster(request.clusterId());
+        lockPatternsOf(request.clusterId());
         boolean duplicate = patterns.findByTeamId(teamId).stream()
                 .anyMatch(p -> p.getClusterId().equals(request.clusterId())
                         && p.getKind().equals(request.kind().name())
@@ -252,6 +259,10 @@ public class TeamService {
         Authority authority = memberAuthority(teamId);
         RoleEntity role = requireTeamRole(request.roleId());
         authority.requireMayAssign(teamId, role, permissionsOf(role));
+        if (request.principalType() == PrincipalType.GROUP && !authority.userAdmin()) {
+            throw new AccessDeniedException(
+                    "Only a user administrator can add a directory group as a member of a team.");
+        }
         TeamMemberEntity member;
         String description;
         if (request.principalType() == PrincipalType.USER) {
@@ -281,6 +292,7 @@ public class TeamService {
         TeamMemberEntity saved = members.save(member);
         audit.changed("TEAM_MEMBER_ADD", "team", team.getName(), Map.of("member", description, "role", role.getName()));
         accessChanges.changed();
+        endSessionsWhereASecondFactorIsNowRequired(saved, role);
         return memberView(saved, roleNames(), usernames(List.of(saved)));
     }
 
@@ -291,7 +303,9 @@ public class TeamService {
         TeamMemberEntity member = members.findByIdAndTeamId(memberId, teamId)
                 .orElseThrow(() -> new NotFoundException("team member", memberId));
         RoleEntity role = requireTeamRole(roleId);
+        authority.requireMayManage(member);
         authority.requireMayAssign(teamId, role, permissionsOf(role));
+        authority.requireMayAssign(teamId, roleOf(member), permissionsOf(roleOf(member)));
         member.setRoleId(role.getId());
         members.save(member);
         audit.changed(
@@ -300,15 +314,18 @@ public class TeamService {
                 team.getName(),
                 Map.of("member", describe(member, usernames(List.of(member))), "role", role.getName()));
         accessChanges.changed();
+        endSessionsWhereASecondFactorIsNowRequired(member, role);
         return memberView(member, roleNames(), usernames(List.of(member)));
     }
 
     @Transactional
     public void removeMember(UUID teamId, UUID memberId) {
         TeamEntity team = requireTeam(teamId);
-        memberAuthority(teamId);
+        Authority authority = memberAuthority(teamId);
         TeamMemberEntity member = members.findByIdAndTeamId(memberId, teamId)
                 .orElseThrow(() -> new NotFoundException("team member", memberId));
+        authority.requireMayManage(member);
+        authority.requireMayAssign(teamId, roleOf(member), permissionsOf(roleOf(member)));
         members.delete(member);
         audit.changed(
                 "TEAM_MEMBER_REMOVE",
@@ -407,6 +424,16 @@ public class TeamService {
         return found;
     }
 
+    /**
+     * Serialises the changes of one cluster's patterns until the transaction ends, so two teams adding
+     * overlapping patterns at once cannot both pass the overlap check.
+     */
+    private void lockPatternsOf(UUID clusterId) {
+        long key = UUID.nameUUIDFromBytes(("team-patterns|" + clusterId).getBytes(StandardCharsets.UTF_8))
+                .getMostSignificantBits();
+        jdbc.queryForList("SELECT pg_advisory_xact_lock(?)", key);
+    }
+
     /** Whether, for every kind the share covers, one of the owner's patterns of that kind contains it. */
     private boolean covered(UUID ownerTeamId, UUID clusterId, PatternKind kind, ResourcePattern pattern) {
         List<TeamPatternEntity> owned = patterns.findByTeamId(ownerTeamId).stream()
@@ -438,6 +465,28 @@ public class TeamService {
         if (clusters.clusterName(clusterId) == null) {
             throw new NotFoundException("cluster", clusterId);
         }
+    }
+
+    private RoleEntity roleOf(TeamMemberEntity member) {
+        return roles.findById(member.getRoleId()).orElseThrow(() -> new NotFoundException("role", member.getRoleId()));
+    }
+
+    /**
+     * Sessions opened before the member held a role that requires a second factor never verified one, so
+     * they end, and the next sign-in enforces it.
+     */
+    private void endSessionsWhereASecondFactorIsNowRequired(TeamMemberEntity member, RoleEntity role) {
+        if (!role.isRequiresMfa()) {
+            return;
+        }
+        List<UUID> affected = member.getUserId() != null
+                ? List.of(member.getUserId())
+                : userGroups.findByIdProviderIdAndIdGroupName(member.getProviderId(), member.getGroupName()).stream()
+                        .map(g -> g.getId().getUserId())
+                        .toList();
+        sessions.endSessionsOf(users.findAllById(affected).stream()
+                .map(AppUserEntity::getUsername)
+                .toList());
     }
 
     private Set<String> permissionsOf(RoleEntity role) {
@@ -479,13 +528,27 @@ public class TeamService {
      * What the caller may do with teams: everything when they administer users or hold {@code team:admin}
      * globally; otherwise only the members of the teams where their own team role holds {@code team:admin}.
      */
-    private record Authority(boolean everything, Map<UUID, Set<String>> administered) {
+    private record Authority(boolean userAdmin, boolean everything, Map<UUID, Set<String>> administered) {
 
         boolean sees(UUID teamId) {
             return everything || administered.containsKey(teamId);
         }
 
-        /** A team admin may not give a role holding a permission they do not hold in the team. */
+        /**
+         * A directory group can admit users to Studio, so only a user administrator may add, change or remove
+         * one; a team admin manages the team's user members.
+         */
+        void requireMayManage(TeamMemberEntity member) {
+            if (!userAdmin && member.getPrincipalType().equals(TeamMemberEntity.GROUP)) {
+                throw new AccessDeniedException(
+                        "Only a user administrator can add, change or remove a directory group as a member.");
+            }
+        }
+
+        /**
+         * A team admin may not give, change or take away a role holding a permission they do not hold in the
+         * team: that would let them raise someone above themselves, or remove someone above them.
+         */
         void requireMayAssign(UUID teamId, RoleEntity role, Set<String> rolePermissions) {
             if (everything) {
                 return;
@@ -508,16 +571,16 @@ public class TeamService {
             throw new AccessDeniedException("Sign in to manage teams.");
         }
         if (perm.can(Permissions.USER_ADMIN) || perm.can(Permissions.TEAM_ADMIN)) {
-            return new Authority(true, Map.of());
+            return new Authority(perm.can(Permissions.USER_ADMIN), true, Map.of());
         }
         if (principal.pinned()) {
-            return new Authority(false, Map.of());
+            return new Authority(false, false, Map.of());
         }
         AccessSnapshot snapshot = access.of(principal.userId());
         Map<UUID, Set<String>> administered = snapshot.teamPermissions().entrySet().stream()
                 .filter(e -> Grant.covers(e.getValue(), Permissions.TEAM_ADMIN))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        return new Authority(false, administered);
+        return new Authority(false, false, administered);
     }
 
     /** The right to change {@code teamId}'s members; not found for a caller who may not even see the team. */

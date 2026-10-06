@@ -9,8 +9,15 @@ import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserGroupEntity;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserGroupRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -63,6 +70,18 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     AccessLoader access;
+
+    @Autowired
+    TeamService teams;
+
+    @Autowired
+    UserAccounts accounts;
+
+    @Autowired
+    UserGroupRepository userGroups;
+
+    @Autowired
+    TeamMemberRepository teamMembers;
 
     @AfterEach
     void signOut() {
@@ -157,6 +176,54 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(updated.requiresMfa()).isTrue();
         assertThat(sessions.findByPrincipalName(user.getUsername())).isEmpty();
+    }
+
+    @Test
+    void addingAMemberToATeamRoleThatRequiresMfaEndsTheirSessionsAndRequiresOne() {
+        AppUserEntity user = newUser("revoke-team-mfa");
+        UUID team = teams.create("mfa-" + UUID.randomUUID()).id();
+        var role = roleService.create(new RoleRequest("team-mfa-role", List.of("queue:read"), true, true));
+        openSession(user.getUsername());
+        assertThat(accounts.holdsMfaRole(user.getId())).isFalse();
+
+        teams.addMember(team, new MemberRequest(PrincipalType.USER, user.getId(), null, null, role.id()));
+
+        assertThat(sessions.findByPrincipalName(user.getUsername())).isEmpty();
+        assertThat(accounts.holdsMfaRole(user.getId())).isTrue();
+    }
+
+    @Test
+    void aTeamRoleOfAGroupTheUserIsInRequiresMfaToo() {
+        AppUserEntity user = newUser("revoke-group-mfa");
+        userGroups.save(new UserGroupEntity(user.getId(), "dir", "eng"));
+        UUID team = teams.create("group-mfa-" + UUID.randomUUID()).id();
+        var role = roleService.create(new RoleRequest("group-mfa-role", List.of("queue:read"), true, true));
+        openSession(user.getUsername());
+
+        teamMembers.save(TeamMemberEntity.group(team, "dir", "eng", role.id()));
+
+        assertThat(accounts.holdsMfaRole(user.getId())).isTrue();
+        // The role is what requires the factor, so the requirement ends with it.
+        roleService.update(role.id(), new RoleRequest("group-mfa-role", List.of("queue:read"), false, true));
+        assertThat(accounts.holdsMfaRole(user.getId())).isFalse();
+    }
+
+    @Test
+    void makingATeamRoleRequireMfaEndsItsMembersSessions() {
+        AppUserEntity direct = newUser("revoke-team-switch-direct");
+        AppUserEntity viaGroup = newUser("revoke-team-switch-group");
+        userGroups.save(new UserGroupEntity(viaGroup.getId(), "dir", "ops"));
+        UUID team = teams.create("switch-" + UUID.randomUUID()).id();
+        var role = roleService.create(new RoleRequest("team-switch-role", List.of("queue:read"), false, true));
+        teams.addMember(team, new MemberRequest(PrincipalType.USER, direct.getId(), null, null, role.id()));
+        teamMembers.save(TeamMemberEntity.group(team, "dir", "ops", role.id()));
+        openSession(direct.getUsername());
+        openSession(viaGroup.getUsername());
+
+        roleService.update(role.id(), new RoleRequest("team-switch-role", List.of("queue:read"), true, true));
+
+        assertThat(sessions.findByPrincipalName(direct.getUsername())).isEmpty();
+        assertThat(sessions.findByPrincipalName(viaGroup.getUsername())).isEmpty();
     }
 
     @Test

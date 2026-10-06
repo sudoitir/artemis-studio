@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -118,8 +119,9 @@ public class RoleService {
         // Members who were signed in without the factor the role now requires must sign in again; what the
         // role grants applies to their next request without it.
         if (mfaChanged) {
-            sessions.endSessionsOf(userRoles.findByIdRoleId(roleId).stream()
-                    .map(UserRoleEntity::getUserId)
+            sessions.endSessionsOf(Stream.concat(
+                            userRoles.findByIdRoleId(roleId).stream().map(UserRoleEntity::getUserId),
+                            teamMembers.findUserIdsHoldingRole(roleId).stream())
                     .distinct()
                     .flatMap(id -> users.findById(id).stream())
                     .map(AppUserEntity::getUsername)

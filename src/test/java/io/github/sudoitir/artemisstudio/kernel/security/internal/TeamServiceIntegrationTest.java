@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PatternRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
@@ -508,6 +509,120 @@ class TeamServiceIntegrationTest extends PostgresIntegrationTest {
                 "TEAM_MEMBER_REMOVE",
                 "TEAM_PATTERN_REMOVE")) {
             assertThat(audited(action)).as(action).isPositive();
+        }
+    }
+
+    @Autowired
+    TeamMemberRepository teamMembers;
+
+    // ---- the limits of a team admin ------------------------------------------------------------------
+
+    private UUID widerRole() {
+        return roleService
+                .create(new RoleRequest(
+                        "wider-" + UUID.randomUUID(),
+                        List.of("queue:read", "queue:update", "capture:write"),
+                        false,
+                        true))
+                .id();
+    }
+
+    @Test
+    void aTeamAdminCannotAddAChangeOrRemoveADirectoryGroupButAUserAdministratorCan() {
+        UUID orders = team("orders");
+        UUID boss = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, boss, null, null, role("TEAM_ADMIN")));
+        UUID group = teamMembers
+                .save(io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberEntity.group(
+                        orders, "dir", "eng", role("TEAM_VIEWER")))
+                .getId();
+
+        asUser(boss);
+
+        assertThatThrownBy(() -> teams.addMember(
+                        orders, new MemberRequest(PrincipalType.GROUP, null, "dir", "ops", role("TEAM_VIEWER"))))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("user administrator");
+        assertThatThrownBy(() -> teams.changeMemberRole(orders, group, role("TEAM_OPERATOR")))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> teams.removeMember(orders, group)).isInstanceOf(AccessDeniedException.class);
+
+        new AdminAuthenticationExtension().beforeEach(null);
+        teams.changeMemberRole(orders, group, role("TEAM_OPERATOR"));
+        teams.removeMember(orders, group);
+    }
+
+    @Test
+    void aTeamAdminCannotDemoteOrRemoveAMemberWhoseRoleHoldsMoreThanTheirs() {
+        UUID orders = team("orders");
+        UUID boss = user();
+        UUID senior = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, boss, null, null, role("TEAM_ADMIN")));
+        var member = teams.addMember(orders, new MemberRequest(PrincipalType.USER, senior, null, null, widerRole()));
+
+        asUser(boss);
+
+        assertThatThrownBy(() -> teams.changeMemberRole(orders, member.id(), role("TEAM_VIEWER")))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("capture:write");
+        assertThatThrownBy(() -> teams.removeMember(orders, member.id())).isInstanceOf(AccessDeniedException.class);
+        assertThat(teams.get(orders).members()).hasSize(2);
+
+        new AdminAuthenticationExtension().beforeEach(null);
+        teams.changeMemberRole(orders, member.id(), role("TEAM_VIEWER"));
+        teams.removeMember(orders, member.id());
+    }
+
+    @Test
+    void aTeamAdminMayStillChangeAndRemoveMembersWithinTheirOwnRights() {
+        UUID orders = team("orders");
+        UUID boss = user();
+        UUID peer = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, boss, null, null, role("TEAM_ADMIN")));
+        var member =
+                teams.addMember(orders, new MemberRequest(PrincipalType.USER, peer, null, null, role("TEAM_ADMIN")));
+
+        asUser(boss);
+        teams.changeMemberRole(orders, member.id(), role("TEAM_VIEWER"));
+        teams.removeMember(orders, member.id());
+
+        assertThat(teams.get(orders).members()).hasSize(1);
+    }
+
+    // ---- concurrency ---------------------------------------------------------------------------------
+
+    @Test
+    void twoTeamsAddingOverlappingPatternsAtOnceCannotBothSucceed() throws Exception {
+        for (int round = 0; round < 8; round++) {
+            UUID a = team("race-a");
+            UUID b = team("race-b");
+            UUID cluster = clusters.save(new ClusterEntity("race-" + UUID.randomUUID(), null, null))
+                    .getId();
+            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            try {
+                var first = pool.submit(() -> addWhenReleased(start, a, cluster, "race.#"));
+                var second = pool.submit(() -> addWhenReleased(start, b, cluster, "race.in.*"));
+                start.countDown();
+                int succeeded = (first.get() ? 1 : 0) + (second.get() ? 1 : 0);
+                assertThat(succeeded).as("round " + round).isEqualTo(1);
+            } finally {
+                pool.shutdownNow();
+            }
+        }
+    }
+
+    private boolean addWhenReleased(java.util.concurrent.CountDownLatch start, UUID team, UUID cluster, String pattern)
+            throws InterruptedException {
+        start.await();
+        new AdminAuthenticationExtension().beforeEach(null);
+        try {
+            teams.addPattern(team, pattern(cluster, PatternKind.QUEUE, pattern));
+            return true;
+        } catch (ConflictException refused) {
+            return false;
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 }
