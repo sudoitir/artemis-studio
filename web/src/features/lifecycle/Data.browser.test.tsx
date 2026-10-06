@@ -10,6 +10,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 
+import { accessFor } from '../../test/accessSummary.ts';
 import { axeViolations, contentWidth, Frame, renderThemed, SCHEMES, settle } from '../../test/browser.tsx';
 import { DataPanel } from './DataPanel.tsx';
 
@@ -92,6 +93,7 @@ const ME = {
 
 function bodyFor(path: string): unknown {
   if (path.endsWith('/auth/me')) return ME;
+  if (path.endsWith('/me/access')) return accessFor(ME.grants);
   if (path.endsWith('/data/stores')) return { stores: STORES };
   if (path.endsWith('/data/health')) return { tables: TABLES };
   return {};

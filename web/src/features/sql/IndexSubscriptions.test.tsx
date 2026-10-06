@@ -476,7 +476,8 @@ describe('IndexSubscriptions rows', () => {
     renderWithProviders(<IndexSubscriptions />);
 
     const sampled = (await screen.findByText('ORDER.IN')).closest('tr')!;
-    expect(within(sampled).getByRole('switch')).toBeDisabled();
+    // The cluster's rights arrive after the rows; until they do, the controls are offered.
+    await waitFor(() => expect(within(sampled).getByRole('switch')).toBeDisabled());
     expect(within(sampled).getByRole('button', { name: 'Delete' })).toBeDisabled();
     const captured = screen.getByText('PAY.IN').closest('tr')!;
     expect(within(captured).getByRole('switch')).toBeEnabled();

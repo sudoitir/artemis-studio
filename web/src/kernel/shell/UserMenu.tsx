@@ -37,7 +37,17 @@ export function UserMenu({ me }: Readonly<UserMenuProps>) {
               {me.username}
             </Text>
           </Menu.Label>
-          <Can permission="user:admin">
+          {/* A team admin has no use for the rest of Administration, so their entry opens the Teams tab. */}
+          <Can
+            permission="user:admin"
+            fallback={
+              <Can permission="team:admin">
+                <Menu.Item component={Link} to="/admin" search={{ tab: 'teams' } as never}>
+                  Administration
+                </Menu.Item>
+              </Can>
+            }
+          >
             <Menu.Item component={Link} to="/admin">
               Administration
             </Menu.Item>

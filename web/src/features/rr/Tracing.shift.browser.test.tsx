@@ -9,6 +9,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 
+import { accessFor } from '../../test/accessSummary.ts';
 import { contentWidth, Frame, renderThemed, settle } from '../../test/browser.tsx';
 import { FlowsView } from './FlowsView.tsx';
 
@@ -64,6 +65,7 @@ const paged = (data: unknown[]) => ({ data, count: data.length, page: 1, pageSiz
 
 function bodyFor(path: string): unknown {
   if (path.endsWith('/auth/me')) return ME;
+  if (path.endsWith('/me/access')) return accessFor(ME.grants);
   if (path.endsWith('/rr/flows')) return paged(FLOWS);
   if (path.endsWith('/rr/expectations')) return paged([EXPECTATION]);
   if (path.endsWith('/rr/stats')) {

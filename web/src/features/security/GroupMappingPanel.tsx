@@ -15,6 +15,8 @@ import { useCreateGroupMapping, useDeleteGroupMapping, useGroupMappings, useRole
 import type { GroupMappingView } from './api.ts';
 import { mappingColumns } from './columns.ts';
 import { withNotice } from './outcomes.ts';
+import { ScopeFields } from './ScopeFields.tsx';
+import { GLOBAL_SCOPE, scopeBody, scopeError, useScopeLabel, type GrantScope } from './scope.ts';
 import classes from './Security.module.css';
 
 const ADD: ActionVerb = { verb: 'Add', past: 'Added', progressive: 'Adding' };
@@ -90,11 +92,13 @@ function ProviderMappings({ providerId }: Readonly<{ providerId: string }>) {
 
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
+  const scopeLabel = useScopeLabel();
   const columns = mappingColumns({
     onDelete: (m) => {
       setDeleting(m);
       setDeleteOpen(true);
     },
+    scopeLabel,
   });
 
   return (
@@ -202,12 +206,13 @@ function NewMappingModal({
   roleOptions: { value: string; label: string }[];
 }>) {
   const create = useCreateGroupMapping(providerId);
-  const form = useForm<{ groupName: string; roleId: string | null }>({
-    initialValues: { groupName: '', roleId: null },
+  const form = useForm<{ groupName: string; roleId: string | null; scope: GrantScope }>({
+    initialValues: { groupName: '', roleId: null, scope: GLOBAL_SCOPE },
     validateInputOnBlur: true,
     validate: {
       groupName: (v) => (v.trim() ? null : 'Enter the group name exactly as the provider sends it.'),
       roleId: (v) => (v ? null : 'Choose the role the group grants.'),
+      scope: scopeError,
     },
   });
 
@@ -216,11 +221,11 @@ function NewMappingModal({
     form.reset();
   };
 
-  const submit = form.onSubmit(({ groupName, roleId }) => {
+  const submit = form.onSubmit(({ groupName, roleId, scope }) => {
     if (!roleId) return;
     const subject = `the mapping for ${groupName.trim()}`;
     create.mutate(
-      { groupName: groupName.trim(), roleId, scopeType: 'GLOBAL' },
+      { groupName: groupName.trim(), roleId, ...scopeBody(scope) },
       {
         onSuccess: () => {
           notify.succeeded({ action: ADD, subject });
@@ -238,6 +243,7 @@ function NewMappingModal({
         <Stack gap="sm">
           <TextInput label="Group" {...form.getInputProps('groupName')} required />
           <Select label="Role" data={roleOptions} {...form.getInputProps('roleId')} required />
+          <ScopeFields {...form.getInputProps('scope')} />
           <Button type="submit" loading={create.isPending}>
             Add mapping
           </Button>

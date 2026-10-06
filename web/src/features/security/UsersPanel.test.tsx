@@ -37,12 +37,27 @@ const user = (username: string, lockedUntil: string | null): UserView => ({
   grants: [],
 });
 
-function serveUsers(state: { users: UserView[] }) {
+const CLUSTER = {
+  id: 'c-prod',
+  name: 'prod',
+  health: 'OK',
+  nodeCount: 2,
+  updatedAt: '2026-10-01T00:00:00Z',
+  environmentId: 'e-live',
+};
+const ENVIRONMENT = { id: 'e-live', name: 'Live', colour: null, sortOrder: 1 };
+
+function serveUsers(state: { users: UserView[] }, roles: unknown[] = []) {
   server.use(
     http.get('*/api/v1/users', () => HttpResponse.json(paged(state.users))),
-    http.get('*/api/v1/roles', () => HttpResponse.json(paged([]))),
+    http.get('*/api/v1/roles', () => HttpResponse.json(paged(roles))),
+    http.get('*/api/v1/clusters', () => HttpResponse.json(paged([CLUSTER]))),
+    http.get('*/api/v1/environments', () => HttpResponse.json(paged([ENVIRONMENT]))),
   );
 }
+
+// jsdom has no layout, so Mantine keeps a select's list `display: none`: options are queried with `hidden`.
+const option = (name: string) => screen.findByRole('option', { name, hidden: true });
 
 describe('UsersPanel account lock', () => {
   it('says in words that an account is locked and offers Unlock only there', async () => {
@@ -343,5 +358,98 @@ describe('UsersPanel roles and accounts', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('The database is down.');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+});
+
+describe('UsersPanel grant scope', () => {
+  const VIEWER = { id: 'r-viewer', name: 'VIEWER', builtin: true, permissions: ['*'], requiresMfa: false };
+
+  it('names the environment or cluster a grant applies to', async () => {
+    const scoped = (grants: UserView['grants']): UserView => ({ ...user('alice', null), grants });
+    serveUsers({
+      users: [
+        scoped([
+          { roleId: 'r-viewer', roleName: 'VIEWER', scopeType: 'CLUSTER', scopeId: 'c-prod' },
+          { roleId: 'r-viewer', roleName: 'VIEWER', scopeType: 'ENVIRONMENT', scopeId: 'e-live' },
+          { roleId: 'r-viewer', roleName: 'VIEWER', scopeType: 'GLOBAL', scopeId: null },
+        ]),
+      ],
+    });
+    renderUsers();
+
+    expect(await screen.findByRole('button', { name: 'Remove VIEWER (Cluster prod) from alice' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove VIEWER (Environment Live) from alice' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove VIEWER from alice' })).toBeInTheDocument();
+  });
+
+  it('grants a role on one cluster', async () => {
+    serveUsers({ users: [user('alice', null)] }, [VIEWER]);
+    let body: unknown;
+    server.use(
+      http.post('*/api/v1/users/id-alice/grants', async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('button', { name: 'Grant a role to alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Grant a role to alice' });
+    await person.click(within(dialog).getByRole('combobox', { name: /Role/ }));
+    await person.click(await option('VIEWER'));
+    await person.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
+    await person.click(await option('Cluster'));
+    await person.click(within(dialog).getByRole('combobox', { name: /Cluster/ }));
+    await person.click(await option('prod'));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+
+    await waitFor(() => expect(body).toEqual({ roleId: 'r-viewer', scopeType: 'CLUSTER', scopeId: 'c-prod' }));
+  });
+
+  it('grants globally by default, with no scope id', async () => {
+    serveUsers({ users: [user('alice', null)] }, [VIEWER]);
+    let body: unknown;
+    server.use(
+      http.post('*/api/v1/users/id-alice/grants', async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('button', { name: 'Grant a role to alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Grant a role to alice' });
+    await person.click(within(dialog).getByRole('combobox', { name: /Role/ }));
+    await person.click(await option('VIEWER'));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+
+    await waitFor(() => expect(body).toEqual({ roleId: 'r-viewer', scopeType: 'GLOBAL' }));
+  });
+
+  it('asks which environment when the scope is one, and sends nothing meanwhile', async () => {
+    serveUsers({ users: [user('alice', null)] }, [VIEWER]);
+    let posted = false;
+    server.use(
+      http.post('*/api/v1/users/id-alice/grants', () => {
+        posted = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('button', { name: 'Grant a role to alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Grant a role to alice' });
+    await person.click(within(dialog).getByRole('combobox', { name: /Role/ }));
+    await person.click(await option('VIEWER'));
+    await person.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
+    await person.click(await option('Environment'));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+
+    expect(await within(dialog).findByText('Choose the environment the role applies to.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: /Environment/ })).toHaveFocus();
+    expect(posted).toBe(false);
   });
 });

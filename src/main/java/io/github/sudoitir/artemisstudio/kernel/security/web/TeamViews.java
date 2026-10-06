@@ -49,7 +49,10 @@ public final class TeamViews {
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(requiredMode = REQUIRED) Instant createdAt,
             @Schema(requiredMode = REQUIRED) int memberCount,
-            @Schema(requiredMode = REQUIRED) int patternCount,
+
+            @Schema(requiredMode = REQUIRED, description = "The patterns the team owns, with the cluster of each.")
+            List<PatternView> patterns,
+
             @Schema(requiredMode = REQUIRED) int sharesOut,
             @Schema(requiredMode = REQUIRED) int sharesIn) {}
 
@@ -122,4 +125,16 @@ public final class TeamViews {
 
     public record UnownedView(
             @Schema(requiredMode = REQUIRED) String name) {}
+
+    @Schema(
+            description =
+                    "A user a team admin may add as a member: enabled accounts only. Usernames are unique across providers.")
+    public record UserLookup(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(requiredMode = REQUIRED) String username) {}
+
+    @Schema(description = "The team roles a team admin may give, and the catalogue entries their permissions name.")
+    public record TeamRoleLookup(
+            @Schema(requiredMode = REQUIRED) List<UserViews.RoleView> roles,
+            @Schema(requiredMode = REQUIRED) List<UserViews.PermissionView> permissions) {}
 }

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessLoader;
@@ -40,8 +41,12 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PatternVie
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamRoleLookup;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamSummary;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.UserLookup;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleView;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,6 +102,7 @@ public class TeamService {
     private final UserGroupRepository userGroups;
     private final SessionTerminator sessions;
     private final JdbcTemplate jdbc;
+    private final FeatureRegistry features;
 
     // ---- teams --------------------------------------------------------------------------------------
 
@@ -157,6 +163,70 @@ public class TeamService {
                         "members", members.countByTeamId(teamId)));
         teams.delete(team);
         accessChanges.changed();
+    }
+
+    // ---- lookups for who administers a team ---------------------------------------------------------
+
+    private static final int LOOKUP_LIMIT = 20;
+    /** Shorter prefixes would let a team admin page through every account a letter at a time. */
+    private static final int LOOKUP_MIN_PREFIX = 2;
+
+    /**
+     * Enabled users whose name starts with {@code prefix} (two characters at least), at most twenty, for a team admin choosing a
+     * member. Open to anyone who may administer some team, because {@code user:admin} would otherwise be
+     * needed just to look a colleague up.
+     */
+    @Transactional(readOnly = true)
+    public List<UserLookup> findUsers(String prefix) {
+        requireTeamAdministrator();
+        String stripped = prefix.strip();
+        if (stripped.length() < LOOKUP_MIN_PREFIX) {
+            return List.of();
+        }
+        return users.findTop20ByDisabledFalseAndUsernameStartingWithIgnoreCaseOrderByUsername(stripped).stream()
+                .limit(LOOKUP_LIMIT)
+                .map(u -> new UserLookup(u.getId(), u.getUsername()))
+                .toList();
+    }
+
+    /** The team roles, with their permissions, and the catalogue entries those permissions name. */
+    @Transactional(readOnly = true)
+    public TeamRoleLookup teamRoles() {
+        requireTeamAdministrator();
+        List<RoleEntity> teamRoles = roles.findAllByOrderByName().stream()
+                .filter(RoleEntity::isTeamAssignable)
+                .toList();
+        Map<UUID, Set<String>> held =
+                teamRoles.stream().collect(Collectors.toMap(RoleEntity::getId, this::permissionsOf));
+        List<RoleView> views = teamRoles.stream()
+                .map(r -> new RoleView(
+                        r.getId(),
+                        r.getName(),
+                        r.isBuiltin(),
+                        held.get(r.getId()).stream().sorted().toList(),
+                        r.isRequiresMfa(),
+                        true))
+                .toList();
+        List<PermissionView> entries = features.catalogue().stream()
+                .filter(e -> held.values().stream().anyMatch(permissions -> Grant.covers(permissions, e.action())))
+                .map(e -> new PermissionView(
+                        e.action(),
+                        e.description(),
+                        e.featureId(),
+                        e.featureTitle(),
+                        e.scope(),
+                        e.resourceKinds().stream().sorted().toList(),
+                        e.requires().stream().sorted().toList()))
+                .toList();
+        return new TeamRoleLookup(views, entries);
+    }
+
+    /** A user administrator, or a holder of {@code team:admin} globally or in some team; nobody else. */
+    private void requireTeamAdministrator() {
+        Authority authority = authority();
+        if (!authority.everything() && authority.administered().isEmpty()) {
+            throw new AccessDeniedException("Only an administrator of a team can look up users and team roles.");
+        }
     }
 
     // ---- patterns -----------------------------------------------------------------------------------
@@ -626,7 +696,9 @@ public class TeamService {
                 team.getName(),
                 team.getCreatedAt(),
                 (int) members.countByTeamId(team.getId()),
-                patterns.findByTeamId(team.getId()).size(),
+                patterns.findByTeamId(team.getId()).stream()
+                        .map(TeamService::patternView)
+                        .toList(),
                 shares.findByOwnerTeamId(team.getId()).size(),
                 shares.findByTargetTeamId(team.getId()).size());
     }
