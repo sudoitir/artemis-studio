@@ -851,10 +851,11 @@ jobs:
           gh attestation verify "artemis-studio-$V.openapi.json" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
-          # Docker Hub lists a freshly pushed referrer only after a delay, so give it a minute.
-          for i in {1..6}; do
+          # Docker Hub lists a freshly pushed referrer only after a delay, which has run past a
+          # minute, so give it five.
+          for i in {1..30}; do
             gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --bundle-from-oci && break
-            [ "$i" -lt 6 ] || exit 1
+            [ "$i" -lt 30 ] || exit 1
             sleep 10
           done
 
