@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.resources.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.security.TeamRef;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -47,9 +48,12 @@ public final class ResourceViews {
                     requiredMode = REQUIRED,
                     description = "The actions of the catalogue that apply to this row and that the caller holds"
                             + " on it, such as queue:purge. The console gates its controls from this.")
-            List<String> allowedActions) {
+            List<String> allowedActions,
 
-        public QueueView withAllowedActions(List<String> actions) {
+            @Schema(nullable = true, description = "The team whose patterns own this queue; null when no team does.")
+            TeamRef ownerTeam) {
+
+        public QueueView withAccess(List<String> actions, TeamRef owner) {
             return new QueueView(
                     address,
                     queueName,
@@ -63,7 +67,8 @@ public final class ResourceViews {
                     nodesTotal,
                     paused,
                     perNode,
-                    actions);
+                    actions,
+                    owner);
         }
     }
 
@@ -98,10 +103,13 @@ public final class ResourceViews {
                     requiredMode = REQUIRED,
                     description = "The actions of the catalogue that apply to this row and that the caller holds"
                             + " on it, such as queue:purge. The console gates its controls from this.")
-            List<String> allowedActions) {
+            List<String> allowedActions,
 
-        public AddressView withAllowedActions(List<String> actions) {
-            return new AddressView(nodeId, nodeName, name, routingTypes, queueCount, messageCount, actions);
+            @Schema(nullable = true, description = "The team whose patterns own this address; null when no team does.")
+            TeamRef ownerTeam) {
+
+        public AddressView withAccess(List<String> actions, TeamRef owner) {
+            return new AddressView(nodeId, nodeName, name, routingTypes, queueCount, messageCount, actions, owner);
         }
     }
 

@@ -12,7 +12,6 @@ import io.github.sudoitir.artemisstudio.platform.clusters.web.EnvironmentViews.E
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,6 @@ public class EnvironmentService {
     private final EnvironmentRepository environments;
     private final ClusterRepository clusters;
     private final ScopedGrants grants;
-    private final ApplicationEventPublisher eventPublisher;
     private final ClusterEnvironmentIndex environmentIndex;
 
     @PreAuthorize(
@@ -72,7 +70,6 @@ public class EnvironmentService {
         require(environmentId);
         environments.deleteById(environmentId); // cascades cluster.environment_id -> NULL (ON DELETE SET NULL)
         grants.revoke("ENVIRONMENT", environmentId);
-        eventPublisher.publishEvent(new EnvironmentRemoved(environmentId));
         environmentIndex.invalidate();
     }
 

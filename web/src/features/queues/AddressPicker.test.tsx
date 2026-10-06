@@ -119,4 +119,73 @@ describe('AddressPicker', () => {
 
     expect(await screen.findByText(/type an address by hand/i)).toBeInTheDocument();
   });
+
+  describe('offering only the addresses the caller holds a permission on', () => {
+    function address(name: string, allowedActions: string[]) {
+      return {
+        nodeId: 'n1',
+        nodeName: 'node-a',
+        name,
+        routingTypes: 'ANYCAST',
+        queueCount: 1,
+        messageCount: 0,
+        allowedActions,
+      };
+    }
+
+    function serveAddresses() {
+      server.use(
+        http.get('*/api/v1/clusters/c1/queues', () =>
+          HttpResponse.json(page([queue({ address: 'orders.in' }), queue({ address: 'billing.in' })])),
+        ),
+        http.get('*/api/v1/clusters/c1/addresses', () =>
+          HttpResponse.json({
+            data: [address('orders.in', ['message:send']), address('billing.in', ['address:read'])],
+            count: 2,
+            page: 1,
+            pageSize: 300,
+          }),
+        ),
+      );
+    }
+
+    it('lists the addresses that allow it, and leaves out the ones that do not', async () => {
+      serveAddresses();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <AddressPicker clusterId="c1" value="" onChange={() => {}} label="Target" permission="message:send" />,
+      );
+
+      await user.click(screen.getByRole('textbox', { name: /target/i }));
+
+      expect(await screen.findByRole('option', { name: /^orders\.in,/ })).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('option', { name: /^billing\.in,/ })).not.toBeInTheDocument());
+    });
+
+    it('says so when the typed name is an address the caller may not use', async () => {
+      serveAddresses();
+      renderWithProviders(
+        <AddressPicker
+          clusterId="c1"
+          value="billing.in"
+          onChange={() => {}}
+          label="Target"
+          permission="message:send"
+        />,
+      );
+
+      expect(await screen.findByText('You do not hold message:send on the address billing.in.')).toBeInTheDocument();
+    });
+
+    it('offers every address when no permission is asked for', async () => {
+      serveAddresses();
+      const user = userEvent.setup();
+      renderWithProviders(<AddressPicker clusterId="c1" value="" onChange={() => {}} label="Target" />);
+
+      await user.click(screen.getByRole('textbox', { name: /target/i }));
+
+      expect(await screen.findByRole('option', { name: /^billing\.in,/ })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /^orders\.in,/ })).toBeInTheDocument();
+    });
+  });
 });

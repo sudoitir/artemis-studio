@@ -2,7 +2,6 @@ package io.github.sudoitir.artemisstudio.kernel.stream.web;
 
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.stream.EventReplay;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.StreamTopicRegistry;
@@ -32,6 +31,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * {@link SseHub}'s heartbeat keeps it open, and a first ping goes out on connect so the
  * client's {@code onopen} does not wait for it. {@code X-Accel-Buffering: no} tells
  * proxies not to buffer it.
+ *
+ * <p>Opening the stream needs the cluster to be visible to the caller, through a grant or a team. What is
+ * then sent to them is decided frame by frame ({@link io.github.sudoitir.artemisstudio.kernel.stream.StreamAccess}),
+ * replayed events included.
  *
  * <p>The recognised topics are those the enabled modules declare (ADR-0070); a
  * topic of a disabled or unknown module is ignored. Signal topics carry a
@@ -73,7 +76,7 @@ public class StreamController {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "This replica is shutting down");
         }
         Long lastEventId = lastEventIdParam != null ? lastEventIdParam : lastEventIdHeader;
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
         response.setHeader("X-Accel-Buffering", "no");
 
         Set<String> known = this.topics.known();
@@ -117,11 +120,11 @@ public class StreamController {
         List<EventReplay.Replayed> missed = replay.since(clusterId, lastEventId, REPLAY_CAP);
         long upTo = lastEventId;
         for (EventReplay.Replayed event : missed) {
-            hub.sendTo(subscriber, topic, event.data(), event.id());
+            hub.replayTo(clusterId, subscriber, topic, event.data(), event.id());
             upTo = Math.max(upTo, Long.parseLong(event.id()));
         }
         if (missed.size() >= REPLAY_CAP) {
-            hub.sendTo(subscriber, SseHub.RESYNC, Instant.now().toEpochMilli(), null);
+            hub.sendTo(subscriber, SseHub.RESYNC, Instant.now().toEpochMilli());
         }
         return upTo;
     }

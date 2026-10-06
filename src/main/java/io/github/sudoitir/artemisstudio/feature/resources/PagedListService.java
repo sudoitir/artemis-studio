@@ -14,6 +14,8 @@ import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
+import io.github.sudoitir.artemisstudio.kernel.security.TeamIndex;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
@@ -65,6 +67,7 @@ public class PagedListService {
     private final ResourceViewMapper mapper;
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
+    private final TeamIndex teams;
 
     @Transactional(readOnly = true)
     public PagedView<AddressView> addresses(UUID clusterId, ResourceQuery query) {
@@ -74,7 +77,10 @@ public class PagedListService {
                 .filter(a -> readable.readable(a.name()))
                 .toList();
         return page(rows, query, List.of(AddressView::name), nameComparator())
-                .map(a -> a.withAllowedActions(readable.allowedActions(a.name())));
+                .map(a -> a.withAccess(
+                        readable.allowedActions(a.name()),
+                        teams.ownerTeamOf(clusterId, ResourceRef.address(a.name()))
+                                .orElse(null)));
     }
 
     @Transactional(readOnly = true)

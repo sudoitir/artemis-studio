@@ -14,6 +14,7 @@ import {
   mountRefetch,
   setPollingPaused,
 } from '../api/polling.ts';
+import { ApiError } from '../api/request.ts';
 import { FreshnessBar } from './FreshnessBar.tsx';
 
 /**
@@ -68,6 +69,22 @@ describe('FreshnessBar', () => {
     expect(stamp.closest('time')).not.toBeNull();
     expect(stamp.closest('time')).toHaveAttribute('dateTime');
   });
+
+  it('says offline when a screen query fails because the server could not answer', async () => {
+    harness(<Screen fetcher={() => Promise.reject(new ApiError(503, { title: 'Service Unavailable' }))} />);
+
+    expect((await screen.findAllByText('Offline')).length).toBeGreaterThan(0);
+  });
+
+  it.each([403, 404])(
+    'does not say offline when the server answered %i: it is reachable, the data is not the caller’s',
+    async (status) => {
+      harness(<Screen fetcher={() => Promise.reject(new ApiError(status, { title: 'Refused' }))} />);
+
+      await screen.findAllByText('Polling');
+      expect(screen.queryByText('Offline')).not.toBeInTheDocument();
+    },
+  );
 
   it('renders the pause control differently when paused, by more than colour', async () => {
     const user = userEvent.setup();

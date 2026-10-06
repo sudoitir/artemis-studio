@@ -34,7 +34,8 @@ public class ResourceViewMapper {
                 str(row, "routingTypes"),
                 num(row, "queueCount"),
                 num(row, "messageCount"),
-                List.of());
+                List.of(),
+                null);
     }
 
     public ConsumerView consumer(JsonNode row, NodeRef node) {

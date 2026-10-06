@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.transfer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -282,7 +283,7 @@ class TransferRunnerTest {
         runner.start(RUN, operator);
 
         verify(runs, never()).save(any());
-        verify(sse, never()).publish(any(), anyString());
+        verify(sse, never()).publishAbout(any(UUID.class), anyString(), anyCollection(), anyCollection());
     }
 
     @Test
@@ -308,7 +309,7 @@ class TransferRunnerTest {
         verify(link, times(1)).relay(anyInt(), any());
         verify(runs, never()).save(any());
         verify(audit, never()).finish(any(), anyBoolean(), anyLong(), any(), any());
-        verify(sse, never()).publish(any(), anyString());
+        verify(sse, never()).publishAbout(any(UUID.class), anyString(), anyCollection(), anyCollection());
     }
 
     @Test
@@ -359,10 +360,10 @@ class TransferRunnerTest {
         verify(limiter, times(3)).acquire("http://tgt", 1);
         ArgumentCaptor<TransferProgress> progress = ArgumentCaptor.forClass(TransferProgress.class);
         verify(sse, org.mockito.Mockito.atLeastOnce())
-                .publish(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), any());
+                .publishAbout(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), anyCollection(), anyCollection());
         assertThat(progress.getAllValues().getLast().delivered()).isEqualTo(5);
-        verify(sse).publish(SRC_CLUSTER, "queues");
-        verify(sse).publish(TGT_CLUSTER, "queues");
+        verify(sse).publishAbout(eq(SRC_CLUSTER), eq("queues"), anyCollection(), anyCollection());
+        verify(sse).publishAbout(eq(TGT_CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     @Test
@@ -609,7 +610,7 @@ class TransferRunnerTest {
         verify(probe, times(2)).read(any(), any(), any(), any());
         ArgumentCaptor<TransferProgress> progress = ArgumentCaptor.forClass(TransferProgress.class);
         verify(sse, org.mockito.Mockito.atLeastOnce())
-                .publish(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), any());
+                .publishAbout(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), anyCollection(), anyCollection());
         assertThat(progress.getAllValues())
                 .extracting(TransferProgress::state)
                 .contains(TransferState.WAITING_FOR_CAPACITY, TransferState.RUNNING);
@@ -744,7 +745,7 @@ class TransferRunnerTest {
 
         assertThat(run.getState()).isEqualTo(TransferState.SUCCEEDED);
         assertThat(run.getDelivered()).isEqualTo(3);
-        verify(sse, times(1)).publish(SRC_CLUSTER, "queues");
+        verify(sse, times(1)).publishAbout(eq(SRC_CLUSTER), eq("queues"), anyCollection(), anyCollection());
         verify(relay, never()).link(any(), any(), any());
     }
 
@@ -1144,8 +1145,8 @@ class TransferRunnerTest {
 
         execute();
 
-        verify(sse, times(1)).publish(SRC_CLUSTER, "queues");
-        verify(sse, never()).publish(TGT_CLUSTER, "queues");
+        verify(sse, times(1)).publishAbout(eq(SRC_CLUSTER), eq("queues"), anyCollection(), anyCollection());
+        verify(sse, never()).publishAbout(eq(TGT_CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
 
     @Test

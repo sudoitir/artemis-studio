@@ -7,6 +7,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
+import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.kernel.stream.Subscriber;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
@@ -120,9 +123,12 @@ class EventStreamBusTest extends PostgresIntegrationTest {
         assertThat(sent(onA, "events")).isEmpty();
     }
 
+    private final StudioPrincipal administrator = new StudioPrincipal(
+            UUID.randomUUID(), "admin", Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("*"))), false);
+
     private SseEmitter subscribe(SseHub hub, String topic) {
         SseEmitter emitter = mock(SseEmitter.class);
-        hub.register(clusterId, new Subscriber(emitter, Set.of(topic), null));
+        hub.register(clusterId, new Subscriber(emitter, Set.of(topic), null, null, administrator));
         return emitter;
     }
 

@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Rol
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
@@ -92,7 +93,10 @@ class PermissionResolverTest {
                         .map(action -> new RolePermissionEntity(i.getArgument(0), action))
                         .toList());
         resolver = new PermissionResolver(
-                environments, access, new TeamIndex(patterns, shares, rolePermissions), features);
+                environments,
+                access,
+                new TeamIndex(mock(TeamRepository.class), patterns, shares, rolePermissions),
+                features);
         access(Set.of(), Map.of());
     }
 
@@ -603,5 +607,123 @@ class PermissionResolverTest {
 
         assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders*", QUEUE_READ))
                 .isTrue();
+    }
+
+    // ---- API keys -----------------------------------------------------------------------------------
+
+    /** The signed-in context becomes an API key of the user whose access was last set with {@link #access}. */
+    private void keyOf(TokenGrant... grants) {
+        TokenPrincipal key = new TokenPrincipal(userId, "u", Set.of(grants), UUID.randomUUID(), "ci", Set.of());
+        SecurityContextHolder.getContext()
+                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(key, null, key.getAuthorities()));
+    }
+
+    @Test
+    void aKeyCannotDoWhatItsGrantsDoNotSay() {
+        access(Set.of(global(Permissions.WILDCARD)), Map.of());
+        keyOf(TokenGrant.of(Grant.ScopeType.CLUSTER, clusterId, QUEUE_READ));
+
+        assertThat(resolver.can(clusterId, QUEUE_READ)).isTrue();
+        assertThat(resolver.can(clusterId, QUEUE_PURGE)).isFalse();
+        assertThat(resolver.can(otherClusterId, QUEUE_READ)).isFalse();
+    }
+
+    @Test
+    void aKeyCannotDoWhatItsOwnerNoLongerHolds() {
+        access(Set.of(global(QUEUE_READ)), Map.of());
+        keyOf(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, QUEUE_READ));
+        assertThat(resolver.can(clusterId, QUEUE_READ)).isTrue();
+
+        when(access.of(userId)).thenReturn(new AccessSnapshot(Set.of(), Map.of()));
+
+        assertThat(resolver.can(clusterId, QUEUE_READ)).isFalse();
+    }
+
+    @Test
+    void aWildcardOfAKeyAllowsWhatTheOwnerHoldsThatItMatches() {
+        access(Set.of(global(MessagePermissions.MESSAGE_READ)), Map.of());
+        keyOf(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "message:*"));
+
+        assertThat(resolver.can(clusterId, MessagePermissions.MESSAGE_READ)).isTrue();
+        assertThat(resolver.can(clusterId, MESSAGE_SEND)).isFalse();
+        assertThat(resolver.grantsOf(currentKey()))
+                .containsExactly(
+                        new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of(MessagePermissions.MESSAGE_READ)));
+    }
+
+    @Test
+    void aWildcardOfTheOwnerDoesNotWidenAKeyThatNamesAPermission() {
+        access(Set.of(global("message:*")), Map.of());
+        keyOf(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, MessagePermissions.MESSAGE_READ));
+
+        assertThat(resolver.can(clusterId, MessagePermissions.MESSAGE_READ)).isTrue();
+        assertThat(resolver.can(clusterId, MESSAGE_SEND)).isFalse();
+    }
+
+    @Test
+    void aKeyReachesWhatItsOwnersTeamsOwnAndNothingMore() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_VIEWER));
+        keyOf(TokenGrant.of(Grant.ScopeType.CLUSTER, clusterId, QUEUE_READ));
+
+        assertThat(resolver.can(clusterId, ResourceRef.queue("orders.in"), QUEUE_READ))
+                .isTrue();
+        assertThat(resolver.can(clusterId, ResourceRef.queue("billing.in"), QUEUE_READ))
+                .isFalse();
+        assertThat(resolver.can(clusterId, QUEUE_READ))
+                .as("a team grants nothing on the cluster as a whole")
+                .isFalse();
+    }
+
+    @Test
+    void aKeyLimitedToAPatternReachesOnlyTheNamesItMatches() {
+        access(Set.of(global(Permissions.WILDCARD)), Map.of());
+        keyOf(new TokenGrant(
+                Grant.ScopeType.CLUSTER,
+                clusterId,
+                MessagePermissions.MESSAGE_READ,
+                ResourceKind.QUEUE,
+                ResourcePattern.parse("orders.#")));
+
+        assertThat(resolver.can(clusterId, ResourceRef.queue("orders.in"), MessagePermissions.MESSAGE_READ))
+                .isTrue();
+        assertThat(resolver.can(clusterId, ResourceRef.queue("orders2.in"), MessagePermissions.MESSAGE_READ))
+                .as("the owner reads it, the key is not for it")
+                .isFalse();
+        assertThat(resolver.can(clusterId, ResourceRef.address("orders.in"), MessagePermissions.MESSAGE_READ))
+                .as("a pattern of queues is not one of addresses")
+                .isFalse();
+        assertThat(resolver.can(clusterId, MessagePermissions.MESSAGE_READ))
+                .as("limited to names, it is not held on the cluster as a whole")
+                .isFalse();
+        assertThat(resolver.canAnywhere(clusterId, MessagePermissions.MESSAGE_READ))
+                .isTrue();
+    }
+
+    @Test
+    void aKeyLimitedToAPatternStillNeedsItsOwnerToHoldThePermissionOnTheName() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_VIEWER));
+        keyOf(new TokenGrant(
+                Grant.ScopeType.CLUSTER, clusterId, QUEUE_READ, ResourceKind.QUEUE, ResourcePattern.parse("#")));
+
+        assertThat(resolver.can(clusterId, ResourceRef.queue("orders.in"), QUEUE_READ))
+                .isTrue();
+        assertThat(resolver.can(clusterId, ResourceRef.queue("billing.in"), QUEUE_READ))
+                .isFalse();
+    }
+
+    @Test
+    void aKeyAdministersNoTeamAndHoldsNoTeamOfItsOwn() {
+        access(Set.of(), Map.of(orders, TEAM_VIEWER));
+        keyOf(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, "*"));
+
+        assertThat(resolver.can(Permissions.USER_ADMIN)).isFalse();
+        assertThat(currentKey().pinned()).isTrue();
+    }
+
+    private TokenPrincipal currentKey() {
+        return (TokenPrincipal)
+                SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 }

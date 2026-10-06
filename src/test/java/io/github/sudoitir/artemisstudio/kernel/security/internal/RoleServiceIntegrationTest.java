@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
@@ -15,6 +16,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** What a role may hold: every permission its permissions require, and for a team role only resource ones. */
@@ -142,5 +145,19 @@ class RoleServiceIntegrationTest extends PostgresIntegrationTest {
         new AdminAuthenticationExtension().beforeEach(null);
         teams.delete(team);
         roleService.delete(role.id());
+    }
+
+    @Test
+    void anyoneSignedInReadsThePermissionCatalogueButNotTheRoles() {
+        StudioPrincipal nobody = new StudioPrincipal(null, "no-grants", java.util.Set.of(), false);
+        SecurityContextHolder.getContext()
+                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(nobody, null, List.of()));
+        try {
+            assertThat(roleService.catalogue()).extracting(p -> p.action()).contains("queue:read");
+            assertThatThrownBy(roleService::list).isInstanceOf(AccessDeniedException.class);
+        } finally {
+            SecurityContextHolder.clearContext();
+            new AdminAuthenticationExtension().beforeEach(null);
+        }
     }
 }

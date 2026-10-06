@@ -14,12 +14,12 @@ Pick the smallest harness that does the job. Most tasks need neither agents nor 
 | --- | --- | --- | --- |
 | Plan, design, the hardest reasoning | `planner` | Opus | medium |
 | Review, adversarial check | `reviewer` | Opus | low |
-| Implement a settled task | `implementer` | Sonnet | high |
+| Implement a settled task | `implementer` | Sonnet | medium |
 | Run checks, report pass/fail | `verifier` | Sonnet | low |
 
 - The session runs on Opus at medium. Other subagents default to Sonnet (`CLAUDE_CODE_SUBAGENT_MODEL`).
   `ANTHROPIC_DEFAULT_OPUS_MODEL` / `ANTHROPIC_DEFAULT_SONNET_MODEL` pin the aliases to 5.5.
-- **Never `xhigh` or `max`**, for any model. `maxEffortLevel: high` in `settings.json` enforces it.
+- **Never `high`, `xhigh` or `max`** for any agent: Sonnet runs at low or medium, Opus at low or medium. `maxEffortLevel: high` in `settings.json` is only the hard ceiling.
 - Never set `CLAUDE_CODE_EFFORT_LEVEL`: it overrides every agent's `effort` frontmatter.
 - In a workflow, give every `agent()` call its role: `agentType: 'planner'` (or the
   others), or `{model, effort}` from the table. Never leave a stage to inherit by accident.

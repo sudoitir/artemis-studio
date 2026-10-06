@@ -223,7 +223,8 @@ async function main() {
   await editor.waitFor({ state: 'hidden' });
   const roles = await list<{ id: string; name: string; permissions: string[] }>(api, '/roles');
   const role = roles.find((r) => r.name === roleName);
-  if (!role || [...role.permissions].sort().join() !== `${ID}:read,${ID}:write`) {
+  // The editor adds what the plugin's permissions require (`queue:read`), so a role is never saved half-usable.
+  if (!role || [...role.permissions].sort().join() !== `${ID}:read,${ID}:write,queue:read`) {
     throw new Error(`role saved with ${JSON.stringify(role?.permissions)}`);
   }
   await browser.close();
@@ -253,7 +254,7 @@ async function main() {
   if (catalogue.some((p) => p.action.startsWith(`${ID}:`)))
     throw new Error('a disabled plugin is still in the catalogue');
   const kept2 = (await list<{ id: string; permissions: string[] }>(api, '/roles')).find((r) => r.id === role.id);
-  if (kept2?.permissions.length !== 2) throw new Error(`the role lost its permissions: ${JSON.stringify(kept2)}`);
+  if (kept2?.permissions.length !== 3) throw new Error(`the role lost its permissions: ${JSON.stringify(kept2)}`);
   await expectStatus(await call(api, 'DELETE', `/roles/${role.id}`), 204, 'delete role');
 
   step('uninstall, then purge after a dry run');

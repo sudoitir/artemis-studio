@@ -4,10 +4,14 @@ import type { Column } from '../../ui/table/index.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { AuditEventView } from './api.ts';
 
-/** The outcome in a word, and how much attention it needs: only a failure or an unfinished event is marked. */
+/**
+ * The outcome in a word, and how much attention it needs: a failure is marked, and so is what is unfinished or
+ * was refused for lack of a permission.
+ */
 export function outcome(o: string): { word: string; tone: 'neutral' | 'warning' | 'danger' } {
   if (o === 'SUCCESS') return { word: 'success', tone: 'neutral' };
   if (o === 'FAILURE') return { word: 'failure', tone: 'danger' };
+  if (o === 'REFUSED') return { word: 'refused', tone: 'warning' };
   return { word: 'pending', tone: 'warning' };
 }
 

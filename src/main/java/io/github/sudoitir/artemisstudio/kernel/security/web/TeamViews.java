@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.artemisstudio.kernel.security.PatternKind;
+import io.github.sudoitir.artemisstudio.kernel.security.TeamRef;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -137,4 +138,37 @@ public final class TeamViews {
     public record TeamRoleLookup(
             @Schema(requiredMode = REQUIRED) List<UserViews.RoleView> roles,
             @Schema(requiredMode = REQUIRED) List<UserViews.PermissionView> permissions) {}
+
+    public enum GrantSource {
+        OWNER,
+        SHARE
+    }
+
+    @Schema(
+            description = "One team role that reaches a queue or address, and how many members hold it: a role of "
+                    + "the owning team, or the role a share gives another team.")
+    public record ResourceTeamGrant(
+            @Schema(requiredMode = REQUIRED) UUID teamId,
+            @Schema(requiredMode = REQUIRED) String teamName,
+            @Schema(requiredMode = REQUIRED) String roleName,
+            @Schema(requiredMode = REQUIRED) GrantSource source,
+
+            @Schema(nullable = true, description = "SHARE only: the owning team that shared the pattern.")
+            String sharedByTeamName,
+
+            @Schema(nullable = true, description = "SHARE only: the pattern the owning team shared.")
+            String pattern,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "OWNER: the team's members holding the role. SHARE: all members of the receiving "
+                            + "team.")
+            int memberCount) {}
+
+    @Schema(description = "Who has access to one queue or address through teams: its owner and every share.")
+    public record ResourceAccessView(
+            @Schema(nullable = true, description = "The team whose patterns own the name; null when none does.")
+            TeamRef ownerTeam,
+
+            @Schema(requiredMode = REQUIRED) List<ResourceTeamGrant> grants) {}
 }

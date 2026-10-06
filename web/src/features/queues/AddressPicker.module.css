@@ -66,3 +66,11 @@
   inset-inline-start: 0;
   margin-block-start: 0.125rem;
 }
+
+/* A labelled field keeps room for one line of message (theme.css) and takes its message in flow, like every other
+   field, so a rejected name moves nothing below it. Out of flow, the room was given up and the message hung over
+   the next field's label. */
+.root:has(:global(.mantine-InputWrapper-label)) .error {
+  position: static;
+  margin-block-start: calc(var(--mantine-spacing-xs) / 2);
+}

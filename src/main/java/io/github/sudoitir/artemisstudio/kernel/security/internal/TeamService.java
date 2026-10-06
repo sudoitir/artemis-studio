@@ -146,6 +146,7 @@ public class TeamService {
         team.setName(trimmed);
         teams.save(team);
         audit.changed("TEAM_RENAME", "team", trimmed, Map.of("previousName", before));
+        accessChanges.changed();
         return view(team);
     }
 
@@ -222,10 +223,10 @@ public class TeamService {
     }
 
     /** A user administrator, or a holder of {@code team:admin} globally or in some team; nobody else. */
-    private void requireTeamAdministrator() {
+    void requireTeamAdministrator() {
         Authority authority = authority();
         if (!authority.everything() && authority.administered().isEmpty()) {
-            throw new AccessDeniedException("Only an administrator of a team can look up users and team roles.");
+            throw new AccessDeniedException("Only an administrator of a team can do this.");
         }
     }
 

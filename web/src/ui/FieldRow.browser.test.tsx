@@ -25,6 +25,22 @@ describe('FieldRow', () => {
       );
     });
 
+    it('keeps every input box on one line when one field has a description and the other does not', () => {
+      renderThemed(
+        <Frame width={640}>
+          <FieldRow>
+            <TextInput label="Cluster" />
+            <TextInput label="Pattern" description="Words separated by dots." error="Enter a pattern." />
+          </FieldRow>
+        </Frame>,
+        scheme,
+      );
+      expect(top(screen.getByRole('textbox', { name: 'Cluster' }))).toBeCloseTo(
+        top(screen.getByRole('textbox', { name: 'Pattern' })),
+        0,
+      );
+    });
+
     it('lines a button up with the input boxes of the labelled fields beside it', () => {
       renderThemed(
         <Frame width={640}>

@@ -66,6 +66,7 @@ export function AnchoredMenu({
       >
         <Menu.Target>
           <span
+            role="button"
             className={classes.anchor}
             style={{
               insetInlineStart: rtl ? window.innerWidth - anchor.x : anchor.x,

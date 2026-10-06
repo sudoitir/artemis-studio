@@ -1,5 +1,7 @@
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { GroupMappingPanel } from './GroupMappingPanel.tsx';
+import { QueueAccessPanel } from './ResourceAccessPanel.tsx';
+import { AddressAccess } from './rowActions.tsx';
 import { RolesPanel } from './RolesPanel.tsx';
 import { SessionsSection } from './sections.tsx';
 import { TeamsPanel } from './TeamsPanel.tsx';
@@ -13,6 +15,8 @@ export const securityFeature = defineFeature({
   contract: CONTRACT,
   id: 'security',
   slots: {
+    'queue.detail.panels': [{ id: 'security-access', order: 50, Component: QueueAccessPanel }],
+    'address.actions': [{ id: 'security.address.access', order: 50, section: 'open', Component: AddressAccess }],
     // Beside the password: changing it ends the other sessions listed here.
     'account.sections': [{ id: 'security-sessions', order: 15, title: 'Sessions', Component: SessionsSection }],
     'admin.tabs': [

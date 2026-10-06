@@ -19,6 +19,7 @@ const UNIVERSE = [
   'data:write',
   'diagnostics:bundle',
   'divert:write',
+  'environment:read',
   'governance:read',
   'governance:write',
   'message:delete',
@@ -58,5 +59,6 @@ export function accessFor(grants: Grant[], clusterId: string | null = null) {
     anywhere: [],
     canSeeCluster: clusterId === null ? null : reaching.length > 0,
     teams: [],
+    createPatterns: { queue: [], address: [] },
   };
 }

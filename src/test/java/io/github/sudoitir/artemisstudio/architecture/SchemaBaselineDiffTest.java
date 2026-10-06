@@ -74,6 +74,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // A plugin's license file and its plugin's verdict (ADR-0153, changeset kernel-plugin 0010).
                     "plugin_license",
                     "plugin_message_registration",
+                    // Work a plugin runs later as its owner (changeset feature-plugins 0003).
+                    "plugin_owner_work",
                     // Plugin metrics (ADR-0113): samples with no broker node (changeset platform-scrape 0002)
                     // and the record of seeded plugin alert rules (changeset feature-alerting 0003).
                     "CREATE TABLE metric_sample(_default)? ",
@@ -121,7 +123,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // Console query references and API request windows shared by the replicas (ADR-0152, changesets
                     // feature-sql 0006, feature-apitokens 0004).
                     "sql_query_ticket",
-                    "api_request_window")
+                    "api_request_window",
+                    // A token grant can be limited to a queue or address name pattern, so the pattern is
+                    // part of its key (changeset feature-apitokens 0005).
+                    "CREATE TABLE api_token_grant ",
+                    "pk_api_token_grant")
             .map(Pattern::compile)
             .toList();
 

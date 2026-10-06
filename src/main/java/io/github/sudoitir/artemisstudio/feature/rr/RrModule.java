@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 
 /** Request-reply flows, expectations and latency. Module descriptor (ADR-0070). */
@@ -20,7 +21,7 @@ public final class RrModule {
             .settingKey(RrSettings.PAYLOAD_CAPTURE_BYTES)
             .settingKey(RrSettings.SWEEP_INTERVAL)
             .settingKey(RrSettings.SAMPLE_INTERVAL)
-            .streamTopic(TopicDef.signal("rr"))
+            .streamTopic(TopicDef.signal("rr", Permissions.ADDRESS_READ))
             .mcpTool(new McpToolDef(
                     "trace_request_reply",
                     McpToolDef.Posture.READ,

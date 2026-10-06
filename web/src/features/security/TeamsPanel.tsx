@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Notice } from '../../ui/Notice.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
@@ -48,7 +49,7 @@ export function TeamsPanel() {
 
 function TeamList({ onOpen }: Readonly<{ onOpen: (teamId: string) => void }>) {
   const teams = useTeams();
-  const { userAdmin, verdict } = useTeamAccess();
+  const { userAdmin, loading: accessLoading, verdict } = useTeamAccess();
   const [naming, setNaming] = useState<TeamSummary | 'new' | null>(null);
   // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [deleting, setDeleting] = useState<TeamSummary | null>(null);
@@ -66,12 +67,22 @@ function TeamList({ onOpen }: Readonly<{ onOpen: (teamId: string) => void }>) {
     },
   });
   const count = teams.data?.length;
+  const title = 'Teams';
+  const description =
+    'A team owns queue and address name patterns on clusters. Its members see and operate only what those patterns cover.';
+
+  // Until access is known the caller counts as an admin, so a non-admin's notice would appear late and push the
+  // table down: wait for it, so the notice and the table arrive together.
+  if (accessLoading) {
+    return (
+      <Section title={title} description={description}>
+        <LoadingState label="Loading teams" />
+      </Section>
+    );
+  }
 
   return (
-    <Section
-      title="Teams"
-      description="A team owns queue and address name patterns on clusters. Its members see and operate only what those patterns cover."
-    >
+    <Section title={title} description={description}>
       {userAdmin ? null : (
         <Notice title="Team admin">
           You see the teams you administer. Creating, renaming and deleting teams, and changing a team&apos;s patterns

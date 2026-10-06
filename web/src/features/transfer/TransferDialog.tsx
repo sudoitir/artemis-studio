@@ -215,6 +215,7 @@ function DestinationForm({
           <AddressPicker
             clusterId={targetClusterId}
             label="Target queue"
+            permission="message:send"
             description="The queue on the target node. A queue that does not exist is checked in the preview."
             {...form.getInputProps('targetQueue')}
             value={form.values.targetQueue}
@@ -400,7 +401,7 @@ export function TransferDialog({
   onStarted: () => void;
 }>) {
   const navigate = useNavigate();
-  const { can, loading } = useCan();
+  const { canAnywhere, loading } = useCan();
   const clusters = useClusters();
   const source = useCluster(clusterId);
   const preview = useTransferPreview(clusterId);
@@ -433,13 +434,13 @@ export function TransferDialog({
 
   const effectiveMode: TransferMode = redistribute ? 'MOVE' : mode;
   const sourceGate = gateFor(
-    can(PERMISSION[effectiveMode].id, clusterId),
+    canAnywhere(PERMISSION[effectiveMode].id, clusterId),
     PERMISSION[effectiveMode].label,
     effectiveMode === 'MOVE' ? source.data?.capabilities.managementWrite : source.data?.capabilities.managementRead,
     loading || source.isPending,
   );
   const targetGate = gateFor(
-    can('message:send', targetClusterId),
+    canAnywhere('message:send', targetClusterId),
     'Send messages',
     target.data?.capabilities.managementRead,
     loading || target.isPending,
@@ -505,7 +506,7 @@ export function TransferDialog({
   };
 
   const clusterOptions = (clusters.data ?? []).map((c) => {
-    const allowed = loading || can('message:send', c.id);
+    const allowed = loading || canAnywhere('message:send', c.id);
     return {
       value: c.id,
       label: allowed ? c.name : `${c.name}: you do not have the "Send messages" permission here`,

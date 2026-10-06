@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.MyAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.AccessSummary;
+import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.MyResourceAccess;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,5 +21,12 @@ public class AccessController {
     @GetMapping("/me/access")
     public AccessSummary mine(@RequestParam(required = false) UUID clusterId) {
         return access.of(clusterId);
+    }
+
+    /** What the caller may do with one queue or address of a cluster, for gating a control on that row. */
+    @GetMapping("/me/access/resource")
+    public MyResourceAccess resource(
+            @RequestParam UUID clusterId, @RequestParam ResourceKind kind, @RequestParam String name) {
+        return access.onResource(clusterId, kind, name);
     }
 }

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.PatternKind;
@@ -16,6 +17,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.AccessSu
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PatternRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
+import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterEnvironmentIndex;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -169,6 +171,39 @@ class MyAccessIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void createPatternsListTheTeamAndSharePatternsTheCallerMayCreateUnder() {
+        UUID prod = cluster(null);
+        UUID staging = cluster(null);
+        UUID orders = team("orders");
+        UUID billing = team("billing");
+        teams.addPattern(orders, new PatternRequest(prod, PatternKind.QUEUE, "orders.#"));
+        teams.addPattern(orders, new PatternRequest(prod, PatternKind.ADDRESS, "orders.#"));
+        teams.addPattern(billing, new PatternRequest(prod, PatternKind.BOTH, "billing.#"));
+        teams.addShare(
+                billing, new ShareRequest(orders, prod, PatternKind.QUEUE, "billing.shared.#", role("TEAM_OPERATOR")));
+        UUID operator = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, operator, null, null, role("TEAM_OPERATOR")));
+        UUID viewer = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, viewer, null, null, role("TEAM_VIEWER")));
+
+        asUser(operator);
+        AccessSummary onProd = myAccess.of(prod);
+        AccessSummary onStaging = myAccess.of(staging);
+        AccessSummary noCluster = myAccess.of(null);
+        asUser(viewer);
+        AccessSummary asViewer = myAccess.of(prod);
+
+        assertThat(onProd.createPatterns().queue()).containsExactly("billing.shared.#", "orders.#");
+        assertThat(onProd.createPatterns().address()).containsExactly("orders.#");
+        assertThat(onStaging.createPatterns().queue()).isEmpty();
+        assertThat(onStaging.createPatterns().address()).isEmpty();
+        assertThat(noCluster.createPatterns().queue()).isEmpty();
+        assertThat(noCluster.createPatterns().address()).isEmpty();
+        // A viewer cannot create under their team's own patterns, but a share gives its role to every member.
+        assertThat(asViewer.createPatterns().queue()).containsExactly("billing.shared.#");
+    }
+
+    @Test
     void anApiKeyHasNoTeams() {
         UUID orders = team("orders");
         UUID owner = user();
@@ -182,5 +217,24 @@ class MyAccessIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(summary.teams()).isEmpty();
         assertThat(summary.permissions()).containsExactly("cluster:read");
+    }
+
+    @Test
+    void theActionsOnAResourceAreThoseTheCallersTeamGivesThereAndNothingForOneTheyCannotRead() {
+        UUID prod = cluster(null);
+        UUID orders = team("orders");
+        teams.addPattern(orders, new PatternRequest(prod, PatternKind.QUEUE, "orders.#"));
+        UUID viewer = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, viewer, null, null, role("TEAM_VIEWER")));
+
+        asUser(viewer);
+
+        assertThat(myAccess.onResource(prod, ResourceKind.QUEUE, "orders.in").actions())
+                .contains("queue:read")
+                .doesNotContain("queue:purge");
+        assertThat(myAccess.onResource(prod, ResourceKind.QUEUE, "billing.in").actions())
+                .isEmpty();
+        assertThat(myAccess.onResource(prod, ResourceKind.ADDRESS, "orders.in").actions())
+                .isEmpty();
     }
 }

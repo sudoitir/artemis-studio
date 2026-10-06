@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
+import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
+import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -19,7 +21,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * One open SSE connection: its {@link SseEmitter}, the topics it asked for, the id of the session
  * that opened it, which is null for a caller with no session, and the id of the API token that
- * authenticated it, which is null for a session. Identity is the emitter — the same client
+ * authenticated it, which is null for a session, and the principal it was opened by, whose access decides
+ * every frame it is sent ({@link StreamAccess}). Identity is the emitter — the same client
  * reconnecting is a new subscriber. The stream ends with its session ({@link SseHub#onSessionEnded},
  * {@link SseHub#closeEndedSessions}) or when its token stops being accepted
  * ({@link SseHub#closeEndedTokens}). A session that is given a new id keeps its streams, which
@@ -35,6 +38,7 @@ public final class Subscriber {
     private final SseEmitter emitter;
     private final Set<String> topics;
     private final UUID tokenId;
+    private final StudioPrincipal principal;
     private final BlockingQueue<Held> outbound = new LinkedBlockingQueue<>(OUTBOUND_CAPACITY);
     private volatile String sessionId;
     private final AtomicReference<Thread> drainer = new AtomicReference<>();
@@ -48,22 +52,28 @@ public final class Subscriber {
     /** Frames a subscriber may have waiting to be written before it is considered stalled. */
     static final int OUTBOUND_CAPACITY = 1_000;
 
-    /** A frame that arrived while the subscriber was buffering, or that waits to be written. */
-    record Held(String topic, Object data, String id) {}
+    /**
+     * A frame that arrived while the subscriber was buffering, or that waits to be written. A null
+     * {@code data} is a signal, written as the {@code {topic,clusterId,ts}} envelope; {@code about} is what
+     * the frame concerns, null for the cluster as a whole.
+     */
+    public record Held(String topic, Object data, String id, BusFrame.About about) {
+
+        Held(String topic, Object data, String id) {
+            this(topic, data, id, null);
+        }
+    }
 
     /** Marks the end of the outbound queue: the drainer completes the emitter when it reaches it. */
     private static final Held COMPLETE = new Held(null, null, null);
 
-    public Subscriber(SseEmitter emitter, Set<String> topics, String sessionId, UUID tokenId) {
+    public Subscriber(
+            SseEmitter emitter, Set<String> topics, String sessionId, UUID tokenId, StudioPrincipal principal) {
         this.emitter = emitter;
         this.topics = topics;
         this.sessionId = sessionId;
         this.tokenId = tokenId;
-    }
-
-    /** A subscriber that has a session and no token. */
-    public Subscriber(SseEmitter emitter, Set<String> topics, String sessionId) {
-        this(emitter, topics, sessionId, null);
+        this.principal = principal;
     }
 
     /**
@@ -74,7 +84,8 @@ public final class Subscriber {
         HttpSession session = request.getSession(false);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         UUID tokenId = auth != null && auth.getPrincipal() instanceof TokenPrincipal p ? p.tokenId() : null;
-        return new Subscriber(emitter, topics, session == null ? null : session.getId(), tokenId);
+        StudioPrincipal principal = auth != null && auth.getPrincipal() instanceof StudioPrincipal p ? p : null;
+        return new Subscriber(emitter, topics, session == null ? null : session.getId(), tokenId, principal);
     }
 
     public SseEmitter emitter() {
@@ -92,6 +103,11 @@ public final class Subscriber {
 
     public UUID tokenId() {
         return tokenId;
+    }
+
+    /** Who the stream was opened for; frames are shown to them as their access is when each is written. */
+    public StudioPrincipal principal() {
+        return principal;
     }
 
     void followSession(String newId) {

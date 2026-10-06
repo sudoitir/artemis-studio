@@ -19,6 +19,8 @@ export type GroupMappingView = Schemas['GroupMappingView'];
 export type GroupMappingsView = Schemas['GroupMappingsView'];
 export type MemberRequest = Schemas['MemberRequest'];
 export type MemberView = Schemas['MemberView'];
+export type ResourceAccessView = Schemas['ResourceAccessView'];
+export type ResourceTeamGrant = Schemas['ResourceTeamGrant'];
 export type PatternConflict = Schemas['PatternConflict'];
 export type PatternPreview = Schemas['PatternPreview'];
 export type PatternRequest = Schemas['PatternRequest'];
@@ -53,6 +55,8 @@ export const keys = {
   team: (teamId: string) => ['teams', teamId] as const,
   preview: (teamId: string, clusterId: string, kind: PatternKind, pattern: string) =>
     ['teams', teamId, 'preview', clusterId, kind, pattern] as const,
+  resourceAccess: (clusterId: string, kind: string, name: string) =>
+    ['resource-access', clusterId, kind, name] as const,
   unowned: (clusterId: string, kind: string, page: number) => ['unowned', clusterId, kind, page] as const,
 };
 
@@ -452,5 +456,21 @@ export function useUnowned(
         `/clusters/${clusterId}/unowned?${new URLSearchParams({ kind, page: String(page), size: String(UNOWNED_PAGE_SIZE) })}`,
       ),
     enabled: enabled && clusterId !== null,
+  });
+}
+
+/** The owner and every share of one queue or address: which teams and roles may act on it. */
+export function useResourceAccess(
+  clusterId: string,
+  kind: 'QUEUE' | 'ADDRESS',
+  name: string,
+  enabled: boolean,
+): UseQueryResult<ResourceAccessView, ApiError> {
+  return useQuery({
+    queryKey: keys.resourceAccess(clusterId, kind, name),
+    queryFn: () =>
+      request<ResourceAccessView>(`/clusters/${clusterId}/resource-access?${new URLSearchParams({ kind, name })}`),
+    enabled,
+    retry: false,
   });
 }

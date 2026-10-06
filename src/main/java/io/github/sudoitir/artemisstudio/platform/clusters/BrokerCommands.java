@@ -1,7 +1,9 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -28,6 +30,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -37,7 +40,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <ol>
  *   <li>the caller's permission, on each queue or address the command acts on, or on the cluster when
- *       it acts on none;
+ *       it acts on none, checked after the audit row is opened, so a refused command leaves a
+ *       {@code REFUSED} event;
  *   <li>one target per logical node, liveness from the polled {@code Active} attribute
  *       (non-negotiable #4);
  *   <li>the audit row, written before any broker call (non-negotiable #3);
@@ -156,10 +160,7 @@ public class BrokerCommands {
     private record Target(BrokerNodeEntity node, boolean live) {}
 
     public LifecycleOutcome run(Command c) {
-        authorise(c);
-        List<Target> targets = targets(c.clusterId());
-        long cap = settings.intValue(BrokerSettings.BULK_CAP);
-
+        // Opened first, so a change the caller may not make leaves a REFUSED event rather than none.
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 c.auditAction(),
@@ -169,6 +170,20 @@ public class BrokerCommands {
                 null,
                 c.params(),
                 c.dryRun());
+        List<Target> targets;
+        try {
+            ScopedValue.where(AuditScope.OWN_REFUSAL, true).run(() -> authorise(c));
+        } catch (AccessDeniedException | NotFoundException e) {
+            audit.refuse(event, e.getMessage());
+            throw e;
+        }
+        try {
+            targets = targets(c.clusterId());
+        } catch (RuntimeException e) {
+            audit.fail(event, e.getMessage());
+            throw e;
+        }
+        long cap = settings.intValue(BrokerSettings.BULK_CAP);
 
         Map<UUID, Long> estimates = estimate(c, targets);
         long total = estimates.values().stream()

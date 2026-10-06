@@ -237,6 +237,7 @@ function AddMember({
             <Select
               label="Identity provider"
               data={external.map((p) => ({ value: p.id, label: p.label }))}
+              placeholder="Select a provider"
               nothingFoundMessage="No external identity provider"
               {...form.getInputProps('providerId')}
               required
@@ -249,6 +250,7 @@ function AddMember({
         <Select
           label="Team role"
           data={roleOptions}
+          placeholder="Select a role"
           nothingFoundMessage="No team roles"
           {...form.getInputProps('roleId')}
           required

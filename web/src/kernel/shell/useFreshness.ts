@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { ApiError } from '../api/request.ts';
+
 /** What the header can say about the data on the screen right now (ADR-0052). */
 export interface Freshness {
   /** Newest successful fetch among the queries this screen is observing, in epoch ms. */
@@ -14,6 +16,9 @@ export interface Freshness {
 
 /** The cache events after which the observed queries read differently. */
 const SYNC_ON: ReadonlySet<string> = new Set(['updated', 'removed', 'observerAdded', 'observerRemoved']);
+
+/** Studio answered and said this is not for the caller (403) or not there (404): it is reachable, so not offline. */
+const refused = (error: unknown) => error instanceof ApiError && (error.status === 403 || error.status === 404);
 
 const EMPTY: Freshness = { lastUpdatedAt: null, isFetching: false, hasError: false, observed: 0 };
 
@@ -61,7 +66,7 @@ export function useFreshness(): Freshness {
           lastUpdatedAt = s.dataUpdatedAt;
         }
         if (s.fetchStatus === 'fetching') isFetching = true;
-        if (s.status === 'error') hasError = true;
+        if (s.status === 'error' && !refused(s.error)) hasError = true;
       }
       return { lastUpdatedAt, isFetching, hasError, observed };
     };

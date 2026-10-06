@@ -3,8 +3,10 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import java.time.Duration;
@@ -37,18 +39,20 @@ public class TeamIndex {
     /** A pattern a team owns, for the kinds in {@code kinds}. */
     public record Owned(ResourcePattern pattern, Set<ResourceKind> kinds, UUID teamId) {}
 
-    /** A shared pattern as it takes effect: the kinds still covered by the owner, and the role's permissions. */
+    /** A shared pattern as it takes effect: the kinds still covered by the owner, the role and its permissions. */
     public record Shared(
             ResourcePattern pattern,
             Set<ResourceKind> kinds,
             UUID ownerTeamId,
             UUID targetTeamId,
+            UUID roleId,
             Set<String> permissions) {}
 
     private record ClusterTeams(List<Owned> owned, List<Shared> shared) {
         static final ClusterTeams NONE = new ClusterTeams(List.of(), List.of());
     }
 
+    private final TeamRepository teams;
     private final TeamPatternRepository patterns;
     private final TeamShareRepository shares;
     private final RolePermissionRepository rolePermissions;
@@ -56,7 +60,7 @@ public class TeamIndex {
     /** How long a built index may be used with no announced change: a backstop for a missed message. */
     private static final long EXPIRY_NANOS = Duration.ofMinutes(1).toNanos();
 
-    private record Built(Map<UUID, ClusterTeams> clusters, long at) {}
+    private record Built(Map<UUID, ClusterTeams> clusters, Map<UUID, String> teamNames, long at) {}
 
     private final Object lock = new Object();
     private long generation;
@@ -64,10 +68,22 @@ public class TeamIndex {
 
     /** The team that owns the name on the cluster; at most one, because teams may not overlap on a cluster. */
     public Optional<UUID> ownerOf(UUID clusterId, ResourceRef ref) {
-        return of(clusterId).owned().stream()
+        return ownerOf(of(clusterId), ref);
+    }
+
+    private static Optional<UUID> ownerOf(ClusterTeams cluster, ResourceRef ref) {
+        return cluster.owned().stream()
                 .filter(o -> o.kinds().contains(ref.kind()) && o.pattern().matches(ref.name()))
                 .map(Owned::teamId)
                 .findFirst();
+    }
+
+    /** The team that owns the name on the cluster, with its name. */
+    public Optional<TeamRef> ownerTeamOf(UUID clusterId, ResourceRef ref) {
+        Built built = built();
+        return ownerOf(built.clusters().getOrDefault(clusterId, ClusterTeams.NONE), ref)
+                .filter(built.teamNames()::containsKey)
+                .map(id -> new TeamRef(id, built.teamNames().get(id)));
     }
 
     /** The shares that cover the name on the cluster. */
@@ -105,13 +121,17 @@ public class TeamIndex {
     }
 
     private ClusterTeams of(UUID clusterId) {
+        return built().clusters().getOrDefault(clusterId, ClusterTeams.NONE);
+    }
+
+    private Built built() {
         Built current = index.get();
         if (current == null || System.nanoTime() - current.at() > EXPIRY_NANOS) {
             long startedAt;
             synchronized (lock) {
                 startedAt = generation;
             }
-            current = new Built(build(), System.nanoTime());
+            current = build();
             synchronized (lock) {
                 // A change announced while this was being read from the database may be missing from it:
                 // use what was read for this call, but do not keep it.
@@ -120,10 +140,10 @@ public class TeamIndex {
                 }
             }
         }
-        return current.clusters().getOrDefault(clusterId, ClusterTeams.NONE);
+        return current;
     }
 
-    private Map<UUID, ClusterTeams> build() {
+    private Built build() {
         Map<UUID, List<Owned>> owned = new HashMap<>();
         Map<String, List<Owned>> byTeamAndCluster = new HashMap<>();
         for (TeamPatternEntity p : patterns.findAll()) {
@@ -156,7 +176,8 @@ public class TeamIndex {
                                 .map(RolePermissionEntity::getAction)
                                 .collect(Collectors.toSet()));
                 shared.computeIfAbsent(s.getClusterId(), c -> new ArrayList<>())
-                        .add(new Shared(pattern, covered, s.getOwnerTeamId(), s.getTargetTeamId(), permissions));
+                        .add(new Shared(
+                                pattern, covered, s.getOwnerTeamId(), s.getTargetTeamId(), s.getRoleId(), permissions));
             }
         }
         Map<UUID, ClusterTeams> built = new HashMap<>();
@@ -169,6 +190,8 @@ public class TeamIndex {
                             List.copyOf(owned.getOrDefault(cluster, List.of())),
                             List.copyOf(shared.getOrDefault(cluster, List.of()))));
         }
-        return built;
+        Map<UUID, String> teamNames =
+                teams.findAll().stream().collect(Collectors.toMap(TeamEntity::getId, TeamEntity::getName));
+        return new Built(built, teamNames, System.nanoTime());
     }
 }

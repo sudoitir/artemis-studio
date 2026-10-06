@@ -288,11 +288,13 @@ class BulkRunner {
         int skipped = (int) rows.stream().filter(i -> i.getStatus().skipped()).count();
         run.count(succeeded, failed, skipped);
         write(run, () -> runs.save(run));
-        sse.publish(
+        // The run is about its queues: whoever reads one of them is told of its progress.
+        sse.publishAbout(
                 run.getClusterId(),
                 TOPIC,
                 new BulkProgress(run.getId(), status, succeeded, failed, skipped, run.getTotalItems()),
-                null);
+                rows.stream().map(BulkRunItemEntity::getQueueName).toList(),
+                List.of());
     }
 
     private static BulkRunStatus terminalStatus(

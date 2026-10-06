@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 
 /** Tiered broker polling, queue snapshots and metric samples. Module descriptor (ADR-0070). */
 public final class ScrapeModule {
@@ -16,7 +17,7 @@ public final class ScrapeModule {
             .settingKey(ScrapeSettings.TIER_C)
             .settingKey(ScrapeSettings.DISCOVERY)
             .settingKey(ScrapeSettings.METRIC_PARTITION_CRON)
-            .streamTopic(TopicDef.signal("queues"))
+            .streamTopic(TopicDef.signal("queues", Permissions.QUEUE_READ))
             .build();
 
     private ScrapeModule() {}

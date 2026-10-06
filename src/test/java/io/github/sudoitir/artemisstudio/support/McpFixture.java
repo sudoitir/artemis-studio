@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.support;
 
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
@@ -87,7 +88,9 @@ public final class McpFixture {
                 user.getId(),
                 "mcp-test-key",
                 Instant.now().plus(Duration.ofDays(1)),
-                List.of(new Grant(scopeType, scope, Set.copyOf(permissions))),
+                permissions.stream()
+                        .map(p -> TokenGrant.of(scopeType, scope, p))
+                        .toList(),
                 mcpTools,
                 false);
         return new Key(user.getId(), username, minted.plaintext());

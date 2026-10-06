@@ -9,6 +9,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -60,6 +61,15 @@ public class NotesService {
                 .setParameter("cluster", clusterId)
                 .setMaxResults(100)
                 .getResultList();
+    }
+
+    /** The queue a note is on, or empty when there is no such note on the cluster. */
+    @Transactional(readOnly = true)
+    public Optional<String> queueOf(UUID clusterId, UUID noteId) {
+        Note note = em.find(Note.class, noteId);
+        return note == null || !note.getClusterId().equals(clusterId)
+                ? Optional.empty()
+                : Optional.of(note.getQueue());
     }
 
     @Transactional

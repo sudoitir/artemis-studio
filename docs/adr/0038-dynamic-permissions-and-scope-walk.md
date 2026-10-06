@@ -1,6 +1,6 @@
 # ADR-0038: Fully dynamic permission strings, resolved once per request via a cluster→environment→global scope walk
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0172](0172-teams-own-queues-and-addresses-and-every-check-names-its-resource.md)
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 

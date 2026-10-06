@@ -1,4 +1,4 @@
-import { Stack, Text, TextInput } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
   IconArrowBackUp,
@@ -11,23 +11,29 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 
-import { useCan } from '../../kernel/auth/useCan.ts';
+import { useResourceGate } from '../../kernel/auth/useResourceGate.ts';
 import type { ActionProps, HostedDialogProps, MessageTarget, QueueTarget } from '../../kernel/actions/types.ts';
 import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
-import { gateFor } from '../../ui/capabilityGate.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify } from '../../ui/notify.ts';
 import { useMessageAction } from './api.ts';
 import { useActionGate } from './gates.ts';
 import { announceFailure, VERBS } from './outcomes.ts';
+import { AddressPicker } from '../queues/index.ts';
 
 /** "Browse messages" on a queue's row: the message browser for that queue. */
 export function BrowseQueueMessages({ clusterId, target }: Readonly<ActionProps<QueueTarget>>) {
   const navigate = useNavigate();
-  const { can, loading } = useCan();
-  const gate = gateFor(can('message:read', clusterId), 'Browse messages', undefined, loading);
+  const { hidden, verdict: gate } = useResourceGate({
+    clusterId,
+    noun: 'queue',
+    permission: 'message:read',
+    label: 'Browse messages',
+    resource: target.snapshot,
+  });
+  if (hidden) return null;
   const path = `queues/${encodeURIComponent(target.queueName)}/messages`;
   return (
     <ActionMenuItem
@@ -174,12 +180,13 @@ function OneMessageDialog({
         <Stack gap="sm">
           <Text size="sm">{one.intro(target.queueName)}</Text>
           {action === 'move' ? (
-            <TextInput
+            <AddressPicker
+              clusterId={clusterId}
               label="Target queue"
               description="The queue receives the message on the same node."
+              permission="message:send"
               {...form.getInputProps('destination')}
-              size="xs"
-              data-autofocus
+              value={form.values.destination}
             />
           ) : null}
         </Stack>

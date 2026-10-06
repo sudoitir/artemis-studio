@@ -5,7 +5,7 @@ import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useClusters } from '../clusters/index.ts';
-import { PermissionPicker, usePermissionsCatalogue } from '../security/index.ts';
+import { PermissionPicker, usePermissionsCatalogue, type PermissionView } from '../security/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { serverNow } from '../../kernel/time/time.ts';
 import { useCreateToken, useMcpTools, useTokenPolicy, type CreatedTokenView, type TokenGrantRequest } from './api.ts';
@@ -18,6 +18,8 @@ const DAY_MS = 86_400_000;
 const LIFETIMES = [7, 30, 90, 180, 365];
 
 const NAME_ERROR = 'Name the key after where it will be used.';
+const PATTERN_ERROR = 'Give the pattern the names must match, such as orders.#';
+const NO_LIMIT = 'NONE';
 const GRANTS_ERROR = 'Choose at least one permission; a key without any could sign in and do nothing.';
 
 /** The lifetimes, in days, the installation's maximum allows, with the maximum itself as the last choice. */
@@ -34,13 +36,30 @@ function defaultLifetime(options: string[]): string | null {
   return options.at(-1) ?? null;
 }
 
-function grantsFor(scope: string, chosen: string[]): TokenGrantRequest[] {
+type Limit = { kind: 'QUEUE' | 'ADDRESS'; pattern: string };
+
+/**
+ * One grant per permission. A limit applies to the permissions that act on queues or addresses of its kind,
+ * and the others, which have no names to match, stay on the whole scope.
+ */
+function grantsFor(
+  scope: string,
+  chosen: string[],
+  limit: Limit | null,
+  catalogue: PermissionView[],
+): TokenGrantRequest[] {
   const global = scope === GLOBAL;
-  return chosen.map((action) => ({
-    action,
-    scopeType: global ? GLOBAL : 'CLUSTER',
-    scopeId: global ? null : scope,
-  }));
+  return chosen.map((action) => {
+    const limited =
+      limit !== null &&
+      catalogue.some((p) => p.action === action && p.scope === 'RESOURCE' && p.resourceKinds.includes(limit.kind));
+    return {
+      action,
+      scopeType: global ? GLOBAL : 'CLUSTER',
+      scopeId: global ? null : scope,
+      ...(limited ? { resourceKind: limit.kind, resourcePattern: limit.pattern } : {}),
+    };
+  });
 }
 
 /**
@@ -64,14 +83,17 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
       chosen: [] as string[],
       lifetime: null as string | null,
       mcpTools: [] as string[],
+      limitKind: NO_LIMIT,
+      pattern: '',
     },
     validateInputOnBlur: true,
     validate: {
       name: (v) => (v.trim() ? null : NAME_ERROR),
       chosen: (v) => (v.length > 0 ? null : GRANTS_ERROR),
+      pattern: (v, values) => (values.limitKind === NO_LIMIT || v.trim() ? null : PATTERN_ERROR),
     },
   });
-  const { name, scope, chosen, lifetime, mcpTools } = form.values;
+  const { name, scope, chosen, lifetime, mcpTools, limitKind, pattern } = form.values;
   const chosenProps = form.getInputProps('chosen');
 
   const clusterId = scope === GLOBAL ? undefined : scope;
@@ -89,7 +111,9 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
 
   const submit = form.onSubmit(() => {
     if (!selectedLifetime) return;
-    const grants = grantsFor(scope, chosen);
+    const limit: Limit | null =
+      limitKind === NO_LIMIT ? null : { kind: limitKind as Limit['kind'], pattern: pattern.trim() };
+    const grants = grantsFor(scope, chosen, limit, catalogue.data ?? []);
     // Never past the cap the server stated, however long the form stayed open.
     const expiresAt = new Date(
       Math.min(serverNow() + Number(selectedLifetime) * DAY_MS, latest ?? Infinity),
@@ -162,6 +186,26 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
             </Text>
           ) : null}
         </div>
+        <Select
+          label="Limit to"
+          description="Names a key may act on. Permissions that act on queues or addresses follow it; the others do not."
+          {...form.getInputProps('limitKind')}
+          allowDeselect={false}
+          data={[
+            { value: NO_LIMIT, label: 'Everything in the scope' },
+            { value: 'QUEUE', label: 'Queues whose names match a pattern' },
+            { value: 'ADDRESS', label: 'Addresses whose names match a pattern' },
+          ]}
+        />
+        {limitKind === NO_LIMIT ? null : (
+          <TextInput
+            label="Name pattern"
+            description="Artemis wildcards: * stands for one word and # for any number of words, words are separated by a dot."
+            placeholder="orders.#"
+            {...form.getInputProps('pattern')}
+            required
+          />
+        )}
         {tools.data ? (
           <MultiSelect
             label="MCP tools"

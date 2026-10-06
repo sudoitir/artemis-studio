@@ -13,10 +13,12 @@ _Configuration properties_
 
 _Others_
 
+* `i.g.s.a.k.s.StreamAccess` (via `i.g.s.a.k.s.PermissionStreamAccess`)
 * `i.g.s.a.k.s.StreamSettings`
 * `i.g.s.a.k.s.StreamTopicRegistry`
 |Bean references
-|* `i.g.s.a.k.r.StudioBus` (in Replicas)
+|* `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.r.StudioBus` (in Replicas)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)

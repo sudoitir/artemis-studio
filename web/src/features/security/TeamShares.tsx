@@ -192,6 +192,7 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
             label="Share with"
             data={teamOptions}
             searchable
+            placeholder="Select a team"
             nothingFoundMessage="No other teams"
             {...form.getInputProps('targetTeamId')}
             required
@@ -199,6 +200,7 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
           <Select
             label="As team role"
             data={roleOptions}
+            placeholder="Select a role"
             nothingFoundMessage="No team roles"
             {...form.getInputProps('roleId')}
             required
@@ -209,6 +211,7 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
             label="Cluster"
             data={(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
             searchable
+            placeholder="Select a cluster"
             nothingFoundMessage="No clusters"
             {...form.getInputProps('clusterId')}
             required

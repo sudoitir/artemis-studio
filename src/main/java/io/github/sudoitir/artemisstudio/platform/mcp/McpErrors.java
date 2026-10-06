@@ -48,6 +48,12 @@ public final class McpErrors {
      */
     public static final String CLUSTER_DENIED = "No such cluster, or this key has no grant on it.";
 
+    /**
+     * The one denial message for a queue or address a key may not read: the same whether it exists or
+     * not, naming no permission and no team.
+     */
+    public static final String RESOURCE_DENIED = "No such queue or address, or this key has no grant on it.";
+
     private static final Logger LOG = LoggerFactory.getLogger(McpErrors.class);
 
     private static final JsonMapper JSON = JsonMapper.builder().build();

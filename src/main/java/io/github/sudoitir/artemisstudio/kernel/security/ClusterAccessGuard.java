@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,6 +23,8 @@ import org.springframework.stereotype.Component;
  * <p>An operation on a queue or address is guarded against that resource instead
  * ({@link #requireResource}): a caller who may not read it gets the not-found a missing one
  * gets, and one who may read it and may not do this gets a 403 naming the permission.
+ *
+ * <p>Every refusal is published as an {@link AccessRefused}, for the audit trail.
  */
 @Component
 @PluginApi
@@ -32,10 +35,11 @@ public class ClusterAccessGuard {
     public record Requirement(ResourceRef resource, String permission) {}
 
     private final PermissionResolver perm;
+    private final ApplicationEventPublisher events;
 
     public void requireCluster(UUID clusterId, String permission) {
         if (!perm.can(clusterId, permission)) {
-            throw new NotFoundException("cluster", clusterId);
+            throw hiddenCluster(clusterId, permission);
         }
     }
 
@@ -46,7 +50,7 @@ public class ClusterAccessGuard {
      */
     public void requireVisible(UUID clusterId) {
         if (!perm.canSeeCluster(clusterId)) {
-            throw new NotFoundException("cluster", clusterId);
+            throw hiddenCluster(clusterId, Permissions.CLUSTER_READ);
         }
     }
 
@@ -80,6 +84,7 @@ public class ClusterAccessGuard {
     public void requireAll(UUID clusterId, List<Requirement> requirements) {
         for (Requirement r : requirements) {
             if (!perm.can(clusterId, r.resource(), r.resource().readPermission())) {
+                events.publishEvent(new AccessRefused(clusterId, r.resource().readPermission(), r.resource(), true));
                 throw requirements.size() == 1
                         ? unreadable(clusterId, r.resource())
                         : unreadableAmongSeveral(clusterId);
@@ -87,6 +92,7 @@ public class ClusterAccessGuard {
         }
         for (Requirement r : requirements) {
             if (!perm.can(clusterId, r.resource(), r.permission())) {
+                events.publishEvent(new AccessRefused(clusterId, r.permission(), r.resource(), false));
                 throw new ResourceForbiddenException(
                         r.permission(), kindOf(r.resource()), r.resource().name());
             }
@@ -103,8 +109,9 @@ public class ClusterAccessGuard {
             return;
         }
         if (!perm.canSeeCluster(clusterId)) {
-            throw new NotFoundException("cluster", clusterId);
+            throw hiddenCluster(clusterId, permission);
         }
+        events.publishEvent(new AccessRefused(clusterId, permission, resource, false));
         List<String> patterns = perm.patternsHolding(clusterId, resource.kind(), permission);
         String where = patterns.isEmpty()
                 ? ""
@@ -127,8 +134,9 @@ public class ClusterAccessGuard {
             return;
         }
         if (!perm.canSeeCluster(clusterId)) {
-            throw new NotFoundException("cluster", clusterId);
+            throw hiddenCluster(clusterId, permission);
         }
+        events.publishEvent(new AccessRefused(clusterId, permission, new ResourceRef(kind, pattern), false));
         String noun = kind.name().toLowerCase(Locale.ROOT);
         throw new ResourceForbiddenException(
                 permission,
@@ -147,6 +155,12 @@ public class ClusterAccessGuard {
         return perm.canSeeCluster(clusterId)
                 ? new NotFoundException(kindOf(resource), resource.name())
                 : new NotFoundException("cluster", clusterId);
+    }
+
+    /** The not-found for a cluster the caller may not see at all, recorded as a refusal of {@code permission}. */
+    private NotFoundException hiddenCluster(UUID clusterId, String permission) {
+        events.publishEvent(new AccessRefused(clusterId, permission, null, true));
+        return new NotFoundException("cluster", clusterId);
     }
 
     /**

@@ -80,12 +80,15 @@ function SelectionBar({
 function QueuesEmpty({
   filterText,
   unreachable,
+  reach,
   mayCreate,
   onClearFilter,
   onCreate,
 }: Readonly<{
   filterText: string;
   unreachable: string[];
+  /** How the caller reaches queues on this cluster; a team member sees only theirs, and may see none. */
+  reach: 'grant' | 'teams' | 'none' | 'unknown';
   mayCreate: boolean;
   onClearFilter: () => void;
   onCreate: () => void;
@@ -116,10 +119,19 @@ function QueuesEmpty({
       />
     );
   }
+  if (reach === 'none') {
+    return (
+      <EmptyState
+        kind="empty"
+        title="You're not in any team on this cluster"
+        description="Queues here belong to teams, and you are in none that owns queues on this cluster. Ask a platform administrator to add you to a team."
+      />
+    );
+  }
   return (
     <EmptyState
       kind="empty"
-      title="No queues yet"
+      title={reach === 'teams' ? 'No queues in your teams on this cluster' : 'No queues yet'}
       description={
         <>
           A queue is where messages wait for a consumer. Studio fills this grid from each broker's{' '}
@@ -249,12 +261,15 @@ export function QueuesView() {
   const onPage = (query.data?.data ?? []).find((q) => q.queueName === search.queue);
   const offPage = useQueue(clusterId, onPage ? undefined : search.queue);
   const selected = onPage ?? offPage.queue ?? null;
+  // Neither the page nor an exact lookup has it: gone, or no longer visible to the caller. Not while still asking.
+  const missing = !selected && search.queue && !offPage.isPending && !offPage.isError ? search.queue : undefined;
   useTitlePart('resource', selected?.queueName);
   const setSelected = (queue: QueueView | null) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, queue: queue?.queueName }) });
   const [createOpen, setCreateOpen] = useState(false);
-  const { can, loading: grantsLoading } = useCan();
-  const mayCreate = can('queue:create', clusterId);
+  const { can, reach, createPatterns, loading: grantsLoading } = useCan();
+  // Through a team or a share the caller may create under their patterns; only with neither is the control not theirs.
+  const mayCreate = can('queue:create', clusterId) || (createPatterns(clusterId, 'queue')?.length ?? 0) > 0;
 
   // An empty grid has three quite different causes, and presenting an absence as
   // a fact is the one that misleads: a node Studio could not reach contributes no
@@ -316,11 +331,13 @@ export function QueuesView() {
           />
         }
         end={
-          <CapabilityGate verdict={createGate} what="creating a queue">
-            <Button size="xs" disabled={createGate.kind === 'blocked'} onClick={() => setCreateOpen(true)}>
-              New queue
-            </Button>
-          </CapabilityGate>
+          mayCreate ? (
+            <CapabilityGate verdict={createGate} what="creating a queue">
+              <Button size="xs" disabled={createGate.kind === 'blocked'} onClick={() => setCreateOpen(true)}>
+                New queue
+              </Button>
+            </CapabilityGate>
+          ) : undefined
         }
       />
 
@@ -377,6 +394,7 @@ export function QueuesView() {
           <QueuesEmpty
             filterText={search.q ?? ''}
             unreachable={unreachable}
+            reach={reach('queue:read', clusterId)}
             mayCreate={mayCreate}
             onClearFilter={clearFilter}
             onCreate={() => setCreateOpen(true)}
@@ -384,7 +402,7 @@ export function QueuesView() {
         }
       />
 
-      <QueueDetailDrawer queue={selected} onClose={() => setSelected(null)} />
+      <QueueDetailDrawer queue={selected} missing={missing} onClose={() => setSelected(null)} />
       <CreateQueueForm clusterId={clusterId} opened={createOpen} onClose={() => setCreateOpen(false)} />
     </Page>
   );

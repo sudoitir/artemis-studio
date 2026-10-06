@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.bulk;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 
 /** Bulk queue operations. Module descriptor (ADR-0070, ADR-0093). */
 public final class BulkModule {
@@ -14,7 +15,7 @@ public final class BulkModule {
             .require("messages")
             .require("resources")
             .apiPrefix("/api/v1/clusters/{clusterId}/bulk")
-            .streamTopic(new TopicDef(BulkRunner.TOPIC, true))
+            .streamTopic(TopicDef.data(BulkRunner.TOPIC, Permissions.QUEUE_READ))
             .build();
 
     private BulkModule() {}

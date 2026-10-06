@@ -62,7 +62,12 @@ public class RoleService {
         return roles.findAllByOrderByName().stream().map(this::toView).toList();
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
+    /**
+     * Every permission Studio and its active plugins declare, with what each means. Any signed-in user may read it:
+     * it names permissions, not who holds them, and minting an API key narrows a key to permissions from it. Roles
+     * and grants stay behind {@code user:admin}.
+     */
+    @PreAuthorize("isAuthenticated()")
     public List<PermissionView> catalogue() {
         return features.catalogue().stream()
                 .map(e -> new PermissionView(

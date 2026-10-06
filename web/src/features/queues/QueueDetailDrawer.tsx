@@ -3,6 +3,7 @@ import { Button, Drawer, Group, Stack } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
 
 import { type QueueView } from './api.ts';
+import { OwnerChip } from '../../kernel/auth/OwnerChip.tsx';
 import { useSlot } from '../../kernel/slots.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { Section } from '../../ui/Section.tsx';
@@ -19,19 +20,41 @@ const nodeKey = (cell: NodeCell) => cell.nodeId;
  * Per-node breakdown for one queue row, its lifecycle actions, a jump into the message browser,
  * and whatever the enabled features add below (`queue.detail.panels`), such as its recent history.
  */
-export function QueueDetailDrawer({ queue, onClose }: Readonly<{ queue: QueueView | null; onClose: () => void }>) {
+export function QueueDetailDrawer({
+  queue,
+  missing,
+  onClose,
+}: Readonly<{
+  queue: QueueView | null;
+  /** The name of the open queue when it can no longer be found, to say so in place of its detail. */
+  missing?: string;
+  onClose: () => void;
+}>) {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const panels = useSlot('queue.detail.panels');
   const nodeColumns = useMemo(queueNodeColumns, []);
 
   return (
     <Drawer
-      opened={queue !== null}
+      opened={queue !== null || Boolean(missing)}
       onClose={onClose}
       position="right"
       size="lg"
-      title={queue ? `${queue.address} / ${queue.queueName}` : ''}
+      title={queue ? `${queue.address} / ${queue.queueName}` : (missing ?? '')}
     >
+      {!queue && missing ? (
+        // Access lost while the queue was open looks the same as a queue that is gone: the listing no longer has it.
+        <EmptyState
+          kind="empty"
+          title="Queue not found"
+          description={`No queue named ${missing} is on this cluster that you can see. It may have been deleted, or your access to it may have been removed.`}
+          action={
+            <Button size="xs" variant="default" onClick={onClose}>
+              Close
+            </Button>
+          }
+        />
+      ) : null}
       {queue ? (
         <Stack gap="md">
           <Group gap="xs" justify="space-between">
@@ -39,6 +62,7 @@ export function QueueDetailDrawer({ queue, onClose }: Readonly<{ queue: QueueVie
               <StatusBadge>{queue.routingType.toLowerCase()}</StatusBadge>
               <StatusBadge>{queue.durable ? 'durable' : 'non-durable'}</StatusBadge>
               <StatusBadge>{`${queue.nodesPresent}/${queue.nodesTotal} nodes`}</StatusBadge>
+              <OwnerChip team={queue.ownerTeam} />
             </Group>
             <Button
               size="xs"

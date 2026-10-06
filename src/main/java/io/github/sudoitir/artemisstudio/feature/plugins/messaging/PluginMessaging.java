@@ -30,7 +30,7 @@ public final class PluginMessaging {
     /**
      * Store a registration, replacing any under the same key, and try to make it true at once.
      *
-     * @throws RegistrationRefusedException when the acting user may not use the cluster in this mode,
+     * @throws RegistrationRefusedException when the acting user may not use the queue in this mode,
      *     the cluster is unknown, or the queue is one Studio reserves for itself
      */
     public MessageRegistration register(RegistrationSpec spec) {
@@ -64,7 +64,7 @@ public final class PluginMessaging {
     /**
      * Send a message through a serving node of the cluster.
      *
-     * @throws RegistrationRefusedException when the acting user lacks {@code message:send} there
+     * @throws RegistrationRefusedException when the acting user lacks {@code message:send} on the address
      */
     public void send(OutboundMessage message) {
         service.send(pluginId, message);

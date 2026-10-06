@@ -129,7 +129,15 @@ public class MessageIndexCapture {
     /** A cluster this replica no longer owns: its tails stop now, not at the next pass. */
     @org.springframework.context.event.EventListener
     void onDutyReleased(ClusterDutyReleased released) {
-        Thread.startVirtualThread(this::reconcileSampling);
+        // Nobody joins this thread, so a failure must end here: when the application is closing, the
+        // database is already going away and an uncaught exception reaches the JVM's handler instead.
+        Thread.startVirtualThread(() -> {
+            try {
+                reconcileSampling();
+            } catch (RuntimeException e) {
+                log.warn("Reconciling index capture after releasing a cluster failed: {}", e.toString());
+            }
+        });
     }
 
     /** Stop every capture — used when a subscription's rows are being destroyed. */

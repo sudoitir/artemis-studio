@@ -1,14 +1,19 @@
 package io.github.sudoitir.artemisstudio.kernel.stream;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -57,17 +62,22 @@ public class SseHub {
 
     private final StudioBus bus;
     private final ObjectMapper mapper;
+    private final StreamAccess access;
 
-    public SseHub(StudioBus bus, ObjectMapper mapper) {
+    public SseHub(StudioBus bus, ObjectMapper mapper, StreamAccess access) {
         this.bus = bus;
         this.mapper = mapper;
+        this.access = access;
+    }
+
+    /** Whether {@code event} is a control event, sent to every subscriber, rather than a topic. */
+    static boolean isControl(String event) {
+        return PING.equals(event) || RESYNC.equals(event) || RECONNECT.equals(event);
     }
 
     public void register(UUID clusterId, Subscriber subscriber) {
         byCluster.computeIfAbsent(clusterId, k -> ConcurrentHashMap.newKeySet()).add(subscriber);
-        subscriber.startDrain(
-                frame -> sendTo(clusterId, subscriber, frame.topic(), frame.data(), frame.id()),
-                () -> complete(subscriber));
+        subscriber.startDrain(frame -> sendTo(clusterId, subscriber, frame), () -> complete(subscriber));
     }
 
     /** Forget a subscriber whose stream is over, and stop its writer. */
@@ -83,9 +93,44 @@ public class SseHub {
         }
     }
 
-    /** Send a `{topic,clusterId,ts}` signal to every subscriber of {@code topic} on this cluster. */
+    /**
+     * Send a `{topic,clusterId,ts}` signal about the cluster as a whole to the subscribers of {@code topic}
+     * on this cluster who may see every event of it.
+     */
     public void publish(UUID clusterId, String topic) {
-        publish(clusterId, topic, null, null);
+        publish(clusterId, topic, null, null, null);
+    }
+
+    /**
+     * A signal about the named queues and addresses. Subscribers who may see every event of the topic
+     * receive it, and so does anyone who may read one of the names, with the others cut from what they
+     * receive. No names, or more than a frame can carry, make it a signal about the cluster.
+     */
+    public void publishAbout(UUID clusterId, String topic, Collection<String> queues, Collection<String> addresses) {
+        publish(clusterId, topic, null, null, BusFrame.About.of(queues, addresses));
+    }
+
+    /** A signal about one address, or about the cluster when {@code address} is null. */
+    public void publishAboutAddress(UUID clusterId, String topic, String address) {
+        publishAbout(clusterId, topic, List.of(), address == null ? List.of() : List.of(address));
+    }
+
+    /** {@link #publishAbout(UUID, String, Collection, Collection)} for resources named by reference. */
+    public void publishAbout(UUID clusterId, String topic, Collection<ResourceRef> resources) {
+        publishAbout(clusterId, topic, names(resources, ResourceKind.QUEUE), names(resources, ResourceKind.ADDRESS));
+    }
+
+    private static List<String> names(Collection<ResourceRef> resources, ResourceKind kind) {
+        return resources.stream()
+                .filter(r -> r.kind() == kind)
+                .map(ResourceRef::name)
+                .toList();
+    }
+
+    /** {@link #publishAbout} for an event that carries {@code data}. */
+    public void publishAbout(
+            UUID clusterId, String topic, Object data, Collection<String> queues, Collection<String> addresses) {
+        publish(clusterId, topic, data, null, BusFrame.About.of(queues, addresses));
     }
 
     /**
@@ -104,7 +149,12 @@ public class SseHub {
      * transaction whatever is done here, and its commit reports it.
      */
     public void publish(UUID clusterId, String topic, Object data, String eventId) {
-        BusFrame frame = new BusFrame(clusterId, topic, data == null ? null : mapper.valueToTree(data), eventId);
+        publish(clusterId, topic, data, eventId, null);
+    }
+
+    /** {@link #publish(UUID, String, Object, String)} for an event about the queues and addresses {@code about} names. */
+    void publish(UUID clusterId, String topic, Object data, String eventId, BusFrame.About about) {
+        BusFrame frame = new BusFrame(clusterId, topic, data == null ? null : mapper.valueToTree(data), eventId, about);
         try {
             bus.publish(frame);
             if (!unpublished.isEmpty()) {
@@ -125,7 +175,7 @@ public class SseHub {
     /** A frame arrived, from this replica or another: deliver it to the local subscribers. */
     @EventListener
     void onFrame(BusFrame frame) {
-        deliver(frame.clusterId(), frame.topic(), frame.data(), frame.id());
+        deliver(frame);
     }
 
     /** The bus is back: what was sent while it was down is lost, so every client refetches. */
@@ -134,23 +184,16 @@ public class SseHub {
         toAll(RESYNC);
     }
 
-    private void deliver(UUID clusterId, String topic, Object data, String eventId) {
-        Set<Subscriber> set = byCluster.get(clusterId);
+    private void deliver(BusFrame frame) {
+        Set<Subscriber> set = byCluster.get(frame.clusterId());
         if (set == null || set.isEmpty()) {
             return;
         }
-        Object payload = data != null
-                ? data
-                : Map.of(
-                        "topic",
-                        topic,
-                        "clusterId",
-                        clusterId.toString(),
-                        "ts",
-                        Instant.now().toEpochMilli());
+        // What each subscriber may see is decided when its own writer sends the frame, off this thread.
+        Subscriber.Held held = new Subscriber.Held(frame.topic(), frame.data(), frame.id(), frame.about());
         for (Subscriber s : set) {
-            if (s.wants(topic)) {
-                warnIfBehind(s.deliver(new Subscriber.Held(topic, payload, eventId)));
+            if (s.wants(frame.topic())) {
+                warnIfBehind(s.deliver(held));
             }
         }
     }
@@ -178,15 +221,29 @@ public class SseHub {
      * {@code onopen} only once the first bytes arrive, so the console would sit "connecting" until then.
      */
     public void greet(Subscriber subscriber) {
-        sendTo(subscriber, PING, Instant.now().toEpochMilli(), null);
+        sendTo(subscriber, PING, Instant.now().toEpochMilli());
     }
 
-    /** Send one event to one subscriber — used for {@code Last-Event-ID} replay on connect. */
-    public void sendTo(Subscriber subscriber, String topic, Object data, String eventId) {
-        // clusterId is only needed to deregister a dead emitter; on the replay path the
-        // controller owns registration, so a failure here just aborts the replay.
+    /** Send one control event to one subscriber, such as the greeting. */
+    public void sendTo(Subscriber subscriber, String event, Object data) {
         try {
-            SseEmitter.SseEventBuilder event = SseEmitter.event().name(topic).data(data);
+            subscriber.emitter().send(SseEmitter.event().name(event).data(data));
+        } catch (IOException | RuntimeException e) {
+            subscriber.emitter().completeWithError(e);
+        }
+    }
+
+    /**
+     * Send one replayed event to one subscriber, if it is for them. Used for {@code Last-Event-ID} replay on
+     * connect, where the controller owns registration, so a failure here just aborts the replay.
+     */
+    public void replayTo(UUID clusterId, Subscriber subscriber, String topic, Object data, String eventId) {
+        Subscriber.Held shown = access.narrow(subscriber, clusterId, new Subscriber.Held(topic, data, eventId));
+        if (shown == null) {
+            return;
+        }
+        try {
+            SseEmitter.SseEventBuilder event = SseEmitter.event().name(topic).data(payload(clusterId, shown));
             if (eventId != null) {
                 event.id(eventId);
             }
@@ -194,6 +251,26 @@ public class SseHub {
         } catch (IOException | RuntimeException e) {
             subscriber.emitter().completeWithError(e);
         }
+    }
+
+    /** What goes on the wire: the event's data, or for a signal the envelope naming the resources it is about. */
+    private static Object payload(UUID clusterId, Subscriber.Held frame) {
+        if (frame.data() != null) {
+            return frame.data();
+        }
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("topic", frame.topic());
+        envelope.put("clusterId", clusterId.toString());
+        envelope.put("ts", Instant.now().toEpochMilli());
+        if (frame.about() != null) {
+            if (!frame.about().queues().isEmpty()) {
+                envelope.put("queues", frame.about().queues());
+            }
+            if (!frame.about().addresses().isEmpty()) {
+                envelope.put("addresses", frame.about().addresses());
+            }
+        }
+        return envelope;
     }
 
     /**
@@ -222,12 +299,20 @@ public class SseHub {
                         s.deliverNow(new Subscriber.Held(event, Instant.now().toEpochMilli(), null)))));
     }
 
-    /** Writes one queued frame; a stream that cannot be written is dropped, and false stops its writer. */
-    private boolean sendTo(UUID clusterId, Subscriber s, String event, Object data, String eventId) {
+    /**
+     * Writes one queued frame to what its subscriber may see of it, nothing at all when none of it is for them; a
+     * stream that cannot be written is dropped, and false stops its writer.
+     */
+    private boolean sendTo(UUID clusterId, Subscriber s, Subscriber.Held frame) {
         try {
-            SseEmitter.SseEventBuilder builder = SseEmitter.event().name(event).data(data);
-            if (eventId != null) {
-                builder.id(eventId);
+            Subscriber.Held shown = access.narrow(s, clusterId, frame);
+            if (shown == null) {
+                return true;
+            }
+            SseEmitter.SseEventBuilder builder =
+                    SseEmitter.event().name(shown.topic()).data(payload(clusterId, shown));
+            if (shown.id() != null) {
+                builder.id(shown.id());
             }
             s.emitter().send(builder);
             return true;

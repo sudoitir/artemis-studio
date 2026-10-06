@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Collapse, Group, Modal, NumberInput, Radio, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
+import { useCreateRule } from '../../kernel/auth/useCreateRule.ts';
 import { useCreateQueue, type CreateQueueRequest, type LifecycleOutcomeView } from './api.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid, serverFieldErrors } from '../../ui/formErrors.ts';
@@ -57,12 +58,17 @@ export function CreateQueueForm({
   const [advanced, setAdvanced] = useState(false);
 
   const create = useCreateQueue(clusterId);
+  const queueRule = useCreateRule(clusterId, 'queue');
+  const addressRule = useCreateRule(clusterId, 'address');
   const form = useForm<FormState>({
     initialValues: EMPTY,
     validateInputOnBlur: true,
+    // The names are checked against the patterns the caller may create under as they are typed.
+    validateInputOnChange: ['address', 'name'],
     validate: {
-      address: (value) => (value.trim() ? null : 'An address is required — a queue binds to one.'),
-      name: (value) => (value.trim() ? null : 'A queue name is required.'),
+      address: (value) =>
+        value.trim() ? addressRule.problem(value) : 'An address is required — a queue binds to one.',
+      name: (value) => (value.trim() ? queueRule.problem(value) : 'A queue name is required.'),
     },
     // What was previewed or created no longer describes the form once a field changes.
     onValuesChange: () => {
@@ -120,10 +126,15 @@ export function CreateQueueForm({
             {...form.getInputProps('address')}
             value={form.values.address}
             label="Address"
-            description="Messages are sent to an address; the queue binds to it. An address that does not exist yet is created with the queue."
+            description={`Messages are sent to an address; the queue binds to it. An address that does not exist yet is created with the queue.${addressRule.restriction ? ` ${addressRule.restriction}` : ''}`}
           />
 
-          <TextInput label="Queue name" {...form.getInputProps('name')} required />
+          <TextInput
+            label="Queue name"
+            description={queueRule.restriction ?? undefined}
+            {...form.getInputProps('name')}
+            required
+          />
 
           <Radio.Group
             label="Routing type"

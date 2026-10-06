@@ -16,7 +16,7 @@ public final class EventsModule {
             .apiPrefix("/api/v1/clusters/{clusterId}/events")
             .settingKey(EventsSettings.BUFFER_SIZE)
             .settingKey(EventsSettings.FLUSH)
-            .streamTopic(new TopicDef(TOPIC, true))
+            .streamTopic(TopicDef.data(TOPIC, null))
             .build();
 
     private EventsModule() {}

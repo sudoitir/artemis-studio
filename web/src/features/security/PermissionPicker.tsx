@@ -248,6 +248,7 @@ export function PermissionPicker({
                     checked={held === all.length}
                     indeterminate={held > 0 && held < all.length}
                     onChange={() => setGroup({ ...group, entries: all }, held < all.length)}
+                    size="md"
                     ms="sm"
                   />
                   <Accordion.Control aria-label={`${group.title}, ${held} of ${all.length} selected`}>

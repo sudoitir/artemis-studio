@@ -20,7 +20,17 @@ public final class TokenViews {
     public record TokenGrantRequest(
             @NotBlank @Schema(requiredMode = REQUIRED) String action,
             @NotBlank @Schema(requiredMode = REQUIRED) String scopeType,
-            @Schema(nullable = true) UUID scopeId) {}
+            @Schema(nullable = true) UUID scopeId,
+
+            @Schema(
+                    description = "QUEUE or ADDRESS: limits the grant to names matching resourcePattern",
+                    nullable = true)
+            String resourceKind,
+
+            @Schema(
+                    description = "An Artemis wildcard pattern, with resourceKind; absent for the whole scope",
+                    nullable = true)
+            String resourcePattern) {}
 
     public record CreateTokenRequest(
             @NotBlank String name,
@@ -33,7 +43,9 @@ public final class TokenViews {
     public record TokenGrantView(
             @Schema(requiredMode = REQUIRED) String action,
             @Schema(requiredMode = REQUIRED) String scopeType,
-            @Schema(requiredMode = REQUIRED) UUID scopeId) {}
+            @Schema(requiredMode = REQUIRED) UUID scopeId,
+            @Schema(nullable = true) String resourceKind,
+            @Schema(nullable = true) String resourcePattern) {}
 
     /**
      * {@code expiresAt} is the effective expiry: the earlier of the token's own and its creation plus

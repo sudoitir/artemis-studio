@@ -282,13 +282,18 @@ function RunActions({
 }
 
 /** The server re-checks every command; these gates only explain. Offered while grants load. */
-function commandGates(run: Run, can: (action: string, clusterId?: string) => boolean, loading: boolean) {
+function commandGates(run: Run, canAnywhere: (action: string, clusterId: string) => boolean, loading: boolean) {
   const sourcePermission = run.mode === 'MOVE' ? 'message:move' : 'message:read';
   const sourceLabel = run.mode === 'MOVE' ? 'Move or retry messages' : 'Browse messages';
-  const runGate = can(sourcePermission, run.source.clusterId)
-    ? gateFor(can('message:send', run.target.clusterId), 'Send messages', undefined, loading)
+  const runGate = canAnywhere(sourcePermission, run.source.clusterId)
+    ? gateFor(canAnywhere('message:send', run.target.clusterId), 'Send messages', undefined, loading)
     : gateFor(false, sourceLabel, undefined, loading);
-  const returnGate = gateFor(can('message:move', run.source.clusterId), 'Move or retry messages', undefined, loading);
+  const returnGate = gateFor(
+    canAnywhere('message:move', run.source.clusterId),
+    'Move or retry messages',
+    undefined,
+    loading,
+  );
   return { runGate, returnGate };
 }
 
@@ -305,7 +310,7 @@ export function TransferRunView() {
   const stop = useTransferCommand(clusterId, runId, 'stop');
   const resume = useTransferCommand(clusterId, runId, 'resume');
   const back = useTransferCommand(clusterId, runId, 'return');
-  const { can, loading } = useCan();
+  const { canAnywhere, loading } = useCan();
   const [dialog, setDialog] = useState<'stop' | 'return' | null>(null);
 
   if (!query.data) {
@@ -328,7 +333,7 @@ export function TransferRunView() {
   const rate = run.messagesPerSecond;
   const left = eta(run);
 
-  const { runGate, returnGate } = commandGates(run, can, loading);
+  const { runGate, returnGate } = commandGates(run, canAnywhere, loading);
 
   // The toast carries the outcome: pending while it runs, then done, or why it did not and what to do.
   const command = (

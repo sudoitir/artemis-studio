@@ -682,6 +682,7 @@ export const VIEWS: TableView_[] = [
     visible1280: [
       'address',
       'queueName',
+      'owner',
       'routingType',
       'depth',
       'consumers',
@@ -700,7 +701,7 @@ export const VIEWS: TableView_[] = [
     rowKey: (r) => `${r.nodeId}/${r.name}`,
     menu: true,
     identifiers: ['name'],
-    visible1280: ['name', 'routing', 'queues', 'depth', 'node', 'action'],
+    visible1280: ['name', 'owner', 'routing', 'queues', 'depth', 'node', 'action'],
   }),
   view({
     name: 'consumers',

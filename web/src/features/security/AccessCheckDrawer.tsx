@@ -36,9 +36,12 @@ function placeText(where: Where, cluster: string | undefined): string {
  */
 export function AccessCheckDrawer({
   user,
+  place,
   onClose,
 }: Readonly<{
   user: { id: string; username: string } | null;
+  /** Where to check to begin with, such as the queue the drawer was opened from; none starts at Studio itself. */
+  place?: { clusterId: string; kind: 'QUEUE' | 'ADDRESS'; name: string };
   onClose: () => void;
 }>) {
   return (
@@ -51,7 +54,7 @@ export function AccessCheckDrawer({
     >
       {user ? (
         <Stack gap="xl">
-          <AccessCheck userId={user.id} />
+          <AccessCheck userId={user.id} place={place} />
           <Section title="Role grants" headingLevel={3} description="The roles this user holds, at each scope.">
             <RoleGrants userId={user.id} />
           </Section>
@@ -61,11 +64,11 @@ export function AccessCheckDrawer({
   );
 }
 
-function AccessCheck({ userId }: Readonly<{ userId: string }>) {
+function AccessCheck({ userId, place }: Readonly<{ userId: string; place?: Where }>) {
   const clusters = useClusters();
   const scopeLabel = useScopeLabel();
-  const [draft, setDraft] = useState<Where>(NOWHERE);
-  const [asked, setAsked] = useState<Where>(NOWHERE);
+  const [draft, setDraft] = useState<Where>(place ?? NOWHERE);
+  const [asked, setAsked] = useState<Where>(place ?? NOWHERE);
   const [query, setQuery] = useState('');
   const result = useAccessCheck(userId, asked);
 

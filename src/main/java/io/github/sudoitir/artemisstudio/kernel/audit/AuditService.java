@@ -51,6 +51,48 @@ public class AuditService {
             UUID nodeId,
             Map<String, ?> params,
             boolean dryRun) {
+        AuditEventEntity row =
+                writer.insert(entity(actor, action, targetType, targetName, clusterId, nodeId, params, dryRun));
+        failIfCallerRollsBack(row.getId());
+        return row;
+    }
+
+    /**
+     * Record a request that was refused for lack of a permission, as one {@code REFUSED} event standing for
+     * one refusal. {@link #recount} raises its count when the same refusal is repeated.
+     */
+    public AuditEvent refused(
+            Actor actor,
+            String action,
+            String targetType,
+            String targetName,
+            UUID clusterId,
+            Map<String, ?> params,
+            String reason) {
+        AuditEventEntity entity = entity(actor, action, targetType, targetName, clusterId, null, params, false);
+        entity.markRefused(reason, 1);
+        return writer.insert(entity);
+    }
+
+    /** The request this event was opened for was refused: {@code REFUSED}, not left {@code PENDING}. */
+    public void refuse(AuditEvent event, String reason) {
+        writer.refuse(event.getId(), reason, 1);
+    }
+
+    /** A refused event stands for {@code count} identical refusals now. */
+    public void recount(AuditEvent event, long count) {
+        writer.recount(event.getId(), count);
+    }
+
+    private AuditEventEntity entity(
+            Actor actor,
+            String action,
+            String targetType,
+            String targetName,
+            UUID clusterId,
+            UUID nodeId,
+            Map<String, ?> params,
+            boolean dryRun) {
         Map<String, ?> written = params;
         if (params != null && !params.isEmpty()) {
             for (AuditParamsFilter filter : paramsFilter.orderedStream().toList()) {
@@ -71,9 +113,7 @@ public class AuditService {
                 paramsJson,
                 dryRun);
         entity.attachParent(AuditScope.PARENT.isBound() ? AuditScope.PARENT.get() : null);
-        AuditEventEntity row = writer.insert(entity);
-        failIfCallerRollsBack(row.getId());
-        return row;
+        return entity;
     }
 
     /**

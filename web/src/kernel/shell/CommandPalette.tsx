@@ -56,7 +56,7 @@ export function CommandPalette() {
   const scheme = useColorSchemeToggle();
   const [density, setDensity] = useDensity();
   const features = useFeatures();
-  const { can, loading: grantsLoading } = useCan();
+  const { canAnywhere, loading: grantsLoading } = useCan();
   const [query, setQuery] = useState('');
   const [debounced] = useDebouncedValue(query.trim(), 200);
   const [opened, setOpened] = useState(false);
@@ -115,7 +115,7 @@ export function CommandPalette() {
           group: navGroup.label,
           actions: navGroup.items.map((item): SpotlightActionData => {
             // Offered while grants load: a claim about permission is made only once it is known.
-            const blocked = !grantsLoading && item.permission !== undefined && !can(item.permission, clusterId);
+            const blocked = !grantsLoading && item.permission !== undefined && !canAnywhere(item.permission, clusterId);
             return {
               id: `view-${item.path}`,
               label: item.label,
@@ -131,7 +131,19 @@ export function CommandPalette() {
     // In composition order, and only for features still enabled.
     for (const feature of features) out.push(...(contributed[feature.id] ?? []));
     return out;
-  }, [clusterId, navigate, paused, scheme, density, setDensity, features, contributed, recents, can, grantsLoading]);
+  }, [
+    clusterId,
+    navigate,
+    paused,
+    scheme,
+    density,
+    setDensity,
+    features,
+    contributed,
+    recents,
+    canAnywhere,
+    grantsLoading,
+  ]);
 
   return (
     <>

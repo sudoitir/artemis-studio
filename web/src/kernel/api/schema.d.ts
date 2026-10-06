@@ -1908,6 +1908,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/access/resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mcp/tools": {
         parameters: {
             query?: never;
@@ -2220,6 +2236,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["diagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clusters/{clusterId}/resource-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resourceAccess"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3855,6 +3887,10 @@ export interface components {
             scopeType: string;
             /** Format: uuid */
             scopeId?: string | null;
+            /** @description QUEUE or ADDRESS: limits the grant to names matching resourcePattern */
+            resourceKind?: string | null;
+            /** @description An Artemis wildcard pattern, with resourceKind; absent for the whole scope */
+            resourcePattern?: string | null;
         };
         CreatedTokenView: {
             token: components["schemas"]["TokenView"];
@@ -3865,6 +3901,8 @@ export interface components {
             scopeType: string;
             /** Format: uuid */
             scopeId: string;
+            resourceKind?: string | null;
+            resourcePattern?: string | null;
         };
         TokenView: {
             /** Format: uuid */
@@ -5607,6 +5645,13 @@ export interface components {
             /** @description Whether the caller may see the cluster at all; null when no cluster is asked about. */
             canSeeCluster?: boolean | null;
             teams: components["schemas"]["TeamMembership"][];
+            /** @description Patterns on which the caller may create a queue or address through a team or a share. A grant that reaches the cluster allows any name and shows in permissions. */
+            createPatterns: components["schemas"]["CreatePatterns"];
+        };
+        /** @description Name patterns, as written, that the caller may create under. Empty when none. */
+        CreatePatterns: {
+            queue: string[];
+            address: string[];
         };
         /** @description A team the caller belongs to, with the team role they hold in it. */
         TeamMembership: {
@@ -5618,6 +5663,11 @@ export interface components {
             roleName: string;
             /** @description Whether the team role holds team:admin. */
             teamAdmin: boolean;
+        };
+        /** @description What the caller may do with one queue or address: the actions they hold on it. */
+        MyResourceAccess: {
+            /** @description The resource permissions the caller holds on it, through a grant, a team or a share, including plugins'. Empty for a resource they may not read. */
+            actions: string[];
         };
         McpToolView: {
             name: string;
@@ -6247,6 +6297,35 @@ export interface components {
             summary: string;
             remedy: string;
         };
+        /** @description Who has access to one queue or address through teams: its owner and every share. */
+        ResourceAccessView: {
+            ownerTeam?: components["schemas"]["TeamRef"] | null;
+            grants: components["schemas"]["ResourceTeamGrant"][];
+        };
+        /** @description One team role that reaches a queue or address, and how many members hold it: a role of the owning team, or the role a share gives another team. */
+        ResourceTeamGrant: {
+            /** Format: uuid */
+            teamId: string;
+            teamName: string;
+            roleName: string;
+            /** @enum {string} */
+            source: "OWNER" | "SHARE";
+            /** @description SHARE only: the owning team that shared the pattern. */
+            sharedByTeamName?: string | null;
+            /** @description SHARE only: the pattern the owning team shared. */
+            pattern?: string | null;
+            /**
+             * Format: int32
+             * @description OWNER: the team's members holding the role. SHARE: all members of the receiving team.
+             */
+            memberCount: number;
+        };
+        /** @description A team, by id and name. */
+        TeamRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         PagedViewQueueView: {
             data: components["schemas"]["QueueView"][];
             /** Format: int32 */
@@ -6299,6 +6378,7 @@ export interface components {
             perNode: components["schemas"]["QueueNodeCell"][];
             /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
             allowedActions: string[];
+            ownerTeam?: components["schemas"]["TeamRef"] | null;
         };
         MessagePageView: {
             data: components["schemas"]["MessageSummaryView"][];
@@ -7230,6 +7310,7 @@ export interface components {
             messageCount: number;
             /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
             allowedActions: string[];
+            ownerTeam?: components["schemas"]["TeamRef"] | null;
         };
         PagedViewAddressView: {
             data: components["schemas"]["AddressView"][];
@@ -16997,6 +17078,65 @@ export interface operations {
             };
         };
     };
+    resource: {
+        parameters: {
+            query: {
+                clusterId: string;
+                kind: "QUEUE" | "ADDRESS";
+                name: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyResourceAccess"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     list_10: {
         parameters: {
             query?: {
@@ -18175,6 +18315,66 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RrDiagnosticsView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    resourceAccess: {
+        parameters: {
+            query: {
+                kind: "QUEUE" | "ADDRESS";
+                name: string;
+            };
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResourceAccessView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */

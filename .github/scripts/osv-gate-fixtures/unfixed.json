@@ -1,0 +1,45 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "web/package-lock.json",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "braces",
+            "version": "3.0.3",
+            "ecosystem": "npm"
+          },
+          "vulnerabilities": [
+            {
+              "id": "GHSA-vfj7-8cjw-p6xm",
+              "affected": [
+                {
+                  "package": {
+                    "name": "braces",
+                    "ecosystem": "npm"
+                  },
+                  "ranges": [
+                    {
+                      "type": "SEMVER",
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "last_affected": "3.0.3"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
