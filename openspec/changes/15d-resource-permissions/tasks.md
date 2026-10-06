@@ -37,5 +37,5 @@
 - [ ] 5.6 Visual QA sweep (team user vs admin, light and dark, empty and error states) on an isolated stack; findings fixed; stack removed
 
 ## 6. Docs and release
-- [ ] 6.1 ADR for resource-scoped authorization and teams; user docs for teams and permissions; `just verify` passes
+- [x] 6.1 ADR for resource-scoped authorization and teams; user docs for teams and permissions; `just verify` passes
 - [ ] 6.2 PRs merged on green CI and a clean Sonar gate; Studio release cut and published

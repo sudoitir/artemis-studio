@@ -1,6 +1,6 @@
 # ADR-0130: Permission reach is declared, and declarations are checked at runtime
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0172](0172-teams-own-queues-and-addresses-and-every-check-names-its-resource.md)
 - **Date**: 2026-09-29
 - **Deciders**: maintainers
 
