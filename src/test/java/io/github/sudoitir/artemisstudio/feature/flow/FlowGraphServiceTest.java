@@ -25,7 +25,8 @@ import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeRole;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeSampleState;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.RateSource;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
@@ -86,15 +87,28 @@ class FlowGraphServiceTest {
                 .thenReturn(added);
         when(metrics.latestRateWithTimeBySubject(eq(clusterId), eq("messagesAcked"), any(), any()))
                 .thenReturn(acked);
+        ResourceFilter everything = mock(ResourceFilter.class);
+        when(everything.everything()).thenReturn(true);
+        when(everything.readable(any())).thenReturn(true);
+        PermissionResolver permissions = mock(PermissionResolver.class);
+        when(permissions.filter(eq(clusterId), any())).thenReturn(everything);
         service = new FlowGraphService(
-                store, snapshots, metrics, directory, settings, demand, access, Clock.fixed(now, ZoneOffset.UTC));
+                store,
+                snapshots,
+                metrics,
+                directory,
+                settings,
+                demand,
+                access,
+                permissions,
+                Clock.fixed(now, ZoneOffset.UTC));
     }
 
     @Test
     void aReadChecksPermissionAndCountsTheClusterAsObserved() {
         service.graph(clusterId, query(null, 40));
 
-        verify(access).requireCluster(clusterId, Permissions.CLUSTER_READ);
+        verify(access).requireVisible(clusterId);
         verify(demand).renew(clusterId);
     }
 

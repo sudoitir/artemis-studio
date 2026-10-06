@@ -27,8 +27,10 @@ import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeRole;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeSampleState;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.RateSource;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
@@ -100,11 +102,14 @@ public class FlowGraphService {
     private final SettingsService settings;
     private final FlowDemand demand;
     private final ClusterAccessGuard access;
+    private final PermissionResolver permissions;
     private final Clock clock;
 
     public FlowGraphView graph(UUID clusterId, FlowQuery query) {
-        access.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        access.requireVisible(clusterId);
         demand.renew(clusterId);
+        Readable readable = new Readable(
+                permissions.filter(clusterId, ResourceKind.QUEUE), permissions.filter(clusterId, ResourceKind.ADDRESS));
 
         Instant now = clock.instant();
         Duration sampleInterval = FlowSettings.sampleInterval(settings);
@@ -117,13 +122,15 @@ public class FlowGraphService {
         List<StoredRoute> routes = store.routes(clusterId);
         Set<String> temporaryQueues = temporaryQueues(routes);
 
-        Map<String, QueueAgg> queues = queueAggregates(clusterId, names.byId(), temporaryQueues, capture);
+        Map<String, QueueAgg> queues = queueAggregates(clusterId, names.byId(), temporaryQueues, capture, readable);
         Rates rates = rates(clusterId, query.byNode(), now.minus(tierC.multipliedBy(3)), now);
         Picture picture = new Picture(queues, new TreeMap<>(), new TreeMap<>(), rates.added(), rates.acked());
-        addClients(clusterId, query, names.byId(), temporaryQueues, picture);
+        addClients(clusterId, query, names.byId(), temporaryQueues, picture, readable);
 
         Routing routing = new Routing();
-        routes.forEach(stored -> routing.add(stored, names.byId().get(stored.nodeId()), layers, capture));
+        routes.stream()
+                .filter(stored -> readable.sees(stored.route()))
+                .forEach(stored -> routing.add(stored, names.byId().get(stored.nodeId()), layers, capture));
         routing.foldHopsInto(queues);
 
         List<Path> all = paths(queues, picture.producers());
@@ -201,6 +208,31 @@ public class FlowGraphService {
         return new NodeNames(byId, byArtemisId);
     }
 
+    /**
+     * What the caller may read: a client is drawn through the queue it consumes or the address it produces to,
+     * a routing object through the addresses or queue it joins, and what belongs to the cluster as a whole
+     * (hops between nodes, temporary queues, the failure addresses of the cluster) only for a caller who reads
+     * everything.
+     */
+    private record Readable(ResourceFilter queues, ResourceFilter addresses) {
+
+        boolean sees(Edge edge) {
+            return edge.kind() == Kind.PRODUCE ? addresses.readable(edge.address()) : queues.readable(edge.queue());
+        }
+
+        boolean sees(Route route) {
+            return switch (route.kind()) {
+                case DIVERT ->
+                    addresses.readable(route.source())
+                            && (captureOwned(route.name()) || addresses.readable(route.target()));
+                case BRIDGE -> queues.readable(route.source()) || addresses.readable(route.source());
+                case QUEUE_FILTER -> queues.readable(route.target());
+                case DEAD_LETTER, EXPIRY -> addresses.readable(route.target());
+                case STORE_AND_FORWARD, TEMPORARY_QUEUE -> queues.everything() && addresses.everything();
+            };
+        }
+    }
+
     private static Set<String> temporaryQueues(List<StoredRoute> routes) {
         return routes.stream()
                 .filter(r -> r.route().kind() == RouteKind.TEMPORARY_QUEUE)
@@ -219,10 +251,15 @@ public class FlowGraphService {
     }
 
     private Map<String, QueueAgg> queueAggregates(
-            UUID clusterId, Map<UUID, String> nodeNames, Set<String> temporaryQueues, boolean capture) {
+            UUID clusterId,
+            Map<UUID, String> nodeNames,
+            Set<String> temporaryQueues,
+            boolean capture,
+            Readable readable) {
         Map<String, QueueAgg> queues = new TreeMap<>();
         for (QueueSnapshot s : snapshots.forCluster(clusterId)) {
-            boolean hidden = internal(s.address())
+            boolean hidden = !readable.queues().readable(s.queueName())
+                    || internal(s.address())
                     || internal(s.queueName())
                     || temporaryQueues.contains(s.queueName())
                     || (captureOwned(s.queueName()) && !capture);
@@ -259,11 +296,13 @@ public class FlowGraphService {
             FlowQuery query,
             Map<UUID, String> nodeNames,
             Set<String> temporaryQueues,
-            Picture picture) {
+            Picture picture,
+            Readable readable) {
         boolean capture = query.layers().contains(Layer.CAPTURE);
         for (StoredEdge stored : store.edges(clusterId)) {
             Edge e = stored.edge();
-            boolean hidden = internal(e.address())
+            boolean hidden = !readable.sees(e)
+                    || internal(e.address())
                     || internal(e.queue())
                     || ((captureOwned(e.queue()) || captureOwned(e.address())) && !capture);
             if (!hidden) {

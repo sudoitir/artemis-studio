@@ -9,8 +9,12 @@ import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealth.Source;
 import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealth.Verdict;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSamples.SubjectRate;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeProperties;
@@ -58,16 +62,19 @@ public class ConsumerHealthService {
     private final ScrapeProperties scrape;
     private final ConsumerHealthProperties properties;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     /**
      * Every queue in the cluster, ranked worst-first unless the caller asked for another
-     * order. A request path, so it checks {@code cluster:read} before reading anything.
+     * order. A request path, so it keeps to the queues the caller may read before ranking, paging or counting.
      */
     @Transactional(readOnly = true)
     public PagedView<ConsumerHealth> page(UUID clusterId, ResourceQuery query) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter readable = permissions.filter(clusterId, ResourceKind.QUEUE);
         List<ConsumerHealth> rows = evaluated(clusterId);
         List<ConsumerHealth> matched = rows.stream()
+                .filter(h -> readable.readable(h.queueName()))
                 .filter(h -> query.matches(h.queueName()) || query.matches(h.address()))
                 .toList();
         if (query.sortField() == null) {
@@ -82,7 +89,7 @@ public class ConsumerHealthService {
     /** One queue's verdict, for the drawer panel and the {@code diagnose} tool. */
     @Transactional(readOnly = true)
     public java.util.Optional<ConsumerHealth> forQueue(UUID clusterId, String queueName) {
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), Permissions.QUEUE_READ);
         return evaluated(clusterId).stream()
                 .filter(h -> h.queueName().equals(queueName))
                 .findFirst();

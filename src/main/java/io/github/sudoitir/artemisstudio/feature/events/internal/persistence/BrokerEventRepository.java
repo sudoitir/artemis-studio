@@ -38,6 +38,9 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
             where e.clusterId = :clusterId
               and (:type is null or e.type = :type)
               and (:nodeId is null or e.nodeId = :nodeId)
+              and (:everything = true
+                   or (e.address is not null and e.address in :readable)
+                   or (e.address is null and :unaddressed = true))
               and (:address is null or e.address = :address)
               and e.occurredAt >= :from
               and e.occurredAt <= :to
@@ -45,10 +48,18 @@ public interface BrokerEventRepository extends JpaRepository<BrokerEventEntity, 
             """)
     Page<BrokerEventEntity> findPage(
             @Param("clusterId") UUID clusterId,
+            @Param("everything") boolean everything,
+            @Param("readable") Collection<String> readable,
+            @Param("unaddressed") boolean unaddressed,
             @Param("type") String type,
             @Param("nodeId") UUID nodeId,
             @Param("address") String address,
             @Param("from") Instant from,
             @Param("to") Instant to,
             Pageable pageable);
+
+    /** The addresses events of the cluster are about, for deciding which of them a reader may see. */
+    @Query(
+            "select distinct e.address from BrokerEventEntity e where e.clusterId = :clusterId and e.address is not null")
+    List<String> findDistinctAddressByClusterId(@Param("clusterId") UUID clusterId);
 }
