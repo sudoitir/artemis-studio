@@ -15,10 +15,12 @@ public final class BrokerConfigModule {
             .kind(FeatureDescriptor.Kind.FEATURE)
             .require("queues")
             .require("routing")
-            .permission(new PermissionDef(
+            .permission(PermissionDef.cluster(
                     BrokerConfigPermissions.CONFIG_WRITE, "Edit a cluster's declared broker configuration"))
-            .permission(new PermissionDef(
-                    BrokerConfigPermissions.CONFIG_APPLY, "Apply declared broker configuration to brokers"))
+            .permission(PermissionDef.cluster(
+                    BrokerConfigPermissions.CONFIG_APPLY,
+                    "Apply declared broker configuration to brokers",
+                    BrokerConfigPermissions.CONFIG_WRITE))
             .apiPrefix("/api/v1/clusters/{clusterId}/config")
             .apiPrefix("/api/v1/clusters/{clusterId}/config-diff")
             .settingKey(BrokerConfigSettings.DRIFT_INTERVAL)

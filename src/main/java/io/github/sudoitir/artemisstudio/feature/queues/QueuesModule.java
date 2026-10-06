@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.feature.queues;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 
 /** Queue and address lifecycle. Module descriptor (ADR-0070). */
@@ -12,11 +14,40 @@ public final class QueuesModule {
             .id("queues")
             .title("Queues")
             .kind(FeatureDescriptor.Kind.FEATURE)
-            .permission(new PermissionDef(QueuePermissions.QUEUE_CREATE, "Create queues and addresses"))
-            .permission(new PermissionDef(QueuePermissions.QUEUE_DELETE, "Destroy queues and addresses"))
-            .permission(new PermissionDef(QueuePermissions.QUEUE_UPDATE, "Change a queue's configuration"))
-            .permission(new PermissionDef(QueuePermissions.QUEUE_PAUSE, "Pause and resume queues"))
-            .permission(new PermissionDef(QueuePermissions.DIVERT_WRITE, "Create and delete diverts"))
+            .permission(PermissionDef.resource(
+                    Permissions.QUEUE_READ, "See queues and their configuration", ResourceKind.QUEUE))
+            .permission(PermissionDef.resource(
+                    Permissions.ADDRESS_READ, "See addresses, their bindings and diverts", ResourceKind.ADDRESS))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.ADDRESS_CREATE,
+                    "Create addresses",
+                    ResourceKind.ADDRESS,
+                    Permissions.ADDRESS_READ))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.QUEUE_CREATE,
+                    "Create queues and addresses",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.QUEUE_DELETE,
+                    "Destroy queues and addresses",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.QUEUE_UPDATE,
+                    "Change a queue's configuration",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.QUEUE_PAUSE,
+                    "Pause and resume queues",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    QueuePermissions.DIVERT_WRITE,
+                    "Create and delete diverts",
+                    ResourceKind.ADDRESS,
+                    Permissions.ADDRESS_READ))
             .apiPrefix("/api/v1/clusters/{clusterId}/queues")
             .apiPrefix("/api/v1/clusters/{clusterId}/addresses")
             .mcpTool(new McpToolDef(

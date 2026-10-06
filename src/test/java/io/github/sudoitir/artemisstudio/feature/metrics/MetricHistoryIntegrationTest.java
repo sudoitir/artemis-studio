@@ -234,7 +234,9 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
         Path jar = new PluginJarBuilder(pluginId)
                 .descriptorField("basePackage", "com.acme.history")
                 .descriptorField("configuration", "com.acme.history.PluginConfig")
-                .descriptorField("permissions", List.of(Map.of("action", pluginId + ":stats", "description", "Stats")))
+                .descriptorField(
+                        "permissions",
+                        List.of(Map.of("action", pluginId + ":stats", "description", "Stats", "scope", "cluster")))
                 .descriptorField(
                         "metrics",
                         List.of(Map.of(

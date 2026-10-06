@@ -11,8 +11,24 @@ import { RolesPanel } from './RolesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
 
 const CATALOGUE: PermissionView[] = [
-  { action: 'queue:create', label: 'Create queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
-  { action: 'queue:delete', label: 'Destroy queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
+  {
+    action: 'queue:create',
+    label: 'Create queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
+  {
+    action: 'queue:delete',
+    label: 'Destroy queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
 ];
 
 const ROLES: RoleView[] = [

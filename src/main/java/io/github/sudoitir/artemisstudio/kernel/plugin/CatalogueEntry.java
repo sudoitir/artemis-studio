@@ -1,11 +1,19 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin;
 
+import java.util.Set;
+
 /**
  * One permission in the installation's catalogue ({@link FeatureRegistry#catalogue()}), attributed
  * to the enabled module or active plugin that declares it.
  */
 public record CatalogueEntry(
-        String action, String description, String featureId, String featureTitle, boolean globalOnly) {
+        String action,
+        String description,
+        String featureId,
+        String featureTitle,
+        PermissionScope scope,
+        Set<ResourceKind> resourceKinds,
+        Set<String> requires) {
 
     static CatalogueEntry of(FeatureDescriptor owner, PermissionDef permission) {
         return new CatalogueEntry(
@@ -13,6 +21,8 @@ public record CatalogueEntry(
                 permission.label(),
                 owner.id(),
                 owner.title() == null ? owner.id() : owner.title(),
-                permission.globalOnly());
+                permission.scope(),
+                permission.resourceKinds(),
+                permission.requires());
     }
 }

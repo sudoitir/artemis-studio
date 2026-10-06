@@ -34,7 +34,7 @@ class ManifestControllerTest {
             "vendor":{"name":"Acme"},"basePackage":"com.acme.notes",
             "configuration":"com.acme.notes.PluginConfig","contract":3,
             "studio":{"since":"2026.01.0"},"ui":true,"activation":"AUTO","title":"Notes",
-            "permissions":[{"action":"acme-notes:write","description":"Write notes"}],
+            "permissions":[{"action":"acme-notes:write","description":"Write notes","scope":"cluster"}],
             "streamTopics":["acme-notes"]}
             """;
 
@@ -47,14 +47,14 @@ class ManifestControllerTest {
                                 .id("queues")
                                 .title("Queues")
                                 .kind(Kind.FEATURE)
-                                .permission(new PermissionDef("queue:create", "Create queues"))
+                                .permission(PermissionDef.cluster("queue:create", "Create queues"))
                                 .streamTopic(TopicDef.signal("queues"))
                                 .build(),
                         FeatureDescriptor.builder()
                                 .id("sql")
                                 .title("SQL console")
                                 .kind(Kind.FEATURE)
-                                .permission(new PermissionDef("capture:write", "Turn capture on"))
+                                .permission(PermissionDef.cluster("capture:write", "Turn capture on"))
                                 .build())),
                 env,
                 event -> {});

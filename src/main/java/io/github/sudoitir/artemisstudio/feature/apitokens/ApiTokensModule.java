@@ -10,7 +10,7 @@ public final class ApiTokensModule {
             .id("apitokens")
             .title("API tokens")
             .kind(FeatureDescriptor.Kind.IDENTITY_PROVIDER)
-            .permission(new PermissionDef(TokenPermissions.TOKEN_ADMIN, "See and revoke every user's API tokens", true))
+            .permission(PermissionDef.global(TokenPermissions.TOKEN_ADMIN, "See and revoke every user's API tokens"))
             .apiPrefix("/api/v1/tokens")
             .apiPrefix("/api/v1/admin/tokens")
             .settingKey(ApiTokensSettings.MAX_LIFETIME)

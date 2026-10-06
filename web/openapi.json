@@ -27652,11 +27652,25 @@
           "featureTitle" : {
             "type" : "string"
           },
-          "globalOnly" : {
-            "type" : "boolean"
+          "scope" : {
+            "type" : "string",
+            "enum" : [ "GLOBAL", "CLUSTER", "RESOURCE" ]
+          },
+          "resourceKinds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "QUEUE", "ADDRESS" ]
+            }
+          },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "action", "featureId", "featureTitle", "globalOnly", "label" ]
+        "required" : [ "action", "featureId", "featureTitle", "label", "requires", "resourceKinds", "scope" ]
       },
       "McpToolView" : {
         "type" : "object",

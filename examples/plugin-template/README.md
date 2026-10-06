@@ -94,10 +94,13 @@ update signed by a different trusted key is allowed, but the installer must conf
 - **No `@Scheduled`, `@Async` or threads of your own.** Contribute a `ScheduledJob` bean; Studio runs it and
   stops it with the plugin. Give it a scope: `INSTALLATION` for work on shared rows (it runs on one Studio
   instance per tick), `INSTANCE` for work on this instance's own state (it runs everywhere).
-- **Describe every permission, and mark the global-only ones.** Each `permissions` entry needs a
-  `description`, which the role editor shows. A permission your guards check without a cluster
-  (`@perm.can('acme-notes:admin')`) takes effect only through a global grant, so declare it with
-  `"globalOnly": true` and the role editor and the effective-permissions preview say so. Studio's
+- **Describe every permission, and declare its scope.** Each `permissions` entry needs a
+  `description`, which the role editor shows, and a `scope`. A permission your guards check without a cluster
+  (`@perm.can('acme-notes:admin')`) takes effect only through a global grant, so declare it `"scope": "global"`;
+  one checked against a cluster is `"cluster"`; one checked against a queue or address is `"resource"` and also
+  names the `resourceKinds` (`"queue"`, `"address"`) it acts on. A permission that is only useful together with
+  another lists it under `requires` (`acme-notes:write` requires `acme-notes:read`), and the role editor adds it.
+  The role editor and the effective-permissions preview show the scope. Studio's
   `permissions` health check (in `/actuator/health/studio`) reports a guard or manifest entry naming a
   permission you did not declare.
 - **Audit every change** with `AuditService`, the way `NotesService` does. Operators rely on Studio's audit

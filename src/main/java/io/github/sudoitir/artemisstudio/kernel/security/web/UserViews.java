@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -88,7 +90,9 @@ public final class UserViews {
             @Schema(requiredMode = REQUIRED) String label,
             @Schema(requiredMode = REQUIRED) String featureId,
             @Schema(requiredMode = REQUIRED) String featureTitle,
-            @Schema(requiredMode = REQUIRED) boolean globalOnly) {}
+            @Schema(requiredMode = REQUIRED) PermissionScope scope,
+            @Schema(requiredMode = REQUIRED) List<ResourceKind> resourceKinds,
+            @Schema(requiredMode = REQUIRED) List<String> requires) {}
 
     /**
      * One permission a user holds at one grant scope, through one role. {@code via} is the stored

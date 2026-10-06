@@ -8,10 +8,42 @@ import type { PermissionView } from './api.ts';
 import { PermissionPicker } from './PermissionPicker.tsx';
 
 const CATALOGUE: PermissionView[] = [
-  { action: 'queue:create', label: 'Create queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
-  { action: 'queue:delete', label: 'Destroy queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
-  { action: 'user:admin', label: 'Manage users', featureId: 'security', featureTitle: 'Security', globalOnly: true },
-  { action: 'acme:read', label: 'Read notes', featureId: 'acme', featureTitle: 'Acme notes', globalOnly: false },
+  {
+    action: 'queue:create',
+    label: 'Create queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
+  {
+    action: 'queue:delete',
+    label: 'Destroy queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
+  {
+    action: 'user:admin',
+    label: 'Manage users',
+    featureId: 'security',
+    featureTitle: 'Security',
+    scope: 'GLOBAL',
+    resourceKinds: [],
+    requires: [],
+  },
+  {
+    action: 'acme:read',
+    label: 'Read notes',
+    featureId: 'acme',
+    featureTitle: 'Acme notes',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
 ];
 
 function Harness({ initial = [] as string[] }) {

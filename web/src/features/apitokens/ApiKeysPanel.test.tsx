@@ -26,9 +26,19 @@ const CATALOGUE = [
     label: 'Read clusters',
     featureId: 'clusters',
     featureTitle: 'Clusters',
-    globalOnly: false,
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
   },
-  { action: 'queue:purge', label: 'Purge queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
+  {
+    action: 'queue:purge',
+    label: 'Purge queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
 ];
 
 const DAY = 86_400_000;

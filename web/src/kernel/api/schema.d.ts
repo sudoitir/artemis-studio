@@ -5151,7 +5151,10 @@ export interface components {
             label: string;
             featureId: string;
             featureTitle: string;
-            globalOnly: boolean;
+            /** @enum {string} */
+            scope: "GLOBAL" | "CLUSTER" | "RESOURCE";
+            resourceKinds: ("QUEUE" | "ADDRESS")[];
+            requires: string[];
         };
         McpToolView: {
             name: string;

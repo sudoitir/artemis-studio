@@ -225,8 +225,8 @@ class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
         host.activate(shaV1, "tester", false);
         awaitActive(id, shaV1);
 
-        String shaV2 =
-                upload(plugin(id, "2.0.0").descriptorField("permissions", List.of(Map.of("action", id + ":read"))));
+        String shaV2 = upload(plugin(id, "2.0.0")
+                .descriptorField("permissions", List.of(Map.of("action", id + ":read", "scope", "cluster"))));
         assertThat(host.plan(shaV2).acknowledgements()).containsExactly("permissions-added");
         assertRefused(() -> host.activate(shaV2, "tester", false), "acknowledgement-required");
 

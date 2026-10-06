@@ -1,7 +1,13 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Mirrors {@code META-INF/artemis-studio/plugin.json} (design.md §1), validated against
@@ -55,11 +61,36 @@ public record PluginDescriptor(
 
     public record Studio(String since, String until) {}
 
-    /** @param globalOnly checked without a cluster, so only a global grant makes it take effect */
-    public record Permission(String action, String description, Boolean globalOnly) {
+    /**
+     * @param scope {@code global}, {@code cluster} or {@code resource}: where the permission takes effect
+     * @param resourceKinds {@code queue} and {@code address}: what a {@code resource} permission acts on;
+     *     required for that scope and refused for the others
+     * @param requires permissions a role must hold with this one
+     * @param globalOnly replaced by {@code scope}; read only so that the validator can refuse it by name
+     */
+    public record Permission(
+            String action,
+            String description,
+            String scope,
+            List<String> resourceKinds,
+            List<String> requires,
+            Boolean globalOnly) {
 
-        public boolean isGlobalOnly() {
-            return Boolean.TRUE.equals(globalOnly);
+        public Permission {
+            resourceKinds = resourceKinds == null ? List.of() : List.copyOf(resourceKinds);
+            requires = requires == null ? List.of() : List.copyOf(requires);
+        }
+
+        /** @throws IllegalArgumentException when the scope or a kind is not one Studio knows (the validator refuses it first) */
+        public PermissionDef toDef() {
+            return new PermissionDef(
+                    action,
+                    description,
+                    PermissionScope.valueOf(scope.toUpperCase(Locale.ROOT)),
+                    resourceKinds.stream()
+                            .map(kind -> ResourceKind.valueOf(kind.toUpperCase(Locale.ROOT)))
+                            .collect(Collectors.toSet()),
+                    Set.copyOf(requires));
         }
     }
 

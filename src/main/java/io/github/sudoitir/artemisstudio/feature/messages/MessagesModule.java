@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.feature.messages;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import java.util.List;
 
 /** Message browse, send, move and delete; dead letters. Module descriptor (ADR-0070). */
@@ -12,11 +14,22 @@ public final class MessagesModule {
             .id("messages")
             .title("Messages")
             .kind(FeatureDescriptor.Kind.FEATURE)
-            .permission(new PermissionDef(MessagePermissions.MESSAGE_READ, "Browse messages"))
-            .permission(new PermissionDef(MessagePermissions.MESSAGE_SEND, "Send messages"))
-            .permission(new PermissionDef(MessagePermissions.MESSAGE_MOVE, "Move or retry messages"))
-            .permission(new PermissionDef(MessagePermissions.MESSAGE_DELETE, "Delete or expire messages"))
-            .permission(new PermissionDef(MessagePermissions.QUEUE_PURGE, "Purge queues"))
+            .permission(PermissionDef.resource(
+                    MessagePermissions.MESSAGE_READ, "Browse messages", ResourceKind.QUEUE, Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    MessagePermissions.MESSAGE_SEND, "Send messages", ResourceKind.ADDRESS, Permissions.ADDRESS_READ))
+            .permission(PermissionDef.resource(
+                    MessagePermissions.MESSAGE_MOVE,
+                    "Move or retry messages",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    MessagePermissions.MESSAGE_DELETE,
+                    "Delete or expire messages",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
+            .permission(PermissionDef.resource(
+                    MessagePermissions.QUEUE_PURGE, "Purge queues", ResourceKind.QUEUE, Permissions.QUEUE_READ))
             .apiPrefix("/api/v1/clusters/{clusterId}/queues/{queueName}/messages")
             .apiPrefix("/api/v1/clusters/{clusterId}/dlq")
             .mcpTool(new McpToolDef(

@@ -41,7 +41,7 @@ class FeatureRegistryPluginTest {
                 null,
                 id,
                 permissions.stream()
-                        .map(p -> new PluginDescriptor.Permission(p, p, null))
+                        .map(p -> new PluginDescriptor.Permission(p, p, "cluster", null, null, null))
                         .toList(),
                 settingKeys,
                 topics,

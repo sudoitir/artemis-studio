@@ -15,5 +15,20 @@ public final class Permissions {
 
     public static final String USER_ADMIN = "user:admin";
 
+    /**
+     * Administering teams. Held at global scope it administers every team; held in a team role it
+     * means "admin of that team".
+     */
+    public static final String TEAM_ADMIN = "team:admin";
+
+    /**
+     * Seeing a queue, and the read every permission that acts on a queue requires. Declared with the
+     * queue permissions, named here because modules other than the queues' own require it.
+     */
+    public static final String QUEUE_READ = "queue:read";
+
+    /** Seeing an address, and the read every permission that acts on an address requires. */
+    public static final String ADDRESS_READ = "address:read";
+
     private Permissions() {}
 }

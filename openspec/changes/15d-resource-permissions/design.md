@@ -89,6 +89,32 @@ Published: `ResourceRef`, `PermissionResolver.can(clusterId, ResourceRef, action
 run, suspends on loss). MCP tool `scope: resource` with `resourceArg` and `resourceKind`. SDK
 `useCan(perm, {clusterId, kind, name})`. `Contract.VERSION` bumps (breaking).
 
+### D11. Classification of the core permissions
+`GLOBAL` is every permission whose guards check it without a cluster: `user:admin`, `team:admin`,
+`token:admin`, `diagnostics:bundle`, `settings:read`, `data:read`, `data:write`, `environment:read`,
+`environment:write`, `governance:read`, `governance:write`. `CLUSTER` is everything a guard checks
+against a cluster that is not a queue or an address: `cluster:read`, `cluster:write`,
+`config:write`, `config:apply`, `alert:read`, `alert:write`, `connection:read`, `connection:close`,
+`rr:write` and `settings:write` (credential rotation checks it against a cluster). `RESOURCE` acts on one
+queue or address: `QUEUE` for `queue:read`, `queue:create`, `queue:update`, `queue:delete`,
+`queue:pause`, `queue:purge`, `message:read`, `message:move`, `message:delete`, `message:clear`
+and `capture:write`; `ADDRESS` for `address:read`, `address:create`, `message:send` and `divert:write`.
+Non-obvious cases:
+
+- `capture:write` is `QUEUE`: a capture subscription is defined by a queue-name pattern, and the
+  addresses it taps are derived from it, so the owner of the queues owns the capture.
+- `message:clear` is `QUEUE` and `queue:delete` stays `QUEUE` although it also destroys addresses
+  (`DELETE_ADDRESS`); an `address:delete` is decided with the enforcement work (2.2).
+- `cluster:write` registers or removes a cluster (a global check) and also gates cluster-level writes;
+  it is `CLUSTER`, so a global grant makes the global checks pass.
+- `requires` follows the reads a screen needs: the queue-acting permissions require `queue:read`;
+  `message:send`, `divert:write`, `address:create` require `address:read`; `connection:close`
+  requires `connection:read`; `alert:write` requires `alert:read`; `config:apply` requires
+  `config:write`; `cluster:write` requires `cluster:read`. The send target of a move is checked
+  separately, so `message:move` does not require `message:send`.
+- `queue:read` and `address:read` are named in the security kernel's `Permissions` because modules other
+  than the queues' own require them.
+
 ## Risks / Trade-offs
 
 - [Filtering large lists per row costs CPU] → compiled index lookup is a few token comparisons; a

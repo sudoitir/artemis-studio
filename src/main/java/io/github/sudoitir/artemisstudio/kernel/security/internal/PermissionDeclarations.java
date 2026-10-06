@@ -2,13 +2,17 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.CatalogueEntry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginBridge;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.GuardPermissions.GuardRef;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -76,15 +80,65 @@ class PermissionDeclarations implements PluginBridge {
                     if (entry == null) {
                         found.add("'" + ref.permission() + "' is checked by " + ref.location()
                                 + " but is not in the permission catalogue");
-                    } else if (entry.globalOnly() && ref.withCluster()) {
-                        found.add("'" + ref.permission() + "' is declared global-only but " + ref.location()
+                    } else if (entry.scope() == PermissionScope.GLOBAL && ref.withCluster()) {
+                        found.add("'" + ref.permission() + "' is declared at global scope but " + ref.location()
                                 + " checks it against a cluster");
                     }
                 });
         catalogue.values().stream()
                 .filter(e -> e.description() == null || e.description().isBlank())
                 .forEach(e -> found.add("'" + e.action() + "' of " + e.featureId() + " has no description"));
+        catalogue.values().forEach(e -> {
+            if (e.scope() == PermissionScope.RESOURCE && e.resourceKinds().isEmpty()) {
+                found.add("'" + e.action() + "' of " + e.featureId() + " acts on a resource but names no kind");
+            }
+            e.requires().stream()
+                    .filter(required -> !catalogue.containsKey(required))
+                    .sorted()
+                    .forEach(required -> found.add("'" + e.action() + "' of " + e.featureId() + " requires '" + required
+                            + "', which is not in the permission catalogue"));
+        });
+        requirementCycles(catalogue).forEach(cycle -> found.add("Permissions require each other: " + cycle));
         return found.stream().distinct().toList();
+    }
+
+    /** Each cycle of the requires graph once, written as the chain that closes it. */
+    private static List<String> requirementCycles(Map<String, CatalogueEntry> catalogue) {
+        Set<String> done = new HashSet<>();
+        Set<String> reported = new HashSet<>();
+        List<String> cycles = new ArrayList<>();
+        for (String start : new TreeSet<>(catalogue.keySet())) {
+            walk(start, catalogue, new ArrayList<>(), done, reported, cycles);
+        }
+        return cycles;
+    }
+
+    private static void walk(
+            String action,
+            Map<String, CatalogueEntry> catalogue,
+            List<String> path,
+            Set<String> done,
+            Set<String> reported,
+            List<String> cycles) {
+        int at = path.indexOf(action);
+        if (at >= 0) {
+            List<String> cycle = new ArrayList<>(path.subList(at, path.size()));
+            if (reported.add(String.join(",", new TreeSet<>(cycle)))) {
+                cycle.add(action);
+                cycles.add(String.join(" -> ", cycle));
+            }
+            return;
+        }
+        CatalogueEntry entry = catalogue.get(action);
+        if (entry == null || done.contains(action)) {
+            return;
+        }
+        path.add(action);
+        for (String required : new TreeSet<>(entry.requires())) {
+            walk(required, catalogue, path, done, reported, cycles);
+        }
+        path.remove(path.size() - 1);
+        done.add(action);
     }
 
     private static List<GuardRef> scan(ApplicationContext context, String packagePrefix, ClassLoader loader) {

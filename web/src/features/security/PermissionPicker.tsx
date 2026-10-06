@@ -21,7 +21,7 @@ import classes from './Security.module.css';
 const UNCATALOGUED = '__uncatalogued__';
 const WILDCARDS = '__wildcards__';
 
-type Entry = { action: string; label: string; globalOnly: boolean };
+type Entry = { action: string; label: string; global: boolean };
 type PermissionGroup = { id: string; title: string; entries: Entry[] };
 
 /** Groups the catalogue by owning module or plugin, plus the held permissions the catalogue lacks. */
@@ -29,7 +29,7 @@ function groupPermissions(catalogue: PermissionView[], selected: string[]): Perm
   const groups = new Map<string, PermissionGroup>();
   for (const p of catalogue) {
     const group = groups.get(p.featureId) ?? { id: p.featureId, title: p.featureTitle, entries: [] };
-    group.entries.push({ action: p.action, label: p.label, globalOnly: p.globalOnly });
+    group.entries.push({ action: p.action, label: p.label, global: p.scope === 'GLOBAL' });
     groups.set(p.featureId, group);
   }
   const known = new Set(catalogue.map((p) => p.action));
@@ -47,7 +47,7 @@ function groupPermissions(catalogue: PermissionView[], selected: string[]): Perm
           action === '*'
             ? 'Grants every permission, including those of modules and plugins added later.'
             : `Grants every ${action.slice(0, -1)} permission, including ones added later.`,
-        globalOnly: false,
+        global: false,
       })),
     });
   }
@@ -58,7 +58,7 @@ function groupPermissions(catalogue: PermissionView[], selected: string[]): Perm
       entries: missing.map((action) => ({
         action,
         label: 'Its module or plugin is not active. The role keeps it unless you clear it.',
-        globalOnly: false,
+        global: false,
       })),
     });
   }
@@ -184,13 +184,11 @@ export function PermissionPicker({
                             <Text size="sm" ff="monospace">
                               {e.action}
                             </Text>
-                            {e.globalOnly ? <StatusBadge>Global only</StatusBadge> : null}
+                            {e.global ? <StatusBadge>Global only</StatusBadge> : null}
                           </Group>
                         }
                         description={
-                          e.globalOnly
-                            ? `${e.label}. Has no effect when granted on an environment or cluster.`
-                            : e.label
+                          e.global ? `${e.label}. Has no effect when granted on an environment or cluster.` : e.label
                         }
                         checked={selected.has(e.action)}
                         onChange={() => toggle(e.action)}

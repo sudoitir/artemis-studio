@@ -223,7 +223,7 @@ public class FeatureRegistry implements PluginBridge {
                 .required(false)
                 .requires(d.requires())
                 .permissions(d.permissions().stream()
-                        .map(p -> new PermissionDef(p.action(), p.description(), p.isGlobalOnly()))
+                        .map(PluginDescriptor.Permission::toDef)
                         .toList())
                 .settingKeys(d.settingKeys())
                 .streamTopics(d.streamTopics().stream().map(TopicDef::signal).toList())

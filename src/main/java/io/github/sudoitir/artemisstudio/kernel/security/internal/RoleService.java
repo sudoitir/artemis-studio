@@ -55,7 +55,13 @@ public class RoleService {
     public List<PermissionView> catalogue() {
         return features.catalogue().stream()
                 .map(e -> new PermissionView(
-                        e.action(), e.description(), e.featureId(), e.featureTitle(), e.globalOnly()))
+                        e.action(),
+                        e.description(),
+                        e.featureId(),
+                        e.featureTitle(),
+                        e.scope(),
+                        e.resourceKinds().stream().sorted().toList(),
+                        e.requires().stream().sorted().toList()))
                 .toList();
     }
 

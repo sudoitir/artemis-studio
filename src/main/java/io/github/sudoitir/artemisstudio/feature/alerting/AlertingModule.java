@@ -13,9 +13,11 @@ public final class AlertingModule {
             .id("alerting")
             .title("Alerting")
             .kind(FeatureDescriptor.Kind.FEATURE)
-            .permission(new PermissionDef(AlertPermissions.ALERT_READ, "View alert rules and firings"))
-            .permission(
-                    new PermissionDef(AlertPermissions.ALERT_WRITE, "Create, edit, or delete alert rules and channels"))
+            .permission(PermissionDef.cluster(AlertPermissions.ALERT_READ, "View alert rules and firings"))
+            .permission(PermissionDef.cluster(
+                    AlertPermissions.ALERT_WRITE,
+                    "Create, edit, or delete alert rules and channels",
+                    AlertPermissions.ALERT_READ))
             .apiPrefix("/api/v1/clusters/{clusterId}/alerts")
             .apiPrefix("/api/v1/alerts")
             .apiPrefix("/api/v1/channels")

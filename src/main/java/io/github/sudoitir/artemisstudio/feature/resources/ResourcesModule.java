@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.resources;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import java.util.List;
 
@@ -13,9 +14,12 @@ public final class ResourcesModule {
             .id("resources")
             .title("Resources")
             .kind(FeatureDescriptor.Kind.FEATURE)
-            .permission(new PermissionDef(
+            .permission(PermissionDef.cluster(
+                    ResourcePermissions.CONNECTION_READ, "See client connections, sessions and consumers"))
+            .permission(PermissionDef.cluster(
                     ResourcePermissions.CONNECTION_CLOSE,
-                    "Close client connections, sessions and an address's consumers"))
+                    "Close client connections, sessions and an address's consumers",
+                    ResourcePermissions.CONNECTION_READ))
             .apiPrefix("/api/v1/clusters/{clusterId}/consumers")
             .apiPrefix("/api/v1/clusters/{clusterId}/sessions")
             .apiPrefix("/api/v1/clusters/{clusterId}/connections")
