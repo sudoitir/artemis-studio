@@ -4,24 +4,28 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokensSettings;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.CreateTokenRequest;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.CreatedTokenView;
+import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenGrantRequest;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenPolicyView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenView;
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.UsageView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourcePattern;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -80,12 +84,8 @@ public class TokensController {
             @Valid @RequestBody CreateTokenRequest request,
             HttpServletRequest req) {
         SessionFacts facts = requireSession(principal, req);
-        List<Grant> requested = request.grants().stream()
-                .map(g -> new Grant(
-                        Grant.ScopeType.valueOf(g.scopeType()),
-                        g.scopeId() != null ? g.scopeId() : ScopeIds.GLOBAL,
-                        Set.of(g.action())))
-                .toList();
+        List<TokenGrant> requested =
+                request.grants().stream().map(TokensController::toGrant).toList();
         var minted = tokens.mint(
                 principal.userId(),
                 request.name(),
@@ -117,6 +117,26 @@ public class TokensController {
     public void revoke(@AuthenticationPrincipal StudioPrincipal principal, @PathVariable UUID tokenId) {
         requireSession(principal);
         tokens.revoke(principal.userId(), tokenId);
+    }
+
+    /** A grant as asked for: a kind and a pattern come together, and the pattern must parse. */
+    static TokenGrant toGrant(TokenGrantRequest g) {
+        Grant.ScopeType scope = Grant.ScopeType.valueOf(g.scopeType());
+        UUID scopeId = g.scopeId() != null ? g.scopeId() : ScopeIds.GLOBAL;
+        boolean hasKind = g.resourceKind() != null && !g.resourceKind().isBlank();
+        boolean hasPattern = g.resourcePattern() != null && !g.resourcePattern().isBlank();
+        if (hasKind != hasPattern) {
+            throw new IllegalArgumentException("Give both the kind and the pattern a grant is limited to, or neither.");
+        }
+        if (!hasKind) {
+            return TokenGrant.of(scope, scopeId, g.action());
+        }
+        return new TokenGrant(
+                scope,
+                scopeId,
+                g.action(),
+                ResourceKind.valueOf(g.resourceKind().toUpperCase(Locale.ROOT)),
+                ResourcePattern.parse(g.resourcePattern()));
     }
 
     private static void requireSession(StudioPrincipal principal) {

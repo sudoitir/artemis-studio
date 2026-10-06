@@ -6,7 +6,10 @@ import java.util.UUID;
 /**
  * A principal authenticated by a personal API token: the owner, narrowed to the token's grants,
  * plus the token's id and MCP tool allow-list (ADR-0136, ADR-0137). The request limits, usage
- * counters and the MCP gate read these. Not plugin API; plugins see the {@link StudioPrincipal}.
+ * counters and the MCP gate read these. What it may do is what its grants and its owner's access at
+ * that moment both allow ({@link PermissionResolver}), so it follows the owner as they gain or lose
+ * access, teams included. It has no team access of its own and administers no team. Not plugin API;
+ * plugins see the {@link StudioPrincipal}.
  */
 public final class TokenPrincipal extends StudioPrincipal {
 
@@ -18,12 +21,29 @@ public final class TokenPrincipal extends StudioPrincipal {
 
     private final UUID tokenId;
     private final Set<String> mcpTools;
+    private final Set<TokenGrant> grants;
 
     public TokenPrincipal(
-            UUID userId, String username, Set<Grant> grants, UUID tokenId, String tokenName, Set<String> mcpTools) {
-        super(userId, username, grants, false, tokenName);
+            UUID userId,
+            String username,
+            Set<TokenGrant> grants,
+            UUID tokenId,
+            String tokenName,
+            Set<String> mcpTools) {
+        super(userId, username, Set.of(), false, tokenName);
+        this.grants = Set.copyOf(grants);
         this.tokenId = tokenId;
         this.mcpTools = Set.copyOf(mcpTools);
+    }
+
+    /** What the token was narrowed to, before its owner's access is taken into account. */
+    public Set<TokenGrant> grants() {
+        return grants;
+    }
+
+    /** Its owner as a signed-in user would be: whatever they hold now, through grants and teams. */
+    StudioPrincipal owner() {
+        return StudioPrincipal.live(userId(), getUsername(), false);
     }
 
     public UUID tokenId() {

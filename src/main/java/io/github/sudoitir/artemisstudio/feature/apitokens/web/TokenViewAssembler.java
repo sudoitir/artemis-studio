@@ -51,8 +51,12 @@ class TokenViewAssembler {
                 t.getCreatedAt(),
                 t.getPreviousValidUntil(),
                 tokens.grantsOf(t.getId()).stream()
-                        .flatMap(g -> g.permissions().stream()
-                                .map(a -> new TokenGrantView(a, g.scopeType().name(), g.scopeId())))
+                        .map(g -> new TokenGrantView(
+                                g.action(),
+                                g.scopeType().name(),
+                                g.scopeId(),
+                                g.limited() ? g.kind().name() : null,
+                                g.limited() ? g.pattern().text() : null))
                         .toList(),
                 List.copyOf(t.getMcpTools()),
                 t.getRevokedAt() == null && tokens.isStale(t));

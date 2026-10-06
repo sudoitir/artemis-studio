@@ -8,17 +8,18 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
-import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.PersonalTokens;
-import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourcePattern;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
@@ -29,14 +30,12 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,10 +65,8 @@ public class ApiTokenService implements PersonalTokens {
     private final ApiTokenRepository tokens;
     private final ApiTokenGrantRepository tokenGrants;
     private final UserAccounts accounts;
-    private final GrantLoader grantLoader;
     private final AuditService audit;
     private final ActorResolver actorResolver;
-    private final ScopeHierarchy environments;
     private final SettingsService settings;
     private final TokenUsage usage;
     private final StudioBus bus;
@@ -125,7 +122,7 @@ public class ApiTokenService implements PersonalTokens {
             UUID userId,
             String name,
             Instant expiresAt,
-            List<Grant> requestedGrants,
+            List<TokenGrant> requestedGrants,
             List<String> mcpTools,
             boolean mintedWithMfa) {
         if (!mintedWithMfa && requiresSecondFactor(userId)) {
@@ -154,11 +151,14 @@ public class ApiTokenService implements PersonalTokens {
                 mcpTools == null ? List.of() : mcpTools,
                 mintedWithMfa));
         String plaintext = secret.plaintext();
-        for (Grant g : requestedGrants) {
-            for (String action : g.permissions()) {
-                tokenGrants.save(new ApiTokenGrantEntity(
-                        entity.getId(), action, g.scopeType().name(), g.scopeId()));
-            }
+        for (TokenGrant g : requestedGrants) {
+            tokenGrants.save(new ApiTokenGrantEntity(
+                    entity.getId(),
+                    g.action(),
+                    g.scopeType().name(),
+                    g.scopeId(),
+                    g.limited() ? g.kind().name() : "",
+                    g.limited() ? g.pattern().text() : ""));
         }
         AuditEvent event =
                 audit.begin(actorResolver.resolve(), "TOKEN_CREATE", RESOURCE, name, null, null, Map.of(), false);
@@ -175,10 +175,20 @@ public class ApiTokenService implements PersonalTokens {
         return tokens.findAllByOrderByCreatedAtDesc();
     }
 
-    public List<Grant> grantsOf(UUID tokenId) {
+    public List<TokenGrant> grantsOf(UUID tokenId) {
         return tokenGrants.findByIdTokenId(tokenId).stream()
-                .map(g -> new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())))
+                .map(ApiTokenService::toGrant)
                 .toList();
+    }
+
+    private static TokenGrant toGrant(ApiTokenGrantEntity row) {
+        boolean limited = !row.getResourcePattern().isEmpty();
+        return new TokenGrant(
+                Grant.ScopeType.valueOf(row.getScopeType()),
+                row.getScopeId(),
+                row.getAction(),
+                limited ? ResourceKind.valueOf(row.getResourceKind()) : null,
+                limited ? ResourcePattern.parse(row.getResourcePattern()) : null);
     }
 
     @Transactional
@@ -246,9 +256,9 @@ public class ApiTokenService implements PersonalTokens {
     }
 
     /**
-     * Authenticates a presented token, intersecting its configured grants with
-     * its owner's current live grants (design.md decision 5) so demoting or
-     * disabling the owner immediately narrows or disables the token.
+     * Authenticates a presented token. The principal carries the token's own grants; what it may do is
+     * those and its owner's access at the moment of each check ({@link PermissionResolver}), so demoting
+     * or disabling the owner immediately narrows or disables the token.
      */
     public TokenPrincipal authenticate(String presented) {
         // Fixed-length prefix, not underscore-delimited: base64url's alphabet includes
@@ -281,16 +291,11 @@ public class ApiTokenService implements PersonalTokens {
         if (owner == null || rejectsOwner(token, owner)) {
             return null;
         }
-        Set<Grant> ownerGrants = grantLoader.loadFor(owner.id());
-        Set<Grant> tokenGrantSet = tokenGrants.findByIdTokenId(token.getId()).stream()
-                .map(g -> new Grant(Grant.ScopeType.valueOf(g.getScopeType()), g.getScopeId(), Set.of(g.getAction())))
-                .collect(Collectors.toSet());
-        Set<Grant> intersected = intersect(tokenGrantSet, ownerGrants);
         pendingLastUsed.put(token.getId(), now);
         return new TokenPrincipal(
                 owner.id(),
                 owner.username(),
-                intersected,
+                Set.copyOf(grantsOf(token.getId())),
                 token.getId(),
                 token.getName(),
                 Set.copyOf(token.getMcpTools()));
@@ -374,52 +379,6 @@ public class ApiTokenService implements PersonalTokens {
         String prefix = PREFIX_TAG + randomToken(PREFIX_BYTES);
         String secret = randomToken(SECRET_BYTES);
         return new Secret(prefix, secret);
-    }
-
-    private Set<Grant> intersect(Set<Grant> tokenGrants, Set<Grant> ownerGrants) {
-        Set<Grant> result = new HashSet<>();
-        for (Grant tg : tokenGrants) {
-            for (Grant og : ownerGrants) {
-                if (!covers(og, tg)) {
-                    continue;
-                }
-                for (String action : tg.permissions()) {
-                    if (og.grants(action)) {
-                        result.add(new Grant(tg.scopeType(), tg.scopeId(), Set.of(action)));
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Whether an owner grant reaches the subject a token grant addresses, using
-     * the same widening as {@link PermissionResolver}: global covers everything,
-     * an environment covers its clusters, a cluster covers itself.
-     *
-     * <p>Scope-id equality alone would be wrong in the one direction that matters
-     * in practice. A user whose grants are global — every administrator — could
-     * only ever mint a globally scoped key: narrowing a key to one cluster would
-     * intersect to nothing and produce a key that authenticates and can do
-     * nothing. Narrowing a key is the entire point of minting one, so the check
-     * has to walk the scopes rather than compare them.
-     *
-     * <p>The relation stays one-way. A cluster-scoped owner grant never satisfies
-     * a global token grant, so a key still cannot exceed its owner.
-     */
-    private boolean covers(Grant owner, Grant token) {
-        return switch (owner.scopeType()) {
-            case GLOBAL -> true;
-            case ENVIRONMENT ->
-                switch (token.scopeType()) {
-                    case GLOBAL -> false;
-                    case ENVIRONMENT -> owner.scopeId().equals(token.scopeId());
-                    case CLUSTER -> owner.scopeId().equals(environments.environmentOf(token.scopeId()));
-                };
-            case CLUSTER ->
-                token.scopeType() == Grant.ScopeType.CLUSTER && owner.scopeId().equals(token.scopeId());
-        };
     }
 
     private String randomToken(int bytes) {

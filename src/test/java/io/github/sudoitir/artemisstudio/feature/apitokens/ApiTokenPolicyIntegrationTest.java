@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
@@ -89,7 +90,7 @@ class ApiTokenPolicyIntegrationTest extends PostgresIntegrationTest {
     @Test
     void mintingRefusesNoExpiryAndAnExpiryBeyondTheCap() {
         McpFixture.Key owner = key(Set.of(Permissions.CLUSTER_READ));
-        List<Grant> grants = List.of(new Grant(Grant.ScopeType.GLOBAL, null, Set.of(Permissions.CLUSTER_READ)));
+        List<TokenGrant> grants = List.of(TokenGrant.of(Grant.ScopeType.GLOBAL, null, Permissions.CLUSTER_READ));
 
         UUID ownerId = owner.userId();
         List<String> noTools = List.of();

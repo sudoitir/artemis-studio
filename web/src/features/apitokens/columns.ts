@@ -11,7 +11,12 @@ type DayUsage = UsageView['perDay'][number];
 const grantsLabel = (t: TokenView) =>
   t.grants.length === 0
     ? 'None'
-    : t.grants.map((g) => (g.scopeType === 'GLOBAL' ? g.action : `${g.action} (cluster)`)).join(', ');
+    : t.grants
+        .map((g) => {
+          const where = g.scopeType === 'GLOBAL' ? g.action : `${g.action} (cluster)`;
+          return g.resourcePattern ? `${where} on ${g.resourceKind?.toLowerCase()}s ${g.resourcePattern}` : where;
+        })
+        .join(', ');
 
 const nameColumn: Column<TokenView> = {
   id: 'name',

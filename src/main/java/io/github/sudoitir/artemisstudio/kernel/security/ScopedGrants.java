@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Tea
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +19,12 @@ public class ScopedGrants {
     private final GroupMappingRepository groupMappings;
     private final TeamPatternRepository teamPatterns;
     private final TeamShareRepository teamShares;
+    private final ApplicationEventPublisher events;
 
     /**
      * Drop every role assignment and group mapping scoped to {@code scopeId}, and for a cluster the
-     * team patterns and shares on it, in the caller's transaction.
+     * team patterns and shares on it, in the caller's transaction. Whoever else holds grants scoped to it, such
+     * as an API token, drops them on {@link ScopeGrantsRevoked}.
      */
     @Transactional
     public void revoke(String scopeType, UUID scopeId) {
@@ -31,5 +34,6 @@ public class ScopedGrants {
             teamPatterns.deleteByClusterId(scopeId);
             teamShares.deleteByClusterId(scopeId);
         }
+        events.publishEvent(new ScopeGrantsRevoked(scopeType, scopeId));
     }
 }

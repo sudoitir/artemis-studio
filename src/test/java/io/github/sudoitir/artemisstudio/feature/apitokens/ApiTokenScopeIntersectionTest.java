@@ -3,10 +3,16 @@ package io.github.sudoitir.artemisstudio.feature.apitokens;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourcePattern;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopedGrants;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
@@ -26,7 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * A key's grants are intersected with its owner's live grants (ADR-0039). The
+ * A key acts within its grants and its owner's grants at the time (ADR-0039). The
  * question this fixes is which owner grant reaches which token grant.
  *
  * <p>Scope-id equality alone made narrowing impossible for the people who most
@@ -42,6 +48,12 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
 
     @Autowired
     ApiTokenService tokens;
+
+    @Autowired
+    PermissionResolver perm;
+
+    @Autowired
+    ScopedGrants scopedGrants;
 
     @Autowired
     AppUserRepository users;
@@ -75,7 +87,7 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         return user.getId();
     }
 
-    private StudioPrincipal authenticateKeyFor(UUID userId, Grant tokenGrant) {
+    private StudioPrincipal authenticateKeyFor(UUID userId, TokenGrant tokenGrant) {
         var minted = tokens.mint(
                 userId,
                 "k-" + UUID.randomUUID(),
@@ -93,10 +105,10 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         UUID user = owner(Grant.ScopeType.GLOBAL, null, Permissions.CLUSTER_READ);
 
         StudioPrincipal principal =
-                authenticateKeyFor(user, new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(Permissions.CLUSTER_READ)));
+                authenticateKeyFor(user, TokenGrant.of(Grant.ScopeType.CLUSTER, cluster, Permissions.CLUSTER_READ));
 
         assertThat(principal).isNotNull();
-        assertThat(principal.pinnedGrants())
+        assertThat(perm.grantsOf(principal))
                 .describedAs("a global owner narrowing a key to one cluster used to get an empty grant set")
                 .containsExactly(new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(Permissions.CLUSTER_READ)));
 
@@ -110,10 +122,10 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         UUID user = owner(Grant.ScopeType.CLUSTER, cluster, Permissions.CLUSTER_READ);
 
         StudioPrincipal principal = authenticateKeyFor(
-                user, new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of(Permissions.CLUSTER_READ)));
+                user, TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Permissions.CLUSTER_READ));
 
         assertThat(principal).isNotNull();
-        assertThat(principal.pinnedGrants())
+        assertThat(perm.grantsOf(principal))
                 .describedAs("widening must not run in this direction — a key cannot exceed its owner")
                 .isEmpty();
 
@@ -129,9 +141,9 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         UUID user = owner(Grant.ScopeType.CLUSTER, mine, Permissions.CLUSTER_READ);
 
         StudioPrincipal principal =
-                authenticateKeyFor(user, new Grant(Grant.ScopeType.CLUSTER, theirs, Set.of(Permissions.CLUSTER_READ)));
+                authenticateKeyFor(user, TokenGrant.of(Grant.ScopeType.CLUSTER, theirs, Permissions.CLUSTER_READ));
 
-        assertThat(principal.pinnedGrants()).isEmpty();
+        assertThat(perm.grantsOf(principal)).isEmpty();
 
         clusters.deleteById(mine);
         clusters.deleteById(theirs);
@@ -144,11 +156,55 @@ class ApiTokenScopeIntersectionTest extends PostgresIntegrationTest {
         UUID user = owner(Grant.ScopeType.GLOBAL, null, Permissions.CLUSTER_READ);
 
         StudioPrincipal principal = authenticateKeyFor(
-                user, new Grant(Grant.ScopeType.CLUSTER, cluster, Set.of(MessagePermissions.QUEUE_PURGE)));
+                user, TokenGrant.of(Grant.ScopeType.CLUSTER, cluster, MessagePermissions.QUEUE_PURGE));
 
-        assertThat(principal.pinnedGrants())
+        assertThat(perm.grantsOf(principal))
                 .describedAs("the scope walk widens the scope, never the permission set")
                 .isEmpty();
+
+        clusters.deleteById(cluster);
+    }
+
+    @Test
+    void aGrantLimitedToAPatternIsKeptAndIsTheKeysOwn() {
+        UUID cluster = clusters.save(new ClusterEntity("pattern-" + UUID.randomUUID(), null, null))
+                .getId();
+        UUID user = owner(Grant.ScopeType.GLOBAL, null, Permissions.WILDCARD);
+        TokenGrant limited = new TokenGrant(
+                Grant.ScopeType.CLUSTER,
+                cluster,
+                MessagePermissions.MESSAGE_READ,
+                ResourceKind.QUEUE,
+                ResourcePattern.parse("orders.#"));
+
+        var minted = tokens.mint(
+                user, "k-" + UUID.randomUUID(), Instant.now().plusSeconds(3600), List.of(limited), List.of(), false);
+
+        assertThat(tokens.grantsOf(minted.entity().getId())).containsExactly(limited);
+        assertThat(((TokenPrincipal) tokens.authenticate(minted.plaintext())).grants())
+                .containsExactly(limited);
+
+        clusters.deleteById(cluster);
+    }
+
+    @Test
+    void revokingAScopeRemovesTheGrantsOfKeysScopedToIt() {
+        UUID cluster = clusters.save(new ClusterEntity("gone-" + UUID.randomUUID(), null, null))
+                .getId();
+        UUID user = owner(Grant.ScopeType.GLOBAL, null, Permissions.WILDCARD);
+        TokenGrant here = TokenGrant.of(Grant.ScopeType.CLUSTER, cluster, Permissions.CLUSTER_READ);
+        TokenGrant everywhere = TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Permissions.CLUSTER_READ);
+        var minted = tokens.mint(
+                user,
+                "k-" + UUID.randomUUID(),
+                Instant.now().plusSeconds(3600),
+                List.of(here, everywhere),
+                List.of(),
+                false);
+
+        scopedGrants.revoke("CLUSTER", cluster);
+
+        assertThat(tokens.grantsOf(minted.entity().getId())).containsExactly(everywhere);
 
         clusters.deleteById(cluster);
     }

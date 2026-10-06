@@ -12,7 +12,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** Maps {@code api_token_grant} (changeset 014): the scope+permission subset a token was narrowed to. */
+/**
+ * Maps {@code api_token_grant}: the scope and permission a token was narrowed to, and when the grant is
+ * limited to names matching a pattern, the kind of resource and the pattern. Both are empty for a grant on
+ * the whole scope.
+ */
 @Entity
 @Table(name = "api_token_grant")
 @Getter
@@ -22,8 +26,9 @@ public class ApiTokenGrantEntity {
     @EmbeddedId
     private Key id;
 
-    public ApiTokenGrantEntity(UUID tokenId, String action, String scopeType, UUID scopeId) {
-        this.id = new Key(tokenId, action, scopeType, scopeId);
+    public ApiTokenGrantEntity(
+            UUID tokenId, String action, String scopeType, UUID scopeId, String resourceKind, String resourcePattern) {
+        this.id = new Key(tokenId, action, scopeType, scopeId, resourceKind, resourcePattern);
     }
 
     public UUID getTokenId() {
@@ -42,6 +47,14 @@ public class ApiTokenGrantEntity {
         return id.scopeId;
     }
 
+    public String getResourceKind() {
+        return id.resourceKind;
+    }
+
+    public String getResourcePattern() {
+        return id.resourcePattern;
+    }
+
     @Embeddable
     @Getter
     @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -58,11 +71,19 @@ public class ApiTokenGrantEntity {
         @Column(name = "scope_id")
         private UUID scopeId;
 
-        Key(UUID tokenId, String action, String scopeType, UUID scopeId) {
+        @Column(name = "resource_kind")
+        private String resourceKind;
+
+        @Column(name = "resource_pattern")
+        private String resourcePattern;
+
+        Key(UUID tokenId, String action, String scopeType, UUID scopeId, String resourceKind, String resourcePattern) {
             this.tokenId = tokenId;
             this.action = action;
             this.scopeType = scopeType;
             this.scopeId = scopeId;
+            this.resourceKind = resourceKind;
+            this.resourcePattern = resourcePattern;
         }
 
         @Override
@@ -72,12 +93,14 @@ public class ApiTokenGrantEntity {
             return Objects.equals(tokenId, key.tokenId)
                     && Objects.equals(action, key.action)
                     && Objects.equals(scopeType, key.scopeType)
-                    && Objects.equals(scopeId, key.scopeId);
+                    && Objects.equals(scopeId, key.scopeId)
+                    && Objects.equals(resourceKind, key.resourceKind)
+                    && Objects.equals(resourcePattern, key.resourcePattern);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(tokenId, action, scopeType, scopeId);
+            return Objects.hash(tokenId, action, scopeType, scopeId, resourceKind, resourcePattern);
         }
     }
 }
