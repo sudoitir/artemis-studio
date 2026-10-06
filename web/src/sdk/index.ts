@@ -40,7 +40,7 @@ export {
 export { NAV_GROUPS, type NavGroupId } from '../kernel/nav/groups.ts';
 export { clusterRoute, rootRoute } from '../kernel/routing/roots.ts';
 export { ApiError, clusterKey, request } from '../kernel/api/request.ts';
-export { useCan } from '../kernel/auth/useCan.ts';
+export { useCan, type AllowedActions, type ResourceWhere } from '../kernel/auth/useCan.ts';
 export {
   ACTION_SECTIONS,
   type ActionHost,

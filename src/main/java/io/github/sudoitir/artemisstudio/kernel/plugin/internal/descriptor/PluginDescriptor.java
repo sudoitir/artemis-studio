@@ -96,16 +96,26 @@ public record PluginDescriptor(
 
     /**
      * An assistant tool the plugin registers. Studio checks {@code permission} before the tool runs:
-     * on the cluster named by its {@code clusterId} argument when {@code scope} is {@code cluster},
-     * otherwise globally.
+     * on the queue or address named by its {@code resourceArg} on the cluster named by its
+     * {@code clusterId} argument when {@code scope} is {@code resource}, on that cluster when it is
+     * {@code cluster}, otherwise globally.
      *
      * @param posture {@code read} or {@code write}
-     * @param scope {@code cluster} or {@code global}
+     * @param scope {@code resource}, {@code cluster} or {@code global}; it matches the scope of the permission
      * @param permission one of the plugin's declared permission actions
+     * @param resourceArg a {@code resource} tool's required string argument holding the queue or address name
+     * @param resourceKind {@code queue} or {@code address}: what that argument names
      * @param params the detail the tool's schema leaves out, shown by {@code studio_help}
      */
     public record McpTool(
-            String name, String posture, String scope, String permission, String description, List<McpParam> params) {
+            String name,
+            String posture,
+            String scope,
+            String permission,
+            String resourceArg,
+            String resourceKind,
+            String description,
+            List<McpParam> params) {
 
         public McpTool {
             params = params == null ? List.of() : List.copyOf(params);
@@ -120,7 +130,7 @@ public record PluginDescriptor(
                     params.stream()
                             .map(p -> new McpToolDef.Param(p.name(), p.values(), p.shape(), p.note()))
                             .toList(),
-                    new McpToolDef.Access(permission, scope));
+                    new McpToolDef.Access(permission, scope, resourceArg, resourceKind));
         }
     }
 

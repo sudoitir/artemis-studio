@@ -23,10 +23,10 @@
 - [x] 3.4 `GET /api/v1/me/access` capability summary and access check endpoint (user × cluster × resource with sources); tests pass
 
 ## 4. Plugin API
-- [ ] 4.1 Manifest schema: `scope`, `resourceKinds`, `requires`; `globalOnly` refused; validator tests pass
-- [ ] 4.2 Published `ResourceRef`, resource `can`, `ResourceFilter`, `OwnerWork` (check at publish and before each run, suspend on loss) under `@PluginApi`; plugin messaging `AccessCheck` uses resource checks; tests pass
-- [ ] 4.3 MCP plugin tools `scope: resource` with resource argument; activation checks; Studio's own MCP tools use resource checks; tests pass
-- [ ] 4.4 SDK `useCan(perm, resource)` and `allowedActions` types; template plugin updated; `Contract.VERSION` bumped; japicmp/SDK checks pass
+- [x] 4.1 Manifest schema: `scope`, `resourceKinds`, `requires`; `globalOnly` refused; validator tests pass
+- [x] 4.2 Published `ResourceRef`, resource `can`, `ResourceFilter`, `OwnerWork` (check at publish and before each run, suspend on loss) under `@PluginApi`; plugin messaging `AccessCheck` uses resource checks; tests pass
+- [x] 4.3 MCP plugin tools `scope: resource` with resource argument; activation checks; Studio's own MCP tools use resource checks; tests pass
+- [x] 4.4 SDK `useCan(perm, resource)` and `allowedActions` types; template plugin updated; `Contract.VERSION` bumped; japicmp/SDK checks pass
 
 ## 5. Console
 - [x] 5.1 `useCan` reads server access summary and row `allowedActions` (environment-scope bug gone); component tests pass

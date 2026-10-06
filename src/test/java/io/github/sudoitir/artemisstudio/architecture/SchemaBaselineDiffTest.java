@@ -74,6 +74,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // A plugin's license file and its plugin's verdict (ADR-0153, changeset kernel-plugin 0010).
                     "plugin_license",
                     "plugin_message_registration",
+                    // Work a plugin runs later as its owner (changeset feature-plugins 0003).
+                    "plugin_owner_work",
                     // Plugin metrics (ADR-0113): samples with no broker node (changeset platform-scrape 0002)
                     // and the record of seeded plugin alert rules (changeset feature-alerting 0003).
                     "CREATE TABLE metric_sample(_default)? ",

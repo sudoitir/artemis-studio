@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import java.util.List;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.UUID;
  * <p>Built by {@link PermissionResolver#filter}; it holds the principal it was built for, so it must
  * not outlive the request.
  */
+@PluginApi
 public final class ResourceFilter {
 
     private final PermissionResolver resolver;

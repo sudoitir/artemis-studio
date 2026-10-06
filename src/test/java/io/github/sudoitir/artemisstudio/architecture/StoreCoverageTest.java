@@ -84,6 +84,9 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("setup_finding_acceptance", "configuration: an operator's accepted risks"),
             Map.entry("plugin_message_registration", "configuration"),
             Map.entry("plugin_message_registration_node", "current state: one row per node and registration"),
+            Map.entry(
+                    "plugin_owner_work",
+                    "configuration: one row per unit of plugin work, removed on withdraw or purge"),
             Map.entry("local_totp", "configuration: one row per user with an authenticator app"),
             Map.entry("local_totp_pending", "current state: one row per user mid-enrolment, replaced on a retry"),
             Map.entry("local_recovery_code", "configuration: ten rows per user, replaced when regenerated"),

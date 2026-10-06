@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal;
 
-import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationEntity;
 import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationNodeRepository;
@@ -162,10 +161,8 @@ public class PluginMessagingReconciler {
                     "The plugin " + reg.getPluginId() + " is not running, or declares no message handler,"
                             + " so nothing is delivered.");
         }
-        List<String> needs = reg.getMode() == RegistrationMode.TAP
-                ? List.of(MessagePermissions.MESSAGE_READ)
-                : List.of(MessagePermissions.MESSAGE_READ, MessagePermissions.QUEUE_PURGE);
-        Optional<String> denied = access.denial(reg.getActingUserId(), reg.getClusterId(), needs);
+        Optional<String> denied = access.denial(
+                reg.getActingUserId(), reg.getClusterId(), AccessCheck.needsOf(reg.getMode(), reg.getQueue()));
         return denied.map(why -> new Verdict(
                         RegistrationState.SUSPENDED,
                         "Suspended: " + why + " It resumes" + " by itself once the permission is granted again."))

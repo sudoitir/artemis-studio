@@ -4,7 +4,7 @@ import { screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import { useCan } from './useCan.ts';
+import { useCan, type ResourceWhere } from './useCan.ts';
 
 type Summary = {
   permissions: string[];
@@ -37,6 +37,24 @@ function Probe({ permission, clusterId }: Readonly<{ permission: string; cluster
     <p>
       {permission} {clusterId ?? 'installation'}: {can(permission, clusterId) ? 'yes' : 'no'}
       {loading ? ' (loading)' : ''}
+    </p>
+  );
+}
+
+function ResourceProbe({ permission, where }: Readonly<{ permission: string; where: ResourceWhere }>) {
+  const { can } = useCan();
+  return (
+    <p>
+      {permission} on {where.name}: {can(permission, where) ? 'yes' : 'no'}
+    </p>
+  );
+}
+
+function AnywhereProbe({ permission, clusterId }: Readonly<{ permission: string; clusterId: string }>) {
+  const { canAnywhere } = useCan();
+  return (
+    <p>
+      {permission} anywhere on {clusterId}: {canAnywhere(permission, clusterId) ? 'yes' : 'no'}
     </p>
   );
 }
@@ -166,5 +184,64 @@ describe('useCan', () => {
       await waitFor(() => expect(screen.getByText('reach: none')).toBeInTheDocument());
       expect(screen.getByText('anywhere: no')).toBeInTheDocument();
     });
+  });
+
+  it('asks the server about one queue, and follows what a team gives there', async () => {
+    serveAccess({ permissions: [] });
+    const asked: string[] = [];
+    server.use(
+      http.get('*/api/v1/me/access/resource', ({ request }) => {
+        const url = new URL(request.url);
+        asked.push(`${url.searchParams.get('kind')} ${url.searchParams.get('name')}`);
+        const own = url.searchParams.get('name') === 'orders.in';
+        return HttpResponse.json({ actions: own ? ['queue:read', 'acme:peek'] : [] });
+      }),
+    );
+    renderWithProviders(
+      <>
+        <ResourceProbe permission="acme:peek" where={{ clusterId: 'c1', kind: 'queue', name: 'orders.in' }} />
+        <ResourceProbe permission="acme:peek" where={{ clusterId: 'c1', kind: 'queue', name: 'billing.in' }} />
+      </>,
+    );
+
+    await waitFor(() => expect(screen.getByText('acme:peek on billing.in: no')).toBeInTheDocument());
+    expect(screen.getByText('acme:peek on orders.in: yes')).toBeInTheDocument();
+    expect(asked.sort()).toEqual(['QUEUE billing.in', 'QUEUE orders.in']);
+  });
+
+  it('answers from the allowedActions a row carries, with no request', async () => {
+    serveAccess({ permissions: [] });
+    server.use(http.get('*/api/v1/me/access/resource', () => HttpResponse.error()));
+    renderWithProviders(
+      <>
+        <ResourceProbe
+          permission="acme:write"
+          where={{ clusterId: 'c1', kind: 'queue', name: 'a', allowedActions: ['acme:write'] }}
+        />
+        <ResourceProbe
+          permission="acme:write"
+          where={{ clusterId: 'c1', kind: 'queue', name: 'b', allowedActions: ['acme:read'] }}
+        />
+      </>,
+    );
+
+    expect(await screen.findByText('acme:write on a: yes')).toBeInTheDocument();
+    expect(screen.getByText('acme:write on b: no')).toBeInTheDocument();
+  });
+
+  it('offers a page for a resource permission held on some queue of a cluster, through a team', async () => {
+    serveAccess({ permissions: [] }, { c1: { permissions: [], anywhere: ['acme:read'] }, c2: { permissions: [] } });
+    renderWithProviders(
+      <>
+        <AnywhereProbe permission="acme:read" clusterId="c1" />
+        <AnywhereProbe permission="acme:read" clusterId="c2" />
+        <Probe permission="acme:read" clusterId="c1" />
+      </>,
+    );
+
+    await waitFor(() => expect(screen.getByText('acme:read anywhere on c2: no')).toBeInTheDocument());
+    expect(screen.getByText('acme:read anywhere on c1: yes')).toBeInTheDocument();
+    // But holding it somewhere is not holding it on the cluster.
+    expect(screen.getByText('acme:read c1: no')).toBeInTheDocument();
   });
 });

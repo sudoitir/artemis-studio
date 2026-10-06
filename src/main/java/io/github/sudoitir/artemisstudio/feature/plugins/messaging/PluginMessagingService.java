@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.messaging;
 
-import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationEntity;
 import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationNodeEntity;
 import io.github.sudoitir.artemisstudio.feature.plugins.internal.persistence.RegistrationNodeRepository;
@@ -70,12 +69,10 @@ public class PluginMessagingService implements PluginScopedBeans {
 
     MessageRegistration register(String pluginId, RegistrationSpec spec) {
         validate(spec);
-        List<String> needs = spec.mode() == RegistrationMode.TAP
-                ? List.of(MessagePermissions.MESSAGE_READ)
-                : List.of(MessagePermissions.MESSAGE_READ, MessagePermissions.QUEUE_PURGE);
-        access.denial(spec.actingUserId(), spec.clusterId(), needs).ifPresent(why -> {
-            throw new RegistrationRefusedException(why);
-        });
+        access.denial(spec.actingUserId(), spec.clusterId(), AccessCheck.needsOf(spec.mode(), spec.queue()))
+                .ifPresent(why -> {
+                    throw new RegistrationRefusedException(why);
+                });
         AuditEvent event = audit.begin(
                 actor(pluginId, spec.actingUserId()),
                 "PLUGIN_MESSAGE_REGISTER",
@@ -189,7 +186,7 @@ public class PluginMessagingService implements PluginScopedBeans {
         if (clusters.cluster(clusterId).isEmpty()) {
             return Optional.of("The cluster " + clusterId + " is not registered.");
         }
-        return access.denial(actingUserId, clusterId, List.of(MessagePermissions.MESSAGE_SEND));
+        return access.denial(actingUserId, clusterId, AccessCheck.sendNeeds(address));
     }
 
     void send(String pluginId, OutboundMessage message) {

@@ -17,8 +17,8 @@ import java.util.UUID;
  *     is handed fewer messages and the rest wait on the queue. Messages that share a group id
  *     ({@code JMSXGroupID}) stay in order at any concurrency, because the broker hands a group to
  *     one consumer (ADR-0112)
- * @param actingUserId the Studio user the registration acts for, whose cluster permissions it
- *     needs now and on every later pass
+ * @param actingUserId the Studio user the registration acts for, whose permissions on the queue (through a
+ *     role, a team or a share) it needs now and on every later pass
  */
 @PluginApi
 public record RegistrationSpec(

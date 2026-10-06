@@ -1,18 +1,23 @@
 package io.github.sudoitir.artemisstudio.feature.plugins.messaging.internal;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
+import io.github.sudoitir.artemisstudio.feature.plugins.messaging.RegistrationMode;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Whether a user may use a cluster for a registration or a send, as their account stands now
- * (ADR-0111). Grants are read from the database every time, as {@code OperatorHandoff} does for
- * long-running work: a registration outlives any session, and a withdrawn grant must stop it.
+ * Whether a user may use a queue or address of a cluster for a registration or a send, as their account
+ * stands now (ADR-0111). Grants, team roles and shares are read from the database every time, as
+ * {@code OperatorHandoff} does for long-running work: a registration outlives any session, and a withdrawn
+ * right must stop it.
  */
 @Component
 @RequiredArgsConstructor
@@ -21,8 +26,29 @@ public class AccessCheck {
     private final UserAccounts accounts;
     private final PermissionResolver perm;
 
+    /** One permission the acting user needs on one queue or address of the cluster. */
+    public record Need(ResourceRef resource, String permission) {}
+
+    /**
+     * What a registration needs on its queue: reading it for a tap, and also purging it for a consumer,
+     * because consuming removes messages.
+     */
+    public static List<Need> needsOf(RegistrationMode mode, String queue) {
+        ResourceRef resource = ResourceRef.queue(queue);
+        return mode == RegistrationMode.TAP
+                ? List.of(new Need(resource, MessagePermissions.MESSAGE_READ))
+                : List.of(
+                        new Need(resource, MessagePermissions.MESSAGE_READ),
+                        new Need(resource, MessagePermissions.QUEUE_PURGE));
+    }
+
+    /** What a send needs: {@code message:send} on the address it goes to. */
+    public static List<Need> sendNeeds(String address) {
+        return List.of(new Need(ResourceRef.address(address), MessagePermissions.MESSAGE_SEND));
+    }
+
     /** Why the user may not, in words, or empty when they may. */
-    public Optional<String> denial(UUID userId, UUID clusterId, List<String> permissions) {
+    public Optional<String> denial(UUID userId, UUID clusterId, List<Need> needs) {
         if (userId == null) {
             return Optional.of("No acting user was given, and every registration and send acts for one.");
         }
@@ -34,10 +60,12 @@ public class AccessCheck {
             return Optional.of("The acting user '" + account.get().username() + "' is disabled.");
         }
         StudioPrincipal principal = StudioPrincipal.live(userId, account.get().username(), false);
-        for (String permission : permissions) {
-            if (!perm.can(principal, clusterId, permission)) {
-                return Optional.of("The acting user '" + account.get().username() + "' does not hold " + permission
-                        + " on cluster " + clusterId + ".");
+        for (Need need : needs) {
+            if (!perm.can(principal, clusterId, need.resource(), need.permission())) {
+                return Optional.of("The acting user '" + account.get().username() + "' does not hold "
+                        + need.permission() + " on "
+                        + need.resource().kind().name().toLowerCase(Locale.ROOT) + " "
+                        + need.resource().name() + " of cluster " + clusterId + ".");
             }
         }
         return Optional.empty();

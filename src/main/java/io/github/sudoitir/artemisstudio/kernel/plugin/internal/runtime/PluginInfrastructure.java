@@ -1,6 +1,9 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime;
 
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
+import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Condition;
 import org.springframework.context.annotation.ConditionContext;
@@ -100,7 +103,7 @@ class PluginMessageConverterConfig implements WebMvcConfigurer {
 }
 
 /**
- * A plugin's {@code @PreAuthorize} refusal as a problem body. Registered by
+ * A plugin's {@code @PreAuthorize} refusal, and what {@code ClusterAccessGuard} throws for it, as a problem body. Registered by
  * {@link PluginInfrastructure}; the condition keeps the application's own component scan (which
  * covers {@code kernel}) from adding it to the main context, where it would rewrite every core
  * access denial.
@@ -108,6 +111,22 @@ class PluginMessageConverterConfig implements WebMvcConfigurer {
 @RestControllerAdvice
 @Conditional(PluginContextOnly.class)
 class PluginAccessDeniedAdvice {
+
+    /** A queue or address the caller may not read answers as one that does not exist. */
+    @ExceptionHandler(NotFoundException.class)
+    ProblemDetail onNotFound(NotFoundException e) {
+        return Problems.of(HttpStatus.NOT_FOUND, "not-found", "Resource not found", e.getMessage());
+    }
+
+    /** One the caller may read and may not use names the permission and the resource, as Studio's own do. */
+    @ExceptionHandler(ResourceForbiddenException.class)
+    ProblemDetail onResourceForbidden(ResourceForbiddenException e) {
+        ProblemDetail problem =
+                Problems.of(HttpStatus.FORBIDDEN, "resource-forbidden", "Access denied", e.getMessage());
+        problem.setProperty("permission", e.permission());
+        problem.setProperty("resource", Map.of("kind", e.kind(), "name", e.name()));
+        return problem;
+    }
 
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail onAccessDenied(AccessDeniedException e) {

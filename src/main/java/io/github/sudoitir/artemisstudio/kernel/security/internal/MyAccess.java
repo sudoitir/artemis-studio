@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
@@ -17,6 +18,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Tea
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.AccessSummary;
 import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.CreatePatterns;
+import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.MyResourceAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.web.AccessViews.TeamMembership;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +80,15 @@ public class MyAccess {
                         perm.patternsHolding(clusterId, ResourceKind.ADDRESS, ADDRESS_CREATE));
         return new AccessSummary(
                 held, anywhere, clusterId == null ? null : perm.canSeeCluster(clusterId), teams(), createPatterns);
+    }
+
+    /**
+     * The actions the caller holds on one queue or address. A resource they may not read has none, whether or
+     * not it exists.
+     */
+    public MyResourceAccess onResource(UUID clusterId, ResourceKind kind, String name) {
+        ResourceFilter filter = perm.filter(clusterId, kind);
+        return new MyResourceAccess(filter.readable(name) ? filter.allowedActions(name) : List.of());
     }
 
     /** The teams the caller belongs to, directly or through a directory group; none for an API key. */

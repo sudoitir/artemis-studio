@@ -11,6 +11,7 @@ export type IdentityProviderView = Schemas['IdentityProviderView'];
 export type LoginRequest = Schemas['LoginRequest'];
 export type MeView = Schemas['MeView'];
 export type AccessSummary = Schemas['AccessSummary'];
+export type MyResourceAccess = Schemas['MyResourceAccess'];
 export type AuthResult = Schemas['AuthResult'];
 export type SecondFactorRequest = Schemas['SecondFactorRequest'];
 /** How a person can prove a second factor: an authenticator code, a passkey, or a recovery code. */
@@ -31,6 +32,7 @@ export const keys = {
 export const accessKeys = {
   all: ['access'] as const,
   of: (clusterId?: string) => ['access', clusterId ?? 'global'] as const,
+  resource: (clusterId: string, kind: string, name: string) => ['access', 'resource', clusterId, kind, name] as const,
 };
 
 /**
@@ -42,6 +44,16 @@ export function accessQuery(clusterId?: string) {
   return queryOptions({
     queryKey: accessKeys.of(clusterId),
     queryFn: () => request<AccessSummary>(clusterId ? `/me/access?clusterId=${clusterId}` : '/me/access'),
+    retry: false,
+    staleTime: 30_000,
+  });
+}
+
+/** What the signed-in user may do with one queue or address: the actions they hold on it, as the server decides. */
+export function resourceAccessQuery(clusterId: string, kind: 'QUEUE' | 'ADDRESS', name: string) {
+  return queryOptions({
+    queryKey: accessKeys.resource(clusterId, kind, name),
+    queryFn: () => request<MyResourceAccess>(`/me/access/resource?${new URLSearchParams({ clusterId, kind, name })}`),
     retry: false,
     staleTime: 30_000,
   });

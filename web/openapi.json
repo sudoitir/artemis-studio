@@ -15761,6 +15761,108 @@
         }
       }
     },
+    "/api/v1/me/access/resource" : {
+      "get" : {
+        "tags" : [ "access-controller" ],
+        "operationId" : "resource",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "kind",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "QUEUE", "ADDRESS" ]
+          }
+        }, {
+          "name" : "name",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyResourceAccess"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mcp/tools" : {
       "get" : {
         "tags" : [ "mcp-tools-controller" ],
@@ -30184,6 +30286,20 @@
           }
         },
         "required" : [ "roleId", "roleName", "teamAdmin", "teamId", "teamName" ]
+      },
+      "MyResourceAccess" : {
+        "type" : "object",
+        "description" : "What the caller may do with one queue or address: the actions they hold on it.",
+        "properties" : {
+          "actions" : {
+            "type" : "array",
+            "description" : "The resource permissions the caller holds on it, through a grant, a team or a share, including plugins'. Empty for a resource they may not read.",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "actions" ]
       },
       "McpToolView" : {
         "type" : "object",

@@ -1908,6 +1908,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/access/resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mcp/tools": {
         parameters: {
             query?: never;
@@ -5647,6 +5663,11 @@ export interface components {
             roleName: string;
             /** @description Whether the team role holds team:admin. */
             teamAdmin: boolean;
+        };
+        /** @description What the caller may do with one queue or address: the actions they hold on it. */
+        MyResourceAccess: {
+            /** @description The resource permissions the caller holds on it, through a grant, a team or a share, including plugins'. Empty for a resource they may not read. */
+            actions: string[];
         };
         McpToolView: {
             name: string;
@@ -17018,6 +17039,65 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AccessSummary"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    resource: {
+        parameters: {
+            query: {
+                clusterId: string;
+                kind: "QUEUE" | "ADDRESS";
+                name: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MyResourceAccess"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */

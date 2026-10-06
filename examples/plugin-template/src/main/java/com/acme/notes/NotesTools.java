@@ -10,8 +10,9 @@ import org.springframework.stereotype.Component;
  * An assistant tool, offered on Studio's MCP endpoint while the plugin runs. Its name starts with
  * the plugin's id in snake_case and is declared in plugin.json with its posture ({@code read} or
  * {@code write}), its scope and its permission. Studio checks that permission before the tool
- * runs, on the cluster named by {@code clusterId} because the scope is {@code cluster}, so the
- * tool itself does not. A {@code read} tool is annotated read-only.
+ * runs, on the queue named by {@code queue} on the cluster named by {@code clusterId} because the scope is
+ * {@code resource}, so the tool itself does not. A key that may not read the queue is told it does not exist,
+ * and the tool never runs. A {@code read} tool is annotated read-only.
  */
 @Component
 public class NotesTools {

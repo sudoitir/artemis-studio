@@ -11,7 +11,7 @@ export function NotesList({ clusterId, queue }: { clusterId: string; queue: stri
   const remove = useDeleteNote(clusterId);
   const { can } = useCan();
   const [body, setBody] = useState('');
-  const canWrite = can(`${ID}:write`, clusterId);
+  const canWrite = can(`${ID}:write`, { clusterId, kind: 'queue', name: queue });
 
   const columns = useMemo<Column<Note>[]>(() => {
     const cols: Column<Note>[] = [
