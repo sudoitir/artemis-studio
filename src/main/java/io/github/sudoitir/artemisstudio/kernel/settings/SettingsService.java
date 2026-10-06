@@ -27,6 +27,8 @@ import org.springframework.scheduling.support.CronExpression;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * The runtime configuration layer: a stored {@code studio_setting} row wins over the
@@ -331,6 +333,15 @@ public class SettingsService {
     private void changed() {
         refreshOverrides();
         bus.publish(new ReplicaSignal("settings", ""));
+        // That read saw this transaction's rows, which nobody else can until it commits. A refresh another
+        // change's signal started meanwhile read the old rows and, taking the lock after this one, would put the
+        // old values back until this change's own signal arrives. Reading again once committed is last.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                refreshOverrides();
+            }
+        });
     }
 
     /** Another replica wrote a setting: re-read the overrides and push them. */
