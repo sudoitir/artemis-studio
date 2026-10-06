@@ -3,6 +3,8 @@ import { Button, Drawer, Group, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { MiddleTruncate } from '../../ui/table/MiddleTruncate.tsx';
+import classes from './Configuration.module.css';
 
 /**
  * The frame every declaration editor shares: a side drawer (keyboard-complete,
@@ -49,7 +51,8 @@ export function EditorDrawer({
     <Drawer
       opened={opened}
       onClose={onClose}
-      title={title}
+      title={<MiddleTruncate text={title} tooltip />}
+      classNames={{ title: classes.drawerTitle }}
       position="right"
       size="lg"
       padding="md"

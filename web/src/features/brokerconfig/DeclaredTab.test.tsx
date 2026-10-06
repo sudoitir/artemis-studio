@@ -126,6 +126,6 @@ describe('DeclaredTab', () => {
     show(d);
 
     const row = screen.getByRole('row', { name: /orders\.#.*differs on broker-1/ });
-    expect(within(row).getByText(/→ DROP/)).toBeInTheDocument();
+    expect(within(row).getByText('DROP').closest('dd')).toHaveTextContent('PAGE → DROP');
   });
 });
