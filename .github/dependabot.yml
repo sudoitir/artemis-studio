@@ -26,6 +26,11 @@ updates:
       maven-minor-patch:
         update-types: ["minor", "patch"]
     ignore:
+      # Maven 3.10's resolver writes maven-metadata-local.xml and _remote.repositories into
+      # central-publishing-maven-plugin's staging repository (0.11.0, the newest), and Maven Central
+      # refuses the bundle. Stay on 3.9 until the plugin handles it.
+      - dependency-name: "org.apache.maven:apache-maven"
+        versions: [">= 3.10.0"]
       - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
         update-types: ["version-update:semver-major"]
       - dependency-name: "org.postgresql:postgresql"
