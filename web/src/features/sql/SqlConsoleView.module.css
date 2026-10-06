@@ -55,6 +55,15 @@
   border: 0;
 }
 
+/* The results' own controls: the export on the start side, the maximise button on the end. */
+.resultsBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm);
+}
+
 /* The grid gets whatever the pane has left, and scrolls inside itself. */
 .resultStack {
   min-block-size: 0;

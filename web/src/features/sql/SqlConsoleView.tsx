@@ -1,6 +1,6 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Button, Splitter } from '@mantine/core';
-import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
+import { useDebouncedValue, useElementSize, useHotkeys, type UseSplitterReturnValue } from '@mantine/hooks';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import { CapabilityLedger, useCluster } from '../clusters/index.ts';
@@ -29,6 +29,8 @@ const STARTER = 'SELECT *\nFROM "ORDER.IN"\nORDER BY timestamp DESC\nLIMIT 100';
 /** The editor's and the results' share of the workspace, in %, remembered in this browser. */
 const SPLIT_KEY = 'as:sql:split';
 const DEFAULT_SPLIT = [36, 64];
+/** The split once rows exist and the operator has not chosen one: the rows are what they came to read. */
+const RESULTS_SPLIT = [28, 72];
 const EDITOR_MIN = 20;
 const RESULTS_MIN = 25;
 
@@ -57,13 +59,13 @@ function validSplit(sizes: unknown): sizes is number[] {
   );
 }
 
-/** The split this browser remembered, or the default when it holds none or one that cannot be trusted. */
-function readSplit(): number[] {
+/** The split this browser remembered; null when it holds none or one that cannot be trusted. */
+function readSplit(): number[] | null {
   try {
     const stored: unknown = JSON.parse(globalThis.localStorage.getItem(SPLIT_KEY) ?? 'null');
-    return validSplit(stored) ? stored : DEFAULT_SPLIT;
+    return validSplit(stored) ? stored : null;
   } catch {
-    return DEFAULT_SPLIT;
+    return null;
   }
 }
 
@@ -111,7 +113,14 @@ export function SqlConsoleView() {
   const [openRow, setOpenRow] = useState<SqlRowView | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [debounced] = useDebouncedValue(text, 400);
-  const [split] = useState(readSplit);
+  const [remembered] = useState(readSplit);
+  const split = remembered ?? DEFAULT_SPLIT;
+  const splitter = useRef<UseSplitterReturnValue>(null);
+  // Whether the operator has set the split, here or on an earlier visit: only then is it theirs to keep.
+  // The console's own moves (favouring the results, maximising them) are not a choice and are not stored.
+  const chosen = useRef(remembered !== null);
+  const moving = useRef(false);
+  const [maximised, setMaximised] = useState(false);
 
   const cluster = useCluster(clusterId);
   const queues = useQueues(clusterId, { size: QUEUE_COMPLETION_LIMIT });
@@ -173,8 +182,37 @@ export function SqlConsoleView() {
     }
     run.cancel();
   };
-  // In the editor Mod+. is the editor's own key; here it is the page's. Escape is never bound to this.
-  useHotkeys([['mod+.', cancel]]);
+  const hasRows = run.rows.length > 0 || run.result !== null;
+  // The first rows are what the operator came to read: unless they have set a split, the results take more
+  // of the workspace. Done once, as the rows arrive, so a later query does not move what they are reading.
+  const favoured = useRef(false);
+  useEffect(() => {
+    if (!hasRows || favoured.current) return;
+    favoured.current = true;
+    if (chosen.current) return;
+    moving.current = true;
+    splitter.current?.setSizes(RESULTS_SPLIT);
+    moving.current = false;
+  }, [hasRows]);
+
+  const toggleResults = () => {
+    if (maximised) splitter.current?.expand(0);
+    else splitter.current?.collapse(0);
+  };
+  // Escape restores the editor. It is the editor's own key until the results are maximised, when the editor
+  // is out of reach and there is nothing in it to close, so it never competes with the editor's Escape.
+  // Taken in the capture phase: a control inside the results (the tooltip of the button, a menu) may stop
+  // the key on its way up, and restoring must not depend on which of them has focus.
+  const onFrameKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !maximised || event.defaultPrevented) return;
+    splitter.current?.expand(0);
+  };
+  // In the editor Mod+. and Mod+Shift+M are the editor's own keys; here they are the page's. Escape is never
+  // bound to cancelling.
+  useHotkeys([
+    ['mod+.', cancel],
+    ['mod+shift+M', toggleResults],
+  ]);
 
   return (
     <Page fill>
@@ -240,24 +278,32 @@ export function SqlConsoleView() {
         costId={costId}
       />
 
-      <div className={classes.frame} ref={workspace.ref}>
+      <div className={classes.frame} ref={workspace.ref} onKeyDownCapture={onFrameKeyDown}>
         <Splitter
           orientation="vertical"
           className={classes.workspace}
           classNames={{ pane: classes.pane }}
+          splitterRef={splitter}
           step={5}
           shiftStep={10}
           lineSize={1}
           handleColor="var(--as-border)"
-          onSizeChange={rememberSplit}
+          onSizeChange={(sizes) => {
+            if (moving.current) return;
+            chosen.current = true;
+            rememberSplit(sizes);
+          }}
+          onCollapseChange={(index, collapsed) => index === 0 && setMaximised(collapsed)}
           attributes={{ handle: { 'aria-label': 'Resize the editor and the results' } }}
         >
-          <Splitter.Pane defaultSize={split[0]} min={editorMin}>
+          {/* Maximised, the editor is collapsed to nothing and out of reach; its split is kept for Escape. */}
+          <Splitter.Pane defaultSize={split[0]} min={editorMin} collapsible collapseThreshold={0} inert={maximised}>
             <QueryPane
               text={text}
               onText={setText}
               onRun={() => execute()}
               onCancel={cancel}
+              onMaximise={toggleResults}
               onEscape={() =>
                 toolbar.current?.querySelector<HTMLElement>('button:not(:disabled), input:not(:disabled)')?.focus()
               }
@@ -273,6 +319,8 @@ export function SqlConsoleView() {
             <ResultPane
               clusterId={clusterId}
               run={run}
+              maximised={maximised}
+              onToggleMaximise={toggleResults}
               onOpenRow={setOpenRow}
               onRunAgain={() => execute()}
               onStopTail={cancel}

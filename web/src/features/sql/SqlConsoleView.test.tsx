@@ -889,9 +889,10 @@ describe('SqlConsoleView result columns and export', () => {
     await withRows();
 
     expect(screen.getByRole('columnheader', { name: /Prio/ })).toBeInTheDocument();
+    // The old fraction is ignored: with rows and no split of its own, the results get the larger share.
     expect(screen.getByRole('separator', { name: 'Resize the editor and the results' })).toHaveAttribute(
       'aria-valuenow',
-      '36',
+      '28',
     );
     expect(window.localStorage.getItem('artemis-studio.sql.columns')).toBe('["body"]');
     expect(window.localStorage.getItem('artemis-studio.sql.editorFraction')).toBe('0.7');

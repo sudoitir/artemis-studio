@@ -102,6 +102,7 @@ export function QueryPane({
   onText,
   onRun,
   onCancel,
+  onMaximise,
   onEscape,
   queueNames,
   completionCapped,
@@ -114,6 +115,7 @@ export function QueryPane({
   onText: (next: string) => void;
   onRun: () => void;
   onCancel: () => void;
+  onMaximise: () => void;
   onEscape: () => void;
   queueNames: string[];
   completionCapped: boolean;
@@ -130,6 +132,7 @@ export function QueryPane({
         onChange={onText}
         onRun={onRun}
         onCancel={onCancel}
+        onMaximise={onMaximise}
         onEscape={onEscape}
         queues={queueNames}
         describedBy={costId}
