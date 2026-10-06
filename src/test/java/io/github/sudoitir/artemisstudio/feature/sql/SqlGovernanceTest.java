@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,7 +44,7 @@ class SqlGovernanceTest {
     }
 
     private void clear(boolean clear) {
-        when(policy.context(eq(CLUSTER), isNull())).thenReturn(new GovernContext(CLUSTER, null, clear));
+        when(policy.mayClear(eq(CLUSTER), anyString())).thenReturn(clear);
     }
 
     private static QueryAst where(Predicate predicate, List<QueryAst.Order> orderBy) {
@@ -180,9 +179,9 @@ class SqlGovernanceTest {
 
     @Test
     void clearAccessIsWhatThePolicyReportsForTheCaller() {
-        assertThat(governance.clearAccess(CLUSTER)).isFalse();
+        assertThat(governance.clearAccess(CLUSTER, "orders")).isFalse();
         clear(true);
-        assertThat(governance.clearAccess(CLUSTER)).isTrue();
+        assertThat(governance.clearAccess(CLUSTER, "orders")).isTrue();
     }
 
     @Test

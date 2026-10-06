@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.sql.web;
 
-import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.BrokerQueryExecutor;
 import io.github.sudoitir.artemisstudio.feature.sql.CostRefusedException;
 import io.github.sudoitir.artemisstudio.feature.sql.GovernanceRefusedException;
@@ -105,7 +104,7 @@ public class SqlStreamController {
             @RequestParam(defaultValue = "") String queryId,
             HttpServletRequest request,
             HttpServletResponse response) {
-        clusterAccess.requireCluster(clusterId, MessagePermissions.MESSAGE_READ);
+        clusterAccess.requireVisible(clusterId);
         response.setHeader("X-Accel-Buffering", "no");
 
         SseEmitter emitter = new SseEmitter(0L);
@@ -116,7 +115,7 @@ public class SqlStreamController {
 
         // Clear access and the actor are resolved here, on the request thread: tail rows arrive on threads with
         // no security context, and are governed and audited for the caller who opened the stream.
-        Session session = new Session(emitter, clusterId, governance.clearAccess(clusterId), actors.resolve());
+        Session session = new Session(emitter, clusterId, actors.resolve());
         emitter.onCompletion(() -> release(clusterId, subscriber, session));
         emitter.onTimeout(() -> release(clusterId, subscriber, session));
         emitter.onError(e -> release(clusterId, subscriber, session));
@@ -168,6 +167,7 @@ public class SqlStreamController {
     private void run(UUID clusterId, String sql, boolean tail, Session session) {
         SqlConsoleService.Executed executed;
         try {
+            session.clearAccess = console.clearAccessFor(clusterId, sql);
             executed = console.run(clusterId, sql, session);
         } catch (RuntimeException e) {
             session.send("failed", problemFor(e));
@@ -232,7 +232,9 @@ public class SqlStreamController {
 
         private final SseEmitter emitter;
         private final UUID clusterId;
-        private final boolean clearAccess;
+        /** Set before the query runs, from what the query reads: rows and tail rows are shown clear only where it holds. */
+        private volatile boolean clearAccess;
+
         private final Actor actor;
         private volatile boolean cancelled;
         private final AtomicReference<SqlTailPoller.Tail> tail = new AtomicReference<>();
@@ -244,10 +246,9 @@ public class SqlStreamController {
         private final Map<String, Long> tailClear = new ConcurrentHashMap<>();
         private final AtomicLong tailClearRows = new AtomicLong();
 
-        private Session(SseEmitter emitter, UUID clusterId, boolean clearAccess, Actor actor) {
+        private Session(SseEmitter emitter, UUID clusterId, Actor actor) {
             this.emitter = emitter;
             this.clusterId = clusterId;
-            this.clearAccess = clearAccess;
             this.actor = actor;
         }
 

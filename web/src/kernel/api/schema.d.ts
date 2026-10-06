@@ -6075,6 +6075,8 @@ export interface components {
             /** Format: int64 */
             producerCount: number;
             creationTime?: string | null;
+            /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
+            allowedActions: string[];
         };
         AddressStatsView: {
             address: string;
@@ -6295,6 +6297,8 @@ export interface components {
             /** @description True when the queue is paused on at least one node. A queue paused on some nodes and not others is a divergence the operator needs to see, so this is deliberately 'any', not 'all' — perNode says which. */
             paused: boolean;
             perNode: components["schemas"]["QueueNodeCell"][];
+            /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
+            allowedActions: string[];
         };
         MessagePageView: {
             data: components["schemas"]["MessageSummaryView"][];
@@ -6422,6 +6426,8 @@ export interface components {
             protocol?: string | null;
             /** Format: int64 */
             messagesSent: number;
+            /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
+            allowedActions: string[];
         };
         /** @description One configuration key on one node */
         NodeConfigEntryView: {
@@ -6743,6 +6749,8 @@ export interface components {
             /** Format: int64 */
             messagesAcknowledged: number;
             status?: string | null;
+            /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
+            allowedActions: string[];
         };
         PagedViewConsumerView: {
             data: components["schemas"]["ConsumerView"][];
@@ -6839,6 +6847,8 @@ export interface components {
             /** Format: int64 */
             sessionCount: number;
             creationTime?: string | null;
+            /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
+            allowedActions: string[];
         };
         PagedViewConnectionView: {
             data: components["schemas"]["ConnectionView"][];
@@ -7218,6 +7228,8 @@ export interface components {
             queueCount: number;
             /** Format: int64 */
             messageCount: number;
+            /** @description The actions of the catalogue that apply to this row and that the caller holds on it, such as queue:purge. The console gates its controls from this. */
+            allowedActions: string[];
         };
         PagedViewAddressView: {
             data: components["schemas"]["AddressView"][];

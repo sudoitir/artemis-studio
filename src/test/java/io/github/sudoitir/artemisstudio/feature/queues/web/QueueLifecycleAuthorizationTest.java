@@ -27,8 +27,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Each lifecycle route requires its own permission, and a caller without it
- * cannot learn that the cluster exists.
+ * Each lifecycle route requires its own permission on the queue or address it acts on: a caller who may read
+ * it and lacks the permission is refused with a 403 naming it, and a caller who may not read it, or has no
+ * grant on the cluster, cannot learn that either exists.
  *
  * <p>The second half matters as much as the first: {@code ClusterAccessGuard}
  * answers {@code 404}, not {@code 403}, precisely so that probing for cluster ids
@@ -73,14 +74,16 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
 
     @Test
     void createNeedsTheCreatePermission() throws Exception {
-        // The read permission alone is not enough — and the refusal is a 404.
+        // Reading the cluster is not enough: the refusal is a 403 that names the permission.
         mvc.perform(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/queues")
                         .with(csrf())
                         .with(authentication(callerWith(Permissions.CLUSTER_READ)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_BODY))
-                .andExpect(
-                        result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
+                .andExpect(result -> {
+                    assertThat(result.getResponse().getStatus()).isEqualTo(403);
+                    assertThat(result.getResponse().getContentAsString()).contains(QueuePermissions.QUEUE_CREATE);
+                });
     }
 
     @Test
@@ -88,25 +91,46 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
         // Emptying a queue and removing it are different authorities.
         mvc.perform(MockMvcRequestBuilders.delete("/api/v1/clusters/" + clusterId + "/queues/q?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, MessagePermissions.QUEUE_PURGE))))
-                .andExpect(
-                        result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
+                        .with(authentication(callerWith(
+                                Permissions.CLUSTER_READ, Permissions.QUEUE_READ, MessagePermissions.QUEUE_PURGE))))
+                .andExpect(result -> {
+                    assertThat(result.getResponse().getStatus()).isEqualTo(403);
+                    assertThat(result.getResponse().getContentAsString()).contains(QueuePermissions.QUEUE_DELETE);
+                });
     }
 
     @Test
     void updateDoesNotImplyPause() throws Exception {
         mvc.perform(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/queues/q/pause?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_UPDATE))))
-                .andExpect(
-                        result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
+                        .with(authentication(callerWith(
+                                Permissions.CLUSTER_READ, Permissions.QUEUE_READ, QueuePermissions.QUEUE_UPDATE))))
+                .andExpect(result -> {
+                    assertThat(result.getResponse().getStatus()).isEqualTo(403);
+                    assertThat(result.getResponse().getContentAsString()).contains(QueuePermissions.QUEUE_PAUSE);
+                });
     }
 
     @Test
     void createDoesNotImplyDelete() throws Exception {
         mvc.perform(MockMvcRequestBuilders.delete("/api/v1/clusters/" + clusterId + "/addresses/a?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_CREATE))))
+                        .with(authentication(callerWith(
+                                Permissions.CLUSTER_READ,
+                                Permissions.ADDRESS_READ,
+                                QueuePermissions.QUEUE_CREATE,
+                                QueuePermissions.ADDRESS_CREATE))))
+                .andExpect(result -> {
+                    assertThat(result.getResponse().getStatus()).isEqualTo(403);
+                    assertThat(result.getResponse().getContentAsString()).contains(QueuePermissions.ADDRESS_DELETE);
+                });
+    }
+
+    @Test
+    void aQueueTheCallerMayNotReadIsNotFoundWhateverElseTheyHold() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.delete("/api/v1/clusters/" + clusterId + "/queues/q?dryRun=true")
+                        .with(csrf())
+                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE))))
                 .andExpect(
                         result -> assertThat(result.getResponse().getStatus()).isEqualTo(404));
     }
@@ -116,7 +140,16 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
     @Test
     void aCallerWithoutTheGrantCannotTellARealClusterFromAnInventedOne() throws Exception {
         UUID invented = UUID.randomUUID();
-        var caller = callerWith(Permissions.CLUSTER_READ);
+        // Every grant is on some other cluster, so neither of these two is known to the caller.
+        StudioPrincipal principal = new StudioPrincipal(
+                null,
+                "elsewhere",
+                Set.of(new Grant(
+                        Grant.ScopeType.CLUSTER,
+                        UUID.randomUUID(),
+                        Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_CREATE))),
+                false);
+        var caller = UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
 
         int real = mvc.perform(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/queues")
                         .with(csrf())
@@ -142,17 +175,22 @@ class QueueLifecycleAuthorizationTest extends PostgresIntegrationTest {
 
     @Test
     void theRightPermissionGetsPastTheGuard() throws Exception {
-        // The control: with the grant, the request is no longer a 404 — proving the
-        // 404s above come from the guard and not from the route being absent.
+        // The control: with the grants, the request is no longer a 404 or a 403 — proving the
+        // refusals above come from the guard and not from the route being absent.
         int status = mvc.perform(MockMvcRequestBuilders.post("/api/v1/clusters/" + clusterId + "/queues?dryRun=true")
                         .with(csrf())
-                        .with(authentication(callerWith(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_CREATE)))
+                        .with(authentication(callerWith(
+                                Permissions.CLUSTER_READ,
+                                Permissions.QUEUE_READ,
+                                Permissions.ADDRESS_READ,
+                                QueuePermissions.QUEUE_CREATE,
+                                QueuePermissions.ADDRESS_CREATE)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_BODY))
                 .andReturn()
                 .getResponse()
                 .getStatus();
 
-        assertThat(status).isNotEqualTo(404);
+        assertThat(status).isNotIn(403, 404);
     }
 }

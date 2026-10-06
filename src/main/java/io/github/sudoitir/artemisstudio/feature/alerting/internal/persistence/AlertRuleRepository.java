@@ -13,6 +13,8 @@ public interface AlertRuleRepository extends JpaRepository<AlertRuleEntity, UUID
     /** The installation-scoped rules (ADR-0135): those with no cluster. */
     List<AlertRuleEntity> findByClusterIdIsNullAndKindAndEnabledTrue(String kind);
 
+    List<AlertRuleEntity> findByClusterId(UUID clusterId);
+
     /** A cluster's rules, and the installation's too when {@code installation} is set. */
     @Query("SELECT r FROM AlertRuleEntity r WHERE r.clusterId = :clusterId "
             + "OR (:installation = true AND r.clusterId IS NULL) ORDER BY r.name")

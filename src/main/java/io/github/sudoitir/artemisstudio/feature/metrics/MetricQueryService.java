@@ -5,8 +5,10 @@ import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricPo
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeries;
 import io.github.sudoitir.artemisstudio.feature.metrics.web.MetricViews.MetricSeriesResponse;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricSampleStore;
@@ -44,6 +46,7 @@ public class MetricQueryService {
 
     private static final int MAX_POINTS = 500;
 
+    private static final String QUEUE_SUBJECT = ResourceKind.QUEUE.name();
     private static final String GAUGE = "GAUGE";
 
     /** A split by node draws at most this many nodes (ADR-0110). */
@@ -80,9 +83,9 @@ public class MetricQueryService {
         String splitBy = query.splitBy();
         // Before input validation, so a caller with no grant cannot use the
         // difference between a 400 and a 404 to probe which clusters exist.
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        requireReadable(clusterId, query);
         requireValid(metrics, query.subjectType(), query.subject(), splitBy);
-        String subjectName = "QUEUE".equals(query.subjectType()) ? query.subject() : null;
+        String subjectName = QUEUE_SUBJECT.equals(query.subjectType()) ? query.subject() : null;
 
         Window requested = window(query.from(), to, query.requestedStep());
         List<ClusterNode> nodes = splitBy == null ? List.of() : directory.nodes(clusterId);
@@ -106,6 +109,20 @@ public class MetricQueryService {
                 split.nodes());
     }
 
+    /**
+     * A series of one queue needs read access to it. A cluster's totals add up every queue, so they are
+     * read only by a caller who may read every queue of the cluster.
+     */
+    private void requireReadable(UUID clusterId, MetricQuery query) {
+        if (QUEUE_SUBJECT.equals(query.subjectType())
+                && query.subject() != null
+                && !query.subject().isBlank()) {
+            clusterAccess.requireResource(clusterId, ResourceRef.queue(query.subject()), Permissions.QUEUE_READ);
+        } else {
+            clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, "#", Permissions.QUEUE_READ);
+        }
+    }
+
     private static void requireValid(List<String> metrics, String subjectType, String subject, String splitBy) {
         if (metrics.isEmpty() || metrics.size() > 4) {
             throw new IllegalArgumentException("metric must list between 1 and 4 metric names");
@@ -115,7 +132,7 @@ public class MetricQueryService {
                 throw new IllegalArgumentException("unknown metric: " + m);
             }
         }
-        boolean queue = "QUEUE".equals(subjectType);
+        boolean queue = QUEUE_SUBJECT.equals(subjectType);
         boolean subjectMissing = subject == null || subject.isBlank();
         if (queue && subjectMissing) {
             throw new IllegalArgumentException("subject is required when subjectType=QUEUE");

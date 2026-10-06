@@ -1,6 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.governance;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,9 +29,20 @@ public class ContentPolicy {
     private final FindingsRecorder findings;
     private final ObjectMapper mapper;
 
-    /** The caller's context for one cluster and address: whether they hold {@code message:clear} there. */
-    public GovernContext context(UUID clusterId, String address) {
-        return new GovernContext(clusterId, address, permissions.can(clusterId, GovernancePermissions.MESSAGE_CLEAR));
+    /**
+     * The caller's context for one queue and the address it is bound to: whether they hold
+     * {@code message:clear} on that queue.
+     */
+    public GovernContext context(UUID clusterId, String address, String queueName) {
+        return new GovernContext(
+                clusterId,
+                address,
+                permissions.can(clusterId, ResourceRef.queue(queueName), GovernancePermissions.MESSAGE_CLEAR));
+    }
+
+    /** Whether the caller holds {@code message:clear} on every queue the pattern can match. */
+    public boolean mayClear(UUID clusterId, String queuePattern) {
+        return permissions.canOnAll(clusterId, ResourceKind.QUEUE, queuePattern, GovernancePermissions.MESSAGE_CLEAR);
     }
 
     /** Govern a message for the caller described by {@code context}. */

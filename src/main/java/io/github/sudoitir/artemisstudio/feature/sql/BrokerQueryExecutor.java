@@ -154,7 +154,7 @@ public class BrokerQueryExecutor {
             this.split = planner.splitOf(plan.ast());
             // Resolved here, on the caller's thread: the per-node threads below carry no security context.
             // A tail poll has none either, so it evaluates over masked content — the safe side.
-            this.clearAccess = governance.clearAccess(clusterId);
+            this.clearAccess = governance.clearAccess(clusterId, plan.ast().queuePattern());
             nodes.nodes(clusterId).forEach(n -> nodesById.put(n.getId(), n));
             this.notices = new ArrayList<>(plan.notices());
             this.deadline = System.nanoTime() + limits.timeout().toNanos();

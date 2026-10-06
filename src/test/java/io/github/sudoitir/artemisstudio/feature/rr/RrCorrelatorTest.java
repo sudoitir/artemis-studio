@@ -192,6 +192,8 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
 
         List<RrFlowEntity> all = flows.findPage(
                         clusterId,
+                        true,
+                        List.of(""),
                         RrState.ORPHANED_REPLY.name(),
                         null,
                         null,

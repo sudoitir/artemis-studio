@@ -63,19 +63,62 @@ public final class ClusterViews {
             @Schema(nullable = true) Instant lastSeenAt,
             @Schema(requiredMode = REQUIRED) boolean discovered,
             @Schema(requiredMode = REQUIRED) boolean manualOverride,
-            @Schema(requiredMode = REQUIRED) boolean manageable) {}
+            @Schema(requiredMode = REQUIRED) boolean manageable) {
+
+        /** The endpoint without where it is reached or what went wrong reaching it. */
+        public NodeEndpointView withoutConnectionDetails() {
+            return new NodeEndpointView(
+                    id,
+                    name,
+                    artemisNodeId,
+                    null,
+                    null,
+                    haRole,
+                    state,
+                    active,
+                    replicaSync,
+                    version,
+                    versionSupport,
+                    null,
+                    lastSeenAt,
+                    discovered,
+                    manualOverride,
+                    manageable);
+        }
+    }
 
     /** An HA pair (or standalone) keyed by NodeID. */
     public record LogicalNodeView(
             @Schema(nullable = true) String artemisNodeId,
             @Schema(requiredMode = REQUIRED) String splitBrain,
             @Schema(requiredMode = REQUIRED) boolean replicationBehind,
-            @Schema(requiredMode = REQUIRED) List<NodeEndpointView> endpoints) {}
+            @Schema(requiredMode = REQUIRED) List<NodeEndpointView> endpoints) {
+
+        public LogicalNodeView withoutConnectionDetails() {
+            return new LogicalNodeView(
+                    artemisNodeId,
+                    splitBrain,
+                    replicationBehind,
+                    endpoints.stream()
+                            .map(NodeEndpointView::withoutConnectionDetails)
+                            .toList());
+        }
+    }
 
     /** {@code GET /clusters/{id}/topology}. */
     public record TopologyView(
             @Schema(requiredMode = REQUIRED) UUID clusterId,
-            @Schema(requiredMode = REQUIRED) List<LogicalNodeView> nodes) {}
+            @Schema(requiredMode = REQUIRED) List<LogicalNodeView> nodes) {
+
+        /** The topology without the management and Core URLs of its nodes, or their last errors. */
+        public TopologyView withoutConnectionDetails() {
+            return new TopologyView(
+                    clusterId,
+                    nodes.stream()
+                            .map(LogicalNodeView::withoutConnectionDetails)
+                            .toList());
+        }
+    }
 
     /** One capability's Phase 1 assessment. */
     public record CapabilityView(
@@ -94,7 +137,23 @@ public final class ClusterViews {
             @Schema(
                     requiredMode = REQUIRED,
                     description = "Operations that need a newer Artemis release than some node runs")
-            List<VersionGateView> versionGates) {}
+            List<VersionGateView> versionGates) {
+
+        /** The statuses alone: the reasons and advice name hosts, URLs and broker configuration. */
+        public CapabilitiesView withoutConnectionDetails() {
+            return new CapabilitiesView(
+                    bare(managementRead),
+                    bare(managementWrite),
+                    bare(notifications),
+                    bare(messageIo),
+                    bare(slowConsumerDetection),
+                    versionGates);
+        }
+
+        private static CapabilityView bare(CapabilityView capability) {
+            return new CapabilityView(capability.status(), "", null);
+        }
+    }
 
     /**
      * One version-gated operation, shaped like a {@link CapabilityView} so a control

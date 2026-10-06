@@ -24,6 +24,21 @@ public record AlertScope(String addressPattern, String queuePattern, String node
         }
     }
 
+    /**
+     * The queue names this scope can match, as a name pattern ({@code #} for every queue when none is set).
+     * A {@code *} here is any run of characters, so a word that is only {@code *} becomes {@code #}, which
+     * matches the same names and more. A {@code *} inside a word has no such spelling and is left as written,
+     * so it matches only through a grant that reaches every queue.
+     */
+    public String queueNames() {
+        if (queuePattern == null || queuePattern.isBlank()) {
+            return "#";
+        }
+        return java.util.Arrays.stream(queuePattern.split("\\.", -1))
+                .map(word -> "*".equals(word) ? "#" : word)
+                .collect(java.util.stream.Collectors.joining("."));
+    }
+
     public boolean matchesAddress(String address) {
         return matches(addressPattern, address);
     }

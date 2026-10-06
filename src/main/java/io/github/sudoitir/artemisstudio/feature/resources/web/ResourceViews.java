@@ -41,7 +41,31 @@ public final class ResourceViews {
                             + " deliberately 'any', not 'all' — perNode says which.")
             boolean paused,
 
-            @Schema(requiredMode = REQUIRED) List<QueueNodeCell> perNode) {}
+            @Schema(requiredMode = REQUIRED) List<QueueNodeCell> perNode,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The actions of the catalogue that apply to this row and that the caller holds"
+                            + " on it, such as queue:purge. The console gates its controls from this.")
+            List<String> allowedActions) {
+
+        public QueueView withAllowedActions(List<String> actions) {
+            return new QueueView(
+                    address,
+                    queueName,
+                    routingType,
+                    durable,
+                    totalMessageCount,
+                    totalConsumerCount,
+                    totalDeliveringCount,
+                    totalScheduledCount,
+                    nodesPresent,
+                    nodesTotal,
+                    paused,
+                    perNode,
+                    actions);
+        }
+    }
 
     /**
      * One node's contribution to a queue row.
@@ -68,7 +92,18 @@ public final class ResourceViews {
             @Schema(requiredMode = REQUIRED) String name,
             @Schema(nullable = true) String routingTypes,
             @Schema(requiredMode = REQUIRED) long queueCount,
-            @Schema(requiredMode = REQUIRED) long messageCount) {}
+            @Schema(requiredMode = REQUIRED) long messageCount,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The actions of the catalogue that apply to this row and that the caller holds"
+                            + " on it, such as queue:purge. The console gates its controls from this.")
+            List<String> allowedActions) {
+
+        public AddressView withAllowedActions(List<String> actions) {
+            return new AddressView(nodeId, nodeName, name, routingTypes, queueCount, messageCount, actions);
+        }
+    }
 
     public record ConsumerView(
             @Schema(requiredMode = REQUIRED) UUID nodeId,
@@ -80,7 +115,29 @@ public final class ResourceViews {
             @Schema(nullable = true) String protocol,
             @Schema(requiredMode = REQUIRED) long messagesDelivered,
             @Schema(requiredMode = REQUIRED) long messagesAcknowledged,
-            @Schema(nullable = true) String status) {}
+            @Schema(nullable = true) String status,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The actions of the catalogue that apply to this row and that the caller holds"
+                            + " on it, such as queue:purge. The console gates its controls from this.")
+            List<String> allowedActions) {
+
+        public ConsumerView withAllowedActions(List<String> actions) {
+            return new ConsumerView(
+                    nodeId,
+                    nodeName,
+                    consumerId,
+                    sessionId,
+                    queueName,
+                    address,
+                    protocol,
+                    messagesDelivered,
+                    messagesAcknowledged,
+                    status,
+                    actions);
+        }
+    }
 
     public record SessionView(
             @Schema(requiredMode = REQUIRED) UUID nodeId,
@@ -90,7 +147,41 @@ public final class ResourceViews {
             @Schema(nullable = true) String connectionId,
             @Schema(requiredMode = REQUIRED) long consumerCount,
             @Schema(requiredMode = REQUIRED) long producerCount,
-            @Schema(nullable = true) String creationTime) {}
+            @Schema(nullable = true) String creationTime,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The actions of the catalogue that apply to this row and that the caller holds"
+                            + " on it, such as queue:purge. The console gates its controls from this.")
+            List<String> allowedActions) {
+
+        public SessionView withAllowedActions(List<String> actions) {
+            return new SessionView(
+                    nodeId,
+                    nodeName,
+                    sessionId,
+                    user,
+                    connectionId,
+                    consumerCount,
+                    producerCount,
+                    creationTime,
+                    actions);
+        }
+
+        /** The session as a caller who may see only part of it sees it. */
+        public SessionView trimmedTo(long consumers, long producers) {
+            return new SessionView(
+                    nodeId,
+                    nodeName,
+                    sessionId,
+                    user,
+                    connectionId,
+                    consumers,
+                    producers,
+                    creationTime,
+                    allowedActions);
+        }
+    }
 
     public record ConnectionView(
             @Schema(requiredMode = REQUIRED) UUID nodeId,
@@ -100,7 +191,41 @@ public final class ResourceViews {
             @Schema(nullable = true) String protocol,
             @Schema(nullable = true) String clientId,
             @Schema(requiredMode = REQUIRED) long sessionCount,
-            @Schema(nullable = true) String creationTime) {}
+            @Schema(nullable = true) String creationTime,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The actions of the catalogue that apply to this row and that the caller holds"
+                            + " on it, such as queue:purge. The console gates its controls from this.")
+            List<String> allowedActions) {
+
+        public ConnectionView withAllowedActions(List<String> actions) {
+            return new ConnectionView(
+                    nodeId,
+                    nodeName,
+                    connectionId,
+                    remoteAddress,
+                    protocol,
+                    clientId,
+                    sessionCount,
+                    creationTime,
+                    actions);
+        }
+
+        /** The connection as a caller who may see only some of its sessions sees it. */
+        public ConnectionView trimmedTo(long sessions) {
+            return new ConnectionView(
+                    nodeId,
+                    nodeName,
+                    connectionId,
+                    remoteAddress,
+                    protocol,
+                    clientId,
+                    sessions,
+                    creationTime,
+                    allowedActions);
+        }
+    }
 
     public record ProducerView(
             @Schema(requiredMode = REQUIRED) UUID nodeId,
@@ -110,5 +235,17 @@ public final class ResourceViews {
             @Schema(nullable = true) String sessionId,
             @Schema(nullable = true) String address,
             @Schema(nullable = true) String protocol,
-            @Schema(requiredMode = REQUIRED) long messagesSent) {}
+            @Schema(requiredMode = REQUIRED) long messagesSent,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The actions of the catalogue that apply to this row and that the caller holds"
+                            + " on it, such as queue:purge. The console gates its controls from this.")
+            List<String> allowedActions) {
+
+        public ProducerView withAllowedActions(List<String> actions) {
+            return new ProducerView(
+                    nodeId, nodeName, producerId, name, sessionId, address, protocol, messagesSent, actions);
+        }
+    }
 }

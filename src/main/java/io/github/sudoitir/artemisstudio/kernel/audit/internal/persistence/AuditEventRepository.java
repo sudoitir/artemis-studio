@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,6 +56,9 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
     @Query("""
             select e from AuditEventEntity e
             where e.clusterId = :clusterId
+              and (:everything = true
+                   or (e.targetType = 'QUEUE' and e.targetName in :queues)
+                   or (e.targetType = 'ADDRESS' and e.targetName in :addresses))
               and (:username is null or e.username = :username)
               and (:action is null or e.action = :action)
               and (:outcome is null or e.outcome = :outcome)
@@ -65,6 +69,9 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
             """)
     Page<AuditEventEntity> findPage(
             @Param("clusterId") UUID clusterId,
+            @Param("everything") boolean everything,
+            @Param("queues") Collection<String> queues,
+            @Param("addresses") Collection<String> addresses,
             @Param("username") String username,
             @Param("action") String action,
             @Param("outcome") String outcome,
@@ -72,4 +79,9 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
             @Param("from") Instant from,
             @Param("to") Instant to,
             Pageable pageable);
+
+    /** The names of one kind of target the cluster's events are about, for deciding which a reader may see. */
+    @Query("select distinct e.targetName from AuditEventEntity e"
+            + " where e.clusterId = :clusterId and e.targetType = :targetType and e.targetName is not null")
+    List<String> findDistinctTargetNames(@Param("clusterId") UUID clusterId, @Param("targetType") String targetType);
 }

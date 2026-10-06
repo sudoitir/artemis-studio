@@ -17,6 +17,7 @@ _Others_
 * `i.g.s.a.k.a.AuditParamsFilter` (via `i.g.s.a.k.a.CredentialAuditParamsFilter`)
 |Bean references
 |* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ScopeHierarchy` (in Security)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 |===

@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+
 /**
  * The permission strings the security kernel itself checks (ADR-0038). Every other
  * permission is declared by the module that checks it, and the catalogue a role is
@@ -29,6 +31,11 @@ public final class Permissions {
 
     /** Seeing an address, and the read every permission that acts on an address requires. */
     public static final String ADDRESS_READ = "address:read";
+
+    /** The read permission of a kind of resource: what seeing one requires. */
+    public static String readOf(ResourceKind kind) {
+        return kind == ResourceKind.QUEUE ? QUEUE_READ : ADDRESS_READ;
+    }
 
     private Permissions() {}
 }

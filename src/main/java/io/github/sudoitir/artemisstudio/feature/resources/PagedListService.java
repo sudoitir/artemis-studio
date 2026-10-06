@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.feature.resources;
 
+import static io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind.ADDRESS;
+import static io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind.QUEUE;
+
 import io.github.sudoitir.artemisstudio.feature.resources.ResourceViewMapper.NodeRef;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.AddressView;
 import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.ConnectionView;
@@ -9,7 +12,8 @@ import io.github.sudoitir.artemisstudio.feature.resources.web.ResourceViews.Sess
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
@@ -29,6 +33,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +49,11 @@ import tools.jackson.databind.JsonNode;
  * it is not an error unless <em>every</em> node failed, in which case the first
  * classified failure is rethrown for the UI to render (capability ledger +
  * {@code broker.xml} advice, non-negotiable #5).
+ *
+ * <p>A row the caller may not read is dropped before the text filter, the sort, the page and the count,
+ * so a total never includes a hidden row. A consumer is read through its queue and a producer through its
+ * address; a session or connection is read by a caller who holds {@code connection:read} on the cluster,
+ * and otherwise only through the consumers and producers they may read, and shows only those.
  */
 @Service
 @RequiredArgsConstructor
@@ -54,74 +64,148 @@ public class PagedListService {
     private final BrokerListOps listOps;
     private final ResourceViewMapper mapper;
     private final ClusterAccessGuard clusterAccess;
+    private final PermissionResolver permissions;
 
     @Transactional(readOnly = true)
     public PagedView<AddressView> addresses(UUID clusterId, ResourceQuery query) {
-        return fanOut(
-                clusterId,
-                ResourceKind.ADDRESSES,
-                query,
-                mapper::address,
-                List.of(AddressView::name),
-                nameComparator());
+        clusterAccess.requireVisible(clusterId);
+        ResourceFilter readable = permissions.filter(clusterId, ADDRESS);
+        List<AddressView> rows = gather(clusterId, ResourceKind.ADDRESSES, mapper::address).stream()
+                .filter(a -> readable.readable(a.name()))
+                .toList();
+        return page(rows, query, List.of(AddressView::name), nameComparator())
+                .map(a -> a.withAllowedActions(readable.allowedActions(a.name())));
     }
 
     @Transactional(readOnly = true)
     public PagedView<ConsumerView> consumers(UUID clusterId, ResourceQuery query) {
-        return fanOut(
-                clusterId,
-                ResourceKind.CONSUMERS,
-                query,
-                mapper::consumer,
-                // The fields other views link a consumer by: its queue, and the session it runs in.
-                List.of(ConsumerView::queueName, ConsumerView::sessionId),
-                Comparator.comparing(ConsumerView::queueName, nullSafe()));
+        clusterAccess.requireVisible(clusterId);
+        List<ConsumerView> rows = readableConsumers(clusterId);
+        List<String> actions = connectionActions(clusterId);
+        return page(
+                        rows,
+                        query,
+                        // The fields other views link a consumer by: its queue, and the session it runs in.
+                        List.of(ConsumerView::queueName, ConsumerView::sessionId),
+                        Comparator.comparing(ConsumerView::queueName, nullSafe()))
+                .map(c -> c.withAllowedActions(actions));
     }
 
     @Transactional(readOnly = true)
     public PagedView<SessionView> sessions(UUID clusterId, ResourceQuery query) {
-        return fanOut(
-                clusterId,
-                ResourceKind.SESSIONS,
-                query,
-                mapper::session,
-                List.of(SessionView::sessionId, SessionView::connectionId, SessionView::user),
-                Comparator.comparing(SessionView::sessionId, nullSafe()));
+        clusterAccess.requireVisible(clusterId);
+        List<String> actions = connectionActions(clusterId);
+        return page(
+                        visibleSessions(clusterId),
+                        query,
+                        List.of(SessionView::sessionId, SessionView::connectionId, SessionView::user),
+                        Comparator.comparing(SessionView::sessionId, nullSafe()))
+                .map(s -> s.withAllowedActions(actions));
     }
 
     @Transactional(readOnly = true)
     public PagedView<ConnectionView> connections(UUID clusterId, ResourceQuery query) {
-        return fanOut(
-                clusterId,
-                ResourceKind.CONNECTIONS,
-                query,
-                mapper::connection,
-                // A flow client is named by its client id; a session names its connection by id.
-                List.of(ConnectionView::remoteAddress, ConnectionView::clientId, ConnectionView::connectionId),
-                Comparator.comparing(ConnectionView::remoteAddress, nullSafe()));
+        clusterAccess.requireVisible(clusterId);
+        List<String> actions = connectionActions(clusterId);
+        return page(
+                        visibleConnections(clusterId),
+                        query,
+                        // A flow client is named by its client id; a session names its connection by id.
+                        List.of(ConnectionView::remoteAddress, ConnectionView::clientId, ConnectionView::connectionId),
+                        Comparator.comparing(ConnectionView::remoteAddress, nullSafe()))
+                .map(c -> c.withAllowedActions(actions));
     }
 
     @Transactional(readOnly = true)
     public PagedView<ProducerView> producers(UUID clusterId, ResourceQuery query) {
-        return fanOut(
-                clusterId,
-                ResourceKind.PRODUCERS,
+        clusterAccess.requireVisible(clusterId);
+        List<ProducerView> rows = readableProducers(clusterId);
+        return page(
+                rows,
                 query,
-                mapper::producer,
                 List.of(ProducerView::address, ProducerView::name, ProducerView::sessionId),
                 Comparator.comparing(ProducerView::address, nullSafe()));
     }
 
-    private <T> PagedView<T> fanOut(
-            UUID clusterId,
-            ResourceKind kind,
-            ResourceQuery query,
-            BiFunction<JsonNode, NodeRef, T> rowMapper,
-            List<Function<T, String>> filterFields,
-            Comparator<T> comparator) {
-        // Every one of the five public reads routes through here, so the scope check
-        // lives here too — a sixth kind cannot be added without inheriting it.
-        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+    // ---- what the caller may see ---------------------------------------------------------
+
+    /** A consumer is seen through its queue. */
+    private List<ConsumerView> readableConsumers(UUID clusterId) {
+        ResourceFilter readable = permissions.filter(clusterId, QUEUE);
+        return gather(clusterId, ResourceKind.CONSUMERS, mapper::consumer).stream()
+                .filter(c -> readable.readable(c.queueName()))
+                .toList();
+    }
+
+    /** A producer is seen through its address. */
+    private List<ProducerView> readableProducers(UUID clusterId) {
+        ResourceFilter readable = permissions.filter(clusterId, ADDRESS);
+        return gather(clusterId, ResourceKind.PRODUCERS, mapper::producer).stream()
+                .filter(p -> readable.readable(p.address()))
+                .toList();
+    }
+
+    /**
+     * A session is seen by a caller who reads connections of the cluster, and otherwise only through the
+     * consumers and producers of it that they may read, counting no others.
+     */
+    private List<SessionView> visibleSessions(UUID clusterId) {
+        List<SessionView> all = gather(clusterId, ResourceKind.SESSIONS, mapper::session);
+        if (permissions.can(clusterId, ResourcePermissions.CONNECTION_READ)) {
+            return all;
+        }
+        Map<SessionKey, Long> consumers = readableConsumers(clusterId).stream()
+                .collect(Collectors.groupingBy(c -> new SessionKey(c.nodeId(), c.sessionId()), Collectors.counting()));
+        Map<SessionKey, Long> producers = readableProducers(clusterId).stream()
+                .collect(Collectors.groupingBy(p -> new SessionKey(p.nodeId(), p.sessionId()), Collectors.counting()));
+        return all.stream()
+                .map(s -> {
+                    SessionKey key = new SessionKey(s.nodeId(), s.sessionId());
+                    return s.trimmedTo(consumers.getOrDefault(key, 0L), producers.getOrDefault(key, 0L));
+                })
+                .filter(s -> s.consumerCount() + s.producerCount() > 0)
+                .toList();
+    }
+
+    /** A connection is seen by a caller who reads connections, and otherwise through the sessions they see. */
+    private List<ConnectionView> visibleConnections(UUID clusterId) {
+        List<ConnectionView> all = gather(clusterId, ResourceKind.CONNECTIONS, mapper::connection);
+        if (permissions.can(clusterId, ResourcePermissions.CONNECTION_READ)) {
+            return all;
+        }
+        Map<ConnectionKey, Long> sessions = visibleSessions(clusterId).stream()
+                .collect(Collectors.groupingBy(
+                        s -> new ConnectionKey(s.nodeId(), s.connectionId()), Collectors.counting()));
+        return all.stream()
+                .map(c -> c.trimmedTo(sessions.getOrDefault(new ConnectionKey(c.nodeId(), c.connectionId()), 0L)))
+                .filter(c -> c.sessionCount() > 0)
+                .toList();
+    }
+
+    /** What a caller may do to a connection, a session or a consumer's connection: it is a cluster-wide right. */
+    private List<String> connectionActions(UUID clusterId) {
+        return permissions.can(clusterId, ResourcePermissions.CONNECTION_CLOSE)
+                ? List.of(ResourcePermissions.CONNECTION_CLOSE)
+                : List.of();
+    }
+
+    private record SessionKey(UUID nodeId, String sessionId) {}
+
+    private record ConnectionKey(UUID nodeId, String connectionId) {}
+
+    // ---- fan-out ---------------------------------------------------------------------------
+
+    /** The text filter, then sort, page and count, on rows the caller may already see. */
+    private static <T> PagedView<T> page(
+            List<T> visible, ResourceQuery query, List<Function<T, String>> filterFields, Comparator<T> comparator) {
+        List<T> filtered = visible.stream()
+                .filter(row -> filterFields.stream().anyMatch(field -> query.matches(field.apply(row))))
+                .toList();
+        return query.paginate(filtered, comparator);
+    }
+
+    /** Every node's rows of one kind, merged and tagged with their node; unfiltered, so never returned as is. */
+    private <T> List<T> gather(UUID clusterId, ResourceKind kind, BiFunction<JsonNode, NodeRef, T> rowMapper) {
         List<ClusterNode> servingNodes = servingManageableNodes(clusterId);
         if (servingNodes.isEmpty()) {
             throw new BrokerConnectionException(
@@ -147,11 +231,7 @@ public class PagedListService {
         if (merged.isEmpty() && firstError != null) {
             throw firstError;
         }
-
-        List<T> filtered = merged.stream()
-                .filter(row -> filterFields.stream().anyMatch(field -> query.matches(field.apply(row))))
-                .toList();
-        return query.paginate(filtered, comparator);
+        return merged;
     }
 
     /**

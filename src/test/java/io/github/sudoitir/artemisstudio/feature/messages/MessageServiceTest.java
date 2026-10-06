@@ -26,6 +26,9 @@ import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard.Requirement;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
@@ -119,6 +122,9 @@ class MessageServiceTest {
                 access,
                 policy,
                 clearViews);
+        when(locator.locate(CLUSTER, "target"))
+                .thenReturn(List.of(new QueueLocation(NODE_A, "target", "target", "ANYCAST", 1)));
+        when(locator.locate(CLUSTER, "t")).thenReturn(List.of(new QueueLocation(NODE_A, "t", "t", "ANYCAST", 1)));
         when(locator.locate(CLUSTER, "orders"))
                 .thenReturn(List.of(
                         new QueueLocation(NODE_A, "orders", "orders.addr", "ANYCAST", 5),
@@ -131,7 +137,8 @@ class MessageServiceTest {
         when(settings.intValue(BrokerSettings.BULK_CAP)).thenReturn(100);
         when(connections.forCluster(eq(CLUSTER), anyString())).thenReturn(client);
         when(client.resolveBrokerObjectName()).thenReturn(BROKER);
-        when(policy.context(eq(CLUSTER), anyString())).thenReturn(GovernContext.masked(CLUSTER, "orders.addr"));
+        when(policy.context(eq(CLUSTER), anyString(), anyString()))
+                .thenReturn(GovernContext.masked(CLUSTER, "orders.addr"));
         when(policy.govern(any(), any())).thenAnswer(invocation -> {
             MessageContent content = invocation.getArgument(1);
             return new GovernedMessage(
@@ -575,6 +582,7 @@ class MessageServiceTest {
     @Test
     void aRetryAllRetriesEverythingAndRefreshesTheQueues() {
         when(messageOps.messageCount(client, queueMbean())).thenReturn(12L);
+        when(access.holds(CLUSTER, MessagePermissions.MESSAGE_SEND)).thenReturn(true);
         when(messageOps.retryAll(client, queueMbean())).thenReturn(12L);
 
         Attempt<Outcome> result = service.execute(
@@ -624,6 +632,7 @@ class MessageServiceTest {
 
     @Test
     void byIdOperationsCallTheirOwnBrokerOperation() {
+        when(access.holds(CLUSTER, MessagePermissions.MESSAGE_SEND)).thenReturn(true);
         MessageOperations.BulkResult done = new MessageOperations.BulkResult(2, List.of(), null);
         when(messageOps.moveByIds(client, queueMbean(), List.of(1L, 2L), "target"))
                 .thenReturn(done);
@@ -765,6 +774,163 @@ class MessageServiceTest {
         assertThat(service.purge(CLUSTER, "orders", null, false, false))
                 .isEqualTo(new Attempt.Failed<Outcome>(BrokerConnectionException.Kind.UNREACHABLE, "down"));
         verify(audit).fail(event, "down");
+    }
+
+    // ---- what each operation asks of the caller's access -----------------------------------------------
+
+    private List<Requirement> required() {
+        ArgumentCaptor<List<Requirement>> needs = ArgumentCaptor.forClass(List.class);
+        verify(access).requireAll(eq(CLUSTER), needs.capture());
+        return needs.getValue();
+    }
+
+    @Test
+    void browsingNeedsMessageReadOnTheQueue() {
+        browses(jolokia, List.of(message(1, "hello", BodyEncoding.TEXT)), Channel.JOLOKIA);
+
+        service.browse(CLUSTER, "orders", null, null, 1, 50);
+
+        verify(access).requireResource(CLUSTER, ResourceRef.queue("orders"), MessagePermissions.MESSAGE_READ);
+    }
+
+    @Test
+    void purgingNeedsQueuePurgeOnTheQueueBeforeAnythingIsLookedUp() {
+        service.purge(CLUSTER, "orders", null, true, false);
+
+        verify(access).requireResource(CLUSTER, ResourceRef.queue("orders"), MessagePermissions.QUEUE_PURGE);
+    }
+
+    @Test
+    void sendingNeedsTheQueueToBeReadableAndMessageSendOnItsAddress() {
+        service.send(CLUSTER, "orders", null, new SendMessageRequest(3, true, "hi", null, Map.of(), Map.of()), true);
+
+        verify(access).requireResource(CLUSTER, ResourceRef.queue("orders"), Permissions.QUEUE_READ);
+        verify(access).requireResource(CLUSTER, ResourceRef.address("orders.addr"), MessagePermissions.MESSAGE_SEND);
+    }
+
+    @Test
+    void aQueueWhoseAddressTheCallerMayNotUseIsNotFoundToThemNamingNoAddress() {
+        doThrow(new NotFoundException("address", "orders.addr"))
+                .when(access)
+                .requireResource(CLUSTER, ResourceRef.address("orders.addr"), MessagePermissions.MESSAGE_SEND);
+
+        SendMessageRequest request = new SendMessageRequest(3, true, "hi", null, Map.of(), Map.of());
+
+        assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, request, true))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("queue orders does not exist.");
+    }
+
+    @Test
+    void deletingNeedsMessageDeleteOnTheQueue() {
+        service.execute(CLUSTER, "orders", null, MessageAction.DELETE, filter("f", null), true, false);
+
+        assertThat(required())
+                .containsExactly(new Requirement(ResourceRef.queue("orders"), MessagePermissions.MESSAGE_DELETE));
+    }
+
+    @Test
+    void movingNeedsMessageMoveOnTheSourceAndMessageSendOnTheTargetsAddress() {
+        when(locator.locate(CLUSTER, "billing"))
+                .thenReturn(List.of(new QueueLocation(NODE_A, "billing", "billing.addr", "ANYCAST", 1)));
+
+        service.execute(CLUSTER, "orders", null, MessageAction.MOVE, filter("f", "billing"), true, false);
+
+        assertThat(required())
+                .containsExactly(
+                        new Requirement(ResourceRef.queue("orders"), MessagePermissions.MESSAGE_MOVE),
+                        new Requirement(ResourceRef.queue("billing"), Permissions.QUEUE_READ),
+                        new Requirement(ResourceRef.address("billing.addr"), MessagePermissions.MESSAGE_SEND));
+    }
+
+    @Test
+    void aMoveToAQueueNoNodeKnowsIsRefusedAsOneThatMayNotBeReadIsAndNothingIsGuessedFromItsName() {
+        NotFoundException unknown = new NotFoundException("A queue or address named in the request does not exist.");
+        when(access.unreadableAmongSeveral(CLUSTER)).thenReturn(unknown);
+
+        assertThatThrownBy(() -> service.execute(
+                        CLUSTER, "orders", null, MessageAction.MOVE, filter("f", "ghost"), false, false))
+                .isSameAs(unknown);
+        verify(access, never()).requireAll(any(), any());
+        verify(messageOps, never()).moveByFilter(any(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void aRetryNeedsMessageSendOnEveryAddressTheDeadLettersCameFrom() {
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a", "b")));
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(3L);
+
+        service.execute(
+                CLUSTER, "orders", null, MessageAction.RETRY, new MessageActionRequest(null, null, null), true, false);
+
+        verify(access)
+                .requireAll(
+                        CLUSTER,
+                        List.of(
+                                new Requirement(ResourceRef.address("a"), MessagePermissions.MESSAGE_SEND),
+                                new Requirement(ResourceRef.address("b"), MessagePermissions.MESSAGE_SEND)));
+    }
+
+    @Test
+    void aRetryByACallerWhoMaySendAnywhereDoesNotLookAtTheOriginalAddresses() {
+        when(access.holds(CLUSTER, MessagePermissions.MESSAGE_SEND)).thenReturn(true);
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(3L);
+
+        service.execute(
+                CLUSTER, "orders", null, MessageAction.RETRY, new MessageActionRequest(null, null, null), true, false);
+
+        verify(messageOps, never()).originalAddresses(any(), anyString());
+    }
+
+    @Test
+    void aRetryOfEverythingByACallerWhoMayNotSendEverywhereRetriesOnlyTheMessagesFromTheCheckedAddresses() {
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a", "b")));
+        when(messageOps.originalAddressFilter("a")).thenReturn("from a");
+        when(messageOps.originalAddressFilter("b")).thenReturn("from b");
+        when(messageOps.listIds(client, queueMbean(), "from a")).thenReturn(List.of(1L, 2L));
+        when(messageOps.listIds(client, queueMbean(), "from b")).thenReturn(List.of(3L));
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(4L);
+        when(messageOps.retryByIds(client, queueMbean(), List.of(1L, 2L, 3L)))
+                .thenReturn(new MessageOperations.BulkResult(3, List.of(), null));
+
+        Attempt<Outcome> result = service.execute(
+                CLUSTER, "orders", null, MessageAction.RETRY, new MessageActionRequest(null, null, null), false, false);
+
+        assertThat(result).isEqualTo(new Attempt.Ok<Outcome>(new Outcome.Affected(3, NODE_B)));
+        verify(messageOps, never()).retryAll(any(), anyString());
+    }
+
+    @Test
+    void aRetryByIdsLeavesOutAMessageThatDidNotComeFromACheckedAddress() {
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a")));
+        when(messageOps.originalAddressFilter("a")).thenReturn("from a");
+        when(messageOps.listIds(client, queueMbean(), "from a")).thenReturn(List.of(1L));
+        when(messageOps.retryByIds(client, queueMbean(), List.of(1L)))
+                .thenReturn(new MessageOperations.BulkResult(1, List.of(), null));
+
+        service.execute(
+                CLUSTER,
+                "orders",
+                null,
+                MessageAction.RETRY,
+                new MessageActionRequest(List.of(1L, 99L), null, null),
+                false,
+                false);
+
+        verify(messageOps).retryByIds(client, queueMbean(), List.of(1L));
+        verify(messageOps, never()).retryByIds(client, queueMbean(), List.of(1L, 99L));
+    }
+
+    @Test
+    void aRetryWhoseOriginsCannotBeReadDoesNotProceed() {
+        when(messageOps.originalAddresses(client, queueMbean()))
+                .thenThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "down"));
+
+        Attempt<Outcome> result = service.execute(
+                CLUSTER, "orders", null, MessageAction.RETRY, new MessageActionRequest(null, null, null), false, false);
+
+        assertThat(result).isEqualTo(new Attempt.Failed<Outcome>(BrokerConnectionException.Kind.UNREACHABLE, "down"));
+        verify(messageOps, never()).retryAll(any(), anyString());
     }
 
     // ---- the policy's view of a message ----------------------------------------------------------------

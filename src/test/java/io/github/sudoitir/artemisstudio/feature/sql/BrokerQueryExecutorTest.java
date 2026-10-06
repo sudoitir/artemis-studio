@@ -76,7 +76,7 @@ class BrokerQueryExecutorTest {
     /** A caller with clear access, so these tests see the broker's content exactly as they did before governance. */
     static SqlGovernance clearGovernance() {
         SqlGovernance governance = mock(SqlGovernance.class);
-        when(governance.clearAccess(any())).thenReturn(true);
+        when(governance.clearAccess(any(), any())).thenReturn(true);
         return governance;
     }
 
@@ -249,7 +249,7 @@ class BrokerQueryExecutorTest {
     void aCallerWithoutClearAccessSearchesTheMaskedBodyNotTheRawOne() {
         given(List.of(node), List.of(snapshot(node, "ORDER.IN", 5)));
         SqlGovernance masked = mock(SqlGovernance.class);
-        when(masked.clearAccess(any())).thenReturn(false);
+        when(masked.clearAccess(any(), any())).thenReturn(false);
         when(masked.forEvaluation(any(), any(), any())).thenAnswer(call -> {
             BrowsedMessage m = call.getArgument(2);
             return new BrowsedMessage(

@@ -31,5 +31,6 @@ _Others_
 * `i.g.s.a.p.b.BrokerListOps` (in Broker connectivity)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
 * `i.g.s.a.p.s.ScrapeProperties` (in Scraping)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.p.m.McpProperties` (in MCP server)
 |===

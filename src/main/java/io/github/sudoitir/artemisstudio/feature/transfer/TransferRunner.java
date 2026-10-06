@@ -12,6 +12,8 @@ import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.AcceptanceProbe;
@@ -639,12 +641,25 @@ class TransferRunner {
             return End.stopped("Stopped by the operator.");
         }
         String sourcePermission = s.run.getMode().sourcePermission();
-        if (!handoff.stillHolds(s.operator, s.run.getSourceClusterId(), sourcePermission)) {
-            return End.stopped("The permission %s on the source cluster was withdrawn, so the run stopped."
+        if (!handoff.stillHolds(
+                s.operator, s.run.getSourceClusterId(), ResourceRef.queue(s.run.getSourceQueue()), sourcePermission)) {
+            return End.stopped("The permission %s on the source queue was withdrawn, so the run stopped."
                     .formatted(sourcePermission));
         }
-        if (!handoff.stillHolds(s.operator, s.run.getTargetClusterId(), MessagePermissions.MESSAGE_SEND)) {
-            return End.stopped("The permission %s on the target cluster was withdrawn, so the run stopped."
+        if (!handoff.stillHolds(
+                s.operator,
+                s.run.getTargetClusterId(),
+                ResourceRef.queue(s.run.getTargetQueue()),
+                Permissions.QUEUE_READ)) {
+            return End.stopped("The permission %s on the target queue was withdrawn, so the run stopped."
+                    .formatted(Permissions.QUEUE_READ));
+        }
+        if (!handoff.stillHolds(
+                s.operator,
+                s.run.getTargetClusterId(),
+                ResourceRef.address(s.run.getTargetAddress()),
+                MessagePermissions.MESSAGE_SEND)) {
+            return End.stopped("The permission %s on the target address was withdrawn, so the run stopped."
                     .formatted(MessagePermissions.MESSAGE_SEND));
         }
         s.resolve();

@@ -132,7 +132,8 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theDefaultInvocationPreviewsAndDestroysNothing() throws Exception {
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE));
+        McpFixture.Key key =
+                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, QueuePermissions.QUEUE_DELETE));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -151,7 +152,8 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aRealDestroyWithoutAMatchingConfirmationIsRefused() throws Exception {
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE));
+        McpFixture.Key key =
+                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, QueuePermissions.QUEUE_DELETE));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -177,7 +179,8 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
     @Test
     void theToolInheritsTheCallersPermissions() throws Exception {
         // Every read permission, but no destroy.
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, MessagePermissions.MESSAGE_READ));
+        McpFixture.Key key =
+                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, MessagePermissions.MESSAGE_READ));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -202,7 +205,8 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
         dead.attachManagementUrl("http://b:8161/console/jolokia");
         nodes.save(dead);
 
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_PAUSE));
+        McpFixture.Key key =
+                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, QueuePermissions.QUEUE_PAUSE));
 
         JsonNode response = McpFixture.callTool(
                 mvc,
@@ -220,7 +224,8 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
     void aQueueWithConsumersIsDeletedOnlyWithDisconnectConsumers() throws Exception {
         when(ops.deleteState(any(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(new QueueLifecycleOperations.DeleteState(true, 1L, List.of(QUEUE)));
-        McpFixture.Key key = keyWith(Set.of(Permissions.CLUSTER_READ, QueuePermissions.QUEUE_DELETE));
+        McpFixture.Key key =
+                keyWith(Set.of(Permissions.CLUSTER_READ, Permissions.QUEUE_READ, QueuePermissions.QUEUE_DELETE));
 
         JsonNode refused = McpFixture.callTool(
                 mvc,

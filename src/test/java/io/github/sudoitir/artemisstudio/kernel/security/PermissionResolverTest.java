@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.alerting.AlertPermissions;
 import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.kernel.plugin.CatalogueEntry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
@@ -41,6 +42,7 @@ class PermissionResolverTest {
     static final String QUEUE_PURGE = MessagePermissions.QUEUE_PURGE;
     static final String QUEUE_READ = Permissions.QUEUE_READ;
     static final String MESSAGE_SEND = MessagePermissions.MESSAGE_SEND;
+    static final String QUEUE_CREATE = "queue:create";
 
     static final Set<String> TEAM_VIEWER =
             Set.of(QUEUE_READ, Permissions.ADDRESS_READ, MessagePermissions.MESSAGE_READ);
@@ -82,6 +84,7 @@ class PermissionResolverTest {
                 .collect(Collectors.toMap(CatalogueEntry::action, e -> e));
         when(features.permission(anyString()))
                 .thenAnswer(i -> Optional.ofNullable(catalogue.get(i.<String>getArgument(0))));
+        when(features.catalogue()).thenAnswer(i -> List.copyOf(catalogue.values()));
         when(patterns.findAll()).thenAnswer(i -> List.copyOf(ownedRows));
         when(shares.findAll()).thenAnswer(i -> List.copyOf(shareRows));
         when(rolePermissions.findByIdRoleId(org.mockito.ArgumentMatchers.any()))
@@ -479,5 +482,126 @@ class PermissionResolverTest {
         assertThat(resolver.canSeeCluster(clusterId)).isFalse();
         assertThat(resolver.can(clusterId, ResourceRef.queue("orders.in"), QUEUE_READ))
                 .isFalse();
+    }
+
+    // ---- filtering a list ---------------------------------------------------------------------------
+
+    @Test
+    void aFilterLetsThroughOnlyTheNamesTheCallersTeamsCover() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_VIEWER));
+
+        ResourceFilter filter = resolver.filter(clusterId, ResourceKind.QUEUE);
+
+        assertThat(filter.everything()).isFalse();
+        assertThat(filter.readable("orders.in")).isTrue();
+        assertThat(filter.readable("billing.in")).isFalse();
+        assertThat(filter.readable(null)).isFalse();
+    }
+
+    @Test
+    void aFilterOfACallerWhoReadsTheWholeClusterNeedsNoPerNameCheck() {
+        access(Set.of(global(QUEUE_READ, QUEUE_PURGE)), Map.of());
+
+        ResourceFilter filter = resolver.filter(clusterId, ResourceKind.QUEUE);
+
+        assertThat(filter.everything()).isTrue();
+        assertThat(filter.readable("anything")).isTrue();
+        assertThat(filter.allowedActions("anything")).containsExactly(QUEUE_PURGE, QUEUE_READ);
+    }
+
+    @Test
+    void aRowCarriesTheActionsOfItsKindThatTheCallerHoldsOnIt() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_OPERATOR));
+
+        ResourceFilter queues = resolver.filter(clusterId, ResourceKind.QUEUE);
+        ResourceFilter addresses = resolver.filter(clusterId, ResourceKind.ADDRESS);
+
+        assertThat(queues.allowedActions("orders.in"))
+                .contains(QUEUE_READ, QUEUE_PURGE, MessagePermissions.MESSAGE_DELETE)
+                .doesNotContain(MESSAGE_SEND, Permissions.ADDRESS_READ);
+        assertThat(addresses.allowedActions("orders.in"))
+                .contains(Permissions.ADDRESS_READ, MESSAGE_SEND)
+                .doesNotContain(QUEUE_PURGE);
+        assertThat(queues.allowedActions("billing.in")).isEmpty();
+    }
+
+    @Test
+    void aShareAddsItsActionsToTheRowsItCovers() {
+        owns(billing, clusterId, "BOTH", "billing.#");
+        shares(billing, orders, clusterId, "BOTH", "billing.in", TEAM_VIEWER);
+        access(Set.of(), Map.of(orders, TEAM_VIEWER));
+
+        ResourceFilter queues = resolver.filter(clusterId, ResourceKind.QUEUE);
+
+        assertThat(queues.readable("billing.in")).isTrue();
+        assertThat(queues.readable("billing.payments")).isFalse();
+        assertThat(queues.allowedActions("billing.in")).containsExactly(MessagePermissions.MESSAGE_READ, QUEUE_READ);
+    }
+
+    // ---- where a caller may create ------------------------------------------------------------------
+
+    @Test
+    void thePatternsACallerMayCreateUnderAreThoseOfTheirTeamsThatTheirRoleAllowsIt() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        owns(billing, clusterId, "BOTH", "billing.#");
+        shares(billing, orders, clusterId, "QUEUE", "billing.shared.#", Set.of(QUEUE_READ, QUEUE_CREATE));
+        access(Set.of(), Map.of(orders, Set.of(QUEUE_READ, QUEUE_CREATE)));
+
+        assertThat(resolver.patternsHolding(clusterId, ResourceKind.QUEUE, QUEUE_CREATE))
+                .containsExactly("billing.shared.#", "orders.#");
+        assertThat(resolver.patternsHolding(clusterId, ResourceKind.ADDRESS, QUEUE_CREATE))
+                .isEmpty();
+        assertThat(resolver.patternsHolding(otherClusterId, ResourceKind.QUEUE, QUEUE_CREATE))
+                .isEmpty();
+    }
+
+    // ---- patterns --------------------------------------------------------------------------------------
+
+    @Test
+    void aPatternIsHeldWhenOneOfTheCallersPatternsCoversEveryNameItCanMatch() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_OPERATOR));
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.#", QUEUE_PURGE))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.*.in", QUEUE_PURGE))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.in", QUEUE_PURGE))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "#", QUEUE_PURGE))
+                .isFalse();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "*.in", QUEUE_PURGE))
+                .isFalse();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "billing.in", QUEUE_PURGE))
+                .isFalse();
+    }
+
+    @Test
+    void aPatternNeedsThePermissionInTheRoleOfThePatternThatCoversIt() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        shares(orders, billing, clusterId, "BOTH", "orders.events.#", TEAM_VIEWER);
+        access(Set.of(), Map.of(billing, TEAM_OPERATOR));
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.events.*", QUEUE_READ))
+                .isTrue();
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders.events.*", QUEUE_PURGE))
+                .as("the share's role does not purge")
+                .isFalse();
+    }
+
+    @Test
+    void aWildcardInsideAWordIsHeldOnlyThroughAGrantThatReachesTheCluster() {
+        owns(orders, clusterId, "BOTH", "orders.#");
+        access(Set.of(), Map.of(orders, TEAM_OPERATOR));
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders*", QUEUE_READ))
+                .isFalse();
+
+        access(Set.of(new Grant(Grant.ScopeType.CLUSTER, clusterId, Set.of(QUEUE_READ))), Map.of());
+
+        assertThat(resolver.canOnAll(clusterId, ResourceKind.QUEUE, "orders*", QUEUE_READ))
+                .isTrue();
     }
 }
