@@ -219,7 +219,7 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
                 .descriptorField("version", version)
                 .descriptorField("basePackage", pkg)
                 .descriptorField("configuration", pkg + ".PluginConfig")
-                .descriptorField("permissions", List.of(Map.of("action", id + ":read", "scope", "cluster")))
+                .descriptorField("permissions", List.of(Map.of("action", id + ":read", "scope", "global")))
                 .descriptorField("settingKeys", List.of(id + ".limit"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
