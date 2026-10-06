@@ -32,23 +32,6 @@ function Harness({ initial = '' }: { initial?: string }) {
   return <AddressPicker clusterId="c1" value={initial} onChange={() => {}} label="Request address" />;
 }
 
-/**
- * Options are queried with `hidden: true`. Mantine positions the dropdown with
- * floating-ui, which needs real layout; under jsdom the popover wrapper keeps
- * `display: none`, so Testing Library treats everything inside it as
- * inaccessible. That is an artifact of the environment, not of the markup — the
- * dropdown's real visibility and keyboard behaviour are checked in a browser.
- * The queries still go by role and accessible name, so a genuinely unnamed
- * option still fails here.
- *
- * For the same reason the dropdown stays mounted whether open or closed, so
- * open/close and focus-containment behaviour is not asserted here — it is
- * checked in a browser. What is asserted is everything that is observable:
- * which options are offered, how they are named, the routing-type filter, the
- * unknown-address hint, and the failure path.
- */
-const opt = { hidden: true } as const;
-
 describe('AddressPicker', () => {
   it('suggests the broker’s addresses with their type and depth', async () => {
     server.use(
@@ -64,9 +47,9 @@ describe('AddressPicker', () => {
     // The whole row is one accessible name, so a screen reader announces the
     // address with the two facts that distinguish a request queue from a reply one.
     expect(
-      await screen.findByRole('option', { name: 'orders.request, anycast, 12 messages, on 3 of 3 nodes', ...opt }),
+      await screen.findByRole('option', { name: 'orders.request, anycast, 12 messages, on 3 of 3 nodes' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /^orders\.events, multicast,/, ...opt })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^orders\.events, multicast,/ })).toBeInTheDocument();
   });
 
   it('shows an address in full rather than truncating it to fit the field', async () => {
@@ -80,7 +63,7 @@ describe('AddressPicker', () => {
 
     await user.click(screen.getByRole('textbox', { name: /request address/i }));
 
-    const option = await screen.findByRole('option', { name: new RegExp(`^${long},`), ...opt });
+    const option = await screen.findByRole('option', { name: new RegExp(`^${long},`) });
     const name = option.querySelector(`[title="${long}"]`);
     expect(name).not.toBeNull();
     expect(name).toHaveTextContent(long);
@@ -96,14 +79,12 @@ describe('AddressPicker', () => {
     renderWithProviders(<Harness />);
 
     await user.click(screen.getByRole('textbox', { name: /request address/i }));
-    await screen.findByRole('option', { name: /orders\.events/, ...opt });
+    await screen.findByRole('option', { name: /orders\.events/ });
 
-    await user.click(screen.getByRole('checkbox', { name: 'multicast', ...opt }));
+    await user.click(screen.getByRole('checkbox', { name: 'multicast' }));
 
-    await waitFor(() =>
-      expect(screen.queryByRole('option', { name: /orders\.request/, ...opt })).not.toBeInTheDocument(),
-    );
-    expect(screen.getByRole('option', { name: /orders\.events/, ...opt })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('option', { name: /orders\.request/ })).not.toBeInTheDocument());
+    expect(screen.getByRole('option', { name: /orders\.events/ })).toBeInTheDocument();
   });
 
   it('says so when the typed name matches nothing, without blocking it', async () => {

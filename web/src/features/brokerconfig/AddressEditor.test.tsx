@@ -126,8 +126,8 @@ describe('AddressEditor', () => {
 
     await screen.findByRole('textbox', { name: /Address/ });
     await user.click(screen.getAllByRole('combobox', { name: 'Routing' })[1]!);
-    // Both selects mount their options; the second list belongs to events.b.
-    await user.click((await screen.findAllByRole('option', { name: 'MULTICAST', hidden: true }))[1]!);
+    // Only the open list is accessible, and it belongs to events.b.
+    await user.click(await screen.findByRole('option', { name: 'MULTICAST' }));
     await user.click(screen.getByRole('button', { name: 'Remove queue events.a from the declaration' }));
     expect(screen.getByRole('textbox', { name: 'Queue name' })).toHaveValue('events.b');
     await user.click(screen.getByRole('button', { name: SAVE }));

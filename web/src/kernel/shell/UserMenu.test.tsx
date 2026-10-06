@@ -8,9 +8,7 @@ import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { paged } from '../api/paging.ts';
 
-// jsdom has no layout, so Mantine's popover treats its anchor as detached and hides the dropdown (display:none)
-// the moment it has positioned it. The menu is queried with `hidden` for that reason, not because it is closed.
-const radio = (name: string) => screen.findByRole('menuitemradio', { name, hidden: true });
+const radio = (name: string) => screen.findByRole('menuitemradio', { name });
 
 describe('UserMenu', () => {
   beforeEach(() => {

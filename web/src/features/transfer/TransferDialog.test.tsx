@@ -16,9 +16,6 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 
 const { TransferDialog } = await import('./TransferDialog.tsx');
 
-/** Mantine renders its dropdown in a portal the modal marks aria-hidden, so options are queried hidden. */
-const opt = { hidden: true } as const;
-
 function open(
   props: Partial<{
     selection: MessageSelection;
@@ -47,7 +44,7 @@ function open(
 async function pickNode(user: ReturnType<typeof userEvent.setup>, name: string) {
   const dialog = await screen.findByRole('dialog');
   await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-  await user.click(await screen.findByRole('option', { name, ...opt }));
+  await user.click(await screen.findByRole('option', { name }));
   return dialog;
 }
 
@@ -130,10 +127,10 @@ describe('TransferDialog destination', () => {
 
     const dialog = await screen.findByRole('dialog');
     await user.click(await within(dialog).findByRole('combobox', { name: 'Target cluster' }));
-    await user.click(await screen.findByRole('option', { name: 'dr-site', ...opt }));
+    await user.click(await screen.findByRole('option', { name: 'dr-site' }));
     // On its own cluster the source node is not offered; on another one it is.
     await user.click(within(dialog).getByRole('combobox', { name: 'Target node' }));
-    const nodeA = await screen.findByRole('option', { name: 'node-a', ...opt });
+    const nodeA = await screen.findByRole('option', { name: 'node-a' });
     expect(nodeA).not.toHaveAttribute('data-combobox-disabled');
     await user.click(nodeA);
     const queue = within(dialog).getByRole('textbox', { name: 'Target queue' });
