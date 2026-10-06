@@ -117,6 +117,13 @@ export function roleColumns({ onEdit, onDelete }: RoleRows): Column<RoleView>[] 
       priority: 'low',
     },
     {
+      id: 'team',
+      header: 'Team role',
+      accessor: (r) => (r.teamAssignable ? 'Yes' : 'No'),
+      kind: 'status',
+      priority: 'low',
+    },
+    {
       id: 'mfa',
       header: 'Two-step verification',
       accessor: (r) => (r.requiresMfa ? 'Required' : 'Not required'),

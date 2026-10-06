@@ -162,6 +162,7 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
           <DescriptionList
             items={[
               { term: 'Name', value: edited.name },
+              { term: 'Team role', value: edited.teamAssignable ? 'Yes' : 'No' },
               {
                 term: 'Permissions',
                 value: <span className={classes.code}>{edited.permissions.join(', ')}</span>,
@@ -172,6 +173,13 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
         ) : (
           <TextInput label="Name" {...form.getInputProps('name')} required />
         )}
+        {edited?.builtin ? null : (
+          <Switch
+            label="Team role"
+            description="Lets the role be given to a team's members or in a share. A team role holds only permissions that act on a queue or address, and team:admin."
+            {...form.getInputProps('teamAssignable', { type: 'checkbox' })}
+          />
+        )}
         {edited?.builtin
           ? null
           : (catalogueNotice(catalogue) ?? (
@@ -179,6 +187,7 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
                 catalogue={catalogue.data ?? []}
                 value={form.values.permissions}
                 onChange={(next) => form.setFieldValue('permissions', next)}
+                teamRole={form.values.teamAssignable}
               />
             ))}
         <Stack gap={4}>
