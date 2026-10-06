@@ -3,7 +3,6 @@ package io.github.sudoitir.artemisstudio.feature.resources;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -117,9 +116,9 @@ class PagedListServiceTest {
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         BrokerNodeEntity b = node(clusterId, "node-b", URL_B);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a, b));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNREACHABLE));
-        when(connections.forCluster(eq(clusterId), eq(URL_B)))
+        when(connections.forCluster(clusterId, URL_B))
                 .thenReturn(client(URL_B, "search-broker.json", "list-consumers.json"));
 
         PagedView<ConsumerView> page = service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null));
@@ -134,7 +133,7 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity b = node(clusterId, "node-b", URL_B);
         when(nodes.nodes(clusterId)).thenReturn(List.of(b));
-        when(connections.forCluster(eq(clusterId), eq(URL_B)))
+        when(connections.forCluster(clusterId, URL_B))
                 .thenReturn(client(URL_B, "search-broker.json", "list-consumers.json"));
 
         // A session row links to its consumers by session id, which is not the field the listing
@@ -154,10 +153,12 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNAUTHORIZED));
 
-        assertThatThrownBy(() -> service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null)))
+        ResourceQuery everything = ResourceQuery.of(null, 1, 50, null);
+
+        assertThatThrownBy(() -> service.consumers(clusterId, everything))
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
                 .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
@@ -168,7 +169,7 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a));
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenReturn(client(URL_A, "search-broker.json", "list-consumers.json"));
 
         java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
@@ -197,7 +198,9 @@ class PagedListServiceTest {
         UUID clusterId = UUID.randomUUID();
         when(nodes.nodes(clusterId)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.consumers(clusterId, ResourceQuery.of(null, 1, 50, null)))
+        ResourceQuery everything = ResourceQuery.of(null, 1, 50, null);
+
+        assertThatThrownBy(() -> service.consumers(clusterId, everything))
                 .isInstanceOf(BrokerConnectionException.class);
     }
 
@@ -226,7 +229,7 @@ class PagedListServiceTest {
     private UUID oneNodeServing(String... fixtures) {
         UUID clusterId = UUID.randomUUID();
         when(nodes.nodes(clusterId)).thenReturn(List.of(node(clusterId, "node-b", URL_B)));
-        when(connections.forCluster(eq(clusterId), eq(URL_B))).thenReturn(client(URL_B, fixtures));
+        when(connections.forCluster(clusterId, URL_B)).thenReturn(client(URL_B, fixtures));
         return clusterId;
     }
 

@@ -656,11 +656,13 @@ public class QueueLifecycleService {
         }
         List<String> named = queues.stream().filter(readable::readable).toList();
         int others = queues.size() - named.size();
-        String who = named.isEmpty()
-                ? " (none of them yours)"
-                : ": " + String.join(", ", named) + (others == 0 ? "" : " and " + others + " other" + plural(others));
+        String who = named.isEmpty() ? " (none of them yours)" : ": " + String.join(", ", named) + andOthers(others);
         return "Address '" + address + "' still has " + queues.size() + " queue(s) bound to it" + who
                 + ". Delete them first — this operation will not remove them for you.";
+    }
+
+    private static String andOthers(int others) {
+        return others == 0 ? "" : " and " + others + " other" + plural(others);
     }
 
     private static String plural(int count) {

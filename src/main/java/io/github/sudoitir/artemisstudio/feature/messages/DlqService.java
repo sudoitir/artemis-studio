@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -55,25 +56,8 @@ public class DlqService {
                         BrokerConnectionException.Kind.UNREACHABLE,
                         "This cluster has no node with a management URL yet."));
 
-        Map<String, String> kinds = new LinkedHashMap<>();
-        boolean settingsAvailable;
-        try {
-            JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-            JsonNode settings = client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
-            String dla = text(settings, "deadLetterAddress");
-            String ea = text(settings, "expiryAddress");
-            if (dla != null && !dla.isBlank()) {
-                kinds.put(dla, "dead-letter");
-            }
-            if (ea != null && !ea.isBlank()) {
-                kinds.putIfAbsent(ea, "expiry");
-            }
-            settingsAvailable = true;
-        } catch (BrokerConnectionException _) {
-            settingsAvailable = false;
-        }
-
-        if (!settingsAvailable) {
+        Optional<Map<String, String>> kinds = deadLetterKinds(clusterId, manageable);
+        if (kinds.isEmpty()) {
             return new DlqView(List.of(), false);
         }
 
@@ -82,33 +66,57 @@ public class DlqService {
         List<QueueSnapshot> all = queueSnapshots.forCluster(clusterId);
 
         List<DlqAddress> addresses = new ArrayList<>();
-        for (Map.Entry<String, String> entry : kinds.entrySet()) {
+        for (Map.Entry<String, String> entry : kinds.get().entrySet()) {
             String address = entry.getKey();
-            Map<String, List<QueueSnapshot>> byQueue = new LinkedHashMap<>();
-            for (QueueSnapshot s : all) {
-                if (address.equals(s.address())) {
-                    byQueue.computeIfAbsent(s.queueName(), k -> new ArrayList<>())
-                            .add(s);
-                }
-            }
-            List<DlqQueue> queues = new ArrayList<>();
-            byQueue.forEach((queueName, rows) -> {
-                if (!readableQueues.readable(queueName)) {
-                    return;
-                }
-                List<DlqQueueDepth> perNode = rows.stream()
-                        .map(r -> new DlqQueueDepth(
-                                r.nodeId(), nodeNames.getOrDefault(r.nodeId(), "unknown"), r.messageCount()))
-                        .toList();
-                long totalDepth =
-                        perNode.stream().mapToLong(DlqQueueDepth::depth).sum();
-                queues.add(new DlqQueue(queueName, address, totalDepth, perNode));
-            });
+            List<DlqQueue> queues = readableQueuesOn(address, all, nodeNames, readableQueues);
             if (!queues.isEmpty() || readableAddresses.readable(address)) {
                 addresses.add(new DlqAddress(address, entry.getValue(), queues));
             }
         }
         return new DlqView(addresses, true);
+    }
+
+    /** The dead-letter and expiry addresses by kind, or empty when the broker's settings cannot be read. */
+    private Optional<Map<String, String>> deadLetterKinds(UUID clusterId, ClusterNode manageable) {
+        try {
+            JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
+            JsonNode settings = client.execOnBrokerParsed("getAddressSettingsAsJSON(java.lang.String)", "#");
+            String dla = text(settings, "deadLetterAddress");
+            String ea = text(settings, "expiryAddress");
+            Map<String, String> kinds = new LinkedHashMap<>();
+            if (dla != null && !dla.isBlank()) {
+                kinds.put(dla, "dead-letter");
+            }
+            if (ea != null && !ea.isBlank()) {
+                kinds.putIfAbsent(ea, "expiry");
+            }
+            return Optional.of(kinds);
+        } catch (BrokerConnectionException _) {
+            return Optional.empty();
+        }
+    }
+
+    private static List<DlqQueue> readableQueuesOn(
+            String address, List<QueueSnapshot> all, Map<UUID, String> nodeNames, ResourceFilter readableQueues) {
+        Map<String, List<QueueSnapshot>> byQueue = new LinkedHashMap<>();
+        for (QueueSnapshot s : all) {
+            if (address.equals(s.address())) {
+                byQueue.computeIfAbsent(s.queueName(), k -> new ArrayList<>()).add(s);
+            }
+        }
+        List<DlqQueue> queues = new ArrayList<>();
+        byQueue.forEach((queueName, rows) -> {
+            if (!readableQueues.readable(queueName)) {
+                return;
+            }
+            List<DlqQueueDepth> perNode = rows.stream()
+                    .map(r -> new DlqQueueDepth(
+                            r.nodeId(), nodeNames.getOrDefault(r.nodeId(), "unknown"), r.messageCount()))
+                    .toList();
+            long totalDepth = perNode.stream().mapToLong(DlqQueueDepth::depth).sum();
+            queues.add(new DlqQueue(queueName, address, totalDepth, perNode));
+        });
+        return queues;
     }
 
     private static String text(JsonNode node, String field) {

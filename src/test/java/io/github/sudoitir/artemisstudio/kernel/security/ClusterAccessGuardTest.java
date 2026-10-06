@@ -90,11 +90,10 @@ class ClusterAccessGuardTest {
         canRead(ORDERS);
         when(perm.canSeeCluster(cluster)).thenReturn(true);
 
-        assertThatThrownBy(() -> guard.requireAll(
-                        cluster,
-                        List.of(
-                                new Requirement(ORDERS, "message:move"),
-                                new Requirement(BILLING_ADDRESS, "message:send"))))
+        List<Requirement> requirements =
+                List.of(new Requirement(ORDERS, "message:move"), new Requirement(BILLING_ADDRESS, "message:send"));
+
+        assertThatThrownBy(() -> guard.requireAll(cluster, requirements))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageNotContaining("billing.in")
                 .hasMessageNotContaining("orders.in");
@@ -162,7 +161,9 @@ class ClusterAccessGuardTest {
 
     @Test
     void creatingOnAClusterTheCallerCannotSeeIsTheClusterNotFound() {
-        assertThatThrownBy(() -> guard.requireCreate(cluster, ResourceRef.queue("misc.temp"), "queue:create"))
+        ResourceRef misc = ResourceRef.queue("misc.temp");
+
+        assertThatThrownBy(() -> guard.requireCreate(cluster, misc, "queue:create"))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage(new NotFoundException("cluster", cluster).getMessage());
     }

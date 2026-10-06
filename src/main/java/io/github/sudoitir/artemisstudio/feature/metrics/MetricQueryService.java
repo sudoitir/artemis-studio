@@ -46,6 +46,7 @@ public class MetricQueryService {
 
     private static final int MAX_POINTS = 500;
 
+    private static final String QUEUE_SUBJECT = ResourceKind.QUEUE.name();
     private static final String GAUGE = "GAUGE";
 
     /** A split by node draws at most this many nodes (ADR-0110). */
@@ -84,7 +85,7 @@ public class MetricQueryService {
         // difference between a 400 and a 404 to probe which clusters exist.
         requireReadable(clusterId, query);
         requireValid(metrics, query.subjectType(), query.subject(), splitBy);
-        String subjectName = "QUEUE".equals(query.subjectType()) ? query.subject() : null;
+        String subjectName = QUEUE_SUBJECT.equals(query.subjectType()) ? query.subject() : null;
 
         Window requested = window(query.from(), to, query.requestedStep());
         List<ClusterNode> nodes = splitBy == null ? List.of() : directory.nodes(clusterId);
@@ -113,7 +114,7 @@ public class MetricQueryService {
      * read only by a caller who may read every queue of the cluster.
      */
     private void requireReadable(UUID clusterId, MetricQuery query) {
-        if ("QUEUE".equals(query.subjectType())
+        if (QUEUE_SUBJECT.equals(query.subjectType())
                 && query.subject() != null
                 && !query.subject().isBlank()) {
             clusterAccess.requireResource(clusterId, ResourceRef.queue(query.subject()), Permissions.QUEUE_READ);
@@ -131,7 +132,7 @@ public class MetricQueryService {
                 throw new IllegalArgumentException("unknown metric: " + m);
             }
         }
-        boolean queue = "QUEUE".equals(subjectType);
+        boolean queue = QUEUE_SUBJECT.equals(subjectType);
         boolean subjectMissing = subject == null || subject.isBlank();
         if (queue && subjectMissing) {
             throw new IllegalArgumentException("subject is required when subjectType=QUEUE");

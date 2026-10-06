@@ -79,8 +79,10 @@ class TransferTargetAuthorisationTest {
                 .when(access)
                 .requireAll(eq(CLUSTER), any());
 
-        assertThatThrownBy(() -> service.authorisedTargetAddress(
-                        request("billing.in", "orders.out"), boundTo("billing.in", "billing.addr")))
+        var request = request("billing.in", "orders.out");
+        var bound = boundTo("billing.in", "billing.addr");
+
+        assertThatThrownBy(() -> service.authorisedTargetAddress(request, bound))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageNotContaining("billing");
     }

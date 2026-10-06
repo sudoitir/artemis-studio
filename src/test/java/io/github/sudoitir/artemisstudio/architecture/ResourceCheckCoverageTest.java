@@ -26,6 +26,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -236,7 +237,9 @@ class ResourceCheckCoverageTest {
 
     @org.springframework.stereotype.Service
     static class Unguarded {
-        public void purge(String queueName) {}
+        public void purge(String queueName) {
+            // Deliberately checks nothing: the scan must report this entry point as unguarded.
+        }
     }
 
     @org.springframework.stereotype.Service
@@ -250,6 +253,7 @@ class ResourceCheckCoverageTest {
         /** Two names, one check: the second is never looked at. */
         public void copy(UUID cluster, String sourceQueue, String targetQueue) {
             guard.requireResource(cluster, ResourceRef.queue(sourceQueue), "queue:read");
+            Objects.requireNonNull(targetQueue, "named, and used, but never checked");
         }
     }
 

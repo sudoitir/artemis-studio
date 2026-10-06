@@ -223,10 +223,10 @@ public class MessageService {
         requireAllowed(clusterId, queueName, action, req);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
-        Set<String> checkedOrigins = null;
+        RetryScope scope = RetryScope.UNRESTRICTED;
         if (action == MessageAction.RETRY) {
             try {
-                checkedOrigins = requireOriginalAddresses(clusterId, queueName, resolved);
+                scope = requireOriginalAddresses(clusterId, queueName, resolved);
             } catch (BrokerConnectionException e) {
                 return new Attempt.Failed<>(e.kind(), e.getMessage());
             }
@@ -234,11 +234,7 @@ public class MessageService {
 
         AuditEvent event = begin(action.auditName(), queueName, clusterId, node, auditParams(req), dryRun);
 
-        if (action == MessageAction.MOVE
-                && (req.targetQueue() == null || req.targetQueue().isBlank())) {
-            audit.fail(event, "MOVE requires a target queue.");
-            throw new IllegalArgumentException("MOVE requires a target queue.");
-        }
+        requireMoveTarget(event, action, req);
         // Artemis has no by-filter retry — RETRY is by explicit id, or "retry all"
         // (the DLQ replay). A filter on a RETRY is ignored, not an error.
         boolean retryAll = action == MessageAction.RETRY && req.ids().isEmpty();
@@ -268,9 +264,9 @@ public class MessageService {
             }
 
             if (idBased) {
-                return executeByIds(event, client, mbean, action, req, clusterId, node, checkedOrigins);
+                return executeByIds(event, new QueueAction(client, mbean, action, req, scope), clusterId, node);
             }
-            long affected = perform(client, mbean, action, req, checkedOrigins);
+            long affected = perform(new QueueAction(client, mbean, action, req, scope));
             audit.succeed(event, affected);
             publishQueuesAfterCommit(clusterId);
             return new Attempt.Ok<>(new Outcome.Affected(affected, node));
@@ -281,6 +277,14 @@ public class MessageService {
             // A filter the broker rejected. The row is closed as failed rather than left pending.
             audit.fail(event, e.getMessage());
             throw e;
+        }
+    }
+
+    private void requireMoveTarget(AuditEvent event, MessageAction action, MessageActionRequest req) {
+        if (action == MessageAction.MOVE
+                && (req.targetQueue() == null || req.targetQueue().isBlank())) {
+            audit.fail(event, "MOVE requires a target queue.");
+            throw new IllegalArgumentException("MOVE requires a target queue.");
         }
     }
 
@@ -297,16 +301,9 @@ public class MessageService {
         return params;
     }
 
-    private Attempt<Outcome> executeByIds(
-            AuditEvent event,
-            JolokiaBrokerClient client,
-            String mbean,
-            MessageAction action,
-            MessageActionRequest req,
-            UUID clusterId,
-            UUID node,
-            Set<String> checkedOrigins) {
-        MessageOperations.BulkResult result = performByIds(client, mbean, action, req, checkedOrigins);
+    private Attempt<Outcome> executeByIds(AuditEvent event, QueueAction call, UUID clusterId, UUID node) {
+        MessageOperations.BulkResult result = performByIds(call);
+        MessageActionRequest req = call.req();
         publishQueuesAfterCommit(clusterId);
         if (result.partial()) {
             // Reported as partial, never as a plain failure: some messages already moved.
@@ -388,11 +385,12 @@ public class MessageService {
      * A retry sends each message back to the address it came from, so the caller needs
      * {@code message:send} on every address the queue's messages came from, unless they hold it on the
      * whole cluster. It is the queue's whole content that is checked, not only the messages chosen. The
-     * addresses checked are returned (null when no check was needed), for the retry to keep to.
+     * addresses checked are returned, for the retry to keep to; a caller who holds it cluster-wide is
+     * {@link RetryScope#UNRESTRICTED}.
      */
-    private Set<String> requireOriginalAddresses(UUID clusterId, String queueName, ResolvedQueue resolved) {
+    private RetryScope requireOriginalAddresses(UUID clusterId, String queueName, ResolvedQueue resolved) {
         if (clusterAccess.holds(clusterId, MessagePermissions.MESSAGE_SEND)) {
-            return null;
+            return RetryScope.UNRESTRICTED;
         }
         JolokiaBrokerClient client = clientFor(clusterId, resolved);
         Set<String> origins = messageOps.originalAddresses(client, queueMbean(client, resolved, queueName));
@@ -401,7 +399,7 @@ public class MessageService {
                 origins.stream()
                         .map(a -> new Requirement(ResourceRef.address(a), MessagePermissions.MESSAGE_SEND))
                         .toList());
-        return origins;
+        return new RetryScope(true, origins);
     }
 
     private static String permissionFor(MessageAction action) {
@@ -424,18 +422,16 @@ public class MessageService {
     }
 
     /** A retry-all or a by-filter operation: one broker call, which returns its own count. */
-    private long perform(
-            JolokiaBrokerClient client,
-            String mbean,
-            MessageAction action,
-            MessageActionRequest req,
-            Set<String> checkedOrigins) {
-        if (action == MessageAction.RETRY && req.ids().isEmpty()) {
-            return checkedOrigins == null
-                    ? messageOps.retryAll(client, mbean)
-                    : retryFromCheckedOrigins(client, mbean, checkedOrigins);
+    private long perform(QueueAction call) {
+        JolokiaBrokerClient client = call.client();
+        String mbean = call.mbean();
+        MessageActionRequest req = call.req();
+        if (call.action() == MessageAction.RETRY && req.ids().isEmpty()) {
+            return call.scope().restricted()
+                    ? retryFromCheckedOrigins(client, mbean, call.scope().addresses())
+                    : messageOps.retryAll(client, mbean);
         }
-        return switch (action) {
+        return switch (call.action()) {
             case MOVE -> messageOps.moveByFilter(client, mbean, req.filter(), req.targetQueue());
             case DELETE -> messageOps.deleteByFilter(client, mbean, req.filter());
             case EXPIRE -> messageOps.expireByFilter(client, mbean, req.filter());
@@ -457,29 +453,40 @@ public class MessageService {
         return ids.isEmpty() ? 0 : messageOps.retryByIds(client, mbean, ids).affected();
     }
 
-    private MessageOperations.BulkResult performByIds(
-            JolokiaBrokerClient client,
-            String mbean,
-            MessageAction action,
-            MessageActionRequest req,
-            Set<String> checkedOrigins) {
+    private MessageOperations.BulkResult performByIds(QueueAction call) {
+        JolokiaBrokerClient client = call.client();
+        String mbean = call.mbean();
+        MessageActionRequest req = call.req();
         List<Long> ids = req.ids();
-        if (action == MessageAction.RETRY && checkedOrigins != null) {
+        if (call.action() == MessageAction.RETRY && call.scope().restricted()) {
             // Only messages that came from the addresses checked: an id of a message that arrived since, from
             // another address, is not retried.
             Set<Long> fromChecked = new HashSet<>();
-            for (String origin : checkedOrigins) {
+            for (String origin : call.scope().addresses()) {
                 fromChecked.addAll(messageOps.listIds(client, mbean, messageOps.originalAddressFilter(origin)));
             }
             ids = ids.stream().filter(fromChecked::contains).toList();
         }
-        return switch (action) {
+        return switch (call.action()) {
             case MOVE -> messageOps.moveByIds(client, mbean, ids, req.targetQueue());
             case RETRY -> messageOps.retryByIds(client, mbean, ids);
             case DELETE -> messageOps.deleteByIds(client, mbean, ids);
             case EXPIRE -> messageOps.expireByIds(client, mbean, ids);
         };
     }
+
+    /** A retry's reach: the addresses it was checked against, or none when {@code message:send} is cluster-wide. */
+    private record RetryScope(boolean restricted, Set<String> addresses) {
+        static final RetryScope UNRESTRICTED = new RetryScope(false, Set.of());
+    }
+
+    /** One message action, ready to run against a resolved queue. */
+    private record QueueAction(
+            JolokiaBrokerClient client,
+            String mbean,
+            MessageAction action,
+            MessageActionRequest req,
+            RetryScope scope) {}
 
     // ---- resolution + plumbing ------------------------------------
 

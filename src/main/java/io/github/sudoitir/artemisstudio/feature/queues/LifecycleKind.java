@@ -24,12 +24,13 @@ public enum LifecycleKind {
     PAUSE_QUEUE("PAUSE_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_PAUSE, false),
     RESUME_QUEUE("RESUME_QUEUE", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_PAUSE, false),
     RESET_QUEUE_COUNTER("RESET_QUEUE_COUNTER", LifecycleKind.QUEUE_TARGET, QueuePermissions.QUEUE_UPDATE, false),
-    CREATE_ADDRESS("CREATE_ADDRESS", "ADDRESS", QueuePermissions.ADDRESS_CREATE, false),
-    DELETE_ADDRESS("DELETE_ADDRESS", "ADDRESS", QueuePermissions.ADDRESS_DELETE, true),
+    CREATE_ADDRESS("CREATE_ADDRESS", LifecycleKind.ADDRESS_TARGET, QueuePermissions.ADDRESS_CREATE, false),
+    DELETE_ADDRESS("DELETE_ADDRESS", LifecycleKind.ADDRESS_TARGET, QueuePermissions.ADDRESS_DELETE, true),
     CREATE_DIVERT("CREATE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, false),
     DELETE_DIVERT("DELETE_DIVERT", "DIVERT", QueuePermissions.DIVERT_WRITE, true);
 
     private static final String QUEUE_TARGET = "QUEUE";
+    private static final String ADDRESS_TARGET = "ADDRESS";
 
     private final String auditName;
     private final String targetType;
@@ -76,7 +77,7 @@ public enum LifecycleKind {
     public Optional<ResourceRef> resource(String name) {
         return switch (targetType) {
             case QUEUE_TARGET -> Optional.of(ResourceRef.queue(name));
-            case "ADDRESS" -> Optional.of(ResourceRef.address(name));
+            case ADDRESS_TARGET -> Optional.of(ResourceRef.address(name));
             default -> Optional.empty();
         };
     }

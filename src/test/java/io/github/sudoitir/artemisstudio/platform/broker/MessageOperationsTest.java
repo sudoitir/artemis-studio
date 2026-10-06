@@ -81,7 +81,9 @@ class MessageOperationsTest {
         when(client.batch(anyList()))
                 .thenThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "refused"));
 
-        assertThatThrownBy(() -> operations.moveByIds(client, QUEUE, List.of(1L, 2L), "DLQ"))
+        List<Long> ids = List.of(1L, 2L);
+
+        assertThatThrownBy(() -> operations.moveByIds(client, QUEUE, ids, "DLQ"))
                 .isInstanceOf(BrokerConnectionException.class);
     }
 

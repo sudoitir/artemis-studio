@@ -814,8 +814,9 @@ class MessageServiceTest {
                 .when(access)
                 .requireResource(CLUSTER, ResourceRef.address("orders.addr"), MessagePermissions.MESSAGE_SEND);
 
-        assertThatThrownBy(() -> service.send(
-                        CLUSTER, "orders", null, new SendMessageRequest(3, true, "hi", null, Map.of(), Map.of()), true))
+        SendMessageRequest request = new SendMessageRequest(3, true, "hi", null, Map.of(), Map.of());
+
+        assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, request, true))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("queue orders does not exist.");
     }

@@ -233,11 +233,11 @@ public class FlowGraphService {
                 case STORE_AND_FORWARD, TEMPORARY_QUEUE -> queues.everything() && addresses.everything();
             };
         }
-    }
 
-    /** Whether a routing source is a match such as {@code #}, which names no address of its own. */
-    private static boolean isPattern(String source) {
-        return source == null || source.contains("#") || source.contains("*");
+        /** Whether a routing source is a match such as {@code #}, which names no address of its own. */
+        private static boolean isPattern(String source) {
+            return source == null || source.contains("#") || source.contains("*");
+        }
     }
 
     private static Set<String> temporaryQueues(List<StoredRoute> routes) {
