@@ -15,7 +15,9 @@ import { userColumns } from './columns.ts';
 import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
 import { withNotice } from './outcomes.ts';
 import { UserSessionsDrawer } from './UserSessionsDrawer.tsx';
-import { grantText } from './words.ts';
+import { ScopeFields } from './ScopeFields.tsx';
+import { GLOBAL_SCOPE, scopeBody, scopeError, useScopeLabel, type GrantScope } from './scope.ts';
+import { grantText, type ScopeLabel } from './words.ts';
 import {
   useAddGrant,
   useCreateUser,
@@ -54,6 +56,7 @@ export function UsersPanel() {
   const [grantingFor, setGrantingFor] = useState<UserView | null>(null);
   const [previewing, setPreviewing] = useState<{ id: string; username: string } | null>(null);
   const [inspectingSessions, setInspectingSessions] = useState<{ id: string; username: string } | null>(null);
+  const scopeLabel = useScopeLabel();
 
   const toggle = (u: UserView) =>
     setDisabled.mutate(
@@ -83,6 +86,7 @@ export function UsersPanel() {
       onUnlock: (u) => unlock.mutate(u.id, withNotice(UNLOCK, u.username, 'The account is still locked. Try again.')),
       onSessions: setInspectingSessions,
       onPermissions: setPreviewing,
+      scopeLabel,
     },
   });
 
@@ -129,7 +133,12 @@ export function UsersPanel() {
           reset.reset();
         }}
       />
-      <RemoveGrantDialog removing={removing} opened={removeOpen} onClose={() => setRemoveOpen(false)} />
+      <RemoveGrantDialog
+        removing={removing}
+        scopeLabel={scopeLabel}
+        opened={removeOpen}
+        onClose={() => setRemoveOpen(false)}
+      />
       <NewUserModal opened={createOpen} onClose={() => setCreateOpen(false)} />
       <GrantModal user={grantingFor} onClose={() => setGrantingFor(null)} />
     </Section>
@@ -141,7 +150,13 @@ function RemoveGrantDialog({
   removing,
   opened,
   onClose,
-}: Readonly<{ removing: { user: UserView; grant: UserGrant } | null; opened: boolean; onClose: () => void }>) {
+  scopeLabel,
+}: Readonly<{
+  removing: { user: UserView; grant: UserGrant } | null;
+  opened: boolean;
+  onClose: () => void;
+  scopeLabel: ScopeLabel;
+}>) {
   const removeGrant = useRemoveGrant();
   const confirm = ({ user, grant }: { user: UserView; grant: UserGrant }) =>
     removeGrant.mutate(
@@ -151,21 +166,28 @@ function RemoveGrantDialog({
         scopeType: grant.scopeType,
         scopeId: grant.scopeId ?? undefined,
       },
-      withNotice(REMOVE, `${grantText(grant)} from ${user.username}`, 'They still hold the role. Try again.', onClose),
+      withNotice(
+        REMOVE,
+        `${grantText(grant, scopeLabel)} from ${user.username}`,
+        'They still hold the role. Try again.',
+        onClose,
+      ),
     );
 
   return (
     <ConfirmDialog
       opened={opened}
       onClose={onClose}
-      title={removing ? `Remove ${grantText(removing.grant)} from ${removing.user.username}` : 'Remove role'}
+      title={
+        removing ? `Remove ${grantText(removing.grant, scopeLabel)} from ${removing.user.username}` : 'Remove role'
+      }
       tone="danger"
       typedName={removing?.user.username}
       pending={removeGrant.isPending}
       confirmLabel="Remove role"
       consequence={
         removing
-          ? `${removing.user.username} loses the permissions that ${grantText(removing.grant)} gave them. You can grant it again.`
+          ? `${removing.user.username} loses the permissions that ${grantText(removing.grant, scopeLabel)} gave them. You can grant it again.`
           : ''
       }
       onConfirm={() => removing && confirm(removing)}
@@ -307,10 +329,10 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
 function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose: () => void }>) {
   const roles = useRoles();
   const addGrant = useAddGrant();
-  const form = useForm<{ roleId: string | null }>({
-    initialValues: { roleId: null },
+  const form = useForm<{ roleId: string | null; scope: GrantScope }>({
+    initialValues: { roleId: null, scope: GLOBAL_SCOPE },
     validateInputOnBlur: true,
-    validate: { roleId: (v) => (v ? null : 'Choose the role to grant.') },
+    validate: { roleId: (v) => (v ? null : 'Choose the role to grant.'), scope: scopeError },
   });
   const roleOptions = (roles.data ?? []).map((r) => ({ value: r.id, label: r.name }));
 
@@ -319,11 +341,11 @@ function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose
     form.reset();
   };
 
-  const submit = form.onSubmit(({ roleId }) => {
+  const submit = form.onSubmit(({ roleId, scope }) => {
     if (!user || !roleId) return;
     const role = roleOptions.find((r) => r.value === roleId)?.label ?? 'the role';
     addGrant.mutate(
-      { userId: user.id, body: { roleId, scopeType: 'GLOBAL' } },
+      { userId: user.id, body: { roleId, ...scopeBody(scope) } },
       withNotice(GRANT, `${role} to ${user.username}`, 'They do not hold the role. Try again.', close),
     );
   }, focusFirstInvalid(form.getInputNode));
@@ -336,10 +358,10 @@ function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose
             label="Role"
             data={roleOptions}
             {...form.getInputProps('roleId')}
-            description="Granted globally. Use the API to scope a grant to one environment or cluster."
             placeholder="Select a role"
             required
           />
+          <ScopeFields {...form.getInputProps('scope')} />
           <Button type="submit" loading={addGrant.isPending}>
             Grant
           </Button>

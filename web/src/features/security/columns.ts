@@ -17,7 +17,7 @@ import {
   UserName,
   type UserControls,
 } from './cells.tsx';
-import { grantText, twoStepText } from './words.ts';
+import { grantText, twoStepText, type ScopeLabel } from './words.ts';
 
 /** What a users table needs from its panel: the controls the panel owns, each gated and busy as it is now. */
 export interface UserRows {
@@ -61,7 +61,7 @@ export function userColumns({ controls }: UserRows): Column<UserView>[] {
     {
       id: 'grants',
       header: 'Roles',
-      accessor: (u) => u.grants.map(grantText).join(', ') || 'none',
+      accessor: (u) => u.grants.map((g) => grantText(g, controls.scopeLabel)).join(', ') || 'none',
       cell: (u) => createElement(UserGrants, { user: u, controls }),
       kind: 'text',
       wrap: true,
@@ -137,10 +137,18 @@ export function roleColumns({ onEdit, onDelete }: RoleRows): Column<RoleView>[] 
 /** The group mappings' columns: the group names what is mapped, the delete is never hidden. */
 export function mappingColumns({
   onDelete,
-}: Readonly<{ onDelete: (mapping: GroupMappingView) => void }>): Column<GroupMappingView>[] {
+  scopeLabel,
+}: Readonly<{ onDelete: (mapping: GroupMappingView) => void; scopeLabel: ScopeLabel }>): Column<GroupMappingView>[] {
   return [
     { id: 'group', header: 'Group', accessor: (m) => m.groupName, kind: 'identifier', priority: 'essential' },
     { id: 'role', header: 'Role', accessor: (m) => m.roleName, kind: 'text', priority: 'essential' },
+    {
+      id: 'scope',
+      header: 'Scope',
+      accessor: (m) => scopeLabel(m.scopeType, m.scopeId),
+      kind: 'text',
+      priority: 'high',
+    },
     {
       id: 'actions',
       header: 'Actions',

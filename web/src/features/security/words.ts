@@ -14,8 +14,10 @@ export function twoStepText(user: UserView): string {
   return factors.join(', ');
 }
 
+/** A scope in words: `useScopeLabel`'s answer, which names the environment or cluster. */
+export type ScopeLabel = (scopeType: string, scopeId?: string | null) => string;
+
 /** A role held by a user, with its scope in words when it is not global. */
-export function grantText(g: UserView['grants'][number]): string {
-  const scope = g.scopeType === 'GLOBAL' ? '' : ` (${g.scopeType.toLowerCase()})`;
-  return `${g.roleName}${scope}`;
+export function grantText(g: UserView['grants'][number], scopeLabel: ScopeLabel): string {
+  return g.scopeType === 'GLOBAL' ? g.roleName : `${g.roleName} (${scopeLabel(g.scopeType, g.scopeId)})`;
 }
