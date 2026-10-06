@@ -12,8 +12,10 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -547,8 +549,8 @@ public class PluginValidator {
 
     private void checkMcpTools(PluginDescriptor descriptor, String id, List<Violation> violations) {
         String mcpPrefix = id.replace('-', '_') + "_";
-        Set<String> declared = new HashSet<>();
-        descriptor.permissions().forEach(p -> declared.add(p.action()));
+        Map<String, PluginDescriptor.Permission> declared = new HashMap<>();
+        descriptor.permissions().forEach(p -> declared.put(p.action(), p));
         for (var tool : descriptor.mcpTools()) {
             if (tool.name() == null || !tool.name().startsWith(mcpPrefix)) {
                 violations.add(new Violation(
@@ -558,13 +560,49 @@ public class PluginValidator {
             }
             // Studio checks this permission before the tool runs (ADR-0114), so it must be one the
             // plugin declares: an undeclared one could never be granted, and the tool would be dead.
-            if (!declared.contains(tool.permission())) {
+            PluginDescriptor.Permission permission = declared.get(tool.permission());
+            if (permission == null) {
                 violations.add(new Violation(
                         "mcp-tool-permission",
                         "Assistant tool \"%s\" is guarded by \"%s\", which the plugin does not declare."
                                 .formatted(tool.name(), tool.permission()),
                         "Declare that permission under permissions, or name one that is declared."));
+            } else if (tool.scope() != null && !tool.scope().equals(permission.scope())) {
+                violations.add(new Violation(
+                        "mcp-tool-scope",
+                        "Assistant tool \"%s\" has scope \"%s\" but its permission \"%s\" has scope \"%s\"."
+                                .formatted(tool.name(), tool.scope(), tool.permission(), permission.scope()),
+                        "Give the tool the scope of its permission, or guard it with a permission of scope \"%s\"."
+                                .formatted(tool.scope())));
             }
+            checkResourceTool(tool, permission, violations);
+        }
+    }
+
+    /** A resource tool names the argument that holds the queue or address, and its kind; no other tool does. */
+    private void checkResourceTool(
+            PluginDescriptor.McpTool tool, PluginDescriptor.Permission permission, List<Violation> violations) {
+        boolean resource = "resource".equals(tool.scope());
+        boolean named = tool.resourceArg() != null && !tool.resourceArg().isBlank();
+        if (resource && (!named || tool.resourceKind() == null)) {
+            violations.add(new Violation(
+                    "mcp-tool-resource",
+                    "Assistant tool \"%s\" has scope \"resource\" but does not name resourceArg and resourceKind."
+                            .formatted(tool.name()),
+                    "Name the tool's string argument that holds the queue or address, as resourceArg, and its"
+                            + " resourceKind, \"queue\" or \"address\"."));
+        } else if (!resource && (named || tool.resourceKind() != null)) {
+            violations.add(new Violation(
+                    "mcp-tool-resource",
+                    "Assistant tool \"%s\" names a resourceArg or resourceKind but its scope is \"%s\"."
+                            .formatted(tool.name(), tool.scope()),
+                    "Remove them, or change the scope to \"resource\"."));
+        } else if (resource && permission != null && !permission.resourceKinds().contains(tool.resourceKind())) {
+            violations.add(new Violation(
+                    "mcp-tool-resource",
+                    "Assistant tool \"%s\" acts on a %s but its permission \"%s\" acts on %s."
+                            .formatted(tool.name(), tool.resourceKind(), tool.permission(), permission.resourceKinds()),
+                    "Name a resourceKind the permission's resourceKinds include."));
         }
     }
 

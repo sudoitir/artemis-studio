@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.PatternKind;
@@ -182,5 +183,24 @@ class MyAccessIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(summary.teams()).isEmpty();
         assertThat(summary.permissions()).containsExactly("cluster:read");
+    }
+
+    @Test
+    void theActionsOnAResourceAreThoseTheCallersTeamGivesThereAndNothingForOneTheyCannotRead() {
+        UUID prod = cluster(null);
+        UUID orders = team("orders");
+        teams.addPattern(orders, new PatternRequest(prod, PatternKind.QUEUE, "orders.#"));
+        UUID viewer = user();
+        teams.addMember(orders, new MemberRequest(PrincipalType.USER, viewer, null, null, role("TEAM_VIEWER")));
+
+        asUser(viewer);
+
+        assertThat(myAccess.onResource(prod, ResourceKind.QUEUE, "orders.in").actions())
+                .contains("queue:read")
+                .doesNotContain("queue:purge");
+        assertThat(myAccess.onResource(prod, ResourceKind.QUEUE, "billing.in").actions())
+                .isEmpty();
+        assertThat(myAccess.onResource(prod, ResourceKind.ADDRESS, "orders.in").actions())
+                .isEmpty();
     }
 }

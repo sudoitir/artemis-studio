@@ -15,11 +15,18 @@
   "ui": true,
   "activation": "AUTO",
   "permissions": [
-    { "action": "acme-notes:read", "description": "Read notes", "scope": "cluster" },
+    {
+      "action": "acme-notes:read",
+      "description": "Read the notes on a queue",
+      "scope": "resource",
+      "resourceKinds": ["queue"],
+      "requires": ["queue:read"]
+    },
     {
       "action": "acme-notes:write",
-      "description": "Write and delete notes",
-      "scope": "cluster",
+      "description": "Write and delete the notes on a queue",
+      "scope": "resource",
+      "resourceKinds": ["queue"],
       "requires": ["acme-notes:read"]
     }
   ],
@@ -29,8 +36,10 @@
     {
       "name": "acme_notes_list",
       "posture": "read",
-      "scope": "cluster",
+      "scope": "resource",
       "permission": "acme-notes:read",
+      "resourceArg": "queue",
+      "resourceKind": "queue",
       "description": "Lists the notes on a queue."
     }
   ],

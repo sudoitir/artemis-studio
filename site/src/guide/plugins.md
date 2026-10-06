@@ -376,7 +376,13 @@ A plugin's `@McpTool` beans join Studio's MCP endpoint while it runs. Declare ea
 
 - **`permission`** is one of the plugin's own permissions. It is checked against the API key's
   owner, as it is for every other call.
-- **`scope: cluster`** checks it on the cluster named by the tool's `clusterId` argument, which the
+- **`scope`** is the scope of the permission, and Studio refuses a tool whose scope differs.
+  **`scope: resource`** checks it on the queue or address named by the argument `resourceArg` (a
+  required string the tool takes), of the kind `resourceKind` (`queue` or `address`), on the cluster
+  named by the required string `clusterId`. A caller who may not read that queue or address is told
+  *No such queue or address, or this key has no grant on it*, whether or not it exists, and one who
+  may read it and may not use it is told which permission is missing.
+  **`scope: cluster`** checks it on the cluster named by the tool's `clusterId` argument, which the
   tool must take as a required string. A caller without the grant is told *No such cluster, or this
   key has no grant on it*, exactly as for Studio's own tools, so the cluster's existence stays hidden.
   **`scope: global`** checks it globally, and a denial names the permission.
@@ -387,7 +393,7 @@ A plugin's `@McpTool` beans join Studio's MCP endpoint while it runs. Declare ea
   shows them, with the permission and scope, to any model that asks.
 
 Studio refuses to activate a plugin whose registered tools and declared tools differ, whose
-cluster tool takes no `clusterId`, or whose annotations contradict its posture. Check finer rules
+cluster or resource tool takes no `clusterId` (or a resource tool no `resourceArg`), or whose annotations contradict its posture. Check finer rules
 (such as a second permission for sensitive fields) inside the tool as usual.
 
 ### Messages and secrets
@@ -422,7 +428,7 @@ class Orders implements PluginMessageHandler {
 - **`TAP`** delivers a copy of every message routed to the queue. Existing consumers and producers
   are untouched. If the plugin falls behind, the oldest copies are dropped, and
   `registration(key).droppedCopies()` says how many. It needs the acting user to hold
-  `message:read`, and Studio's broker role to be set
+  `message:read` on the queue, and Studio's broker role to be set
   (`artemis-studio.capture.broker-role`, as for capture).
 - **`CONSUME`** makes the plugin one of the queue's consumers. `ACCEPT` removes the message.
   `REJECT`, an exception, or the plugin stopping first leaves it for redelivery, within the broker's
@@ -430,14 +436,15 @@ class Orders implements PluginMessageHandler {
   attempt: return it when the message is not the problem (the service your handler calls is down)
   and you are stopping the registration until it recovers. The broker offers a released message
   again at once, so releasing in a loop that keeps receiving only spins. It needs `message:read`
-  and `queue:purge`.
+  and `queue:purge` on the queue.
 - **`send(OutboundMessage)`** sends a body, headers and properties to an address. It needs
-  `message:send`.
+  `message:send` on the address.
 - **`checkSend(clusterId, address, actingUserId)`** answers why such a send would be refused (a
   reserved address, an unknown cluster, a missing `message:send`) without sending, so a plugin can
   reject a bad target when a user configures it. `send` still checks every message.
-- **Every registration acts for a user**, whose grants are checked when it is made and on every pass
-  after (`artemis-studio.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
+- **Every registration acts for a user**, whose rights on the queue or address (through a role, a
+  team or a share) are checked when it is made and on every pass after
+  (`artemis-studio.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
   a permission, the registration is `SUSPENDED` and says why. It resumes when the permission
   returns.
 - **Concurrency.** A registration's `concurrency` is how many messages the handler gets at once on
@@ -746,6 +753,27 @@ React, Mantine and the SDK's components work as they are. A library of your own 
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
 
+### Moving a plugin from contract 10 to 11
+
+Contract 11 lets a plugin decide, filter and guard permissions on one queue or address, and lets its
+assistant tools and scheduled work follow. Studio refuses a plugin built for contract 10 with "built for
+extension contract 10", so rebuild it and set `<studio.contract>11</studio.contract>` in its `pom.xml`:
+
+- An assistant tool's `scope` must be the scope of its permission (`resource`, `cluster` or `global`),
+  and a `resource` tool names `resourceArg`, the string argument that holds the queue or address, and
+  `resourceKind`. A tool whose scope differs from its permission's, or a resource tool without them, is
+  refused when the plugin is activated.
+- A permission you check against a queue or address should be `resource`, and be checked with
+  `ClusterAccessGuard.requireResource` rather than `@PreAuthorize("@perm.can(#clusterId, …)")`, which
+  asks about the cluster as a whole and is never satisfied by a team.
+- A message registration (`RegistrationSpec`) is checked on its queue and a send on its address, for the
+  acting user, not on the cluster.
+- Scheduled work that acts for a user is published as `OwnerWork`, naming the permissions and resources
+  it needs. Studio refuses the publish naming each missing one, checks again before every run, and
+  suspends the work with the reason when the owner loses one.
+- In the UI, `useCan().can(permission, { clusterId, kind, name })` answers for one queue or address, and
+  adding the row's `allowedActions` answers with no request.
+
 ### Moving a plugin from contract 9 to 10
 
 Contract 10 makes permissions resource-scoped. Studio refuses a plugin built for contract 9, so
@@ -777,6 +805,53 @@ Contract 9 replaces `VirtualTable` with the parts above. Studio refuses a plugin
   `EmptyState` and `ErrorState`.
 - `notify` is no longer Mantine's `notifications`: call its `succeeded`, `failed`, `pending` and
   `partial` instead of `show`.
+
+## Permissions on queues and addresses
+
+A permission declared `"scope": "resource"` acts on one queue or address, so it is held through a
+role granted at global, environment or cluster scope, through a team role on the team that owns the
+name, or through a share. Check it the way Studio does, so your answers are exactly Studio's:
+
+- **`ClusterAccessGuard.requireResource(clusterId, ResourceRef.queue(name), "acme-notes:read")`**
+  guards one operation. A caller who may not read the queue gets the not-found a missing one gets
+  (a `NotFoundException`, HTTP 404), and one who may read it and may not do this is refused naming the
+  permission and the queue (HTTP 403, problem `resource-forbidden`). `requireAll` checks several
+  resources before anything is done.
+- **`PermissionResolver.can(clusterId, ResourceRef, action)`** answers for the current user, and
+  `can(principal, clusterId, ResourceRef, action)` for another, such as the owner of work that runs later.
+- **`PermissionResolver.filter(clusterId, ResourceKind.QUEUE)`** returns a `ResourceFilter` for a list: call
+  `readable(name)` for each row, and `allowedActions(name)` for the actions the caller holds on it, yours
+  included. Filter before you sort, page and count, so a total never counts what the caller cannot see.
+  `everything()` is true for a caller who reads the whole cluster, so they pay nothing for it.
+
+In the UI, `useCan().can('acme-notes:write', { clusterId, kind: 'queue', name })` answers for one queue or
+address, and `allowedActions` on a row you already fetched answers with no request:
+`can('acme-notes:write', { clusterId, kind: 'queue', name, allowedActions: row.allowedActions })`.
+`can(permission, clusterId)` is about the cluster as a whole, which a team's rights never reach.
+
+### Work that runs later as its owner
+
+Inject **`OwnerWork`** for a schedule, a rule or a sync that runs after the request that created it,
+as a user. Declare what the work needs when you publish it, and ask before each run:
+
+```java
+work.publish("forward-orders", ownerId, List.of(
+        WorkNeed.on(clusterId, ResourceRef.queue("orders.in"), "message:move"),
+        WorkNeed.on(clusterId, ResourceRef.address("billing.in"), "message:send")));
+
+// on every run
+if (work.beforeRun("forward-orders").runnable()) {
+    // ... do the work
+}
+```
+
+- `publish` is refused, with every need the owner lacks named (`message:send on address billing.in of
+  cluster …`), and nothing is stored.
+- `beforeRun` checks the needs against the owner's account as it stands now. When they have lost one,
+  the work is **suspended** with the reason, which is kept and audited. It stays suspended when the
+  rights return, until someone calls `enable`, which is refused while a need is still missing. A
+  plugin offers that as an Enable button.
+- `status`, `all` and `withdraw` read and remove the plugin's own work. Purging the plugin removes it.
 
 ## How it works
 

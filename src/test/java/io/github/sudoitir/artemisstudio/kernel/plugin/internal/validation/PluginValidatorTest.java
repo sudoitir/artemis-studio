@@ -356,6 +356,88 @@ class PluginValidatorTest {
         assertThat(validate(jar)).isNotEmpty();
     }
 
+    @Test
+    void mcpToolWhoseScopeIsNotItsPermissionsScopeIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "mcpTools",
+                        List.of(java.util.Map.of(
+                                "name", "acme_notes_search",
+                                "posture", "read",
+                                "scope", "global",
+                                "permission", "acme-notes:read",
+                                "description", "x")));
+        assertThat(validate(jar))
+                .filteredOn(v -> v.code().equals("mcp-tool-scope"))
+                .singleElement()
+                .satisfies(v -> assertThat(v.message())
+                        .contains("acme_notes_search")
+                        .contains("global")
+                        .contains("cluster"));
+    }
+
+    private static PluginJarBuilder resourcePlugin(java.util.Map<String, Object> tool) {
+        return validPlugin("acme-notes")
+                .descriptorField(
+                        "permissions",
+                        List.of(java.util.Map.of(
+                                "action",
+                                "acme-notes:read",
+                                "description",
+                                "Read notes",
+                                "scope",
+                                "resource",
+                                "resourceKinds",
+                                List.of("queue"))))
+                .descriptorField("mcpTools", List.of(tool));
+    }
+
+    private static java.util.Map<String, Object> resourceTool(String scope, String arg, String kind) {
+        var tool = new java.util.LinkedHashMap<String, Object>();
+        tool.put("name", "acme_notes_search");
+        tool.put("posture", "read");
+        tool.put("scope", scope);
+        tool.put("permission", "acme-notes:read");
+        if (arg != null) {
+            tool.put("resourceArg", arg);
+        }
+        if (kind != null) {
+            tool.put("resourceKind", kind);
+        }
+        tool.put("description", "x");
+        return tool;
+    }
+
+    @Test
+    void aResourceToolNamingItsArgumentAndKindPassesClean() throws Exception {
+        var violations = validate(resourcePlugin(resourceTool("resource", "queue", "queue")));
+        assertThat(violations).noneMatch(v -> v.code().startsWith("mcp-tool"));
+    }
+
+    @Test
+    void aResourceToolWithoutItsArgumentOrKindIsRefused() throws Exception {
+        assertThat(has(validate(resourcePlugin(resourceTool("resource", null, null))), "mcp-tool-resource"))
+                .isTrue();
+        assertThat(has(validate(resourcePlugin(resourceTool("resource", "queue", null))), "mcp-tool-resource"))
+                .isTrue();
+    }
+
+    @Test
+    void aToolThatIsNotAResourceToolMayNotNameAResource() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField("mcpTools", List.of(resourceTool("cluster", "queue", "queue")));
+        assertThat(has(validate(jar), "mcp-tool-resource")).isTrue();
+    }
+
+    @Test
+    void aResourceToolMustNameAKindItsPermissionActsOn() throws Exception {
+        var violations = validate(resourcePlugin(resourceTool("resource", "address", "address")));
+        assertThat(violations)
+                .filteredOn(v -> v.code().equals("mcp-tool-resource"))
+                .singleElement()
+                .satisfies(v -> assertThat(v.message()).contains("address").contains("queue"));
+    }
+
     private static java.util.Map<String, String> metric(String name, String unit, String permission) {
         return java.util.Map.of(
                 "name", name, "description", "x", "unit", unit, "subject", "note", "permission", permission);
@@ -642,7 +724,7 @@ class PluginValidatorTest {
                                 "posture",
                                 "read",
                                 "scope",
-                                "global",
+                                "cluster",
                                 "permission",
                                 id + ":read",
                                 "description",

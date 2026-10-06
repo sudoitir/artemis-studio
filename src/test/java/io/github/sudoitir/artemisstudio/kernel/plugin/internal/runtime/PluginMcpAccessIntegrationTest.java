@@ -120,6 +120,104 @@ class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aResourceToolForAClusterTheKeyCannotSeeHidesTheClusterAndNeverRuns() throws Exception {
+        String id = activate(accessJar(newId()));
+        var key = key(Grant.ScopeType.CLUSTER, UUID.randomUUID(), Set.of(id + ":peek", "queue:read"));
+
+        JsonNode called = McpFixture.callTool(
+                mvc,
+                key,
+                snake(id) + "_queue",
+                Map.of("clusterId", UUID.randomUUID().toString(), "queue", "orders.in"));
+
+        assertThat(text(called)).isEqualTo(McpErrors.CLUSTER_DENIED);
+        assertThat(System.getProperty(CALLS)).isEqualTo("0");
+    }
+
+    @Test
+    void aResourceToolForAQueueTheKeyCannotReadHidesTheQueueAndNeverRuns() throws Exception {
+        String id = activate(accessJar(newId()));
+        UUID cluster = UUID.randomUUID();
+        // The key sees the cluster, and holds the tool's permission, but may not read queues.
+        var key = key(Grant.ScopeType.CLUSTER, cluster, Set.of("cluster:read", id + ":peek"));
+
+        JsonNode called = McpFixture.callTool(
+                mvc, key, snake(id) + "_queue", Map.of("clusterId", cluster.toString(), "queue", "billing.in"));
+
+        assertThat(called.path("result").path("isError").asBoolean(false)).isTrue();
+        assertThat(text(called)).isEqualTo(McpErrors.RESOURCE_DENIED).doesNotContain(id + ":peek");
+        assertThat(System.getProperty(CALLS)).isEqualTo("0");
+    }
+
+    @Test
+    void aResourceToolForAQueueTheKeyMayReadButNotUseNamesThePermissionAndNeverRuns() throws Exception {
+        String id = activate(accessJar(newId()));
+        UUID cluster = UUID.randomUUID();
+        var key = key(Grant.ScopeType.CLUSTER, cluster, Set.of("queue:read"));
+
+        JsonNode called = McpFixture.callTool(
+                mvc, key, snake(id) + "_queue", Map.of("clusterId", cluster.toString(), "queue", "orders.in"));
+
+        assertThat(text(called)).contains(id + ":peek").contains("queue orders.in");
+        assertThat(System.getProperty(CALLS)).isEqualTo("0");
+    }
+
+    @Test
+    void aResourceToolWithTheRightOnTheQueueReachesThePlugin() throws Exception {
+        String id = activate(accessJar(newId()));
+        UUID cluster = UUID.randomUUID();
+        var key = key(Grant.ScopeType.CLUSTER, cluster, Set.of("queue:read", id + ":peek"));
+
+        JsonNode called = McpFixture.callTool(
+                mvc, key, snake(id) + "_queue", Map.of("clusterId", cluster.toString(), "queue", "orders.in"));
+
+        assertThat(text(called)).isEqualTo("reached orders.in");
+        assertThat(System.getProperty(CALLS)).isEqualTo("1");
+    }
+
+    @Test
+    void aResourceToolWithoutAResourceNeverRuns() throws Exception {
+        String id = activate(accessJar(newId()));
+        UUID cluster = UUID.randomUUID();
+        var key = key(Grant.ScopeType.GLOBAL, null, Set.of("queue:read", id + ":peek"));
+
+        // The schema refuses a missing argument before Studio's check; a blank one reaches the check.
+        JsonNode missing = McpFixture.callTool(mvc, key, snake(id) + "_queue", Map.of("clusterId", cluster.toString()));
+        JsonNode blank = McpFixture.callTool(
+                mvc, key, snake(id) + "_queue", Map.of("clusterId", cluster.toString(), "queue", " "));
+
+        assertThat(missing.has("error")
+                        || missing.path("result").path("isError").asBoolean(false))
+                .isTrue();
+        assertThat(blank.path("error").path("code").asInt()).isEqualTo(-32602);
+        assertThat(blank.path("error").path("message").asString()).contains("queue");
+        assertThat(System.getProperty(CALLS)).isEqualTo("0");
+    }
+
+    @Test
+    void aResourceToolThatDoesNotTakeItsResourceArgumentIsRefused() {
+        String id = newId();
+        PluginJarBuilder jar = accessJar(id)
+                .descriptorField(
+                        "mcpTools",
+                        List.of(
+                                clusterTool(id, "read"),
+                                resourceTool(id, "address"),
+                                Map.of(
+                                        "name",
+                                        snake(id) + "_global",
+                                        "posture",
+                                        "write",
+                                        "scope",
+                                        "global",
+                                        "permission",
+                                        id + ":admin",
+                                        "description",
+                                        "Changes a global thing.")));
+        assertThatThrownBy(() -> activate(jar)).hasStackTraceContaining("'address'");
+    }
+
+    @Test
     void aMalformedClusterIdIsAMalformedCall() throws Exception {
         String id = activate(accessJar(newId()));
         var key = key(Grant.ScopeType.GLOBAL, null, Set.of(id + ":read"));
@@ -248,6 +346,24 @@ class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
                 "Reads one cluster.");
     }
 
+    private static Map<String, Object> resourceTool(String id, String resourceArg) {
+        return Map.of(
+                "name",
+                snake(id) + "_queue",
+                "posture",
+                "read",
+                "scope",
+                "resource",
+                "permission",
+                id + ":peek",
+                "resourceArg",
+                resourceArg,
+                "resourceKind",
+                "queue",
+                "description",
+                "Reads one queue.");
+    }
+
     private static PluginJarBuilder accessJar(String id) {
         return accessJar(id, "read", "true", "String clusterId");
     }
@@ -262,11 +378,21 @@ class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
                         "permissions",
                         List.of(
                                 Map.of("action", id + ":read", "scope", "cluster"),
-                                Map.of("action", id + ":admin", "scope", "cluster")))
+                                Map.of("action", id + ":admin", "scope", "global"),
+                                Map.of(
+                                        "action",
+                                        id + ":peek",
+                                        "scope",
+                                        "resource",
+                                        "resourceKinds",
+                                        List.of("queue"),
+                                        "requires",
+                                        List.of("queue:read"))))
                 .descriptorField(
                         "mcpTools",
                         List.of(
                                 clusterTool(id, posture),
+                                resourceTool(id, "queue"),
                                 Map.of(
                                         "name",
                                         snake(id) + "_global",
@@ -306,6 +432,14 @@ class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
                             public String cluster(@McpToolParam(required = true, description = "x") %4$s) {
                                 count();
                                 return "reached " + %5$s;
+                            }
+                            @McpTool(name = "%2$s_queue", description = "Reads one queue.",
+                                    annotations = @McpTool.McpAnnotations(readOnlyHint = true))
+                            public String queue(
+                                    @McpToolParam(required = true, description = "x") String clusterId,
+                                    @McpToolParam(required = true, description = "x") String queue) {
+                                count();
+                                return "reached " + queue;
                             }
                             @McpTool(name = "%2$s_global", description = "Changes a global thing.",
                                     annotations = @McpTool.McpAnnotations(readOnlyHint = false))

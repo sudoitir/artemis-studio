@@ -19,7 +19,7 @@ export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: s
   const groups = navGroups(useFeatures());
   // While grants are still loading the entries are offered: refusing before the answer arrives
   // would claim something that has not been checked.
-  const { can, loading } = useCan();
+  const { canAnywhere, loading } = useCan();
 
   return (
     <>
@@ -51,7 +51,7 @@ export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: s
                   leading={<item.icon size={18} stroke={1.5} />}
                   trailing={item.Badge ? <item.Badge clusterId={clusterId} /> : undefined}
                   disabledReason={
-                    item.permission && !loading && !can(item.permission, clusterId)
+                    item.permission && !loading && !canAnywhere(item.permission, clusterId)
                       ? `Opening ${item.label} needs the ${item.permission} permission on this cluster.`
                       : undefined
                   }

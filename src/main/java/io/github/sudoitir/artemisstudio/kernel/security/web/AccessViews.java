@@ -45,6 +45,14 @@ public final class AccessViews {
 
             @Schema(requiredMode = REQUIRED) List<TeamMembership> teams) {}
 
+    @Schema(description = "What the caller may do with one queue or address: the actions they hold on it.")
+    public record ResourceAccessView(
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The resource permissions the caller holds on it, through a grant, a team or a "
+                            + "share, including plugins'. Empty for a resource they may not read.")
+            List<String> actions) {}
+
     public enum SourceType {
         ROLE_GRANT,
         TEAM,

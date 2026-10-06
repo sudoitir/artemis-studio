@@ -1,13 +1,16 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginBridge;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginHandle;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginRuntimeStatus;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncPromptSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncResourceSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncToolSpecification;
@@ -16,6 +19,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -44,10 +48,11 @@ import tools.jackson.databind.json.JsonMapper;
  * with the plugin's own thread context classloader set, counted as in-flight against its unload
  * drain — {@link PluginHandle#runInPlugin} is the one sanctioned way in.
  *
- * <p>Each tool declares the permission it needs and whether it is checked on a cluster or globally
- * (ADR-0114). This bridge checks it before the plugin's code runs, on the calling thread where the
- * key's security context lives: a cluster denial hides the cluster exactly as the built-in tools do
- * ({@link McpErrors#CLUSTER_DENIED}), a global one names the permission.
+ * <p>Each tool declares the permission it needs and whether it is checked on a queue or address, on
+ * a cluster or globally (ADR-0114). This bridge checks it before the plugin's code runs, on the
+ * calling thread where the key's security context lives: a cluster denial hides the cluster exactly
+ * as the built-in tools do ({@link McpErrors#CLUSTER_DENIED}), a resource denial hides the queue or
+ * address ({@link McpErrors#RESOURCE_DENIED}), a global one names the permission.
  */
 @Slf4j
 @Component
@@ -59,6 +64,7 @@ class McpPluginBridge implements PluginBridge {
 
     private static final String CLUSTER_ID = "clusterId";
     private static final String SCOPE_CLUSTER = "cluster";
+    private static final String SCOPE_RESOURCE = "resource";
     private static final String POSTURE_READ = "read";
 
     private final ObjectProvider<McpStatelessSyncServer> server;
@@ -206,15 +212,11 @@ class McpPluginBridge implements PluginBridge {
      */
     private io.modelcontextprotocol.spec.McpSchema.CallToolResult checkAccess(
             PluginDescriptor.McpTool declaration, io.modelcontextprotocol.spec.McpSchema.CallToolRequest request) {
+        if (SCOPE_RESOURCE.equals(declaration.scope())) {
+            return checkResource(declaration, request);
+        }
         if (SCOPE_CLUSTER.equals(declaration.scope())) {
-            Object raw =
-                    request.arguments() == null ? null : request.arguments().get(CLUSTER_ID);
-            UUID clusterId;
-            try {
-                clusterId = UUID.fromString(String.valueOf(raw));
-            } catch (IllegalArgumentException _) {
-                throw McpErrors.invalidParams("clusterId must be a cluster id; read studio://clusters for them.");
-            }
+            UUID clusterId = clusterIdOf(request);
             try {
                 clusterAccess.requireCluster(clusterId, declaration.permission());
             } catch (NotFoundException _) {
@@ -230,22 +232,53 @@ class McpPluginBridge implements PluginBridge {
     }
 
     /**
+     * A resource tool: the permission is needed on the queue or address its {@code resourceArg} names. A
+     * name the key may not read is hidden whether or not it exists; one it may read and may not use names
+     * the permission and the resource, which it can already see.
+     */
+    private io.modelcontextprotocol.spec.McpSchema.CallToolResult checkResource(
+            PluginDescriptor.McpTool declaration, io.modelcontextprotocol.spec.McpSchema.CallToolRequest request) {
+        UUID clusterId = clusterIdOf(request);
+        Object raw = request.arguments() == null ? null : request.arguments().get(declaration.resourceArg());
+        if (!(raw instanceof String name) || name.isBlank()) {
+            throw McpErrors.invalidParams(declaration.resourceArg() + " must be the name of a "
+                    + declaration.resourceKind() + " on the cluster.");
+        }
+        ResourceKind kind = ResourceKind.valueOf(declaration.resourceKind().toUpperCase(Locale.ROOT));
+        try {
+            clusterAccess.requireResource(clusterId, new ResourceRef(kind, name), declaration.permission());
+        } catch (ResourceForbiddenException e) {
+            return McpErrors.error("This key lacks " + e.permission() + " on " + e.kind() + " " + e.name() + ".");
+        } catch (NotFoundException _) {
+            // Whether the cluster or the resource is what the key may not see, the answer names neither.
+            return McpErrors.error(
+                    permissions.canSeeCluster(clusterId) ? McpErrors.RESOURCE_DENIED : McpErrors.CLUSTER_DENIED);
+        }
+        return null;
+    }
+
+    /** A missing or malformed {@code clusterId} is a malformed call (-32602), as for a built-in tool. */
+    private static UUID clusterIdOf(io.modelcontextprotocol.spec.McpSchema.CallToolRequest request) {
+        Object raw = request.arguments() == null ? null : request.arguments().get(CLUSTER_ID);
+        try {
+            return UUID.fromString(String.valueOf(raw));
+        } catch (IllegalArgumentException _) {
+            throw McpErrors.invalidParams("clusterId must be a cluster id; read studio://clusters for them.");
+        }
+    }
+
+    /**
      * What plugin.json says must match what the tool is: a cluster-scoped tool takes a required
      * {@code clusterId}, and a {@code read} tool is annotated read-only (and a {@code write} one is
      * not), because a host decides from that annotation whether to ask the operator first.
      */
     private static void checkDeclaration(
             String pluginId, io.modelcontextprotocol.spec.McpSchema.Tool tool, PluginDescriptor.McpTool declared) {
-        if (SCOPE_CLUSTER.equals(declared.scope())) {
-            Map<String, Object> schema = tool.inputSchema() == null ? Map.of() : tool.inputSchema();
-            boolean required = schema.get("required") instanceof List<?> r && r.contains(CLUSTER_ID);
-            boolean string = schema.get("properties") instanceof Map<?, ?> props
-                    && props.get(CLUSTER_ID) instanceof Map<?, ?> p
-                    && "string".equals(p.get("type"));
-            if (!required || !string) {
-                throw new IllegalStateException("Plugin '" + pluginId + "' tool '" + tool.name()
-                        + "' is cluster-scoped but takes no required string argument 'clusterId'");
-            }
+        if (SCOPE_CLUSTER.equals(declared.scope()) || SCOPE_RESOURCE.equals(declared.scope())) {
+            requireStringArgument(pluginId, tool, CLUSTER_ID, declared.scope());
+        }
+        if (SCOPE_RESOURCE.equals(declared.scope())) {
+            requireStringArgument(pluginId, tool, declared.resourceArg(), declared.scope());
         }
         boolean readOnly = tool.annotations() != null
                 && Boolean.TRUE.equals(tool.annotations().readOnlyHint());
@@ -253,6 +286,20 @@ class McpPluginBridge implements PluginBridge {
             throw new IllegalStateException("Plugin '" + pluginId + "' tool '" + tool.name() + "' is declared '"
                     + declared.posture() + "' but annotated readOnlyHint = " + readOnly
                     + "; a read tool is read-only and a write tool is not");
+        }
+    }
+
+    /** A cluster or resource tool takes the argument its scope is checked on, required and a string. */
+    private static void requireStringArgument(
+            String pluginId, io.modelcontextprotocol.spec.McpSchema.Tool tool, String argument, String scope) {
+        Map<String, Object> schema = tool.inputSchema() == null ? Map.of() : tool.inputSchema();
+        boolean required = schema.get("required") instanceof List<?> r && r.contains(argument);
+        boolean string = schema.get("properties") instanceof Map<?, ?> props
+                && props.get(argument) instanceof Map<?, ?> p
+                && "string".equals(p.get("type"));
+        if (!required || !string) {
+            throw new IllegalStateException("Plugin '" + pluginId + "' tool '" + tool.name() + "' is " + scope
+                    + "-scoped but takes no required string argument '" + argument + "'");
         }
     }
 

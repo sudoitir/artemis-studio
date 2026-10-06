@@ -143,12 +143,20 @@
             "description": "read: the tool changes nothing and is annotated readOnlyHint = true."
           },
           "scope": {
-            "enum": ["cluster", "global"],
-            "description": "cluster: Studio checks the permission on the cluster named by the tool's required clusterId argument."
+            "enum": ["resource", "cluster", "global"],
+            "description": "Matches the scope of the permission. resource: Studio checks the permission on the queue or address named by the tool's resourceArg, on the cluster named by its required clusterId argument. cluster: on that cluster. global: globally."
           },
           "permission": {
             "type": "string",
             "description": "One of this plugin's permissions; Studio checks it before the tool runs."
+          },
+          "resourceArg": {
+            "type": "string",
+            "description": "Required for scope resource, refused otherwise: the tool's required string argument holding the queue or address name."
+          },
+          "resourceKind": {
+            "enum": ["queue", "address"],
+            "description": "Required for scope resource, refused otherwise: what resourceArg names. The permission's resourceKinds must include it."
           },
           "description": { "type": "string" },
           "params": {
