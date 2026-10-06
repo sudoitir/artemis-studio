@@ -94,7 +94,7 @@ class PluginUnloadIntegrationTest extends PostgresIntegrationTest {
         return new PluginJarBuilder(ID)
                 .descriptorField("basePackage", PKG)
                 .descriptorField("configuration", PKG + ".Config")
-                .descriptorField("permissions", List.of(Map.of("action", ID + ":read")))
+                .descriptorField("permissions", List.of(Map.of("action", ID + ":read", "scope", "cluster")))
                 .descriptorField("settingKeys", List.of(ID + ".limit"))
                 .descriptorField(
                         "mcpTools",

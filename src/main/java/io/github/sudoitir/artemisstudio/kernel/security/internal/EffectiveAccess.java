@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.CatalogueEntry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
@@ -84,7 +85,7 @@ public class EffectiveAccess {
         if (entry == null) {
             return NOT_CATALOGUED;
         }
-        return entry.globalOnly() && scope != Grant.ScopeType.GLOBAL ? GLOBAL_ONLY : null;
+        return entry.scope() == PermissionScope.GLOBAL && scope != Grant.ScopeType.GLOBAL ? GLOBAL_ONLY : null;
     }
 
     private static EffectivePermissionView view(

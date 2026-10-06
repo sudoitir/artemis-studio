@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.support;
 
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
@@ -83,7 +84,8 @@ public final class OperatorFixture {
     }
 
     /** Withdraw every role the account holds, as an administrator would. */
-    public static void revokeAll(UserRoleRepository userRoles, UUID userId) {
+    public static void revokeAll(UserRoleRepository userRoles, AccessChanges accessChanges, UUID userId) {
         userRoles.deleteAll(userRoles.findByIdUserId(userId));
+        accessChanges.changedFor(userId);
     }
 }

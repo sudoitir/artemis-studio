@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
@@ -63,6 +64,9 @@ class LastAdminGuardTest {
     @Mock
     SessionAuthentication sessionState;
 
+    @Mock
+    AccessChanges accessChanges;
+
     UserService service;
 
     UUID adminRoleId = UUID.randomUUID();
@@ -82,7 +86,8 @@ class LastAdminGuardTest {
                 Optional.empty(),
                 Optional.empty(),
                 sessionState,
-                List::of);
+                List::of,
+                accessChanges);
         adminRole = role(adminRoleId, "ADMIN");
     }
 

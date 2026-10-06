@@ -18,6 +18,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRun
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeFactory;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
@@ -139,6 +140,9 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
 
     @Autowired
     UserRoleRepository userRoles;
+
+    @Autowired
+    AccessChanges accessChanges;
 
     @Autowired
     ApplicationEventPublisher events;
@@ -640,6 +644,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
 
         List<UserRoleEntity> grants = tx.execute(s -> userRoles.findByIdUserId(reader));
         userRoles.deleteAll(grants);
+        accessChanges.changedFor(reader);
         reconciler.reconcileNow(clusterId);
 
         MessageRegistration suspended = messaging(plugin).registration("orders").orElseThrow();
@@ -654,6 +659,7 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
                         g.getId().getScopeType(),
                         g.getId().getScopeId()))
                 .toList());
+        accessChanges.changedFor(reader);
         reconciler.reconcileNow(clusterId);
         assertThat(messaging(plugin).registration("orders").orElseThrow().state())
                 .isEqualTo(RegistrationState.ACTIVE);

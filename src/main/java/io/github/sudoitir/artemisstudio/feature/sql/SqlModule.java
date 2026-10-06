@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 
 /** SQL over messages, the message index and capture. Module descriptor (ADR-0070). */
 public final class SqlModule {
@@ -12,7 +14,11 @@ public final class SqlModule {
             .kind(FeatureDescriptor.Kind.FEATURE)
             .require("queues")
             .require("routing")
-            .permission(new PermissionDef(SqlPermissions.CAPTURE_WRITE, "Turn message capture on and off"))
+            .permission(PermissionDef.resource(
+                    SqlPermissions.CAPTURE_WRITE,
+                    "Turn message capture on and off",
+                    ResourceKind.QUEUE,
+                    Permissions.QUEUE_READ))
             .apiPrefix("/api/v1/clusters/{clusterId}/sql")
             .build();
 

@@ -4,7 +4,6 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AuthenticationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
-import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginAttemptLimiter;
 import io.github.sudoitir.artemisstudio.kernel.security.LoginThrottledException;
@@ -51,7 +50,6 @@ public class LoginService {
     private final AuthenticationAudit audit;
     private final UserAccounts accounts;
     private final AccountLockout lockout;
-    private final GrantLoader grants;
     /** Absent when the module holding the factors is off, which leaves sign-in password only. */
     private final Optional<SecondFactors> secondFactors;
 
@@ -214,8 +212,8 @@ public class LoginService {
         SecondFactors.Proof proof = proof(submission, account.id(), request);
         SessionFacts.Method method = verified(factors, account.id(), account.username(), proof, request)
                 .orElseThrow(() -> invalid(proof));
-        StudioPrincipal principal = new StudioPrincipal(
-                account.id(), account.username(), grants.loadFor(account.id()), account.mustChangePassword());
+        StudioPrincipal principal =
+                StudioPrincipal.live(account.id(), account.username(), account.mustChangePassword());
         sessions.establish(principal, SessionFacts.signedInWithSecondFactor(request, method), request, response);
         completed(principal, request);
         audit.secondFactorVerified(account.username(), method);

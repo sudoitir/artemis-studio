@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.TopicDef;
 import java.util.List;
 
@@ -12,6 +13,8 @@ public final class RrModule {
             .id("rr")
             .title("Request-reply tracing")
             .kind(FeatureDescriptor.Kind.FEATURE)
+            .permission(PermissionDef.cluster(
+                    RrPermissions.RR_WRITE, "Create, change and delete request-reply expectations"))
             .apiPrefix("/api/v1/clusters/{clusterId}/rr")
             .settingKey(RrSettings.DEFAULT_DEADLINE_MS)
             .settingKey(RrSettings.PAYLOAD_CAPTURE_BYTES)

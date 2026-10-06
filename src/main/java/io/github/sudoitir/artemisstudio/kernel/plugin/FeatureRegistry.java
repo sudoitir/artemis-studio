@@ -61,6 +61,11 @@ public class FeatureRegistry implements PluginBridge {
 
     private volatile String manifestVersion = manifestVersionOf(Map.of());
 
+    /** The catalogue by action as of one manifest version, replaced whole when the plugin set changes. */
+    private record CatalogueIndex(String version, Map<String, CatalogueEntry> byAction) {}
+
+    private final AtomicReference<CatalogueIndex> catalogueIndex = new AtomicReference<>();
+
     public FeatureRegistry(InstalledFeatures installed, Environment environment, ApplicationEventPublisher events) {
         this.events = events;
         for (FeatureDescriptor d : installed.descriptors()) {
@@ -223,7 +228,7 @@ public class FeatureRegistry implements PluginBridge {
                 .required(false)
                 .requires(d.requires())
                 .permissions(d.permissions().stream()
-                        .map(p -> new PermissionDef(p.action(), p.description(), p.isGlobalOnly()))
+                        .map(PluginDescriptor.Permission::toDef)
                         .toList())
                 .settingKeys(d.settingKeys())
                 .streamTopics(d.streamTopics().stream().map(TopicDef::signal).toList())
@@ -273,6 +278,19 @@ public class FeatureRegistry implements PluginBridge {
         return java.util.stream.Stream.concat(enabled().stream(), plugins.values().stream())
                 .flatMap(d -> d.permissions().stream().map(p -> CatalogueEntry.of(d, p)))
                 .toList();
+    }
+
+    /** One catalogue entry by its action; empty when no enabled module or active plugin declares it. */
+    public Optional<CatalogueEntry> permission(String action) {
+        String version = manifestVersion;
+        CatalogueIndex current = catalogueIndex.get();
+        if (current == null || !current.version().equals(version)) {
+            Map<String, CatalogueEntry> byAction = new HashMap<>();
+            catalogue().forEach(entry -> byAction.putIfAbsent(entry.action(), entry));
+            current = new CatalogueIndex(version, Map.copyOf(byAction));
+            catalogueIndex.set(current);
+        }
+        return Optional.ofNullable(current.byAction().get(action));
     }
 
     public List<FeatureDescriptor> enabled() {

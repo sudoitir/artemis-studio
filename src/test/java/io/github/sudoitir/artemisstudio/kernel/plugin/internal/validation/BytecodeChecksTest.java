@@ -38,7 +38,9 @@ class BytecodeChecksTest {
     private static PluginJarBuilder plugin() {
         String id = "acme-notes";
         return new PluginJarBuilder(id)
-                .descriptorField("permissions", List.of(Map.of("action", id + ":read", "description", "Read notes")))
+                .descriptorField(
+                        "permissions",
+                        List.of(Map.of("action", id + ":read", "description", "Read notes", "scope", "cluster")))
                 .descriptorField("settingKeys", List.of(id + ".enabled"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(

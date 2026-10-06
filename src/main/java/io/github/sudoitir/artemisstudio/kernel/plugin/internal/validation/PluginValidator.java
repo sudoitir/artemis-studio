@@ -47,6 +47,9 @@ public class PluginValidator {
     private static final String REUPLOAD = "Re-upload the jar.";
 
     private static final Pattern METRIC_NAME = Pattern.compile("[a-z0-9-]+:[a-z][a-z0-9_.]{0,63}");
+    private static final String RESOURCE_KINDS_CODE = "permission-resource-kinds";
+    private static final Set<String> SCOPES = Set.of("global", "cluster", "resource");
+    private static final Set<String> RESOURCE_KINDS = Set.of("queue", "address");
     private static final Set<String> METRIC_UNITS = Set.of("count", "per_second", "ms", "ratio");
     private static final Set<String> DENIED_MANIFEST_ATTRIBUTES =
             Set.of("Class-Path", "Launcher-Agent-Class", "Add-Opens", "Add-Exports", "Enable-Native-Access");
@@ -368,6 +371,7 @@ public class PluginValidator {
 
         checkStudioRange(descriptor, violations);
         checkNamespaces(descriptor, violations);
+        checkPermissionScopes(descriptor, violations);
         checkMetrics(descriptor, violations);
         checkIdentityProviders(descriptor, violations);
     }
@@ -492,6 +496,53 @@ public class PluginValidator {
         checkMcpTools(descriptor, id, violations);
         // The @ConfigurationProperties prefix itself (artemis-studio.plugins.<id>) is checked
         // against bytecode in BytecodeChecks, which needs the class file, not just the descriptor.
+    }
+
+    /** Every permission says where it takes effect: a scope, and for a resource the kinds it acts on. */
+    private void checkPermissionScopes(PluginDescriptor descriptor, List<Violation> violations) {
+        for (var permission : descriptor.permissions()) {
+            String action = permission.action();
+            if (permission.globalOnly() != null) {
+                violations.add(new Violation(
+                        "permission-global-only",
+                        "Permission \"%s\" declares globalOnly, which scope replaced.".formatted(action),
+                        "Remove globalOnly and declare scope: \"global\" for a permission checked without a cluster,"
+                                + " \"cluster\" for one checked against a cluster, or \"resource\" for one checked"
+                                + " against a queue or address."));
+            }
+            boolean resource = "resource".equals(permission.scope());
+            if (permission.scope() == null || !SCOPES.contains(permission.scope())) {
+                violations.add(new Violation(
+                        "permission-scope",
+                        "Permission \"%s\" declares scope \"%s\", which is not one of global, cluster or resource."
+                                .formatted(action, permission.scope()),
+                        "Declare scope as \"global\", \"cluster\" or \"resource\"."));
+            } else if (resource && permission.resourceKinds().isEmpty()) {
+                violations.add(new Violation(
+                        RESOURCE_KINDS_CODE,
+                        "Permission \"%s\" has scope \"resource\" but names no resourceKinds.".formatted(action),
+                        "Declare resourceKinds as [\"queue\"], [\"address\"] or both."));
+            } else if (!resource && !permission.resourceKinds().isEmpty()) {
+                violations.add(new Violation(
+                        RESOURCE_KINDS_CODE,
+                        "Permission \"%s\" names resourceKinds but its scope is \"%s\"."
+                                .formatted(action, permission.scope()),
+                        "Remove resourceKinds, or change the scope to \"resource\"."));
+            }
+            permission.resourceKinds().stream()
+                    .filter(kind -> !RESOURCE_KINDS.contains(kind))
+                    .forEach(kind -> violations.add(new Violation(
+                            RESOURCE_KINDS_CODE,
+                            "Permission \"%s\" names resource kind \"%s\", which is not queue or address."
+                                    .formatted(action, kind),
+                            "Name \"queue\", \"address\" or both.")));
+            permission.requires().stream()
+                    .filter(String::isBlank)
+                    .forEach(required -> violations.add(new Violation(
+                            "permission-requires",
+                            "Permission \"%s\" requires a blank permission name.".formatted(action),
+                            "Name the permissions a role must hold with it, or remove requires.")));
+        }
     }
 
     private void checkMcpTools(PluginDescriptor descriptor, String id, List<Violation> violations) {

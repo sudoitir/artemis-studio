@@ -14,9 +14,9 @@ public final class LifecycleModule {
             .kind(FeatureDescriptor.Kind.KERNEL)
             .required(true)
             .apiPrefix("/api/v1/data")
-            .permission(new PermissionDef(
-                    DataPermissions.DATA_READ, "View data retention, quotas and storage health", true))
-            .permission(new PermissionDef(DataPermissions.DATA_WRITE, "Change data retention and quotas", true))
+            .permission(
+                    PermissionDef.global(DataPermissions.DATA_READ, "View data retention, quotas and storage health"))
+            .permission(PermissionDef.global(DataPermissions.DATA_WRITE, "Change data retention and quotas"))
             .settingKey(LifecycleSettings.HOUSEKEEPING_CRON)
             .settingKey(LifecycleSettings.STORAGE_SAMPLE_CRON)
             .build();

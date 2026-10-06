@@ -79,7 +79,7 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
   // catalogued permission available; `can` resolves that. Computed while rendering, so it follows the
   // user's grants as they load or change, never a stale answer.
   const available = (catalogue.data ?? []).filter(
-    (p) => can(p.action, clusterId) && (scope === GLOBAL || !p.globalOnly),
+    (p) => can(p.action, clusterId) && (scope === GLOBAL || p.scope !== 'GLOBAL'),
   );
 
   const latest = policy.data ? Date.parse(policy.data.latestExpiry) : null;

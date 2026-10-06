@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRun
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeFactory;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -85,6 +86,9 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     UserRoleRepository userRoles;
+
+    @Autowired
+    AccessChanges accessChanges;
 
     @Autowired
     GrantLoader grants;
@@ -201,7 +205,7 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
         var query = depthQuery(now.minusSeconds(900));
         assertThat(history.read(user, clusterId, query).series()).isNotEmpty();
 
-        OperatorFixture.revokeAll(userRoles, user);
+        OperatorFixture.revokeAll(userRoles, accessChanges, user);
 
         assertThatThrownBy(() -> history.read(user, clusterId, query)).isInstanceOf(NotFoundException.class);
     }
@@ -234,7 +238,9 @@ class MetricHistoryIntegrationTest extends PostgresIntegrationTest {
         Path jar = new PluginJarBuilder(pluginId)
                 .descriptorField("basePackage", "com.acme.history")
                 .descriptorField("configuration", "com.acme.history.PluginConfig")
-                .descriptorField("permissions", List.of(Map.of("action", pluginId + ":stats", "description", "Stats")))
+                .descriptorField(
+                        "permissions",
+                        List.of(Map.of("action", pluginId + ":stats", "description", "Stats", "scope", "cluster")))
                 .descriptorField(
                         "metrics",
                         List.of(Map.of(

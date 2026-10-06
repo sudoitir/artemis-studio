@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
@@ -63,6 +64,7 @@ public class UserService {
     private final Optional<PersonalTokens> personalTokens;
     private final SessionAuthentication sessionState;
     private final IdentityProviderListing providers;
+    private final AccessChanges accessChanges;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -99,6 +101,7 @@ public class UserService {
         user.setDisabled(disabled);
         users.save(user);
         audit.changed(disabled ? "USER_DISABLE" : "USER_ENABLE", "user", user.getUsername(), null);
+        accessChanges.changedFor(userId);
         if (disabled) {
             sessions.endSessionsOf(List.of(user.getUsername()));
             secondFactors.ifPresent(f -> f.revokeTrustedDevices(userId, "account disabled"));
@@ -130,6 +133,7 @@ public class UserService {
                 "user",
                 user.getUsername(),
                 Map.of("role", role.getName(), "scopeType", request.scopeType()));
+        accessChanges.changedFor(userId);
         if (role.isRequiresMfa()) {
             // Sessions signed in before the grant never verified a second factor; the next sign-in enforces it.
             sessions.endSessionsOf(List.of(user.getUsername()));
@@ -157,6 +161,7 @@ public class UserService {
         userRoles.deleteById(new UserRoleEntity(userId, roleId, scopeType, resolvedScopeId).getId());
         audit.changed(
                 "GRANT_REMOVE", "user", user.getUsername(), Map.of("role", role.getName(), "scopeType", scopeType));
+        accessChanges.changedFor(userId);
         sessions.endSessionsOf(List.of(user.getUsername()));
     }
 

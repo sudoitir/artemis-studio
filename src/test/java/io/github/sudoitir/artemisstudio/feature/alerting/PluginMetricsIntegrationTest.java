@@ -240,7 +240,9 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
                 .descriptorField("version", version)
                 .descriptorField("basePackage", "com.acme.meter")
                 .descriptorField("configuration", "com.acme.meter.PluginConfig")
-                .descriptorField("permissions", List.of(Map.of("action", id + ":stats", "description", "Stats")))
+                .descriptorField(
+                        "permissions",
+                        List.of(Map.of("action", id + ":stats", "description", "Stats", "scope", "cluster")))
                 .descriptorField("metrics", metrics)
                 .descriptorField(
                         "alertRules",

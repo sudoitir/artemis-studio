@@ -60,13 +60,25 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["action", "description"],
+        "required": ["action", "description", "scope"],
         "properties": {
           "action": { "type": "string", "description": "Namespaced <id>:<action>." },
           "description": { "type": "string" },
-          "globalOnly": {
-            "type": "boolean",
-            "description": "True when the plugin checks it without a cluster, so only a global grant makes it take effect. Defaults to false."
+          "scope": {
+            "enum": ["global", "cluster", "resource"],
+            "description": "Where the permission takes effect. global: checked without a cluster, only a global grant makes it take effect. cluster: checked against a cluster, a global, environment or cluster grant makes it take effect. resource: checked against a queue or address of a cluster; a platform grant, a team role or a share makes it take effect."
+          },
+          "resourceKinds": {
+            "type": "array",
+            "items": { "enum": ["queue", "address"] },
+            "uniqueItems": true,
+            "description": "What a resource permission acts on. Required, and not empty, when scope is resource; refused for any other scope."
+          },
+          "requires": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true,
+            "description": "Permissions a role must hold with this one, from the plugin or from Studio (for example queue:read). The role editor adds them, and saving a role without them is refused."
           }
         }
       }

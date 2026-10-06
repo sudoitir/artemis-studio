@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
@@ -33,6 +34,7 @@ public class McpCatalogResources {
 
     private final ClusterService clusters;
     private final McpToolCatalog catalog;
+    private final PermissionResolver perm;
 
     @McpResource(
             uri = "studio://clusters",
@@ -78,7 +80,7 @@ public class McpCatalogResources {
             mimeType = "application/json")
     public McpSchema.ReadResourceResult permissions() {
         StudioPrincipal principal = principal();
-        List<McpViews.GrantEntry> grants = principal.grants().stream()
+        List<McpViews.GrantEntry> grants = perm.grantsOf(principal).stream()
                 .map(g -> new McpViews.GrantEntry(
                         g.scopeType().name(),
                         g.scopeId(),

@@ -23,7 +23,6 @@ public class OperatorHandoff {
 
     private final ActorResolver actors;
     private final UserAccounts accounts;
-    private final GrantLoader grants;
     private final PermissionResolver perm;
 
     /** Who started the work: their principal as authenticated, and the actor their audit rows carry. */
@@ -47,8 +46,7 @@ public class OperatorHandoff {
             return Optional.empty();
         }
         return accounts.byId(userId).filter(account -> !account.disabled()).map(account -> {
-            StudioPrincipal principal =
-                    new StudioPrincipal(account.id(), account.username(), grants.loadFor(account.id()), false);
+            StudioPrincipal principal = StudioPrincipal.live(account.id(), account.username(), false);
             return new Operator(principal, new Actor(account.username(), null, null, account.id()));
         });
     }
@@ -72,17 +70,15 @@ public class OperatorHandoff {
 
     /**
      * Whether the operator still holds {@code permission}: as they were authenticated, and as their
-     * account's grants stand now. A principal's grants are loaded once, at sign-in, so a grant
-     * withdrawn while long-running work proceeds is only seen by reading the account again. A
-     * principal with no account has nothing to re-read, and is refused.
+     * account's access stands now. An operator that carries grants of its own (an API key's) is
+     * narrowed by them, so a grant withdrawn from the account while long-running work proceeds is only
+     * seen by checking the account as well. A principal with no account is refused.
      */
     public boolean stillHolds(Operator operator, UUID clusterId, String permission) {
         StudioPrincipal captured = operator.principal();
         if (captured.userId() == null || !perm.can(captured, clusterId, permission)) {
             return false;
         }
-        StudioPrincipal current = new StudioPrincipal(
-                captured.userId(), captured.getUsername(), grants.loadFor(captured.userId()), false);
-        return perm.can(current, clusterId, permission);
+        return perm.can(StudioPrincipal.live(captured.userId(), captured.getUsername(), false), clusterId, permission);
     }
 }

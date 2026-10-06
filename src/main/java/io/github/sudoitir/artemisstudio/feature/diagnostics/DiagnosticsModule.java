@@ -10,7 +10,7 @@ public final class DiagnosticsModule {
             .id("diagnostics")
             .title("Diagnostics")
             .kind(FeatureDescriptor.Kind.FEATURE)
-            .permission(new PermissionDef(DiagnosticsPermissions.BUNDLE, "Create support bundles", true))
+            .permission(PermissionDef.global(DiagnosticsPermissions.BUNDLE, "Create support bundles"))
             .apiPrefix("/api/v1/diagnostics")
             .apiPrefix("/api/v1/admin/diagnostics")
             .build();

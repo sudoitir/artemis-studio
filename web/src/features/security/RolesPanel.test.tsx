@@ -11,21 +11,52 @@ import { RolesPanel } from './RolesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
 
 const CATALOGUE: PermissionView[] = [
-  { action: 'queue:create', label: 'Create queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
-  { action: 'queue:delete', label: 'Destroy queues', featureId: 'queues', featureTitle: 'Queues', globalOnly: false },
+  {
+    action: 'queue:create',
+    label: 'Create queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
+  {
+    action: 'queue:delete',
+    label: 'Destroy queues',
+    featureId: 'queues',
+    featureTitle: 'Queues',
+    scope: 'CLUSTER',
+    resourceKinds: [],
+    requires: [],
+  },
 ];
 
 const ROLES: RoleView[] = [
-  { id: 'r-admin', name: 'ADMIN', builtin: true, permissions: ['*'], requiresMfa: true },
+  { id: 'r-admin', name: 'ADMIN', builtin: true, permissions: ['*'], requiresMfa: true, teamAssignable: false },
   {
     id: 'r-1',
     name: 'queue-operator',
     builtin: false,
     permissions: ['queue:create', 'queue:delete'],
     requiresMfa: false,
+    teamAssignable: false,
   },
-  { id: 'r-2', name: 'queue-creator', builtin: false, permissions: ['queue:create'], requiresMfa: false },
-  { id: 'r-3', name: 'queue-clone', builtin: false, permissions: ['queue:create', 'queue:delete'], requiresMfa: false },
+  {
+    id: 'r-2',
+    name: 'queue-creator',
+    builtin: false,
+    permissions: ['queue:create'],
+    requiresMfa: false,
+    teamAssignable: false,
+  },
+  {
+    id: 'r-3',
+    name: 'queue-clone',
+    builtin: false,
+    permissions: ['queue:create', 'queue:delete'],
+    requiresMfa: false,
+    teamAssignable: false,
+  },
 ];
 
 function serve(roles: RoleView[] = ROLES, catalogue: PermissionView[] | Response = CATALOGUE) {
@@ -145,7 +176,12 @@ describe('RolesPanel editor', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
-      expect(body).toEqual({ name: 'new-role', permissions: ['queue:create', 'queue:delete'], requiresMfa: false }),
+      expect(body).toEqual({
+        name: 'new-role',
+        permissions: ['queue:create', 'queue:delete'],
+        requiresMfa: false,
+        teamAssignable: false,
+      }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New role' })).toBeNull());
   });
@@ -174,7 +210,7 @@ describe('RolesPanel editor', () => {
     await waitFor(() =>
       expect(put).toEqual({
         url: '/api/v1/roles/r-2',
-        body: { name: 'queue-maker', permissions: ['queue:create'], requiresMfa: false },
+        body: { name: 'queue-maker', permissions: ['queue:create'], requiresMfa: false, teamAssignable: false },
       }),
     );
   });

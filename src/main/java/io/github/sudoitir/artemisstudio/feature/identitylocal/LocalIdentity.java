@@ -1,7 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.identitylocal;
 
 import io.github.sudoitir.artemisstudio.kernel.security.CredentialIdentityProvider;
-import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.IdentityProviders;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
@@ -22,14 +21,12 @@ class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
 
     private final UserAccounts accounts;
     private final PasswordEncoder passwordEncoder;
-    private final GrantLoader grantLoader;
     /** A hash from the same encoder, checked against when there is no real one. */
     private final String dummyHash;
 
-    LocalIdentity(UserAccounts accounts, PasswordEncoder passwordEncoder, GrantLoader grantLoader) {
+    LocalIdentity(UserAccounts accounts, PasswordEncoder passwordEncoder) {
         this.accounts = accounts;
         this.passwordEncoder = passwordEncoder;
-        this.grantLoader = grantLoader;
         this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -61,7 +58,6 @@ class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
         if (user.disabled()) {
             throw new DisabledException("Account disabled");
         }
-        return Optional.of(new StudioPrincipal(
-                user.id(), user.username(), grantLoader.loadFor(user.id()), user.mustChangePassword()));
+        return Optional.of(StudioPrincipal.live(user.id(), user.username(), user.mustChangePassword()));
     }
 }

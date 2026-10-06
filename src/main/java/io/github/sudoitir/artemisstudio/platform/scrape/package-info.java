@@ -9,6 +9,7 @@
             "kernel.lifecycle",
             "kernel.plugin",
             "kernel.plugin :: descriptor",
+            "kernel.security",
             "kernel.settings",
             "kernel.stream",
             "platform.broker",

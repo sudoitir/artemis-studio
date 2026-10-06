@@ -43,21 +43,22 @@ class TransferPermissionsTest extends TransferTestSupport {
                 MessagePermissions.MESSAGE_READ,
                 MessagePermissions.MESSAGE_MOVE);
 
-        assertThatThrownBy(() -> preview(TransferMode.MOVE, src, all(), "perm.dst." + sfx))
+        var everything = all();
+        String unreachable = "perm.dst." + sfx;
+        assertThatThrownBy(() -> preview(TransferMode.MOVE, src, everything, unreachable))
                 .isInstanceOf(NotFoundException.class);
         UUID nowhere = UUID.randomUUID();
-        assertThatThrownBy(() -> transfers.preview(
-                        clusterP.id(),
-                        new TransferPreviewRequest(
-                                TransferMode.MOVE, src, clusterP.node(), all(), nowhere, clusterD.node(), "q", null)))
-                .isInstanceOf(NotFoundException.class);
+        UUID sourceCluster = clusterP.id();
+        var request = new TransferPreviewRequest(
+                TransferMode.MOVE, src, clusterP.node(), everything, nowhere, clusterD.node(), "q", null);
+        assertThatThrownBy(() -> transfers.preview(sourceCluster, request)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
     void aGrantWithdrawnMidRunStopsTheRunWithTheReason() {
         TransferRunView run = slowRun(queue(p, "revoke.src"), queue(d, "revoke.dst"));
 
-        OperatorFixture.revokeAll(userRoles, userId);
+        OperatorFixture.revokeAll(userRoles, accessChanges, userId);
         TransferRunView stopped = awaitEnded(run);
 
         assertThat(stopped.state()).isEqualTo(TransferState.STOPPED);

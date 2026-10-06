@@ -11,8 +11,10 @@ public final class SecurityModule {
             .title("Security")
             .kind(FeatureDescriptor.Kind.KERNEL)
             .required(true)
-            .permission(new PermissionDef(Permissions.CLUSTER_READ, "View clusters and topology"))
-            .permission(new PermissionDef(Permissions.USER_ADMIN, "Manage users, roles, and grants", true))
+            .permission(PermissionDef.cluster(Permissions.CLUSTER_READ, "View clusters and topology"))
+            .permission(PermissionDef.global(Permissions.USER_ADMIN, "Manage users, roles, and grants"))
+            .permission(
+                    PermissionDef.global(Permissions.TEAM_ADMIN, "Manage teams, their patterns, members and shares"))
             .settingKey(SessionLifetimes.IDLE_TIMEOUT)
             .settingKey(SessionLifetimes.ABSOLUTE_LIFETIME)
             .build();

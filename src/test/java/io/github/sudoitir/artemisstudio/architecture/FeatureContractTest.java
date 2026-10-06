@@ -84,10 +84,10 @@ class FeatureContractTest {
         assertThatThrownBy(() -> registry(
                         env,
                         feature("a")
-                                .permission(new PermissionDef("queue:create", "x"))
+                                .permission(PermissionDef.cluster("queue:create", "x"))
                                 .build(),
                         feature("b")
-                                .permission(new PermissionDef("queue:create", "y"))
+                                .permission(PermissionDef.cluster("queue:create", "y"))
                                 .build()))
                 .hasMessageContaining("permission 'queue:create' is declared by both 'a' and 'b'");
         assertThatThrownBy(() -> registry(

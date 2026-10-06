@@ -99,6 +99,10 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
     private PluginJarBuilder notesJar(String version) {
         return new PluginJarBuilder("acme-notes")
                 .descriptorField("version", version)
+                .descriptorField(
+                        "permissions",
+                        java.util.List.of(java.util.Map.of(
+                                "action", "acme-notes:read", "description", "Read notes", "scope", "cluster")))
                 .descriptorField("basePackage", "com.acme.notes")
                 .descriptorField("configuration", "com.acme.notes.PluginConfig")
                 .changelog("""

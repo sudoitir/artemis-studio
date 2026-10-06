@@ -15,8 +15,13 @@
   "ui": true,
   "activation": "AUTO",
   "permissions": [
-    { "action": "acme-notes:read", "description": "Read notes" },
-    { "action": "acme-notes:write", "description": "Write and delete notes" }
+    { "action": "acme-notes:read", "description": "Read notes", "scope": "cluster" },
+    {
+      "action": "acme-notes:write",
+      "description": "Write and delete notes",
+      "scope": "cluster",
+      "requires": ["acme-notes:read"]
+    }
   ],
   "settingKeys": ["acme-notes.max-length"],
   "streamTopics": ["acme-notes"],

@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.App
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamMemberRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +38,9 @@ class UserAccountsTest {
     UserRoleRepository userRoles;
 
     @Mock
+    TeamMemberRepository teamMembers;
+
+    @Mock
     PluginInstallers installers;
 
     @Test
@@ -53,7 +57,7 @@ class UserAccountsTest {
         setId(adminRole, RoleEntity.class, adminRoleId);
         when(roles.findByName("ADMIN")).thenReturn(Optional.of(adminRole));
 
-        boolean created = new UserAccounts(users, roles, userRoles, installers)
+        boolean created = new UserAccounts(users, roles, userRoles, teamMembers, installers)
                 .createFirstAdministrator("admin", "{bcrypt}hashed");
 
         assertThat(created).isTrue();
@@ -72,7 +76,7 @@ class UserAccountsTest {
     void noAdministratorIsCreatedOnceAnyAccountExists() {
         when(users.count()).thenReturn(1L);
 
-        boolean created = new UserAccounts(users, roles, userRoles, installers)
+        boolean created = new UserAccounts(users, roles, userRoles, teamMembers, installers)
                 .createFirstAdministrator("admin", "{bcrypt}hashed");
 
         assertThat(created).isFalse();

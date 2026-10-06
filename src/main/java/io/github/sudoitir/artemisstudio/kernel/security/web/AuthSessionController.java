@@ -5,6 +5,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.IdentityProviderListing;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionRequiredException;
@@ -53,6 +54,7 @@ public class AuthSessionController {
     private final IdentityProviderListing providers;
     private final UserAccounts accounts;
     private final SessionAuthentication sessions;
+    private final PermissionResolver perm;
     private final SessionService sessionService;
     private final JsonMapper json;
 
@@ -293,7 +295,7 @@ public class AuthSessionController {
     }
 
     private MeView view(StudioPrincipal principal, HttpServletRequest req) {
-        var grants = principal.grantList().stream()
+        var grants = perm.grantsOf(principal).stream()
                 .map(g -> new GrantView(
                         g.scopeType().name(),
                         g.scopeId(),

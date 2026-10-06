@@ -259,7 +259,10 @@ class PluginMcpAccessIntegrationTest extends PostgresIntegrationTest {
                 .descriptorField("basePackage", pkg)
                 .descriptorField("configuration", pkg + ".Config")
                 .descriptorField(
-                        "permissions", List.of(Map.of("action", id + ":read"), Map.of("action", id + ":admin")))
+                        "permissions",
+                        List.of(
+                                Map.of("action", id + ":read", "scope", "cluster"),
+                                Map.of("action", id + ":admin", "scope", "cluster")))
                 .descriptorField(
                         "mcpTools",
                         List.of(

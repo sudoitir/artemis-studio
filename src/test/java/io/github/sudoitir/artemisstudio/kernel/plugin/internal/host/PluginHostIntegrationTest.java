@@ -298,7 +298,7 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         String id = uniqueId("acme-swap");
         String shaV1 = upload(emptyPlugin(id)
                 .descriptorField("version", "1.0.0")
-                .descriptorField("permissions", List.of(Map.of("action", id + ":read"))));
+                .descriptorField("permissions", List.of(Map.of("action", id + ":read", "scope", "cluster"))));
         host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
@@ -638,8 +638,8 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
     @Test
     void purgeRemovesSchemaGrantsSettingsAndTheRowAndLeavesNothingForTheSameIdLater() throws Exception {
         String id = uniqueId("acme-purge");
-        String sha =
-                upload(pluginWithATable(id).descriptorField("permissions", List.of(Map.of("action", id + ":admin"))));
+        String sha = upload(pluginWithATable(id)
+                .descriptorField("permissions", List.of(Map.of("action", id + ":admin", "scope", "cluster"))));
         host.activate(sha, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);

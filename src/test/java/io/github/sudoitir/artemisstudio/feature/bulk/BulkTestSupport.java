@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.bulk;
 
 import io.github.sudoitir.artemisstudio.feature.bulk.web.BulkViews.BulkPreviewRequest;
 import io.github.sudoitir.artemisstudio.feature.bulk.web.BulkViews.BulkRunDetailView;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
@@ -59,6 +60,9 @@ abstract class BulkTestSupport extends PostgresIntegrationTest {
 
     @Autowired
     UserRoleRepository userRoles;
+
+    @Autowired
+    AccessChanges accessChanges;
 
     @Autowired
     GrantLoader grants;

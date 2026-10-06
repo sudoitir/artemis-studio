@@ -67,8 +67,8 @@ class EffectiveAccessIntegrationTest extends PostgresIntegrationTest {
     void listsEachPermissionWithItsScopeAndRoleExpandingWildcards() {
         signInWith(Permissions.USER_ADMIN);
         AppUserEntity user = newUser();
-        var role = roleService.create(
-                new RoleRequest("effective-" + UUID.randomUUID(), List.of("queue:*", Permissions.USER_ADMIN), false));
+        var role = roleService.create(new RoleRequest(
+                "effective-" + UUID.randomUUID(), List.of("queue:*", Permissions.USER_ADMIN), false, false));
         UUID clusterId = UUID.randomUUID();
         userRoles.save(new UserRoleEntity(user.getId(), role.id(), "CLUSTER", clusterId));
 

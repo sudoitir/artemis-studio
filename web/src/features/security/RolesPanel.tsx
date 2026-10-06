@@ -120,13 +120,14 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
       name: edited?.name ?? '',
       permissions: edited?.permissions ?? [],
       requiresMfa: edited?.requiresMfa ?? false,
+      teamAssignable: edited?.teamAssignable ?? false,
     },
     validateInputOnBlur: true,
     validate: { name: (v) => (edited?.builtin || v.trim() ? null : NAME_ERROR) },
   });
 
-  // Saving ends the sessions of the role's members when what they signed in with has changed under them.
-  const endsSessions = edited !== null && (!edited.builtin || form.values.requiresMfa !== edited.requiresMfa);
+  // What a role grants applies to its members' next request; only a new second-factor requirement ends sessions.
+  const endsSessions = edited !== null && form.values.requiresMfa !== edited.requiresMfa;
 
   const save = form.onSubmit((body) => {
     const subject = `role "${body.name}"`;

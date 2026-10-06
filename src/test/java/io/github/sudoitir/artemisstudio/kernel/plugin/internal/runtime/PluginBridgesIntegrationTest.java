@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatus;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptorParser;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
@@ -123,7 +124,7 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         return new PluginJarBuilder(id)
                 .descriptorField("basePackage", "com.acme.bridges")
                 .descriptorField("configuration", "com.acme.bridges.PluginConfig")
-                .descriptorField("permissions", List.of(java.util.Map.of("action", id + ":read")))
+                .descriptorField("permissions", List.of(java.util.Map.of("action", id + ":read", "scope", "cluster")))
                 .descriptorField("settingKeys", List.of(id + ".limit"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
@@ -273,10 +274,10 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
                 .singleElement()
                 .satisfies(p -> {
                     assertThat(p.featureId()).isEqualTo(id);
-                    assertThat(p.globalOnly()).isFalse();
+                    assertThat(p.scope()).isEqualTo(PermissionScope.CLUSTER);
                 });
         UUID roleId = roleService
-                .create(new UserViews.RoleRequest("role-" + id, List.of(id + ":read"), false))
+                .create(new UserViews.RoleRequest("role-" + id, List.of(id + ":read"), false, false))
                 .id();
 
         activeRuntime.close();

@@ -210,10 +210,92 @@ class PluginValidatorTest {
         assertThat(report.valid()).isTrue();
     }
 
+    private static List<Violation> validatePermission(java.util.Map<String, Object> permission) throws Exception {
+        return validate(validPlugin("acme-notes").descriptorField("permissions", List.of(permission)));
+    }
+
+    @Test
+    void aPermissionDeclaringGlobalOnlyIsRefusedByNameWithTheScopeToUseInstead() throws Exception {
+        var violations = validatePermission(java.util.Map.of(
+                "action", "acme-notes:admin", "description", "x", "scope", "global", "globalOnly", true));
+
+        assertThat(violations)
+                .filteredOn(v -> v.code().equals("permission-global-only"))
+                .singleElement()
+                .satisfies(v -> {
+                    assertThat(v.message()).contains("acme-notes:admin", "globalOnly");
+                    assertThat(v.authorFix()).contains("scope");
+                });
+    }
+
+    @Test
+    void aPermissionWithoutAScopeIsRefused() throws Exception {
+        var violations = validatePermission(java.util.Map.of("action", "acme-notes:read", "description", "x"));
+
+        assertThat(has(violations, "permission-scope")).isTrue();
+    }
+
+    @Test
+    void aPermissionWithAnUnknownScopeIsRefused() throws Exception {
+        var violations = validatePermission(
+                java.util.Map.of("action", "acme-notes:read", "description", "x", "scope", "installation"));
+
+        assertThat(has(violations, "permission-scope")).isTrue();
+    }
+
+    @Test
+    void aResourcePermissionNeedsAtLeastOneKnownKind() throws Exception {
+        var none = validatePermission(java.util.Map.of(
+                "action", "acme-notes:read", "description", "x", "scope", "resource", "resourceKinds", List.of()));
+        var unknown = validatePermission(java.util.Map.of(
+                "action", "acme-notes:read",
+                "description", "x",
+                "scope", "resource",
+                "resourceKinds", List.of("topic")));
+
+        assertThat(has(none, "permission-resource-kinds")).isTrue();
+        assertThat(has(unknown, "permission-resource-kinds")).isTrue();
+    }
+
+    @Test
+    void aNonResourcePermissionMayNotNameKinds() throws Exception {
+        var violations = validatePermission(java.util.Map.of(
+                "action", "acme-notes:read",
+                "description", "x",
+                "scope", "cluster",
+                "resourceKinds", List.of("queue")));
+
+        assertThat(has(violations, "permission-resource-kinds")).isTrue();
+    }
+
+    @Test
+    void permissionScopesAndRequirementsThatAreWellFormedPassClean() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField(
+                        "permissions",
+                        List.of(
+                                java.util.Map.of(
+                                        "action", "acme-notes:read",
+                                        "description", "x",
+                                        "scope", "resource",
+                                        "resourceKinds", List.of("queue", "address")),
+                                java.util.Map.of(
+                                        "action", "acme-notes:write",
+                                        "description", "x",
+                                        "scope", "resource",
+                                        "resourceKinds", List.of("queue"),
+                                        "requires", List.of("acme-notes:read", "queue:read")),
+                                java.util.Map.of("action", "acme-notes:admin", "description", "x", "scope", "global")));
+
+        assertThat(validate(jar)).noneMatch(v -> v.code().startsWith("permission-"));
+    }
+
     @Test
     void permissionNamespaceViolation() throws Exception {
         var jar = validPlugin("acme-notes")
-                .descriptorField("permissions", List.of(java.util.Map.of("action", "other:read", "description", "x")));
+                .descriptorField(
+                        "permissions",
+                        List.of(java.util.Map.of("action", "other:read", "description", "x", "scope", "cluster")));
         assertThat(has(validate(jar), "permission-namespace")).isTrue();
     }
 
@@ -285,8 +367,8 @@ class PluginValidatorTest {
                 .descriptorField(
                         "permissions",
                         List.of(
-                                java.util.Map.of("action", "acme-notes:read", "description", "x"),
-                                java.util.Map.of("action", "acme-notes:stats", "description", "x")))
+                                java.util.Map.of("action", "acme-notes:read", "description", "x", "scope", "cluster"),
+                                java.util.Map.of("action", "acme-notes:stats", "description", "x", "scope", "cluster")))
                 .descriptorField("metrics", List.of(metric("acme-notes:edits", "count", "acme-notes:stats")))
                 .descriptorField(
                         "alertRules",
@@ -305,7 +387,8 @@ class PluginValidatorTest {
     void metricOutsideTheNamespaceOrWithAnUnknownUnitIsRefused() throws Exception {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
-                        "permissions", List.of(java.util.Map.of("action", "acme-notes:stats", "description", "x")))
+                        "permissions",
+                        List.of(java.util.Map.of("action", "acme-notes:stats", "description", "x", "scope", "cluster")))
                 .descriptorField("metrics", List.of(metric("other:edits", "furlongs", "acme-notes:stats")));
         var violations = validate(jar);
         assertThat(has(violations, "metric-name")).isTrue();
@@ -546,7 +629,9 @@ class PluginValidatorTest {
     private static PluginJarBuilder validPlugin(String id) {
         return new PluginJarBuilder(id)
                 .descriptorField(
-                        "permissions", List.of(java.util.Map.of("action", id + ":read", "description", "Read notes")))
+                        "permissions",
+                        List.of(java.util.Map.of(
+                                "action", id + ":read", "description", "Read notes", "scope", "cluster")))
                 .descriptorField("settingKeys", List.of(id + ".enabled"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
