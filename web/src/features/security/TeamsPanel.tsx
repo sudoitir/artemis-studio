@@ -13,6 +13,7 @@ import { Notice } from '../../ui/Notice.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
+import { useClusters } from '../clusters/index.ts';
 import { useCreateTeam, useDeleteTeam, useRenameTeam, useTeams, type TeamSummary } from './api.ts';
 import { withNotice } from './outcomes.ts';
 import { teamColumns } from './teamColumns.tsx';
@@ -53,7 +54,9 @@ function TeamList({ onOpen }: Readonly<{ onOpen: (teamId: string) => void }>) {
   const [deleting, setDeleting] = useState<TeamSummary | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const clusters = useClusters();
   const columns = teamColumns({
+    clusterName: (id) => clusters.data?.find((c) => c.id === id)?.name ?? 'Unknown cluster',
     editable: userAdmin,
     onOpen: (t) => onOpen(t.id),
     onRename: setNaming,
@@ -202,7 +205,7 @@ function DeleteTeam({
       confirmLabel="Delete team"
       consequence={
         team
-          ? `This removes the team's ${team.patternCount} pattern${team.patternCount === 1 ? '' : 's'}, ${team.memberCount} member${team.memberCount === 1 ? '' : 's'} and ${team.sharesOut + team.sharesIn} share${team.sharesOut + team.sharesIn === 1 ? '' : 's'}. Its members lose the access the team gave them on their next request. The queues and addresses themselves are not touched.`
+          ? `This removes the team's ${team.patterns.length} pattern${team.patterns.length === 1 ? '' : 's'}, ${team.memberCount} member${team.memberCount === 1 ? '' : 's'} and ${team.sharesOut + team.sharesIn} share${team.sharesOut + team.sharesIn === 1 ? '' : 's'}. Its members lose the access the team gave them on their next request. The queues and addresses themselves are not touched.`
           : ''
       }
       onConfirm={() => team && confirm(team)}

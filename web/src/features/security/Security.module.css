@@ -72,3 +72,11 @@
 .reason {
   max-inline-size: 48rem;
 }
+
+/* The ways a permission is held, one to a line. */
+.sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--mantine-font-size-sm);
+}

@@ -1,14 +1,19 @@
-import { ActionIcon, Button, Select } from '@mantine/core';
+import { ActionIcon, Button, Menu, Select, Text } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { Column } from '../../ui/table/index.ts';
-import type { MemberView, PatternView, ShareView, TeamSummary, UnownedView } from './api.ts';
+import type { MemberView, PatternKind, PatternView, ShareView, TeamSummary, UnownedView } from './api.ts';
 import classes from './Security.module.css';
-import { KIND_WORDS } from './teamWords.ts';
+import { KIND_OPTIONS, KIND_WORDS } from './teamWords.ts';
+
+/** A pattern with its cluster and kind, in one line: `prod: orders.# (queues)`. */
+export const patternText = (p: PatternView, clusterName: (clusterId: string) => string): string =>
+  `${clusterName(p.clusterId)}: ${p.pattern} (${KIND_WORDS[p.kind].toLowerCase()})`;
 
 /** What the teams table needs from its panel. `editable` is whether the caller may rename and delete teams. */
 export interface TeamRows {
+  clusterName: (clusterId: string) => string;
   editable: boolean;
   onOpen: (team: TeamSummary) => void;
   onRename: (team: TeamSummary) => void;
@@ -16,7 +21,7 @@ export interface TeamRows {
 }
 
 /** The teams: the name opens the team and is never hidden, nor are the actions; the counts go last when narrow. */
-export function teamColumns({ editable, onOpen, onRename, onDelete }: TeamRows): Column<TeamSummary>[] {
+export function teamColumns({ clusterName, editable, onOpen, onRename, onDelete }: TeamRows): Column<TeamSummary>[] {
   return [
     {
       id: 'name',
@@ -31,7 +36,26 @@ export function teamColumns({ editable, onOpen, onRename, onDelete }: TeamRows):
       priority: 'essential',
     },
     { id: 'members', header: 'Members', accessor: (t) => t.memberCount, kind: 'number', priority: 'high' },
-    { id: 'patterns', header: 'Patterns', accessor: (t) => t.patternCount, kind: 'number', priority: 'high' },
+    {
+      id: 'patterns',
+      header: 'Patterns',
+      accessor: (t) => t.patterns.map((p) => patternText(p, clusterName)).join('; '),
+      cell: (t) =>
+        t.patterns.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            None
+          </Text>
+        ) : (
+          <ul className={classes.sources} aria-label={`Patterns of ${t.name}`}>
+            {t.patterns.map((p) => (
+              <li key={p.id}>{patternText(p, clusterName)}</li>
+            ))}
+          </ul>
+        ),
+      kind: 'text',
+      wrap: true,
+      priority: 'high',
+    },
     { id: 'sharesOut', header: 'Shared out', accessor: (t) => t.sharesOut, kind: 'number', priority: 'low' },
     { id: 'sharesIn', header: 'Shared in', accessor: (t) => t.sharesIn, kind: 'number', priority: 'low' },
     {
@@ -224,10 +248,10 @@ export function shareColumns({ clusterName, direction, editable, onRemove }: Sha
 
 export interface UnownedRows {
   editable: boolean;
-  onAssign: (name: string) => void;
+  onAssign: (name: string, kind: PatternKind) => void;
 }
 
-/** The names no team owns, each with the way to give it to this team. */
+/** The names no team owns, each with the way to give it to this team as queues, addresses or both. */
 export function unownedColumns({ editable, onAssign }: UnownedRows): Column<UnownedView>[] {
   return [
     { id: 'name', header: 'Name', accessor: (u) => u.name, kind: 'identifier', priority: 'essential' },
@@ -236,15 +260,26 @@ export function unownedColumns({ editable, onAssign }: UnownedRows): Column<Unow
       header: 'Actions',
       accessor: () => 'Assign to this team',
       cell: (u) => (
-        <Button
-          variant="subtle"
-          size="compact-xs"
-          disabled={!editable}
-          aria-label={`Assign ${u.name} to this team`}
-          onClick={() => onAssign(u.name)}
-        >
-          Assign to this team
-        </Button>
+        <Menu position="bottom-end">
+          <Menu.Target>
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              disabled={!editable}
+              aria-label={`Assign ${u.name} to this team`}
+            >
+              Assign to this team
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Pattern for {u.name}</Menu.Label>
+            {KIND_OPTIONS.map((kind) => (
+              <Menu.Item key={kind.value} onClick={() => onAssign(u.name, kind.value)}>
+                {kind.label}
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
       ),
       kind: 'status',
       priority: 'essential',

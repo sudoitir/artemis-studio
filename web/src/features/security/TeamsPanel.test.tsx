@@ -18,7 +18,6 @@ function serveTeams(permissions = ['user:admin']) {
   server.use(
     http.get('*/api/v1/teams', () => HttpResponse.json(paged([summary(orders)]))),
     http.get('*/api/v1/teams/t-orders', () => HttpResponse.json(orders)),
-    http.get('*/api/v1/users', () => HttpResponse.json(paged([]))),
     http.get('*/api/v1/auth/providers', () => HttpResponse.json(paged([]))),
   );
 }
@@ -31,6 +30,8 @@ describe('the Teams tab', () => {
 
     const row = await screen.findByRole('row', { name: /Orders/ });
     expect(row).toHaveTextContent('Orders');
+    // Each pattern is named with its cluster and kind.
+    await waitFor(() => expect(row).toHaveTextContent('prod: orders.# (queues)'));
     expect(screen.getByText('1 team')).toBeInTheDocument();
 
     await person.click(within(row).getByRole('button', { name: 'Orders' }));
@@ -165,9 +166,11 @@ describe('the Unowned section', () => {
     expect(asked).toContain('kind=QUEUE');
 
     await person.click(screen.getByRole('button', { name: 'Assign legacy.inbox to this team' }));
+    await person.click(await screen.findByRole('menuitem', { name: 'Queues and addresses' }));
 
     expect(await screen.findByRole('tab', { name: 'Patterns' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByRole('textbox', { name: /^Pattern/ })).toHaveValue('legacy.inbox');
+    expect(screen.getByRole('radio', { name: 'Queues and addresses' })).toBeChecked();
   });
 
   it('says every name is owned when none is left', async () => {

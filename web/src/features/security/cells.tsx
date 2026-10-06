@@ -2,9 +2,9 @@ import { ActionIcon, Button, Group, Stack, Switch, Text } from '@mantine/core';
 import { IconPencil, IconTrash, IconX } from '@tabler/icons-react';
 
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
+import type { AccessCheckView, EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
 import classes from './Security.module.css';
-import { factorWords, grantText, twoStepText, type ScopeLabel } from './words.ts';
+import { factorWords, grantText, sourceText, twoStepText, type ScopeLabel } from './words.ts';
 
 /** A user's name, with what is wrong with the account beside it: a lock, or a password to change. */
 export function UserName({ user }: Readonly<{ user: UserView }>) {
@@ -194,10 +194,10 @@ export function UserActions({ user: u, controls }: Readonly<{ user: UserView; co
       <Button
         size="xs"
         variant="subtle"
-        aria-label={`Effective permissions of ${u.username}`}
+        aria-label={`Access check of ${u.username}`}
         onClick={() => controls.onPermissions(u)}
       >
-        Effective permissions
+        Access check
       </Button>
     </span>
   );
@@ -232,5 +232,22 @@ export function MappingActions({
     <ActionIcon variant="subtle" onClick={() => onDelete(m)} aria-label={`Delete mapping for ${m.groupName}`}>
       <IconTrash size="1rem" aria-hidden />
     </ActionIcon>
+  );
+}
+
+/** Every source that allows a permission, one to a line; what a permission that is not allowed lacks is not said. */
+export function AccessSources({ view, scopeLabel }: Readonly<{ view: AccessCheckView; scopeLabel: ScopeLabel }>) {
+  if (view.sources.length === 0)
+    return (
+      <Text size="sm" c="dimmed">
+        None
+      </Text>
+    );
+  return (
+    <ul className={classes.sources} aria-label={`Sources of ${view.action}`}>
+      {view.sources.map((s, i) => (
+        <li key={`${s.type}-${s.roleName}-${s.teamId ?? s.scopeId ?? ''}-${i}`}>{sourceText(s, scopeLabel)}</li>
+      ))}
+    </ul>
   );
 }

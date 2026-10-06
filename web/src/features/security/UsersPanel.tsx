@@ -12,7 +12,7 @@ import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { userColumns } from './columns.ts';
-import { EffectivePermissionsDrawer } from './EffectivePermissionsDrawer.tsx';
+import { AccessCheckDrawer } from './AccessCheckDrawer.tsx';
 import { withNotice } from './outcomes.ts';
 import { UserSessionsDrawer } from './UserSessionsDrawer.tsx';
 import { ScopeFields } from './ScopeFields.tsx';
@@ -121,7 +121,7 @@ export function UsersPanel() {
         }
       />
 
-      <EffectivePermissionsDrawer user={previewing} onClose={() => setPreviewing(null)} />
+      <AccessCheckDrawer user={previewing} onClose={() => setPreviewing(null)} />
       <UserSessionsDrawer user={inspectingSessions} onClose={() => setInspectingSessions(null)} />
 
       <ResetDialog

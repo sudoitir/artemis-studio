@@ -7,30 +7,14 @@ import { Notifications, notifications } from '@mantine/notifications';
 import { paged } from '../../kernel/api/paging.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import type { UserView } from './api.ts';
 import { TeamMembers } from './TeamMembers.tsx';
 import { choose, serveLookups, team, TEAM_OPERATOR, TEAM_VIEWER } from '../../test/teams.ts';
 
 afterEach(() => act(() => notifications.clean()));
 
-const user = (id: string, username: string): UserView => ({
-  id,
-  username,
-  email: null,
-  providerId: 'local',
-  disabled: false,
-  mustChangePassword: false,
-  lockedUntil: null,
-  secondFactors: [],
-  secondFactorRequired: false,
-  passwordAccount: true,
-  grants: [],
-});
-
 function serve(permissions: string[]) {
   serveLookups(permissions);
   server.use(
-    http.get('*/api/v1/users', () => HttpResponse.json(paged([user('u-alice', 'alice'), user('u-bob', 'bob')]))),
     http.get('*/api/v1/auth/providers', () =>
       HttpResponse.json(
         paged([
@@ -202,8 +186,8 @@ describe('TeamMembers as a team admin', () => {
     expect(screen.getAllByText(/because a group can admit users to Studio/).length).toBeGreaterThan(0);
   });
 
-  it('states that users and roles cannot be listed instead of showing an empty picker', async () => {
-    serveLookups(['team:admin']);
+  it('lets a team admin find a user by name and add them, though they may not list every user', async () => {
+    serve(['team:admin']);
     server.use(
       http.get('*/api/v1/users', () =>
         HttpResponse.json({ title: 'Forbidden', detail: 'Access denied.' }, { status: 403 }),
@@ -212,8 +196,32 @@ describe('TeamMembers as a team admin', () => {
         HttpResponse.json({ title: 'Forbidden', detail: 'Access denied.' }, { status: 403 }),
       ),
     );
+    let body: unknown;
+    server.use(
+      http.post('*/api/v1/teams/t-orders/members', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+    const person = userEvent.setup();
     renderMembers();
 
-    expect(await screen.findAllByText(/needs the user:admin permission/)).not.toHaveLength(0);
+    await choose(person, screen, /^User/, 'bob');
+    await choose(person, screen, /Team role/, TEAM_VIEWER.name);
+    await person.click(screen.getByRole('button', { name: 'Add member' }));
+
+    await waitFor(() => expect(body).toEqual({ principalType: 'USER', userId: 'u-bob', roleId: TEAM_VIEWER.id }));
+  });
+
+  it('states that users cannot be looked up instead of showing an empty picker', async () => {
+    serve(['team:admin']);
+    server.use(
+      http.get('*/api/v1/teams/lookups/users', () =>
+        HttpResponse.json({ title: 'Forbidden', detail: 'Access denied.' }, { status: 403 }),
+      ),
+    );
+    renderMembers();
+
+    expect(await screen.findByText(/Only an administrator of a team can look users up/)).toBeInTheDocument();
   });
 });

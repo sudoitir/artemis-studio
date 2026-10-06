@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 
 import { useAuthProviders } from '../../kernel/auth/api.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
@@ -15,8 +16,8 @@ import {
   useAddMember,
   useChangeMemberRole,
   useRemoveMember,
-  useRoles,
-  useUsers,
+  useTeamRoles,
+  useUserLookup,
   type MemberRequest,
   type MemberView,
   type TeamView,
@@ -41,13 +42,13 @@ const rowKey = (m: MemberView) => m.id;
  * admit users to Studio, are left to a user administrator.
  */
 export function TeamMembers({ team }: Readonly<{ team: TeamView }>) {
-  const roles = useRoles();
+  const roles = useTeamRoles();
   const { userAdmin } = useTeamAccess();
   const change = useChangeMemberRole(team.id);
   const [removing, setRemoving] = useState<MemberView | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
 
-  const roleOptions = (roles.data ?? []).filter((r) => r.teamAssignable).map((r) => ({ value: r.id, label: r.name }));
+  const roleOptions = (roles.data?.roles ?? []).map((r) => ({ value: r.id, label: r.name }));
   const columns = memberColumns({
     roleOptions,
     editable: (m) => m.principalType === 'USER' || userAdmin,
@@ -98,7 +99,7 @@ export function TeamMembers({ team }: Readonly<{ team: TeamView }>) {
             variant="inline"
             error={roles.error}
             onRetry={() => void roles.refetch()}
-            next="Listing roles needs the user:admin permission. Ask a user administrator."
+            next="Only an administrator of a team can list the team roles. Ask a user administrator."
           />
         ) : null}
         <AddMember team={team} userAdmin={userAdmin} roleOptions={roleOptions} />
@@ -122,7 +123,10 @@ function AddMember({
   userAdmin,
   roleOptions,
 }: Readonly<{ team: TeamView; userAdmin: boolean; roleOptions: { value: string; label: string }[] }>) {
-  const users = useUsers();
+  const [search, setSearch] = useState('');
+  const [typed] = useDebouncedValue(search, 200);
+  const users = useUserLookup(typed);
+  const [chosen, setChosen] = useState<{ value: string; label: string } | null>(null);
   const providers = useAuthProviders();
   const add = useAddMember(team.id);
   const form = useForm<Values>({
@@ -139,9 +143,9 @@ function AddMember({
   });
   const group = form.values.type === 'GROUP';
   const memberIds = new Set(team.members.map((m) => m.userId));
-  const userOptions = (users.data ?? [])
-    .filter((u) => !memberIds.has(u.id))
-    .map((u) => ({ value: u.id, label: u.username }));
+  const found = (users.data ?? []).filter((u) => !memberIds.has(u.id)).map((u) => ({ value: u.id, label: u.username }));
+  // The chosen user stays in the list while a different name is being typed.
+  const userOptions = chosen && !found.some((o) => o.value === chosen.value) ? [chosen, ...found] : found;
   const external = (providers.data ?? []).filter((p) => p.id !== 'local');
 
   const submit = form.onSubmit((values) => {
@@ -213,16 +217,27 @@ function AddMember({
             variant="inline"
             error={users.error}
             onRetry={() => void users.refetch()}
-            next="Listing users needs the user:admin permission. Ask a user administrator to add the member."
+            next="Only an administrator of a team can look users up. Ask a user administrator to add the member."
           />
         ) : (
           <Select
             label="User"
+            description="Type the start of a username."
             data={userOptions}
             searchable
+            searchValue={search}
+            onSearchChange={setSearch}
+            filter={({ options }) => options}
+            onChange={(id, option) => {
+              form.setFieldValue('userId', id);
+              setChosen(option ? { value: option.value, label: option.label } : null);
+            }}
+            value={form.values.userId}
+            error={form.errors.userId}
+            onBlur={() => form.validateField('userId')}
+            data-path="userId"
             placeholder={users.isPending ? 'Loading' : 'Select a user'}
-            nothingFoundMessage="No other users"
-            {...form.getInputProps('userId')}
+            nothingFoundMessage={typed ? 'No enabled user starts with that' : 'No other users'}
             required
           />
         )}

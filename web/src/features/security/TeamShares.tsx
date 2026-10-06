@@ -14,7 +14,7 @@ import { useClusters } from '../clusters/index.ts';
 import {
   useAddShare,
   useRemoveShare,
-  useRoles,
+  useTeamRoles,
   useTeams,
   type PatternKind,
   type ShareView,
@@ -132,7 +132,7 @@ export function TeamShares({ team }: Readonly<{ team: TeamView }>) {
 function AddShare({ team }: Readonly<{ team: TeamView }>) {
   const clusters = useClusters();
   const teams = useTeams();
-  const roles = useRoles();
+  const roles = useTeamRoles();
   const add = useAddShare(team.id);
   const form = useForm<{
     targetTeamId: string | null;
@@ -151,7 +151,7 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
     },
   });
   const teamOptions = (teams.data ?? []).filter((t) => t.id !== team.id).map((t) => ({ value: t.id, label: t.name }));
-  const roleOptions = (roles.data ?? []).filter((r) => r.teamAssignable).map((r) => ({ value: r.id, label: r.name }));
+  const roleOptions = (roles.data?.roles ?? []).map((r) => ({ value: r.id, label: r.name }));
 
   const submit = form.onSubmit(({ targetTeamId, clusterId, kind, pattern, roleId }) => {
     if (!targetTeamId || !clusterId || !roleId) return;

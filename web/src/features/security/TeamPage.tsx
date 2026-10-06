@@ -48,7 +48,7 @@ export function TeamPage({ teamId, onBack }: Readonly<{ teamId: string; onBack: 
     return <ErrorState error={team.error} onRetry={() => void team.refetch()} actions={back} />;
   }
 
-  const assign = (clusterId: string, kind: Exclude<PatternKind, 'BOTH'>, name: string) => {
+  const assign = (clusterId: string, kind: PatternKind, name: string) => {
     setDraft({ clusterId, kind, pattern: name, nonce: Date.now() });
     void setTab('patterns');
   };

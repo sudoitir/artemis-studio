@@ -8,7 +8,7 @@ import { Notice } from '../../ui/Notice.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useClusters } from '../clusters/index.ts';
-import { UNOWNED_PAGE_SIZE, useUnowned, type UnownedView } from './api.ts';
+import { UNOWNED_PAGE_SIZE, useUnowned, type PatternKind, type UnownedView } from './api.ts';
 import { useTeamAccess } from './teamAccess.ts';
 import { unownedColumns } from './teamColumns.tsx';
 
@@ -18,11 +18,11 @@ const rowKey = (u: UnownedView) => u.name;
 
 /**
  * The queues or addresses of a cluster that no team's pattern covers, reachable only through role grants. Each can
- * be assigned to this team, which pre-fills the pattern form with its exact name.
+ * be assigned to this team as a queue, address or both pattern, which pre-fills the pattern form with its exact name.
  */
 export function TeamUnowned({
   onAssign,
-}: Readonly<{ onAssign: (clusterId: string, kind: Kind, name: string) => void }>) {
+}: Readonly<{ onAssign: (clusterId: string, kind: PatternKind, name: string) => void }>) {
   const clusters = useClusters();
   const { userAdmin } = useTeamAccess();
   const [clusterId, setClusterId] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export function TeamUnowned({
 
   const columns = unownedColumns({
     editable: userAdmin,
-    onAssign: (name) => clusterId && onAssign(clusterId, kind, name),
+    onAssign: (name, patternKind) => clusterId && onAssign(clusterId, patternKind, name),
   });
 
   return (

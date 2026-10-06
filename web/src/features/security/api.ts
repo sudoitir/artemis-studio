@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { requestAll, type PagedView } from '../../kernel/api/paging.ts';
 import { ApiError, request } from '../../kernel/api/request.ts';
+import { accessKeys } from '../../kernel/auth/api.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
 
+export type AccessCheckView = Schemas['AccessCheckView'];
+export type AccessSource = Schemas['AccessSource'];
 export type AccountSessionView = Schemas['AccountSessionView'];
 export type CreateUserRequest = Schemas['CreateUserRequest'];
 export type DefaultRoleRequest = Schemas['DefaultRoleRequest'];
@@ -26,9 +29,11 @@ export type RoleView = Schemas['RoleView'];
 export type SetDisabledRequest = Schemas['SetDisabledRequest'];
 export type ShareRequest = Schemas['ShareRequest'];
 export type ShareView = Schemas['ShareView'];
+export type TeamRoleLookup = Schemas['TeamRoleLookup'];
 export type TeamSummary = Schemas['TeamSummary'];
 export type TeamView = Schemas['TeamView'];
 export type UnownedView = Schemas['UnownedView'];
+export type UserLookup = Schemas['UserLookup'];
 export type UserView = Schemas['UserView'];
 export type PatternKind = PatternRequest['kind'];
 
@@ -40,7 +45,11 @@ export const keys = {
   /** The caller's own sessions, or a user's when an administrator looks at theirs. */
   sessions: (userId?: string) => (userId ? (['users', userId, 'sessions'] as const) : (['auth', 'sessions'] as const)),
   effectivePermissions: (userId: string) => ['users', userId, 'effective-permissions'] as const,
+  accessCheck: (userId: string, clusterId: string | null, kind: string, name: string) =>
+    ['users', userId, 'access-check', clusterId, kind, name] as const,
   teams: ['teams'] as const,
+  userLookup: (q: string) => ['teams', 'lookups', 'users', q] as const,
+  teamRoles: ['teams', 'lookups', 'roles'] as const,
   team: (teamId: string) => ['teams', teamId] as const,
   preview: (teamId: string, clusterId: string, kind: PatternKind, pattern: string) =>
     ['teams', teamId, 'preview', clusterId, kind, pattern] as const,
@@ -59,6 +68,27 @@ export function useEffectivePermissions(userId: string | null): UseQueryResult<E
   return useQuery({
     queryKey: keys.effectivePermissions(userId ?? ''),
     queryFn: () => requestAll<EffectivePermissionView>(`/users/${userId}/effective-permissions`),
+    enabled: userId !== null,
+  });
+}
+
+/** Every catalogue permission for a user here, with each source that allows it. `name` needs a cluster. */
+export function useAccessCheck(
+  userId: string | null,
+  where: { clusterId: string | null; kind: 'QUEUE' | 'ADDRESS'; name: string },
+): UseQueryResult<AccessCheckView[], ApiError> {
+  const name = where.clusterId ? where.name.trim() : '';
+  return useQuery({
+    queryKey: keys.accessCheck(userId ?? '', where.clusterId, where.kind, name),
+    queryFn: () => {
+      const qs = new URLSearchParams();
+      if (where.clusterId) qs.set('clusterId', where.clusterId);
+      if (name) {
+        qs.set('kind', where.kind);
+        qs.set('name', name);
+      }
+      return requestAll<AccessCheckView>(`/users/${userId}/access-check${qs.size > 0 ? `?${qs}` : ''}`);
+    },
     enabled: userId !== null,
   });
 }
@@ -267,6 +297,24 @@ export function useTeam(teamId: string): UseQueryResult<TeamView, ApiError> {
 
 const json = (body: unknown) => JSON.stringify(body);
 
+/**
+ * Enabled users whose name starts with `q`, at most twenty, for choosing a member. Open to a team admin, who may
+ * not list every user.
+ */
+export function useUserLookup(q: string): UseQueryResult<UserLookup[], ApiError> {
+  return useQuery({
+    queryKey: keys.userLookup(q),
+    queryFn: async () =>
+      (await request<PagedView<UserLookup>>(`/teams/lookups/users?${new URLSearchParams({ q })}`)).data,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** The roles a member or share may hold, with their permissions: the team roles only. Open to a team admin. */
+export function useTeamRoles(): UseQueryResult<TeamRoleLookup, ApiError> {
+  return useQuery({ queryKey: keys.teamRoles, queryFn: () => request<TeamRoleLookup>('/teams/lookups/roles') });
+}
+
 export function useCreateTeam() {
   const qc = useQueryClient();
   return useMutation<TeamView, ApiError, string>({
@@ -315,7 +363,12 @@ export function usePatternPreview(
 function useRefreshTeams() {
   const qc = useQueryClient();
   return () =>
-    Promise.all([qc.invalidateQueries({ queryKey: keys.teams }), qc.invalidateQueries({ queryKey: ['unowned'] })]);
+    Promise.all([
+      qc.invalidateQueries({ queryKey: keys.teams }),
+      qc.invalidateQueries({ queryKey: ['unowned'] }),
+      // A change to a team may be to the caller's own access.
+      qc.invalidateQueries({ queryKey: accessKeys.all }),
+    ]);
 }
 
 export function useAddPattern(teamId: string) {

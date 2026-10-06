@@ -1,4 +1,4 @@
-import type { UserView } from './api.ts';
+import type { AccessSource, UserView } from './api.ts';
 
 const FACTOR_WORDS = { TOTP: 'Authenticator app', WEBAUTHN: 'Passkey' } as const;
 
@@ -20,4 +20,16 @@ export type ScopeLabel = (scopeType: string, scopeId?: string | null) => string;
 /** A role held by a user, with its scope in words when it is not global. */
 export function grantText(g: UserView['grants'][number], scopeLabel: ScopeLabel): string {
   return g.scopeType === 'GLOBAL' ? g.roleName : `${g.roleName} (${scopeLabel(g.scopeType, g.scopeId)})`;
+}
+
+/** One way a user holds a permission, in words: the role and where it is granted, or the team and role. */
+export function sourceText(source: AccessSource, scopeLabel: ScopeLabel): string {
+  switch (source.type) {
+    case 'ROLE_GRANT':
+      return `${source.roleName}, granted ${scopeLabel(source.scopeType ?? 'GLOBAL', source.scopeId).toLowerCase()}`;
+    case 'TEAM':
+      return `${source.roleName} in team ${source.teamName}`;
+    case 'SHARE':
+      return `${source.roleName} shared by team ${source.ownerTeamName} with team ${source.teamName}`;
+  }
 }

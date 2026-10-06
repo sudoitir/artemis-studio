@@ -76,7 +76,7 @@ export const summary = (t: TeamView): TeamSummary => ({
   name: t.name,
   createdAt: t.createdAt,
   memberCount: t.members.length,
-  patternCount: t.patterns.length,
+  patterns: t.patterns,
   sharesOut: t.sharesOut.length,
   sharesIn: t.sharesIn.length,
 });
@@ -106,9 +106,21 @@ export const signedIn = (permissions: string[]) =>
     }),
   );
 
-/** The lookups every team screen reads. */
+export const LOOKUP_USERS = [
+  { id: 'u-alice', username: 'alice', providerId: 'local' },
+  { id: 'u-bob', username: 'bob', providerId: 'local' },
+];
+
+/** The lookups every team screen reads, including the ones a team admin uses to find users and team roles. */
 export function serveLookups(permissions: string[] = ['user:admin']) {
   server.use(
+    http.get('*/api/v1/teams/lookups/roles', () =>
+      HttpResponse.json({ roles: ROLES.filter((r) => r.teamAssignable), permissions: [] }),
+    ),
+    http.get('*/api/v1/teams/lookups/users', ({ request }) => {
+      const q = new URL(request.url).searchParams.get('q') ?? '';
+      return HttpResponse.json(paged(LOOKUP_USERS.filter((u) => u.username.startsWith(q))));
+    }),
     signedIn(permissions),
     http.get('*/api/v1/clusters', () => HttpResponse.json(paged([CLUSTER]))),
     http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
