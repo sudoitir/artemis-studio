@@ -218,6 +218,14 @@ describe('AuditView rows and states', () => {
           targetName: 'ORDERS',
         }),
         row({ id: 2, outcome: 'PENDING', action: 'MOVE_MESSAGES', targetName: null, username: null }),
+        row({
+          id: 3,
+          username: 'bob',
+          outcome: 'REFUSED',
+          action: 'ACCESS_REFUSED',
+          affectedCount: 50,
+          targetName: 'orders.in',
+        }),
       ]),
     );
     renderWithProviders(<AuditView />);
@@ -225,13 +233,15 @@ describe('AuditView rows and states', () => {
     const grid = await screen.findByRole('grid', { name: 'Audit events' });
     expect(await within(grid).findByText('success')).toBeInTheDocument();
     expect(within(grid).getByText('pending')).toBeInTheDocument();
+    expect(within(grid).getByText('refused')).toBeInTheDocument();
+    expect(within(grid).getByText('50')).toBeInTheDocument();
     // The target is shortened in the middle, so the whole value, dry-run mark included, is read from one place.
     expect(within(grid).getByText('ORDERS · dry run')).toBeInTheDocument();
     expect(within(grid).getByText('12')).toBeInTheDocument();
     expect(within(grid).getAllByText('—').length).toBeGreaterThanOrEqual(2);
     expect(within(grid).getByText('ann')).toBeInTheDocument();
     expect(within(grid).getByText('anonymous')).toBeInTheDocument();
-    expect(screen.getByText('1–2 of 2 audit events')).toBeInTheDocument();
+    expect(screen.getByText('1–3 of 3 audit events')).toBeInTheDocument();
   });
 
   it('teaches what is recorded here when no event matches', async () => {

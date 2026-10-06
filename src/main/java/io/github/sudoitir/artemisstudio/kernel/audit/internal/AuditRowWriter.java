@@ -29,6 +29,16 @@ public class AuditRowWriter {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void refuse(Long id, String reason, long count) {
+        events.findById(id).ifPresent(row -> row.markRefused(reason, count));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recount(Long id, long count) {
+        events.findById(id).ifPresent(row -> row.markRefused(row.getError(), count));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void fail(Long id, String error) {
         events.findById(id).ifPresent(row -> row.markFailure(error));
     }

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
@@ -13,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard.Requi
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
  * What a refused resource looks like (team-access spec): not found when it cannot be read, forbidden and naming
@@ -22,7 +25,8 @@ class ClusterAccessGuardTest {
 
     private final UUID cluster = UUID.randomUUID();
     private final PermissionResolver perm = mock(PermissionResolver.class);
-    private final ClusterAccessGuard guard = new ClusterAccessGuard(perm);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final ClusterAccessGuard guard = new ClusterAccessGuard(perm, events);
 
     private static final ResourceRef ORDERS = ResourceRef.queue("orders.in");
     private static final ResourceRef BILLING = ResourceRef.queue("billing.in");
@@ -205,5 +209,45 @@ class ClusterAccessGuardTest {
         assertThatThrownBy(() -> guard.requireOnAll(cluster, ResourceKind.QUEUE, "#", "capture:write"))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage(new NotFoundException("cluster", cluster).getMessage());
+    }
+
+    // ---- refusals are published for the audit trail ----------------------------------------------------
+
+    @Test
+    void aForbiddenResourceIsRefusedAsForbidden() {
+        canRead(ORDERS);
+
+        assertThatThrownBy(() -> guard.requireResource(cluster, ORDERS, "queue:purge"))
+                .isInstanceOf(ResourceForbiddenException.class);
+
+        verify(events).publishEvent(new AccessRefused(cluster, "queue:purge", ORDERS, false));
+    }
+
+    @Test
+    void anUnreadableResourceIsRefusedAsHiddenOnTheReadPermission() {
+        when(perm.canSeeCluster(cluster)).thenReturn(true);
+
+        assertThatThrownBy(() -> guard.requireResource(cluster, BILLING, "queue:purge"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(events).publishEvent(new AccessRefused(cluster, "queue:read", BILLING, true));
+    }
+
+    @Test
+    void aClusterTheCallerCannotSeeIsRefusedAsHidden() {
+        assertThatThrownBy(() -> guard.requireCluster(cluster, "cluster:write")).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> guard.requireVisible(cluster)).isInstanceOf(NotFoundException.class);
+
+        verify(events).publishEvent(new AccessRefused(cluster, "cluster:write", null, true));
+        verify(events).publishEvent(new AccessRefused(cluster, "cluster:read", null, true));
+    }
+
+    @Test
+    void aCheckThatPassesPublishesNothing() {
+        canDo(ORDERS, "queue:purge");
+
+        guard.requireResource(cluster, ORDERS, "queue:purge");
+
+        verify(events, never()).publishEvent(org.mockito.ArgumentMatchers.any(AccessRefused.class));
     }
 }

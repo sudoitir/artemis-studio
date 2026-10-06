@@ -10,5 +10,11 @@ public final class AuditScope {
     /** The parent audit event's id. */
     public static final ScopedValue<Long> PARENT = ScopedValue.newInstance();
 
+    /**
+     * Bound while a caller that writes its own audit row checks access, so that a refusal is recorded on
+     * that row, and not once more as a refusal event of its own.
+     */
+    public static final ScopedValue<Boolean> OWN_REFUSAL = ScopedValue.newInstance();
+
     private AuditScope() {}
 }

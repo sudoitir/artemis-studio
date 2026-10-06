@@ -20,4 +20,7 @@ _Others_
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ScopeHierarchy` (in Security)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
+|Events listened to
+|* `org.springframework.security.authorization.event.AuthorizationDeniedEvent` 
+* `i.g.s.a.k.s.AccessRefused` 
 |===
