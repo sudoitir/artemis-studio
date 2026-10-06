@@ -38,4 +38,4 @@
 
 ## 6. Docs and release
 - [x] 6.1 ADR for resource-scoped authorization and teams; user docs for teams and permissions; `just verify` passes
-- [ ] 6.2 PRs merged on green CI and a clean Sonar gate; Studio release cut and published
+- [x] 6.2 PRs merged on green CI and a clean Sonar gate; Studio release cut and published
