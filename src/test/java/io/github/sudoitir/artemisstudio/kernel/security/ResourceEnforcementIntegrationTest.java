@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.TeamService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
@@ -16,6 +18,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.App
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
+import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
@@ -26,6 +29,7 @@ import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import io.github.sudoitir.artemisstudio.support.TeamAccessFixture;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
@@ -401,5 +406,275 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
         assertThat(call(delete(base() + "/addresses/billing.in?dryRun=true"), ordersOperator)
                         .getStatus())
                 .isEqualTo(404);
+    }
+
+    // ---- diverts ---------------------------------------------------------------------------------
+
+    private static String divert(String address, String forwardingAddress) {
+        return "{\"name\":\"d1\",\"address\":\"%s\",\"forwardingAddress\":\"%s\"}"
+                .formatted(address, forwardingAddress);
+    }
+
+    @Test
+    void aDivertBetweenTheTeamsOwnAddressesIsAllowed() throws Exception {
+        assertThat(postJson(base() + "/diverts?dryRun=true", divert("orders.in", "orders.out"), ordersOperator)
+                        .getStatus())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void aDivertIntoAnotherTeamsAddressIsNotFoundAndNothingIsDiverted() throws Exception {
+        assertThat(postJson(base() + "/diverts?dryRun=true", divert("orders.in", "billing.in"), ordersOperator)
+                        .getStatus())
+                .isEqualTo(404);
+        assertThat(postJson(base() + "/diverts?dryRun=true", divert("billing.in", "orders.out"), ordersOperator)
+                        .getStatus())
+                .isEqualTo(404);
+    }
+
+    @Test
+    void aTeamViewerMayNotWriteADivertOnTheirOwnAddresses() throws Exception {
+        MockHttpServletResponse response =
+                postJson(base() + "/diverts?dryRun=true", divert("orders.in", "orders.out"), ordersViewer);
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(body(response).get("permission").asString()).isEqualTo("divert:write");
+    }
+
+    // ---- capture and queries -------------------------------------------------------------------------
+
+    private static String capture(String pattern) {
+        return "{\"queuePattern\":\"%s\",\"mode\":\"CAPTURE\"}".formatted(pattern);
+    }
+
+    /** A member of Orders in a team role that may also capture. */
+    private UsernamePasswordAuthenticationToken ordersCapturer() {
+        String role = "capturer-" + UUID.randomUUID();
+        roleService.create(new RoleRequest(role, List.of("queue:read", "capture:write"), false, true));
+        return fixture.session(fixture.member(orders, role));
+    }
+
+    @Test
+    void aCaptureOfNamesTheTeamOwnsIsAllowed() throws Exception {
+        assertThat(postJson(base() + "/sql/index?dryRun=true", capture("orders.*"), ordersCapturer())
+                        .getStatus())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void aTeamOperatorWithoutCaptureWriteMayNotCaptureTheirOwnQueues() throws Exception {
+        assertThat(postJson(base() + "/sql/index?dryRun=true", capture("orders.*"), ordersOperator)
+                        .getStatus())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void aCaptureThatCouldReachAnotherTeamsNamesIsRefused() throws Exception {
+        for (String pattern : List.of("#", "billing.in", "*.in", "orders#")) {
+            MockHttpServletResponse response =
+                    postJson(base() + "/sql/index?dryRun=true", capture(pattern), ordersOperator);
+
+            assertThat(response.getStatus()).as(pattern).isEqualTo(403);
+            assertThat(body(response).get("permission").asString()).isEqualTo("capture:write");
+        }
+    }
+
+    @Test
+    void aPlatformOperatorMayCaptureWhatTheirGrantReaches() throws Exception {
+        assertThat(postJson(base() + "/sql/index?dryRun=true", capture("#"), platformOperator)
+                        .getStatus())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void aQueryOfAnotherTeamsQueuesIsRefusedAndOneOfTheirOwnIsPlanned() throws Exception {
+        assertThat(postJson(base() + "/sql/plan", "{\"sql\":\"SELECT * FROM \\\"billing.in\\\"\"}", ordersViewer)
+                        .getStatus())
+                .isEqualTo(403);
+        assertThat(postJson(base() + "/sql/plan", "{\"sql\":\"SELECT * FROM \\\"#\\\"\"}", ordersViewer)
+                        .getStatus())
+                .isEqualTo(403);
+        assertThat(postJson(base() + "/sql/plan", "{\"sql\":\"SELECT * FROM \\\"orders.in\\\"\"}", ordersViewer)
+                        .getStatus())
+                .isEqualTo(200);
+    }
+
+    // ---- request-reply ---------------------------------------------------------------------------------
+
+    private static String expectation(String address) {
+        return "{\"requestAddress\":\"%s\",\"samplePerMin\":10,\"capturePayload\":false}".formatted(address);
+    }
+
+    @Test
+    void tracingNeedsRrWriteWhichATeamNeverGrants() throws Exception {
+        assertThat(postJson(base() + "/rr/expectations", expectation("orders.in"), ordersOperator)
+                        .getStatus())
+                .isEqualTo(404);
+    }
+
+    @Test
+    void expectationsAreListedOnlyForAddressesTheCallerMayRead() throws Exception {
+        assertThat(postJson(base() + "/rr/expectations", expectation("orders.in"), platformOperator)
+                        .getStatus())
+                .isEqualTo(201);
+        assertThat(postJson(base() + "/rr/expectations", expectation("billing.in"), platformOperator)
+                        .getStatus())
+                .isEqualTo(201);
+
+        JsonNode listed = body(call(get(base() + "/rr/expectations"), ordersViewer));
+
+        assertThat(listed.get("data")
+                        .valueStream()
+                        .map(e -> e.get("requestAddress").asString()))
+                .containsExactly("orders.in");
+    }
+
+    // ---- flow, triage, events, metrics, audit -----------------------------------------------------------
+
+    @Test
+    void theFlowGraphDrawsOnlyWhatTheCallerMayRead() throws Exception {
+        MockHttpServletResponse response = call(get(base() + "/flow"), ordersViewer);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(response.getContentAsString()).contains("orders.in").doesNotContain("billing");
+    }
+
+    @Test
+    void consumerHealthRanksOnlyTheCallersQueues() throws Exception {
+        assertThat(names(call(get(base() + "/consumer-health"), ordersViewer)))
+                .containsExactlyInAnyOrder("orders.in", "orders.out");
+        assertThat(call(get(base() + "/consumer-health?queue=billing.in"), ordersViewer)
+                        .getStatus())
+                .isEqualTo(404);
+    }
+
+    @Test
+    void eventsAboutOtherAddressesAreNeitherListedNorCounted() throws Exception {
+        event("orders.in");
+        event("billing.in");
+        event(null);
+
+        JsonNode page = body(call(get(base() + "/events"), ordersViewer));
+
+        assertThat(page.get("data").valueStream().map(e -> e.get("address").asString()))
+                .containsExactly("orders.in");
+        assertThat(page.get("count").asLong()).isEqualTo(1);
+        assertThat(body(call(get(base() + "/events"), platformOperator))
+                        .get("count")
+                        .asLong())
+                .isEqualTo(3);
+    }
+
+    @Test
+    void aSeriesIsReadPerQueueAndTheClusterTotalNeedsEveryQueue() throws Exception {
+        assertThat(call(get(base() + "/metrics?metric=messageCount&subjectType=QUEUE&subject=orders.in"), ordersViewer)
+                        .getStatus())
+                .isEqualTo(200);
+        assertThat(call(get(base() + "/metrics?metric=messageCount&subjectType=QUEUE&subject=billing.in"), ordersViewer)
+                        .getStatus())
+                .isEqualTo(404);
+        assertThat(call(get(base() + "/metrics?metric=messageCount"), ordersViewer)
+                        .getStatus())
+                .isEqualTo(403);
+        assertThat(call(get(base() + "/metrics?metric=messageCount"), platformOperator)
+                        .getStatus())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void theAuditTrailShowsOnlyEventsAboutWhatTheCallerMayRead() throws Exception {
+        audited("QUEUE", "orders.in");
+        audited("QUEUE", "billing.in");
+        audited("ADDRESS", "billing.in");
+        audited("CLUSTER", "prod");
+
+        JsonNode mine = body(call(get(base() + "/audit"), ordersViewer));
+
+        assertThat(mine.get("data").valueStream().map(e -> e.get("targetName").asString()))
+                .containsExactly("orders.in");
+        assertThat(mine.get("count").asLong()).isEqualTo(1);
+        assertThat(body(call(get(base() + "/audit"), platformOperator))
+                        .get("count")
+                        .asLong())
+                .isGreaterThanOrEqualTo(4);
+    }
+
+    // ---- alert rules -------------------------------------------------------------------------------------
+
+    /** A user with alert:read and alert:write on the cluster through a grant, and a Team Operator role in Orders. */
+    private UsernamePasswordAuthenticationToken ordersAlerter() {
+        UUID role = roleService
+                .create(new RoleRequest(
+                        "alerter-" + UUID.randomUUID(), List.of("alert:read", "alert:write"), false, false))
+                .id();
+        UUID user = fixture.member(orders, "TEAM_OPERATOR");
+        userService.addGrant(user, new GrantRequest(role, "CLUSTER", cluster));
+        return fixture.session(user);
+    }
+
+    private static String rule(String name, String queuePattern) {
+        return "{\"name\":\"%s\",\"kind\":\"METRIC_THRESHOLD\",\"metric\":\"messageCount\",\"comparator\":\"GT\",\"threshold\":10,\"forSeconds\":0,\"severity\":\"WARNING\",\"scope\":\"{\\\"queuePattern\\\":\\\"%s\\\"}\",\"enabled\":true}"
+                .formatted(name, queuePattern);
+    }
+
+    @Test
+    void aRuleWatchesOnlyQueuesItsAuthorMayRead() throws Exception {
+        UsernamePasswordAuthenticationToken alerter = ordersAlerter();
+
+        assertThat(postJson(base() + "/alerts/rules", rule("mine", "orders.*"), alerter)
+                        .getStatus())
+                .isEqualTo(201);
+        MockHttpServletResponse refused = postJson(base() + "/alerts/rules", rule("theirs", "billing.*"), alerter);
+        assertThat(refused.getStatus()).isEqualTo(403);
+        assertThat(body(refused).get("permission").asString()).isEqualTo("queue:read");
+        assertThat(postJson(base() + "/alerts/rules", rule("everything", "*"), alerter)
+                        .getStatus())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void aRuleOnQueuesTheCallerMayNotReadIsNeitherListedNorChangeable() throws Exception {
+        UsernamePasswordAuthenticationToken alerter = ordersAlerter();
+        assertThat(postJson(base() + "/alerts/rules", rule("mine", "orders.*"), platformOperator)
+                        .getStatus())
+                .isEqualTo(201);
+        MockHttpServletResponse theirs =
+                postJson(base() + "/alerts/rules", rule("theirs", "billing.*"), platformOperator);
+        UUID theirRule = UUID.fromString(body(theirs).get("id").asString());
+
+        JsonNode listed = body(call(get(base() + "/alerts/rules"), alerter));
+
+        assertThat(listed.get("data").valueStream().map(r -> r.get("name").asString()))
+                .containsExactly("mine");
+        assertThat(call(delete(base() + "/alerts/rules/" + theirRule), alerter).getStatus())
+                .isEqualTo(404);
+    }
+
+    // ---- helpers for the above ---------------------------------------------------------------------------
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    @Autowired
+    AuditService audit;
+
+    private void event(String address) {
+        jdbc.update(
+                "INSERT INTO broker_event (occurred_at, type, address, cluster_id) VALUES (now(), 'CONSUMER_SLOW', ?, ?)",
+                address,
+                cluster);
+    }
+
+    private void audited(String targetType, String targetName) {
+        AuditEvent event = audit.begin(
+                new Actor("alice", "127.0.0.1", "req", null),
+                "TEST",
+                targetType,
+                targetName,
+                cluster,
+                null,
+                Map.of(),
+                false);
+        audit.succeed(event, 1);
     }
 }

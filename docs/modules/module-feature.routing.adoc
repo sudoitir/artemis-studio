@@ -16,6 +16,7 @@ _Others_
 * `i.g.s.a.f.q.DivertOperations` (in Queues)
 * `i.g.s.a.f.q.BridgeOperations` (in Queues)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.f.q.QueueLifecycleService` (in Queues)
 |===
