@@ -17,6 +17,9 @@ import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.platform.clusters.BrokerCommands;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
+import java.lang.reflect.Type;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +49,14 @@ class ResourceCheckCoverageTest {
 
     /** A parameter that names a queue or an address. */
     private static final Pattern NAMES_A_RESOURCE =
-            Pattern.compile("(?i)(.*queue(name)?|.*address(name)?|source|target)");
+            Pattern.compile("(?i)(.*queue(name|pattern)?|.*address(name|pattern)?|source|target)");
+
+    /** What a request body is called. */
+    private static final Pattern REQUEST_BODY = Pattern.compile(".*(Request|Spec|Query)");
+
+    /** A list parameter that names several of them. */
+    private static final Pattern NAMES_SOME_RESOURCES =
+            Pattern.compile("(?i)(names|.*queues|.*queuenames|.*addresses|.*addressnames)");
 
     private static final Set<String> STEREOTYPES = Set.of(
             "org.springframework.stereotype.Service",
@@ -123,9 +134,29 @@ class ResourceCheckCoverageTest {
             Map.entry(
                     "platform.mcp.McpRunbookPrompts",
                     "returns a fixed procedure that repeats the name it was given; it reads nothing"),
+            Map.entry("feature.queues.BridgeOperations", "broker primitive; RoutingService checks before it calls it"),
+            Map.entry(
+                    "feature.sql.CaptureConsumer",
+                    "drains the captures Studio runs for itself; no caller names a queue"),
+            Map.entry(
+                    "feature.sql.CaptureTap",
+                    "installs and removes a capture's taps, after MessageIndexService checked"),
+            Map.entry(
+                    "kernel.security.TeamIndex",
+                    "lists names no team owns, for team administration, which user:admin and team:admin gate"),
+            Map.entry(
+                    "platform.governance.web.GovernanceController",
+                    "masking rules are installation-wide; governance:write is a global permission"),
+            Map.entry(
+                    "platform.governance.GovernanceRuleService",
+                    "masking rules are installation-wide and match addresses by pattern; governance:write is a global"
+                            + " permission"),
             Map.entry(
                     "feature.identitylocal.mfa.SecondFactorService.trustDevice",
                     "'source' is where a sign-in came from"));
+
+    /** What a scan found: the methods it looked at, each with how it fares, and how many check call sites it reaches. */
+    private record Subject(String id, boolean checked, boolean composite, boolean coversEachName, int sites) {}
 
     @Test
     void everyMethodThatTakesAQueueOrAddressNameReachesAResourceCheck() {
@@ -134,29 +165,21 @@ class ResourceCheckCoverageTest {
                 .importPackages("io.github.sudoitir.artemisstudio");
         Set<String> unchecked = new TreeSet<>();
         Set<String> exempt = new TreeSet<>();
-        for (JavaClass c : classes) {
-            if (!isEntryPoint(c)) {
-                continue;
-            }
-            for (JavaMethod m : c.getMethods()) {
-                if (!m.getModifiers().contains(JavaModifier.PUBLIC)
-                        || m.getModifiers().contains(JavaModifier.SYNTHETIC)
-                        || !takesAResourceName(m)) {
-                    continue;
+        for (Subject subject : scan(classes)) {
+            String className = subject.id().substring(0, subject.id().lastIndexOf('.'));
+            String exemption =
+                    EXEMPT.containsKey(subject.id()) ? subject.id() : EXEMPT.containsKey(className) ? className : null;
+            boolean passes = subject.checked() && (!subject.composite() || subject.coversEachName());
+            if (exemption != null) {
+                exempt.add(exemption);
+                if (passes) {
+                    unchecked.add(exemption + " is exempt but is checked; remove the exemption");
                 }
-                String className = c.getName().substring(BASE.length());
-                String id = className + "." + m.getName();
-                boolean checked = reachesACheck(m);
-                String exemption = EXEMPT.containsKey(id) ? id : EXEMPT.containsKey(className) ? className : null;
-                if (exemption != null) {
-                    exempt.add(exemption);
-                    id = exemption;
-                    if (checked) {
-                        unchecked.add(id + " is exempt but reaches a check; remove the exemption");
-                    }
-                } else if (!checked) {
-                    unchecked.add(id);
-                }
+            } else if (!subject.checked()) {
+                unchecked.add(subject.id());
+            } else if (!passes) {
+                unchecked.add(subject.id() + " takes several names but reaches only " + subject.sites()
+                        + " check call site(s): check each, or through requireAll");
             }
         }
         assertThat(unchecked)
@@ -167,25 +190,146 @@ class ResourceCheckCoverageTest {
                 .containsExactlyInAnyOrderElementsOf(EXEMPT.keySet());
     }
 
+    @Test
+    void theScanSeesTheMethodsItIsMeantToGuardSoItCannotPassByLookingAtNothing() {
+        JavaClasses classes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("io.github.sudoitir.artemisstudio");
+        List<Subject> subjects = scan(classes);
+
+        assertThat(subjects.stream().map(Subject::id))
+                .contains(
+                        "feature.messages.MessageService.purge",
+                        "feature.messages.MessageService.execute",
+                        "feature.queues.QueueLifecycleService.deleteQueue",
+                        "feature.transfer.TransferService.preview",
+                        "feature.sql.MessageIndexService.create");
+        assertThat(subjects)
+                .filteredOn(Subject::composite)
+                .extracting(Subject::id)
+                .contains("feature.messages.MessageService.execute", "feature.transfer.TransferService.preview");
+        assertThat(subjects)
+                .filteredOn(s -> s.id().equals("feature.messages.MessageService.purge"))
+                .singleElement()
+                .satisfies(s -> assertThat(s.checked()).isTrue());
+    }
+
+    @Test
+    void aMethodThatChecksNothingIsFlaggedAndOneThatChecksIsNot() {
+        List<Subject> subjects = scan(new ClassFileImporter().importClasses(Unguarded.class, Guarded.class));
+
+        assertThat(subjects)
+                .extracting(Subject::id, Subject::checked)
+                .contains(
+                        org.assertj.core.api.Assertions.tuple(
+                                "architecture.ResourceCheckCoverageTest$Unguarded.purge", false),
+                        org.assertj.core.api.Assertions.tuple(
+                                "architecture.ResourceCheckCoverageTest$Guarded.purge", true));
+        assertThat(subjects)
+                .filteredOn(s -> s.id().endsWith("Guarded.copy"))
+                .singleElement()
+                .satisfies(s -> {
+                    assertThat(s.composite()).isTrue();
+                    assertThat(s.coversEachName()).isFalse();
+                });
+    }
+
+    @org.springframework.stereotype.Service
+    static class Unguarded {
+        public void purge(String queueName) {}
+    }
+
+    @org.springframework.stereotype.Service
+    static class Guarded {
+        private ClusterAccessGuard guard;
+
+        public void purge(UUID cluster, String queueName) {
+            guard.requireResource(cluster, ResourceRef.queue(queueName), "queue:purge");
+        }
+
+        /** Two names, one check: the second is never looked at. */
+        public void copy(UUID cluster, String sourceQueue, String targetQueue) {
+            guard.requireResource(cluster, ResourceRef.queue(sourceQueue), "queue:read");
+        }
+    }
+
+    private static List<Subject> scan(Iterable<JavaClass> classes) {
+        List<Subject> subjects = new ArrayList<>();
+        for (JavaClass c : classes) {
+            if (!isEntryPoint(c)) {
+                continue;
+            }
+            for (JavaMethod m : c.getMethods()) {
+                int names = resourceNames(m);
+                if (!m.getModifiers().contains(JavaModifier.PUBLIC)
+                        || m.getModifiers().contains(JavaModifier.SYNTHETIC)
+                        || names == 0) {
+                    continue;
+                }
+                Set<String> sites = checkSitesReachedFrom(m);
+                boolean covers =
+                        // requireAll and a command's resources take every name at once.
+                        sites.stream().anyMatch(site -> site.startsWith("requireAll@") || site.startsWith("resources@"))
+                                || sites.size() >= names;
+                subjects.add(new Subject(
+                        c.getName().substring(BASE.length()) + "." + m.getName(),
+                        !sites.isEmpty(),
+                        names > 1,
+                        covers,
+                        sites.size()));
+            }
+        }
+        return subjects;
+    }
+
     private static boolean isEntryPoint(JavaClass c) {
         return c.getName().startsWith(BASE)
                 && c.getAnnotations().stream()
                         .anyMatch(a -> STEREOTYPES.contains(a.getRawType().getName()));
     }
 
-    private static boolean takesAResourceName(JavaMethod method) {
-        Parameter[] parameters = method.reflect().getParameters();
-        for (Parameter p : parameters) {
-            if (p.getType() == String.class
-                    && NAMES_A_RESOURCE.matcher(p.getName()).matches()) {
-                return true;
+    /**
+     * How many queue or address names the method is given: strings and lists of strings named for them, and the same
+     * among the components of a request record of this code base.
+     */
+    private static int resourceNames(JavaMethod method) {
+        int names = 0;
+        for (Parameter p : method.reflect().getParameters()) {
+            if (namesAResource(p.getType(), p.getParameterizedType(), p.getName())) {
+                names++;
+            }
+            if (isRequestBody(p.getType())) {
+                for (RecordComponent component : p.getType().getRecordComponents()) {
+                    if (namesAResource(component.getType(), component.getGenericType(), component.getName())) {
+                        names++;
+                    }
+                }
             }
         }
-        return false;
+        return names;
     }
 
-    /** Whether a check is reached from the method through calls, method references and lambdas of the code base. */
-    private static boolean reachesACheck(JavaMethod start) {
+    /** A request a caller sends: a record of this code base named for one. */
+    private static boolean isRequestBody(Class<?> type) {
+        return type.isRecord()
+                && type.getName().startsWith(BASE)
+                && REQUEST_BODY.matcher(type.getSimpleName()).matches();
+    }
+
+    private static boolean namesAResource(Class<?> type, Type generic, String name) {
+        if (type == String.class) {
+            return NAMES_A_RESOURCE.matcher(name).matches();
+        }
+        return List.class.isAssignableFrom(type)
+                && generic instanceof ParameterizedType parameterized
+                && parameterized.getActualTypeArguments().length == 1
+                && parameterized.getActualTypeArguments()[0] == String.class
+                && NAMES_SOME_RESOURCES.matcher(name).matches();
+    }
+
+    /** The check call sites reached from the method through calls, method references and lambdas of the code base. */
+    private static Set<String> checkSitesReachedFrom(JavaMethod start) {
+        Set<String> sites = new TreeSet<>();
         Deque<JavaCodeUnit> pending = new ArrayDeque<>(List.of(start));
         Set<JavaCodeUnit> seen = new HashSet<>(pending);
         while (!pending.isEmpty()) {
@@ -194,7 +338,7 @@ class ResourceCheckCoverageTest {
             accesses.addAll(unit.getMethodReferencesFromSelf());
             for (JavaAccess<?> access : accesses) {
                 if (isCheck(access)) {
-                    return true;
+                    sites.add(access.getName() + "@" + access.getOrigin().getFullName() + ":" + access.getLineNumber());
                 }
                 for (JavaCodeUnit callee : targetsOf(access)) {
                     if (seen.add(callee)) {
@@ -209,7 +353,7 @@ class ResourceCheckCoverageTest {
                 }
             }
         }
-        return false;
+        return sites;
     }
 
     private static boolean isCheck(JavaAccess<?> access) {
