@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from '../../test/render.tsx';
+import { holding } from '../../test/access.ts';
 import { server } from '../../test/setup.ts';
 import { paged } from '../../kernel/api/paging.ts';
 import { ClusterHeader } from './ClusterHeader.tsx';
@@ -11,6 +12,7 @@ const capability = { status: 'AVAILABLE', reason: null, brokerXmlSnippet: null }
 
 function mockCluster(over: object = {}) {
   server.use(
+    holding('environment:read'),
     http.get('*/api/v1/environments', () =>
       HttpResponse.json(paged([{ id: 'e1', name: 'Production', colour: '#d6336c', sortOrder: 1 }])),
     ),
@@ -40,7 +42,7 @@ describe('ClusterHeader', () => {
 
     const strip = await screen.findByRole('group', { name: 'Cluster prod-eu' });
     expect(strip).toHaveTextContent('prod-eu');
-    expect(strip).toHaveTextContent('Production');
+    await waitFor(() => expect(strip).toHaveTextContent('Production'));
     expect(strip).toHaveTextContent('2 nodes · replication · reachable');
     // Each view's page header is the page's one h1.
     expect(screen.queryAllByRole('heading')).toHaveLength(0);

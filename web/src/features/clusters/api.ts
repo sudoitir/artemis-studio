@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { requestAll } from '../../kernel/api/paging.ts';
+import { useCan } from '../../kernel/auth/useCan.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
@@ -127,10 +128,13 @@ export function useRotateCredentials(clusterId: string) {
   });
 }
 
+/** Environments name and group clusters; someone without `environment:read` (a team member) gets none, and no refused request. */
 export function useEnvironments(): UseQueryResult<EnvironmentView[], ApiError> {
+  const { can } = useCan();
   return useQuery({
     queryKey: keys.environments,
     queryFn: () => requestAll<EnvironmentView>('/environments'),
+    enabled: can('environment:read'),
   });
 }
 

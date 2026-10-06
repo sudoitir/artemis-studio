@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
+import { holding } from '../../test/access.ts';
 import { server } from '../../test/setup.ts';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
@@ -13,6 +14,8 @@ function env(over: Record<string, unknown> = {}) {
 }
 
 describe('EnvironmentsPanel', () => {
+  beforeEach(() => server.use(holding('environment:read')));
+
   it('lists existing environments', async () => {
     server.use(http.get('*/api/v1/environments', () => HttpResponse.json(paged([env()]))));
     renderWithProviders(<EnvironmentsPanel />);

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { Notifications, notifications } from '@mantine/notifications';
 
+import { holding } from '../../test/access.ts';
 import { server } from '../../test/setup.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import type { UserView } from './api.ts';
@@ -365,6 +366,7 @@ describe('UsersPanel grant scope', () => {
   const VIEWER = { id: 'r-viewer', name: 'VIEWER', builtin: true, permissions: ['*'], requiresMfa: false };
 
   it('names the environment or cluster a grant applies to', async () => {
+    server.use(holding('environment:read'));
     const scoped = (grants: UserView['grants']): UserView => ({ ...user('alice', null), grants });
     serveUsers({
       users: [
@@ -378,7 +380,9 @@ describe('UsersPanel grant scope', () => {
     renderUsers();
 
     expect(await screen.findByRole('button', { name: 'Remove VIEWER (Cluster prod) from alice' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Remove VIEWER (Environment Live) from alice' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Remove VIEWER (Environment Live) from alice' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove VIEWER from alice' })).toBeInTheDocument();
   });
 

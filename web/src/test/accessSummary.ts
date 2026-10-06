@@ -19,6 +19,7 @@ const UNIVERSE = [
   'data:write',
   'diagnostics:bundle',
   'divert:write',
+  'environment:read',
   'governance:read',
   'governance:write',
   'message:delete',

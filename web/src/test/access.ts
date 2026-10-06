@@ -18,3 +18,11 @@ export const accessHandler = http.get('*/api/v1/me/access', async ({ request }) 
   }
   return HttpResponse.json(accessFor(grants, clusterId));
 });
+
+/** `/me/access` for someone who holds `permissions` globally, for a view that waits for the answer before it asks. */
+export const holding = (...permissions: string[]) =>
+  http.get('*/api/v1/me/access', ({ request }) =>
+    HttpResponse.json(
+      accessFor([{ scopeType: 'GLOBAL', permissions }], new URL(request.url).searchParams.get('clusterId')),
+    ),
+  );
