@@ -35,6 +35,8 @@ const EMPTY: FormState = {
 };
 
 const FIELDS = Object.keys(EMPTY);
+const ADDRESS_HELP =
+  'Messages are sent to an address; the queue binds to it. An address that does not exist yet is created with the queue.';
 
 /**
  * Create a queue across every live node of a cluster.
@@ -126,7 +128,7 @@ export function CreateQueueForm({
             {...form.getInputProps('address')}
             value={form.values.address}
             label="Address"
-            description={`Messages are sent to an address; the queue binds to it. An address that does not exist yet is created with the queue.${addressRule.restriction ? ` ${addressRule.restriction}` : ''}`}
+            description={[ADDRESS_HELP, addressRule.restriction].filter(Boolean).join(' ')}
           />
 
           <TextInput

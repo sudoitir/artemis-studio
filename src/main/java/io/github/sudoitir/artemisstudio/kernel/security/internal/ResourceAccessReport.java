@@ -75,7 +75,7 @@ public class ResourceAccessReport {
                     share.pattern().text(),
                     (int) members.countByTeamId(share.targetTeamId())));
         }
-        grants.sort(Comparator.comparing((ResourceTeamGrant g) -> g.source())
+        grants.sort(Comparator.comparing(ResourceTeamGrant::source)
                 .thenComparing(ResourceTeamGrant::teamName)
                 .thenComparing(ResourceTeamGrant::roleName));
         return new ResourceAccessView(owner, List.copyOf(grants));

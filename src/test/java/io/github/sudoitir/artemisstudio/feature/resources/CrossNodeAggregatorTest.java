@@ -74,7 +74,7 @@ class CrossNodeAggregatorTest extends PostgresIntegrationTest {
                 .getId();
         String sharedNodeId = UUID.randomUUID().toString();
         BrokerNodeEntity live = nodes.save(BrokerNodeEntity.fromSeed(clusterId, "live", "PRIMARY", sharedNodeId));
-        BrokerNodeEntity backup = nodes.save(BrokerNodeEntity.fromSeed(clusterId, "backup", "BACKUP", sharedNodeId));
+        nodes.save(BrokerNodeEntity.fromSeed(clusterId, "backup", "BACKUP", sharedNodeId));
         BrokerNodeEntity solo = nodes.save(BrokerNodeEntity.fromSeed(
                 clusterId, "solo", "PRIMARY", UUID.randomUUID().toString()));
         return new Fixture(clusterId, live.getId(), solo.getId());

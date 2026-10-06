@@ -35,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class OwnerWorkService implements PluginScopedBeans {
 
     static final String BEAN_NAME = "pluginOwnerWork";
+    private static final String TARGET_TYPE = "PLUGIN_OWNER_WORK";
     private static final String PLUGIN = "plugin";
     private static final Pattern KEY = Pattern.compile("[A-Za-z0-9._:-]{1,200}");
     private static final int MAX_NEEDS = 100;
@@ -58,7 +59,7 @@ public class OwnerWorkService implements PluginScopedBeans {
         AuditEvent event = audit.begin(
                 actor(pluginId, ownerUserId),
                 "PLUGIN_WORK_PUBLISH",
-                "PLUGIN_OWNER_WORK",
+                TARGET_TYPE,
                 pluginId + "/" + key,
                 null,
                 null,
@@ -100,7 +101,7 @@ public class OwnerWorkService implements PluginScopedBeans {
         AuditEvent event = audit.begin(
                 actor(pluginId, row.getOwnerUserId()),
                 "PLUGIN_WORK_SUSPEND",
-                "PLUGIN_OWNER_WORK",
+                TARGET_TYPE,
                 pluginId + "/" + key,
                 null,
                 null,
@@ -123,7 +124,7 @@ public class OwnerWorkService implements PluginScopedBeans {
         AuditEvent event = audit.begin(
                 actor(pluginId, row.getOwnerUserId()),
                 "PLUGIN_WORK_ENABLE",
-                "PLUGIN_OWNER_WORK",
+                TARGET_TYPE,
                 pluginId + "/" + key,
                 null,
                 null,
@@ -160,7 +161,7 @@ public class OwnerWorkService implements PluginScopedBeans {
         AuditEvent event = audit.begin(
                 actor(pluginId, row.get().getOwnerUserId()),
                 "PLUGIN_WORK_WITHDRAW",
-                "PLUGIN_OWNER_WORK",
+                TARGET_TYPE,
                 pluginId + "/" + key,
                 null,
                 null,

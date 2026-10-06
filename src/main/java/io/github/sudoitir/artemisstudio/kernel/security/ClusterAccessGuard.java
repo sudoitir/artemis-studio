@@ -34,6 +34,8 @@ public class ClusterAccessGuard {
     /** One permission needed on one queue or address, for an operation that touches several. */
     public record Requirement(ResourceRef resource, String permission) {}
 
+    private static final String CLUSTER = "cluster";
+
     private final PermissionResolver perm;
     private final ApplicationEventPublisher events;
 
@@ -154,13 +156,13 @@ public class ClusterAccessGuard {
     private NotFoundException unreadable(UUID clusterId, ResourceRef resource) {
         return perm.canSeeCluster(clusterId)
                 ? new NotFoundException(kindOf(resource), resource.name())
-                : new NotFoundException("cluster", clusterId);
+                : new NotFoundException(CLUSTER, clusterId);
     }
 
     /** The not-found for a cluster the caller may not see at all, recorded as a refusal of {@code permission}. */
     private NotFoundException hiddenCluster(UUID clusterId, String permission) {
         events.publishEvent(new AccessRefused(clusterId, permission, null, true));
-        return new NotFoundException("cluster", clusterId);
+        return new NotFoundException(CLUSTER, clusterId);
     }
 
     /**
@@ -170,7 +172,7 @@ public class ClusterAccessGuard {
     public NotFoundException unreadableAmongSeveral(UUID clusterId) {
         return perm.canSeeCluster(clusterId)
                 ? new NotFoundException("A queue or address named in the request does not exist.")
-                : new NotFoundException("cluster", clusterId);
+                : new NotFoundException(CLUSTER, clusterId);
     }
 
     private static String kindOf(ResourceRef resource) {

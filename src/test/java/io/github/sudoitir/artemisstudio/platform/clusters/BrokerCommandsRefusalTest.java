@@ -64,7 +64,8 @@ class BrokerCommandsRefusalTest {
                 .thenReturn(event);
         doThrow(new AccessDeniedException("no queue:purge")).when(guard).requireAll(eq(CLUSTER), any());
 
-        assertThatThrownBy(() -> commands.run(command())).isInstanceOf(AccessDeniedException.class);
+        var command = command();
+        assertThatThrownBy(() -> commands.run(command)).isInstanceOf(AccessDeniedException.class);
 
         InOrder order = inOrder(audit, guard);
         order.verify(audit)
@@ -81,7 +82,8 @@ class BrokerCommandsRefusalTest {
                 .thenReturn(event);
         doThrow(new NotFoundException("queue", "orders.in")).when(guard).requireAll(eq(CLUSTER), any());
 
-        assertThatThrownBy(() -> commands.run(command())).isInstanceOf(NotFoundException.class);
+        var command = command();
+        assertThatThrownBy(() -> commands.run(command)).isInstanceOf(NotFoundException.class);
 
         verify(audit).refuse(eq(event), any());
     }

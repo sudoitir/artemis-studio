@@ -65,8 +65,9 @@ export function AnchoredMenu({
         loop
       >
         <Menu.Target>
-          <span
-            role="button"
+          <button
+            type="button"
+            tabIndex={-1}
             className={classes.anchor}
             style={{
               insetInlineStart: rtl ? window.innerWidth - anchor.x : anchor.x,
@@ -74,7 +75,7 @@ export function AnchoredMenu({
             }}
           >
             {label}
-          </span>
+          </button>
         </Menu.Target>
         <Menu.Dropdown ref={dropdownRef}>{opened ? children : null}</Menu.Dropdown>
       </Menu>

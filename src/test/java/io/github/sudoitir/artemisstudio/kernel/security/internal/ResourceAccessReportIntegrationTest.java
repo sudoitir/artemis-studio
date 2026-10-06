@@ -167,14 +167,14 @@ class ResourceAccessReportIntegrationTest extends PostgresIntegrationTest {
                 .isEqualTo(orders);
 
         asUser(operator);
-        assertThatThrownBy(() -> report.of(prod, ResourceRef.queue("orders.in")))
-                .isInstanceOf(AccessDeniedException.class);
+        ResourceRef ordersIn = ResourceRef.queue("orders.in");
+        assertThatThrownBy(() -> report.of(prod, ordersIn)).isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     void anUnknownClusterIsNotFound() {
         UUID unknown = UUID.randomUUID();
-        assertThatThrownBy(() -> report.of(unknown, ResourceRef.queue("orders.in")))
-                .isInstanceOf(NotFoundException.class);
+        ResourceRef ordersIn = ResourceRef.queue("orders.in");
+        assertThatThrownBy(() -> report.of(unknown, ordersIn)).isInstanceOf(NotFoundException.class);
     }
 }

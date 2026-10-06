@@ -1,6 +1,12 @@
 import { matchesPattern } from './pattern.ts';
 import { useCan } from './useCan.ts';
 
+function restrictionOf(nouns: string, patterns: string[]): string {
+  return patterns.length > 0
+    ? `You may create ${nouns} under: ${patterns.join(', ')}.`
+    : `You may not create ${nouns} on this cluster.`;
+}
+
 /**
  * Where the caller may create a queue or an address on a cluster: anywhere when a grant reaches the cluster,
  * otherwise only under the name patterns a team or share gives. `restriction` says so for a form to show, and
@@ -16,11 +22,7 @@ export function useCreateRule(clusterId: string, kind: 'queue' | 'address') {
     anywhere,
     patterns,
     /** The sentence that tells where the caller may create; none when nothing limits them. */
-    restriction: anywhere
-      ? null
-      : patterns.length > 0
-        ? `You may create ${nouns} under: ${patterns.join(', ')}.`
-        : `You may not create ${nouns} on this cluster.`,
+    restriction: anywhere ? null : restrictionOf(nouns, patterns),
     /** What is wrong with `name`, or null when it is empty or allowed. */
     problem: (name: string): string | null => {
       const trimmed = name.trim();

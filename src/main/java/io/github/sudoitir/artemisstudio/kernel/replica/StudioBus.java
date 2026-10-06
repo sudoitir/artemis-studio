@@ -118,10 +118,9 @@ public class StudioBus implements SmartLifecycle {
                     publish(new BusFrame(f.clusterId(), f.topic(), null, f.id(), f.about()));
                 }
                 case BusFrame f
-                when f.about() != null -> {
+                when f.about() != null ->
                     // Names too long to carry: the frame becomes about the cluster, which fewer subscribers see.
                     publish(new BusFrame(f.clusterId(), f.topic(), null, f.id()));
-                }
                 case BusEvents e
                 when e.seqs().size() > 1 -> {
                     int half = e.seqs().size() / 2;

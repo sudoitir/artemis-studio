@@ -138,10 +138,14 @@ class RefusalAuditRecorderTest {
     static class Guarded {
         @PreAuthorize(
                 "@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
-        public void register() {}
+        public void register() {
+            // a guarded method: only the annotation matters
+        }
 
         @PreAuthorize("@perm.can(@settingsService.writePermission(#key))")
-        public void put(String key) {}
+        public void put(String key) {
+            // a guarded method: only the annotation matters
+        }
     }
 
     private AuthorizationDeniedEvent<MethodInvocation> denied(Method method, Authentication who) {

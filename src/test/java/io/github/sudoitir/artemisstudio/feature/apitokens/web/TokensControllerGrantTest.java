@@ -37,22 +37,20 @@ class TokensControllerGrantTest {
 
     @Test
     void aKindWithoutAPatternIsRefused() {
-        assertThatThrownBy(() -> TokensController.toGrant(
-                        new TokenGrantRequest("message:read", "CLUSTER", cluster, "QUEUE", " ")))
-                .isInstanceOf(IllegalArgumentException.class);
+        TokenGrantRequest request = new TokenGrantRequest("message:read", "CLUSTER", cluster, "QUEUE", " ");
+        assertThatThrownBy(() -> TokensController.toGrant(request)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void aPatternWithoutAKindIsRefused() {
-        assertThatThrownBy(() -> TokensController.toGrant(
-                        new TokenGrantRequest("message:read", "CLUSTER", cluster, null, "orders.#")))
-                .isInstanceOf(IllegalArgumentException.class);
+        TokenGrantRequest request = new TokenGrantRequest("message:read", "CLUSTER", cluster, null, "orders.#");
+        assertThatThrownBy(() -> TokensController.toGrant(request)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void aPatternThatDoesNotParseIsRefused() {
-        assertThatThrownBy(() -> TokensController.toGrant(
-                        new TokenGrantRequest("message:read", "CLUSTER", cluster, "QUEUE", "orders..in")))
+        TokenGrantRequest request = new TokenGrantRequest("message:read", "CLUSTER", cluster, "QUEUE", "orders..in");
+        assertThatThrownBy(() -> TokensController.toGrant(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("empty word");
     }
