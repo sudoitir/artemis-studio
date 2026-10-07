@@ -76,7 +76,9 @@ class GatedOperationRegistryTest {
         }
         @SuppressWarnings({"unchecked", "rawtypes"})
         ObjectProvider<GatedOperation<?>> provider = (ObjectProvider) factory.getBeanProvider(GatedOperation.class);
-        return new GatedOperationRegistry(provider);
+        GatedOperationRegistry registry = new GatedOperationRegistry(provider);
+        registry.afterSingletonsInstantiated();
+        return registry;
     }
 
     private static PluginHandle plugin(String id, GatedOperation<?>... ops) throws Exception {

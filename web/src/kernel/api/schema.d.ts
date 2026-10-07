@@ -500,6 +500,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/held-operations/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/held-operations/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/governance/rules": {
         parameters: {
             query?: never;
@@ -2020,6 +2052,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/held-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_12"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/held-operations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/governance/remask": {
         parameters: {
             query?: never;
@@ -2044,6 +2108,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2139,7 +2219,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_3"];
+        get: operations["get_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2443,7 +2523,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2459,7 +2539,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_4"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2747,7 +2827,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2779,7 +2859,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_14"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2795,7 +2875,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2907,7 +2987,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["status_1"];
+        get: operations["status_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2955,7 +3035,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_15"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2987,7 +3067,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_15"];
+        get: operations["list_16"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3003,7 +3083,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4051,6 +4131,106 @@ export interface components {
             scopeType: string;
             /** Format: uuid */
             scopeId?: string | null;
+        };
+        HeldDecisionRequest: {
+            /** @enum {string} */
+            vote: "APPROVE" | "REJECT";
+            /** @description Required to reject; at most 500 characters. */
+            reason?: string | null;
+            /** @description The paramsHash of the request as shown. */
+            paramsHash: string;
+            /**
+             * Format: int32
+             * @description The version of the request as shown.
+             */
+            version: number;
+        };
+        HeldDisplayRowView: {
+            label: string;
+            from?: string | null;
+            to?: string | null;
+        };
+        HeldEffectView: {
+            /** Format: int64 */
+            count: number;
+            unit: string;
+            detail?: string | null;
+        };
+        HeldEventView: {
+            /** Format: int64 */
+            seq: number;
+            kind: string;
+            /** Format: uuid */
+            actorId?: string | null;
+            actorUsername?: string | null;
+            detail?: string | null;
+            /** Format: date-time */
+            at: string;
+        };
+        HeldOperationDetailView: {
+            operation: components["schemas"]["HeldOperationSummaryView"];
+            /** Format: int32 */
+            typeVersion: number;
+            /** @enum {string} */
+            mode: "ON_APPROVAL" | "BY_REQUESTER";
+            traits: string[];
+            /** Format: uuid */
+            environmentId?: string | null;
+            display: components["schemas"]["HeldDisplayRowView"][];
+            /** @description The canonical parameters, secrets redacted. */
+            params: string;
+            /** @description Echo it, with version, to decide. */
+            paramsHash: string;
+            /** Format: int32 */
+            version: number;
+            effect: components["schemas"]["HeldEffectView"];
+            policy: components["schemas"]["HeldPolicyView"];
+            reason?: string | null;
+            approverHint?: string | null;
+            /** Format: uuid */
+            approverId?: string | null;
+            decisionReason?: string | null;
+            outcomeDetail?: string | null;
+            /** @description The request's page in the console. */
+            link: string;
+            events: components["schemas"]["HeldEventView"][];
+            mine: boolean;
+            canDecide: boolean;
+            /** @description Why the current user may not decide it. */
+            decideRefusal?: string | null;
+            canCancel: boolean;
+            /** @description Whether the requester could no longer run it; null when unknown or ended. */
+            requesterLacksPermission?: boolean | null;
+        };
+        HeldOperationSummaryView: {
+            /** Format: uuid */
+            id: string;
+            /** @description The operation type, such as queue.purge. */
+            type: string;
+            /** @enum {string} */
+            state: "HELD" | "APPROVED" | "EXECUTING" | "REJECTED" | "CANCELLED" | "EXPIRED" | "SUCCEEDED" | "FAILED" | "REFUSED" | "OUTCOME_UNKNOWN";
+            summary: string;
+            /** Format: uuid */
+            requesterId: string;
+            requesterUsername: string;
+            /** @enum {string} */
+            authKind: "SESSION" | "TOKEN" | "AGENT";
+            /** Format: uuid */
+            clusterId?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            approverUsername?: string | null;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        HeldPolicyView: {
+            id: string;
+            version: string;
+            name?: string | null;
         };
         FindingView: {
             /** Format: uuid */
@@ -5927,6 +6107,14 @@ export interface components {
             /** @description True when there are at least this many; show 99+. */
             capped: boolean;
         };
+        HeldOperationPageView: {
+            items: components["schemas"]["HeldOperationSummaryView"][];
+            /**
+             * Format: uuid
+             * @description Pass as before for the next page; null at the end.
+             */
+            next?: string | null;
+        };
         PagedViewRuleView: {
             data: components["schemas"]["RuleView"][];
             /** Format: int32 */
@@ -5960,6 +6148,15 @@ export interface components {
              */
             count?: number | null;
             hasNext: boolean;
+        };
+        GateStatusView: {
+            /** @description Whether an approval provider is installed and meant to run. */
+            armed: boolean;
+            providerId?: string | null;
+            /** @description Whether the provider runs on this Studio instance. */
+            attached: boolean;
+            /** @description Whether break-glass lets operations bypass approval. */
+            breakGlass: boolean;
         };
         PagedViewEnvironmentView: {
             data: components["schemas"]["EnvironmentView"][];
@@ -10709,6 +10906,130 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GroupMappingView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeldDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationDetailView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationDetailView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17835,6 +18156,123 @@ export interface operations {
             };
         };
     };
+    list_12: {
+        parameters: {
+            query?: {
+                scope?: "MINE" | "DECIDABLE";
+                state?: ("HELD" | "APPROVED" | "EXECUTING" | "REJECTED" | "CANCELLED" | "EXPIRED" | "SUCCEEDED" | "FAILED" | "REFUSED" | "OUTCOME_UNKNOWN")[];
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationPageView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    get_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationDetailView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     remask: {
         parameters: {
             query?: never;
@@ -17910,6 +18348,61 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewFindingView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    status_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GateStatusView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -18235,7 +18728,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -19371,7 +19864,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: {
                 type?: string;
@@ -19436,7 +19929,7 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    get_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -20494,7 +20987,7 @@ export interface operations {
             };
         };
     };
-    get_5: {
+    get_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -20611,7 +21104,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_14: {
         parameters: {
             query?: {
                 user?: string;
@@ -20677,7 +21170,7 @@ export interface operations {
             };
         };
     };
-    get_6: {
+    get_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -21149,7 +21642,7 @@ export interface operations {
             };
         };
     };
-    status_1: {
+    status_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -21317,7 +21810,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_15: {
         parameters: {
             query?: {
                 page?: number;
@@ -21434,7 +21927,7 @@ export interface operations {
             };
         };
     };
-    list_15: {
+    list_16: {
         parameters: {
             query?: never;
             header?: never;
@@ -21489,7 +21982,7 @@ export interface operations {
             };
         };
     };
-    get_7: {
+    get_8: {
         parameters: {
             query?: never;
             header?: never;

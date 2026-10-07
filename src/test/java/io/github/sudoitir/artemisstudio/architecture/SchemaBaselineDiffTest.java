@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -119,6 +120,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "idempotency_record",
                     // The in-app inbox (changeset kernel-inbox 0001).
                     "inbox_item",
+                    // Who changed whose access, for the approver rules (ADR-0181, changeset kernel-security 0014).
+                    "access_change_log",
+                    // Held operations, their timeline, and the functions and triggers that guard them (ADR-0180,
+                    // changeset kernel-approval 0001).
+                    "held_operation",
                     // Usernames are unique ignoring case (kernel-security 0008).
                     "uq_app_user_username_lower",
                     // Text bodies of bytes messages are full-text indexed; binary is body_base64 (ADR-0148,
@@ -158,7 +164,7 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
     static Set<String> statements(String dump) {
         String text = dump.replaceAll("(?m)^--.*$", "").replaceAll("(?m)^\\\\(restrict|unrestrict) .*$", "");
         Set<String> statements = new TreeSet<>();
-        for (String statement : text.split(";\n")) {
+        for (String statement : split(text)) {
             String s = String.join(" ", statement.trim().split("\\s+")).replaceAll("\\bpublic\\.", "");
             boolean dumpSetup = s.startsWith("SET ") || s.startsWith("SELECT pg_catalog.set_config");
             if (s.isEmpty()
@@ -170,6 +176,32 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
             }
             statements.add(s);
         }
+        return statements;
+    }
+
+    private static final Pattern DOLLAR_QUOTE = Pattern.compile("\\$[A-Za-z_]*\\$");
+
+    /** The dump's statements: split at each {@code ;} that ends a line, but never inside a dollar-quoted body. */
+    static List<String> split(String text) {
+        List<String> statements = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        String quote = null;
+        for (String line : text.split("\n", -1)) {
+            var tags = DOLLAR_QUOTE.matcher(line);
+            while (tags.find()) {
+                if (quote == null) {
+                    quote = tags.group();
+                } else if (quote.equals(tags.group())) {
+                    quote = null;
+                }
+            }
+            current.append(line).append('\n');
+            if (quote == null && line.endsWith(";")) {
+                statements.add(current.substring(0, current.length() - 2));
+                current.setLength(0);
+            }
+        }
+        statements.add(current.toString());
         return statements;
     }
 

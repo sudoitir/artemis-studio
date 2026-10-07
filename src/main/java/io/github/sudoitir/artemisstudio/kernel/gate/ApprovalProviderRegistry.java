@@ -60,6 +60,27 @@ public class ApprovalProviderRegistry implements PluginBridge {
         return attached.values().stream().map(Attached::provider).findFirst();
     }
 
+    /**
+     * The provider of plugin {@code pluginId} when it is attached on this replica, with the permission its
+     * approvers need; empty for any other plugin, so a provider that is not the armed one is never asked.
+     */
+    public Optional<AttachedProvider> attached(String pluginId) {
+        Attached found = pluginId == null ? null : attached.get(pluginId);
+        return found == null
+                ? Optional.empty()
+                : Optional.of(new AttachedProvider(
+                        pluginId,
+                        found.handle().descriptor().approvalProvider().approverPermission(),
+                        found.provider()));
+    }
+
+    /**
+     * An attached provider.
+     *
+     * @param approverPermission the permission its plugin declares that approvers must hold
+     */
+    public record AttachedProvider(String pluginId, String approverPermission, ApprovalProvider provider) {}
+
     @Override
     public void attach(PluginHandle handle) {
         if (handle.descriptor().approvalProvider() == null) {
