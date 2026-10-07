@@ -60,7 +60,7 @@ class SqlControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl("http://a:8161/console/jolokia");
+        node.attachSeedUrl("http://a:8161/console/jolokia");
         UUID nodeId = nodes.save(node).getId();
         upsert.upsertBatch(List.of(
                 new QueueRow(clusterId, nodeId, "ORDER.IN", "ORDER.IN", "ANYCAST", true, 120, 0, 0, 0, 0, 0, 0, false),

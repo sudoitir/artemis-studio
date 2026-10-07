@@ -56,9 +56,9 @@ export function AdoptionSuggestion({
     <Section variant="card" title="Adopt what this cluster runs as revision 1">
       <Stack gap="sm">
         <Text size="sm">
-          {live.length} live node{live.length === 1 ? '' : 's'} can be read. Adopting declares what they run today, so
-          the first revision starts in sync and every later change shows as a difference from it. Nothing is written to
-          a broker.
+          This cluster was registered without adopting its configuration. {live.length} live node
+          {live.length === 1 ? '' : 's'} can be read. Adopting declares what they run today, so the first revision
+          starts in sync and every later change shows as a difference from it. Nothing is written to a broker.
         </Text>
 
         {/* The result's room is held while the nodes are read, so what is below the card does not move. */}

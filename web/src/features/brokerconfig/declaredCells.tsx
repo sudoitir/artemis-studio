@@ -8,7 +8,7 @@ import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { asItems, type Row } from './pretty.ts';
 import type { ApplyScope } from './ReviewApplyDrawer.tsx';
 import { findingRows, itemDriftWords, itemFindings, type Section } from './words.ts';
-import classes from './Configuration.module.css';
+import { Transition } from './Transition.tsx';
 
 /** What a section's columns need from the screen: the declaration, the gates and the two actions. */
 export interface DeclaredContext {
@@ -63,15 +63,10 @@ export function LiveState<T>({ ctx, spec, item }: Readonly<{ ctx: DeclaredContex
           <DescriptionList
             key={`${nodeName}:${i}`}
             label={`${nodeName} differs`}
+            oneLine
             items={differing.map((r) => ({
               term: `${label}${r.key}`,
-              value: (
-                <>
-                  <span className={classes.before}>{r.declared}</span>
-                  {' → '}
-                  {r.observed}
-                </>
-              ),
+              value: <Transition before={r.declared} after={r.observed} />,
             }))}
           />
         );
@@ -88,7 +83,7 @@ export function DeclaredValues({ rows, empty }: Readonly<{ rows: Row[]; empty?: 
       </Text>
     );
   }
-  return <DescriptionList items={asItems(rows)} />;
+  return <DescriptionList items={asItems(rows)} oneLine />;
 }
 
 /** Edit (or View, without the permission) and Apply this, each named for the item it acts on. */

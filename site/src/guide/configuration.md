@@ -179,8 +179,12 @@ alert rules are in [Observability](/guide/observability).
 
 ## Broker connections
 
-Registered through the UI, not the environment. A connection stores a seed
-management endpoint and credentials, encrypted at rest. Jolokia HTTP is the
+Registered through the UI, not the environment. A connection stores the seed management
+endpoints, the management URL pattern that gives every other node its own, and the management and Core
+credentials, encrypted at rest. Edit all of it under **Settings → Connection**: **Check connection** runs
+the same per-node check as registering and saves nothing, and **Save connection** is offered once the
+check of exactly those values passed. Changing an account asks you to type the cluster's name, and a
+password left empty keeps the stored one. Jolokia HTTP is the
 primary transport; the Artemis Core client is a second channel used for
 notifications and faithful message I/O, and features that need it are gated on
 it being reachable — visibly, with the `broker.xml` that would enable it.

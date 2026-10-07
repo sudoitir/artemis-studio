@@ -29,6 +29,8 @@ export function declaredColumns<T>(ctx: DeclaredContext, spec: DeclaredSpec<T>):
       cell: (item) => <DeclaredValues rows={spec.rowsOf(item)} empty={spec.noRows} />,
       kind: 'text',
       priority: 'essential',
+      // Room for a term and a value in the list, so a long name never squeezes the other into characters.
+      min: 32,
       wrap: true,
     },
     {
@@ -39,6 +41,7 @@ export function declaredColumns<T>(ctx: DeclaredContext, spec: DeclaredSpec<T>):
       cell: (item) => <LiveState ctx={ctx} spec={spec} item={item} />,
       kind: 'text',
       priority: 'essential',
+      min: 32,
       wrap: true,
     },
     {

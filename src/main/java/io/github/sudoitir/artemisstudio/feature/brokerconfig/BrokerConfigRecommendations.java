@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressSettingDecl;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.SecuritySettingDecl;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccountRoles;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities.CapabilityAssessment;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities.CapabilityStatus;
@@ -56,6 +57,21 @@ public final class BrokerConfigRecommendations {
         SECURITY_SETTING
     }
 
+    /** Where a security setting's prefilled roles came from. */
+    public enum RolesSourceKind {
+        /** Read from the broker's user management for the account Studio connects to Core with. */
+        BROKER_ACCOUNT,
+        /** The roles the broker already names for that address, because the account's could not be read. */
+        SECURITY_SETTINGS,
+        /** Neither source named a role: the operator has to. */
+        NONE
+    }
+
+    /**
+     * @param reason why the account's roles were not used; null for {@link RolesSourceKind#BROKER_ACCOUNT}
+     */
+    public record RolesSource(RolesSourceKind kind, String reason) {}
+
     /**
      * One thing the operator could have Studio write, or one thing they must write
      * themselves.
@@ -66,6 +82,10 @@ public final class BrokerConfigRecommendations {
      *     observed keys included (never a partial entry — see M2 above)
      * @param roles for a security setting: permission type to role names, prefilled
      *     from what the broker reports and editable before it is applied
+     * @param accountRoles for a security setting: the roles of the account Studio connects to
+     *     Core with, when the broker reported them
+     * @param accountRolesSource for a security setting: where {@code roles} came from; null for
+     *     every other recommendation
      * @param manualSnippet the {@code broker.xml} that is still needed, or null
      */
     public record Recommendation(
@@ -77,12 +97,15 @@ public final class BrokerConfigRecommendations {
             String match,
             Map<String, Object> values,
             Map<PermissionType, Set<String>> roles,
+            List<String> accountRoles,
+            RolesSource accountRolesSource,
             List<String> keys,
             String manualSnippet) {
 
         public Recommendation {
             values = values == null ? Map.of() : Map.copyOf(values);
             roles = roles == null ? Map.of() : Map.copyOf(roles);
+            accountRoles = accountRoles == null ? List.of() : List.copyOf(accountRoles);
             keys = keys == null ? List.of() : List.copyOf(keys);
         }
     }
@@ -102,8 +125,11 @@ public final class BrokerConfigRecommendations {
      * @param observed the node to seed from — the same node the capabilities were
      *     probed against. An unreadable or absent observation yields recommendations
      *     with no seed, which the caller reports rather than applying blind.
+     * @param account the roles of the account Studio connects to Core with, or why the broker could
+     *     not report them (ADR-0177)
      */
-    public static Recommendations from(BrokerCapabilities capabilities, ObservedNodeConfig observed) {
+    public static Recommendations from(
+            BrokerCapabilities capabilities, ObservedNodeConfig observed, BrokerAccountRoles.Read account) {
         boolean seeded = observed != null && observed.readable();
         Map<String, Object> catchAll = seeded ? observed.addressSettings().getOrDefault("#", Map.of()) : Map.of();
         List<Recommendation> out = new ArrayList<>();
@@ -142,7 +168,7 @@ public final class BrokerConfigRecommendations {
         }
 
         if (gap(capabilities.notifications())) {
-            out.add(notificationsSecurity(observed, seeded));
+            out.add(notificationsSecurity(observed, seeded, account));
         }
 
         // Always named, never applied: there is no management operation for any of
@@ -159,6 +185,8 @@ public final class BrokerConfigRecommendations {
                 Map.of(),
                 Map.of(),
                 List.of(),
+                null,
+                List.of(),
                 BrokerXmlSnippets.NOTIFICATION_PLUGIN));
 
         if (capabilities.managementWrite().status() == CapabilityStatus.UNAVAILABLE) {
@@ -174,6 +202,8 @@ public final class BrokerConfigRecommendations {
                     null,
                     Map.of(),
                     Map.of(),
+                    List.of(),
+                    null,
                     List.of(),
                     BrokerXmlSnippets.MANAGEMENT_SECURITY_SETTING));
         }
@@ -234,6 +264,8 @@ public final class BrokerConfigRecommendations {
                 "#",
                 values,
                 Map.of(),
+                List.of(),
+                null,
                 List.copyOf(own.keySet()),
                 manualSnippet);
     }
@@ -241,18 +273,37 @@ public final class BrokerConfigRecommendations {
     /**
      * Artemis matches the single most-specific security-setting (§15 M5), so the
      * {@code activemq.notifications} block must restate every permission a subscriber
-     * needs — it inherits nothing from {@code #}. The roles are copied from whoever
-     * currently holds {@code consume} on that address, falling back to {@code #},
-     * because inventing a role name would produce a block that applies cleanly and
-     * grants nobody anything.
+     * needs — it inherits nothing from {@code #}. The block is checked against the account
+     * Studio connects to Core with, so its roles come from that account's roles in the
+     * broker's user management: those the broker already names for the address, or else all of
+     * them (ADR-0177). When the broker cannot report them the roles are copied from whoever
+     * currently holds {@code consume} on that address, falling back to {@code #}, because
+     * inventing a role name would produce a block that applies cleanly and grants nobody
+     * anything.
      */
-    private static Recommendation notificationsSecurity(ObservedNodeConfig observed, boolean seeded) {
-        Set<String> roles = new LinkedHashSet<>();
+    private static Recommendation notificationsSecurity(
+            ObservedNodeConfig observed, boolean seeded, BrokerAccountRoles.Read account) {
+        Set<String> named = new LinkedHashSet<>();
         if (seeded) {
-            roles.addAll(consumers(observed, "activemq.notifications"));
-            if (roles.isEmpty()) {
-                roles.addAll(consumers(observed, "#"));
+            named.addAll(consumers(observed, "activemq.notifications"));
+            if (named.isEmpty()) {
+                named.addAll(consumers(observed, "#"));
             }
+        }
+        Set<String> roles = new LinkedHashSet<>();
+        RolesSource source;
+        if (account.readable()) {
+            roles.addAll(account.roles());
+            roles.retainAll(named);
+            if (roles.isEmpty()) {
+                roles.addAll(account.roles());
+            }
+            source = new RolesSource(RolesSourceKind.BROKER_ACCOUNT, null);
+        } else {
+            roles.addAll(named);
+            source = new RolesSource(
+                    roles.isEmpty() ? RolesSourceKind.NONE : RolesSourceKind.SECURITY_SETTINGS,
+                    account.unreadableReason());
         }
         Map<PermissionType, Set<String>> permissions = new LinkedHashMap<>();
         for (PermissionType type : List.of(
@@ -274,6 +325,8 @@ public final class BrokerConfigRecommendations {
                 "activemq.notifications",
                 Map.of(),
                 permissions,
+                account.roles(),
+                source,
                 List.of("consume", "createNonDurableQueue", "deleteNonDurableQueue"),
                 null);
     }

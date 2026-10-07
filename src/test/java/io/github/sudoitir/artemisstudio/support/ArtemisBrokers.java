@@ -84,12 +84,12 @@ public final class ArtemisBrokers {
             JolokiaBrokerClient client = jolokia();
             try {
                 client.execOnBroker("destroyQueue(java.lang.String,boolean)", queue, true);
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // already gone
             }
             try {
                 client.execOnBroker("deleteAddress(java.lang.String,boolean)", queue, true);
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // already gone
             }
         }
@@ -106,7 +106,7 @@ public final class ArtemisBrokers {
         public void removeAddressSettings(String address) {
             try {
                 jolokia().execOnBroker("removeAddressSettings(java.lang.String)", address);
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // none
             }
         }

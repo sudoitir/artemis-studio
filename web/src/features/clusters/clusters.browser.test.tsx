@@ -3,9 +3,10 @@ import { screen } from '@testing-library/react';
 
 import { axeViolations, contentWidth, Frame, renderThemed, SCHEMES, settle } from '../../test/browser.tsx';
 import { DataTable } from '../../ui/table/index.ts';
-import type { EnvironmentView } from './api.ts';
+import type { EnvironmentView, NodeProbeView } from './api.ts';
 import { environmentColumns } from './environmentColumns.tsx';
 import { Notice } from '../../ui/Notice.tsx';
+import { NodeProbeTable } from './NodeProbeTable.tsx';
 
 /** The environments table as Chromium lays it out with a name as long as an administrator can type, and the notices. */
 
@@ -40,9 +41,60 @@ describe.each([contentWidth(1280), 640])('the environments table in a %i px box'
   });
 });
 
+const probed: NodeProbeView[] = [
+  {
+    name: `${LONG}:61616`,
+    haRole: 'PRIMARY',
+    artemisNodeId: 'f7734597-a768-11f1-aa4c-ceae3fa2df1d',
+    version: '2.44.0',
+    managementUrl: `http://${LONG}:8161/console/jolokia`,
+    urlSource: 'DERIVED',
+    urlProblem: null,
+    management: 'ACCEPTED',
+    core: 'REJECTED',
+  },
+  {
+    name: 'artemis-backup:61616',
+    haRole: 'BACKUP',
+    artemisNodeId: 'f7734597-a768-11f1-aa4c-ceae3fa2df1d',
+    version: '2.44.0',
+    managementUrl: null,
+    urlSource: null,
+    urlProblem: 'OTHER_BROKER',
+    management: 'ACCEPTED',
+    core: 'NOT_TRIED',
+  },
+];
+
+describe.each([contentWidth(1280), 640])('the connection check table in a %i px box', (width) => {
+  it('keeps long names and addresses inside its box', async () => {
+    renderThemed(
+      <Frame width={width}>
+        <NodeProbeTable nodes={probed} label="Nodes found by the check" />
+      </Frame>,
+      'light',
+    );
+    const element = await screen.findByRole('table');
+    await settle(() => [...element.querySelectorAll('th')].map((th) => th.getBoundingClientRect().width).join(','));
+    const frame = element.parentElement!;
+    expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
+  });
+});
+
 describe.each(SCHEMES)('cluster parts in the %s scheme', (scheme) => {
   it('has no accessibility violations in the environments table', async () => {
     const { container } = renderThemed(<Frame width={contentWidth(1280)}>{table}</Frame>, scheme);
+    await screen.findByRole('table');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('has no accessibility violations in the connection check table', async () => {
+    const { container } = renderThemed(
+      <Frame width={contentWidth(1280)}>
+        <NodeProbeTable nodes={probed} label="Nodes found by the check" />
+      </Frame>,
+      scheme,
+    );
     await screen.findByRole('table');
     expect(await axeViolations(container)).toEqual([]);
   });

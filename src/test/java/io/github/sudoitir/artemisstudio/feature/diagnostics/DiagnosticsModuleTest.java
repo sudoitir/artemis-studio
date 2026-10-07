@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSessions;
 import io.github.sudoitir.artemisstudio.platform.broker.CapabilityProbe;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreAccountCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
@@ -30,6 +31,9 @@ class DiagnosticsModuleTest extends ModuleIntegrationTest {
 
     @MockitoBean
     CapabilityProbe capabilityProbe;
+
+    @MockitoBean
+    CoreAccountCheck coreAccountCheck;
 
     @MockitoBean
     CoreSubscriptionCheck coreSubscriptionCheck;

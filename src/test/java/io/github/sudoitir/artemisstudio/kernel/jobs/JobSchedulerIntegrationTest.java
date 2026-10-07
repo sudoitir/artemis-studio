@@ -96,7 +96,7 @@ class JobSchedulerIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aCrashedHolderFreesTheJobWhenItsLockRunsOut() throws Exception {
+    void aCrashedHolderFreesTheJobWhenItsLockRunsOut() {
         String id = "it-crash-" + System.nanoTime();
         // A process that took the lock and died: nothing releases it; it lapses at lockAtMostFor.
         var crashed = new JdbcTemplateLockProvider(JdbcTemplateLockProvider.Configuration.builder()

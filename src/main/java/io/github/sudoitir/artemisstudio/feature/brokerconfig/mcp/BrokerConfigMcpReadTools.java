@@ -10,7 +10,9 @@ import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpViews;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -30,7 +32,6 @@ public class BrokerConfigMcpReadTools {
     private final BrokerConfigService brokerConfig;
     private final BrokerConfigApplyService brokerConfigApply;
     private final ConfigDiffService configDiff;
-    private final io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory nodeRepo;
 
     public enum ConfigReadKind {
         DECLARATION,
@@ -101,7 +102,7 @@ public class BrokerConfigMcpReadTools {
 
     @McpTool(
             name = "config_diff",
-            description = "Classified config differences between two nodes. Omit nodeB for the first two.",
+            description = "Every node's broker configuration against the majority: the keys that drift, per node.",
             annotations =
                     @McpTool.McpAnnotations(
                             readOnlyHint = true,
@@ -109,51 +110,52 @@ public class BrokerConfigMcpReadTools {
                             idempotentHint = true,
                             openWorldHint = false))
     public McpSchema.CallToolResult configDiff(
-            @McpToolParam(required = true) String clusterId,
-            @McpToolParam(required = false) String nodeA,
-            @McpToolParam(required = false) String nodeB) {
+            @McpToolParam(required = true) String clusterId, @McpToolParam(required = false) String nodes) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
-        UUID a = McpArgs.optionalUuid("nodeA", nodeA);
-        UUID b = McpArgs.optionalUuid("nodeB", nodeB);
-        return McpErrors.guard(() -> diff(id, a, b));
+        Set<UUID> only = new LinkedHashSet<>();
+        if (nodes != null && !nodes.isBlank()) {
+            for (String node : nodes.split(",")) {
+                only.add(McpArgs.uuid("nodes", node.strip()));
+            }
+        }
+        return McpErrors.guard(() -> diff(id, only));
     }
 
-    private McpViews.ConfigDiff diff(UUID clusterId, UUID nodeA, UUID nodeB) {
-        // A model asking "do these nodes agree" rarely has node ids to hand, so the
-        // pair defaults to the cluster's first two rather than making it ask twice.
-        if (nodeA == null || nodeB == null) {
-            var nodes = nodeRepo.nodes(clusterId);
-            if (nodes.size() < 2) {
-                throw new io.github.sudoitir.artemisstudio.kernel.core.ConflictException(
-                        "single-node-cluster",
-                        "This cluster has fewer than two nodes, so there is nothing to compare.");
-            }
-            nodeA = nodeA != null ? nodeA : nodes.get(0).getId();
-            UUID finalA = nodeA;
-            nodeB = nodeB != null
-                    ? nodeB
-                    : nodes.stream()
-                            .map(n -> n.getId())
-                            .filter(n -> !n.equals(finalA))
-                            .findFirst()
-                            .orElseThrow();
-        }
-        ConfigViews.ConfigDiffView view = configDiff.compare(clusterId, nodeA, nodeB);
-        List<McpViews.ConfigDifference> items = new ArrayList<>();
+    private McpViews.ConfigDiff diff(UUID clusterId, Set<UUID> only) {
+        ConfigViews.ConfigDiffView view = configDiff.compare(clusterId, only);
+        List<McpViews.ConfigDrift> items = new ArrayList<>();
         for (ConfigViews.ConfigSectionView section : view.sections()) {
-            for (ConfigViews.ConfigEntryView entry : section.entries()) {
+            for (ConfigViews.ConfigKeyView key : section.keys()) {
                 // Only the drifting keys: a model does not need the hundreds that agree,
                 // and shipping them is the single largest response-size risk in this tool.
-                if (entry.drift()) {
-                    items.add(new McpViews.ConfigDifference(
-                            section.section() + "/" + entry.key(),
-                            entry.classification(),
-                            entry.left(),
-                            entry.right()));
+                if (key.drift()) {
+                    List<ConfigViews.ConfigNodeValueView> differing =
+                            key.majority() == null ? key.values() : key.outliers();
+                    items.add(new McpViews.ConfigDrift(
+                            section.section() + key.key(),
+                            key.state(),
+                            key.majority(),
+                            differing.stream()
+                                    .map(v -> new McpViews.ConfigNodeValue(v.nodeName(), v.value()))
+                                    .toList()));
                 }
             }
         }
         return new McpViews.ConfigDiff(
-                clusterId, view.left().nodeName(), view.right().nodeName(), view.driftCount(), items);
+                clusterId,
+                view.nodes().stream()
+                        .filter(ConfigViews.ConfigNodeView::available)
+                        .map(ConfigViews.ConfigNodeView::nodeName)
+                        .toList(),
+                view.nodes().stream()
+                        .filter(n -> !n.available())
+                        .map(n -> new McpViews.ConfigUnavailable(
+                                n.nodeName(), n.unavailableKind(), n.unavailableReason()))
+                        .toList(),
+                view.summary().driftKeys(),
+                view.summary().driftNodes(),
+                view.summary().expectedKeys(),
+                items,
+                view.notes());
     }
 }

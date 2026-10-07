@@ -18,8 +18,9 @@ function endpoint(over: Partial<NodeEndpointView> = {}): NodeEndpointView {
     versionSupport: 'SUPPORTED',
     lastError: null,
     lastSeenAt: '2026-09-30T14:00:00Z',
-    discovered: true,
-    manualOverride: false,
+    urlSource: null,
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: true,
     ...over,
   };
@@ -132,7 +133,10 @@ describe('nodeFacts: liveness, in words', () => {
   it('a node with no management URL is not polled, and that outranks everything else', () => {
     const found = endpoint({ id: 'u', jolokiaUrl: null, manageable: false, active: false, lastError: 'ignored' });
     const facts = pair([found]).of('u');
-    expect(facts.liveness).toMatchObject({ kind: 'not-polled', text: 'Not polled: no management URL' });
+    expect(facts.liveness).toMatchObject({
+      kind: 'not-polled',
+      text: 'Not polled: no management URL',
+    });
     expect(facts.mark).toBe('unmanaged');
     expect(facts.manageable).toBe(false);
   });
@@ -183,9 +187,12 @@ describe('nodeFacts: version, address, origin and the sentence', () => {
   });
 
   it('says how Studio found the node', () => {
-    expect(pair([endpoint({ manualOverride: true })]).of('e1').origin).toBe('Management URL set by hand');
-    expect(pair([endpoint({ discovered: true })]).of('e1').origin).toBe('Discovered from the cluster');
-    expect(pair([endpoint({ discovered: false })]).of('e1').origin).toBe('From the registered seed address');
+    expect(pair([endpoint({ urlSource: 'MANUAL' })]).of('e1').origin).toBe('Management URL set by hand');
+    expect(pair([endpoint({ urlSource: 'DERIVED' })]).of('e1').origin).toBe('Derived from the management URL pattern');
+    expect(pair([endpoint({ urlSource: 'SEED' })]).of('e1').origin).toBe('From the registered seed address');
+    expect(pair([endpoint({ urlSource: null, urlProblem: 'OTHER_BROKER' })]).of('e1').origin).toBe(
+      'No management URL: a different broker answered at the address the pattern gives',
+    );
   });
 
   it('falls back to the pair id when the endpoint has no NodeID of its own', () => {

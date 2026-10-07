@@ -94,7 +94,10 @@ class HaReplicasIntegrationTest {
                         new RegisterClusterRequest.Credentials(
                                 ArtemisIntegrationTest.BROKER_USER, ArtemisIntegrationTest.BROKER_PASSWORD),
                         null,
-                        null));
+                        null,
+                        null,
+                        null,
+                        false));
         new AdminAuthenticationExtension().afterEach(null);
         if (!(registered instanceof Attempt.Ok<ClusterDetail> ok)) {
             throw new IllegalStateException("could not register the container broker: " + registered);
@@ -148,8 +151,8 @@ class HaReplicasIntegrationTest {
     private static UUID copyOf(UUID cluster, String name) {
         UUID copy = jdbc.queryForObject("INSERT INTO cluster (name) VALUES (?) RETURNING id", UUID.class, name);
         jdbc.update("""
-                INSERT INTO broker_node (cluster_id, name, jolokia_url, core_url, ha_role, discovered)
-                SELECT ?, name, jolokia_url, core_url, ha_role, discovered FROM broker_node WHERE cluster_id = ?
+                INSERT INTO broker_node (cluster_id, name, jolokia_url, core_url, ha_role, url_source)
+                SELECT ?, name, jolokia_url, core_url, ha_role, url_source FROM broker_node WHERE cluster_id = ?
                 """, copy, cluster);
         jdbc.update(
                 "INSERT INTO broker_credential (cluster_id, kind, username, sealed) VALUES (?, ?, ?, ?)",

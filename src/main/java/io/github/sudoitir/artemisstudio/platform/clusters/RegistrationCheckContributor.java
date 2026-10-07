@@ -16,6 +16,9 @@ public interface RegistrationCheckContributor {
     /**
      * The contribution, as the feature's own view type. It must not throw for a node it cannot read;
      * it says so in the view instead, because the check itself succeeded.
+     *
+     * @param coreUsername the account the cluster will connect to Core with, from the request;
+     *     null when it connects anonymously
      */
-    Object contribute(BrokerCapabilities capabilities, JolokiaBrokerClient seed);
+    Object contribute(BrokerCapabilities capabilities, JolokiaBrokerClient seed, String coreUsername);
 }

@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlProblem;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlSource;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -45,9 +48,15 @@ public interface ClusterNode {
     /** The scrape cycle the HA state was last observed in; {@code null} before any read. */
     Long getObservedCycle();
 
-    /** Found through topology discovery rather than given as a seed. */
-    boolean isDiscovered();
+    /** Where the management URL came from; {@code null} while the node has none. */
+    ManagementUrlSource getUrlSource();
 
-    /** Its endpoints were set by an operator and discovery must not replace them. */
-    boolean isManualOverride();
+    /** Why the node has no management URL; {@code null} once it has one, or before an attempt. */
+    ManagementUrlProblem getUrlProblem();
+
+    /** The class of the last probe failure, set with {@link #getLastError()}. */
+    BrokerConnectionException.Kind getLastErrorKind();
+
+    /** An operator set the Core URL, so discovery must not replace it. */
+    boolean isCoreUrlManual();
 }

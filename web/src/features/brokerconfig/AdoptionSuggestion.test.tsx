@@ -30,6 +30,8 @@ describe('AdoptionSuggestion', () => {
     const { rerender } = renderWithProviders(<Harness d={UNDECLARED} />);
 
     expect(await screen.findByText('0 entries would be declared')).toBeInTheDocument();
+    // The offer is for a cluster registered without the adoption, and says so.
+    expect(screen.getByText(/This cluster was registered without adopting its configuration/)).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { level: 2, name: 'Adopt what this cluster runs as revision 1' }),
     ).toBeInTheDocument();
@@ -48,7 +50,9 @@ describe('AdoptionSuggestion', () => {
     renderWithProviders(<Harness d={UNDECLARED} />);
 
     await user.click(await screen.findByRole('button', { name: /Why does Studio not do this for me/ }));
-    expect(await screen.findByText(/Studio will not adopt on its own/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Studio adopts only when an operator says so: when registering a cluster, or here/),
+    ).toBeInTheDocument();
   });
 
   it('keeps the adopt control visible and states why it is unavailable without the permission', async () => {

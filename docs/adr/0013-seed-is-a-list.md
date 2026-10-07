@@ -3,6 +3,8 @@
 - **Status**: accepted
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
+- **Amended by**: [ADR-0175](0175-management-urls-are-derived-from-a-pattern-and-proved-by-node-id.md) — one seed is
+  enough; the other nodes' management URLs are derived from a pattern and proved by NodeID.
 - **Amends**: [ADR-0004](0004-topology-seed-and-autodiscovery.md) — "register one
   reachable seed node per cluster".
 

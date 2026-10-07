@@ -22,6 +22,22 @@
   column-gap: var(--mantine-spacing-lg);
 }
 
+/* One line a term and a value: the term takes its width, up to half of the list, and the value what is
+   left, never less than a readable name. */
+.list[data-one-line] {
+  grid-template-columns: fit-content(50%) minmax(12ch, 1fr);
+}
+
+.list[data-one-line][data-columns='2'] {
+  grid-template-columns: repeat(2, fit-content(25%) minmax(12ch, 1fr));
+}
+
+.list[data-one-line] > .term,
+.list[data-one-line] > .value {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .term {
   color: var(--as-text-dimmed);
   overflow-wrap: anywhere;

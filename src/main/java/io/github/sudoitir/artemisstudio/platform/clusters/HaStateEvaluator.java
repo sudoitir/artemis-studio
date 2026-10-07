@@ -1,11 +1,13 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -70,6 +72,15 @@ public class HaStateEvaluator {
 
     /** Roll a cluster's logical nodes up into one health verdict. */
     public ClusterHealth toHealth(UUID clusterId, List<LogicalNode> nodes) {
+        return toHealth(clusterId, nodes, Set.of());
+    }
+
+    /**
+     * As above, naming the accounts the brokers rejected. A node whose last management call was
+     * refused for its credentials is not unreachable, and is reported as the account to fix;
+     * {@code coreRejectedNodeIds} are the nodes whose Core connection was refused for the same reason.
+     */
+    public ClusterHealth toHealth(UUID clusterId, List<LogicalNode> nodes, Set<UUID> coreRejectedNodeIds) {
         boolean neverContacted =
                 nodes.stream().flatMap(n -> n.endpoints().stream()).allMatch(e -> e.lastSeenAt() == null);
         if (nodes.isEmpty() || neverContacted) {
@@ -79,7 +90,8 @@ public class HaStateEvaluator {
                     List.of(),
                     SplitBrainStatus.NONE,
                     false,
-                    List.of("No endpoint has been contacted yet."));
+                    List.of("No endpoint has been contacted yet."),
+                    List.of());
         }
 
         List<String> live = nodes.stream()
@@ -91,9 +103,22 @@ public class HaStateEvaluator {
                 .max(Comparator.naturalOrder())
                 .orElse(SplitBrainStatus.NONE);
         boolean behind = nodes.stream().anyMatch(LogicalNode::replicationBehind);
-        boolean stoppedManageable = nodes.stream()
-                .flatMap(n -> n.endpoints().stream())
-                .anyMatch(e -> e.manageable() && ("STOPPED".equals(e.state()) || e.unreachable()));
+        List<NodeEndpoint> endpoints =
+                nodes.stream().flatMap(n -> n.endpoints().stream()).toList();
+        List<ClusterHealth.CredentialRejection> rejections = new ArrayList<>();
+        rejectionOf(
+                BrokerAccount.MANAGEMENT,
+                endpoints.stream().filter(NodeEndpoint::credentialsRejected).toList(),
+                rejections);
+        rejectionOf(
+                BrokerAccount.CORE,
+                endpoints.stream()
+                        .filter(e -> coreRejectedNodeIds.contains(e.id()))
+                        .toList(),
+                rejections);
+        boolean stoppedManageable = endpoints.stream()
+                .anyMatch(e ->
+                        e.manageable() && ("STOPPED".equals(e.state()) || e.unreachable()) && !e.credentialsRejected());
 
         List<String> notes = new ArrayList<>();
         if (worst == SplitBrainStatus.CRITICAL) {
@@ -110,16 +135,34 @@ public class HaStateEvaluator {
         if (stoppedManageable) {
             notes.add("A managed endpoint is stopped or unreachable.");
         }
+        rejections.forEach(r -> notes.add(rejectionNote(r, endpoints.size())));
 
         ClusterHealth.Level level;
         if (worst == SplitBrainStatus.CRITICAL) {
             level = ClusterHealth.Level.CRITICAL;
-        } else if (worst == SplitBrainStatus.SUSPECTED || behind || stoppedManageable) {
+        } else if (worst == SplitBrainStatus.SUSPECTED || behind || stoppedManageable || !rejections.isEmpty()) {
             level = ClusterHealth.Level.DEGRADED;
         } else {
             level = ClusterHealth.Level.OK;
         }
 
-        return new ClusterHealth(clusterId, level, live, worst, behind, List.copyOf(notes));
+        return new ClusterHealth(clusterId, level, live, worst, behind, List.copyOf(notes), List.copyOf(rejections));
+    }
+
+    private static void rejectionOf(
+            BrokerAccount account, List<NodeEndpoint> rejected, List<ClusterHealth.CredentialRejection> into) {
+        if (!rejected.isEmpty()) {
+            into.add(new ClusterHealth.CredentialRejection(
+                    account, rejected.stream().map(NodeEndpoint::name).toList()));
+        }
+    }
+
+    private static String rejectionNote(ClusterHealth.CredentialRejection rejection, int nodeCount) {
+        String account = rejection.account() == BrokerAccount.CORE ? "Core" : "management";
+        String where = rejection.nodeNames().size() == nodeCount
+                ? "on every node"
+                : "on " + String.join(", ", rejection.nodeNames());
+        return "The brokers rejected the " + account + " account " + where
+                + ". Update it in the cluster's Connection settings.";
     }
 }

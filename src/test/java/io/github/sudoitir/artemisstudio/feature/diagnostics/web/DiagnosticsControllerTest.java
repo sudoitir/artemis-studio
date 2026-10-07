@@ -111,7 +111,7 @@ class DiagnosticsControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl(URL);
+        node.attachSeedUrl(URL);
         UUID nodeId = nodes.save(node).getId();
         upsert.upsertBatch(List.of(new QueueRow(clusterId, nodeId, Q, Q, "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false)));
     }

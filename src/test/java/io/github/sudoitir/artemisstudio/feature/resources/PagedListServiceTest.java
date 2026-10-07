@@ -106,7 +106,7 @@ class PagedListServiceTest {
     private static BrokerNodeEntity node(UUID clusterId, String name, String url) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         try {
             var id = BrokerNodeEntity.class.getDeclaredField("id");
             id.setAccessible(true);
@@ -177,14 +177,14 @@ class PagedListServiceTest {
         BrokerNodeEntity a = node(clusterId, "node-a", URL_A);
         when(nodes.nodes(clusterId)).thenReturn(List.of(a));
         when(connections.forCluster(clusterId, URL_A))
-                .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNAUTHORIZED));
+                .thenThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.CREDENTIALS_REJECTED));
 
         ResourceQuery firstPage = ResourceQuery.of(null, 1, 50, null);
 
         assertThatThrownBy(() -> service.consumers(clusterId, firstPage))
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
-                .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
+                .isEqualTo(BrokerConnectionException.Kind.CREDENTIALS_REJECTED);
     }
 
     @Test

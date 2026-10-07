@@ -75,7 +75,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity a = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        a.attachManagementUrl(URL_A);
+        a.attachSeedUrl(URL_A);
         nodeAId = nodes.save(a).getId();
         upsert.upsertBatch(List.of(new QueueRow(
                 clusterId, nodeAId, "PHASE3.SRC", "PHASE3.SRC", "ANYCAST", true, 4, 0, 0, 0, 0, 0, 0, false)));
@@ -163,7 +163,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, "PHASE3.SRC"))
                 .andExpect(status().is4xxClientError())
-                .andExpect(jsonPath("$.brokerErrorKind").value("UNAUTHORIZED"));
+                .andExpect(jsonPath("$.brokerErrorKind").value("CREDENTIALS_REJECTED"));
     }
 
     /**
@@ -180,7 +180,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
         nodes.save(a);
         BrokerNodeEntity b = BrokerNodeEntity.fromSeed(
                 clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
-        b.attachManagementUrl(urlB);
+        b.attachSeedUrl(urlB);
         b.applyHaState(
                 new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
         UUID nodeBId = nodes.save(b).getId();

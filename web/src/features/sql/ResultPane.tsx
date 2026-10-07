@@ -1,4 +1,5 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { download } from '../../ui/download.ts';
@@ -85,6 +86,28 @@ function ExportBar({ rows }: Readonly<{ rows: SqlRowView[] }>) {
         JSON
       </Button>
     </Group>
+  );
+}
+
+/**
+ * Gives the results the whole workspace, or hands it back. Its name says what it will do, so it is not a
+ * toggle button; the key is the same one the editor answers to.
+ */
+function MaximiseButton({ maximised, onToggle }: Readonly<{ maximised: boolean; onToggle: () => void }>) {
+  const label = maximised ? 'Restore the editor' : 'Maximise the results';
+  const Icon = maximised ? IconArrowsMinimize : IconArrowsMaximize;
+  return (
+    <Tooltip label={`${label} (⌘/Ctrl-Shift-M)`}>
+      <ActionIcon
+        variant="default"
+        size="sm"
+        aria-label={label}
+        aria-keyshortcuts="Control+Shift+M Meta+Shift+M"
+        onClick={onToggle}
+      >
+        <Icon size="1rem" aria-hidden />
+      </ActionIcon>
+    </Tooltip>
   );
 }
 
@@ -237,12 +260,17 @@ function OutcomeNotice({ run, onRunAgain }: Readonly<{ run: SqlRun; onRunAgain: 
 export function ResultPane({
   clusterId,
   run,
+  maximised,
+  onToggleMaximise,
   onOpenRow,
   onRunAgain,
   onStopTail,
 }: Readonly<{
   clusterId: string;
   run: SqlRun;
+  /** The results have the whole workspace; the editor is out of reach. */
+  maximised: boolean;
+  onToggleMaximise: () => void;
   onOpenRow: (row: SqlRowView) => void;
   onRunAgain: () => void;
   onStopTail: () => void;
@@ -258,6 +286,11 @@ export function ResultPane({
           signal that a query they ran has finished. */}
       <div className={classes.announcement} role="status" aria-live="polite">
         {announcementOf(run, verdict)}
+      </div>
+
+      <div className={classes.resultsBar}>
+        {hasRows ? <ExportBar rows={rows} /> : <span />}
+        <MaximiseButton maximised={maximised} onToggle={onToggleMaximise} />
       </div>
 
       <OutcomeNotice run={run} onRunAgain={onRunAgain} />
@@ -281,8 +314,6 @@ export function ResultPane({
           {/* One bar, not a stack of alerts: every statement is preserved, behind a disclosure, and the
               rows stay on screen while they are read (7.4). */}
           {result && verdict ? <ResultMetaBar result={result} rowCount={rows.length} verdict={verdict} /> : null}
-
-          <ExportBar rows={rows} />
 
           {verdict ? (
             <OutcomeSummary verdict={verdict.text} verdictTone={verdict.tone} rows={outcomeRows(result?.nodes)} />

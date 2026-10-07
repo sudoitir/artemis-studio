@@ -25,7 +25,7 @@ class ClusterIdentityTest {
     private static BrokerNodeEntity node(UUID cluster, String name, String nodeId, String jolokiaUrl) {
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(cluster, name, "PRIMARY", nodeId);
         if (jolokiaUrl != null) {
-            node.attachManagementUrl(jolokiaUrl);
+            node.attachSeedUrl(jolokiaUrl);
         }
         return node;
     }

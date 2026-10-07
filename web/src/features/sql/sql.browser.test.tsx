@@ -1,7 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, screen } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { page as browserPage } from 'vitest/browser';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -13,7 +14,10 @@ import {
 import { clusterKey } from '../../kernel/api/request.ts';
 import { accessKeys, keys as authKeys } from '../../kernel/auth/api.ts';
 import { FeatureProvider } from '../../kernel/FeatureProvider.tsx';
+import { manifestKey } from '../../kernel/manifest.ts';
 import { accessFor } from '../../test/accessSummary.ts';
+import { renderApp } from '../../test/appShell.tsx';
+import { manifestView } from '../../test/manifest.ts';
 import { axeViolations, contentWidth, renderThemed, SCHEMES, settle, type Scheme } from '../../test/browser.tsx';
 import { keys } from './api.ts';
 import { SqlConsoleView } from './SqlConsoleView.tsx';
@@ -458,5 +462,89 @@ describe.each(SCHEMES)('SQL Console in the %s scheme at 1280 px', (scheme) => {
         expect(getComputedStyle(region).overflowY).toBe('auto');
       }
     });
+  });
+});
+
+describe.each(SCHEMES)('SQL Console in the application shell at 1280 x 800 in the %s scheme', (scheme) => {
+  beforeAll(() => browserPage.viewport(1280, 800));
+  afterAll(() => browserPage.viewport(1920, 1080));
+  beforeEach(() => localStorage.clear());
+
+  /** The console in the real shell, run, with 500 rows delivered. */
+  async function openWithRows() {
+    const client = seeded(ADMIN);
+    client.setQueryData(manifestKey, manifestView());
+    const { container } = renderApp(`/clusters/c1/sql?q=${encodeURIComponent(QUERY)}`, client, scheme);
+    await screen.findByRole('heading', { level: 1, name: 'SQL Console' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Run' }));
+    await vi.waitFor(() => expect(StreamStub.instances.length).toBeGreaterThan(0));
+    act(() => {
+      for (let id = 1; id <= 500; id++) StreamStub.emit('row', row(id));
+      StreamStub.emit('done', done());
+    });
+    const grid = await screen.findByRole('grid', { name: 'Query results' });
+    await settle(() => `${grid.querySelectorAll('[role="row"]').length}:${document.documentElement.scrollHeight}`);
+    return { container, grid, scroller: grid.parentElement! };
+  }
+
+  it('fills the window below the header: the page does not scroll and the grid scrolls inside its pane', async () => {
+    const { grid, scroller } = await openWithRows();
+
+    const page = document.documentElement;
+    expect(page.scrollHeight).toBeLessThanOrEqual(window.innerHeight);
+    expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight);
+    // The header stays at the top of the grid's pane while the rows scroll under it.
+    const header = within(grid).getAllByRole('columnheader')[0];
+    scroller.scrollTop = scroller.scrollHeight;
+    await settle(() => String(scroller.scrollTop));
+    expect(header.getBoundingClientRect().top).toBeGreaterThanOrEqual(scroller.getBoundingClientRect().top - 1);
+    expect(header.getBoundingClientRect().bottom).toBeLessThanOrEqual(scroller.getBoundingClientRect().bottom);
+    // The last row is reachable inside the pane, and the page has not moved.
+    const rows = within(grid).getAllByRole('row');
+    const last = rows[rows.length - 1];
+    expect(last.textContent).toContain('500');
+    expect(last.getBoundingClientRect().bottom).toBeLessThanOrEqual(scroller.getBoundingClientRect().bottom + 1);
+    expect(page.scrollHeight).toBeLessThanOrEqual(window.innerHeight);
+    expect(window.scrollY).toBe(0);
+  });
+
+  it('maximises the results from the button and the keyboard, and Escape restores the editor and the split', async () => {
+    await openWithRows();
+    const separator = screen.getByRole('separator', { name: 'Resize the editor and the results' });
+    // The editor's pane, which the split sizes: what is inside it keeps its own height and is clipped.
+    const editor = () =>
+      screen.getByRole('region', { name: 'Query and cost', hidden: true }).parentElement!.getBoundingClientRect()
+        .height;
+    const results = () => screen.getByRole('region', { name: 'Results' }).getBoundingClientRect().height;
+    const before = { split: separator.getAttribute('aria-valuenow'), editor: editor(), results: results() };
+
+    await userEvent.click(screen.getByRole('button', { name: 'Maximise the results' }));
+    await settle(() => String(results()));
+    expect(editor()).toBe(0);
+    expect(results()).toBeGreaterThan(before.results);
+    expect(screen.queryByRole('button', { name: 'Maximise the results' })).toBeNull();
+
+    await userEvent.keyboard('{Escape}');
+    await settle(() => String(results()));
+    expect(separator.getAttribute('aria-valuenow')).toBe(before.split);
+    expect(editor()).toBeCloseTo(before.editor, 0);
+    expect(results()).toBeCloseTo(before.results, 0);
+
+    // The same key from the page, then Escape again.
+    await userEvent.keyboard('{Control>}{Shift>}m{/Shift}{/Control}');
+    await settle(() => String(results()));
+    expect(editor()).toBe(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Restore the editor' }));
+    await settle(() => String(results()));
+    expect(editor()).toBeCloseTo(before.editor, 0);
+  });
+
+  it('gives the results the larger share once rows exist, unless the operator chose a split', async () => {
+    await openWithRows();
+    const separator = screen.getByRole('separator', { name: 'Resize the editor and the results' });
+
+    expect(Number(separator.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(50);
+    // The console's own move is not the operator's choice, so it is not remembered.
+    expect(localStorage.getItem('as:sql:split')).toBeNull();
   });
 });

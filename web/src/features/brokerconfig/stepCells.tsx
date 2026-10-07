@@ -1,5 +1,7 @@
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { MiddleTruncate } from '../../ui/table/MiddleTruncate.tsx';
 import classes from './Configuration.module.css';
+import { Transition } from './Transition.tsx';
 
 function one(value: unknown): string {
   if (value === undefined) return '—';
@@ -28,7 +30,7 @@ export function StepDiff({
   // description already says it creates the thing; what is worth reading is what
   // it will be created as.
   if (Object.keys(before).length === 0) {
-    return <DescriptionList items={keys.map((key) => ({ term: key, value: one(after[key]) }))} />;
+    return <DescriptionList oneLine items={keys.map((key) => ({ term: key, value: one(after[key]) }))} />;
   }
   const rows = keys.map((key) => ({
     key,
@@ -39,16 +41,15 @@ export function StepDiff({
   const ordered = [...rows.filter((r) => r.differs), ...rows.filter((r) => !r.differs)];
   return (
     <DescriptionList
+      oneLine
       items={ordered.map((r) => ({
         term: r.key,
         value: r.differs ? (
-          <>
-            <span className={classes.before}>{r.before}</span>
-            {' → '}
-            {r.after}
-          </>
+          <Transition before={r.before} after={r.after} />
         ) : (
-          <span className={classes.before}>{r.after}</span>
+          <span className={`${classes.before} ${classes.side}`}>
+            <MiddleTruncate text={r.after} tooltip />
+          </span>
         ),
       }))}
     />

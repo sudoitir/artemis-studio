@@ -88,7 +88,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
     private UUID node(String name, String url) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.56.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }

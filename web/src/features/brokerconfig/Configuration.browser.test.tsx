@@ -13,6 +13,7 @@ import type { ReactElement } from 'react';
 import { keys as authKeys } from '../../kernel/auth/api.ts';
 import { axeViolations, contentWidth, Frame, renderThemed, SCHEMES, settle } from '../../test/browser.tsx';
 import { keys } from './api.ts';
+import { C, diff, outlier } from './configDiffFixtures.ts';
 import { ConfigDiffView } from './ConfigDiffView.tsx';
 import { ConfigurationView } from './ConfigurationView.tsx';
 import { CATALOGUE, cluster, declaration, NODE_A, NODE_B } from './fixtures.ts';
@@ -39,55 +40,29 @@ const PAIR = {
         haRole: 'PRIMARY',
         state: 'UP',
         active: true,
-        discovered: true,
-        manualOverride: false,
+        urlSource: null,
+        urlProblem: null,
+        coreUrlManual: false,
         manageable: true,
       })),
     },
   ],
 };
 
-const side = (nodeId: string, nodeName: string) => ({
-  nodeId,
-  nodeName,
-  available: true,
-  active: true,
-  reducedSurface: false,
-});
-
-const entry = (key: string, left: string, right: string, drift: boolean) => ({
-  key,
-  left,
-  right,
-  status: drift ? 'DIFFERENT' : 'SAME',
-  statusWord: drift ? 'differs' : 'same',
-  classification: 'CONFIGURATION',
-  drift,
-});
-
-const DIFF = {
-  clusterId: 'c1',
-  left: side('n-a', 'broker-1'),
-  right: side('n-b', 'broker-2'),
-  comparable: true,
-  driftCount: 1,
-  matchesCompared: 1,
-  matchesAvailable: 1,
-  note: null,
+/** Three nodes, one acceptor URI long enough to be shortened in its cell. */
+const DIFF = diff({
   sections: [
     {
       section: 'broker',
       label: 'Broker',
-      driftCount: 1,
-      entries: [
-        entry('max-disk-usage', '90', '80', true),
-        entry('acceptor-uri', `tcp://${'broker-1.example.internal:61616?'.repeat(6)}`, 'tcp://broker-2:61616', true),
-        entry('journal-type', 'NIO', 'NIO', false),
+      keys: [
+        outlier('/AcceptorUri', `tcp://${'broker-1.example.internal:61616?'.repeat(6)}`, C, 'tcp://broker-3:61616'),
+        ...diff().sections[0].keys,
       ],
     },
-    { section: 'addressSettings', label: 'Address settings', driftCount: 0, entries: [] },
+    diff().sections[1],
   ],
-};
+});
 
 /** A declaration with something on every row: drifted, with a finding, and a divert and a bridge declared. */
 function drifted() {
@@ -186,7 +161,7 @@ function seeded(): QueryClient {
       },
     ],
   });
-  client.setQueryData(['clusters', 'c1', 'config-diff', null, null], DIFF);
+  client.setQueryData(['clusters', 'c1', 'config-diff'], DIFF);
   return client;
 }
 
@@ -235,11 +210,13 @@ const PAGES = [
     view: ConfigDiffView,
     path: '/clusters/$clusterId/config-diff',
     search: '',
-    ready: 'broker-1 ↔ broker-2',
+    ready: 'Configuration keys',
+    role: 'grid',
   },
 ] as const;
 
-describe.each(PAGES)('$name', ({ view, path, search, ready }) => {
+describe.each(PAGES)('$name', ({ view, path, search, ready, ...rest }) => {
+  const role = 'role' in rest ? rest.role : 'heading';
   describe.each(SCHEMES)('in the %s scheme at 1280 px', (scheme) => {
     it('has no accessibility violations, fits its window and scrolls nothing sideways', async () => {
       const width = contentWidth(1280);
@@ -251,7 +228,9 @@ describe.each(PAGES)('$name', ({ view, path, search, ready }) => {
         </QueryClientProvider>,
         scheme,
       );
-      await screen.findByRole('heading', { level: 2, name: ready });
+      await (role === 'grid'
+        ? screen.findByRole('grid', { name: ready })
+        : screen.findByRole('heading', { level: 2, name: ready }));
       await settle(() => `${container.querySelectorAll('table').length}:${container.scrollHeight}`);
 
       expect(await axeViolations(container)).toEqual([]);

@@ -3,6 +3,9 @@ package io.github.sudoitir.artemisstudio.platform.clusters.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -17,14 +20,21 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.platform.broker.AccountResult;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreAccountCheck;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlSource;
+import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
+import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationAdoption;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
@@ -33,7 +43,9 @@ import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +69,8 @@ class ClusterControllerTest extends PostgresIntegrationTest {
 
     private static final String SEED = "http://broker-1:8161/console/jolokia";
     private static final String OVERRIDE_URL = "http://broker-2:8261/console/jolokia";
+    /** The backup's management URL: the seed's scheme, port and path with the host of its connector. */
+    private static final String BACKUP_URL = "http://artemis-backup:8161/console/jolokia";
 
     private final JsonMapper mapper = new JsonMapper();
 
@@ -86,11 +100,25 @@ class ClusterControllerTest extends PostgresIntegrationTest {
     @MockitoBean
     BrokerConnections connections;
 
+    @MockitoBean
+    CoreAccountCheck coreAccountCheck;
+
+    @MockitoBean
+    CoreSubscriptionCheck coreSubscriptionCheck;
+
+    @MockitoBean
+    RegistrationAdoption adoption;
+
     @BeforeEach
     void setUp() {
         mvc = webAppContextSetup(webContext).build();
         audits.deleteAll();
         clusters.deleteAll();
+        // The backup answers where the seed's pattern puts it, as its own NodeID's broker.
+        when(clientFactory.forNode(any(), eq(BACKUP_URL)))
+                .thenAnswer(inv -> client(BACKUP_URL, "search-broker.json", "ha-read-backup.json"));
+        when(coreAccountCheck.check(any(), any())).thenReturn(AccountResult.ACCEPTED);
+        when(coreSubscriptionCheck.probe(any(), any())).thenReturn(new SubscriptionVerdict.NotAttempted());
     }
 
     /** A client whose mock server answers the given fixtures at {@link #SEED}, in order. */
@@ -174,19 +202,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
         // checkConnection order: connect, then the in-memory preview (which the Core
         // subscription pre-check needs for a Core URL), then the capability probe
         // (which is handed that check's verdict).
-        when(clientFactory.forNode(any(), eq(SEED)))
-                .thenReturn(client(
-                        SEED,
-                        "search-broker.json",
-                        "capability-version-read.json",
-                        "ha-read-primary.json",
-                        "topology.json",
-                        "capability-version-read.json",
-                        "topology.json",
-                        "acceptors.json",
-                        "acceptor-params-core.json",
-                        "addresses-with-notifications.json",
-                        "address-settings.json"));
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
 
         mvc.perform(post("/api/v1/clusters")
                         .param("dryRun", "true")
@@ -194,7 +210,8 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         .content(registerBody()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reachableSeeds").value(1))
-                .andExpect(jsonPath("$.discoveredNodes").value(2));
+                .andExpect(jsonPath("$.discoveredNodes").value(2))
+                .andExpect(jsonPath("$.managementUrlPattern").value("http://{host}:8161/console/jolokia"));
 
         assertThat(clusters.count()).isZero();
         assertThat(audits.findAll()).singleElement().satisfies(e -> {
@@ -202,6 +219,163 @@ class ClusterControllerTest extends PostgresIntegrationTest {
             assertThat(e.getOutcome()).isEqualTo("SUCCESS");
             assertThat(e.isDryRun()).isTrue();
         });
+    }
+
+    private static final String PRIMARY = "$.nodes[?(@.name == 'artemis-primary:61616')]";
+    private static final String BACKUP = "$.nodes[?(@.name == 'artemis-backup:61616')]";
+
+    @Test
+    void theCheckListsEveryNodeWithItsUrlAndWhereItCameFrom() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(2))
+                .andExpect(jsonPath(PRIMARY + ".managementUrl").value(SEED))
+                .andExpect(jsonPath(PRIMARY + ".urlSource").value("SEED"))
+                .andExpect(jsonPath(PRIMARY + ".haRole").value("PRIMARY"))
+                .andExpect(jsonPath(BACKUP + ".managementUrl").value(BACKUP_URL))
+                .andExpect(jsonPath(BACKUP + ".urlSource").value("DERIVED"))
+                .andExpect(jsonPath(BACKUP + ".haRole").value("BACKUP"))
+                .andExpect(jsonPath(BACKUP + ".version").value("2.44.0"));
+        assertThat(nodes.count()).isZero();
+    }
+
+    @Test
+    void aCoreAccountTheBrokerRefusesDoesNotHideTheManagementAccountItAccepted() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        when(coreAccountCheck.check(eq("artemis-primary:61616"), any())).thenReturn(AccountResult.REJECTED);
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(PRIMARY + ".management").value("ACCEPTED"))
+                .andExpect(jsonPath(PRIMARY + ".core").value("REJECTED"))
+                // A passive backup opens no Core acceptor, so it is not asked.
+                .andExpect(jsonPath(BACKUP + ".management").value("ACCEPTED"))
+                .andExpect(jsonPath(BACKUP + ".core").value("NOT_TRIED"));
+    }
+
+    @Test
+    void aManagementAccountTheBrokerRefusesDoesNotHideTheCoreAccountItAccepted() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        when(clientFactory.forNode(any(), eq(BACKUP_URL))).thenReturn(unauthorizedClient(BACKUP_URL));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(PRIMARY + ".core").value("ACCEPTED"))
+                .andExpect(jsonPath(BACKUP + ".management").value("REJECTED"))
+                .andExpect(jsonPath(BACKUP + ".managementUrl").value(org.hamcrest.Matchers.contains((String) null)))
+                .andExpect(jsonPath(BACKUP + ".urlProblem").value("CREDENTIALS_REJECTED"));
+    }
+
+    @Test
+    void thePreviewCarriesWhatAdoptingWouldDeclareWhenTheNodesAgree() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        when(adoption.preview(any()))
+                .thenReturn(Optional.of(new RegistrationAdoption.Preview(
+                        new RegistrationAdoption.Counts(3, 2, 1, 0), List.of(), List.of("note"))));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adoption.counts.addresses").value(3))
+                .andExpect(jsonPath("$.adoption.counts.addressSettings").value(2))
+                .andExpect(jsonPath("$.adoption.counts.securitySettings").value(1))
+                .andExpect(jsonPath("$.adoption.disagreements.length()").value(0));
+    }
+
+    @Test
+    void thePreviewListsWhereTheNodesDisagree() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        String disagreement = "Address settings for orders differ between a and b; a's were kept.";
+        when(adoption.preview(any()))
+                .thenReturn(Optional.of(new RegistrationAdoption.Preview(
+                        new RegistrationAdoption.Counts(1, 1, 0, 0), List.of(disagreement), List.of())));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adoption.disagreements[0]").value(disagreement));
+    }
+
+    @Test
+    void thePreviewOffersNoAdoptionToACallerWhoMayNotDeclare() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .param("dryRun", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adoption").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    private String registerBody(boolean adopt) {
+        return """
+                { "seedUrls": ["%s"], "name": "prod-emea", "adopt": %s,
+                  "credentials": { "username": "artemis", "password": "artemis" } }
+                """.formatted(SEED, adopt);
+    }
+
+    @Test
+    void registeringWithTheAdoptionOnAdoptsInTheRegistrationsTransaction() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody(true)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.connection.managementUrlPattern").value("http://{host}:8161/console/jolokia"))
+                .andExpect(jsonPath("$.connection.managementUsername").value("artemis"))
+                .andExpect(jsonPath("$.connection.seedUrls[0]").value(SEED));
+
+        UUID clusterId = clusters.findAll().get(0).getId();
+        verify(adoption).adopt(clusterId);
+        assertThat(audits.findAll())
+                .filteredOn(e -> "REGISTER_CLUSTER".equals(e.getAction()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.getParams()).containsPattern("\"adopt\"\\s*:\\s*true"));
+    }
+
+    @Test
+    void registeringWithTheAdoptionOffSavesNoRevision() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody(false)))
+                .andExpect(status().isCreated());
+
+        verify(adoption, never()).adopt(any());
+    }
+
+    @Test
+    void anAdoptionThatFailsLeavesNoClusterBehind() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        doThrow(new ConflictException("no-live-node", "No live node could be read, so there is nothing to adopt."))
+                .when(adoption)
+                .adopt(any());
+
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody(true)))
+                .andExpect(status().isConflict());
+
+        assertThat(clusters.count()).isZero();
+        assertThat(nodes.count()).isZero();
     }
 
     /** Below the supported minimum: refused naming it, the check and the registration alike (ADR-0142). */
@@ -236,8 +410,10 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerBody()))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.brokerErrorKind").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.containsString("broker-unauthorized")));
+                .andExpect(jsonPath("$.brokerErrorKind").value("CREDENTIALS_REJECTED"))
+                .andExpect(jsonPath("$.account").value("MANAGEMENT"))
+                .andExpect(
+                        jsonPath("$.type").value(org.hamcrest.Matchers.containsString("broker-credentials-rejected")));
 
         assertThat(clusters.count()).isZero();
         assertThat(audits.findAll()).singleElement().satisfies(e -> {
@@ -258,13 +434,12 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616").orElseThrow();
 
         // PATCH the backup with a reachable management URL.
-        when(connections.forCluster(eq(clusterId), eq(OVERRIDE_URL)))
-                .thenReturn(client(OVERRIDE_URL, "search-broker.json"));
+        when(connections.forCluster(clusterId, OVERRIDE_URL)).thenReturn(client(OVERRIDE_URL, "search-broker.json"));
         mvc.perform(patch("/api/v1/clusters/{c}/nodes/{n}", clusterId, backup.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"jolokiaUrl\":\"" + OVERRIDE_URL + "\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.manualOverride").value(true));
+                .andExpect(jsonPath("$.urlSource").value("MANUAL"));
 
         // A discovery tick: every manageable node answers search + HA read + topology.
         when(connections.forCluster(eq(clusterId), any()))
@@ -276,7 +451,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
         var after =
                 nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616").orElseThrow();
         assertThat(after.getJolokiaUrl()).isEqualTo(OVERRIDE_URL);
-        assertThat(after.isManualOverride()).isTrue();
+        assertThat(after.getUrlSource()).isEqualTo(ManagementUrlSource.MANUAL);
     }
 
     @Test

@@ -1,9 +1,11 @@
 import { Button, ColorSwatch, Stack, Text } from '@mantine/core';
+import { Link } from '@tanstack/react-router';
 
 import { useDismissedNotice } from '../../kernel/useDismissedNotice.ts';
 import { useTitlePart } from '../../kernel/shell/pageTitle.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { Notice } from '../../ui/Notice.tsx';
 import { useCluster, useEnvironments, type CapabilitiesView, type ClusterDetail } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
@@ -89,6 +91,13 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
         <Notice
           title={critical ? 'Two nodes are live in one pair' : 'Needs attention'}
           tone={critical ? 'danger' : 'warning'}
+          action={
+            data.health.credentialRejections.length > 0 ? (
+              <Link to={`/clusters/${clusterId}/settings?tab=clusters-connection`} className={linkClasses.link}>
+                Open the connection settings
+              </Link>
+            ) : undefined
+          }
         >
           <Stack gap="xs">
             {data.health.notes.map((n) => (

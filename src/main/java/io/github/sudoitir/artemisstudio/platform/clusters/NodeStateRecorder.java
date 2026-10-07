@@ -4,6 +4,7 @@ import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.bool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.boxedBool;
 import static io.github.sudoitir.artemisstudio.platform.broker.JolokiaJson.text;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
@@ -58,10 +59,13 @@ public class NodeStateRecorder {
         });
     }
 
-    /** Record that the tier-A probe got no answer from a node, without disturbing last-known-good HA state. */
+    /**
+     * Record that the tier-A probe got no usable answer from a node, without disturbing last-known-good HA
+     * state. The kind says whether the broker did not answer or refused the credentials.
+     */
     @Transactional
-    public void recordNodeError(UUID nodeId, String message) {
-        nodes.findById(nodeId).ifPresent(node -> node.recordError(Instant.now(), message));
+    public void recordNodeError(UUID nodeId, String message, BrokerConnectionException.Kind kind) {
+        nodes.findById(nodeId).ifPresent(node -> node.recordError(Instant.now(), message, kind));
     }
 
     /**

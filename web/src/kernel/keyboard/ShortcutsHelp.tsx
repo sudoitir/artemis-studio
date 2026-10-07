@@ -198,9 +198,13 @@ export function ShortcutsHelp() {
                     keys: [['Escape']],
                     what: 'Close completion, then collapse the selection, then leave the editor; it never cancels',
                   },
+                  { keys: [['F8']], what: 'Step to the next diagnostic' },
                   {
-                    keys: [['F8'], ['⌘', 'Shift', 'M'], ['Ctrl', 'Shift', 'M']],
-                    what: 'Step to the next diagnostic, or list them',
+                    keys: [
+                      ['⌘', 'Shift', 'M'],
+                      ['Ctrl', 'Shift', 'M'],
+                    ],
+                    what: 'Give the results the whole workspace, or take it back; Escape restores the editor',
                   },
                   {
                     keys: [['↑'], ['↓']],

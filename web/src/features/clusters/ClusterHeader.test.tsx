@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor } from '@testing-library/react';
 
@@ -6,7 +6,14 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { holding } from '../../test/access.ts';
 import { server } from '../../test/setup.ts';
 import { paged } from '../../kernel/api/paging.ts';
-import { ClusterHeader } from './ClusterHeader.tsx';
+
+// A plain anchor: the router is not under test.
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
+}));
+
+const { ClusterHeader } = await import('./ClusterHeader.tsx');
 
 const capability = { status: 'AVAILABLE', reason: null, brokerXmlSnippet: null };
 
@@ -22,7 +29,7 @@ function mockCluster(over: object = {}) {
         name: 'prod-eu',
         environmentId: 'e1',
         topology: { nodes: [{ endpoints: [{}, {}] }] },
-        health: { level: 'OK', splitBrain: 'NONE', notes: [] },
+        health: { level: 'OK', splitBrain: 'NONE', notes: [], credentialRejections: [] },
         capabilities: {
           managementRead: capability,
           managementWrite: capability,
@@ -57,12 +64,54 @@ describe('ClusterHeader', () => {
   });
 
   it('announces a split brain as an alert and lists what is wrong', async () => {
-    mockCluster({ health: { level: 'CRITICAL', splitBrain: 'CRITICAL', notes: ['Both nodes are serving'] } });
+    mockCluster({
+      health: {
+        level: 'CRITICAL',
+        splitBrain: 'CRITICAL',
+        notes: ['Both nodes are serving'],
+        credentialRejections: [],
+      },
+    });
     renderWithProviders(<ClusterHeader clusterId="c1" />);
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Two nodes are live in one pair');
     expect(alert).toHaveTextContent('Both nodes are serving');
+  });
+
+  it('names the account the brokers rejected and links to the connection settings', async () => {
+    mockCluster({
+      health: {
+        level: 'DEGRADED',
+        splitBrain: 'NONE',
+        notes: [
+          "The brokers rejected the management account on every node. Update it in the cluster's Connection settings.",
+        ],
+        credentialRejections: [{ account: 'MANAGEMENT', nodeNames: ['broker-1', 'broker-2'] }],
+      },
+    });
+    renderWithProviders(<ClusterHeader clusterId="c1" />);
+
+    expect(await screen.findByText(/rejected the management account on every node/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the connection settings' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/settings?tab=clusters-connection',
+    );
+  });
+
+  it('offers no link to the settings when nothing was rejected', async () => {
+    mockCluster({
+      health: {
+        level: 'CRITICAL',
+        splitBrain: 'CRITICAL',
+        notes: ['Both nodes are serving'],
+        credentialRejections: [],
+      },
+    });
+    renderWithProviders(<ClusterHeader clusterId="c1" />);
+
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('names its cause when the cluster cannot be read', async () => {

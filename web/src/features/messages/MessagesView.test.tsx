@@ -55,8 +55,9 @@ function endpoint(id: string, name: string, lastError: string | null = null) {
     versionSupport: 'SUPPORTED',
     lastError,
     lastSeenAt: null,
-    discovered: false,
-    manualOverride: false,
+    urlSource: 'SEED',
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: true,
   };
 }

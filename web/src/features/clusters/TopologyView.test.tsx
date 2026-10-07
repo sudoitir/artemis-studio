@@ -35,8 +35,9 @@ function endpoint(over: Partial<NodeEndpointView>): NodeEndpointView {
     versionSupport: 'SUPPORTED',
     lastError: null,
     lastSeenAt: '2026-09-30T14:00:00Z',
-    discovered: true,
-    manualOverride: false,
+    urlSource: 'DERIVED',
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: true,
     ...over,
   };
@@ -67,6 +68,7 @@ const TOPOLOGY: Topology = {
           active: false,
           jolokiaUrl: null,
           manageable: false,
+          urlSource: null,
           lastSeenAt: null,
         }),
       ],
@@ -81,6 +83,7 @@ const HEALTH: HealthView = {
   splitBrain: 'NONE',
   replicationBehind: false,
   notes: [],
+  credentialRejections: [],
 };
 
 function serve(topology: Topology = TOPOLOGY, health: HealthView = HEALTH) {
@@ -165,7 +168,7 @@ describe('TopologyView', () => {
       ['Management URL', 'http://node:8161/jolokia'],
       ['Core URL', 'node:61616'],
       ['Last error', 'None'],
-      ['How found', 'Discovered from the cluster'],
+      ['How found', 'Derived from the management URL pattern'],
     ]) {
       expect(within(facts).getByText(term).nextElementSibling).toHaveTextContent(value);
     }

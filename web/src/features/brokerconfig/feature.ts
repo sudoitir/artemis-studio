@@ -6,6 +6,7 @@ import { clusterRoute } from '../../kernel/routing/roots.ts';
 import { lazyFeatureView, lazySlot } from '../../kernel/routing/lazy.tsx';
 import { configTopic } from './applyProgress.ts';
 import { RegistrationRecommendations } from './RegistrationRecommendations.tsx';
+import { DIFF_FILTERS, type DiffFilter } from './configDiffRows.ts';
 import { asSection, type Section } from './words.ts';
 
 /**
@@ -30,10 +31,35 @@ function validateConfigurationSearch(raw: Record<string, unknown>): Configuratio
   return out;
 }
 
+/**
+ * The node comparison's navigable state: which keys it lists, the text it filters by, and the nodes
+ * it keeps. The drift view is the default and so is absent from the address.
+ */
+export interface ConfigDiffSearch {
+  view?: Exclude<DiffFilter, 'drift'>;
+  q?: string;
+  nodes?: string[];
+}
+
+export function validateConfigDiffSearch(raw: Record<string, unknown>): ConfigDiffSearch {
+  const out: ConfigDiffSearch = {};
+  if (typeof raw.view === 'string' && DIFF_FILTERS.includes(raw.view as DiffFilter) && raw.view !== 'drift') {
+    out.view = raw.view as ConfigDiffSearch['view'];
+  }
+  if (typeof raw.q === 'string' && raw.q) out.q = raw.q;
+  const asked = typeof raw.nodes === 'string' ? [raw.nodes] : raw.nodes;
+  if (Array.isArray(asked)) {
+    const nodes = asked.filter((n): n is string => typeof n === 'string' && n !== '');
+    if (nodes.length > 0) out.nodes = nodes;
+  }
+  return out;
+}
+
 const configDiffRoute = createRoute({
   getParentRoute: () => clusterRoute,
   path: 'config-diff',
   component: lazyFeatureView('brokerconfig', () => import('./ConfigDiffView.tsx'), 'ConfigDiffView'),
+  validateSearch: validateConfigDiffSearch,
 });
 
 const configurationRoute = createRoute({
@@ -43,7 +69,7 @@ const configurationRoute = createRoute({
   validateSearch: validateConfigurationSearch,
 });
 
-/** Declared broker configuration: one desired-vs-live screen with its apply, history, and comparing two nodes. */
+/** Declared broker configuration: one desired-vs-live screen with its apply and history, and the comparison of every node against the others. */
 export const brokerconfigFeature = defineFeature({
   contract: CONTRACT,
   id: 'brokerconfig',

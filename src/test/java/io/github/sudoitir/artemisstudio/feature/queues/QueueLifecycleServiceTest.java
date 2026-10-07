@@ -119,7 +119,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     private UUID node(String name, String url, boolean active) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         n.applyHaState(new HaObservation(active, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }

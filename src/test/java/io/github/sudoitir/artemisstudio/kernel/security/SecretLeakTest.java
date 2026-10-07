@@ -1,11 +1,15 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -94,12 +98,15 @@ class SecretLeakTest extends PostgresIntegrationTest {
     @BeforeEach
     void plantSecrets() throws Exception {
         mvc = webAppContextSetup(webContext).build();
+        // The connection edit lays the request over what the cluster has now, which is nothing yet.
+        when(connections.settingsFor(any()))
+                .thenReturn(new BrokerConnectionSettings(clusterId, null, null, null, true));
         jdbc.update("INSERT INTO cluster (id, name) VALUES (?, ?)", clusterId, "leak-" + clusterId);
 
         String base = "/api/v1/clusters/" + clusterId;
-        send(put(base + "/credentials")
+        send(patch(base)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\":\"admin\",\"password\":\"" + CLUSTER_PASSWORD + "\"}"));
+                .content("{\"management\":{\"username\":\"admin\",\"password\":\"" + CLUSTER_PASSWORD + "\"}}"));
         send(put(base + "/config/bridge-credentials/remote-a")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"bridge\",\"password\":\"" + BRIDGE_PASSWORD + "\"}"));
@@ -135,12 +142,12 @@ class SecretLeakTest extends PostgresIntegrationTest {
 
         // Requests that fail while carrying a secret: a body that does not validate, one that does not parse, and a
         // registration whose unreachable URL has user-info.
-        send(put(base + "/credentials")
+        send(patch(base)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\":\"\",\"password\":\"" + BODY_SECRET + "\"}"));
-        send(put(base + "/credentials")
+                .content("{\"management\":{\"username\":\"\",\"password\":\"" + BODY_SECRET + "\"}}"));
+        send(patch(base)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"password\":\"" + BODY_SECRET));
+                .content("{\"management\":{\"password\":\"" + BODY_SECRET));
         send(post("/api/v1/clusters?dryRun=true")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"seedUrls\":[\"http://admin:" + URL_SECRET + "@127.0.0.1:1/console/jolokia\"]}"));
@@ -164,7 +171,9 @@ class SecretLeakTest extends PostgresIntegrationTest {
 
         String rows = String.join("\n", jdbc.queryForList("SELECT t::text FROM audit_event t", String.class));
 
-        assertThat(rows).contains("REGISTER_CLUSTER").doesNotContain(ALL);
+        // An account in a seed URL is refused before anything is recorded, and the refusal does not repeat it.
+        assertThat(seen.getLast()).contains("Put the account in the Management account fields");
+        assertThat(rows).doesNotContain(ALL);
     }
 
     @Test

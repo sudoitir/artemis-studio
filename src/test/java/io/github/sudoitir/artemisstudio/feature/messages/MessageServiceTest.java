@@ -464,14 +464,14 @@ class MessageServiceTest {
 
     @Test
     void aSendThatTheBrokerRefusesIsReportedAndAuditedAsFailed() {
-        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNAUTHORIZED, "denied"))
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.CREDENTIALS_REJECTED, "denied"))
                 .when(jolokia)
                 .send(any(), any());
 
         Attempt<Outcome> result = service.send(CLUSTER, "orders", null, sendRequest(), false);
 
         assertThat(result)
-                .isEqualTo(new Attempt.Failed<Outcome>(BrokerConnectionException.Kind.UNAUTHORIZED, "denied"));
+                .isEqualTo(new Attempt.Failed<Outcome>(BrokerConnectionException.Kind.CREDENTIALS_REJECTED, "denied"));
         verify(audit).fail(event, "denied");
         verify(hub, never()).publishAbout(any(UUID.class), anyString(), anyCollection(), anyCollection());
     }

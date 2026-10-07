@@ -15,8 +15,8 @@ public class BrokerConnectionException extends RuntimeException {
         UNREACHABLE("Nothing answered at this address."),
         /** Studio held the call back itself, because it was already calling this node as fast as its rate ceiling allows. */
         THROTTLED("Studio is calling this node as fast as its rate ceiling allows."),
-        /** The broker rejected the credentials (HTTP 401 or 403). */
-        UNAUTHORIZED("The broker rejected these credentials."),
+        /** The broker rejected an account's credentials: HTTP 401 or 403 from Jolokia, or a Core security exception. */
+        CREDENTIALS_REJECTED("The broker rejected these credentials."),
         /** A Jolokia agent answered, but no Artemis broker MBean is registered on it. */
         NOT_ARTEMIS("This is a Jolokia agent, but no Artemis broker is registered on it."),
         /** No Jolokia agent at this path (HTTP 404). */
@@ -40,15 +40,26 @@ public class BrokerConnectionException extends RuntimeException {
     }
 
     private final Kind kind;
+    private final BrokerAccount account;
 
     public BrokerConnectionException(Kind kind, String message) {
-        super(message);
-        this.kind = kind;
+        this(kind, message, null, null);
     }
 
     public BrokerConnectionException(Kind kind, String message, Throwable cause) {
+        this(kind, message, cause, null);
+    }
+
+    private BrokerConnectionException(Kind kind, String message, Throwable cause, BrokerAccount account) {
         super(message, cause);
         this.kind = kind;
+        this.account = account;
+    }
+
+    /** A rejection of one account's credentials, which says which account it was. */
+    public static BrokerConnectionException credentialsRejected(
+            BrokerAccount account, String message, Throwable cause) {
+        return new BrokerConnectionException(Kind.CREDENTIALS_REJECTED, message, cause, account);
     }
 
     public static BrokerConnectionException of(Kind kind) {
@@ -57,5 +68,10 @@ public class BrokerConnectionException extends RuntimeException {
 
     public Kind kind() {
         return kind;
+    }
+
+    /** The rejected account of a {@link Kind#CREDENTIALS_REJECTED} failure; {@code null} for every other kind. */
+    public BrokerAccount account() {
+        return account;
     }
 }

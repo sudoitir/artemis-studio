@@ -507,7 +507,7 @@ public class BrokerConfigApplyService {
             run.steps().add(stepApply(s, StepStatus.FAILED, Verification.NOT_VERIFIED, e.getMessage()));
             return true;
         } catch (BrokerConnectionException e) {
-            if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
+            if (e.kind() == BrokerConnectionException.Kind.CREDENTIALS_REJECTED) {
                 capabilities.recordWriteRefused(clusterId, e.getMessage());
             }
             run.steps().add(stepApply(s, StepStatus.FAILED, Verification.NOT_VERIFIED, e.getMessage()));

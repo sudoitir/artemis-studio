@@ -1,6 +1,6 @@
 # ADR-0043: Broker configuration is compared by a classified pointer diff, not a diff library
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0178](0178-config-diff-compares-every-node-against-the-majority.md)
 - **Date**: 2026-09-05
 - **Deciders**: Mahdi Amirabdollahi
 

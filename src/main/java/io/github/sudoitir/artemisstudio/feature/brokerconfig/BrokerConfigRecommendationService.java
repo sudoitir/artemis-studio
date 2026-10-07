@@ -6,7 +6,9 @@ import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigRecomme
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccountRoles;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import java.util.List;
@@ -34,6 +36,8 @@ public class BrokerConfigRecommendationService {
 
     private final ClusterService clusters;
     private final BrokerConfigReads reads;
+    private final BrokerConnections connections;
+    private final BrokerAccountRoles accountRoles;
     private final BrokerConfigService config;
     private final ClusterAccessGuard clusterAccess;
 
@@ -42,7 +46,8 @@ public class BrokerConfigRecommendationService {
     public Recommendations recommend(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         BrokerCapabilities capabilities = clusters.brokerCapabilities(clusterId);
-        return BrokerConfigRecommendations.from(capabilities, seed(clusterId));
+        Seed seed = seed(clusterId);
+        return BrokerConfigRecommendations.from(capabilities, seed.observed(), accountRoles(clusterId, seed.node()));
     }
 
     /**
@@ -112,24 +117,42 @@ public class BrokerConfigRecommendationService {
                 r.match(),
                 r.values(),
                 roles,
+                r.accountRoles(),
+                r.accountRolesSource(),
                 r.keys(),
                 r.manualSnippet());
     }
+
+    /**
+     * The roles of the account Studio connects to Core with, read once from the node the
+     * recommendations are seeded from (ADR-0177).
+     */
+    private BrokerAccountRoles.Read accountRoles(UUID clusterId, ClusterNode node) {
+        if (node == null) {
+            return BrokerAccountRoles.Read.unreadable("no node of this cluster could be read");
+        }
+        return accountRoles.read(
+                reads.client(clusterId, node),
+                connections.coreSettingsFor(clusterId).username());
+    }
+
+    /** The seeding node and what it reported; both null when no node could be read. */
+    private record Seed(ObservedNodeConfig observed, ClusterNode node) {}
 
     /**
      * The node the recommendations are seeded from: the same one the probe assessed,
      * read at the two matches a recommendation can touch. An unreadable node yields
      * an unseeded set, which the view reports rather than hiding.
      */
-    private ObservedNodeConfig seed(UUID clusterId) {
+    private Seed seed(UUID clusterId) {
         ReadScope scope = new ReadScope(
                 Set.of("#"), Set.of("#", "activemq.notifications"), Set.of(), Map.of(), Set.of(), List.of());
         for (ClusterNode node : reads.targets(clusterId)) {
             ObservedNodeConfig observed = reads.observe(clusterId, node, scope);
             if (observed.readable()) {
-                return observed;
+                return new Seed(observed, node);
             }
         }
-        return null;
+        return new Seed(null, null);
     }
 }
