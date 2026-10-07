@@ -50,12 +50,25 @@ public class QueueLocator {
         return cached.isEmpty() ? live(clusterId, queueName) : cached;
     }
 
+    /**
+     * Reads every active node. A node that cannot be read has not shown the queue, but when no node
+     * shows it and one could not be read, the queue may still be there: that is reported as the node's
+     * failure (throttled or unreachable), never as a queue that does not exist.
+     */
     private List<QueueLocation> live(UUID clusterId, String queueName) {
         List<QueueLocation> found = new ArrayList<>();
+        BrokerConnectionException unread = null;
         for (ClusterNode node : ServingNodes.from(clusters.nodes(clusterId))) {
             if (Boolean.TRUE.equals(node.getActive())) {
-                readLocations(clusterId, node, queueName, found);
+                try {
+                    readLocations(clusterId, node, queueName, found);
+                } catch (BrokerConnectionException e) {
+                    unread = e;
+                }
             }
+        }
+        if (found.isEmpty() && unread != null) {
+            throw unread;
         }
         return found;
     }
@@ -79,8 +92,8 @@ public class QueueLocator {
                         value(mbean, "routing-type").toUpperCase(Locale.ROOT),
                         entry.getValue().path("MessageCount").asLong()));
             }
-        } catch (BrokerConnectionException | MalformedObjectNameException _) {
-            // A node that cannot be read has not shown the queue; the others still answer.
+        } catch (MalformedObjectNameException _) {
+            // A name the broker answered with that is not an MBean name is not a location.
         }
     }
 
