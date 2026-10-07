@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import { TextInput } from '@mantine/core';
 
 import { Frame, renderThemed, SCHEMES } from './browser.tsx';
-import { FieldRow } from '../sdk/index.ts';
+import { FieldRow, Notice } from '../sdk/index.ts';
 
 /**
  * What a plugin gets from the SDK is laid out by the host's own styles, which ship with the host, so a
@@ -23,5 +23,20 @@ describe.each(SCHEMES)('FieldRow from the SDK in the %s scheme', (scheme) => {
 
     const top = (name: string) => screen.getByRole('textbox', { name }).getBoundingClientRect().top;
     expect(top('Cluster')).toBeCloseTo(top('Pattern'), 0);
+  });
+});
+
+describe.each(SCHEMES)('Notice from the SDK in the %s scheme', (scheme) => {
+  it('states its title in words and announces a warning as a status', () => {
+    renderThemed(
+      <Frame width={640}>
+        <Notice title="Grace period" tone="warning">
+          The licence expired; flows stay usable for 14 days.
+        </Notice>
+      </Frame>,
+      scheme,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Grace period');
   });
 });
