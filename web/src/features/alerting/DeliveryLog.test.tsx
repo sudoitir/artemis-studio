@@ -24,6 +24,7 @@ const CHANNEL: NotificationChannelView = {
 const delivery = (seq: number, over: Partial<AlertDeliveryView> = {}): AlertDeliveryView => ({
   seq,
   ruleId: 'r-1',
+  kind: 'alert',
   summary: `Queue orders backlog ${seq}`,
   state: 'SENT',
   attempts: 1,

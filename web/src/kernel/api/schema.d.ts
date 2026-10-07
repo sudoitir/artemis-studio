@@ -5306,7 +5306,9 @@ export interface components {
             /** Format: int64 */
             seq: number;
             /** Format: uuid */
-            ruleId: string;
+            ruleId?: string | null;
+            kind: string;
+            source?: string | null;
             summary: string;
             state: string;
             /** Format: int32 */
