@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleRepository;
@@ -29,6 +30,7 @@ public class GroupMappingService {
     private final DefaultRoleRepository defaultRoles;
     private final RoleRepository roles;
     private final IdentityProviderCatalog providers;
+    private final AccessChanges accessChanges;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -43,8 +45,10 @@ public class GroupMappingService {
         requireExternal(providerId);
         requireRole(request.roleId());
         UUID scopeId = request.scopeId() != null ? request.scopeId() : ScopeIds.GLOBAL;
-        return toView(mappings.save(new GroupMappingEntity(
-                providerId, request.groupName(), request.roleId(), request.scopeType(), scopeId)));
+        GroupMappingEntity saved = mappings.save(new GroupMappingEntity(
+                providerId, request.groupName(), request.roleId(), request.scopeType(), scopeId));
+        accessChanges.changed();
+        return toView(saved);
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -53,6 +57,7 @@ public class GroupMappingService {
         requireExternal(providerId);
         mappings.delete(mappings.findByIdAndProviderId(mappingId, providerId)
                 .orElseThrow(() -> new NotFoundException("group mapping", mappingId)));
+        accessChanges.changed();
     }
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
@@ -65,6 +70,7 @@ public class GroupMappingService {
             requireRole(roleId);
             defaultRoles.save(new DefaultRoleEntity(providerId, roleId));
         }
+        accessChanges.changed();
         return view(providerId);
     }
 
