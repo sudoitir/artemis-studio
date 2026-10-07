@@ -96,9 +96,8 @@ function TeamList({ search, onCreated }: Readonly<{ search: TeamsSearch; onCreat
   );
   const field = search.teamSort?.replace(/^-/, '');
   const order = field ? ORDER[field] : undefined;
-  const rows = order
-    ? [...matching].sort((a, b) => (search.teamSort?.startsWith('-') ? order(b, a) : order(a, b)))
-    : matching;
+  const direction = search.teamSort?.startsWith('-') ? -1 : 1;
+  const rows = order ? [...matching].sort((a, b) => direction * order(a, b)) : matching;
 
   const title = 'Teams';
   const description =
