@@ -8,6 +8,9 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
@@ -36,9 +39,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Mints, authenticates, rotates and revokes personal API tokens (api-tokens spec,
@@ -52,7 +58,6 @@ import org.springframework.transaction.annotation.Transactional;
  * minted without.
  */
 @Service
-@RequiredArgsConstructor
 public class ApiTokenService implements PersonalTokens {
 
     private static final String RESOURCE = "token";
@@ -70,6 +75,10 @@ public class ApiTokenService implements PersonalTokens {
     private final SettingsService settings;
     private final TokenUsage usage;
     private final StudioBus bus;
+    /** Looked up per call: the approval engine runs approved requests as the owner through this service. */
+    private final ObjectProvider<OperationGate> gate;
+
+    private final TransactionTemplate tx;
     /** Absent when the module holding the factors is off, when nobody is required to hold one. */
     private final Optional<SecondFactors> secondFactors;
 
@@ -80,6 +89,31 @@ public class ApiTokenService implements PersonalTokens {
 
     /** token id -> when a late use of its replaced secret was last audited; one row a minute at most. */
     private final Map<UUID, Instant> rejectionAudited = new ConcurrentHashMap<>();
+
+    public ApiTokenService(
+            ApiTokenRepository tokens,
+            ApiTokenGrantRepository tokenGrants,
+            UserAccounts accounts,
+            AuditService audit,
+            ActorResolver actorResolver,
+            SettingsService settings,
+            TokenUsage usage,
+            StudioBus bus,
+            ObjectProvider<OperationGate> gate,
+            PlatformTransactionManager transactions,
+            Optional<SecondFactors> secondFactors) {
+        this.tokens = tokens;
+        this.tokenGrants = tokenGrants;
+        this.accounts = accounts;
+        this.audit = audit;
+        this.actorResolver = actorResolver;
+        this.settings = settings;
+        this.usage = usage;
+        this.bus = bus;
+        this.gate = gate;
+        this.tx = new TransactionTemplate(transactions);
+        this.secondFactors = secondFactors;
+    }
 
     public record Minted(ApiTokenEntity entity, String plaintext) {}
 
@@ -117,7 +151,7 @@ public class ApiTokenService implements PersonalTokens {
      * @throws SecondFactorRequiredException when the owner must hold a second factor and this session
      *     had not verified one: the token would not authenticate anyway
      */
-    @Transactional
+    @Gated(TokenOperations.CREATE)
     public Minted mint(
             UUID userId,
             String name,
@@ -141,15 +175,31 @@ public class ApiTokenService implements PersonalTokens {
             throw new IllegalArgumentException("The expiry is beyond the maximum token lifetime of "
                     + settings.value(ApiTokensSettings.MAX_LIFETIME) + "; the latest allowed is " + latest);
         }
-        Secret secret = newSecret();
-        ApiTokenEntity entity = tokens.save(new ApiTokenEntity(
+        List<String> tools = mcpTools == null ? List.of() : mcpTools;
+        CreateToken params = new CreateToken(
                 userId,
                 name,
-                secret.prefix(),
-                secret.hash(),
                 expiresAt,
-                mcpTools == null ? List.of() : mcpTools,
-                mintedWithMfa));
+                requestedGrants.stream().map(CreateToken.Grant::of).toList(),
+                tools,
+                mintedWithMfa);
+        return gate.getObject()
+                .run(
+                        Operation.of(params),
+                        () -> tx.execute(
+                                status -> store(userId, name, expiresAt, requestedGrants, tools, mintedWithMfa)));
+    }
+
+    private Minted store(
+            UUID userId,
+            String name,
+            Instant expiresAt,
+            List<TokenGrant> requestedGrants,
+            List<String> mcpTools,
+            boolean mintedWithMfa) {
+        Secret secret = newSecret();
+        ApiTokenEntity entity = tokens.save(
+                new ApiTokenEntity(userId, name, secret.prefix(), secret.hash(), expiresAt, mcpTools, mintedWithMfa));
         String plaintext = secret.plaintext();
         for (TokenGrant g : requestedGrants) {
             tokenGrants.save(new ApiTokenGrantEntity(
@@ -196,9 +246,26 @@ public class ApiTokenService implements PersonalTokens {
         revoke(owned(userId, tokenId), Map.of());
     }
 
-    /** An administrator revokes any user's token; the audit row names the owner. */
-    @Transactional
+    /**
+     * An administrator revokes any user's token; the audit row names the owner. Revoking a token of another user
+     * is the gated operation {@code token.revoke-any}; an administrator's own token is not gated.
+     */
+    @Gated(TokenOperations.REVOKE_ANY)
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.feature.apitokens.TokenPermissions).TOKEN_ADMIN)")
     public void revokeAny(UUID tokenId) {
+        ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException(RESOURCE, tokenId));
+        Runnable revoke = () -> tx.executeWithoutResult(status -> revokeOf(tokenId));
+        if (token.getUserId().equals(actorResolver.resolve().userId())) {
+            revoke.run();
+            return;
+        }
+        gate.getObject().run(Operation.of(new RevokeAnyToken(tokenId)), () -> {
+            revoke.run();
+            return null;
+        });
+    }
+
+    private void revokeOf(UUID tokenId) {
         ApiTokenEntity token = tokens.findById(tokenId).orElseThrow(() -> new NotFoundException(RESOURCE, tokenId));
         String owner = accounts.byId(token.getUserId())
                 .map(UserAccounts.Account::username)
