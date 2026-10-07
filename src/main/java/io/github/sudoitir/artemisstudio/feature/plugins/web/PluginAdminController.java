@@ -136,14 +136,14 @@ public class PluginAdminController {
     public PluginLicenseView uploadLicense(HttpServletRequest request, @PathVariable String id) throws IOException {
         // One byte past the limit is enough to tell an oversize body without reading the rest of it.
         byte[] content = request.getInputStream().readNBytes(PluginLicenseStore.MAX_BYTES + 1);
-        administration.uploadLicense(request, id, content);
+        administration.uploadLicense(id, content, stepUp(request));
         return license(licenses.summary(id));
     }
 
     @DeleteMapping("/{id}/license")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeLicense(HttpServletRequest request, @PathVariable String id) {
-        administration.removeLicense(request, id);
+        administration.removeLicense(id, stepUp(request));
     }
 
     /** The jar is the raw request body — never multipart, so nothing is parsed before this runs. */
@@ -198,7 +198,8 @@ public class PluginAdminController {
             HttpServletRequest request,
             @PathVariable String sha256,
             @RequestParam(defaultValue = "false") boolean acknowledge) {
-        return plan(administration.activate(request, sha256, acknowledge));
+        administration.requireStepUp(request);
+        return plan(administration.activate(sha256, acknowledge));
     }
 
     @PostMapping("/{id}/enable")
@@ -207,7 +208,8 @@ public class PluginAdminController {
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean acknowledge) {
-        return plan(administration.enable(request, id, acknowledge));
+        administration.requireStepUp(request);
+        return plan(administration.enable(id, acknowledge));
     }
 
     @PostMapping("/{id}/rollback")
@@ -216,7 +218,8 @@ public class PluginAdminController {
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean acknowledge) {
-        return plan(administration.rollback(request, id, acknowledge));
+        administration.requireStepUp(request);
+        return plan(administration.rollback(id, acknowledge));
     }
 
     /** Refused while other active plugins require it, unless {@code cascade} disables them too. */
@@ -226,7 +229,8 @@ public class PluginAdminController {
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean cascade) {
-        administration.disable(request, id, cascade);
+        administration.requireStepUp(request);
+        administration.disable(id, cascade);
     }
 
     /** Stops and removes the plugin; its data stays until a purge. */
@@ -236,14 +240,18 @@ public class PluginAdminController {
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean cascade) {
-        administration.uninstall(request, id, cascade);
+        administration.requireStepUp(request);
+        administration.uninstall(id, cascade);
     }
 
     /** Deletes an uninstalled plugin's data for good; {@code dryRun=true} only estimates it. */
     @PostMapping("/{id}/purge")
     public PluginPurgePlanView purge(
             HttpServletRequest request, @PathVariable String id, @RequestParam(defaultValue = "false") boolean dryRun) {
-        PurgePlan plan = administration.purge(request, id, dryRun);
+        if (!dryRun) {
+            administration.requireStepUp(request);
+        }
+        PurgePlan plan = administration.purge(id, dryRun);
         return new PluginPurgePlanView(
                 plan.schema(),
                 plan.tables().stream()
@@ -267,7 +275,8 @@ public class PluginAdminController {
     @PostMapping("/restart")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void restart(HttpServletRequest request) {
-        administration.restartStudio(request);
+        administration.requireStepUp(request);
+        administration.restartStudio();
     }
 
     @PostMapping("/check-updates")
@@ -306,13 +315,15 @@ public class PluginAdminController {
     @PostMapping("/installers")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void grantInstaller(HttpServletRequest request, @Valid @RequestBody GrantInstallerRequest body) {
-        administration.grantInstaller(request, body.username());
+        administration.requireStepUp(request);
+        administration.grantInstaller(body.username());
     }
 
     @DeleteMapping("/installers/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeInstaller(HttpServletRequest request, @PathVariable UUID userId) {
-        administration.revokeInstaller(request, userId);
+        administration.requireStepUp(request);
+        administration.revokeInstaller(userId);
     }
 
     @GetMapping("/keys")
@@ -327,19 +338,19 @@ public class PluginAdminController {
     @PostMapping("/keys")
     @ResponseStatus(HttpStatus.CREATED)
     public TrustedKeyView addKey(HttpServletRequest request, @Valid @RequestBody AddKeyRequest body) {
-        return key(administration.addKey(request, body.name(), body.upload(), body.pem()));
+        return key(administration.addKey(body.name(), body.upload(), body.pem(), stepUp(request)));
     }
 
     @DeleteMapping("/keys/{fingerprint}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeKey(HttpServletRequest request, @PathVariable String fingerprint) {
-        administration.removeKey(request, fingerprint);
+        administration.removeKey(fingerprint, stepUp(request));
     }
 
     @PutMapping("/trust-policy")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void trustPolicy(HttpServletRequest request, @RequestBody TrustPolicyRequest body) {
-        administration.setAllowUnverified(request, body.allowUnverified());
+        administration.setAllowUnverified(body.allowUnverified(), stepUp(request));
     }
 
     // ---- mapping ------------------------------------------------------------------------------
@@ -499,5 +510,10 @@ public class PluginAdminController {
             total += n;
         }
         return total;
+    }
+
+    /** The step-up an audited action runs inside its own audit row, so a refusal is recorded too. */
+    private Runnable stepUp(HttpServletRequest request) {
+        return () -> administration.requireStepUp(request);
     }
 }

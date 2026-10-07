@@ -8,7 +8,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.PasswordRules;
 import io.github.sudoitir.artemisstudio.kernel.security.PersonalTokens;
-import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactors;
@@ -169,15 +168,12 @@ public class UserService {
      * Remove a user's second factors, as an administrator does when they lost their device: the
      * authenticator app, passkeys, recovery codes and trusted devices go, their API tokens are revoked
      * and their sessions end, so at the next sign-in they enrol again if their role requires a factor.
-     * It needs a step-up; it is never for one's own account, where recovery codes are the way; and when the
+     * The caller has checked the step-up (the web layer does, so a replay can run this); it is never for one's own account, where recovery codes are the way; and when the
      * target must hold a factor, the administrator's own session must have verified one.
      */
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional
     public UserView resetSecondFactors(UUID userId, HttpServletRequest request) {
-        if (!sessionState.recentlyAuthenticated(request)) {
-            throw new ReauthenticationRequiredException();
-        }
         AppUserEntity user = requireUser(userId);
         StudioPrincipal actor = currentPrincipalOrNull();
         if (actor != null && userId.equals(actor.userId())) {

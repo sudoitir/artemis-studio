@@ -151,8 +151,8 @@ public class PluginAdministration {
     // ---- lifecycle ----------------------------------------------------------------------------------
 
     /** Installs or updates from a pending upload; the outcome arrives on the plugin's status. */
-    public ActivationPlan activate(HttpServletRequest request, String sha256, boolean acknowledge) {
-        requireStepUp(request);
+    public ActivationPlan activate(String sha256, boolean acknowledge) {
+        requireInstaller();
         requireUploadEnabled();
         String pluginId = host.uploadPluginId(sha256).orElse(sha256);
         return activation(
@@ -162,8 +162,8 @@ public class PluginAdministration {
                 () -> host.activateUpload(sha256, actor().username(), acknowledge));
     }
 
-    public ActivationPlan enable(HttpServletRequest request, String id, boolean acknowledge) {
-        requireStepUp(request);
+    public ActivationPlan enable(String id, boolean acknowledge) {
+        requireInstaller();
         String sha256 = host.status(id).map(PluginSummary::sha256).orElse(null);
         return activation(
                 "PLUGIN_ENABLE",
@@ -172,8 +172,8 @@ public class PluginAdministration {
                 () -> host.enable(id, actor().username(), acknowledge));
     }
 
-    public ActivationPlan rollback(HttpServletRequest request, String id, boolean acknowledge) {
-        requireStepUp(request);
+    public ActivationPlan rollback(String id, boolean acknowledge) {
+        requireInstaller();
         String sha256 = host.status(id).map(PluginSummary::previousSha256).orElse(null);
         return activation(
                 "PLUGIN_ROLLBACK",
@@ -182,29 +182,28 @@ public class PluginAdministration {
                 () -> host.rollback(id, actor().username(), acknowledge));
     }
 
-    public void disable(HttpServletRequest request, String id, boolean cascade) {
-        requireStepUp(request);
+    public void disable(String id, boolean cascade) {
+        requireInstaller();
         audited("PLUGIN_DISABLE", id, Map.of("cascade", cascade), () -> {
             host.disable(id, cascade, actor().username());
             return null;
         });
     }
 
-    public void uninstall(HttpServletRequest request, String id, boolean cascade) {
-        requireStepUp(request);
+    public void uninstall(String id, boolean cascade) {
+        requireInstaller();
         audited("PLUGIN_UNINSTALL", id, Map.of("cascade", cascade), () -> {
             host.uninstall(id, cascade, actor().username());
             return null;
         });
     }
 
-    /** A dry run is a read and needs no step-up; the real purge does. */
-    public PurgePlan purge(HttpServletRequest request, String id, boolean dryRun) {
+    /** A dry run is a read and needs no step-up; the real purge does (the caller demands it). */
+    public PurgePlan purge(String id, boolean dryRun) {
+        requireInstaller();
         if (dryRun) {
-            requireInstaller();
             return host.purgePlan(id);
         }
-        requireStepUp(request);
         PurgePlan plan = host.purgePlan(id);
         return audited("PLUGIN_PURGE", id, Map.of("schema", plan.schema()), () -> {
             host.purge(id, actor().username());
@@ -216,20 +215,24 @@ public class PluginAdministration {
 
     /**
      * Stores or replaces the plugin's license file. The audit row opens first, so a refusal is
-     * recorded too, with the plugin, the file's hash and its size and never its content.
+     * recorded too, with the plugin, the file's hash and its size and never its content. The
+     * {@code stepUp} check runs inside that row for the same reason: the web layer passes its
+     * request's check, and a replay passes none. The other audited actions below do the same.
      */
-    public void uploadLicense(HttpServletRequest request, String id, byte[] content) {
+    public void uploadLicense(String id, byte[] content, Runnable stepUp) {
         Map<String, Object> params = Map.of("size", content.length, "sha256", PluginLicenseStore.sha256(content));
         audited("PLUGIN_LICENSE_UPLOAD", id, params, () -> {
-            requireStepUp(request);
+            requireInstaller();
+            stepUp.run();
             licenses.put(id, content, actor().username());
             return null;
         });
     }
 
-    public void removeLicense(HttpServletRequest request, String id) {
+    public void removeLicense(String id, Runnable stepUp) {
         audited("PLUGIN_LICENSE_REMOVE", id, Map.of(), () -> {
-            requireStepUp(request);
+            requireInstaller();
+            stepUp.run();
             licenses.remove(id);
             return null;
         });
@@ -241,8 +244,8 @@ public class PluginAdministration {
      * Restarts Studio now, for a plugin waiting on a restart or a runtime that did not unload
      * (ADR-0104). Everyone signed in loses the connection for as long as Studio takes to start.
      */
-    public void restartStudio(HttpServletRequest request) {
-        requireStepUp(request);
+    public void restartStudio() {
+        requireInstaller();
         audited("STUDIO_RESTART", "studio", Map.of(), () -> {
             restart.restartOnRequest("requested by " + actor().username());
             return null;
@@ -266,8 +269,8 @@ public class PluginAdministration {
                 .toList();
     }
 
-    public void grantInstaller(HttpServletRequest request, String username) {
-        requireStepUp(request);
+    public void grantInstaller(String username) {
+        requireInstaller();
         UserAccounts.Account account = accounts.byUsername(username)
                 .orElseThrow(() -> new PluginRefusedException(List.of(
                         new Violation("not-found", "No user named '" + username + "'.", "Check the username."))));
@@ -277,8 +280,8 @@ public class PluginAdministration {
         });
     }
 
-    public void revokeInstaller(HttpServletRequest request, UUID userId) {
-        requireStepUp(request);
+    public void revokeInstaller(UUID userId) {
+        requireInstaller();
         String username =
                 accounts.byId(userId).map(UserAccounts.Account::username).orElse(userId.toString());
         audited("PLUGIN_INSTALLER_REVOKE", username, Map.of(), () -> {
@@ -313,7 +316,7 @@ public class PluginAdministration {
      * Trusts a publisher key given as exactly one of a pending upload, whose own signer is taken
      * from the stored jar, or a PEM. The audit row opens first, so a refusal is recorded too.
      */
-    public PluginTrust.TrustedKey addKey(HttpServletRequest request, String name, String uploadSha256, String pem) {
+    public PluginTrust.TrustedKey addKey(String name, String uploadSha256, String pem, Runnable stepUp) {
         Map<String, Object> params = new HashMap<>();
         // The PEM itself is not recorded: it can be 8 KB of whatever the client sent.
         params.put("source", uploadSha256 != null ? UPLOAD : "pem");
@@ -321,7 +324,8 @@ public class PluginAdministration {
             params.put(UPLOAD, uploadSha256);
         }
         return audited("PLUGIN_KEY_ADD", name.strip(), params, () -> {
-            requireStepUp(request);
+            requireInstaller();
+            stepUp.run();
             if ((uploadSha256 == null) == (pem == null)) {
                 throw new IllegalArgumentException("Give exactly one of upload and pem.");
             }
@@ -330,9 +334,10 @@ public class PluginAdministration {
         });
     }
 
-    public void removeKey(HttpServletRequest request, String fingerprint) {
+    public void removeKey(String fingerprint, Runnable stepUp) {
         audited("PLUGIN_KEY_REMOVE", fingerprint, Map.of(), () -> {
-            requireStepUp(request);
+            requireInstaller();
+            stepUp.run();
             if (!trust.remove(fingerprint)) {
                 throw notFound("No trusted key " + fingerprint + ".");
             }
@@ -340,9 +345,10 @@ public class PluginAdministration {
         });
     }
 
-    public void setAllowUnverified(HttpServletRequest request, boolean allow) {
+    public void setAllowUnverified(boolean allow, Runnable stepUp) {
         audited("PLUGIN_TRUST_POLICY", "allow-unverified", Map.of("allowUnverified", allow), () -> {
-            requireStepUp(request);
+            requireInstaller();
+            stepUp.run();
             trust.setAllowUnverified(allow, actor().username());
             return null;
         });
@@ -356,7 +362,12 @@ public class PluginAdministration {
         });
     }
 
-    private void requireStepUp(HttpServletRequest request) {
+    /**
+     * The installer tier and a sign-in or step-up in the last five minutes. The web layer demands it
+     * before it calls an action, and the actions do not, so a held action can be replayed without the
+     * requester's session.
+     */
+    public void requireStepUp(HttpServletRequest request) {
         requireInstaller();
         if (!sessions.recentlyAuthenticated(request)) {
             throw new ReauthenticationRequiredException();

@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
@@ -20,6 +22,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,6 +43,7 @@ public class UsersController {
     private final UserService users;
     private final EffectiveAccess effectivePermissions;
     private final SessionService sessionService;
+    private final SessionAuthentication sessions;
 
     @GetMapping("/{userId}/effective-permissions")
     public PagedView<EffectivePermissionView> effectivePermissions(
@@ -115,7 +119,11 @@ public class UsersController {
      * and, when the user must hold a factor, unless this session verified one ({@code 403 mfa-required}).
      */
     @DeleteMapping("/{userId}/second-factors")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     public UserView resetSecondFactors(@PathVariable UUID userId, HttpServletRequest req) {
+        if (!sessions.recentlyAuthenticated(req)) {
+            throw new ReauthenticationRequiredException();
+        }
         return users.resetSecondFactors(userId, req);
     }
 
