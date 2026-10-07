@@ -95,7 +95,7 @@ class McpMessagesGovernanceTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity a = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        a.attachManagementUrl(URL_A);
+        a.attachSeedUrl(URL_A);
         UUID nodeId = nodes.save(a).getId();
         upsert.upsertBatch(List.of(new QueueRow(
                 clusterId, nodeId, "PHASE3.SRC", "PHASE3.SRC", "ANYCAST", true, 1, 0, 0, 0, 0, 0, 0, false)));

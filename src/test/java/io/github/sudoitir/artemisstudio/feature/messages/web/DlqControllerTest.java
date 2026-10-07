@@ -74,7 +74,7 @@ class DlqControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity a = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        a.attachManagementUrl(URL);
+        a.attachSeedUrl(URL);
         nodeId = nodes.save(a).getId();
         // DLQ fixture reports deadLetterAddress "DLQ"; seed a queue on it.
         upsert.upsertBatch(

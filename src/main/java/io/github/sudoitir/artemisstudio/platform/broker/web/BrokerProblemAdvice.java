@@ -19,6 +19,9 @@ class BrokerProblemAdvice {
         ProblemDetail problem =
                 Problems.of(statusFor(e.kind()), "broker-" + kebab(e.kind()), titleFor(e.kind()), e.getMessage());
         problem.setProperty("brokerErrorKind", e.kind().name());
+        if (e.account() != null) {
+            problem.setProperty("account", e.account().name());
+        }
         return problem;
     }
 
@@ -48,7 +51,7 @@ class BrokerProblemAdvice {
 
     private static HttpStatus statusFor(Kind kind) {
         return switch (kind) {
-            case UNAUTHORIZED, NOT_ARTEMIS, WRONG_PATH, UNSUPPORTED_VERSION -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case CREDENTIALS_REJECTED, NOT_ARTEMIS, WRONG_PATH, UNSUPPORTED_VERSION -> HttpStatus.UNPROCESSABLE_ENTITY;
             case UNREACHABLE, TLS_FAILED, BAD_RESPONSE -> HttpStatus.BAD_GATEWAY;
             case THROTTLED -> HttpStatus.SERVICE_UNAVAILABLE;
         };
@@ -58,7 +61,7 @@ class BrokerProblemAdvice {
         return switch (kind) {
             case UNREACHABLE -> "Broker unreachable";
             case THROTTLED -> "Studio is throttling calls to this broker";
-            case UNAUTHORIZED -> "Broker rejected the credentials";
+            case CREDENTIALS_REJECTED -> "Broker rejected the credentials";
             case NOT_ARTEMIS -> "No Artemis broker at this agent";
             case WRONG_PATH -> "No Jolokia agent at this address";
             case TLS_FAILED -> "TLS handshake failed";

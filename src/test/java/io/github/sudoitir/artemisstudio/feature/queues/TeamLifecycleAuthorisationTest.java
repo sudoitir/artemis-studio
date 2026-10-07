@@ -115,7 +115,7 @@ class TeamLifecycleAuthorisationTest extends PostgresIntegrationTest {
     private void node(String name, String url) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 cluster, name, "PRIMARY", UUID.randomUUID().toString());
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         brokerNodes.save(n);
     }

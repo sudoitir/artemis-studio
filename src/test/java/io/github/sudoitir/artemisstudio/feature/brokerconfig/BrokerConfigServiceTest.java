@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.BrokerConfigDocument.AddressDecl;
@@ -44,6 +45,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
+import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationAdoption;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Duration;
@@ -629,6 +631,74 @@ class BrokerConfigServiceTest {
             assertThat(closed.finding().key()).isEqualTo("orders");
         });
         assertThat(adoption.notes()).anyMatch(n -> n.contains("1 open drift finding(s) will be closed"));
+    }
+
+    private static final Map<String, Object> BASE_SETTINGS =
+            Map.of("max-size-bytes", 100, "address-full-policy", "PAGE");
+
+    private ObservedNodeConfig sameAs(UUID id, String name, Map<String, Object> ordersSettings) {
+        return observed(
+                id,
+                name,
+                Map.of("orders", Set.of("ANYCAST")),
+                Map.of("#", BASE_SETTINGS, "orders", ordersSettings),
+                Map.of(),
+                Map.of());
+    }
+
+    @Test
+    void aPreviewBeforeRegistrationDeclaresWhatNodesThatAgreeRunWithoutQueuesOrFindings() {
+        JolokiaBrokerClient ca = mock(JolokiaBrokerClient.class);
+        JolokiaBrokerClient cb = mock(JolokiaBrokerClient.class);
+        Map<String, Object> orders = Map.of("max-size-bytes", 100, "address-full-policy", "BLOCK");
+        when(ops.readForAdoption(eq(ca), any(), eq("node-a"))).thenReturn(sameAs(NODE_A, "node-a", orders));
+        when(ops.readForAdoption(eq(cb), any(), eq("node-b"))).thenReturn(sameAs(NODE_B, "node-b", orders));
+
+        Adoption adoption = service.previewAdoption(List.of(
+                        new RegistrationAdoption.LiveNode("node-a", ca),
+                        new RegistrationAdoption.LiveNode("node-b", cb)))
+                .orElseThrow();
+
+        assertThat(adoption.disagreements()).isEmpty();
+        assertThat(adoption.closes()).isEmpty();
+        assertThat(adoption.document().addresses())
+                .extracting(AddressDecl::name)
+                .containsExactly("orders");
+        assertThat(adoption.document().addresses().get(0).queues()).isEmpty();
+        assertThat(adoption.document().addressSettings())
+                .extracting(AddressSettingDecl::match)
+                .containsExactly("#", "orders");
+        // The cluster does not exist yet, so nothing is looked up for it.
+        verifyNoInteractions(snapshots, nodeStates);
+    }
+
+    @Test
+    void aPreviewBeforeRegistrationListsWhereTheNodesDisagree() {
+        JolokiaBrokerClient ca = mock(JolokiaBrokerClient.class);
+        JolokiaBrokerClient cb = mock(JolokiaBrokerClient.class);
+        when(ops.readForAdoption(eq(ca), any(), eq("node-a")))
+                .thenReturn(sameAs(NODE_A, "node-a", Map.of("max-size-bytes", 100, "address-full-policy", "BLOCK")));
+        when(ops.readForAdoption(eq(cb), any(), eq("node-b")))
+                .thenReturn(sameAs(NODE_B, "node-b", Map.of("max-size-bytes", 5, "address-full-policy", "PAGE")));
+
+        Adoption adoption = service.previewAdoption(List.of(
+                        new RegistrationAdoption.LiveNode("node-a", ca),
+                        new RegistrationAdoption.LiveNode("node-b", cb)))
+                .orElseThrow();
+
+        assertThat(adoption.disagreements())
+                .singleElement()
+                .asString()
+                .startsWith("Address settings for orders differ between node-a and node-b");
+    }
+
+    @Test
+    void aPreviewOfNodesNoneOfWhichCouldBeReadOffersNothing() {
+        JolokiaBrokerClient dead = mock(JolokiaBrokerClient.class);
+        when(ops.readForAdoption(eq(dead), any(), eq("node-a"))).thenThrow(new IllegalStateException("down"));
+
+        assertThat(service.previewAdoption(List.of(new RegistrationAdoption.LiveNode("node-a", dead))))
+                .isEmpty();
     }
 
     @Test

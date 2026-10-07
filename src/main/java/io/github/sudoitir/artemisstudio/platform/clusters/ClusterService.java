@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -11,7 +12,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopedGrants;
 import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
-import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
+import io.github.sudoitir.artemisstudio.platform.broker.AccountResult;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
@@ -20,15 +21,19 @@ import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
 import io.github.sudoitir.artemisstudio.platform.broker.CapabilityProbe;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreAccountCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionSettings;
+import io.github.sudoitir.artemisstudio.platform.broker.CoreEventClient;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionCheck;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaResponse;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlSource;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.broker.SubscriptionVerdict;
 import io.github.sudoitir.artemisstudio.platform.broker.VersionGate;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
+import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.UrlDerivation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerCredentialRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerIdentityClaims;
@@ -38,30 +43,49 @@ import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.B
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerTlsRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.EnvironmentRepository;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.AccountUpdate;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RegisterClusterRequest;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.UpdateClusterRequest;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.AdoptionCountsView;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.AdoptionPreviewView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.CapabilitiesView;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterConnectionDetail;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterConnectionView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterDetail;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterSummary;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ConnectionCheck;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.HealthView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.NodeEndpointView;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.NodeProbeView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.RegisterPreview;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.TopologyView;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Orchestrates cluster registration, topology, capabilities, and health.
@@ -73,12 +97,16 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ClusterService {
 
     private static final String JOLOKIA_BASIC = "JOLOKIA_BASIC";
     private static final String CORE = "CORE";
     private static final String REGISTER_CLUSTER = "REGISTER_CLUSTER";
+    private static final String UPDATE_CONNECTION = "UPDATE_CLUSTER_CONNECTION";
     private static final String CLUSTER = "CLUSTER";
+    private static final String SEED_URLS = "seedUrls";
+    private static final String VERSION = "Version";
     private static final UUID UNBOUND = new UUID(0L, 0L);
 
     private final ClusterRepository clusters;
@@ -97,6 +125,10 @@ public class ClusterService {
     private final HaStateEvaluator evaluator;
     private final CoreSubscriptionManager coreSubscriptions;
     private final CoreSubscriptionCheck coreSubscriptionCheck;
+    private final CoreAccountCheck coreAccountCheck;
+    private final SeedExpander seedExpander;
+    private final Optional<RegistrationAdoption> adoption;
+    private final EnvironmentRepository environments;
     private final StudioBus bus;
     private final SecretVault vault;
     private final AuditService audit;
@@ -104,26 +136,40 @@ public class ClusterService {
     private final io.github.sudoitir.artemisstudio.kernel.security.ActorResolver actorResolver;
     private final ClusterEnvironmentIndex environmentIndex;
     private final ClusterAccessGuard clusterAccess;
+    private final TransactionTemplate transactions;
     private final PermissionResolver permissions;
     private final ScopedGrants grants;
 
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
 
-    private record Probe(String url, JolokiaBrokerClient client, String version, BrokerConnectionException error) {
+    private record Probe(
+            String url,
+            boolean attachable,
+            JolokiaBrokerClient client,
+            String version,
+            BrokerConnectionException error) {
         boolean ok() {
             return error == null;
         }
 
         ProbedSeed asSeed() {
-            return new ProbedSeed(url, client);
+            return new ProbedSeed(url, client, attachable);
+        }
+    }
+
+    /** What a check or a registration probes with: the seeds, the pattern, and both accounts. */
+    private record ConnectionInputs(
+            List<String> seedUrls, String pattern, BrokerConnectionSettings management, CoreConnectionSettings core) {
+
+        UrlDerivation derivation() {
+            return new UrlDerivation(pattern, management);
         }
     }
 
     // ---- connection check (?dryRun=true) -------------------------------------
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
-    @Transactional
     public Attempt<RegisterPreview> checkConnection(RegisterClusterRequest request) {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
@@ -132,10 +178,11 @@ public class ClusterService {
                 request.name(),
                 null,
                 null,
-                Map.of("seedUrls", request.seedUrls()),
+                Map.of(SEED_URLS, request.seedUrls()),
                 true);
 
-        List<Probe> probes = connectAll(request);
+        ConnectionInputs inputs = inputsOf(request);
+        List<Probe> probes = connectAll(inputs);
         List<Probe> reachable = probes.stream().filter(Probe::ok).toList();
         if (reachable.isEmpty()) {
             return failed(event, probes.get(0).error());
@@ -148,21 +195,20 @@ public class ClusterService {
         TopologyDiscovery.Survey survey =
                 topologyDiscovery.survey(reachable.stream().map(Probe::asSeed).toList());
         refuseIfRegistered(survey.identity(), () -> event);
-        ClusterTopology preview = topologyDiscovery.preview(survey);
+        TopologyDiscovery.Preview found = topologyDiscovery.preview(survey, inputs.derivation());
+        ClusterTopology preview = found.topology();
+        List<NodeEndpoint> endpoints = endpoints(preview);
+        List<AccountResult> coreResults = checkCore(endpoints, inputs.core());
 
         // Actually open a Core subscription rather than reporting NotAttempted. A
         // check that stays silent about the Core channel is how a wrong Core account
         // — or a management account the broker reserves as its <cluster-user> —
         // reaches a registered cluster and fails there instead, where the operator
         // has no obvious way back.
-        SubscriptionVerdict coreVerdict = coreSubscriptionCheck.probe(
-                preview.nodes().stream().flatMap(n -> n.endpoints().stream()).toList(), coreSettingsFrom(request));
+        SubscriptionVerdict coreVerdict = coreSubscriptionCheck.probe(endpoints, inputs.core());
         BrokerCapabilities capabilities = capabilityProbe.probe(reachable.get(0).client(), coreVerdict);
-        int nodeCount = (int) preview.nodes().stream()
-                .flatMap(n -> n.endpoints().stream())
-                .map(NodeEndpoint::name)
-                .distinct()
-                .count();
+        int nodeCount =
+                (int) endpoints.stream().map(NodeEndpoint::name).distinct().count();
 
         Map<String, Object> contributions = new TreeMap<>();
         for (RegistrationCheckContributor contributor : checkContributors) {
@@ -176,11 +222,31 @@ public class ClusterService {
 
         audit.succeed(event, nodeCount);
         return new Attempt.Ok<>(new RegisterPreview(
-                viewMapper.capabilities(capabilities, VersionGate.assessAll(endpoints(preview))),
+                viewMapper.capabilities(capabilities, VersionGate.assessAll(endpoints)),
                 reachable.size(),
                 nodeCount,
                 viewMapper.topology(preview),
+                inputs.pattern(),
+                probeRows(endpoints, found.management(), coreResults),
+                adoptionPreview(endpoints, inputs.management()),
                 contributions));
+    }
+
+    private ConnectionInputs inputsOf(RegisterClusterRequest request) {
+        String pattern = request.managementUrlPattern() != null
+                        && !request.managementUrlPattern().isBlank()
+                ? request.managementUrlPattern()
+                : ManagementUrlPattern.defaultFor(request.seedUrls().get(0));
+        return new ConnectionInputs(
+                request.seedUrls(),
+                pattern,
+                new BrokerConnectionSettings(
+                        UNBOUND,
+                        request.hasCredentials() ? request.credentials().username() : null,
+                        request.hasCredentials() ? request.credentials().password() : null,
+                        request.tlsBundle(),
+                        true),
+                coreSettingsFrom(request));
     }
 
     /**
@@ -198,12 +264,91 @@ public class ClusterService {
                 : new CoreConnectionSettings(null, core.username(), core.password(), request.tlsBundle(), true);
     }
 
+    /** One Core session per node that takes Core connections, concurrently: a dead address must not queue the rest. */
+    private List<AccountResult> checkCore(List<NodeEndpoint> endpoints, CoreConnectionSettings core) {
+        try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<AccountResult>> results = endpoints.stream()
+                    .map(e -> pool.submit(() -> coreResult(e, core)))
+                    .toList();
+            return results.stream().map(ClusterService::resultOf).toList();
+        }
+    }
+
+    /** A passive backup opens no Core acceptor, so asking it would only report a refusal that means nothing. */
+    private AccountResult coreResult(NodeEndpoint node, CoreConnectionSettings core) {
+        if (node.coreUrl() == null || (node.isBackup() && !node.active())) {
+            return AccountResult.NOT_TRIED;
+        }
+        return coreAccountCheck.check(node.coreUrl(), core);
+    }
+
+    private static AccountResult resultOf(Future<AccountResult> result) {
+        try {
+            return result.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return AccountResult.UNREACHABLE;
+        } catch (ExecutionException _) {
+            return AccountResult.UNREACHABLE;
+        }
+    }
+
+    private static List<NodeProbeView> probeRows(
+            List<NodeEndpoint> endpoints, Map<String, AccountResult> management, List<AccountResult> core) {
+        List<NodeProbeView> rows = new ArrayList<>();
+        for (int i = 0; i < endpoints.size(); i++) {
+            NodeEndpoint e = endpoints.get(i);
+            rows.add(new NodeProbeView(
+                    e.name(),
+                    e.haRole(),
+                    e.artemisNodeId(),
+                    e.version(),
+                    e.jolokiaUrl(),
+                    e.urlSource(),
+                    e.urlProblem(),
+                    management.getOrDefault(e.name(), AccountResult.NOT_TRIED),
+                    core.get(i)));
+        }
+        return rows;
+    }
+
+    /** What adopting the running configuration would declare, read from the live nodes the check reached. */
+    private AdoptionPreviewView adoptionPreview(List<NodeEndpoint> endpoints, BrokerConnectionSettings management) {
+        return adoption.flatMap(adopter -> adopter.preview(endpoints.stream()
+                        .filter(e -> e.active() && e.jolokiaUrl() != null)
+                        .map(e -> new RegistrationAdoption.LiveNode(
+                                e.name(), clientFactory.forNode(management, e.jolokiaUrl())))
+                        .toList()))
+                .map(p -> new AdoptionPreviewView(
+                        new AdoptionCountsView(
+                                p.counts().addresses(),
+                                p.counts().addressSettings(),
+                                p.counts().securitySettings(),
+                                p.counts().diverts()),
+                        p.disagreements(),
+                        p.notes()))
+                .orElse(null);
+    }
+
     // ---- registration -------------------------------------------------------
 
+    /**
+     * Registers a cluster. What asks a broker for its management URL (the seeds, the topology, each derived
+     * address) happens before the transaction opens, and the rows are saved in one transaction (ADR-0078); the
+     * capability probe and the adoption's reads stay inside it, as they were.
+     */
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
-    @Transactional
     public Attempt<ClusterDetail> register(RegisterClusterRequest request) {
-        List<Probe> probes = connectAll(request);
+        if (request.adopts() && adoption.isEmpty()) {
+            throw new ConflictException(
+                    "adoption-unavailable",
+                    "Adopting the running configuration needs the broker configuration feature, which is off.");
+        }
+        if (request.environmentId() != null && !environments.existsById(request.environmentId())) {
+            throw new NotFoundException("environment", request.environmentId());
+        }
+        ConnectionInputs inputs = inputsOf(request);
+        List<Probe> probes = connectAll(inputs);
         List<Probe> reachable = probes.stream().filter(Probe::ok).toList();
         if (reachable.isEmpty()) {
             AuditEvent event = audit.begin(
@@ -214,12 +359,12 @@ public class ClusterService {
         if (tooOld != null) {
             AuditEvent event = audit.begin(
                     actorResolver.resolve(),
-                    "REGISTER_CLUSTER",
-                    "CLUSTER",
+                    REGISTER_CLUSTER,
+                    CLUSTER,
                     request.name(),
                     null,
                     null,
-                    Map.of("seedUrls", request.seedUrls()),
+                    Map.of(SEED_URLS, request.seedUrls()),
                     false);
             return failed(event, tooOld);
         }
@@ -228,13 +373,26 @@ public class ClusterService {
                 topologyDiscovery.survey(reachable.stream().map(Probe::asSeed).toList());
         ClusterIdentity identity = survey.identity();
         refuseIfRegistered(identity, () -> refusedAttempt(request));
+        TopologyDiscovery.Preview found = topologyDiscovery.preview(survey, inputs.derivation());
 
-        ClusterEntity cluster = clusters.saveAndFlush(new ClusterEntity(
+        return transactions.execute(status -> saveRegistration(request, inputs, reachable, survey, found));
+    }
+
+    private Attempt<ClusterDetail> saveRegistration(
+            RegisterClusterRequest request,
+            ConnectionInputs inputs,
+            List<Probe> reachable,
+            TopologyDiscovery.Survey survey,
+            TopologyDiscovery.Preview found) {
+        ClusterIdentity identity = survey.identity();
+        ClusterEntity cluster = new ClusterEntity(
                 request.name() != null
                         ? request.name()
                         : hostOf(request.seedUrls().get(0)),
                 request.description(),
-                null));
+                request.environmentId());
+        cluster.edit(cluster.getName(), cluster.getDescription(), inputs.pattern());
+        cluster = clusters.saveAndFlush(cluster);
         UUID clusterId = cluster.getId();
 
         // The check above sees committed clusters only. The claim settles two registrations of the same
@@ -249,7 +407,7 @@ public class ClusterService {
                 cluster.getName(),
                 clusterId,
                 null,
-                Map.of("seedUrls", request.seedUrls()),
+                Map.of(SEED_URLS, request.seedUrls(), "adopt", request.adopts()),
                 false);
 
         if (request.hasCredentials()) {
@@ -276,11 +434,14 @@ public class ClusterService {
             tlsRepository.save(new BrokerTlsEntity(clusterId, request.tlsBundle(), null, true));
         }
 
-        ClusterTopology topology = topologyDiscovery.discover(clusterId, survey);
+        ClusterTopology topology = topologyDiscovery.discover(clusterId, survey, found.proofs());
         BrokerCapabilities capabilities = capabilityProbe.probe(
                 reachable.get(0).client(),
                 coreSubscriptions.verdictFor(clusterId),
                 capabilityLedger.managementWrite(clusterId));
+        if (request.adopts()) {
+            adoption.orElseThrow().adopt(clusterId);
+        }
         eventPublisher.publishEvent(new ClusterRegistered(clusterId));
         environmentIndex.invalidate();
 
@@ -291,8 +452,9 @@ public class ClusterService {
                 cluster.getDescription(),
                 viewMapper.topology(topology),
                 viewMapper.capabilities(capabilities, VersionGate.assessAll(endpoints(topology))),
-                viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
-                cluster.getEnvironmentId()));
+                viewMapper.health(healthOf(clusterId, topology.nodes())),
+                cluster.getEnvironmentId(),
+                connectionView(clusterId, cluster)));
     }
 
     // ---- one registration per set of brokers (ADR-0167) ---------------------
@@ -373,7 +535,7 @@ public class ClusterService {
                 request.name(),
                 null,
                 null,
-                Map.of("seedUrls", request.seedUrls()),
+                Map.of(SEED_URLS, request.seedUrls()),
                 false);
     }
 
@@ -386,7 +548,7 @@ public class ClusterService {
         for (ClusterEntity c : clusters.findAllByOrderByNameAsc()) {
             List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(c.getId());
             var logical = evaluator.toLogicalNodes(nodeMapper.toEndpoints(rows), SplitBrainStatus.byNodeId(rows));
-            var health = evaluator.toHealth(c.getId(), logical);
+            var health = healthOf(c.getId(), logical);
             out.add(new ClusterSummary(
                     c.getId(),
                     c.getName(),
@@ -410,8 +572,48 @@ public class ClusterService {
                 cluster.getDescription(),
                 withheld(clusterId, viewMapper.topology(topology)),
                 capabilitiesFor(clusterId, topology),
-                viewMapper.health(evaluator.toHealth(clusterId, topology.nodes())),
-                cluster.getEnvironmentId());
+                viewMapper.health(healthOf(clusterId, topology.nodes())),
+                cluster.getEnvironmentId(),
+                clusterAccess.holds(clusterId, Permissions.CLUSTER_READ) ? connectionView(clusterId, cluster) : null);
+    }
+
+    /**
+     * How Studio reaches the cluster, for the connection settings: what the operator gave, and the account names.
+     * Never a password.
+     */
+    private ClusterConnectionDetail connectionView(UUID clusterId, ClusterEntity cluster) {
+        List<String> seeds = nodes.findByClusterIdOrderByNameAsc(clusterId).stream()
+                .filter(n -> n.getUrlSource() == ManagementUrlSource.SEED)
+                .map(BrokerNodeEntity::getJolokiaUrl)
+                .toList();
+        BrokerTlsEntity tls = tlsRepository.findByClusterId(clusterId).orElse(null);
+        return new ClusterConnectionDetail(
+                cluster.getManagementUrlPattern(),
+                seeds,
+                tls == null ? null : tls.getTruststoreRef(),
+                credentials
+                        .findByClusterIdAndKind(clusterId, JOLOKIA_BASIC)
+                        .map(BrokerCredentialEntity::getUsername)
+                        .orElse(null),
+                credentials
+                        .findByClusterIdAndKind(clusterId, CORE)
+                        .map(BrokerCredentialEntity::getUsername)
+                        .orElse(null));
+    }
+
+    /**
+     * The cluster's health, naming the accounts a broker refused. A management rejection is on the node, from
+     * its last scrape; a Core one is held by this replica's subscriptions, so another replica does not see it.
+     */
+    private ClusterHealth healthOf(UUID clusterId, List<LogicalNode> logical) {
+        Map<UUID, CoreEventClient.State> states = coreSubscriptions.nodeStates();
+        Set<UUID> coreRejected = logical.stream()
+                .flatMap(n -> n.endpoints().stream())
+                .map(NodeEndpoint::id)
+                .filter(id -> states.get(id) instanceof CoreEventClient.State.Failed failed
+                        && failed.kind() == CoreEventClient.Kind.UNAUTHORIZED)
+                .collect(Collectors.toSet());
+        return evaluator.toHealth(clusterId, logical, coreRejected);
     }
 
     /**
@@ -454,7 +656,7 @@ public class ClusterService {
         clusterAccess.requireVisible(clusterId);
         requireCluster(clusterId);
         ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
-        return viewMapper.health(evaluator.toHealth(clusterId, topology.nodes()));
+        return viewMapper.health(healthOf(clusterId, topology.nodes()));
     }
 
     /**
@@ -511,22 +713,40 @@ public class ClusterService {
 
     /**
      * Re-run discovery from every manageable node of a cluster, so a broker that joined
-     * after registration appears on its own (ADR-0004, ADR-0119). Called by the scrape
+     * after registration appears on its own (ADR-0004, ADR-0119), and so a node without a
+     * management URL gets one derived from the cluster's pattern (ADR-0175). Called by the scrape
      * scheduler's discovery tier: a system operation, with no permission check and no
      * audit event per tick, like the tiers' own writes. Discovery reads each seed on its
      * own, so a node that does not answer is skipped this round (tier A records its
      * error) and the others still count.
      */
     public void rediscover(UUID clusterId) {
+        rediscover(clusterId, List.of());
+    }
+
+    private void rediscover(UUID clusterId, List<SeedExpander.Seed> extraSeeds) {
+        Optional<ClusterEntity> cluster = clusters.findById(clusterId);
+        if (cluster.isEmpty()) {
+            return;
+        }
         List<ProbedSeed> seeds = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
         for (BrokerNodeEntity node : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
-            if (node.getJolokiaUrl() == null) {
-                continue;
+            if (node.getJolokiaUrl() != null && seen.add(node.getJolokiaUrl())) {
+                seeds.add(
+                        new ProbedSeed(node.getJolokiaUrl(), connections.forCluster(clusterId, node.getJolokiaUrl())));
             }
-            seeds.add(new ProbedSeed(node.getJolokiaUrl(), connections.forCluster(clusterId, node.getJolokiaUrl())));
+        }
+        for (SeedExpander.Seed seed : extraSeeds) {
+            if (seen.add(seed.url())) {
+                seeds.add(new ProbedSeed(seed.url(), connections.forCluster(clusterId, seed.url()), seed.attachable()));
+            }
         }
         if (!seeds.isEmpty()) {
-            topologyDiscovery.discover(clusterId, seeds);
+            topologyDiscovery.discover(
+                    clusterId,
+                    seeds,
+                    new UrlDerivation(cluster.get().getManagementUrlPattern(), connections.settingsFor(clusterId)));
         }
     }
 
@@ -571,29 +791,388 @@ public class ClusterService {
         return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(node)));
     }
 
-    /** Rotate a stored credential (JOLOKIA_BASIC or CORE) for a cluster; re-encrypts, audits in-transaction, returns nothing secret. */
-    @Transactional
-    public void rotateCredentials(UUID clusterId, String username, String password, String kind) {
-        clusterAccess.requireCluster(clusterId, SettingsPermissions.SETTINGS_WRITE);
+    // ---- connection edit (PATCH /clusters/{id}) ---------------------------------
+
+    /** An account's user name and password; both {@code null} for a Core account that falls back. */
+    private record Account(String username, String password) {}
+
+    /** The connection as it would be after a request: the stored values with the request laid over them. */
+    private record Edited(
+            String name,
+            String description,
+            String pattern,
+            String tlsBundle,
+            List<String> seedUrls,
+            Account management,
+            Account core,
+            boolean managementSupplied,
+            boolean retryProblems) {
+
+        BrokerConnectionSettings managementSettings(UUID clusterId) {
+            return new BrokerConnectionSettings(
+                    clusterId, management.username(), management.password(), tlsBundle, true);
+        }
+
+        /** The Core account, or the management account while none is set (ADR-0026, D6). */
+        CoreConnectionSettings coreSettings(UUID clusterId) {
+            Account effective = core != null ? core : management;
+            return new CoreConnectionSettings(clusterId, effective.username(), effective.password(), tlsBundle, true);
+        }
+    }
+
+    /**
+     * Check an edited connection without saving it: the same per-node probes as a registration check, run with
+     * the request's values over the stored ones. A password left empty is the stored one, so changing only a
+     * pattern is checked with the accounts the cluster already uses.
+     */
+    public ConnectionCheck checkUpdate(UUID clusterId, UpdateClusterRequest request) {
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         ClusterEntity cluster = requireCluster(clusterId);
+        Edited edited = merge(clusterId, cluster, request);
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
-                "ROTATE_CREDENTIALS",
+                UPDATE_CONNECTION,
                 CLUSTER,
                 cluster.getName(),
                 clusterId,
                 null,
-                Map.of("username", username, "kind", kind),
+                auditParams(edited, request),
+                true);
+
+        BrokerConnectionSettings management = edited.managementSettings(clusterId);
+        UrlDerivation derivation = new UrlDerivation(edited.pattern(), management);
+        List<BrokerNodeEntity> stored = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        List<NodeEndpoint> endpoints = nodeMapper.toEndpoints(stored);
+        List<AccountResult> core = checkCore(endpoints, edited.coreSettings(clusterId));
+
+        List<NodeProbeView> rows = new ArrayList<>();
+        for (int i = 0; i < stored.size(); i++) {
+            rows.add(storedRow(stored.get(i), endpoints.get(i), derivation, core.get(i)));
+        }
+        Set<String> known = stored.stream().map(BrokerNodeEntity::getJolokiaUrl).collect(Collectors.toSet());
+        Set<String> knownHosts = knownHostPorts(stored);
+        for (String url : edited.seedUrls()) {
+            if (!known.contains(url)) {
+                requireSuppliedForNewHost(edited, url, knownHosts);
+                rows.add(seedRow(url, management, edited.coreSettings(clusterId)));
+            }
+        }
+        audit.succeed(event, rows.size());
+        return new ConnectionCheck(edited.pattern(), rows);
+    }
+
+    /**
+     * One stored node as the edited connection would find it. A seed or manual URL stays as it is and is asked
+     * again with the new account; a derived one, or none, is derived afresh from the pattern, as discovery would.
+     */
+    private NodeProbeView storedRow(
+            BrokerNodeEntity node, NodeEndpoint endpoint, UrlDerivation derivation, AccountResult core) {
+        boolean fixed = node.getJolokiaUrl() != null && node.getUrlSource() != ManagementUrlSource.DERIVED;
+        TopologyDiscovery.UrlProof proof = fixed
+                ? topologyDiscovery.probe(derivation.settings(), node.getJolokiaUrl(), node.getArtemisNodeId())
+                : topologyDiscovery.prove(derivation, node.getName(), node.getArtemisNodeId());
+        boolean derived = !fixed && proof.url() != null;
+        ManagementUrlSource source = derived ? ManagementUrlSource.DERIVED : null;
+        return new NodeProbeView(
+                node.getName(),
+                node.getHaRole(),
+                node.getArtemisNodeId(),
+                proof.version() != null ? proof.version() : node.getVersion(),
+                fixed ? node.getJolokiaUrl() : proof.url(),
+                fixed ? node.getUrlSource() : source,
+                fixed || derived ? null : proof.problem(),
+                proof.management(),
+                core);
+    }
+
+    /** A seed the request adds, asked on its own: it is a new address, so no stored node says what it should answer. */
+    private NodeProbeView seedRow(String url, BrokerConnectionSettings management, CoreConnectionSettings core) {
+        TopologyDiscovery.UrlProof proof = topologyDiscovery.probe(management, url, null);
+        return new NodeProbeView(
+                hostOf(url),
+                proof.haRole() != null ? proof.haRole() : "STANDALONE",
+                proof.nodeId(),
+                proof.version(),
+                url,
+                ManagementUrlSource.SEED,
+                null,
+                proof.management(),
+                AccountResult.NOT_TRIED);
+    }
+
+    /**
+     * Change a cluster's connection: name, description, seeds, management URL pattern, TLS bundle
+     * and both accounts, in one audited transaction with the secrets redacted. New secrets are sealed
+     * and never returned. Discovery then runs at once, so the nodes' URLs follow a changed pattern or seed
+     * without waiting for the next tick; a broker that does not answer then does not undo the save.
+     */
+    public ClusterConnectionView updateConnection(UUID clusterId, UpdateClusterRequest request) {
+        clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
+        ClusterEntity cluster = requireCluster(clusterId);
+        Edited edited = merge(clusterId, cluster, request);
+        Set<String> knownHosts = knownHostPorts(nodes.findByClusterIdOrderByNameAsc(clusterId));
+        edited.seedUrls().forEach(url -> requireSuppliedForNewHost(edited, url, knownHosts));
+        AuditEvent event = audit.begin(
+                actorResolver.resolve(),
+                UPDATE_CONNECTION,
+                CLUSTER,
+                cluster.getName(),
+                clusterId,
+                null,
+                auditParams(edited, request),
                 false);
 
-        byte[] sealed = vault.seal(SecretVault.aad(clusterId, kind), password);
-        credentials
-                .findByClusterIdAndKind(clusterId, kind)
-                .ifPresentOrElse(
-                        existing -> existing.replaceSecret(username, sealed),
-                        () -> credentials.save(new BrokerCredentialEntity(clusterId, kind, username, sealed)));
-
+        try {
+            transactions.executeWithoutResult(status -> saveConnection(clusterId, edited));
+        } catch (RuntimeException e) {
+            audit.fail(event, e.getMessage());
+            throw e;
+        }
         audit.succeed(event, 1);
+
+        // The edit is committed: discovery runs after it and outside any transaction (ADR-0078), so the nodes'
+        // URLs follow a changed pattern or seed without waiting for the next tick, and a broker that does not
+        // answer does not undo the save.
+        try {
+            rediscover(
+                    clusterId,
+                    edited.seedUrls().stream()
+                            .flatMap(url -> seedExpander.expand(url).stream())
+                            .toList());
+        } catch (BrokerConnectionException e) {
+            log.warn(
+                    "Discovery after editing the connection of cluster {} found no answering node: {}",
+                    clusterId,
+                    e.toString());
+        }
+        ClusterEntity saved = requireCluster(clusterId);
+        return new ClusterConnectionView(
+                clusterId, saved.getName(), saved.getDescription(), connectionView(clusterId, saved));
+    }
+
+    private void saveConnection(UUID clusterId, Edited edited) {
+        ClusterEntity cluster = requireCluster(clusterId);
+        cluster.edit(edited.name(), edited.description(), edited.pattern());
+        clusters.save(cluster);
+        storeTls(clusterId, edited.tlsBundle());
+        storeCredential(clusterId, JOLOKIA_BASIC, edited.management());
+        storeCredential(clusterId, CORE, edited.core());
+        releaseDroppedSeeds(clusterId, edited.seedUrls());
+        if (edited.retryProblems()) {
+            // The pattern, the account or the TLS bundle changed, so why a node had no URL may no longer hold.
+            nodes.findByClusterIdOrderByNameAsc(clusterId).forEach(BrokerNodeEntity::clearUrlProblem);
+        }
+        environmentIndex.invalidate();
+    }
+
+    private static final String ENTER_AGAIN = "Enter the %s password again to check new hosts.";
+
+    private Edited merge(UUID clusterId, ClusterEntity cluster, UpdateClusterRequest request) {
+        BrokerConnectionSettings stored = connections.settingsFor(clusterId);
+        List<BrokerNodeEntity> storedNodes = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        String tls = request.tlsBundle() == null ? stored.tlsBundle() : blankToNull(request.tlsBundle());
+
+        // A stored secret goes only where Studio already sends it. An edit that points the connection at a host
+        // it has not used (a new seed, another pattern or TLS bundle) or changes who signs in must carry the
+        // password again, so a caller who can edit the connection cannot make Studio send the stored one to an
+        // address of their own.
+        boolean newHosts = introducesHosts(request, cluster, stored, storedNodes);
+
+        boolean managementSupplied =
+                request.management() != null && notBlank(request.management().password());
+        boolean managementRenamed = request.management() != null
+                && !Objects.equals(request.management().username(), stored.username());
+        if ((newHosts || managementRenamed) && !managementSupplied && stored.username() != null) {
+            throw new IllegalArgumentException(ENTER_AGAIN.formatted("management"));
+        }
+        Account management = request.management() == null
+                ? new Account(stored.username(), stored.password())
+                : new Account(
+                        request.management().username(),
+                        keepStored(request.management().password(), stored.password()));
+
+        Optional<BrokerCredentialEntity> storedCore = credentials.findByClusterIdAndKind(clusterId, CORE);
+        Account core;
+        if (request.core() == null) {
+            core = storedCore
+                    .map(c -> new Account(c.getUsername(), openSecret(clusterId, c)))
+                    .orElse(null);
+        } else if (request.core() == AccountUpdate.CLEAR) {
+            core = null;
+        } else {
+            AccountUpdate update = request.core();
+            String kept = storedCore.map(c -> openSecret(clusterId, c)).orElse(null);
+            String password = keepStored(update.password(), kept);
+            if (password == null) {
+                throw new IllegalArgumentException("Enter the Core account's password.");
+            }
+            core = new Account(update.username(), password);
+        }
+        boolean coreSupplied = request.core() != null
+                && request.core() != AccountUpdate.CLEAR
+                && notBlank(request.core().password());
+        boolean coreRenamed = request.core() != null
+                && request.core() != AccountUpdate.CLEAR
+                && storedCore
+                        .map(c ->
+                                !Objects.equals(c.getUsername(), request.core().username()))
+                        .orElse(true);
+        if (core != null && (newHosts || coreRenamed) && !coreSupplied) {
+            throw new IllegalArgumentException(ENTER_AGAIN.formatted("Core"));
+        }
+        if (management.username() != null && management.password() == null) {
+            throw new IllegalArgumentException("Enter the management account's password.");
+        }
+
+        List<String> seeds = request.seedUrls() != null
+                ? request.seedUrls()
+                : storedNodes.stream()
+                        .filter(n -> n.getUrlSource() == ManagementUrlSource.SEED)
+                        .map(BrokerNodeEntity::getJolokiaUrl)
+                        .toList();
+        String pattern = patternOf(request, cluster, seeds);
+        return new Edited(
+                request.name() != null ? request.name() : cluster.getName(),
+                request.description() != null ? blankToNull(request.description()) : cluster.getDescription(),
+                pattern,
+                tls,
+                seeds,
+                management,
+                core,
+                managementSupplied,
+                newHosts || managementRenamed || managementSupplied);
+    }
+
+    /** Whether the edit points Studio at a host it has not used for this cluster: a new seed, pattern or TLS bundle. */
+    private static boolean introducesHosts(
+            UpdateClusterRequest request,
+            ClusterEntity cluster,
+            BrokerConnectionSettings stored,
+            List<BrokerNodeEntity> storedNodes) {
+        Set<String> known = knownHostPorts(storedNodes);
+        boolean newSeed = request.seedUrls() != null
+                && request.seedUrls().stream().anyMatch(url -> !known.contains(hostPort(url)));
+        boolean newPattern = request.managementUrlPattern() != null
+                && !request.managementUrlPattern().equals(cluster.getManagementUrlPattern());
+        boolean newTls =
+                request.tlsBundle() != null && !Objects.equals(blankToNull(request.tlsBundle()), stored.tlsBundle());
+        return newSeed || newPattern || newTls;
+    }
+
+    /** The {@code host:port} of every management URL the cluster's nodes already have. */
+    private static Set<String> knownHostPorts(List<BrokerNodeEntity> storedNodes) {
+        return storedNodes.stream()
+                .map(BrokerNodeEntity::getJolokiaUrl)
+                .filter(Objects::nonNull)
+                .map(ClusterService::hostPort)
+                .collect(Collectors.toSet());
+    }
+
+    /** {@code host:port} of a URL, the port defaulted by the scheme, as one string to compare addresses by. */
+    static String hostPort(String url) {
+        try {
+            URI uri = URI.create(url);
+            int defaultPort = "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+            int port = uri.getPort() > 0 ? uri.getPort() : defaultPort;
+            return String.valueOf(uri.getHost()).toLowerCase(java.util.Locale.ROOT) + ":" + port;
+        } catch (IllegalArgumentException _) {
+            return url;
+        }
+    }
+
+    /**
+     * Defence in depth behind {@link #merge}: a stored password that the request did not supply is never sent
+     * to an address the cluster does not already use.
+     */
+    private static void requireSuppliedForNewHost(Edited edited, String url, Set<String> knownHosts) {
+        if (!edited.managementSupplied() && !knownHosts.contains(hostPort(url))) {
+            throw new IllegalArgumentException(ENTER_AGAIN.formatted("management"));
+        }
+    }
+
+    /** The pattern asked for, else the one the cluster has, else the one its first seed implies. */
+    private static String patternOf(UpdateClusterRequest request, ClusterEntity cluster, List<String> seeds) {
+        if (request.managementUrlPattern() != null) {
+            return request.managementUrlPattern();
+        }
+        if (cluster.getManagementUrlPattern() != null) {
+            return cluster.getManagementUrlPattern();
+        }
+        return seeds.isEmpty() ? null : ManagementUrlPattern.defaultFor(seeds.get(0));
+    }
+
+    /** The audit parameters of an edit: what changed, with each password only ever as the mask. */
+    private static Map<String, Object> auditParams(Edited edited, UpdateClusterRequest request) {
+        Map<String, Object> params = new TreeMap<>();
+        params.put("name", edited.name());
+        params.put(SEED_URLS, edited.seedUrls());
+        params.put("managementUrlPattern", edited.pattern());
+        params.put("tlsBundle", edited.tlsBundle());
+        params.put("managementUsername", edited.management().username());
+        if (request.management() != null && notBlank(request.management().password())) {
+            params.put("managementPassword", SecretRedactor.MASK);
+        }
+        params.put("coreUsername", edited.core() == null ? null : edited.core().username());
+        if (request.core() != null && notBlank(request.core().password())) {
+            params.put("corePassword", SecretRedactor.MASK);
+        }
+        return params;
+    }
+
+    /** An empty password keeps the stored one. */
+    private static String keepStored(String submitted, String stored) {
+        return notBlank(submitted) ? submitted : stored;
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private String openSecret(UUID clusterId, BrokerCredentialEntity credential) {
+        return vault.open(SecretVault.aad(clusterId, credential.getKind()), credential.getSealed());
+    }
+
+    private void storeTls(UUID clusterId, String bundle) {
+        Optional<BrokerTlsEntity> existing = tlsRepository.findByClusterId(clusterId);
+        if (bundle == null) {
+            existing.ifPresent(tlsRepository::delete);
+        } else if (existing.isPresent()) {
+            existing.get()
+                    .update(
+                            bundle,
+                            existing.get().getClientCertRef(),
+                            existing.get().isVerifyHostname());
+        } else {
+            tlsRepository.save(new BrokerTlsEntity(clusterId, bundle, null, true));
+        }
+    }
+
+    /** Seals the account under its own kind, or removes the stored one when there is none (a Core account that falls back). */
+    private void storeCredential(UUID clusterId, String kind, Account account) {
+        Optional<BrokerCredentialEntity> existing = credentials.findByClusterIdAndKind(clusterId, kind);
+        if (account == null || account.username() == null) {
+            existing.ifPresent(credentials::delete);
+            return;
+        }
+        byte[] sealed = vault.seal(SecretVault.aad(clusterId, kind), account.password());
+        if (existing.isPresent()) {
+            existing.get().replaceSecret(account.username(), sealed);
+        } else {
+            credentials.save(new BrokerCredentialEntity(clusterId, kind, account.username(), sealed));
+        }
+    }
+
+    /** A seed the operator no longer lists stops being one: its node keeps no URL until one is derived for it. */
+    private void releaseDroppedSeeds(UUID clusterId, List<String> seedUrls) {
+        for (BrokerNodeEntity node : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
+            if (node.getUrlSource() == ManagementUrlSource.SEED && !seedUrls.contains(node.getJolokiaUrl())) {
+                node.releaseSeedUrl();
+            }
+        }
     }
 
     @Transactional
@@ -610,7 +1189,7 @@ public class ClusterService {
                 Map.of(),
                 false);
         clusters.delete(cluster);
-        grants.revoke("CLUSTER", clusterId);
+        grants.revoke(CLUSTER, clusterId);
         bus.publish(new ReplicaSignal("cluster-deleted", clusterId.toString()));
         environmentIndex.invalidate();
         audit.succeed(event, 1);
@@ -618,22 +1197,22 @@ public class ClusterService {
 
     // ---- helpers ------------------------------------------------------------
 
-    private List<Probe> connectAll(RegisterClusterRequest request) {
-        BrokerConnectionSettings settings = new BrokerConnectionSettings(
-                UNBOUND,
-                request.hasCredentials() ? request.credentials().username() : null,
-                request.hasCredentials() ? request.credentials().password() : null,
-                request.tlsBundle(),
-                true);
-
+    /**
+     * Connects to every seed, each host name that resolves to several addresses expanded into one seed per
+     * address (ADR-0175). A seed that fails is kept with its error, so the first failure can be reported when
+     * none answers.
+     */
+    private List<Probe> connectAll(ConnectionInputs inputs) {
         List<Probe> probes = new ArrayList<>();
-        for (String url : request.seedUrls()) {
-            try {
-                JolokiaBrokerClient client = clientFactory.forNode(settings, url);
-                client.resolveBrokerObjectName();
-                probes.add(new Probe(url, client, brokerVersion(client), null));
-            } catch (BrokerConnectionException e) {
-                probes.add(new Probe(url, null, null, e));
+        for (String given : inputs.seedUrls()) {
+            for (SeedExpander.Seed seed : seedExpander.expand(given)) {
+                try {
+                    JolokiaBrokerClient client = clientFactory.forNode(inputs.management(), seed.url());
+                    client.resolveBrokerObjectName();
+                    probes.add(new Probe(seed.url(), seed.attachable(), client, brokerVersion(client), null));
+                } catch (BrokerConnectionException e) {
+                    probes.add(new Probe(seed.url(), seed.attachable(), null, null, e));
+                }
             }
         }
         return probes;
@@ -641,9 +1220,9 @@ public class ClusterService {
 
     /** The broker's {@code Version} attribute, or null when the read is refused; the range check then has nothing to refuse on. */
     private static String brokerVersion(JolokiaBrokerClient client) {
-        JolokiaResponse response = client.readBrokerAttributes("Version");
-        return response.ok() && response.attribute("Version") != null
-                ? response.attribute("Version").asString()
+        JolokiaResponse response = client.readBrokerAttributes(VERSION);
+        return response.ok() && response.attribute(VERSION) != null
+                ? response.attribute(VERSION).asString()
                 : null;
     }
 

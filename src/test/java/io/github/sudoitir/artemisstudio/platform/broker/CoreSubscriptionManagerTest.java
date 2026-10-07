@@ -68,8 +68,10 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
                 1L,
                 "2.44.0",
                 null,
+                null,
                 Instant.now(),
-                false,
+                null,
+                null,
                 false,
                 true);
     }

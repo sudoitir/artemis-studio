@@ -52,7 +52,7 @@ class StudioHealthGroupTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "down-node", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl(url);
+        node.attachSeedUrl(url);
         nodes.save(node);
         calls.failed(url, "connection refused");
 

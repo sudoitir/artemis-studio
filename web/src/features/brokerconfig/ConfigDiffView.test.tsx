@@ -218,7 +218,11 @@ describe('ConfigDiffView', () => {
         sections: [],
         nodes: [
           node(A),
-          node(B, { available: false, unavailableKind: 'UNAUTHORIZED', unavailableReason: 'credentials rejected' }),
+          node(B, {
+            available: false,
+            unavailableKind: 'CREDENTIALS_REJECTED',
+            unavailableReason: 'credentials rejected',
+          }),
           node(C, { available: false, unavailableKind: 'UNREACHABLE', unavailableReason: 'connection refused' }),
         ],
         notes: ['Fewer than two nodes answered, so no comparison could be made.'],

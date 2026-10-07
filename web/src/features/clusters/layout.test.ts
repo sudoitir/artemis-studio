@@ -20,8 +20,9 @@ function endpoint(over: Partial<NodeEndpointView>): NodeEndpointView {
     versionSupport: over.versionSupport ?? 'SUPPORTED',
     lastError: over.lastError ?? null,
     lastSeenAt: over.lastSeenAt ?? new Date().toISOString(),
-    discovered: false,
-    manualOverride: false,
+    urlSource: 'SEED',
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: over.manageable ?? true,
   };
 }
@@ -38,6 +39,7 @@ function health(over: Partial<HealthView> = {}): HealthView {
     splitBrain: over.splitBrain ?? 'NONE',
     replicationBehind: over.replicationBehind ?? false,
     notes: over.notes ?? [],
+    credentialRejections: [],
   };
 }
 

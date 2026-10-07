@@ -342,7 +342,7 @@ public class BrokerCommands {
             // cannot write — it must never disable the capability (D5).
             return NodeOutcome.failed(nodeId, nodeName, e.getMessage());
         } catch (BrokerConnectionException e) {
-            if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
+            if (e.kind() == BrokerConnectionException.Kind.CREDENTIALS_REJECTED) {
                 capabilities.recordWriteRefused(clusterId, e.getMessage());
             }
             return NodeOutcome.failed(nodeId, nodeName, e.getMessage());

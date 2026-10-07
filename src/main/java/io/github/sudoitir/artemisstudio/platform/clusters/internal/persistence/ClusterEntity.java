@@ -42,6 +42,10 @@ public class ClusterEntity implements RegisteredCluster {
     @Column(name = "read_only", nullable = false)
     private boolean readOnly;
 
+    /** {@code scheme://{host}:port/path}: how a node's management URL is built from its connector host (ADR-0175). */
+    @Column(name = "management_url_pattern")
+    private String managementUrlPattern;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -68,6 +72,14 @@ public class ClusterEntity implements RegisteredCluster {
         this.name = name;
         this.description = description;
         this.environmentId = environmentId;
+    }
+
+    /** What an operator sets about the cluster itself; the connection's other parts live in their own rows. */
+    public void edit(String name, String description, String managementUrlPattern) {
+        this.name = name;
+        this.description = description;
+        this.managementUrlPattern = managementUrlPattern;
+        touch();
     }
 
     @PrePersist

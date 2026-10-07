@@ -29,7 +29,7 @@ describe('RegisterClusterButton', () => {
     await user.click(screen.getByRole('button', { name: 'Register cluster' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Register cluster' });
-    expect(await screen.findByLabelText('Broker management URLs')).toBeInTheDocument();
-    expect(dialog).toContainElement(screen.getByLabelText('Broker management URLs'));
+    expect(await screen.findByLabelText('Broker management URL')).toBeInTheDocument();
+    expect(dialog).toContainElement(screen.getByLabelText('Broker management URL'));
   });
 });

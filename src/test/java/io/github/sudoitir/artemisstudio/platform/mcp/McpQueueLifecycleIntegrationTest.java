@@ -105,7 +105,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl("http://a:8161/console/jolokia");
+        node.attachSeedUrl("http://a:8161/console/jolokia");
         node.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         UUID nodeId = nodes.save(node).getId();
         upsert.upsertBatch(
@@ -202,7 +202,7 @@ class McpQueueLifecycleIntegrationTest extends PostgresIntegrationTest {
         // A second node that is not live, so the fan-out is uneven by construction.
         BrokerNodeEntity dead = BrokerNodeEntity.fromSeed(
                 clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
-        dead.attachManagementUrl("http://b:8161/console/jolokia");
+        dead.attachSeedUrl("http://b:8161/console/jolokia");
         nodes.save(dead);
 
         McpFixture.Key key =

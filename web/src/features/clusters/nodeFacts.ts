@@ -1,4 +1,5 @@
 import { absoluteLabel, elapsedLabel } from '../../kernel/time/time.ts';
+import { urlProblemWords, urlSourceWords } from './connectionWords.ts';
 import type { LogicalNodeView, NodeEndpointView, TopologyView } from './api.ts';
 
 /**
@@ -152,7 +153,15 @@ function passiveLiveness(endpoint: NodeEndpointView, role: Role): Liveness {
 
 function livenessOf(endpoint: NodeEndpointView, logical: LogicalNodeView, role: Role): Liveness {
   if (!endpoint.manageable) {
-    return { kind: 'not-polled', label: 'Not polled', text: 'Not polled: no management URL' };
+    return { kind: 'not-polled', label: 'Not polled', text: `Not polled: ${urlProblemWords(endpoint.urlProblem)}` };
+  }
+  if (endpoint.lastErrorKind === 'CREDENTIALS_REJECTED') {
+    return {
+      kind: 'unreachable',
+      label: 'Credentials rejected',
+      text: 'The broker rejected the management account',
+      tone: 'warning',
+    };
   }
   if (endpoint.lastError) {
     return {
@@ -199,8 +208,9 @@ function pairOf(endpoint: NodeEndpointView, logical: LogicalNodeView, role: Role
 }
 
 function originOf(endpoint: NodeEndpointView): string {
-  if (endpoint.manualOverride) return 'Management URL set by hand';
-  return endpoint.discovered ? 'Discovered from the cluster' : 'From the registered seed address';
+  const source = urlSourceWords(endpoint.urlSource);
+  if (source) return source;
+  return endpoint.urlProblem ? `No management URL: ${urlProblemWords(endpoint.urlProblem)}` : 'No management URL yet';
 }
 
 /** `text` without the full stops it ends in; a scan from the end, so it is linear however many there are. */

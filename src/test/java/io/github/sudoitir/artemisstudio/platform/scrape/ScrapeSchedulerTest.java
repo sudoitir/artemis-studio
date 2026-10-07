@@ -20,6 +20,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
@@ -150,7 +151,7 @@ class ScrapeSchedulerTest {
 
     private static BrokerNodeEntity node(UUID clusterId, String name, String url) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(clusterId, name, "PRIMARY", null);
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         setId(n, UUID.randomUUID());
         return n;
     }
@@ -201,7 +202,7 @@ class ScrapeSchedulerTest {
         scheduler.tierA();
 
         verify(persist, times(2)).applyTierA(any(), any(), eq(1L));
-        verify(persist, never()).recordNodeError(any(), anyString());
+        verify(persist, never()).recordNodeError(any(), anyString(), any());
     }
 
     @Test
@@ -271,7 +272,7 @@ class ScrapeSchedulerTest {
         scheduler.tierA();
 
         verify(persist, never()).applyTierA(any(), any(), anyLong());
-        verify(persist, never()).recordNodeError(any(), anyString());
+        verify(persist, never()).recordNodeError(any(), anyString(), any());
     }
 
     @Test
@@ -290,7 +291,7 @@ class ScrapeSchedulerTest {
         scheduler.tierC();
 
         verify(upsert, never()).upsertBatch(any());
-        verify(persist, never()).recordNodeError(any(), anyString());
+        verify(persist, never()).recordNodeError(any(), anyString(), any());
     }
 
     @Test
@@ -307,7 +308,7 @@ class ScrapeSchedulerTest {
         scheduler.tierB();
 
         verify(upsert).upsertBatch(any());
-        verify(persist, never()).recordNodeError(any(), anyString());
+        verify(persist, never()).recordNodeError(any(), anyString(), any());
     }
 
     @Test
@@ -384,7 +385,24 @@ class ScrapeSchedulerTest {
         scheduler.tierA();
 
         verify(persist, times(1)).applyTierA(any(), any(), eq(1L));
-        verify(persist, times(1)).recordNodeError(any(), anyString());
+        verify(persist, times(1)).recordNodeError(any(), anyString(), eq(BrokerConnectionException.Kind.UNREACHABLE));
+    }
+
+    @Test
+    void aProbeTheBrokerRefusedForItsCredentialsIsRecordedAsThatKind() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity node = node(clusterId, "refused", BAD);
+
+        when(clusters.owned()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(node));
+        when(connections.forCluster(cluster.getId(), BAD))
+                .thenThrow(BrokerConnectionException.credentialsRejected(BrokerAccount.MANAGEMENT, "401", null));
+
+        scheduler.tierA();
+
+        verify(persist, times(1))
+                .recordNodeError(any(), anyString(), eq(BrokerConnectionException.Kind.CREDENTIALS_REJECTED));
     }
 
     @Test
@@ -399,7 +417,7 @@ class ScrapeSchedulerTest {
 
         scheduler.tierA();
 
-        verify(persist, never()).recordNodeError(any(), anyString());
+        verify(persist, never()).recordNodeError(any(), anyString(), any());
         assertThat(warnings()).anyMatch(w -> w.contains("calling this node as fast as"));
     }
 
@@ -470,7 +488,7 @@ class ScrapeSchedulerTest {
 
         scheduler.tierA();
 
-        verify(persist, times(1)).recordNodeError(any(), anyString());
+        verify(persist, times(1)).recordNodeError(any(), anyString(), any());
         verify(persist, times(1)).applyTierA(any(), any(), anyLong());
     }
 

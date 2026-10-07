@@ -91,7 +91,7 @@ class StudioHealthControllerIntegrationTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "quiet", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl(url);
+        node.attachSeedUrl(url);
         nodes.save(node);
         calls.failed(url, "login failed, password=hunter2");
 

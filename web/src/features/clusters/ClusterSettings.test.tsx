@@ -6,23 +6,65 @@ import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import { CapabilitiesSection, CredentialsSection } from './ClusterSettings.tsx';
+import { CapabilitiesSection, ConnectionSection } from './ClusterSettings.tsx';
 
 const CLUSTER = '11111111-1111-1111-1111-111111111111';
 
-function cluster() {
-  server.use(http.get('*/api/v1/clusters/:id', () => HttpResponse.json({ id: CLUSTER, name: 'prod-eu' })));
+interface Sent {
+  dryRun: boolean;
+  body: Record<string, unknown>;
 }
 
-function rotation() {
-  const calls: unknown[] = [];
+function cluster(connection: object | null = {}) {
   server.use(
-    http.put('*/api/v1/clusters/:id/credentials', async ({ request }) => {
-      calls.push(await request.json());
-      return new HttpResponse(null, { status: 204 });
+    http.get('*/api/v1/clusters/:id', () =>
+      HttpResponse.json({
+        id: CLUSTER,
+        name: 'prod-eu',
+        description: null,
+        connection:
+          connection === null
+            ? null
+            : {
+                managementUrlPattern: 'http://{host}:8161/console/jolokia',
+                seedUrls: ['http://broker-1:8161/console/jolokia'],
+                tlsBundle: null,
+                managementUsername: 'artemis',
+                coreUsername: null,
+                ...connection,
+              },
+      }),
+    ),
+  );
+}
+
+const ROWS = [
+  {
+    name: 'broker-1',
+    haRole: 'PRIMARY',
+    artemisNodeId: 'n1',
+    version: '2.40.0',
+    managementUrl: 'http://broker-1:8161/console/jolokia',
+    urlSource: 'SEED',
+    urlProblem: null,
+    management: 'ACCEPTED',
+    core: 'ACCEPTED',
+  },
+];
+
+/** The PATCH endpoint: every call recorded, a dry run answering with `rows` and a save with the cluster. */
+function patching(rows: object[] = ROWS) {
+  const sent: Sent[] = [];
+  server.use(
+    http.patch('*/api/v1/clusters/:id', async ({ request }) => {
+      const dryRun = new URL(request.url).searchParams.get('dryRun') === 'true';
+      sent.push({ dryRun, body: (await request.json()) as Record<string, unknown> });
+      return dryRun
+        ? HttpResponse.json({ managementUrlPattern: 'http://{host}:8161/console/jolokia', nodes: rows })
+        : HttpResponse.json({ id: CLUSTER, name: 'prod-eu', connection: {} });
     }),
   );
-  return calls;
+  return sent;
 }
 
 function open() {
@@ -30,7 +72,7 @@ function open() {
   renderWithProviders(
     <>
       <Notifications />
-      <CredentialsSection clusterId={CLUSTER} />
+      <ConnectionSection clusterId={CLUSTER} />
     </>,
   );
   return user;
@@ -38,67 +80,198 @@ function open() {
 
 afterEach(() => act(() => notifications.clean()));
 
-describe('CredentialsSection', () => {
+describe('ConnectionSection', () => {
   it('holds its place while the cluster loads, and says why it cannot be read', async () => {
     server.use(
       http.get('*/api/v1/clusters/:id', () =>
         HttpResponse.json({ title: 'Error', detail: 'The cluster store is down.' }, { status: 500 }),
       ),
     );
-    renderWithProviders(<CredentialsSection clusterId={CLUSTER} />);
+    renderWithProviders(<ConnectionSection clusterId={CLUSTER} />);
 
     expect(screen.getByText('Loading the cluster')).toBeInTheDocument();
     expect(await screen.findByText('The cluster store is down.')).toBeInTheDocument();
   });
 
-  it('asks for what is missing beside its field and opens no confirmation', async () => {
+  it('shows how the cluster is connected now and never a password', async () => {
     cluster();
-    const user = open();
+    open();
 
-    await user.click(await screen.findByRole('button', { name: 'Save management (jolokia) credentials…' }));
-
-    expect(screen.getByText('Enter the account name.')).toBeInTheDocument();
-    expect(screen.getByText('Enter the new password.')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await screen.findByLabelText('Name')).toHaveValue('prod-eu');
+    expect(screen.getByLabelText(/Broker management URL/)).toHaveValue('http://broker-1:8161/console/jolokia');
+    expect(screen.getByLabelText('Username')).toHaveValue('artemis');
+    expect(screen.getByLabelText('Password')).toHaveValue('');
+    expect(screen.getByRole('switch', { name: /Use a separate Core account/ })).not.toBeChecked();
   });
 
-  it('states what it replaces, arms on the cluster name, sends the new account and announces it', async () => {
+  it('explains why saving is not offered until the connection has been checked', async () => {
     cluster();
-    const calls = rotation();
+    open();
+
+    expect(await screen.findByRole('button', { name: 'Save connection' })).toBeDisabled();
+    expect(screen.getByText('Check the connection before saving.')).toBeInTheDocument();
+  });
+
+  it('checks node by node first, saves nothing, then offers the save', async () => {
+    cluster();
+    const sent = patching();
     const user = open();
 
-    await user.type(await screen.findByLabelText('Username'), 'artemis');
-    await user.type(screen.getByLabelText('Password'), 'secret');
-    await user.click(screen.getByRole('button', { name: 'Save management (jolokia) credentials…' }));
+    await user.click(await screen.findByRole('button', { name: 'Check connection' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Save management (jolokia) credentials' });
-    expect(dialog).toHaveTextContent('replaces the stored management (jolokia) account of prod-eu on every node');
-    const confirm = within(dialog).getByRole('button', { name: 'Save management (jolokia) credentials' });
+    const table = await screen.findByRole('table', { name: 'Nodes found by the check' });
+    expect(within(table).getByRole('row', { name: /broker-1/ })).toHaveTextContent('Accepted');
+    expect(sent).toHaveLength(1);
+    expect(sent[0].dryRun).toBe(true);
+    expect(screen.getByRole('button', { name: 'Save connection' })).toBeEnabled();
+  });
+
+  it('saves a change that touches no account without asking for the cluster name', async () => {
+    cluster();
+    const sent = patching();
+    const user = open();
+
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'prod-emea');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByRole('table', { name: 'Nodes found by the check' });
+    await user.click(screen.getByRole('button', { name: 'Save connection' }));
+
+    await waitFor(() => expect(sent.map((s) => s.dryRun)).toEqual([true, false]));
+    expect(sent[1].body.name).toBe('prod-emea');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await screen.findByText('Saved the connection of prod-eu')).toBeInTheDocument();
+  });
+
+  it('asks for the cluster name before an account changes, and sends the new password', async () => {
+    cluster();
+    const sent = patching();
+    const user = open();
+
+    await user.type(await screen.findByLabelText('Password'), 'new-secret');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByRole('table', { name: 'Nodes found by the check' });
+    await user.click(screen.getByRole('button', { name: 'Save connection' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Save the connection' });
+    const confirm = within(dialog).getByRole('button', { name: 'Save connection' });
     expect(confirm).toBeDisabled();
     await user.type(within(dialog).getByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
     await user.click(confirm);
 
-    await waitFor(() => expect(calls).toEqual([{ username: 'artemis', password: 'secret', kind: 'JOLOKIA_BASIC' }]));
-    expect(await screen.findByText('Saved management (jolokia) credentials of prod-eu')).toBeInTheDocument();
+    await waitFor(() => expect(sent.map((s) => s.dryRun)).toEqual([true, false]));
+    expect(sent[1].body.management).toEqual({ username: 'artemis', password: 'new-secret' });
   });
 
-  it('states why a refused rotation failed and keeps the confirmation open', async () => {
+  it('sends an empty password to keep the stored one, and a null Core account to fall back', async () => {
+    cluster({ coreUsername: 'core-user' });
+    const sent = patching();
+    const user = open();
+
+    await user.click(await screen.findByRole('switch', { name: /Use a separate Core account/ }));
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByRole('table', { name: 'Nodes found by the check' });
+
+    expect(sent[0].body.management).toEqual({ username: 'artemis', password: '' });
+    expect(sent[0].body.core).toBeNull();
+  });
+
+  it('will not offer the save while a broker rejects an account, and says which', async () => {
+    cluster();
+    patching([{ ...ROWS[0], core: 'REJECTED' }]);
+    const user = open();
+
+    await user.click(await screen.findByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByText('broker-1 rejected the Core account')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save connection' })).toBeDisabled();
+    expect(screen.getByText('A broker rejected an account. Correct it, then check again.')).toBeInTheDocument();
+  });
+
+  it('asks for a new check once a value changes after one', async () => {
+    cluster();
+    patching();
+    const user = open();
+
+    await user.click(await screen.findByRole('button', { name: 'Check connection' }));
+    await screen.findByRole('table', { name: 'Nodes found by the check' });
+    await user.type(screen.getByLabelText('Description'), 'EU production');
+
+    expect(screen.getByRole('button', { name: 'Save connection' })).toBeDisabled();
+    expect(await screen.findByText('Check again: the values changed since the last check.')).toBeInTheDocument();
+  });
+
+  it('asks for the password again when the pattern changes, and sends nothing until it is given', async () => {
+    cluster();
+    const sent = patching();
+    const user = open();
+
+    const pattern = await screen.findByLabelText('Management URL pattern');
+    await user.clear(pattern);
+    await user.type(pattern, 'http://{{host}:9161/jolokia');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByText('Enter the management password again to check new hosts.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toHaveFocus();
+    expect(sent).toHaveLength(0);
+
+    await user.type(screen.getByLabelText('Password'), 'old-secret');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByRole('table', { name: 'Nodes found by the check' });
+    expect(sent[0].body.management).toEqual({ username: 'artemis', password: 'old-secret' });
+  });
+
+  it('asks for the password again for a seed on a new host, but not for one the cluster already uses', async () => {
+    cluster();
+    patching();
+    const user = open();
+
+    await user.click(await screen.findByRole('button', { name: 'Add another seed' }));
+    await user.type(screen.getByLabelText(/Another management URL/), 'http://other.example:8161/console/jolokia');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    expect(await screen.findByText('Enter the management password again to check new hosts.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Remove management URL 2' }));
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    expect(await screen.findByRole('table', { name: 'Nodes found by the check' })).toBeInTheDocument();
+  });
+
+  it('asks for the Core password again when the Core account is renamed', async () => {
+    cluster({ coreUsername: 'core-user' });
+    patching();
+    const user = open();
+
+    const name = await screen.findByLabelText('Core username');
+    await user.clear(name);
+    await user.type(name, 'someone-else');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByText('Enter the Core password again to check new hosts.')).toBeInTheDocument();
+  });
+
+  it('shows the answer of the server when it refuses an edit', async () => {
     cluster();
     server.use(
-      http.put('*/api/v1/clusters/:id/credentials', () =>
-        HttpResponse.json({ title: 'Unprocessable', detail: 'The broker rejected the account.' }, { status: 422 }),
+      http.patch('*/api/v1/clusters/:id', () =>
+        HttpResponse.json(
+          { title: 'Bad Request', detail: 'Enter the management password again to check new hosts.' },
+          { status: 400 },
+        ),
       ),
     );
     const user = open();
 
-    await user.type(await screen.findByLabelText('Username'), 'artemis');
-    await user.type(screen.getByLabelText('Password'), 'secret');
-    await user.click(screen.getByRole('button', { name: 'Save management (jolokia) credentials…' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
-    await user.click(within(dialog).getByRole('button', { name: 'Save management (jolokia) credentials' }));
+    await user.click(await screen.findByRole('button', { name: 'Check connection' }));
 
-    expect(await within(dialog).findByText('The broker rejected the account.')).toBeInTheDocument();
+    expect(await screen.findByText('Enter the management password again to check new hosts.')).toBeInTheDocument();
+  });
+
+  it('says the connection is not shown to someone who sees the cluster only through a team', async () => {
+    cluster(null);
+    open();
+
+    expect(await screen.findByText(/only through a team/)).toBeInTheDocument();
   });
 });
 

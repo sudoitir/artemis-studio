@@ -198,7 +198,7 @@ class ConfigDiffServiceTest {
     @Test
     void fewerThanTwoAnsweringNodesYieldNoComparisonAndEveryReason() {
         answering("a", config("{\"JournalType\":\"ASYNCIO\"}"));
-        failing("b", Kind.UNAUTHORIZED, "401");
+        failing("b", Kind.CREDENTIALS_REJECTED, "401");
         failing("c", Kind.UNREACHABLE, "timed out");
 
         ConfigDiffView view = service.compare(clusterId, null);
@@ -208,7 +208,7 @@ class ConfigDiffServiceTest {
         assertThat(view.notes()).singleElement().asString().contains("Fewer than two nodes answered");
         assertThat(view.nodes())
                 .extracting(ConfigNodeView::unavailableKind)
-                .containsExactly(null, "UNAUTHORIZED", "UNREACHABLE");
+                .containsExactly(null, "CREDENTIALS_REJECTED", "UNREACHABLE");
     }
 
     @Test

@@ -82,7 +82,7 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
 
     private UUID node(String name, String role, String url) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(clusterId, name, role, NODE_ID);
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         return nodes.save(n).getId();
     }
 
@@ -196,7 +196,7 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comparable").value(true))
                 .andExpect(nodeIs("node-c", "available", false))
-                .andExpect(nodeIs("node-c", "unavailableKind", "UNAUTHORIZED"))
+                .andExpect(nodeIs("node-c", "unavailableKind", "CREDENTIALS_REJECTED"))
                 .andExpect(jsonPath("$.nodes[?(@.nodeName == 'node-c')].unavailableReason")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.not(org.hamcrest.Matchers.emptyString()))))
@@ -214,8 +214,8 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comparable").value(false))
-                .andExpect(nodeIs("node-b", "unavailableKind", "UNAUTHORIZED"))
-                .andExpect(nodeIs("node-c", "unavailableKind", "UNAUTHORIZED"))
+                .andExpect(nodeIs("node-b", "unavailableKind", "CREDENTIALS_REJECTED"))
+                .andExpect(nodeIs("node-c", "unavailableKind", "CREDENTIALS_REJECTED"))
                 // Never a half-diff: the unreachable nodes' absent keys would read as removals.
                 .andExpect(jsonPath("$.sections.length()").value(0))
                 .andExpect(jsonPath("$.summary.driftKeys").value(0));

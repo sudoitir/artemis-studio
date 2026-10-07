@@ -301,9 +301,9 @@ public class JolokiaBrokerClient {
     private static BrokerConnectionException classify(HttpStatusCodeException e) {
         int status = e.getStatusCode().value();
         if (status == 401 || status == 403) {
-            return new BrokerConnectionException(
-                    BrokerConnectionException.Kind.UNAUTHORIZED,
-                    BrokerConnectionException.Kind.UNAUTHORIZED.defaultMessage() + refusalHint(e),
+            return BrokerConnectionException.credentialsRejected(
+                    BrokerAccount.MANAGEMENT,
+                    BrokerConnectionException.Kind.CREDENTIALS_REJECTED.defaultMessage() + refusalHint(e),
                     e);
         }
         if (status == 404) {

@@ -22,10 +22,10 @@ class ClusterServiceNodeChoiceTest {
     private static BrokerNodeEntity node(String name, Boolean active, String error) {
         BrokerNodeEntity n =
                 BrokerNodeEntity.fromSeed(CLUSTER, name, active == Boolean.TRUE ? "PRIMARY" : "BACKUP", null);
-        n.attachManagementUrl("http://" + name + "/console/jolokia");
+        n.attachSeedUrl("http://" + name + "/console/jolokia");
         n.applyHaState(new HaObservation(active, "STARTED", n.getHaRole(), true, "2.39.0", null), 1L, Instant.now());
         if (error != null) {
-            n.recordError(Instant.now(), error);
+            n.recordError(Instant.now(), error, null);
         }
         return n;
     }

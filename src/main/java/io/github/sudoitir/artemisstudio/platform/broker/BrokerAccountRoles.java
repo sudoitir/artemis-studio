@@ -65,7 +65,7 @@ public class BrokerAccountRoles {
     private static String reasonFor(BrokerConnectionException e, String username) {
         String message = e.getMessage() == null ? "" : e.getMessage();
         return switch (e.kind()) {
-            case UNAUTHORIZED -> "the broker refused to let this account read users";
+            case CREDENTIALS_REJECTED -> "the broker refused to let this account read users";
             case BAD_RESPONSE -> {
                 if (message.contains("SecurityException") || message.contains("status 403")) {
                     yield "this account is not allowed to read the broker's users";

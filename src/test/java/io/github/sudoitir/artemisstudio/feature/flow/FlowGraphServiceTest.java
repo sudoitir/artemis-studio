@@ -953,7 +953,7 @@ class FlowGraphServiceTest {
         expected.put("TLS_FAILED", NodeSampleState.UNREACHABLE);
         expected.put("WRONG_PATH", NodeSampleState.UNREACHABLE);
         expected.put("NOT_ARTEMIS", NodeSampleState.UNREACHABLE);
-        expected.put("UNAUTHORIZED", NodeSampleState.PERMISSION_DENIED);
+        expected.put("CREDENTIALS_REJECTED", NodeSampleState.PERMISSION_DENIED);
         expected.put("COUNTER_UNAVAILABLE", NodeSampleState.COUNTER_UNAVAILABLE);
         expected.put("BAD_RESPONSE", NodeSampleState.FAILED);
 

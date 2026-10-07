@@ -60,11 +60,12 @@ and any disagreement between nodes named before you open anything. It is a read
 **Review and adopt as revision 1** opens the ordinary adoption preview, where
 the counts appear again beside the confirmation.
 
-Studio never adopts on its own. An adoption declares that whatever the brokers
+Studio adopts only when an operator says so: as a step of registering the cluster (the check offers it,
+on by default when the nodes agree), or here, for a cluster registered without it. An adoption declares that whatever the brokers
 happen to be running right now is *intended*, including a setting someone
 changed by hand an hour ago and has not finished thinking about. Only an
 operator can say that, which is why drift stays advisory until one does
-(ADR-0067 D8) and why the offer is a suggestion rather than a default.
+(ADR-0067 D8, ADR-0176) and why, once a cluster is registered, the offer is a suggestion rather than a default.
 
 Three ways in, from the Configuration view:
 

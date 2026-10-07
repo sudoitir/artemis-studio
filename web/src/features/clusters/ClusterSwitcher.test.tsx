@@ -201,8 +201,8 @@ describe('ClusterSwitcher', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Register cluster' });
     // The form is a chunk of its own, loaded when the dialog first opens; the wait is on the dialog, not the page.
-    await waitFor(() => expect(dialog.querySelector('textarea')).not.toBeNull(), { timeout: 15_000 });
-    expect(within(dialog).getByLabelText('Broker management URLs')).toBeInTheDocument();
+    await waitFor(() => expect(dialog.querySelector('input')).not.toBeNull(), { timeout: 15_000 });
+    expect(within(dialog).getByLabelText('Broker management URL')).toBeInTheDocument();
   });
 
   it('in the collapsed rail is the cluster monogram, named by the cluster and its environment', async () => {

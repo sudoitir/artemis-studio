@@ -2,11 +2,14 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth.Level;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -30,8 +33,10 @@ class HaStateEvaluatorTest {
                 cycle,
                 "2.44.0",
                 null,
+                null,
                 Instant.now(),
-                false,
+                null,
+                null,
                 false,
                 true);
     }
@@ -125,8 +130,10 @@ class HaStateEvaluatorTest {
                 6L,
                 "2.44.0",
                 "Nothing answered at this address.",
+                null,
                 Instant.now(),
-                false,
+                null,
+                null,
                 false,
                 true);
         NodeEndpoint promotedBackup = endpoint("backup", "PRIMARY", true, "STARTED", true, 9L);
@@ -156,12 +163,81 @@ class HaStateEvaluatorTest {
                 null,
                 null,
                 null,
-                true,
+                null,
+                null,
+                null,
                 false,
                 false);
 
         ClusterHealth health = evaluator.toHealth(UUID.randomUUID(), evaluator.toLogicalNodes(List.of(uncontacted)));
 
         assertThat(health.level()).isEqualTo(Level.UNKNOWN);
+    }
+
+    private static NodeEndpoint rejected(String name) {
+        NodeEndpoint e = endpoint(name, "PRIMARY", true, "STARTED", null, 5L);
+        return new NodeEndpoint(
+                e.id(),
+                name,
+                e.artemisNodeId(),
+                e.jolokiaUrl(),
+                e.coreUrl(),
+                e.haRole(),
+                e.state(),
+                e.active(),
+                null,
+                5L,
+                e.version(),
+                "The broker rejected these credentials.",
+                BrokerConnectionException.Kind.CREDENTIALS_REJECTED,
+                e.lastSeenAt(),
+                null,
+                null,
+                false,
+                true);
+    }
+
+    @Test
+    void aManagementAccountEveryBrokerRejectsIsNamedAndIsNotCalledUnreachable() {
+        List<NodeEndpoint> eps = List.of(rejected("a"), rejected("b"));
+
+        ClusterHealth health = evaluator.toHealth(UUID.randomUUID(), evaluator.toLogicalNodes(eps));
+
+        assertThat(health.level()).isEqualTo(Level.DEGRADED);
+        assertThat(health.credentialRejections()).singleElement().satisfies(r -> {
+            assertThat(r.account()).isEqualTo(BrokerAccount.MANAGEMENT);
+            assertThat(r.nodeNames()).containsExactly("a", "b");
+        });
+        assertThat(health.notes())
+                .singleElement()
+                .asString()
+                .contains("management account on every node")
+                .contains("Connection settings")
+                .doesNotContain("unreachable");
+    }
+
+    @Test
+    void aCoreAccountOnlyOneBrokerRejectedIsNamedWithThatBroker() {
+        NodeEndpoint a = endpoint("a", "PRIMARY", true, "STARTED", null, 5L);
+        NodeEndpoint b = endpoint("b", "PRIMARY", true, "STARTED", null, 5L);
+
+        ClusterHealth health =
+                evaluator.toHealth(UUID.randomUUID(), evaluator.toLogicalNodes(List.of(a, b)), Set.of(b.id()));
+
+        assertThat(health.level()).isEqualTo(Level.DEGRADED);
+        assertThat(health.credentialRejections()).singleElement().satisfies(r -> {
+            assertThat(r.account()).isEqualTo(BrokerAccount.CORE);
+            assertThat(r.nodeNames()).containsExactly("b");
+        });
+        assertThat(health.notes()).singleElement().asString().contains("Core account on b");
+    }
+
+    @Test
+    void aHealthyClusterNamesNoRejection() {
+        ClusterHealth health = evaluator.toHealth(
+                UUID.randomUUID(),
+                evaluator.toLogicalNodes(List.of(endpoint("a", "PRIMARY", true, "STARTED", null, 5L))));
+
+        assertThat(health.credentialRejections()).isEmpty();
     }
 }

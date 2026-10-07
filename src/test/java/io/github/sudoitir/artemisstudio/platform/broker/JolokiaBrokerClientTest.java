@@ -172,7 +172,7 @@ class JolokiaBrokerClientTest {
         assertThatThrownBy(() -> client.search(BrokerMBeans.BROKER_SEARCH_PATTERN))
                 .isInstanceOf(BrokerConnectionException.class)
                 .extracting(e -> ((BrokerConnectionException) e).kind())
-                .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
+                .isEqualTo(BrokerConnectionException.Kind.CREDENTIALS_REJECTED);
     }
 
     @Test
@@ -200,7 +200,7 @@ class JolokiaBrokerClientTest {
                 .isInstanceOf(BrokerConnectionException.class)
                 .satisfies(e -> {
                     BrokerConnectionException broker = (BrokerConnectionException) e;
-                    assertThat(broker.kind()).isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED);
+                    assertThat(broker.kind()).isEqualTo(BrokerConnectionException.Kind.CREDENTIALS_REJECTED);
                     assertThat(broker.getMessage())
                             .contains("Hawtio-Forbidden-Reason: NONE")
                             .contains("no authenticated session");
