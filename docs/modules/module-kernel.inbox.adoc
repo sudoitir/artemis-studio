@@ -1,0 +1,17 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.inbox`
+|Spring components
+|_Services_
+
+* `i.g.s.a.k.i.InboxService`
+
+_Others_
+
+* `i.g.s.a.k.i.InboxSettings`
+|Bean references
+|* `i.g.s.a.k.s.UserSignals` (in Event stream)
+* `i.g.s.a.k.s.PermissionHolders` (in Security)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+|===

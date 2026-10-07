@@ -31,6 +31,7 @@
     <include file="db/changelog/kernel/settings/changelog.xml"      relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/jobs/changelog.xml"          relativeToChangelogFile="false"/>
     <include file="db/changelog/kernel/lifecycle/changelog.xml"     relativeToChangelogFile="false"/>
+    <include file="db/changelog/kernel/inbox/changelog.xml"         relativeToChangelogFile="false"/>
     <include file="db/changelog/platform/governance/changelog.xml"  relativeToChangelogFile="false"/>
     <include file="db/changelog/platform/clusters/changelog.xml"    relativeToChangelogFile="false"/>
     <include file="db/changelog/platform/scrape/changelog.xml"      relativeToChangelogFile="false"/>

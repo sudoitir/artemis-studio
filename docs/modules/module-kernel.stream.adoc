@@ -6,6 +6,7 @@
 |_Event listeners_
 
 * `i.g.s.a.k.s.SseHub`
+* `i.g.s.a.k.s.UserStreamHub`
 
 _Configuration properties_
 
@@ -16,6 +17,7 @@ _Others_
 * `i.g.s.a.k.s.StreamAccess` (via `i.g.s.a.k.s.PermissionStreamAccess`)
 * `i.g.s.a.k.s.StreamSettings`
 * `i.g.s.a.k.s.StreamTopicRegistry`
+* `i.g.s.a.k.s.UserSignals`
 |Bean references
 |* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
@@ -27,5 +29,10 @@ _Others_
 * `i.g.s.a.k.r.BusFrame` 
 * `i.g.s.a.k.r.ReplicaSignal` 
 * `i.g.s.a.k.s.SessionIdChanged` 
+* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.a.k.s.SessionIdChanged` 
+* `i.g.s.a.k.r.ReplicaSignal` 
 * `i.g.s.a.k.r.ReplicaSignal` 
 |===

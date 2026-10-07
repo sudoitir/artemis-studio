@@ -52,6 +52,10 @@
     "kind" : "IDENTITY_PROVIDER",
     "required" : false
   }, {
+    "id" : "inbox",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
     "id" : "lifecycle",
     "kind" : "KERNEL",
     "required" : true
