@@ -19,8 +19,6 @@
 /* Fields share the row's width. A description sits under the input box inside a row, not above it: above, it
    would push that field's input box down from its neighbours', which have none. */
 .row > :global(.mantine-InputWrapper-root) {
-  flex: 1 1 12rem;
-  min-inline-size: 0;
   display: flex;
   flex: 1 1 12rem;
   flex-direction: column;
