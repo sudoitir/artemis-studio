@@ -64,7 +64,7 @@ function Inventory() {
   return (
     <Section
       title="API keys"
-      description="Every user's keys. A key unused for longer than the stale period in Operational configuration is flagged."
+      description="Every user's keys. A key unused for longer than the stale period in Settings → API tokens is flagged."
     >
       <DataTable
         variant="static"

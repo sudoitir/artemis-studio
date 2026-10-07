@@ -22,7 +22,7 @@ it expires, the scope and permissions it carries, and optionally the **MCP tools
 it may call → copy the value. It is shown once.
 
 - **Expiry.** Every key expires, at most the installation's maximum lifetime
-  after it was minted (90 days by default, *Operational configuration → API token
+  after it was minted (90 days by default, *Settings → API tokens → Maximum
   lifetime*). Lowering the maximum shortens existing keys at once.
 - **Tools.** A key restricted to named tools is offered only those, plus
   `studio_help`. The other tools are not listed or described to it, and calling
@@ -116,8 +116,8 @@ boring and explicit. This one is:
   with the key's name attached (`ada [token: laptop-agent]`), naming the tool,
   the cluster and the outcome. The rows a mutation writes, dry runs included,
   hang under it ([ADR-0137](/reference/adr/0137-one-gate-on-the-mcp-transport)).
-- **The installation can be made read-only.** *Operational configuration →
-  Agent surface → Read-only* hides every mutating tool and refuses it for every
+- **The installation can be made read-only.** *Settings → MCP server →
+  Read-only* hides every mutating tool and refuses it for every
   key, whatever its `confirm`. A single read-only key is simply a key granted
   only read permissions.
 - **A cluster the key holds no grant on** comes back as *"no such cluster, or
