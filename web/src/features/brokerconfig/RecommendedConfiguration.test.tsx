@@ -72,9 +72,10 @@ describe('RecommendedConfiguration', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Studio can apply these' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'These still need a broker.xml edit' })).toBeInTheDocument();
-    // The whole entry is shown, the key this sets in words and the others marked unchanged.
+    // The key this sets is shown; the keys it writes back as they are wait behind one disclosure.
     expect(screen.getByText('managementMessageAttributeSizeLimit', { selector: 'code' })).toBeInTheDocument();
-    expect(screen.getAllByText('(unchanged)')).toHaveLength(1);
+    const kept = screen.getByRole('button', { name: 'Show the 1 key it keeps as they are' });
+    expect(kept).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('Install the metrics plugin')).toBeInTheDocument();
     // The fragment scrolls when a line is long, so the block itself is a named stop for the keyboard.
     const fragment = screen.getByRole('region', { name: 'broker.xml for Install the metrics plugin' });

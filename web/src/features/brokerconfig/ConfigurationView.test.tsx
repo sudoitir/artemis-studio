@@ -337,11 +337,11 @@ describe('ConfigurationView', () => {
     const user = userEvent.setup();
     renderWithProviders(<ConfigurationView />);
 
-    // The whole entry is shown, not only the key being changed: a runtime write
+    // The whole entry is reachable, not only the key being changed: a runtime write
     // replaces the entry, so the keys it keeps are part of what is confirmed.
     expect(await screen.findAllByText('slowConsumerThreshold')).not.toHaveLength(0);
-    expect(screen.getByText('maxDeliveryAttempts')).toBeInTheDocument();
-    expect(screen.getByText('(unchanged)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show the 1 key it keeps as they are' }));
+    expect(await screen.findByText('maxDeliveryAttempts')).toBeInTheDocument();
     expect(screen.getByText(/as broker-1 runs it today/)).toBeInTheDocument();
 
     // A gap Studio cannot close is named with its snippet, never omitted.

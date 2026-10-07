@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Checkbox, Code, Group, Stack, TagsInput, Text } from '@mantine/core';
+import { Anchor, Button, Checkbox, Code, Collapse, Group, Stack, TagsInput, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 
 import { useDeclareRecommended, type ConfigRecommendationView, type ConfigRecommendationsView } from './api.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
@@ -189,35 +190,52 @@ export function RecommendedConfiguration({
   );
 }
 
-/** The whole entry that would be written, so a replace holds no surprises. */
+/**
+ * The whole entry that would be written, so a replace holds no surprises: the keys the recommendation
+ * changes, and behind one disclosure the keys it writes back as they are. The broker answers in its own
+ * order, which would bury the one key this is about among seventeen it is not changing.
+ */
 function ValuePreview({ recommendation, ml }: Readonly<{ recommendation: ConfigRecommendationView; ml?: boolean }>) {
-  // Changed keys first, then the rest alphabetically. The broker answers in its
-  // own order, which puts the one key this recommendation is about somewhere in
-  // the middle of seventeen it is not changing.
-  const changed = (key: string) => recommendation.keys.includes(key);
-  const entries = Object.entries(recommendation.values).sort(([a], [b]) => {
-    if (changed(a) !== changed(b)) return changed(a) ? -1 : 1;
-    return a.localeCompare(b);
-  });
+  const [open, { toggle }] = useDisclosure(false);
+  const byKey = ([a]: [string, unknown], [b]: [string, unknown]) => a.localeCompare(b);
+  const entries = Object.entries(recommendation.values);
+  const changed = entries.filter(([key]) => recommendation.keys.includes(key)).sort(byKey);
+  const kept = entries.filter(([key]) => !recommendation.keys.includes(key)).sort(byKey);
   if (entries.length === 0) return null;
+  const keptLabel = `${kept.length} key${kept.length === 1 ? '' : 's'} it keeps as they are`;
   return (
     <Stack gap="xs" ml={ml ? 'xl' : undefined}>
-      {entries.map(([key, value]) => (
-        <Group key={key} gap="xs" wrap="wrap">
-          <Text size="sm" c={changed(key) ? undefined : 'dimmed'} fw={changed(key) ? 600 : undefined}>
-            {key}
-          </Text>
-          <Text size="sm" ff="monospace">
-            {String(value)}
-          </Text>
-          {changed(key) ? null : (
-            <Text size="sm" c="dimmed">
-              (unchanged)
-            </Text>
-          )}
-        </Group>
+      {changed.map(([key, value]) => (
+        <ValueLine key={key} name={key} value={value} changed />
       ))}
+      {kept.length > 0 ? (
+        <>
+          <Anchor component="button" type="button" size="sm" onClick={toggle} aria-expanded={open}>
+            {open ? `Hide the ${keptLabel}` : `Show the ${keptLabel}`}
+          </Anchor>
+          <Collapse expanded={open}>
+            <Stack gap="xs">
+              {kept.map(([key, value]) => (
+                <ValueLine key={key} name={key} value={value} changed={false} />
+              ))}
+            </Stack>
+          </Collapse>
+        </>
+      ) : null}
     </Stack>
+  );
+}
+
+function ValueLine({ name, value, changed }: Readonly<{ name: string; value: unknown; changed: boolean }>) {
+  return (
+    <Group gap="xs" wrap="wrap">
+      <Text size="sm" c={changed ? undefined : 'dimmed'} fw={changed ? 600 : undefined}>
+        {name}
+      </Text>
+      <Text size="sm" ff="monospace">
+        {String(value)}
+      </Text>
+    </Group>
   );
 }
 

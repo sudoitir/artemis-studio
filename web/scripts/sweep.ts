@@ -11,7 +11,9 @@
  *
  * The matrix (a full run is a few thousand captures: narrow it with the flags, and run one sweep at a time):
  *   widths    1920x1080, 1440x900, 1280x800, each light and dark; `system` once at 1440; `zoom` (below), light.
- *   states    default, loading, error, empty, filtered-empty, forbidden, where the route has them (routes.ts).
+ *   states    default, loading, error, empty, filtered-empty, forbidden, where the route has them (routes.ts),
+ *             and its scenes: states reached by acting on the page (a check run, a dialog opened). A scene is
+ *             captured when `--states` is absent, or names it or `scenes`.
  *   flags     --label NAME  --only AREA,…  --states STATE,…  --widths 1920,1440,1280,zoom  --workers N
  *
  * Checks on every capture: axe (WCAG 2.2 AA), sideways overflow of the page and of each grid or table,
@@ -27,7 +29,7 @@ import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { BASE } from './session.ts';
 import { BUSY, INIT_PROBES, MEASURE, storeScheme, type Measure } from './sweep/probes.ts';
-import { ROUTES, type DataCall, type RouteSpec } from './sweep/routes.ts';
+import { ROUTES, type DataCall, type RouteSpec, type Scene } from './sweep/routes.ts';
 
 const WEB = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const AUTH = resolve(WEB, '.sweep/auth');
@@ -72,7 +74,10 @@ const { values: flags } = parseArgs({
 });
 const list = (value: string | undefined) => (value ? value.split(',').map((v) => v.trim()) : undefined);
 const only = list(flags.only);
-const wantedStates = (list(flags.states) as State[] | undefined) ?? [...STATES];
+const askedStates = list(flags.states);
+const wantedStates = (askedStates?.filter((s) => s !== 'scenes' && STATES.includes(s as State)) as
+  State[] | undefined) ?? [...STATES];
+const wantsScene = ({ id }: Scene) => !askedStates || askedStates.includes('scenes') || askedStates.includes(id);
 const wantedWidths = (list(flags.widths) as Width[] | undefined) ?? (Object.keys(VIEWPORTS) as Width[]);
 const OUT = resolve(WEB, '.sweep', flags.label);
 
@@ -81,7 +86,12 @@ for (const route of ROUTES) {
     if (NEVER_STUBBED.test(`/api/v1${call.path}`)) throw new Error(`${route.id} would answer ${call.path}`);
   }
 }
-for (const wanted of wantedStates) if (!STATES.includes(wanted)) throw new Error(`unknown state: ${wanted}`);
+const sceneIds = new Set(ROUTES.flatMap((route) => (route.scenes ?? []).map((scene) => scene.id)));
+for (const wanted of askedStates ?? []) {
+  if (wanted !== 'scenes' && !STATES.includes(wanted as State) && !sceneIds.has(wanted)) {
+    throw new Error(`unknown state: ${wanted}`);
+  }
+}
 for (const wanted of wantedWidths) if (!(wanted in VIEWPORTS)) throw new Error(`unknown width: ${wanted}`);
 
 type Auth = 'admin' | 'reader' | 'none';
@@ -89,7 +99,9 @@ interface Job {
   route: RouteSpec;
   width: Width;
   scheme: Scheme;
-  state: State;
+  /** A scene's id when `scene` is set. */
+  state: string;
+  scene?: Scene;
   auth: Auth;
 }
 
@@ -115,6 +127,13 @@ function jobsFor(route: RouteSpec): Job[] {
           state,
           auth: anonymous ? 'none' : state === 'forbidden' ? 'reader' : 'admin',
         });
+      }
+    }
+  }
+  for (const scene of (route.scenes ?? []).filter(wantsScene)) {
+    for (const width of wantedWidths) {
+      for (const scheme of VIEWPORTS[width].schemes) {
+        jobs.push({ route, width, scheme, state: scene.id, scene, auth: 'admin' });
       }
     }
   }
@@ -218,7 +237,7 @@ interface Capture {
   path: string;
   width: Width;
   scheme: Scheme;
-  state: State;
+  state: string;
   auth: Auth;
   png: string;
   ok: boolean;
@@ -241,7 +260,7 @@ interface Capture {
 }
 
 async function capture(context: BrowserContext, job: Job, clusterId: string): Promise<Capture> {
-  const { route, width, scheme, state, auth } = job;
+  const { route, width, scheme, state, auth, scene } = job;
   const file = `${width === 'zoom' ? 'zoom200' : width}-${scheme}-${state}.png`;
   const png = resolve(OUT, route.area, route.id, file);
   const path = route.path.replaceAll(':cluster', clusterId) + (state === 'filtered-empty' ? (route.filter ?? '') : '');
@@ -286,7 +305,16 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
     if (state === 'empty') await answer(page, route, 'empty', clusterId, answered);
 
     await page.goto(`${BASE}${path}`);
-    result.settled = await settle(page, state);
+    result.settled = await settle(page, scene ? 'default' : (state as State));
+    if (scene) {
+      await scene.act(page);
+      result.settled = (await idle(page, SETTLE_MS)) && result.settled;
+      await page.evaluate('document.fonts.ready.then(() => true)');
+      // Pressing a control scrolls the window to it, and a full-page capture of a scrolled window draws the
+      // sticky header in the middle of the page.
+      await page.evaluate('window.scrollTo(0, 0)');
+      await page.waitForTimeout(500);
+    }
     const measured = JSON.parse(JSON.stringify(await page.evaluate(MEASURE))) as Measure;
     result.finalPath = new URL(page.url()).pathname;
     result.appliedScheme = measured.scheme;
@@ -301,7 +329,8 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
     const expected = (r: { url: string; status?: number }) =>
       answered.has(r.url) ||
       (state === 'forbidden' && r.status === 403) ||
-      (r.status !== undefined && (route.expectedStatus ?? []).includes(r.status));
+      (r.status !== undefined &&
+        [...(route.expectedStatus ?? []), ...(scene?.expectedStatus ?? [])].includes(r.status));
     result.failedRequests = failed.filter((r) => !expected(r));
     const expectedUrls = new Set(failed.filter(expected).map((r) => r.url));
     result.consoleErrors = consoleErrors
@@ -350,14 +379,15 @@ function networkChanged(result: Capture): boolean {
   return text.includes('ERR_NETWORK_CHANGED');
 }
 
+/** The seeded cluster's id; empty on a stack with none, which only the routes without `:cluster` can use. */
 async function clusterId(browser: Browser): Promise<string> {
   const context = await browser.newContext({ storageState: await sessionOf('admin') });
   const response = await context.request.get(`${BASE}/api/v1/clusters?size=500`);
   const body = (await response.json()) as { data?: { id: string; name: string }[] };
   await context.close();
   const found = body.data?.find((c) => c.name === 'demo') ?? body.data?.[0];
-  if (!found) throw new Error(`no cluster at ${BASE}: run just qa-up first (${response.status()})`);
-  return found.id;
+  if (!response.ok()) throw new Error(`no cluster list at ${BASE}: run just qa-up first (${response.status()})`);
+  return found?.id ?? '';
 }
 
 async function main() {
@@ -377,6 +407,8 @@ async function main() {
     });
   }
   const cluster = await clusterId(browser);
+  const needing = jobs.find((job) => !cluster && job.route.path.includes(':cluster'));
+  if (needing) throw new Error(`${needing.route.id} needs a registered cluster at ${BASE}`);
   const contexts = new Map<string, Promise<BrowserContext>>();
   const contextOf = (job: Job) => {
     const key = `${job.auth}|${job.width}|${job.scheme}`;

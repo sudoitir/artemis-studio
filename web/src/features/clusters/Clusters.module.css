@@ -44,3 +44,26 @@
 .start {
   align-self: flex-start;
 }
+
+/* A node check's detail line: a URL or a NodeID is one long word, so it breaks anywhere inside its
+   column instead of widening the table. */
+.probeDetail {
+  overflow-wrap: anywhere;
+}
+
+/* The actions of a long form stay at the window's bottom edge while the form scrolls, so Check and Save
+   are always in reach and a check's result, arriving below the fields, never moves them. */
+.stickyActions {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  padding-block: var(--mantine-spacing-sm);
+  background: var(--as-surface);
+  border-block-start: 1px solid var(--as-border);
+}
+
+/* A field that takes focus scrolls clear of the sticky actions, so the bar never hides it (WCAG 2.4.11). */
+.register :focus,
+.settingsForm :focus {
+  scroll-margin-block-end: 5rem;
+}
