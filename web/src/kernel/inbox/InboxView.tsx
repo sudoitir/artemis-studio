@@ -1,6 +1,6 @@
 import { ActionIcon, Button, SegmentedControl, Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -152,7 +152,15 @@ export function InboxView() {
     <div className={views.page}>
       <div className={views.narrow}>
         <Page>
-          <PageHeader title="Inbox" description="Notices for you from Studio and its plugins, newest first." />
+          <PageHeader
+            title="Inbox"
+            description="Notices for you from Studio and its plugins, newest first."
+            actions={
+              <Button component={Link} to="/approvals" variant="default" size="xs">
+                Approval requests
+              </Button>
+            }
+          />
           <Toolbar
             label="Inbox"
             start={

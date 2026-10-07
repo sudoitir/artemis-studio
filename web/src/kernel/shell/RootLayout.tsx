@@ -10,6 +10,7 @@ import { branding } from '../../branding.ts';
 import { useMe } from '../auth/api.ts';
 import { usePluginsChanged } from '../plugins/usePluginsChanged.tsx';
 import { useSlot } from '../slots.ts';
+import { BreakGlassBanner } from '../approvals/BreakGlassBanner.tsx';
 import { InboxBell } from '../inbox/InboxBell.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
@@ -176,6 +177,7 @@ export function RootLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main id={MAIN_ID} className={styles.main}>
+        <BreakGlassBanner />
         <Outlet />
       </AppShell.Main>
 

@@ -1,0 +1,76 @@
+/* A secret value: a lock and the word, never the value. */
+.hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  color: var(--as-text-dimmed);
+}
+
+/* The timeline: one entry per line, the time in a column of its own so the moments line up. */
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+  padding-block: var(--mantine-spacing-xs);
+  border-block-start: 1px solid var(--as-border);
+}
+
+.event:first-child {
+  border-block-start: 0;
+}
+
+.eventDetail {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* What will happen, said once more in the confirmation: the operator approves what they read here. */
+.recap {
+  padding: var(--mantine-spacing-sm);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface-raised);
+  overflow-wrap: anywhere;
+}
+
+/* The break-glass banner: first in the main area, above whatever page is open. */
+.banner {
+  padding: var(--mantine-spacing-lg) var(--mantine-spacing-lg) 0;
+}
+
+/* "My requests": one request per line, its state, then its actions at the inline end. */
+.request {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  padding-block: var(--mantine-spacing-xs);
+  border-block-start: 1px solid var(--as-border);
+}
+
+.request:first-child {
+  border-block-start: 0;
+}
+
+.requests {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.requestWords {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A request page reads as one column, wide enough for a change table beside its values. */
+.column {
+  max-inline-size: 64rem;
+}

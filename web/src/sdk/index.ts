@@ -52,6 +52,13 @@ export {
   request,
   type HeldOperation,
 } from '../kernel/api/request.ts';
+export type {
+  HeldDisplayRow,
+  HeldEvent,
+  HeldOperationDetail,
+  HeldOperationSummary,
+  HeldState,
+} from '../kernel/approvals/api.ts';
 export { useCan, type AllowedActions, type ResourceWhere } from '../kernel/auth/useCan.ts';
 export {
   ACTION_SECTIONS,

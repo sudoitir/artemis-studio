@@ -72,6 +72,21 @@ const inboxRoute = createRoute({
     raw.filter === 'unread' ? { filter: 'unread' } : {},
 });
 
+/** Approval requests: those waiting for the user's decision, or with `tab=mine` the user's own. */
+const approvalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'approvals',
+  component: lazyRouteComponent(() => import('../approvals/ApprovalsView.tsx'), 'ApprovalsView'),
+  validateSearch: (raw: Record<string, unknown>): { tab?: 'mine' } => (raw.tab === 'mine' ? { tab: 'mine' } : {}),
+});
+
+/** One approval request's page, which every held outcome and approval notice links to (`ui/held.ts`). */
+const approvalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'approvals/$id',
+  component: lazyRouteComponent(() => import('../approvals/ApprovalView.tsx'), 'ApprovalView'),
+});
+
 /**
  * Every address under a plugin's `p/<id>/` that none of its own routes answer — including every
  * address of a plugin that is not running — explains why (ADR-0100). A plugin's own routes are
@@ -90,7 +105,16 @@ export const pluginClusterFallback = createRoute({
 });
 
 /** The shell's own pages, beside the cluster layout. */
-export const shellRoutes = [indexRoute, loginRoute, adminRoute, accountRoute, inboxRoute, pluginRootFallback];
+export const shellRoutes = [
+  indexRoute,
+  loginRoute,
+  adminRoute,
+  accountRoute,
+  inboxRoute,
+  approvalsRoute,
+  approvalRoute,
+  pluginRootFallback,
+];
 
 /** A feature's view, or the page explaining that the feature is disabled on this installation (feature-modules spec). */
 export function featureView(feature: ModuleId, View: ComponentType): () => ReactElement {

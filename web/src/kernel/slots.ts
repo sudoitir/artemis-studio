@@ -14,6 +14,7 @@ import type {
   QueueTarget,
   SessionTarget,
 } from './actions/types.ts';
+import type { HeldOperationDetail } from './approvals/api.ts';
 import { useFeatures } from './features.ts';
 import type { MetricRange } from './time/ranges.ts';
 
@@ -77,6 +78,12 @@ export interface SlotProps {
   'admin.tabs': object;
   /** A section of the signed-in user's Account page, under the contribution's title. */
   'account.sections': object;
+  /**
+   * On an approval request's page, above Studio's own Approve and Reject: what an installed approval provider
+   * shows an approver, such as its policy's checks or its own decision controls. `heldOperation` is the request
+   * as the page shows it; `refresh` fetches it again after the contribution changed it.
+   */
+  'approval.decision': { heldOperation: HeldOperationDetail; refresh: () => void };
   /**
    * A dialog opened from the user menu. The menu lists the contribution's title after Account and hosts
    * the dialog outside the menu, so it outlives the menu closing.

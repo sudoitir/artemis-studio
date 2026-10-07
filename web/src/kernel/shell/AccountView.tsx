@@ -6,13 +6,15 @@ import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Section } from '../../ui/Section.tsx';
+import { MyRequests } from '../approvals/MyRequests.tsx';
 import { useMe } from '../auth/api.ts';
 import { useSlot } from '../slots.ts';
 import classes from './Views.module.css';
 
 /**
  * The signed-in user's own page: who you are, then what the features contribute — how to change
- * your password, the keys you hold, and how to connect an assistant with one.
+ * your password, the keys you hold, and how to connect an assistant with one — and last the
+ * approval requests you made.
  *
  * <p>API keys used to live under Administration, which made a per-user
  * credential look like an operator's tool and hid it from everyone without
@@ -44,6 +46,13 @@ export function AccountView() {
               <Component />
             </Section>
           ))}
+
+          <Section
+            title="My requests"
+            description="Operations you started that wait for, or had, a second person's approval."
+          >
+            <MyRequests />
+          </Section>
         </Page>
       </div>
     </div>

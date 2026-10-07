@@ -12,13 +12,18 @@ import { manifestHandler } from './manifest.ts';
  * `server.use(http.get(...))`; anything unhandled is a hard error so a missing
  * mock fails loudly instead of hanging on a real fetch. The defaults are the
  * manifest, with every feature enabled, since the shell reads it on every screen, and
- * `/me/access`, worked out from whatever a test mocks for `/auth/me`, and an empty inbox for the header's bell;
+ * `/me/access`, worked out from whatever a test mocks for `/auth/me`, an empty inbox for the header's bell, an
+ * approval gate with break-glass off for the shell's banner, and no approval requests for the Account page;
  * a test disables features with `server.use(manifestHandler([...]))`.
  */
 export const server = setupServer(
   manifestHandler(),
   accessHandler,
   http.get('*/api/v1/inbox/count', () => HttpResponse.json({ unread: 0, capped: false })),
+  http.get('*/api/v1/gate/status', () =>
+    HttpResponse.json({ armed: false, providerId: null, attached: false, breakGlass: false }),
+  ),
+  http.get('*/api/v1/held-operations', () => HttpResponse.json({ items: [], next: null })),
 );
 
 // findBy* and waitFor give up after 1 s by default, and a screen behind a lazy route, a query and a

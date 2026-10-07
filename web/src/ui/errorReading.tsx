@@ -225,6 +225,19 @@ const BY_TYPE: Readonly<Record<string, (problem: Problem) => Reading>> = {
     next: 'Nothing was changed. Give a reason for the request, then submit again.',
     retry: false,
   }),
+  'vote-refused': ({ detail }) => ({
+    title: 'You cannot decide this request',
+    cause: detail ?? 'The approval rules do not let you decide this request.',
+    next: 'Nothing was decided. Someone else who may approve it has to decide it.',
+    retry: false,
+  }),
+  'session-required': ({ detail }) => ({
+    title: 'Decide from a signed-in session',
+    cause:
+      detail ?? 'A request is decided only by a person signed in to Studio, not with an API token or an assistant.',
+    next: 'Nothing was decided. Sign in to Studio in a browser and decide it there.',
+    retry: false,
+  }),
 };
 
 /** The last segment of a problem's `type` URI, such as `operation-denied`. */

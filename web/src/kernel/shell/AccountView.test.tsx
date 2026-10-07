@@ -82,6 +82,8 @@ describe('AccountView', () => {
     expect(await screen.findByText('This session')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'API keys' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'MCP connection' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 2 }).at(-1)).toHaveTextContent('My requests');
+    expect(await screen.findByText('You have no approval requests')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute('href', '/change-password');
   });
 
