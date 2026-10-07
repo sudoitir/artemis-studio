@@ -8,8 +8,7 @@ import org.springframework.stereotype.Component;
 /**
  * The read-only slice of {@link SettingsService} exported into the plugin API context (design.md,
  * task 6.1): a plugin may read an effective setting value, never write one — writes stay behind
- * {@code SettingsService.put}'s own {@code @PreAuthorize}, which a plugin's curated context never
- * resolves.
+ * {@code SettingsService.apply}, which checks the write permission itself and passes the approval gate.
  */
 @Component
 @PluginApi

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -44,13 +45,15 @@ public class SettingsMcpTools {
     public McpSchema.CallToolResult studioSetting(
             @McpToolParam(required = false) String op,
             @McpToolParam(required = false) String key,
-            @McpToolParam(required = false) String value) {
+            @McpToolParam(required = false) String value,
+            @McpToolParam(required = false) String approvalReason) {
         SettingOp operation = McpArgs.enumOf(SettingOp.class, "op", op, SettingOp.GET);
         return McpErrors.guard(() -> {
             Map<String, SettingValue> effective = settings.effective();
             if (operation == SettingOp.SET) {
                 String k = McpArgs.required("key", key);
-                settings.put(k, McpArgs.required("value", value));
+                String v = McpArgs.required("value", value);
+                withReason(approvalReason, () -> settings.put(k, v));
                 effective = settings.effective();
                 return entry(k, effective.get(k));
             }
@@ -61,6 +64,15 @@ public class SettingsMcpTools {
             effective.forEach((k, v) -> all.add(entry(k, v)));
             return all;
         });
+    }
+
+    /** Runs the change with the agent's reason, which the approval gate reads when the change is held. */
+    private static void withReason(String reason, Runnable change) {
+        if (reason == null || reason.isBlank()) {
+            change.run();
+            return;
+        }
+        ScopedValue.where(GateContext.REASON, reason).run(change);
     }
 
     private static McpViews.SettingEntry entry(String key, SettingValue value) {

@@ -6,6 +6,7 @@
         allowedDependencies = {
             "kernel.audit",
             "kernel.core",
+            "kernel.gate",
             "kernel.jobs",
             "kernel.plugin",
             "kernel.replica",
