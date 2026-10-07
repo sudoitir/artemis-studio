@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.artemisstudio.feature.apitokens.ApiTokenService;
@@ -52,6 +53,7 @@ import io.github.sudoitir.artemisstudio.kernel.settings.SettingsInvalidException
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.PendingChange;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
+import io.github.sudoitir.artemisstudio.support.McpFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.net.CookieManager;
 import java.net.HttpCookie;
@@ -66,6 +68,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +83,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.JsonNode;
 
 /**
  * Settings change sets, key rotation and API tokens behind the approval gate: with no provider they run as before, with
@@ -144,6 +151,9 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbc;
+
+    @Autowired
+    WebApplicationContext webContext;
 
     @MockitoBean
     PermissionHolders holders;
@@ -301,8 +311,9 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
                         e -> assertThat(e.fieldErrors()).containsOnlyKeys(BrokerSettings.BULK_QUEUE_CAP));
 
         assertThat(provider.decisions.get()).isZero();
-        assertThat(settings.effective().get(BrokerSettings.BULK_CAP).overridden())
-                .isFalse();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM studio_setting WHERE key = ?", Long.class, BrokerSettings.BULK_CAP))
+                .isZero();
     }
 
     @Test
@@ -326,8 +337,9 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
             assertThat(preview.outcome()).isEqualTo(GatePreview.Outcome.DENY);
             assertThat(preview.denyReason()).isEqualTo("Not on Fridays");
         });
-        assertThat(settings.effective().get(BrokerSettings.BULK_CAP).overridden())
-                .isFalse();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM studio_setting WHERE key = ?", Long.class, BrokerSettings.BULK_CAP))
+                .isZero();
     }
 
     @Test
@@ -533,6 +545,59 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
         String listed = a.send("GET", "/api/v1/settings", null, Map.of()).body();
         assertThat(JsonPath.<String>read(listed, "$.settings['" + BrokerSettings.BULK_CAP + "'].pending[0].value"))
                 .isEqualTo("3");
+    }
+
+    @Test
+    void aChangeSetIsHeldTheSameThroughRestAndTheMcpTool() throws Exception {
+        Person alice = settingsAdmin();
+        approversAre(approver());
+        java.util.concurrent.atomic.AtomicReference<McpFixture.Key> minted =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        whileDisarmed(() -> minted.set(McpFixture.mintKey(
+                users,
+                roles,
+                rolePermissions,
+                userRoles,
+                tokens,
+                Grant.ScopeType.GLOBAL,
+                null,
+                Set.of(SettingsPermissions.SETTINGS_READ, SettingsPermissions.SETTINGS_WRITE))));
+        McpFixture.Key agent = minted.get();
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
+                .apply(springSecurity())
+                .build();
+
+        HttpResponse<String> rest = new Browser()
+                .signIn(alice)
+                .send(
+                        "POST",
+                        "/api/v1/settings/changes",
+                        "{\"changes\":[{\"key\":\"%s\",\"value\":\"3\"}]}".formatted(BrokerSettings.BULK_CAP),
+                        Map.of());
+        JsonNode mcp = McpFixture.callTool(
+                mvc, agent, "studio_setting", Map.of("op", "set", "key", BrokerSettings.BULK_CAP, "value", "3"));
+
+        assertThat(rest.statusCode()).as(rest.body()).isEqualTo(202);
+        assertThat(mcp.path("result").path("content").get(0).path("text").asString())
+                .as("%s", mcp)
+                .startsWith("Held for approval: ");
+        Map<String, Object> viaRest = heldRequestOf(alice.id());
+        Map<String, Object> viaMcp = heldRequestOf(agent.userId());
+        assertThat(viaRest.remove("auth_kind")).isEqualTo("SESSION");
+        assertThat(viaMcp.remove("auth_kind")).isEqualTo("AGENT");
+        assertThat(viaMcp).isEqualTo(viaRest);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM studio_setting WHERE key = ?", Long.class, BrokerSettings.BULK_CAP))
+                .isZero();
+    }
+
+    /** What the requester's one held request asks for, as stored, and how they signed in. */
+    private Map<String, Object> heldRequestOf(UUID requesterId) {
+        return new java.util.HashMap<>(jdbc.queryForMap("""
+                SELECT type, type_version, mode, auth_kind, summary, traits::text AS traits, params::text AS params,
+                    display::text AS display, effect::text AS effect, encode(params_hash, 'hex') AS params_hash,
+                    cluster_id, environment_id
+                FROM held_operation WHERE requester_id = ?""", requesterId));
     }
 
     @Test
