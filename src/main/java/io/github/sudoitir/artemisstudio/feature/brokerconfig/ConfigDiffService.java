@@ -3,9 +3,12 @@ package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiff.Entry;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigReader.NodeConfig;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigDiffView;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigEntryView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigKeyView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigNodeValueView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigNodeView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigSectionView;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigSideView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigSummaryView;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.ConfigValueGroupView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.NodeConfigEntryView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.NodeConfigSectionView;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.web.ConfigViews.NodeConfigView;
@@ -23,9 +26,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,20 +36,19 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Compares two nodes' broker configuration (ADR-0043). Config drift between a
- * primary and its backup — a different {@code journal-directory}, a missing
- * {@code security-setting}, a {@code max-size-bytes} only one side enforces — is
- * silent until failover, when it is expensive.
+ * Compares every node of a cluster's broker configuration against the others (ADR-0043,
+ * ADR-0178). Drift between nodes — a different {@code journal-directory}, a missing
+ * {@code security-setting}, a {@code max-size-bytes} one node enforces differently — is silent
+ * until failover, when it is expensive.
  *
  * <p>Read-only: no audit event, matching the rule that only mutating calls audit.
- * Each side costs exactly one batched Jolokia POST taken through the per-node rate
+ * Each node costs exactly one batched Jolokia POST taken through the per-node rate
  * limiter (non-negotiable #1), following {@code DlqService}.
  *
- * <p>When either side cannot be read, this returns the view with that side marked
- * unavailable and reports <b>no per-key drift at all</b> — the same ethos as
- * {@code DlqService}'s {@code settingsAvailable = false}. A half-diff is worse than
- * no diff: every key the unreachable node did not answer for would read as a
- * removal, which is a catastrophic-looking report of a connection problem.
+ * <p>A node that cannot be read is listed with its classified reason and left out of every
+ * majority and every state: its absent keys would otherwise all read as removals, a
+ * catastrophic-looking report of a connection problem. When fewer than two nodes answer, there
+ * is no comparison at all.
  */
 @Service
 @RequiredArgsConstructor
@@ -60,140 +62,122 @@ public class ConfigDiffService {
     private final ConfigReader reader;
     private final ClusterAccessGuard clusterAccess;
 
+    /**
+     * @param only narrows the comparison to these nodes; {@code null} or empty compares every
+     *     node of the cluster
+     */
     @Transactional(readOnly = true)
-    public ConfigDiffView compare(UUID clusterId, UUID leftId, UUID rightId) {
+    public ConfigDiffView compare(UUID clusterId, Set<UUID> only) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
-        List<ClusterNode> nodes = brokerNodes.nodes(clusterId);
-
-        ClusterNode left = resolveLeft(nodes, leftId, rightId);
-        ClusterNode right = resolveRight(nodes, left, rightId);
-
+        List<ClusterNode> nodes = selected(brokerNodes.nodes(clusterId), only);
         List<String> matches = ConfigReader.matchesFor(addressesOf(clusterId));
 
-        Read leftRead = read(clusterId, left, matches);
-        Read rightRead = read(clusterId, right, matches);
-
-        ConfigSideView leftSide = side(left, leftRead, false);
-
-        if (leftRead.config() == null || rightRead.config() == null) {
-            String note = "Only one side answered, so no comparison is shown — every key the"
-                    + " unreachable node did not answer for would read as a removal.";
-            return new ConfigDiffView(
-                    clusterId, leftSide, side(right, rightRead, false), false, List.of(), 0, 0, matches.size(), note);
+        List<Read> reads = nodes.stream().map(n -> read(clusterId, n, matches)).toList();
+        List<Integer> answered = new ArrayList<>();
+        for (int i = 0; i < reads.size(); i++) {
+            if (reads.get(i).config() != null) {
+                answered.add(i);
+            }
         }
 
-        // A node that is not serving *may* answer with a reduced surface. On Artemis
-        // 2.44 it does not (surface check §14, Q1) — a passive backup exposes the same
-        // 90 attributes. This guard is for the broker that behaves otherwise: say so
-        // rather than report its unexposed attributes as missing configuration.
-        boolean reduced = isReducedSurface(leftRead.config(), rightRead.config());
-        if (reduced) {
-            String note = "The backup is passive and its management surface exposes fewer attributes"
-                    + " than the primary's, so a key-by-key comparison would report its unexposed"
-                    + " attributes as missing configuration. Compare again after a failover, or"
-                    + " against another active node.";
+        // A node that is not serving may answer with a reduced surface. On Artemis 2.44 it does
+        // not (surface check §14, Q1) — a passive backup exposes the same 90 attributes. This
+        // guard is for the broker that behaves otherwise: it contributes the keys it exposes
+        // instead of having its unexposed attributes reported as missing configuration.
+        Set<String> servingAttributes = new LinkedHashSet<>();
+        for (int i : answered) {
+            if (reads.get(i).config().active()) {
+                servingAttributes.addAll(attributeNames(reads.get(i).config()));
+            }
+        }
+        List<ConfigNodeView> nodeViews = new ArrayList<>();
+        Set<UUID> reduced = new LinkedHashSet<>();
+        for (int i = 0; i < nodes.size(); i++) {
+            NodeConfig config = reads.get(i).config();
+            boolean isReduced = config != null
+                    && !config.active()
+                    && !attributeNames(config).containsAll(servingAttributes);
+            if (isReduced) {
+                reduced.add(nodes.get(i).getId());
+            }
+            nodeViews.add(nodeView(nodes.get(i), reads.get(i), isReduced));
+        }
+
+        List<String> notes = new ArrayList<>();
+        if (answered.size() < 2) {
+            notes.add("Fewer than two nodes answered, so no comparison could be made. Each node that"
+                    + " did not answer is listed with its reason.");
             return new ConfigDiffView(
                     clusterId,
-                    side(left, leftRead, false),
-                    side(right, rightRead, true),
+                    List.copyOf(nodeViews),
                     false,
                     List.of(),
+                    new ConfigSummaryView(0, 0, 0),
                     0,
-                    leftRead.config().matchesCompared(),
                     matches.size(),
-                    note);
+                    List.copyOf(notes));
         }
 
-        List<ConfigSectionView> sections = new ArrayList<>();
-        sections.add(section(
-                ConfigDiff.SECTION_BROKER,
-                ConfigDiff.flatten(leftRead.config().brokerAttributes()),
-                ConfigDiff.flatten(rightRead.config().brokerAttributes()),
-                left,
-                right));
-        sections.add(section(
-                ConfigDiff.SECTION_ADDRESS_SETTINGS,
-                ConfigDiff.flattenKeyed(leftRead.config().addressSettings(), MATCH),
-                ConfigDiff.flattenKeyed(rightRead.config().addressSettings(), MATCH),
-                left,
-                right));
-        sections.add(section(
-                ConfigDiff.SECTION_SECURITY_SETTINGS,
-                ConfigDiff.flattenKeyed(leftRead.config().securitySettings(), "name"),
-                ConfigDiff.flattenKeyed(rightRead.config().securitySettings(), "name"),
-                left,
-                right));
-        sections.add(section(
-                ConfigDiff.SECTION_ACCEPTORS,
-                ConfigDiff.flattenKeyed(leftRead.config().acceptors(), "name"),
-                ConfigDiff.flattenKeyed(rightRead.config().acceptors(), "name"),
-                left,
-                right));
+        List<ConfigDiff.Side> broker = new ArrayList<>();
+        List<ConfigDiff.Side> addressSettings = new ArrayList<>();
+        List<ConfigDiff.Side> securitySettings = new ArrayList<>();
+        List<ConfigDiff.Side> acceptors = new ArrayList<>();
+        int compared = 0;
+        for (int i : answered) {
+            ClusterNode node = nodes.get(i);
+            NodeConfig config = reads.get(i).config();
+            compared = config.matchesCompared();
+            Predicate<String> brokerExposes = reduced.contains(node.getId())
+                    ? key -> attributeNames(config).contains(attributeOf(key))
+                    : key -> true;
+            broker.add(new ConfigDiff.Side(
+                    node.getId(), node.getName(), ConfigDiff.flatten(config.brokerAttributes()), brokerExposes));
+            addressSettings.add(side(node, ConfigDiff.flattenKeyed(config.addressSettings(), MATCH)));
+            securitySettings.add(side(node, ConfigDiff.flattenKeyed(config.securitySettings(), "name")));
+            acceptors.add(side(node, ConfigDiff.flattenKeyed(config.acceptors(), "name")));
+        }
 
-        int drift = sections.stream().mapToInt(ConfigSectionView::driftCount).sum();
-        int compared = leftRead.config().matchesCompared();
-        String note = compared < matches.size()
-                ? "Compared " + compared + " of " + matches.size() + " address settings (the default match"
-                        + " \"#\" is always included)."
-                : null;
+        for (int i : answered) {
+            if (reduced.contains(nodes.get(i).getId())) {
+                notes.add(nodes.get(i).getName() + " is a passive backup with a reduced management surface,"
+                        + " so it contributes only the keys it exposes; its unexposed attributes are not"
+                        + " reported as missing.");
+            }
+        }
+        if (compared < matches.size()) {
+            notes.add("Compared " + compared + " of " + matches.size() + " address settings (the default match"
+                    + " \"#\" is always included).");
+        }
+
+        List<ConfigSectionView> sections = List.of(
+                section(ConfigDiff.SECTION_BROKER, broker),
+                section(ConfigDiff.SECTION_ADDRESS_SETTINGS, addressSettings),
+                section(ConfigDiff.SECTION_SECURITY_SETTINGS, securitySettings),
+                section(ConfigDiff.SECTION_ACCEPTORS, acceptors));
 
         return new ConfigDiffView(
                 clusterId,
-                leftSide,
-                side(right, rightRead, false),
+                List.copyOf(nodeViews),
                 true,
-                List.copyOf(sections),
-                drift,
+                sections,
+                summary(sections),
                 compared,
                 matches.size(),
-                note);
+                List.copyOf(notes));
     }
 
-    /** With {@code left} omitted, default to the pair — where drift actually hurts. */
-    private ClusterNode resolveLeft(List<ClusterNode> nodes, UUID leftId, UUID rightId) {
-        if (leftId != null) {
-            return require(nodes, leftId);
+    private List<ClusterNode> selected(List<ClusterNode> all, Set<UUID> only) {
+        if (only == null || only.isEmpty()) {
+            return all;
         }
-        if (rightId != null) {
-            ClusterNode right = require(nodes, rightId);
-            return partnerOf(nodes, right)
-                    .orElseThrow(() -> new BrokerConnectionException(
-                            BrokerConnectionException.Kind.UNREACHABLE,
-                            "That node has no partner endpoint to compare against. Name both nodes."));
+        if (only.size() < 2) {
+            throw new IllegalArgumentException("Name at least two nodes to compare, or none to compare them all.");
         }
-        return nodes.stream()
-                .filter(n -> n.getJolokiaUrl() != null)
-                .findFirst()
-                .orElseThrow(() -> new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE,
-                        "This cluster has no node with a management URL yet."));
-    }
-
-    private ClusterNode resolveRight(List<ClusterNode> nodes, ClusterNode left, UUID rightId) {
-        if (rightId != null && !rightId.equals(left.getId())) {
-            return require(nodes, rightId);
-        }
-        return partnerOf(nodes, left)
-                .orElseThrow(() -> new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE,
-                        "That node has no partner endpoint to compare against. Name both nodes."));
-    }
-
-    /** The other endpoint of the same logical node — the HA pair. */
-    private java.util.Optional<ClusterNode> partnerOf(List<ClusterNode> nodes, ClusterNode node) {
-        return nodes.stream()
-                .filter(n -> !n.getId().equals(node.getId()))
-                .filter(n ->
-                        n.getArtemisNodeId() != null && Objects.equals(n.getArtemisNodeId(), node.getArtemisNodeId()))
-                .findFirst();
-    }
-
-    private ClusterNode require(List<ClusterNode> nodes, UUID nodeId) {
-        return nodes.stream()
-                .filter(n -> n.getId().equals(nodeId))
-                .findFirst()
-                .orElseThrow(() -> new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE, "No such node in this cluster: " + nodeId));
+        Set<UUID> known = all.stream().map(ClusterNode::getId).collect(Collectors.toSet());
+        only.stream().filter(id -> !known.contains(id)).findFirst().ifPresent(id -> {
+            throw new NotFoundException("node", id);
+        });
+        return all.stream().filter(n -> only.contains(n.getId())).toList();
     }
 
     /**
@@ -276,56 +260,57 @@ public class ConfigDiffService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private record Read(NodeConfig config, String failure) {}
+    /** One node's read: its configuration, or the classified reason it could not be read. */
+    private record Read(NodeConfig config, String kind, String message) {
 
-    private Read read(UUID clusterId, ClusterNode node, List<String> matches) {
-        if (node.getJolokiaUrl() == null) {
-            return new Read(null, "This node has no management URL, so its configuration cannot be read.");
+        static Read answered(NodeConfig config) {
+            return new Read(config, null, null);
         }
-        try {
-            JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
-            return new Read(reader.read(client, matches), null);
-        } catch (BrokerConnectionException e) {
-            return new Read(null, e.kind() + ": " + e.getMessage());
+
+        static Read failed(String kind, String message) {
+            return new Read(null, kind, message);
+        }
+
+        /** The reason with its class in front, for the single-node read. */
+        String failure() {
+            return kind + ": " + message;
         }
     }
 
-    private ConfigSideView side(ClusterNode node, Read read, boolean reducedSurface) {
+    private Read read(UUID clusterId, ClusterNode node, List<String> matches) {
+        if (node.getJolokiaUrl() == null) {
+            return Read.failed(
+                    "NO_MANAGEMENT_URL", "This node has no management URL, so its configuration cannot be read.");
+        }
+        try {
+            JolokiaBrokerClient client = connections.forCluster(clusterId, node.getJolokiaUrl());
+            return Read.answered(reader.read(client, matches));
+        } catch (BrokerConnectionException e) {
+            return Read.failed(e.kind().name(), e.getMessage());
+        }
+    }
+
+    private ConfigNodeView nodeView(ClusterNode node, Read read, boolean reducedSurface) {
         NodeConfig config = read.config();
-        return new ConfigSideView(
+        return new ConfigNodeView(
                 node.getId(),
                 node.getName(),
                 config != null,
                 config != null && config.active(),
                 reducedSurface,
-                read.failure());
+                read.kind(),
+                read.message());
     }
 
-    /**
-     * A passive node whose management surface is genuinely smaller than the serving
-     * node's — it does not register some attributes at all.
-     *
-     * <p>Compares <b>attribute names</b>, deliberately not flattened pointers. A
-     * passive backup reports {@code AddressNames: []} where the primary reports ten
-     * entries, so a pointer comparison sees ten missing keys and calls a perfectly
-     * normal backup "reduced". That is exactly the false positive this whole feature
-     * exists to avoid, and the live check against the dev pair caught it.
-     */
-    private boolean isReducedSurface(NodeConfig left, NodeConfig right) {
-        NodeConfig passive = null;
-        if (!right.active()) {
-            passive = right;
-        } else if (!left.active()) {
-            passive = left;
-        }
-        if (passive == null) {
-            return false;
-        }
-        NodeConfig serving = passive == right ? left : right;
-        if (!serving.active()) {
-            return false;
-        }
-        return !attributeNames(passive).containsAll(attributeNames(serving));
+    private static ConfigDiff.Side side(ClusterNode node, Map<String, String> values) {
+        return new ConfigDiff.Side(node.getId(), node.getName(), values, key -> true);
+    }
+
+    /** The broker attribute a flattened pointer belongs to: its first segment. */
+    private static String attributeOf(String pointer) {
+        int end = pointer.indexOf('/', 1);
+        String segment = end < 0 ? pointer.substring(1) : pointer.substring(1, end);
+        return segment.replace("~1", "/").replace("~0", "~");
     }
 
     private Set<String> attributeNames(NodeConfig config) {
@@ -338,24 +323,57 @@ public class ConfigDiffService {
         return names;
     }
 
-    private ConfigSectionView section(
-            String section,
-            Map<String, String> left,
-            Map<String, String> right,
-            ClusterNode leftNode,
-            ClusterNode rightNode) {
-        List<Entry> entries = ConfigDiff.compare(section, left, right);
-        List<ConfigEntryView> views = entries.stream()
-                .map(e -> new ConfigEntryView(
-                        e.key(),
-                        e.left(),
-                        e.right(),
-                        e.status().name(),
-                        ConfigDiff.statusWord(e.status(), leftNode.getName(), rightNode.getName()),
-                        e.classification().name(),
-                        e.isDrift()))
+    private static ConfigSectionView section(String section, List<ConfigDiff.Side> sides) {
+        List<ConfigKeyView> keys = ConfigDiff.compare(section, sides).stream()
+                .map(ConfigDiffService::keyView)
                 .toList();
-        int drift = (int) entries.stream().filter(Entry::isDrift).count();
-        return new ConfigSectionView(section, ConfigDiff.sectionLabel(section), views, drift);
+        return new ConfigSectionView(section, ConfigDiff.sectionLabel(section), keys);
+    }
+
+    private static ConfigKeyView keyView(Entry e) {
+        return new ConfigKeyView(
+                e.key(),
+                e.state().name(),
+                ConfigDiff.stateWord(e.state()),
+                e.classification().name(),
+                e.isDrift(),
+                e.values().stream().map(ConfigDiffService::valueView).toList(),
+                e.majority(),
+                e.outliers().stream().map(ConfigDiffService::valueView).toList(),
+                e.groups().stream()
+                        .map(g -> new ConfigValueGroupView(
+                                g.value(),
+                                g.nodes().stream()
+                                        .map(ConfigDiffService::valueView)
+                                        .toList()))
+                        .toList());
+    }
+
+    private static ConfigNodeValueView valueView(ConfigDiff.NodeValue v) {
+        return new ConfigNodeValueView(v.nodeId(), v.nodeName(), v.value(), v.missing());
+    }
+
+    private static ConfigSummaryView summary(List<ConfigSectionView> sections) {
+        int drift = 0;
+        int expected = 0;
+        Set<UUID> nodesWithDrift = new LinkedHashSet<>();
+        for (ConfigSectionView section : sections) {
+            for (ConfigKeyView key : section.keys()) {
+                if (key.drift()) {
+                    drift++;
+                    // With no majority every node is party to the disagreement.
+                    List<ConfigNodeValueView> involved = key.majority() == null
+                            ? key.valueGroups().stream()
+                                    .flatMap(g -> g.nodes().stream())
+                                    .toList()
+                            : key.outliers();
+                    involved.forEach(v -> nodesWithDrift.add(v.nodeId()));
+                } else if (ConfigDiff.Classification.EXPECTED.name().equals(key.classification())
+                        && !ConfigDiff.State.SAME.name().equals(key.state())) {
+                    expected++;
+                }
+            }
+        }
+        return new ConfigSummaryView(drift, nodesWithDrift.size(), expected);
     }
 }

@@ -53,7 +53,7 @@ curl -s https://studio.example.com/mcp \
 | Tool | `diagnose` | 一个集群（每个节点的 HA 角色、脑裂、复制延迟、正在触发的告警）或一个队列的全链路 |
 | Tool | `list_resources` | 队列、地址、消费者、会话、连接、生产者、divert、bridge |
 | Tool | `metric_series` | 单个指标的分桶时间序列 |
-| Tool | `config_diff` | 两个节点之间已分类的配置差异 |
+| Tool | `config_diff` | 每个节点的配置与多数值的比较：发生漂移的键和与多数不同的节点 |
 | Tool | `broker_config` | 集群的声明、每个节点的漂移、`broker.xml` 片段，或历史应用 |
 | Tool | `browse_messages` | 消息头，或按 id 取单条消息体 |
 | Tool | `trace_request_reply` | 流、延迟与超时统计、已配置的预期 |

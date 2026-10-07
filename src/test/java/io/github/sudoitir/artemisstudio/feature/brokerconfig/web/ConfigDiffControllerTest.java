@@ -36,15 +36,16 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * {@code GET .../config-diff} — the pair default, the expected-vs-drift split, and
- * the two cases where Studio must state a limitation rather than render a diff
- * (ADR-0043).
+ * {@code GET .../config-diff} — every node against the majority, the expected-vs-drift
+ * split, and the cases where Studio must state a limitation rather than render a diff
+ * (ADR-0043, ADR-0178).
  */
 @ExtendWith(AdminAuthenticationExtension.class)
 class ConfigDiffControllerTest extends PostgresIntegrationTest {
 
-    private static final String LEFT_URL = "http://a:8161/console/jolokia";
-    private static final String RIGHT_URL = "http://b:8261/console/jolokia";
+    private static final String A_URL = "http://a:8161/console/jolokia";
+    private static final String B_URL = "http://b:8261/console/jolokia";
+    private static final String C_URL = "http://c:8361/console/jolokia";
     private static final String NODE_ID = "shared-node-id";
 
     private final JsonMapper mapper = new JsonMapper();
@@ -67,16 +68,17 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
     BrokerConnections connections;
 
     private UUID clusterId;
-    private UUID leftId;
-    private UUID rightId;
+    private UUID aId;
+    private UUID bId;
 
     @BeforeEach
     void setUp() {
         mvc = webAppContextSetup(webContext).build();
         clusterId = clusters.save(new ClusterEntity("c-" + UUID.randomUUID(), null, null))
                 .getId();
-        leftId = node("node-a", "PRIMARY", LEFT_URL);
-        rightId = node("node-b", "BACKUP", RIGHT_URL);
+        aId = node("node-a", "PRIMARY", A_URL);
+        bId = node("node-b", "BACKUP", B_URL);
+        node("node-c", "STANDALONE", C_URL);
     }
 
     private UUID node(String name, String role, String url) {
@@ -134,97 +136,132 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
                 """.formatted(active, acceptors, brokerName, journalType, active ? "7" : "0", addressNames);
     }
 
-    @Test
-    void comparesThePairByDefaultAndSeparatesExpectedFromDrift() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(LEFT_URL)))
-                .thenReturn(client(LEFT_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(RIGHT_URL))).thenReturn(client(RIGHT_URL, "backup", "NIO", true));
+    private static org.springframework.test.web.servlet.ResultMatcher nodeIs(String name, String field, Object value) {
+        return jsonPath("$.nodes[?(@.nodeName == '" + name + "')]." + field)
+                .value(org.hamcrest.Matchers.hasItem(value));
+    }
 
-        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId).param("right", rightId.toString()))
+    private static String broker(String path) {
+        return "$.sections[?(@.section == 'broker')].keys[?(@.key == '" + path + "')]";
+    }
+
+    private void threeNodes(String cType) {
+        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(client(B_URL, "backup", "ASYNCIO", true));
+        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(client(C_URL, "third", cType, true));
+    }
+
+    @Test
+    void comparesEveryNodeAndNamesTheOutlierAgainstTheMajority() throws Exception {
+        threeNodes("NIO");
+
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comparable").value(true))
-                .andExpect(jsonPath("$.left.nodeId").value(leftId.toString()))
-                .andExpect(jsonPath("$.right.nodeId").value(rightId.toString()))
-                // Name differs by design; JournalType is real drift.
-                .andExpect(jsonPath("$.sections[?(@.section == 'broker')].entries[?(@.key == '/Name')].classification")
-                        .value(org.hamcrest.Matchers.hasItem("EXPECTED")))
-                .andExpect(jsonPath("$.sections[?(@.section == 'broker')].entries[?(@.key == '/JournalType')].drift")
-                        .value(org.hamcrest.Matchers.hasItem(true)))
-                // A runtime counter differs, and is not counted as drift.
-                .andExpect(jsonPath(
-                                "$.sections[?(@.section == 'broker')].entries[?(@.key == '/TotalMessageCount')].classification")
-                        .value(org.hamcrest.Matchers.hasItem("UNCLASSIFIED")))
-                // The acceptor's host is EXPECTED, not drift, so JournalType is the only one.
-                .andExpect(jsonPath("$.driftCount").value(1));
-    }
-
-    @Test
-    void statusIsCarriedAsAWordNotOnlyAsAnEnum() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(LEFT_URL)))
-                .thenReturn(client(LEFT_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(RIGHT_URL))).thenReturn(client(RIGHT_URL, "backup", "NIO", true));
-
-        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId)
-                        .param("left", leftId.toString())
-                        .param("right", rightId.toString()))
-                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(3))
                 .andExpect(
-                        jsonPath("$.sections[?(@.section == 'broker')].entries[?(@.key == '/JournalType')].statusWord")
-                                .value(org.hamcrest.Matchers.hasItem("different")));
+                        jsonPath(broker("/JournalType") + ".majority").value(org.hamcrest.Matchers.hasItem("ASYNCIO")))
+                .andExpect(jsonPath(broker("/JournalType") + ".outliers[0].nodeName")
+                        .value(org.hamcrest.Matchers.hasItem("node-c")))
+                .andExpect(jsonPath(broker("/JournalType") + ".outliers[0].value")
+                        .value(org.hamcrest.Matchers.hasItem("NIO")))
+                .andExpect(jsonPath(broker("/JournalType") + ".drift").value(org.hamcrest.Matchers.hasItem(true)))
+                // Name differs by design, and a runtime counter is not configuration.
+                .andExpect(
+                        jsonPath(broker("/Name") + ".classification").value(org.hamcrest.Matchers.hasItem("EXPECTED")))
+                .andExpect(jsonPath(broker("/TotalMessageCount") + ".classification")
+                        .value(org.hamcrest.Matchers.hasItem("UNCLASSIFIED")))
+                // The acceptor host is expected too, so JournalType is the only drift, on one node.
+                .andExpect(jsonPath("$.summary.driftKeys").value(1))
+                .andExpect(jsonPath("$.summary.driftNodes").value(1))
+                .andExpect(jsonPath("$.summary.expectedKeys").value(org.hamcrest.Matchers.greaterThan(0)));
     }
 
     @Test
-    void whenOneSideCannotBeReadNoDiffIsRenderedAtAll() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(LEFT_URL)))
-                .thenReturn(client(LEFT_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(RIGHT_URL))).thenReturn(unauthorized(RIGHT_URL));
+    void stateIsCarriedAsAWordNotOnlyAsAnEnum() throws Exception {
+        threeNodes("NIO");
 
-        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId)
-                        .param("left", leftId.toString())
-                        .param("right", rightId.toString()))
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(broker("/JournalType") + ".stateWord")
+                        .value(org.hamcrest.Matchers.hasItem("different")));
+    }
+
+    @Test
+    void anUnreadableNodeIsListedWithItsReasonAndTheOthersAreStillCompared() throws Exception {
+        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(client(B_URL, "backup", "NIO", true));
+        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(unauthorized(C_URL));
+
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.comparable").value(true))
+                .andExpect(nodeIs("node-c", "available", false))
+                .andExpect(nodeIs("node-c", "unavailableKind", "UNAUTHORIZED"))
+                .andExpect(jsonPath("$.nodes[?(@.nodeName == 'node-c')].unavailableReason")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.not(org.hamcrest.Matchers.emptyString()))))
+                // Two answering nodes with two values have no majority; the dead node is no tiebreaker.
+                .andExpect(jsonPath(broker("/JournalType") + ".valueGroups.length()")
+                        .value(org.hamcrest.Matchers.hasItem(2)));
+    }
+
+    @Test
+    void whenFewerThanTwoNodesAnswerNoComparisonIsMadeAndEveryReasonIsGiven() throws Exception {
+        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(unauthorized(B_URL));
+        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(unauthorized(C_URL));
+
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comparable").value(false))
-                .andExpect(jsonPath("$.right.available").value(false))
-                .andExpect(jsonPath("$.right.unavailableReason").isNotEmpty())
-                // Never a half-diff: the unreachable side's absent keys would read as removals.
+                .andExpect(nodeIs("node-b", "unavailableKind", "UNAUTHORIZED"))
+                .andExpect(nodeIs("node-c", "unavailableKind", "UNAUTHORIZED"))
+                // Never a half-diff: the unreachable nodes' absent keys would read as removals.
                 .andExpect(jsonPath("$.sections.length()").value(0))
-                .andExpect(jsonPath("$.driftCount").value(0));
+                .andExpect(jsonPath("$.summary.driftKeys").value(0));
     }
 
     @Test
-    void aPassiveBackupThatAnswersFullyIsStillCompared() {
+    void nodesNarrowsTheComparisonToTheNamedNodes() throws Exception {
+        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(client(B_URL, "backup", "NIO", true));
+
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId).param("nodes", aId + "," + bId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(2));
+    }
+
+    @Test
+    void namingFewerThanTwoNodesIsRefused() throws Exception {
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId).param("nodes", aId.toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void aPassiveBackupThatAnswersFullyIsStillCompared() throws Exception {
         // A passive backup reports AddressNames: [] where the primary reports entries.
         // That is a value difference, not a smaller surface, and must not suppress the
         // comparison — the live check against the dev pair caught exactly this.
-        when(connections.forCluster(eq(clusterId), eq(LEFT_URL)))
-                .thenReturn(client(LEFT_URL, "primary", "ASYNCIO", true, "[\"orders\",\"events\"]"));
-        when(connections.forCluster(eq(clusterId), eq(RIGHT_URL)))
-                .thenReturn(client(RIGHT_URL, "backup", "ASYNCIO", false, "[]"));
+        when(connections.forCluster(eq(clusterId), eq(A_URL)))
+                .thenReturn(client(A_URL, "primary", "ASYNCIO", true, "[\"orders\",\"events\"]"));
+        when(connections.forCluster(eq(clusterId), eq(B_URL)))
+                .thenReturn(client(B_URL, "backup", "ASYNCIO", false, "[]"));
+        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(client(C_URL, "third", "ASYNCIO", true));
 
-        try {
-            mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId)
-                            .param("left", leftId.toString())
-                            .param("right", rightId.toString()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.comparable").value(true))
-                    .andExpect(jsonPath("$.right.reducedSurface").value(false));
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.comparable").value(true))
+                .andExpect(nodeIs("node-b", "reducedSurface", false))
+                .andExpect(jsonPath("$.notes.length()").value(0));
     }
 
     @Test
     void aReadOnlyComparisonWritesNoAuditEvent() throws Exception {
         long before = auditEvents.count();
-        when(connections.forCluster(eq(clusterId), eq(LEFT_URL)))
-                .thenReturn(client(LEFT_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(RIGHT_URL)))
-                .thenReturn(client(RIGHT_URL, "backup", "ASYNCIO", true));
+        threeNodes("ASYNCIO");
 
-        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId)
-                        .param("left", leftId.toString())
-                        .param("right", rightId.toString()))
-                .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId)).andExpect(status().isOk());
 
         Assertions.assertThat(auditEvents.count()).isEqualTo(before);
     }

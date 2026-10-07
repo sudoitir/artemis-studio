@@ -1,37 +1,49 @@
+import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { Column } from '../../ui/table/index.ts';
-import type { ConfigEntryView } from './api.ts';
-import { ClassificationBadge } from './configDiffCells.tsx';
+import { majorityWords, outlierWords, type DiffRow } from './configDiffRows.ts';
 
-/** The word a classified entry carries beside its status; only drift is a problem, the others keep it legible. */
-function classificationWord(entry: ConfigEntryView): string {
-  if (entry.classification === 'EXPECTED') return 'expected';
-  if (entry.classification === 'UNCLASSIFIED') return 'unclassified';
-  return entry.drift ? 'drift' : '';
+/** The word a key's class carries, so what a difference means is never left to the viewer to guess. */
+function classWord(row: DiffRow): string {
+  if (row.classification === 'EXPECTED') return 'expected';
+  if (row.classification === 'UNCLASSIFIED') return 'unclassified';
+  return 'configuration';
 }
 
 /**
- * The columns of one section of a two-node comparison. The key identifies a row and is shortened in the
- * middle, keeping its tail; both values wrap rather than shorten, because a long acceptor URI is the very thing that differs. The status is a
- * word, never carried by colour alone, and a row that drifts also says so.
+ * The comparison's columns. The key identifies a row and is shortened in the middle, keeping its
+ * tail; the values are code, shortened at the end with the whole value on demand and copyable,
+ * because a long acceptor URI is the very thing that differs. The state is a word, never carried by
+ * colour alone, and a drifting row also says so in its class column.
  */
-export function diffEntryColumns(): Column<ConfigEntryView>[] {
+export function configDiffColumns(): Column<DiffRow>[] {
   return [
-    { id: 'key', header: 'Key', accessor: (e) => e.key, kind: 'identifier', priority: 'essential' },
-    { id: 'left', header: 'Left', accessor: (e) => e.left ?? '—', kind: 'code', priority: 'essential', wrap: true },
-    { id: 'right', header: 'Right', accessor: (e) => e.right ?? '—', kind: 'code', priority: 'essential', wrap: true },
+    { id: 'section', header: 'Section', accessor: (r) => r.sectionLabel, kind: 'text', priority: 'high', max: 20 },
+    { id: 'key', header: 'Key', accessor: (r) => r.key, kind: 'identifier', priority: 'essential' },
     {
-      id: 'status',
-      header: 'Status',
-      accessor: (e) => `${e.statusWord} ${classificationWord(e)}`,
-      cell: (e) => (
-        <>
-          {e.statusWord} <ClassificationBadge entry={e} />
-        </>
-      ),
-      kind: 'text',
+      id: 'majority',
+      header: 'Majority',
+      accessor: majorityWords,
+      description: 'The value held by more than half of the nodes that have the key',
+      kind: 'code',
+      priority: 'essential',
+    },
+    {
+      id: 'outliers',
+      header: 'Differs',
+      accessor: outlierWords,
+      description: 'The nodes whose value is not the majority, with their value',
+      kind: 'code',
+      priority: 'essential',
+    },
+    {
+      id: 'state',
+      header: 'State',
+      accessor: (r) => r.stateWord,
+      cell: (r) => <StatusBadge tone={r.drift ? 'warning' : 'neutral'}>{r.stateWord}</StatusBadge>,
+      kind: 'status',
       badge: true,
       priority: 'essential',
-      wrap: true,
     },
+    { id: 'class', header: 'Class', accessor: classWord, kind: 'status', priority: 'low' },
   ];
 }

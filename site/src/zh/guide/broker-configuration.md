@@ -128,7 +128,7 @@ Drift 标签页以一句话给出结论——*All 3 live nodes match revision 7*
 
 备份节点不参与评估：它们在成为活动节点之前不显示运行时设置，并通过复制接收 address settings、security settings 和 divert。提升后的备份一旦活动就会被评估。
 
-**Config diff** 比较两个节点之间的差异；漂移比较每个节点与声明的差异。两者互相链接。
+**Config diff** 将每个节点的配置与其他节点的多数值比较，列出发生漂移的键和与多数不同的节点；漂移比较每个节点与声明的差异。两者互相链接。
 
 ## 权限
 

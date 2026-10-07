@@ -4,17 +4,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiff.Classification;
 import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiff.Entry;
-import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiff.KeyStatus;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiff.Side;
+import io.github.sudoitir.artemisstudio.feature.brokerconfig.ConfigDiff.State;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * The comparison's semantics (ADR-0043): three-way key status, address settings
- * keyed by their {@code match} rather than by position, an expected class distinct
- * from drift, and nothing dropped without the operator being told.
+ * The comparison's semantics (ADR-0043, ADR-0178): a majority and its outliers across
+ * every node, address settings keyed by their {@code match} rather than by position, an
+ * expected class distinct from drift, and nothing dropped without the operator being told.
  */
 class ConfigDiffTest {
 
@@ -28,55 +31,122 @@ class ConfigDiffTest {
         return entries.stream().filter(e -> e.key().equals(key)).findFirst().orElseThrow();
     }
 
-    @Test
-    void reportsSameDifferentAndOnlyInOneSide() {
-        List<Entry> entries = ConfigDiff.compare(
-                ConfigDiff.SECTION_BROKER,
-                Map.of("/JournalFileSize", "10485760", "/JournalType", "ASYNCIO", "/GlobalMaxSize", "512"),
-                Map.of("/JournalFileSize", "10485760", "/JournalType", "NIO", "/MaxDiskUsage", "90"));
+    /** Nodes named n1, n2, … each holding one flattened map. */
+    @SafeVarargs
+    private static List<Side> sides(Map<String, String>... values) {
+        List<Side> sides = new ArrayList<>();
+        for (int i = 0; i < values.length; i++) {
+            sides.add(new Side(UUID.randomUUID(), "n" + (i + 1), values[i], key -> true));
+        }
+        return sides;
+    }
 
-        assertThat(entry(entries, "/JournalFileSize").status()).isEqualTo(KeyStatus.SAME);
-        assertThat(entry(entries, "/JournalType").status()).isEqualTo(KeyStatus.DIFFERENT);
-        assertThat(entry(entries, "/GlobalMaxSize").status()).isEqualTo(KeyStatus.ONLY_IN_LEFT);
-        assertThat(entry(entries, "/MaxDiskUsage").status()).isEqualTo(KeyStatus.ONLY_IN_RIGHT);
+    private static List<Side> pair(Map<String, String> left, Map<String, String> right) {
+        return sides(left, right);
+    }
+
+    private static List<String> names(List<ConfigDiff.NodeValue> values) {
+        return values.stream().map(ConfigDiff.NodeValue::nodeName).toList();
     }
 
     @Test
-    void aKeyMissingOnOneSideIsNotAnEmptyValuedDifference() {
-        List<Entry> entries = ConfigDiff.compare(ConfigDiff.SECTION_BROKER, Map.of("/GlobalMaxSize", "512"), Map.of());
+    void oneNodeDifferingFromThreeIsTheOutlierAndTheRestAreTheMajority() {
+        Map<String, String> same = Map.of("/JournalType", "ASYNCIO");
+        List<Entry> entries =
+                ConfigDiff.compare(ConfigDiff.SECTION_BROKER, sides(same, same, Map.of("/JournalType", "NIO"), same));
 
-        Entry only = entry(entries, "/GlobalMaxSize");
-        assertThat(only.status()).isEqualTo(KeyStatus.ONLY_IN_LEFT);
-        assertThat(only.right()).isNull();
+        Entry type = entry(entries, "/JournalType");
+        assertThat(type.state()).isEqualTo(State.DIFFERENT);
+        assertThat(type.majority()).isEqualTo("ASYNCIO");
+        assertThat(names(type.outliers())).containsExactly("n3");
+        assertThat(type.outliers().getFirst().value()).isEqualTo("NIO");
+        assertThat(type.groups()).isEmpty();
+        assertThat(type.isDrift()).isTrue();
+    }
+
+    @Test
+    void aKeyTheNodesAgreeOnHasAMajorityAndNoOutliers() {
+        Map<String, String> same = Map.of("/JournalFileSize", "10485760");
+        Entry size = entry(ConfigDiff.compare(ConfigDiff.SECTION_BROKER, sides(same, same, same)), "/JournalFileSize");
+
+        assertThat(size.state()).isEqualTo(State.SAME);
+        assertThat(size.majority()).isEqualTo("10485760");
+        assertThat(size.outliers()).isEmpty();
+        assertThat(size.isDrift()).isFalse();
+    }
+
+    @Test
+    void halfAndHalfHasNoMajorityAndListsEveryValueWithItsNodes() {
+        Map<String, String> a = Map.of("/JournalType", "ASYNCIO");
+        Map<String, String> b = Map.of("/JournalType", "NIO");
+        Entry type = entry(ConfigDiff.compare(ConfigDiff.SECTION_BROKER, sides(a, b, a, b)), "/JournalType");
+
+        assertThat(type.majority()).isNull();
+        assertThat(type.outliers()).isEmpty();
+        assertThat(type.groups()).hasSize(2);
+        assertThat(type.groups().get(0).value()).isEqualTo("ASYNCIO");
+        assertThat(names(type.groups().get(0).nodes())).containsExactly("n1", "n3");
+        assertThat(names(type.groups().get(1).nodes())).containsExactly("n2", "n4");
+        assertThat(type.isDrift()).isTrue();
+    }
+
+    @Test
+    void aKeyMissingOnOneNodeIsMissingThereNotAnEmptyValuedDifference() {
+        Map<String, String> has = Map.of("/GlobalMaxSize", "512");
+        Entry max =
+                entry(ConfigDiff.compare(ConfigDiff.SECTION_BROKER, sides(has, has, has, Map.of())), "/GlobalMaxSize");
+
+        assertThat(max.state()).isEqualTo(State.MISSING_ON_SOME);
+        assertThat(max.majority()).isEqualTo("512");
+        assertThat(names(max.outliers())).containsExactly("n4");
+        assertThat(max.outliers().getFirst().missing()).isTrue();
+        assertThat(max.outliers().getFirst().value()).isNull();
+        assertThat(max.isDrift()).isTrue();
+    }
+
+    @Test
+    void aNodeWhoseSurfaceCannotExposeAKeyIsLeftOutInsteadOfMissing() {
+        Map<String, String> has = Map.of("/GlobalMaxSize", "512");
+        List<Side> sides = List.of(
+                new Side(UUID.randomUUID(), "n1", has, key -> true),
+                new Side(UUID.randomUUID(), "passive", Map.of(), key -> false));
+
+        Entry max = entry(ConfigDiff.compare(ConfigDiff.SECTION_BROKER, sides), "/GlobalMaxSize");
+
+        assertThat(names(max.values())).containsExactly("n1");
+        assertThat(max.state()).isEqualTo(State.SAME);
+        assertThat(max.outliers()).isEmpty();
     }
 
     @Test
     void aDifferingConfigurationKeyIsDrift() {
         List<Entry> entries = ConfigDiff.compare(
-                ConfigDiff.SECTION_BROKER, Map.of("/JournalType", "ASYNCIO"), Map.of("/JournalType", "NIO"));
+                ConfigDiff.SECTION_BROKER, pair(Map.of("/JournalType", "ASYNCIO"), Map.of("/JournalType", "NIO")));
 
-        assertThat(entry(entries, "/JournalType").classification()).isEqualTo(Classification.CONFIGURATION);
+        assertThat(entry(entries, "/JournalType").classification()).isEqualTo(Classification.DRIFT);
         assertThat(entry(entries, "/JournalType").isDrift()).isTrue();
     }
 
     @Test
     void theBrokerNameClassifiesAsExpectedNotDrift() {
         // The dev pair is broker="primary" / broker="backup" by design.
-        List<Entry> entries =
-                ConfigDiff.compare(ConfigDiff.SECTION_BROKER, Map.of("/Name", "primary"), Map.of("/Name", "backup"));
+        List<Entry> entries = ConfigDiff.compare(
+                ConfigDiff.SECTION_BROKER, pair(Map.of("/Name", "primary"), Map.of("/Name", "backup")));
 
         Entry name = entry(entries, "/Name");
-        assertThat(name.status()).isEqualTo(KeyStatus.DIFFERENT);
+        assertThat(name.state()).isEqualTo(State.DIFFERENT);
         assertThat(name.classification()).isEqualTo(Classification.EXPECTED);
         assertThat(name.isDrift()).isFalse();
+        assertThat(name.isExpected()).isTrue();
     }
 
     @Test
     void haPolicyAndNodeLocalPathsAreAlsoExpected() {
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_BROKER,
-                Map.of("/HAPolicy", "Replication Primary w/quorum voting", "/JournalDirectory", "/a/journal"),
-                Map.of("/HAPolicy", "Replication Backup w/quorum voting", "/JournalDirectory", "/b/journal"));
+                pair(
+                        Map.of("/HAPolicy", "Replication Primary w/quorum voting", "/JournalDirectory", "/a/journal"),
+                        Map.of("/HAPolicy", "Replication Backup w/quorum voting", "/JournalDirectory", "/b/journal")));
 
         assertThat(entries).allSatisfy(e -> assertThat(e.isDrift()).isFalse());
     }
@@ -86,8 +156,7 @@ class ConfigDiffTest {
         // Whatever Artemis adds next must still be visible, and must not read as drift.
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_BROKER,
-                Map.of("/SomeFutureArtemisAttribute", "1"),
-                Map.of("/SomeFutureArtemisAttribute", "2"));
+                pair(Map.of("/SomeFutureArtemisAttribute", "1"), Map.of("/SomeFutureArtemisAttribute", "2")));
 
         Entry unknown = entry(entries, "/SomeFutureArtemisAttribute");
         assertThat(unknown.classification()).isEqualTo(Classification.UNCLASSIFIED);
@@ -98,8 +167,9 @@ class ConfigDiffTest {
     void runtimeCountersDoNotReadAsDrift() {
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_BROKER,
-                Map.of("/TotalMessageCount", "7", "/ConnectionCount", "4"),
-                Map.of("/TotalMessageCount", "0", "/ConnectionCount", "0"));
+                pair(
+                        Map.of("/TotalMessageCount", "7", "/ConnectionCount", "4"),
+                        Map.of("/TotalMessageCount", "0", "/ConnectionCount", "0")));
 
         assertThat(entries).allSatisfy(e -> {
             assertThat(e.classification()).isEqualTo(Classification.UNCLASSIFIED);
@@ -115,8 +185,9 @@ class ConfigDiffTest {
         // two drifts — caught by a live comparison, not by reading the attribute list.
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_BROKER,
-                Map.of("/AuthenticationCacheSize", "1", "/AuthorizationCacheSize", "2"),
-                Map.of("/AuthenticationCacheSize", "0", "/AuthorizationCacheSize", "0"));
+                pair(
+                        Map.of("/AuthenticationCacheSize", "1", "/AuthorizationCacheSize", "2"),
+                        Map.of("/AuthenticationCacheSize", "0", "/AuthorizationCacheSize", "0")));
 
         assertThat(entries).allSatisfy(e -> {
             assertThat(e.classification()).isEqualTo(Classification.UNCLASSIFIED);
@@ -135,27 +206,29 @@ class ConfigDiffTest {
 
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_ADDRESS_SETTINGS,
-                ConfigDiff.flattenKeyed(left, "match"),
-                ConfigDiff.flattenKeyed(right, "match"));
+                pair(ConfigDiff.flattenKeyed(left, "match"), ConfigDiff.flattenKeyed(right, "match")));
 
         assertThat(entries).isNotEmpty();
-        assertThat(entries).allSatisfy(e -> assertThat(e.status()).isEqualTo(KeyStatus.SAME));
+        assertThat(entries).allSatisfy(e -> assertThat(e.state()).isEqualTo(State.SAME));
     }
 
     @Test
-    void anAddressSettingOnOnlyOneSideIsReportedUnderItsMatchPattern() {
-        JsonNode left =
+    void anAddressSettingOnOnlySomeNodesIsReportedUnderItsMatchPattern() {
+        JsonNode with =
                 json("[ {\"match\":\"#\",\"maxSizeBytes\":-1}, {\"match\":\"orders.#\",\"maxSizeBytes\":1024} ]");
-        JsonNode right = json("[ {\"match\":\"#\",\"maxSizeBytes\":-1} ]");
+        JsonNode without = json("[ {\"match\":\"#\",\"maxSizeBytes\":-1} ]");
 
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_ADDRESS_SETTINGS,
-                ConfigDiff.flattenKeyed(left, "match"),
-                ConfigDiff.flattenKeyed(right, "match"));
+                sides(
+                        ConfigDiff.flattenKeyed(with, "match"),
+                        ConfigDiff.flattenKeyed(with, "match"),
+                        ConfigDiff.flattenKeyed(without, "match")));
 
-        Entry onlyLeft = entry(entries, "/orders.#/maxSizeBytes");
-        assertThat(onlyLeft.status()).isEqualTo(KeyStatus.ONLY_IN_LEFT);
-        assertThat(onlyLeft.isDrift()).isTrue();
+        Entry orders = entry(entries, "/orders.#/maxSizeBytes");
+        assertThat(orders.state()).isEqualTo(State.MISSING_ON_SOME);
+        assertThat(names(orders.outliers())).containsExactly("n3");
+        assertThat(orders.isDrift()).isTrue();
     }
 
     @Test
@@ -165,8 +238,7 @@ class ConfigDiffTest {
 
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_ADDRESS_SETTINGS,
-                ConfigDiff.flattenKeyed(left, "match"),
-                ConfigDiff.flattenKeyed(right, "match"));
+                pair(ConfigDiff.flattenKeyed(left, "match"), ConfigDiff.flattenKeyed(right, "match")));
 
         assertThat(entry(entries, "/#/maxSizeBytes").isDrift()).isTrue();
     }
@@ -182,8 +254,7 @@ class ConfigDiffTest {
 
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_ACCEPTORS,
-                ConfigDiff.flattenKeyed(left, "name"),
-                ConfigDiff.flattenKeyed(right, "name"));
+                pair(ConfigDiff.flattenKeyed(left, "name"), ConfigDiff.flattenKeyed(right, "name")));
 
         assertThat(entry(entries, "/artemis/params/host").classification()).isEqualTo(Classification.EXPECTED);
         assertThat(entry(entries, "/artemis/params/port").classification()).isEqualTo(Classification.EXPECTED);
@@ -197,10 +268,9 @@ class ConfigDiffTest {
 
         List<Entry> entries = ConfigDiff.compare(
                 ConfigDiff.SECTION_SECURITY_SETTINGS,
-                ConfigDiff.flattenKeyed(left, "name"),
-                ConfigDiff.flattenKeyed(right, "name"));
+                pair(ConfigDiff.flattenKeyed(left, "name"), ConfigDiff.flattenKeyed(right, "name")));
 
-        assertThat(entry(entries, "/amq/send").status()).isEqualTo(KeyStatus.SAME);
+        assertThat(entry(entries, "/amq/send").state()).isEqualTo(State.SAME);
         assertThat(entry(entries, "/amq/consume").isDrift()).isTrue();
     }
 
@@ -228,13 +298,9 @@ class ConfigDiffTest {
     }
 
     @Test
-    void statusIsAlsoAWordSoTheUiNeverCarriesItByColourAlone() {
-        assertThat(ConfigDiff.statusWord(KeyStatus.SAME, "primary", "backup")).isEqualTo("same");
-        assertThat(ConfigDiff.statusWord(KeyStatus.DIFFERENT, "primary", "backup"))
-                .isEqualTo("different");
-        assertThat(ConfigDiff.statusWord(KeyStatus.ONLY_IN_LEFT, "primary", "backup"))
-                .isEqualTo("only on primary");
-        assertThat(ConfigDiff.statusWord(KeyStatus.ONLY_IN_RIGHT, "primary", "backup"))
-                .isEqualTo("only on backup");
+    void stateIsAlsoAWordSoTheUiNeverCarriesItByColourAlone() {
+        assertThat(ConfigDiff.stateWord(State.SAME)).isEqualTo("same");
+        assertThat(ConfigDiff.stateWord(State.DIFFERENT)).isEqualTo("different");
+        assertThat(ConfigDiff.stateWord(State.MISSING_ON_SOME)).isEqualTo("missing on some");
     }
 }

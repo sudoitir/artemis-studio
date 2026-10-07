@@ -276,8 +276,9 @@ Backups are not evaluated: they show no runtime settings until they become
 active, and they receive address settings, security settings and diverts through
 replication. A promoted backup is evaluated as soon as it is live.
 
-**Config diff** compares two nodes with each other; this screen compares every
-node with the declaration. The two link to each other.
+**Config diff** sets every node's configuration against the majority of the
+others and lists the keys that drift and the nodes that differ; this screen
+compares every node with the declaration. The two link to each other.
 
 ## Permissions
 

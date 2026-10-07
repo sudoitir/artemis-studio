@@ -7101,49 +7101,70 @@ export interface components {
             plan: components["schemas"]["ConfigPlanView"];
             nodes: components["schemas"]["ConfigNodeApplyView"][];
         };
-        /** @description Broker configuration compared across two nodes */
+        /** @description Broker configuration compared across every node of a cluster */
         ConfigDiffView: {
             /** Format: uuid */
             clusterId: string;
-            left: components["schemas"]["ConfigSideView"];
-            right: components["schemas"]["ConfigSideView"];
+            nodes: components["schemas"]["ConfigNodeView"][];
             comparable: boolean;
             sections: components["schemas"]["ConfigSectionView"][];
-            /** Format: int32 */
-            driftCount: number;
+            summary: components["schemas"]["ConfigSummaryView"];
             /** Format: int32 */
             matchesCompared: number;
             /** Format: int32 */
             matchesAvailable: number;
-            note?: string | null;
+            notes: string[];
         };
-        /** @description One configuration key, compared across both nodes */
-        ConfigEntryView: {
+        /** @description One configuration key, compared across every node */
+        ConfigKeyView: {
             key: string;
-            left?: string | null;
-            right?: string | null;
-            status: string;
-            statusWord: string;
+            state: string;
+            stateWord: string;
             classification: string;
             drift: boolean;
+            values: components["schemas"]["ConfigNodeValueView"][];
+            majority?: string | null;
+            outliers: components["schemas"]["ConfigNodeValueView"][];
+            valueGroups: components["schemas"]["ConfigValueGroupView"][];
         };
-        /** @description One section of the comparison */
-        ConfigSectionView: {
-            section: string;
-            label: string;
-            entries: components["schemas"]["ConfigEntryView"][];
-            /** Format: int32 */
-            driftCount: number;
+        /** @description One node's value for a configuration key */
+        ConfigNodeValueView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            value?: string | null;
+            missing: boolean;
         };
         /** @description One node in a configuration comparison */
-        ConfigSideView: {
+        ConfigNodeView: {
             /** Format: uuid */
             nodeId: string;
             nodeName: string;
             available: boolean;
             active: boolean;
             reducedSurface: boolean;
+            unavailableKind?: string | null;
             unavailableReason?: string | null;
+        };
+        /** @description One section of the comparison */
+        ConfigSectionView: {
+            section: string;
+            label: string;
+            keys: components["schemas"]["ConfigKeyView"][];
+        };
+        /** @description Counts for a configuration comparison */
+        ConfigSummaryView: {
+            /** Format: int32 */
+            driftKeys: number;
+            /** Format: int32 */
+            driftNodes: number;
+            /** Format: int32 */
+            expectedKeys: number;
+        };
+        /** @description A distinct value and the nodes that hold it */
+        ConfigValueGroupView: {
+            value: string;
+            nodes: components["schemas"]["ConfigNodeValueView"][];
         };
         PagedViewBulkRunView: {
             data: components["schemas"]["BulkRunView"][];
@@ -19861,8 +19882,7 @@ export interface operations {
     compare: {
         parameters: {
             query?: {
-                left?: string;
-                right?: string;
+                nodes?: string[];
             };
             header?: never;
             path: {

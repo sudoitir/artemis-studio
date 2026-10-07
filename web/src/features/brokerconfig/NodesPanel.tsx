@@ -61,7 +61,7 @@ export function NodesPanel({
           <Link to={`/clusters/${declaration.clusterId}/config-diff`} className={linkClasses.link}>
             Config diff
           </Link>{' '}
-          compares two nodes with each other; this screen compares every node with the declaration.
+          sets every node against the majority of the others; this screen compares every node with the declaration.
         </>
       }
     >

@@ -24,12 +24,14 @@ export type ConfigDivertView = Schemas['ConfigDivertView'];
 export type ConfigDocumentView = Schemas['ConfigDocumentView'];
 export type ConfigDriftFindingView = Schemas['ConfigDriftFindingView'];
 export type ConfigDriftReportView = Schemas['ConfigDriftReportView'];
-export type ConfigEntryView = Schemas['ConfigEntryView'];
 export type ConfigHazardView = Schemas['ConfigHazardView'];
 export type ConfigImportResultView = Schemas['ConfigImportResultView'];
+export type ConfigKeyView = Schemas['ConfigKeyView'];
 export type ConfigNodeApplyView = Schemas['ConfigNodeApplyView'];
 export type ConfigNodeConnectorsView = Schemas['ConfigNodeConnectorsView'];
 export type ConfigNodeStateView = Schemas['ConfigNodeStateView'];
+export type ConfigNodeValueView = Schemas['ConfigNodeValueView'];
+export type ConfigNodeView = Schemas['ConfigNodeView'];
 export type ConfigQueueView = Schemas['ConfigQueueView'];
 export type ConfigRecommendationView = Schemas['ConfigRecommendationView'];
 export type ConfigRecommendationsView = Schemas['ConfigRecommendationsView'];
@@ -59,23 +61,15 @@ export function useNodeConfig(clusterId: string, nodeId: string | undefined): Us
 }
 
 /**
- * Compare two nodes' broker configuration (ADR-0043). Read-only, so no mutation
- * hook — and no polling: configuration does not change under the operator, and a
- * comparison costs one batched broker call per node.
+ * Compare every node's broker configuration against the majority (ADR-0043, ADR-0178). Read-only, so
+ * no mutation hook — and no polling: configuration does not change under the operator, and a
+ * comparison costs one batched broker call per node. The filters are the view's own, applied to
+ * this one answer.
  */
-export function useConfigDiff(
-  clusterId: string,
-  left: string | null,
-  right: string | null,
-): UseQueryResult<ConfigDiffView, ApiError> {
-  const params = new URLSearchParams();
-  if (left) params.set('left', left);
-  if (right) params.set('right', right);
-  const query = params.toString();
-  const queryString = query ? `?${query}` : '';
+export function useConfigDiff(clusterId: string): UseQueryResult<ConfigDiffView, ApiError> {
   return useQuery({
-    queryKey: ['clusters', clusterId, 'config-diff', left, right],
-    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff${queryString}`),
+    queryKey: ['clusters', clusterId, 'config-diff'] as const,
+    queryFn: () => request<ConfigDiffView>(`/clusters/${clusterId}/config-diff`),
     staleTime: 30_000,
   });
 }

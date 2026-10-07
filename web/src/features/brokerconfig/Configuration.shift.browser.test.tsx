@@ -13,6 +13,7 @@ import type { ReactElement } from 'react';
 import { paged } from '../../kernel/api/paging.ts';
 import { accessFor } from '../../test/accessSummary.ts';
 import { contentWidth, Frame, renderThemed, settle } from '../../test/browser.tsx';
+import { C, diff, outlier } from './configDiffFixtures.ts';
 import { ConfigDiffView } from './ConfigDiffView.tsx';
 import { ConfigurationView } from './ConfigurationView.tsx';
 import { CATALOGUE, cluster, declaration, NODE_A, NODE_B } from './fixtures.ts';
@@ -29,51 +30,20 @@ const ME = {
   grants: [{ scopeType: 'GLOBAL', scopeId: null, permissions: ['*'] }],
 };
 
-const side = (nodeId: string, nodeName: string) => ({
-  nodeId,
-  nodeName,
-  available: true,
-  active: true,
-  reducedSurface: false,
-});
-
-const DIFF = {
-  clusterId: 'c1',
-  left: side('n-a', 'broker-1'),
-  right: side('n-b', 'broker-2'),
-  comparable: true,
-  driftCount: 1,
-  matchesCompared: 1,
-  matchesAvailable: 1,
-  note: null,
+/** Three nodes: a value that drifts, a setting one node lacks, and a long value. */
+const DIFF = diff({
   sections: [
     {
       section: 'broker',
       label: 'Broker',
-      driftCount: 1,
-      entries: [
-        {
-          key: 'max-disk-usage',
-          left: '90',
-          right: '80',
-          status: 'DIFFERENT',
-          statusWord: 'differs',
-          classification: 'CONFIGURATION',
-          drift: true,
-        },
-        {
-          key: 'journal-type',
-          left: 'NIO',
-          right: 'NIO',
-          status: 'SAME',
-          statusWord: 'same',
-          classification: 'CONFIGURATION',
-          drift: false,
-        },
+      keys: [
+        outlier('/AcceptorUri', `tcp://${'broker-1.example.internal:61616?'.repeat(6)}`, C, 'tcp://broker-3:61616'),
+        ...diff().sections[0].keys,
       ],
     },
+    diff().sections[1],
   ],
-};
+});
 
 const TOPOLOGY = {
   clusterId: 'c1',
@@ -247,7 +217,8 @@ const PAGES = [
     view: ConfigDiffView,
     path: '/clusters/$clusterId/config-diff',
     search: '',
-    ready: 'broker-1 ↔ broker-2',
+    ready: 'Configuration keys',
+    role: 'grid',
   },
 ] as const;
 
@@ -259,7 +230,8 @@ const WIDTHS = [
 
 describe.each(PAGES.flatMap((p) => WIDTHS.map((w) => ({ ...p, ...w, title: `${p.name} at ${w.name}` }))))(
   '$title',
-  ({ view, path, search, ready, width }) => {
+  ({ view, path, search, ready, width, ...rest }) => {
+    const role = 'role' in rest ? rest.role : 'heading';
     // The page that suggests adopting what the nodes run reads them after it is drawn; what it adds must
     // not push the empty state and the tabs below it down the page.
     it('suggests an adoption without moving the empty state under it', async () => {
@@ -293,7 +265,9 @@ describe.each(PAGES.flatMap((p) => WIDTHS.map((w) => ({ ...p, ...w, title: `${p.
         'light',
       );
       await screen.findByRole('heading', { level: 1 });
-      await screen.findByRole('heading', { level: 2, name: ready }, { timeout: 5000 });
+      await (role === 'grid'
+        ? screen.findByRole('grid', { name: ready }, { timeout: 5000 })
+        : screen.findByRole('heading', { level: 2, name: ready }, { timeout: 5000 }));
       await settle(() => `${container.scrollHeight}:${container.querySelectorAll('table').length}`);
       await new Promise((resolve) => setTimeout(resolve, 500));
 
