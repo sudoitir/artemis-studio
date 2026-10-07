@@ -26,8 +26,7 @@ const ORDER: Record<string, (a: TeamSummary, b: TeamSummary) => number> = {
   name: (a, b) => a.name.localeCompare(b.name),
   patterns: (a, b) => a.patterns.length - b.patterns.length,
   members: (a, b) => a.memberCount - b.memberCount,
-  sharesOut: (a, b) => a.sharesOut - b.sharesOut,
-  sharesIn: (a, b) => a.sharesIn - b.sharesIn,
+  shares: (a, b) => a.sharesOut + a.sharesIn - (b.sharesOut + b.sharesIn),
 };
 
 /**

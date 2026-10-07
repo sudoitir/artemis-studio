@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 
 import linkClasses from '../../ui/InlineLink.module.css';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { Column } from '../../ui/table/index.ts';
+import { MiddleTruncate, type Column } from '../../ui/table/index.ts';
 import type { MemberView, PatternKind, PatternView, ShareView, TeamSummary, UnownedView } from './api.ts';
 import classes from './Security.module.css';
 import { KIND_OPTIONS, KIND_WORDS } from './teamWords.ts';
@@ -43,8 +43,8 @@ export function teamColumns({ clusterName, editable, onRename, onDelete }: TeamR
       header: 'Team',
       accessor: (t) => t.name,
       cell: (t) => (
-        <Link to="." search={teamSearch(t.id) as never} className={linkClasses.link}>
-          {t.name}
+        <Link to="." search={teamSearch(t.id) as never} className={`${linkClasses.link} ${classes.teamLink}`}>
+          <MiddleTruncate text={t.name} tooltip />
         </Link>
       ),
       kind: 'identifier',
@@ -81,22 +81,12 @@ export function teamColumns({ clusterName, editable, onRename, onDelete }: TeamR
       sortKey: 'members',
     },
     {
-      id: 'sharesOut',
-      header: 'Shared out',
-      short: 'Out',
-      accessor: (t) => t.sharesOut,
-      kind: 'number',
+      id: 'shares',
+      header: 'Shares',
+      accessor: (t) => `${t.sharesOut} out, ${t.sharesIn} in`,
+      kind: 'status',
       priority: 'low',
-      sortKey: 'sharesOut',
-    },
-    {
-      id: 'sharesIn',
-      header: 'Shared in',
-      short: 'In',
-      accessor: (t) => t.sharesIn,
-      kind: 'number',
-      priority: 'low',
-      sortKey: 'sharesIn',
+      sortKey: 'shares',
     },
     {
       id: 'actions',
@@ -245,7 +235,7 @@ export function shareColumns({ clusterName, direction, editable, onRemove }: Sha
       id: 'team',
       header: direction === 'out' ? 'Shared with' : 'Shared by',
       accessor: other,
-      kind: 'text',
+      kind: 'identifier',
       priority: 'essential',
     },
     { id: 'cluster', header: 'Cluster', accessor: (s) => clusterName(s.clusterId), kind: 'text', priority: 'high' },

@@ -33,11 +33,14 @@ const isTab = (value: unknown): value is TabId => TABS.some((t) => t.id === valu
 /** What a team owns and who uses it, in a line: the first thing to know about a team. */
 function teamSummary(team: TeamView): string {
   const clusters = new Set(team.patterns.map((p) => p.clusterId)).size;
-  const owns =
+  const shares = team.sharesOut.length + team.sharesIn.length;
+  return [
     team.patterns.length === 0
-      ? 'Owns nothing yet: add a pattern to give it queues and addresses'
-      : `Owns ${countOf(team.patterns.length, 'pattern')} on ${countOf(clusters, 'cluster')}`;
-  return `${owns}. ${countOf(team.members.length, 'member')}; shares ${team.sharesOut.length} out and ${team.sharesIn.length} in.`;
+      ? 'Owns nothing yet: add a pattern'
+      : `Owns ${countOf(team.patterns.length, 'pattern')} on ${countOf(clusters, 'cluster')}`,
+    team.members.length === 0 ? 'no members' : countOf(team.members.length, 'member'),
+    shares === 0 ? 'no shares' : `shares ${team.sharesOut.length} out and ${team.sharesIn.length} in`,
+  ].join(' · ');
 }
 
 /** The way back to the list, as a real link: it opens in a new tab like any other. */

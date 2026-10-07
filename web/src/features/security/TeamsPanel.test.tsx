@@ -46,7 +46,7 @@ describe('the Teams tab', () => {
     expect(router.state.location.search).toMatchObject({ tab: 'teams', team: 't-orders' });
     expect(screen.getByRole('tab', { name: 'Patterns (1)' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Members (2)' })).toBeInTheDocument();
-    expect(screen.getByText(/Owns 1 pattern on 1 cluster\. 2 members/)).toBeInTheDocument();
+    expect(screen.getByText(/Owns 1 pattern on 1 cluster · 2 members · no shares/)).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
