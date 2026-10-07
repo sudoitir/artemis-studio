@@ -2,6 +2,7 @@ import { Text } from '@mantine/core';
 
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Section } from '../../ui/Section.tsx';
@@ -21,11 +22,7 @@ export function AccountView() {
   const me = useMe();
   const sections = useSlot('account.sections');
 
-  let username = (
-    <Text size="sm" c="dimmed">
-      Loading…
-    </Text>
-  );
+  let username = <LoadingState variant="inline" label="Loading your user name" inlineSize="8rem" />;
   if (me.isError) username = <ErrorState variant="inline" error={me.error} onRetry={() => void me.refetch()} />;
   else if (me.data) username = <Text size="sm">{me.data.username}</Text>;
 
