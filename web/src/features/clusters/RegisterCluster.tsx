@@ -26,7 +26,7 @@ import { CapabilityLedger } from './CapabilityLedger.tsx';
 import classes from './Clusters.module.css';
 import { adoptionCountsWords, defaultPattern } from './connectionWords.ts';
 import { NodeProbeTable } from './NodeProbeTable.tsx';
-import { normaliseSeeds } from './normaliseSeeds.ts';
+import { normaliseSeeds, seedRow, type SeedRow } from './normaliseSeeds.ts';
 import { isValidPattern } from './pattern.ts';
 
 const EXAMPLE = 'http://broker-1:8161/console/jolokia';
@@ -35,7 +35,7 @@ const REGISTER: ActionVerb = { verb: 'Register', past: 'Registered', progressive
 
 interface Fields {
   seed: string;
-  moreSeeds: string[];
+  moreSeeds: SeedRow[];
   name: string;
   username: string;
   password: string;
@@ -191,8 +191,8 @@ function AdoptionChoice({
 function seedsOf(f: Fields): { urls: string[]; problems: Record<string, string> } {
   const urls: string[] = [];
   const problems: Record<string, string> = {};
-  [f.seed, ...f.moreSeeds].forEach((value, i) => {
-    const path = i === 0 ? 'seed' : `moreSeeds.${i - 1}`;
+  [f.seed, ...f.moreSeeds.map((row) => row.url)].forEach((value, i) => {
+    const path = i === 0 ? 'seed' : `moreSeeds.${i - 1}.url`;
     const issue = seedProblem(value);
     if (issue) problems[path] = issue;
     const [first] = normaliseSeeds(value);
@@ -239,7 +239,7 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
   const f = form.values;
 
   const { urls: seedList } = seedsOf(f);
-  const rewritten = [f.seed, ...f.moreSeeds]
+  const rewritten = [f.seed, ...f.moreSeeds.map((row) => row.url)]
     .map((value) => normaliseSeeds(value)[0])
     .filter((s) => s?.url && s.url !== s.original);
   const pattern = f.pattern || defaultPattern(seedList[0]);
@@ -326,12 +326,12 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
           description={`One is enough: Studio finds the rest of the cluster from it. For example: ${EXAMPLE}`}
           {...form.getInputProps('seed')}
         />
-        {f.moreSeeds.map((_, i) => (
-          <FieldRow key={`more-${i}`}>
+        {f.moreSeeds.map((row, i) => (
+          <FieldRow key={row.key}>
             <TextInput
               label={`Another management URL (${i + 2})`}
               autoComplete="off"
-              {...form.getInputProps(`moreSeeds.${i}`)}
+              {...form.getInputProps(`moreSeeds.${i}.url`)}
             />
             <ActionIcon
               variant="subtle"
@@ -346,7 +346,7 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
           variant="subtle"
           size="compact-sm"
           className={classes.start}
-          onClick={() => form.insertListItem('moreSeeds', '')}
+          onClick={() => form.insertListItem('moreSeeds', seedRow())}
         >
           Add another seed
         </Button>

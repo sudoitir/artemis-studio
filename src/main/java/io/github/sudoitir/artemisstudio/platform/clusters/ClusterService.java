@@ -285,7 +285,7 @@ public class ClusterService {
     private static AccountResult resultOf(Future<AccountResult> result) {
         try {
             return result.get();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return AccountResult.UNREACHABLE;
         } catch (ExecutionException _) {
@@ -847,14 +847,14 @@ public class ClusterService {
 
         List<NodeProbeView> rows = new ArrayList<>();
         for (int i = 0; i < stored.size(); i++) {
-            rows.add(storedRow(stored.get(i), endpoints.get(i), derivation, core.get(i)));
+            rows.add(storedRow(stored.get(i), derivation, core.get(i)));
         }
         Set<String> known = stored.stream().map(BrokerNodeEntity::getJolokiaUrl).collect(Collectors.toSet());
         Set<String> knownHosts = knownHostPorts(stored);
         for (String url : edited.seedUrls()) {
             if (!known.contains(url)) {
                 requireSuppliedForNewHost(edited, url, knownHosts);
-                rows.add(seedRow(url, management, edited.coreSettings(clusterId)));
+                rows.add(seedRow(url, management));
             }
         }
         audit.succeed(event, rows.size());
@@ -865,8 +865,7 @@ public class ClusterService {
      * One stored node as the edited connection would find it. A seed or manual URL stays as it is and is asked
      * again with the new account; a derived one, or none, is derived afresh from the pattern, as discovery would.
      */
-    private NodeProbeView storedRow(
-            BrokerNodeEntity node, NodeEndpoint endpoint, UrlDerivation derivation, AccountResult core) {
+    private NodeProbeView storedRow(BrokerNodeEntity node, UrlDerivation derivation, AccountResult core) {
         boolean fixed = node.getJolokiaUrl() != null && node.getUrlSource() != ManagementUrlSource.DERIVED;
         TopologyDiscovery.UrlProof proof = fixed
                 ? topologyDiscovery.probe(derivation.settings(), node.getJolokiaUrl(), node.getArtemisNodeId())
@@ -886,7 +885,7 @@ public class ClusterService {
     }
 
     /** A seed the request adds, asked on its own: it is a new address, so no stored node says what it should answer. */
-    private NodeProbeView seedRow(String url, BrokerConnectionSettings management, CoreConnectionSettings core) {
+    private NodeProbeView seedRow(String url, BrokerConnectionSettings management) {
         TopologyDiscovery.UrlProof proof = topologyDiscovery.probe(management, url, null);
         return new NodeProbeView(
                 hostOf(url),
@@ -985,51 +984,15 @@ public class ClusterService {
         if ((newHosts || managementRenamed) && !managementSupplied && stored.username() != null) {
             throw new IllegalArgumentException(ENTER_AGAIN.formatted("management"));
         }
-        Account management = request.management() == null
-                ? new Account(stored.username(), stored.password())
-                : new Account(
-                        request.management().username(),
-                        keepStored(request.management().password(), stored.password()));
-
+        Account management = managementAccount(request, stored);
         Optional<BrokerCredentialEntity> storedCore = credentials.findByClusterIdAndKind(clusterId, CORE);
-        Account core;
-        if (request.core() == null) {
-            core = storedCore
-                    .map(c -> new Account(c.getUsername(), openSecret(clusterId, c)))
-                    .orElse(null);
-        } else if (request.core() == AccountUpdate.CLEAR) {
-            core = null;
-        } else {
-            AccountUpdate update = request.core();
-            String kept = storedCore.map(c -> openSecret(clusterId, c)).orElse(null);
-            String password = keepStored(update.password(), kept);
-            if (password == null) {
-                throw new IllegalArgumentException("Enter the Core account's password.");
-            }
-            core = new Account(update.username(), password);
-        }
-        boolean coreSupplied = request.core() != null
-                && request.core() != AccountUpdate.CLEAR
-                && notBlank(request.core().password());
-        boolean coreRenamed = request.core() != null
-                && request.core() != AccountUpdate.CLEAR
-                && storedCore
-                        .map(c ->
-                                !Objects.equals(c.getUsername(), request.core().username()))
-                        .orElse(true);
-        if (core != null && (newHosts || coreRenamed) && !coreSupplied) {
-            throw new IllegalArgumentException(ENTER_AGAIN.formatted("Core"));
-        }
+        Account core = coreAccount(clusterId, request, storedCore);
+        requireCorePasswordAgain(request, storedCore, core, newHosts);
         if (management.username() != null && management.password() == null) {
             throw new IllegalArgumentException("Enter the management account's password.");
         }
 
-        List<String> seeds = request.seedUrls() != null
-                ? request.seedUrls()
-                : storedNodes.stream()
-                        .filter(n -> n.getUrlSource() == ManagementUrlSource.SEED)
-                        .map(BrokerNodeEntity::getJolokiaUrl)
-                        .toList();
+        List<String> seeds = seedsAfter(request, storedNodes);
         String pattern = patternOf(request, cluster, seeds);
         return new Edited(
                 request.name() != null ? request.name() : cluster.getName(),
@@ -1041,6 +1004,69 @@ public class ClusterService {
                 core,
                 managementSupplied,
                 newHosts || managementRenamed || managementSupplied);
+    }
+
+    /** The seeds after the request: its own, or the ones the stored nodes were found from. */
+    private static List<String> seedsAfter(UpdateClusterRequest request, List<BrokerNodeEntity> storedNodes) {
+        if (request.seedUrls() != null) {
+            return request.seedUrls();
+        }
+        return storedNodes.stream()
+                .filter(n -> n.getUrlSource() == ManagementUrlSource.SEED)
+                .map(BrokerNodeEntity::getJolokiaUrl)
+                .toList();
+    }
+
+    /** A Core account the edit sends to a new host, or under another user, must come with its password again. */
+    private static void requireCorePasswordAgain(
+            UpdateClusterRequest request, Optional<BrokerCredentialEntity> storedCore, Account core, boolean newHosts) {
+        boolean supplied = setsCore(request) && notBlank(request.core().password());
+        if (core != null && (newHosts || coreRenamed(request, storedCore)) && !supplied) {
+            throw new IllegalArgumentException(ENTER_AGAIN.formatted("Core"));
+        }
+    }
+
+    /** The management account after the request: the stored one, or the request's with an empty password kept. */
+    private static Account managementAccount(UpdateClusterRequest request, BrokerConnectionSettings stored) {
+        if (request.management() == null) {
+            return new Account(stored.username(), stored.password());
+        }
+        return new Account(
+                request.management().username(), keepStored(request.management().password(), stored.password()));
+    }
+
+    /** The Core account after the request: the stored one, none when cleared, or the request's. */
+    private Account coreAccount(
+            UUID clusterId, UpdateClusterRequest request, Optional<BrokerCredentialEntity> storedCore) {
+        if (request.core() == null) {
+            return storedCore
+                    .map(c -> new Account(c.getUsername(), openSecret(clusterId, c)))
+                    .orElse(null);
+        }
+        if (request.core() == AccountUpdate.CLEAR) {
+            return null;
+        }
+        AccountUpdate update = request.core();
+        String kept = storedCore.map(c -> openSecret(clusterId, c)).orElse(null);
+        String password = keepStored(update.password(), kept);
+        if (password == null) {
+            throw new IllegalArgumentException("Enter the Core account's password.");
+        }
+        return new Account(update.username(), password);
+    }
+
+    /** Whether the request sets the Core account, rather than leaving or clearing it. */
+    private static boolean setsCore(UpdateClusterRequest request) {
+        return request.core() != null && request.core() != AccountUpdate.CLEAR;
+    }
+
+    /** Whether the request sets the Core account to another user than the stored one. */
+    private static boolean coreRenamed(UpdateClusterRequest request, Optional<BrokerCredentialEntity> storedCore) {
+        return setsCore(request)
+                && storedCore
+                        .map(c ->
+                                !Objects.equals(c.getUsername(), request.core().username()))
+                        .orElse(true);
     }
 
     /** Whether the edit points Studio at a host it has not used for this cluster: a new seed, pattern or TLS bundle. */

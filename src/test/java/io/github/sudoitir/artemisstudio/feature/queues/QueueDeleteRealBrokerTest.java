@@ -144,7 +144,7 @@ class QueueDeleteRealBrokerTest extends PostgresIntegrationTest {
     private static void quietly(Runnable r) {
         try {
             r.run();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // already gone
         }
     }

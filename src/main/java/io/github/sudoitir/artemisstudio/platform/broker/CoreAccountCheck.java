@@ -39,7 +39,7 @@ public class CoreAccountCheck {
             try (Connection connection = settings.hasCredentials()
                     ? connectionFactory.createConnection(settings.username(), settings.password())
                     : connectionFactory.createConnection()) {
-                try (Session _ = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
+                try (var _ = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
                     return AccountResult.ACCEPTED;
                 }
             } finally {

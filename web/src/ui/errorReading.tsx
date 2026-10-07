@@ -216,6 +216,17 @@ function problemOf(e: Record<string, unknown>, status: number): Problem {
   };
 }
 
+/** A broker failure's reading; a rejection names the account, so the operator edits the right one. */
+function brokerReading(kind: string, broker: (typeof BROKER)[string], e: Record<string, unknown>): Reading {
+  const problem = isRecord(e.problem) ? e.problem : {};
+  const account = problem.account === 'CORE' ? 'Core' : 'management';
+  const cause =
+    kind === 'CREDENTIALS_REJECTED' && text(problem.account)
+      ? `The broker refused the ${account} account Studio holds for it.`
+      : broker.cause;
+  return { ...broker, cause, detail: text(problem.detail) };
+}
+
 /**
  * Reads an error by its shape, for `ErrorState` and for a caller that needs only its title. An `ApiError` carries `status`, `brokerErrorKind`, `fieldErrors` and
  * the whole problem body as `problem` (`title`, `detail`, `hint`, `permission`, `retryAfter`,
@@ -228,16 +239,7 @@ export function readError(error: unknown): Reading {
   const given = typeof e.status === 'number' ? e.status : undefined;
   const kind = text(e.brokerErrorKind);
   const broker = kind ? BROKER[kind] : undefined;
-  if (broker) {
-    const problem = isRecord(e.problem) ? e.problem : {};
-    // A rejection names the account, so the operator edits the right one.
-    const account = problem.account === 'CORE' ? 'Core' : 'management';
-    const cause =
-      kind === 'CREDENTIALS_REJECTED' && text(problem.account)
-        ? `The broker refused the ${account} account Studio holds for it.`
-        : broker.cause;
-    return { ...broker, cause, detail: text(problem.detail) };
-  }
+  if (kind && broker) return brokerReading(kind, broker, e);
   if (isNetworkFailure(error, given)) return NETWORK_DOWN;
   if (given === undefined) return unexpected(error);
   const problem = problemOf(e, given);

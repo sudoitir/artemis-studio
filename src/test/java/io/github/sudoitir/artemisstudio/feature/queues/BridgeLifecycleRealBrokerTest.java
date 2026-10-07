@@ -209,7 +209,7 @@ class BridgeLifecycleRealBrokerTest extends PostgresIntegrationTest {
     private static void quietly(Runnable action) {
         try {
             action.run();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // Best-effort cleanup; the run's names are unique so a leftover cannot collide.
         }
     }

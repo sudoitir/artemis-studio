@@ -18,7 +18,7 @@ import {
 import classes from './Clusters.module.css';
 import { NodeProbeTable } from './NodeProbeTable.tsx';
 import { hostPort, isValidPattern } from './pattern.ts';
-import { normaliseSeeds } from './normaliseSeeds.ts';
+import { normaliseSeeds, seedRow, type SeedRow } from './normaliseSeeds.ts';
 
 const SAVE: ActionVerb = { verb: 'Save', past: 'Saved', progressive: 'Saving' };
 
@@ -26,7 +26,7 @@ interface Fields {
   name: string;
   description: string;
   seed: string;
-  moreSeeds: string[];
+  moreSeeds: SeedRow[];
   pattern: string;
   tlsBundle: string;
   username: string;
@@ -45,7 +45,7 @@ function initialFields(cluster: ClusterDetail, connection: Connection): Fields {
     name: cluster.name,
     description: cluster.description ?? '',
     seed,
-    moreSeeds,
+    moreSeeds: moreSeeds.map(seedRow),
     pattern: connection.managementUrlPattern ?? '',
     tlsBundle: connection.tlsBundle ?? '',
     username: connection.managementUsername ?? '',
@@ -60,8 +60,8 @@ function initialFields(cluster: ClusterDetail, connection: Connection): Fields {
 function seedsOf(f: Fields): { urls: string[]; problems: Record<string, string> } {
   const urls: string[] = [];
   const problems: Record<string, string> = {};
-  [f.seed, ...f.moreSeeds].forEach((value, i) => {
-    const path = i === 0 ? 'seed' : `moreSeeds.${i - 1}`;
+  [f.seed, ...f.moreSeeds.map((row) => row.url)].forEach((value, i) => {
+    const path = i === 0 ? 'seed' : `moreSeeds.${i - 1}.url`;
     const [first] = normaliseSeeds(value);
     if (first?.url) urls.push(first.url);
     else if (first) problems[path] = `Couldn't make sense of: ${first.original}`;
@@ -204,9 +204,13 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         {...form.getInputProps('seed')}
         size="xs"
       />
-      {f.moreSeeds.map((_, i) => (
-        <FieldRow key={`more-${i}`}>
-          <TextInput label={`Another management URL (${i + 2})`} {...form.getInputProps(`moreSeeds.${i}`)} size="xs" />
+      {f.moreSeeds.map((row, i) => (
+        <FieldRow key={row.key}>
+          <TextInput
+            label={`Another management URL (${i + 2})`}
+            {...form.getInputProps(`moreSeeds.${i}.url`)}
+            size="xs"
+          />
           <ActionIcon
             variant="subtle"
             aria-label={`Remove management URL ${i + 2}`}
@@ -220,7 +224,7 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         variant="subtle"
         size="compact-xs"
         className={classes.start}
-        onClick={() => form.insertListItem('moreSeeds', '')}
+        onClick={() => form.insertListItem('moreSeeds', seedRow())}
       >
         Add another seed
       </Button>

@@ -49,7 +49,10 @@ class BrokerVersionTest {
         var m = Pattern.compile("artemis: \\[([^\\]]*)]").matcher(ci);
         assertThat(m.find()).as("the backend job's artemis matrix").isTrue();
         assertThat(m.group(1).split(","))
-                .extracting(image -> image.replaceAll("[\" ]", "").replaceAll("[^:]*:", ""))
+                .extracting(image -> {
+                    String tag = image.replaceAll("[\" ]", "");
+                    return tag.substring(tag.lastIndexOf(':') + 1);
+                })
                 .containsExactly(BrokerVersion.MINIMUM.toString(), BrokerVersion.LATEST_TESTED.toString());
     }
 }

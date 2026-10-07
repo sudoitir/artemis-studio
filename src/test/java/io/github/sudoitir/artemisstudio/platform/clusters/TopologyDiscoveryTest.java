@@ -443,7 +443,8 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
         UUID clusterId = newCluster();
 
         List<ProbedSeed> seeds = List.of(seed("ha-read-instance-not-found.json", "topology.json"));
-        assertThatThrownBy(() -> discovery.discover(clusterId, seeds, derivation(PATTERN)))
+        UrlDerivation derivation = derivation(PATTERN);
+        assertThatThrownBy(() -> discovery.discover(clusterId, seeds, derivation))
                 .isInstanceOf(BrokerConnectionException.class);
 
         assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).isEmpty();

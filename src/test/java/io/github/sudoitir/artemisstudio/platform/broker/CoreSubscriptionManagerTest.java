@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -97,6 +98,7 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
         manager.reconcile(clusterId, List.of(endpoint(coreUrl(), false)));
 
         pollUntil(Duration.ofSeconds(5), () -> !manager.verdictFor(clusterId).isConnected());
+        assertThat(manager.verdictFor(clusterId).isConnected()).isFalse();
     }
 
     @Test
@@ -104,6 +106,7 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
         manager.reconcile(clusterId, List.of(endpoint("tcp://127.0.0.1:1", true)));
 
         pollUntil(Duration.ofSeconds(10), () -> manager.verdictFor(clusterId) instanceof SubscriptionVerdict.Failed);
+        assertThat(manager.verdictFor(clusterId)).isInstanceOf(SubscriptionVerdict.Failed.class);
     }
 
     @Test
@@ -112,19 +115,7 @@ class CoreSubscriptionManagerTest extends ArtemisIntegrationTest {
     }
 
     private static void pollUntil(Duration timeout, BooleanSupplier condition) {
-        long deadline = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException(e);
-            }
-        }
-        throw new AssertionError("condition not met within " + timeout);
+        await().atMost(timeout).pollInterval(Duration.ofMillis(100)).until(condition::getAsBoolean);
     }
 
     private void provokeBrokerActivity() throws Exception {
