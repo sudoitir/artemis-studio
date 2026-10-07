@@ -64,7 +64,7 @@
         <maven-source.version>3.4.0</maven-source.version>
         <maven-javadoc.version>3.12.0</maven-javadoc.version>
         <json-schema-validator.version>3.0.8</json-schema-validator.version>
-        <japicmp.version>0.26.2</japicmp.version>
+        <japicmp.version>0.26.3</japicmp.version>
         <palantir-java-format.version>2.97.0</palantir-java-format.version>
 
         <!-- Lombok version comes from the Spring Boot BOM. MapStruct and the
