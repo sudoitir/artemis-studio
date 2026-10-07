@@ -6,11 +6,13 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalSettings;
+import io.github.sudoitir.artemisstudio.kernel.approval.ApprovalSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
@@ -79,6 +81,19 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         assertThat(settings.intValue(BrokerSettings.RATE_LIMIT)).isEqualTo(20);
         assertThat(settings.effective().get(BrokerSettings.RATE_LIMIT).overridden())
                 .isFalse();
+    }
+
+    @Test
+    void eachSettingSaysTheRangeItAccepts() {
+        var effective = settings.effective();
+
+        assertThat(effective.get(ApprovalSettings.MAX_OPEN_PER_REQUESTER))
+                .extracting(SettingValue::min, SettingValue::max)
+                .containsExactly("1", "1000");
+        assertThat(effective.get(BrokerSettings.RATE_LIMIT))
+                .extracting(SettingValue::min, SettingValue::max)
+                .containsExactly("1", null);
+        assertThat(effective.get(ScrapeSettings.TIER_A).max()).isNull();
     }
 
     @Test
