@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,42 +20,73 @@ import org.springframework.stereotype.Component;
  * <pluginId>:} and Studio's must not contain a colon, and no two operations share a type or a
  * parameter type; a plugin that breaks a rule fails its activation, and Studio's own beans fail the
  * boot. A plugin's operations run inside the plugin, with its class loader and counted in flight.
+ *
+ * <p>Studio's own operations are read once every singleton exists, not when this registry is built: a gated
+ * service needs the gate, and an operation's {@link GatedOperation#replay} needs the service, so reading them
+ * any earlier would be a dependency cycle.
  */
 @Component
-public class GatedOperationRegistry implements PluginBridge {
+public class GatedOperationRegistry implements PluginBridge, SmartInitializingSingleton {
 
     private record Attached(PluginHandle handle, List<GatedOperation<?>> operations) {}
 
     private record Index(Map<String, GatedOperation<?>> byType, Map<Class<?>, GatedOperation<?>> byParams) {}
 
-    private final List<GatedOperation<?>> studioOperations;
+    private final ObjectProvider<GatedOperation<?>> studioBeans;
     private final Map<String, Attached> attached = new HashMap<>();
+    private List<GatedOperation<?>> studioOperations;
     private volatile Index index;
 
     public GatedOperationRegistry(ObjectProvider<GatedOperation<?>> studioOperations) {
-        this.studioOperations = studioOperations.orderedStream().toList();
-        for (GatedOperation<?> operation : this.studioOperations) {
-            if (operation.type().contains(":")) {
-                throw new IllegalStateException(
-                        "Gated operation \"%s\" must not contain a colon: only plugins use <pluginId>:<name>"
-                                .formatted(operation.type()));
-            }
-        }
-        this.index = indexOf(this.studioOperations, Map.of());
+        this.studioBeans = studioOperations;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        index();
     }
 
     public Optional<GatedOperation<?>> forType(String type) {
-        return Optional.ofNullable(index.byType().get(type));
+        return Optional.ofNullable(index().byType().get(type));
     }
 
     /** The operation whose parameters are {@code paramsType}. */
     @SuppressWarnings("unchecked")
     public <P extends Record> Optional<GatedOperation<P>> forParams(Class<P> paramsType) {
-        return Optional.ofNullable((GatedOperation<P>) index.byParams().get(paramsType));
+        return Optional.ofNullable((GatedOperation<P>) index().byParams().get(paramsType));
     }
 
     public Collection<GatedOperation<?>> all() {
-        return index.byType().values();
+        return index().byType().values();
+    }
+
+    private Index index() {
+        Index current = index;
+        if (current != null) {
+            return current;
+        }
+        synchronized (this) {
+            if (index == null) {
+                index = indexOf(studio(), attached);
+            }
+            return index;
+        }
+    }
+
+    /** Studio's own operations, read and checked the first time they are needed. */
+    private synchronized List<GatedOperation<?>> studio() {
+        if (studioOperations == null) {
+            List<GatedOperation<?>> operations = studioBeans.orderedStream().toList();
+            for (GatedOperation<?> operation : operations) {
+                if (operation.type().contains(":")) {
+                    throw new IllegalStateException(
+                            "Gated operation \"%s\" must not contain a colon: only plugins use <pluginId>:<name>"
+                                    .formatted(operation.type()));
+                }
+            }
+            studioOperations = operations;
+        }
+        return studioOperations;
     }
 
     @Override
@@ -73,7 +105,7 @@ public class GatedOperationRegistry implements PluginBridge {
         }
         Map<String, Attached> next = new HashMap<>(attached);
         next.put(handle.id(), new Attached(handle, operations));
-        index = indexOf(studioOperations, next);
+        index = indexOf(studio(), next);
         attached.put(handle.id(), next.get(handle.id()));
     }
 
@@ -82,7 +114,7 @@ public class GatedOperationRegistry implements PluginBridge {
         Attached current = attached.get(handle.id());
         if (current != null && current.handle() == handle) {
             attached.remove(handle.id());
-            index = indexOf(studioOperations, attached);
+            index = indexOf(studio(), attached);
         }
     }
 
