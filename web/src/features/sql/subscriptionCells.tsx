@@ -134,7 +134,7 @@ export function StateCell({
           { id: subscription.id ?? '', body: { enabled: e.currentTarget.checked } },
           {
             onError: (error) =>
-              notify.failed({
+              notify.settle(error, {
                 action: UPDATE,
                 subject: `index subscription ${subscription.queuePattern}`,
                 cause: error.message,

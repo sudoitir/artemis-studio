@@ -109,7 +109,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
           notify.succeeded({ action: ADD, subject });
         },
         onError: (error) =>
-          notify.failed({
+          notify.settle(error, {
             action: ADD,
             subject,
             cause: error.message,
@@ -139,7 +139,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
         // Every failure is reported. A silently ignored error reads as a switch that flipped back
         // on its own, which is the least diagnosable outcome.
         onError: (error) =>
-          notify.failed({
+          notify.settle(error, {
             action,
             subject,
             cause: error.message,
@@ -153,7 +153,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
     remove.mutate(e.id, {
       onSuccess: () => notify.succeeded({ action: REMOVE, subject: `traced address ${e.requestAddress}` }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: REMOVE,
           subject: `traced address ${e.requestAddress}`,
           cause: error.message,

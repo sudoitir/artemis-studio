@@ -116,7 +116,7 @@ function RevokeKey({
         notify.succeeded({ action: REVOKE, subject: `${t.owner}'s key "${t.name}"` });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: REVOKE,
           subject: `${t.owner}'s key "${t.name}"`,
           cause: error.message,

@@ -43,7 +43,7 @@ export function announceResult(
 
 /** Announces that an operation did not happen, with its cause and what to do next. */
 export function announceFailure(kind: keyof typeof VERBS, subject: string, error: ApiError): void {
-  notify.failed({
+  notify.settle(error, {
     action: VERBS[kind],
     subject,
     cause: error.message,

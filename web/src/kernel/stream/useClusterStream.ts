@@ -6,27 +6,10 @@ import type { TopicHandler } from '../feature.ts';
 import { useFeatures } from '../features.ts';
 import { isPollingPaused, markPendingChange } from '../api/polling.ts';
 import { clusterKey } from '../api/request.ts';
+import { backoff, OFFLINE_AFTER, PING, RECONNECT, RESYNC, SILENCE_MS } from './sse.ts';
 
 /** What the UI reports about the live connection (ADR-0052). */
 export type StreamStatus = 'connecting' | 'live' | 'reconnecting' | 'offline';
-
-/** The server's keep-alive (`SseHub.PING`). Not a topic — every subscriber gets it. */
-const PING = 'ping';
-/** The server is about to close this stream (`SseHub.RECONNECT`): reconnect at once, without backoff. */
-const RECONNECT = 'reconnect';
-/** Frames were lost (`SseHub.RESYNC`): the bus came back, or a replay was capped. Refetch the views. */
-const RESYNC = 'resync';
-
-const BACKOFF_FLOOR_MS = 1_000;
-const BACKOFF_CAP_MS = 30_000;
-/**
- * A connection with no frame for this long is treated as dead. Comfortably above
- * the server's keep-alive interval so one missed beat is not read as death; if
- * `sse.heartbeat-interval` is raised past a third of this, raise this with it.
- */
-const SILENCE_MS = 45_000;
-/** Failures past this read as "the server is gone", not "the connection blipped". */
-const OFFLINE_AFTER = 3;
 
 /**
  * The stream's state as a module-level store rather than a React context.
@@ -72,12 +55,6 @@ export function useStreamStatus(): StreamStatus | null {
     () => current,
     () => null,
   );
-}
-
-/** Capped exponential backoff with full jitter, so a restart is not stampeded. */
-function backoff(failures: number): number {
-  const ceiling = Math.min(BACKOFF_CAP_MS, BACKOFF_FLOOR_MS * 2 ** (failures - 1));
-  return BACKOFF_FLOOR_MS + Math.random() * (ceiling - BACKOFF_FLOOR_MS);
 }
 
 /**

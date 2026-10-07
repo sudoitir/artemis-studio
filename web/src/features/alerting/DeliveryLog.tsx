@@ -35,7 +35,7 @@ export function DeliveryLog({
     retry.mutate(d.seq, {
       onSuccess: () => notify.succeeded({ action: RETRY, subject }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: RETRY,
           subject,
           cause: error.message,

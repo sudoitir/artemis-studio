@@ -173,7 +173,7 @@ function AddMember({
         form.reset();
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: ADD,
           subject,
           pendingId,

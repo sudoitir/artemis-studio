@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { MantineProvider } from '@mantine/core';
 import { CodeHighlightAdapterProvider } from '@mantine/code-highlight';
 import { Notifications } from '@mantine/notifications';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 
 import '@fontsource-variable/atkinson-hyperlegible-next/index.css';
@@ -18,7 +18,7 @@ import './theme.css';
 
 import { installPauseSeam, mountRefetch } from './kernel/api/polling.ts';
 import { FEATURES } from './app/features.ts';
-import { onLoginPage } from './kernel/api/request.ts';
+import { OperationHeldError, onLoginPage } from './kernel/api/request.ts';
 import { startServerTimeSync } from './kernel/time/time.ts';
 import { FeatureProvider } from './kernel/FeatureProvider.tsx';
 import { cssVariablesResolver, theme } from './theme.ts';
@@ -32,6 +32,7 @@ import '@artemis-studio/plugin-sdk';
 import { shouldRetry } from './kernel/api/retry.ts';
 import { shikiAdapter } from './ui/codeHighlightAdapter.ts';
 import { installDefaultPolicy } from './ui/trustedTypes.ts';
+import { setInAppNavigate } from './ui/inAppNavigation.ts';
 
 // Before anything renders: Mantine writes its CSS through `innerHTML`, which Trusted Types refuses
 // without it (`ui/trustedTypes.ts`, ADR-0168).
@@ -48,6 +49,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 5_000, refetchOnWindowFocus: false, refetchOnMount: mountRefetch(), retry: shouldRetry },
   },
+  // A held operation skips its mutation's success path, which is where a view refreshes. Refresh every view on
+  // screen instead, so the resource shows that a change waits for approval. Held operations are rare.
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (error instanceof OperationHeldError) void queryClient.invalidateQueries();
+    },
+  }),
 });
 
 // Learn Studio's clock before anything renders a duration. Started outside React
@@ -63,6 +71,8 @@ const started = await boot();
 if (started.manifest) queryClient.setQueryData(manifestKey, started.manifest);
 const features = [...FEATURES, ...started.plugins];
 const router = createAppRouter(queryClient, features);
+// A toast's link (such as a held operation's "View request") moves inside the app, not by a page load.
+setInAppNavigate((to) => router.history.push(to));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

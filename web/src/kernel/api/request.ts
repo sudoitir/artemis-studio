@@ -35,6 +35,52 @@ export class ApiError extends Error {
   }
 }
 
+/** What the server says about an operation it held for approval instead of running. */
+export interface HeldOperation {
+  id: string;
+  /** What the operation would do, in words, such as `Purge queue "orders" on prod`. */
+  summary: string;
+  /** When the request lapses unless someone decides it, as an ISO instant. */
+  expiresAt: string;
+  /** The held operation's API path. */
+  link: string;
+}
+
+/** The header a `202` carries when the operation was held for approval rather than run. */
+export const HELD_HEADER = 'X-Studio-Held-Operation';
+
+/**
+ * The operation was not run but held for a second person to approve. It is thrown, not returned, so a
+ * mutation's success path (its toast, its invalidation, the dialog closing on "done") never treats a held
+ * operation as done; `notify.settle` and `ErrorState` show it as sent for approval, not as a failure.
+ */
+export class OperationHeldError extends Error {
+  readonly heldOperation: HeldOperation;
+
+  constructor(heldOperation: HeldOperation) {
+    super(`Sent for approval: ${heldOperation.summary}`);
+    this.name = 'OperationHeldError';
+    this.heldOperation = heldOperation;
+  }
+}
+
+/** The root every held-operation query key starts from, so a held outcome or a `held` signal refreshes all of them. */
+export const heldOperationsKey = ['held-operations'] as const;
+
+/** Reads a held response's body; the header's id wins, so a body that lost it still names the request. */
+function heldOperationOf(id: string, body: Record<string, unknown>): HeldOperation {
+  const held = (
+    typeof body.heldOperation === 'object' && body.heldOperation !== null ? body.heldOperation : {}
+  ) as Record<string, unknown>;
+  const text = (value: unknown, fallback: string) => (typeof value === 'string' && value ? value : fallback);
+  return {
+    id,
+    summary: text(held.summary, 'The operation'),
+    expiresAt: text(held.expiresAt, ''),
+    link: text(held.link, `${BASE}/held-operations/${id}`),
+  };
+}
+
 /**
  * The header that tells the server a person, not a background refresh, made this request, so it
  * counts towards the session's idle timeout (ADR-0145). Polling sends it only while the person is
@@ -126,6 +172,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
   if (!res.ok) throw new ApiError(res.status, body);
+  const heldId = res.status === 202 ? res.headers.get(HELD_HEADER) : null;
+  if (heldId) throw new OperationHeldError(heldOperationOf(heldId, body));
   return body as T;
 }
 

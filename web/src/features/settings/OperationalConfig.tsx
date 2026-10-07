@@ -60,7 +60,7 @@ export function OperationalConfig() {
       {
         onSuccess: () => notify.succeeded({ action: SAVE, subject: current.label }),
         onError: (error) =>
-          notify.failed({
+          notify.settle(error, {
             action: SAVE,
             subject: current.label,
             cause: error.message,
@@ -73,7 +73,7 @@ export function OperationalConfig() {
     reset.mutate(key, {
       onSuccess: () => notify.succeeded({ action: RESET, subject: current.label }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: RESET,
           subject: current.label,
           cause: error.message,

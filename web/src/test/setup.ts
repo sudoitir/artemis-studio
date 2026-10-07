@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
 import { accessHandler } from './access.ts';
@@ -11,10 +12,14 @@ import { manifestHandler } from './manifest.ts';
  * `server.use(http.get(...))`; anything unhandled is a hard error so a missing
  * mock fails loudly instead of hanging on a real fetch. The defaults are the
  * manifest, with every feature enabled, since the shell reads it on every screen, and
- * `/me/access`, worked out from whatever a test mocks for `/auth/me`;
+ * `/me/access`, worked out from whatever a test mocks for `/auth/me`, and an empty inbox for the header's bell;
  * a test disables features with `server.use(manifestHandler([...]))`.
  */
-export const server = setupServer(manifestHandler(), accessHandler);
+export const server = setupServer(
+  manifestHandler(),
+  accessHandler,
+  http.get('*/api/v1/inbox/count', () => HttpResponse.json({ unread: 0, capped: false })),
+);
 
 // findBy* and waitFor give up after 1 s by default, and a screen behind a lazy route, a query and a
 // virtualised grid takes longer than that to appear when the whole suite is running. The wait ends the moment

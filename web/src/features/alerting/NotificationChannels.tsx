@@ -54,7 +54,7 @@ export function NotificationChannels() {
     test.mutate(c.id, {
       onSuccess: (result) => setTested({ channel: c, result }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: TEST,
           subject: `a test notification to ${c.name}`,
           cause: error.message,
@@ -155,7 +155,7 @@ function DeleteChannel({
         notify.succeeded({ action: DELETE, subject: `channel "${c.name}"` });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: DELETE,
           subject: `channel "${c.name}"`,
           cause: error.message,
