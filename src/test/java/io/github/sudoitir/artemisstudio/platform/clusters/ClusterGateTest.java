@@ -20,14 +20,18 @@ import io.github.sudoitir.artemisstudio.kernel.gate.OperationScope;
 import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.ClusterDeleteParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.ClusterUpdateParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.NodeOverrideParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.ClusterAssignParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentCreateParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentDeleteParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentUpdateParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.EnvironmentRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.AccountUpdate;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RegisterClusterRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RegisterClusterRequest.Credentials;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.UpdateClusterRequest;
@@ -93,6 +97,12 @@ class ClusterGateTest extends PostgresIntegrationTest {
 
     @Autowired
     GatedOperation<ClusterDeleteParams> clusterDeleteOperation;
+
+    @Autowired
+    GatedOperation<NodeOverrideParams> clusterNodeOverrideOperation;
+
+    @Autowired
+    BrokerNodeRepository nodes;
 
     private String name;
     private UUID clusterId;
@@ -281,6 +291,37 @@ class ClusterGateTest extends PostgresIntegrationTest {
                 .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.core.NotFoundException.class);
         clusterId = clusters.save(new ClusterEntity("c-" + UUID.randomUUID(), null, null))
                 .getId();
+    }
+
+    @Test
+    void aHeldNodeOverrideLeavesTheNodeAndAnApprovedOneRepointsItOnce() {
+        BrokerNodeEntity seeded = BrokerNodeEntity.fromSeed(
+                clusterId, "a", "PRIMARY", UUID.randomUUID().toString());
+        seeded.attachSeedUrl("http://a:8161/console/jolokia");
+        UUID nodeId = nodes.save(seeded).getId();
+        NodeOverrideParams params = new NodeOverrideParams(clusterId, nodeId, null, "tcp://a-core:61616");
+        holds();
+
+        assertThatThrownBy(() -> clusterService.overrideNodeUrl(
+                        clusterId, nodeId, new NodeOverrideRequest(null, "tcp://a-core:61616")))
+                .isInstanceOf(OperationHeldException.class);
+
+        assertThat(nodes.findById(nodeId).orElseThrow().getCoreUrl()).isNotEqualTo("tcp://a-core:61616");
+        assertThat(gated().params()).isEqualTo(params);
+        assertThat(clusterNodeOverrideOperation.traits(params)).isEqualTo(Set.of(Trait.ACCESS_CONTROL));
+        assertThat(clusterNodeOverrideOperation.display(params))
+                .contains(new DisplayRow("Core URL", seeded.getCoreUrl(), "tcp://a-core:61616"));
+        String before = clusterNodeOverrideOperation.estimate(params).stateKey();
+        org.mockito.Mockito.reset(gate);
+
+        allows();
+        clusterNodeOverrideOperation.replay(params);
+
+        assertThat(nodes.findById(nodeId).orElseThrow().getCoreUrl()).isEqualTo("tcp://a-core:61616");
+        assertThat(clusterNodeOverrideOperation.estimate(params).stateKey())
+                .as("a node pointed elsewhere since the request is a different target")
+                .isNotEqualTo(before);
+        verify(gate).run(any(), any());
     }
 
     @Test

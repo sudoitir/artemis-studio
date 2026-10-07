@@ -122,6 +122,7 @@ public class ClusterController {
         return dryRun ? service.checkUpdate(clusterId, request) : service.updateConnection(clusterId, request);
     }
 
+    @HeldResponse
     @PatchMapping("/{clusterId}/nodes/{nodeId}")
     public NodeEndpointView overrideNode(
             @PathVariable UUID clusterId, @PathVariable UUID nodeId, @Valid @RequestBody NodeOverrideRequest request) {

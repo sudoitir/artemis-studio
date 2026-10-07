@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.ClusterDeleteParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.ClusterUpdateParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.NodeOverrideParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.ClusterAssignParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentCreateParams;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentDeleteParams;
@@ -27,7 +28,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * The gated cluster and environment operations (ADR-0179): {@code environment.create/update/delete} and {@code
- * cluster.register/update/delete/assign-environment}. They change what Studio manages and who sees it, so each is
+ * cluster.register/update/node-override/delete/assign-environment}. They change what Studio manages and who sees it, so each is
  * access control, and a delete is destructive too. The secrets in a registration or an edit are redacted for those who
  * read it. A cluster's state key is its id and creation time, so a cluster deleted and registered again is refused.
  */
@@ -288,6 +289,60 @@ class ClusterGatedOperations {
                 if (account.password() != null && !account.password().isEmpty()) {
                     rows.add(DisplayRow.of(label + " password", REDACTED_PASSWORD));
                 }
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<NodeOverrideParams> clusterNodeOverrideOperation(
+            ClusterService service, ClusterDirectory directory, ClusterEnvironmentIndex clusters) {
+        return new Operations.Base<>("cluster.node-override", NodeOverrideParams.class, Set.of(Trait.ACCESS_CONTROL)) {
+            @Override
+            public OperationScope scope(NodeOverrideParams p) {
+                return OperationScope.cluster(p.clusterId(), clusters.environmentOf(p.clusterId()));
+            }
+
+            @Override
+            public String summary(NodeOverrideParams p) {
+                return "Point Studio at node " + node(p).getName() + " of cluster " + clusters.labelOf(p.clusterId())
+                        + " by hand";
+            }
+
+            @Override
+            public List<DisplayRow> display(NodeOverrideParams p) {
+                ClusterNode node = node(p);
+                List<DisplayRow> rows = new ArrayList<>();
+                rows.add(DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())));
+                rows.add(DisplayRow.of("Node", node.getName()));
+                if (p.jolokiaUrl() != null) {
+                    rows.add(new DisplayRow("Management URL", node.getJolokiaUrl(), p.jolokiaUrl()));
+                }
+                if (p.coreUrl() != null) {
+                    rows.add(new DisplayRow("Core URL", node.getCoreUrl(), p.coreUrl()));
+                }
+                return rows;
+            }
+
+            /** The node and the URLs it has now, so a node pointed elsewhere meanwhile is refused. */
+            @Override
+            public Effect estimate(NodeOverrideParams p) {
+                ClusterNode node = node(p);
+                return new Effect(1, "nodes", p.nodeId() + "|" + node.getJolokiaUrl() + "|" + node.getCoreUrl(), null);
+            }
+
+            @Override
+            public void replay(NodeOverrideParams p) {
+                if (service.overrideNodeUrl(p.clusterId(), p.nodeId(), p.toRequest())
+                        instanceof Attempt.Failed<?>(var kind, var detail)) {
+                    throw new BrokerConnectionException(kind, detail);
+                }
+            }
+
+            private ClusterNode node(NodeOverrideParams p) {
+                return directory
+                        .node(p.nodeId())
+                        .filter(n -> n.getClusterId().equals(p.clusterId()))
+                        .orElseThrow(() -> new NotFoundException("Node", p.nodeId()));
             }
         };
     }

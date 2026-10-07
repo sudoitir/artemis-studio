@@ -177,6 +177,14 @@ public class ClusterService {
     /** What the gate holds of a cluster delete. */
     record ClusterDeleteParams(UUID clusterId) {}
 
+    /** What the gate holds of a node's URL override: the URLs it sets, either of which may be absent. */
+    record NodeOverrideParams(UUID clusterId, UUID nodeId, String jolokiaUrl, String coreUrl) {
+
+        NodeOverrideRequest toRequest() {
+            return new NodeOverrideRequest(jolokiaUrl, coreUrl);
+        }
+    }
+
     private record Probe(
             String url,
             boolean attachable,
@@ -793,19 +801,39 @@ public class ClusterService {
         }
     }
 
-    @Transactional
+    /**
+     * Point Studio at a node by hand: its management (Jolokia) URL, its Core URL or both. It decides where Studio
+     * sends the cluster's credentials, so it passes the approval gate as {@code cluster.node-override}. A new
+     * management URL must answer as an Artemis broker before it is saved.
+     */
     public Attempt<NodeEndpointView> overrideNodeUrl(UUID clusterId, UUID nodeId, NodeOverrideRequest request) {
         clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
         requireCluster(clusterId);
-        BrokerNodeEntity node = nodes.findById(nodeId)
-                .filter(n -> n.getClusterId().equals(clusterId))
-                .orElseThrow(() -> new NotFoundException("Node", nodeId));
+        BrokerNodeEntity node = requireNode(clusterId, nodeId);
         if (request.hasJolokiaUrl()
                 && nodes.existsByClusterIdAndJolokiaUrlAndIdNot(clusterId, request.jolokiaUrl(), nodeId)) {
             throw new ConflictException(
                     "duplicate-node-url", "Another node of this cluster already uses " + request.jolokiaUrl() + ".");
         }
+        return gatedOverride(
+                new NodeOverrideParams(
+                        clusterId,
+                        nodeId,
+                        request.hasJolokiaUrl() ? request.jolokiaUrl() : null,
+                        request.hasCoreUrl() ? request.coreUrl() : null),
+                node.getName(),
+                request);
+    }
 
+    @Gated("cluster.node-override")
+    private Attempt<NodeEndpointView> gatedOverride(
+            NodeOverrideParams params, String nodeName, NodeOverrideRequest request) {
+        return gate.run(
+                Operation.of(params), () -> overrideNow(params.clusterId(), params.nodeId(), nodeName, request));
+    }
+
+    private Attempt<NodeEndpointView> overrideNow(
+            UUID clusterId, UUID nodeId, String nodeName, NodeOverrideRequest request) {
         Map<String, Object> params = new HashMap<>();
         if (request.hasJolokiaUrl()) {
             params.put("jolokiaUrl", request.jolokiaUrl());
@@ -814,7 +842,7 @@ public class ClusterService {
             params.put("coreUrl", request.coreUrl());
         }
         AuditEvent event = audit.begin(
-                actorResolver.resolve(), "OVERRIDE_NODE_URL", "NODE", node.getName(), clusterId, nodeId, params, false);
+                actorResolver.resolve(), "OVERRIDE_NODE_URL", "NODE", nodeName, clusterId, nodeId, params, false);
 
         if (request.hasJolokiaUrl()) {
             try {
@@ -822,16 +850,34 @@ public class ClusterService {
             } catch (BrokerConnectionException e) {
                 return failed(event, e);
             }
-            node.applyManualUrl(request.jolokiaUrl());
         }
-        if (request.hasCoreUrl()) {
-            node.applyManualCoreUrl(request.coreUrl());
+        BrokerNodeEntity saved;
+        try {
+            saved = transactions.execute(status -> {
+                BrokerNodeEntity node = requireNode(clusterId, nodeId);
+                if (request.hasJolokiaUrl()) {
+                    node.applyManualUrl(request.jolokiaUrl());
+                }
+                if (request.hasCoreUrl()) {
+                    node.applyManualCoreUrl(request.coreUrl());
+                }
+                BrokerNodeEntity result = nodes.save(node);
+                // A node known only by its URL is claimed by it: the old URL is released, the new one claimed.
+                clusterClaims.sync(clusterId);
+                return result;
+            });
+        } catch (RuntimeException e) {
+            audit.fail(event, e.getMessage());
+            throw e;
         }
-        nodes.save(node);
-        // A node known only by its URL is claimed by it: the old URL is released, the new one claimed.
-        clusterClaims.sync(clusterId);
         audit.succeed(event, 1);
-        return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(node)));
+        return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(saved)));
+    }
+
+    private BrokerNodeEntity requireNode(UUID clusterId, UUID nodeId) {
+        return nodes.findById(nodeId)
+                .filter(n -> n.getClusterId().equals(clusterId))
+                .orElseThrow(() -> new NotFoundException("Node", nodeId));
     }
 
     // ---- connection edit (PATCH /clusters/{id}) ---------------------------------
