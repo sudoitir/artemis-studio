@@ -30,12 +30,15 @@ export type {
   TopicHandler,
 } from '../kernel/feature.ts';
 export {
+  ADMIN_GROUPS,
   SETTINGS_GROUPS,
+  type AdminGroupId,
   type MessageSelection,
   type QueueSelection,
   type SettingsGroupId,
   type SlotContribution,
   type SlotContributions,
+  type SlotEntry,
   type SlotName,
   type SlotProps,
 } from '../kernel/slots.ts';

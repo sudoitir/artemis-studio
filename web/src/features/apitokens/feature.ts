@@ -7,7 +7,9 @@ export const apitokensFeature = defineFeature({
   contract: CONTRACT,
   id: 'apitokens',
   slots: {
-    'account.sections': [{ id: 'apitokens-keys', order: 20, title: 'API keys', Component: ApiKeysSection }],
-    'admin.tabs': [{ id: 'api-keys', order: 25, title: 'API keys', Component: AdminTokensPanel }],
+    'account.sections': [
+      { id: 'apitokens-keys', order: 20, title: 'API keys', group: 'access', Component: ApiKeysSection },
+    ],
+    'admin.tabs': [{ id: 'api-keys', order: 25, title: 'API keys', group: 'access', Component: AdminTokensPanel }],
   },
 });

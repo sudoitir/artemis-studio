@@ -6,6 +6,6 @@ export const lifecycleFeature = defineFeature({
   contract: CONTRACT,
   id: 'lifecycle',
   slots: {
-    'admin.tabs': [{ id: 'data', order: 45, title: 'Data', Component: DataPanel }],
+    'admin.tabs': [{ id: 'data', order: 45, title: 'Data', group: 'installation', Component: DataPanel }],
   },
 });

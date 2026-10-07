@@ -4,7 +4,7 @@ import { CONTRACT, type StudioFeature } from '../feature.ts';
 import type { ManifestFeatureView } from '../manifest.ts';
 import { ACTION_SECTIONS } from '../actions/types.ts';
 import { NAV_GROUPS } from '../nav/groups.ts';
-import type { SlotContribution, SlotContributions, SlotName } from '../slots.ts';
+import { ADMIN_GROUPS, type SlotContribution, type SlotContributions, type SlotName } from '../slots.ts';
 import { guarded } from './guarded.tsx';
 
 /** A loaded plugin module, accepted and made safe to mount, or the reason it was not. */
@@ -12,6 +12,7 @@ export type Checked = { ok: true; feature: StudioFeature } | { ok: false; reason
 
 const NAV_GROUP_IDS = new Set<string>(NAV_GROUPS.map((group) => group.id));
 const ACTION_SECTION_IDS = new Set<string>(ACTION_SECTIONS.map((section) => section.id));
+const ADMIN_GROUP_IDS = new Set<string>(ADMIN_GROUPS.map((group) => group.id));
 
 /** The first segment a plugin route's path must have: everything it adds lives under `p/<id>/`. */
 export function pluginPathPrefix(id: string): string {
@@ -72,6 +73,9 @@ function contributionProblem(
   if (action && !ACTION_SECTION_IDS.has(String(contribution.section))) {
     return `its ${name} entry "${contribution.id}" names no menu section (one of ${[...ACTION_SECTION_IDS].join(', ')})`;
   }
+  if (name === 'admin.tabs' && !ADMIN_GROUP_IDS.has(String(contribution.group))) {
+    return `its ${name} entry "${contribution.id}" names no administration group (one of ${[...ADMIN_GROUP_IDS].join(', ')})`;
+  }
   return null;
 }
 
@@ -105,8 +109,8 @@ function checkSlots(id: string, feature: StudioFeature): { slots: SlotContributi
 /**
  * Accepts what a plugin's bundle exported only when it keeps to its own namespace (ADR-0100):
  * the contract it was built for, its own id, routes and navigation under `p/<id>/`, slot entries
- * named `<id>.…`, only the stream topics its descriptor declared, and navigation groups the shell
- * has. Every component it contributes to a shared screen is wrapped so a throw stays its own.
+ * named `<id>.…`, only the stream topics its descriptor declared, and navigation and administration
+ * groups the shell has. Every component it contributes to a shared screen is wrapped so a throw stays its own.
  */
 export function checkPlugin(entry: ManifestFeatureView, exported: unknown): Checked {
   const id = entry.id;

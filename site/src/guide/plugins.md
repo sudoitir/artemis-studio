@@ -791,6 +791,25 @@ Contract 12 adds the approval gate's types (`io.github.sudoitir.artemisstudio.ke
 gated operation declares, and the `ApprovalProvider` interface a plugin can implement to decide which
 operations need a second person's approval. Studio refuses a plugin built for contract 11 with "built for
 extension contract 11", so rebuild it and set `<studio.contract>12</studio.contract>` in its `pom.xml`.
+
+The Administration page now lists its tabs in a vertical navigation under four headings, so a plugin
+that adds an Administration tab (`admin.tabs`) names the one it belongs under in `group`:
+
+| `group` | For |
+| --- | --- |
+| `access` | who can sign in and what they may do |
+| `installation` | what is installed and where it runs |
+| `governance` | the rules data and changes follow |
+| `support` | what helps when something is wrong |
+
+```ts
+slots: {
+  'admin.tabs': [{ id: 'acme-notes.policy', order: 60, title: 'Note policy', group: 'governance', Component: NotePolicy }],
+},
+```
+
+The SDK exports the headings as `ADMIN_GROUPS`, and its typings require `group`. Studio refuses a plugin
+whose Administration tab names no group, or one not in the list, with "names no administration group".
 Nothing else in an existing plugin has to change.
 
 ### Moving a plugin from contract 10 to 11

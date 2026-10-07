@@ -7,7 +7,7 @@ export const pluginsFeature = defineFeature({
   contract: CONTRACT,
   id: 'plugins',
   slots: {
-    'admin.tabs': [{ id: 'plugins', order: 50, title: 'Plugins', Component: PluginsPanel }],
+    'admin.tabs': [{ id: 'plugins', order: 50, title: 'Plugins', group: 'installation', Component: PluginsPanel }],
     'shell.header': [{ id: 'plugins-attention', order: 20, Component: HeaderIndicator }],
   },
 });

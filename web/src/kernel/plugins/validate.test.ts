@@ -27,6 +27,9 @@ describe('checkPlugin', () => {
             { id: 'acme-notes.settings', order: 1, title: 'Notes', group: 'cluster', Component: Panel },
           ],
           'queue.actions': [{ id: 'acme-notes.annotate', order: 1, section: 'operate', Component: Panel }],
+          'admin.tabs': [
+            { id: 'acme-notes.policy', order: 1, title: 'Note policy', group: 'governance', Component: Panel },
+          ],
         },
       }),
     );
@@ -39,6 +42,8 @@ describe('checkPlugin', () => {
     const section = checked.feature.slots?.['settings.sections']?.[0];
     expect(section?.group).toBe('plugins');
     expect(section?.Component).not.toBe(Panel);
+    // An administration tab keeps the group it names: Governance is where its operators look.
+    expect(checked.feature.slots?.['admin.tabs']?.[0]?.group).toBe('governance');
   });
 
   it.each([
@@ -68,6 +73,20 @@ describe('checkPlugin', () => {
       'a row action with no section',
       plugin({ slots: { 'queue.actions': [{ id: 'acme-notes.note', order: 0, Component: Panel }] } }),
       /names no menu section/,
+    ],
+    [
+      'an administration tab with no group',
+      plugin({ slots: { 'admin.tabs': [{ id: 'acme-notes.policy', order: 0, title: 'Policy', Component: Panel }] } }),
+      /names no administration group/,
+    ],
+    [
+      'an administration tab in an unknown group',
+      plugin({
+        slots: {
+          'admin.tabs': [{ id: 'acme-notes.policy', order: 0, title: 'Policy', group: 'plugins', Component: Panel }],
+        },
+      }),
+      /names no administration group/,
     ],
     [
       'an unknown navigation group',

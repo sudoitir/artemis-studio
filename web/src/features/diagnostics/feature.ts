@@ -7,7 +7,9 @@ export const diagnosticsFeature = defineFeature({
   contract: CONTRACT,
   id: 'diagnostics',
   slots: {
-    'admin.tabs': [{ id: 'diagnostics', order: 90, title: 'Diagnostics', Component: DiagnosticsPanel }],
+    'admin.tabs': [
+      { id: 'diagnostics', order: 90, title: 'Diagnostics', group: 'support', Component: DiagnosticsPanel },
+    ],
     'shell.userMenu': [{ id: 'report-bug', order: 10, title: 'Report a bug…', Component: ReportBugDialog }],
   },
 });
