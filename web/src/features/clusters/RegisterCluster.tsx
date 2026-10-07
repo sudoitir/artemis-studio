@@ -441,7 +441,7 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
           ? afterProbe.map(({ id, Component }) => <Component key={id} contributions={check.data.contributions} />)
           : null}
 
-        <div className={classes.actions}>
+        <div className={`${classes.actions} ${classes.stickyActions}`}>
           {registerBlockedReason ? (
             <Text size="xs" c="dimmed" className={classes.reason}>
               {registerBlockedReason}

@@ -1,0 +1,126 @@
+/**
+ * The states of a screen that need acting on it: filling a form, running a check, opening a dialog.
+ * Each is a `Scene` in routes.ts, with the route it belongs to, and is captured with the same checks as a
+ * route. They address the page the way a person does, by role and label.
+ *
+ * They are written for the isolated stack `just qa-up` makes: its brokers answer on `artemis-primary` and
+ * `artemis-backup` inside the compose network, with the account `artemis`.
+ */
+import type { Page } from '@playwright/test';
+
+import type { Scene } from './routes.ts';
+
+/** The primary broker's management URL, as Studio reaches it inside the compose network. */
+export const PRIMARY = 'http://artemis-primary:8161/console/jolokia';
+const ACCOUNT = 'artemis';
+
+const exact = (page: Page, label: string) => page.getByLabel(label, { exact: true });
+const press = (page: Page, name: string) => page.getByRole('button', { name, exact: true }).click();
+
+/** Presses Check connection and waits for the answer to show. */
+async function check(page: Page) {
+  await press(page, 'Check connection');
+  await page.waitForTimeout(400);
+}
+
+/** The registration form with the broker's one URL and the account the brokers accept, nothing else. */
+async function fillRegistration(page: Page, corePassword?: string) {
+  await exact(page, 'Broker management URL').fill(PRIMARY);
+  await exact(page, 'Username').fill(ACCOUNT);
+  await exact(page, 'Password').fill(ACCOUNT);
+  if (corePassword !== undefined) {
+    await exact(page, 'Core username').fill(ACCOUNT);
+    await exact(page, 'Core password').fill(corePassword);
+  }
+}
+
+/** The registration form, on a stack with no cluster registered yet, where Check connection can succeed. */
+export const REGISTER_SCENES: Scene[] = [
+  {
+    id: 'one-url',
+    act: async (page) => {
+      await exact(page, 'Broker management URL').fill(PRIMARY);
+      await exact(page, 'Name').click();
+    },
+  },
+  {
+    id: 'checked',
+    act: async (page) => {
+      await fillRegistration(page);
+      await check(page);
+    },
+  },
+  {
+    id: 'core-rejected',
+    act: async (page) => {
+      await fillRegistration(page, 'not-the-core-password');
+      await check(page);
+    },
+  },
+  {
+    id: 'account-in-url',
+    act: async (page) => {
+      await exact(page, 'Broker management URL').fill(
+        `http://${ACCOUNT}:${ACCOUNT}@artemis-primary:8161/console/jolokia`,
+      );
+      await exact(page, 'Username').fill(ACCOUNT);
+      await exact(page, 'Password').fill(ACCOUNT);
+      await check(page);
+    },
+  },
+];
+
+/** The registration form on a stack that already has the cluster: the check is refused with where it is. */
+export const REGISTER_AGAIN_SCENES: Scene[] = [
+  {
+    id: 'already-registered',
+    act: async (page) => {
+      await fillRegistration(page);
+      await check(page);
+    },
+    expectedStatus: [409],
+  },
+];
+
+/** A registered cluster's Connection section. */
+export const CONNECTION_SCENES: Scene[] = [
+  {
+    id: 'checked',
+    act: async (page) => {
+      await check(page);
+    },
+  },
+  {
+    id: 'new-seed-needs-password',
+    act: async (page) => {
+      await exact(page, 'Broker management URL').fill('http://artemis-new-host:8161/console/jolokia');
+      await check(page);
+    },
+  },
+  {
+    id: 'new-seed-unreachable',
+    act: async (page) => {
+      await exact(page, 'Broker management URL').fill('http://artemis-new-host:8161/console/jolokia');
+      await exact(page, 'Password').fill(ACCOUNT);
+      await exact(page, 'Core password').fill(ACCOUNT);
+      await check(page);
+    },
+  },
+  {
+    id: 'confirm-name',
+    act: async (page) => {
+      await exact(page, 'Password').fill(ACCOUNT);
+      await check(page);
+      await press(page, 'Save connection');
+    },
+  },
+  {
+    id: 'confirm-name-typed',
+    act: async (page) => {
+      await exact(page, 'Password').fill(ACCOUNT);
+      await check(page);
+      await press(page, 'Save connection');
+      await page.getByRole('dialog').getByRole('textbox').fill('demo');
+    },
+  },
+];

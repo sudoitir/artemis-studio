@@ -13,7 +13,8 @@
 #     demo-seed.sh has not already registered the six-node one);
 #   - 60 queues: three with names past 120 characters, one on a 200-character address, anycast and
 #     multicast, and the DLQ and expiry families;
-#   - 18 messages with long headers, properties and bodies on the dead-letter and expiry queues;
+#   - 18 messages with long headers, properties and bodies on the dead-letter and expiry queues, and 250 small
+#     ones on one order queue, for a query with many rows;
 #   - an environment, channels, alert rules, masking rules, API tokens, a role and a user with long names;
 #   - `qa-reader`, a read-only account whose password is known, for the permission-denied captures.
 #
@@ -95,11 +96,12 @@ say "finding the cluster the sweep opens"
 cluster=$(find_id /clusters name demo)
 if [ -z "$cluster" ]; then
   cluster=$(api POST /clusters -d '{
-    "seedUrls": ["http://artemis-primary:8161/console/jolokia", "http://artemis-backup:8161/console/jolokia"],
+    "seedUrls": ["http://artemis-primary:8161/console/jolokia"],
     "name": "demo",
-    "description": "Primary and backup, registered by the QA seed",
+    "description": "Primary and backup, registered by the QA seed from one URL",
     "credentials": {"username": "artemis", "password": "artemis"},
-    "coreCredentials": {"username": "artemis", "password": "artemis"}
+    "coreCredentials": {"username": "artemis", "password": "artemis"},
+    "adopt": true
   }' | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
   echo "registered: $cluster"
 else
@@ -155,6 +157,13 @@ PY
 for n in $(seq 1 12); do long_message DLQ "$n"; done
 for n in $(seq 1 6); do long_message ExpiryQueue "$n"; done
 
+say "sending 250 small messages to one queue, for a query with many rows"
+for n in $(seq 1 250); do
+  code=$(api POST "/clusters/$cluster/queues/qa.orders.eu-central.001/messages" -o /dev/null -w '%{http_code}' \
+    -d "{\"type\":3,\"durable\":true,\"body\":\"{\\\"orderId\\\":\\\"ORD-$n\\\",\\\"amount\\\":$((n * 7 % 500))}\",\"properties\":{\"seq\":$n}}") || code=000
+  case $code in 2??) ;; *) failed=$((failed + 1)) ;; esac
+done
+
 say "creating an environment, channels and alert rules with long names"
 post "environment" /environments "{\"name\":\"qa-environment-with-an-unreasonably-long-name-$(repeat x 80)\",\"sortOrder\":10}" optional
 secret=$(openssl rand -base64 24)
@@ -189,9 +198,9 @@ for n in 1 2 3; do
 done
 
 say "creating a role and users"
-reader=$(ensure /roles name READER '{"name":"READER","requiresMfa":false,"permissions":["cluster:read","queue:read","message:read"]}')
+reader=$(ensure /roles name READER '{"name":"READER","requiresMfa":false,"teamAssignable":false,"permissions":["cluster:read","queue:read","message:read"]}')
 long_role="qa-role-with-a-name-that-keeps-going-$(repeat 'and-going-' 8)"
-long_role_id=$(ensure /roles name "$long_role" "{\"name\":\"$long_role\",\"requiresMfa\":false,\"permissions\":[\"cluster:read\"]}")
+long_role_id=$(ensure /roles name "$long_role" "{\"name\":\"$long_role\",\"requiresMfa\":false,\"teamAssignable\":false,\"permissions\":[\"cluster:read\"]}")
 long_user="qa-operator-with-an-unreasonably-long-username-$(repeat 'abcdefghij' 4)"
 if [ -z "$(find_id /users username "$long_user")" ]; then
   api POST /users -d "{\"username\":\"$long_user\",\"email\":\"$long_user@an-equally-long-domain-name.example.com\",\"password\":\"$(openssl rand -hex 16)\"}" -o /dev/null -w '  user: HTTP %{http_code}\n'

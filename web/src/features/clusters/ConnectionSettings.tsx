@@ -304,7 +304,7 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         {update.isError && !confirming ? <ErrorState variant="inline" error={update.error} /> : null}
       </div>
 
-      <div className={classes.actions}>
+      <div className={`${classes.actions} ${classes.stickyActions}`}>
         {blocked ? (
           <Text size="xs" c="dimmed" className={classes.reason}>
             {blocked}

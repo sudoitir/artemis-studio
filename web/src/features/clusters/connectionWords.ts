@@ -48,7 +48,7 @@ export function managementUrlWords(node: {
 }): string {
   if (node.managementUrl) {
     const source = urlSourceWords(node.urlSource);
-    return source ? `${node.managementUrl} (${source.toLowerCase()})` : node.managementUrl;
+    return source ? `${node.managementUrl} (${source.charAt(0).toLowerCase()}${source.slice(1)})` : node.managementUrl;
   }
   return `None: ${urlProblemWords(node.urlProblem)}`;
 }

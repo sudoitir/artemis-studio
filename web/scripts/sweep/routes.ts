@@ -12,11 +12,27 @@
  *
  * `scripts/qa-seed.sh` creates what the cluster routes need.
  */
+import type { Page } from '@playwright/test';
+
+import { CONNECTION_SCENES, REGISTER_AGAIN_SCENES, REGISTER_SCENES } from './scenes.ts';
 
 export interface DataCall {
   path: string;
   /** What the call answers when the thing it lists is empty; absent where there is no empty shape. */
   empty?: unknown;
+}
+
+/**
+ * A state reached by acting on the page once it has settled: a connection check run, a dialog opened, a
+ * field changed. It is captured in every width and scheme, signed in as the administrator, with every check
+ * of a plain capture; layout shift counts from navigation, so an action that moves the page is a finding.
+ */
+export interface Scene {
+  /** The capture's file name and its `--states` value: lower-case words joined by hyphens. */
+  id: string;
+  act: (page: Page) => Promise<void>;
+  /** Statuses the action provokes on purpose, such as a check that a broker refuses. */
+  expectedStatus?: number[];
 }
 
 export interface RouteSpec {
@@ -39,6 +55,8 @@ export interface RouteSpec {
    * stale link asks for a run nothing has. The browser logs them, and they are not findings.
    */
   expectedStatus?: number[];
+  /** The states reached by acting on the page. */
+  scenes?: Scene[];
 }
 
 /** Every list answers in this envelope (ADR-0149). */
@@ -86,7 +104,7 @@ const SETTINGS_TABS = [
   'settings-security',
   'settings-health',
   'clusters-register',
-  'clusters-credentials',
+  'clusters-connection',
   'clusters-capabilities',
   'clusters-remove',
   'sql-index',
@@ -114,6 +132,16 @@ export const ROUTES: RouteSpec[] = [
     data,
     forbidden: true,
   })),
+
+  // Registering a cluster. `register` needs a stack with no cluster, so that the check can succeed:
+  // `just qa-up`'s seed registers one, which has to be removed first.
+  { area: 'onboarding', id: 'register', path: '/', scenes: REGISTER_SCENES },
+  {
+    area: 'onboarding',
+    id: 'register-again',
+    path: cluster('settings?tab=clusters-register'),
+    scenes: REGISTER_AGAIN_SCENES,
+  },
 
   // Cluster views
   {
@@ -245,6 +273,7 @@ export const ROUTES: RouteSpec[] = [
     path: cluster(`settings?tab=${tab}`),
     data: [{ path: '/settings' }],
     forbidden: tab === 'settings-operational' || tab === 'settings-security',
+    scenes: tab === 'clusters-connection' ? CONNECTION_SCENES : undefined,
   })),
   {
     area: 'events',
