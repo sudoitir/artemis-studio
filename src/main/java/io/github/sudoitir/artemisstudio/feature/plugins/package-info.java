@@ -10,6 +10,7 @@
             "feature.queues",
             "feature.sql",
             "kernel.audit",
+            "kernel.approval::web",
             "kernel.audit::web",
             "kernel.core",
             "kernel.jobs",

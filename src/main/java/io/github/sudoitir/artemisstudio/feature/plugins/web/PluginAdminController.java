@@ -28,6 +28,7 @@ import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.Stu
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustPolicyRequest;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustedKeyView;
 import io.github.sudoitir.artemisstudio.feature.plugins.web.PluginAdminViews.TrustedKeysView;
+import io.github.sudoitir.artemisstudio.kernel.approval.web.HeldOperationViews.HeldOutcomeView;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
@@ -44,6 +45,9 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.StudioRestar
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -132,6 +136,14 @@ public class PluginAdminController {
      * Stores or replaces the plugin's license file, sent as the raw request body of at most 64 KiB, and
      * answers with the license as the plugin's state shows it: unchecked until the plugin reports.
      */
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = PluginLicenseView.class)))
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PutMapping(path = "/{id}/license", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public PluginLicenseView uploadLicense(HttpServletRequest request, @PathVariable String id) throws IOException {
         // One byte past the limit is enough to tell an oversize body without reading the rest of it.
@@ -140,6 +152,10 @@ public class PluginAdminController {
         return license(licenses.summary(id));
     }
 
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @DeleteMapping("/{id}/license")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeLicense(HttpServletRequest request, @PathVariable String id) {
@@ -223,6 +239,10 @@ public class PluginAdminController {
     }
 
     /** Refused while other active plugins require it, unless {@code cascade} disables them too. */
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PostMapping("/{id}/disable")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void disable(
@@ -234,6 +254,10 @@ public class PluginAdminController {
     }
 
     /** Stops and removes the plugin; its data stays until a purge. */
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PostMapping("/{id}/uninstall")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void uninstall(
@@ -245,6 +269,14 @@ public class PluginAdminController {
     }
 
     /** Deletes an uninstalled plugin's data for good; {@code dryRun=true} only estimates it. */
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = PluginPurgePlanView.class)))
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PostMapping("/{id}/purge")
     public PluginPurgePlanView purge(
             HttpServletRequest request, @PathVariable String id, @RequestParam(defaultValue = "false") boolean dryRun) {
@@ -312,6 +344,10 @@ public class PluginAdminController {
                         null);
     }
 
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PostMapping("/installers")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void grantInstaller(HttpServletRequest request, @Valid @RequestBody GrantInstallerRequest body) {
@@ -319,6 +355,10 @@ public class PluginAdminController {
         administration.grantInstaller(body.username());
     }
 
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @DeleteMapping("/installers/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeInstaller(HttpServletRequest request, @PathVariable UUID userId) {
@@ -335,18 +375,30 @@ public class PluginAdminController {
                 keys.signedPlugins());
     }
 
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PostMapping("/keys")
     @ResponseStatus(HttpStatus.CREATED)
     public TrustedKeyView addKey(HttpServletRequest request, @Valid @RequestBody AddKeyRequest body) {
         return key(administration.addKey(body.name(), body.upload(), body.pem(), stepUp(request)));
     }
 
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @DeleteMapping("/keys/{fingerprint}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeKey(HttpServletRequest request, @PathVariable String fingerprint) {
         administration.removeKey(fingerprint, stepUp(request));
     }
 
+    @ApiResponse(
+            responseCode = "202",
+            description = "Held for approval",
+            content = @Content(schema = @Schema(implementation = HeldOutcomeView.class)))
     @PutMapping("/trust-policy")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void trustPolicy(HttpServletRequest request, @RequestBody TrustPolicyRequest body) {

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
@@ -56,7 +57,8 @@ class PluginAdministrationTest {
                 new UpdateChecker(JsonMapper.builder().build()),
                 mock(StudioRestart.class),
                 mock(PluginTrust.class),
-                licenses);
+                licenses,
+                mock(OperationGate.class));
     }
 
     @Test
