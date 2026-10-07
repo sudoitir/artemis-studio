@@ -2,4 +2,15 @@
 |===
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.gate`
+|Spring components
+|_Event listeners_
+
+* `i.g.s.a.k.g.ApprovalProviderRegistry`
+
+_Others_
+
+* `i.g.s.a.k.g.GatedOperationRegistry`
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `i.g.s.a.k.p.PluginStatusChanged` 
 |===

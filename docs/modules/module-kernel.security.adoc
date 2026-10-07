@@ -14,6 +14,7 @@ _Configuration properties_
 
 _Others_
 
+* `i.g.s.a.k.s.AccessChangeLog`
 * `i.g.s.a.k.s.AccessLoader`
 * `i.g.s.a.k.s.AccountLockout`
 * `i.g.s.a.k.s.ActorResolver`
@@ -32,6 +33,8 @@ _Others_
 * `i.g.s.a.k.s.SessionAuthentication`
 * `i.g.s.a.k.s.TeamIndex`
 * `i.g.s.a.k.s.UserAccounts`
+* `i.g.s.a.k.s.UserIdentityFacts`
+* `i.g.s.a.k.s.PermissionHolders` (via `i.g.s.a.k.s.internal.EffectivePermissionHolders`)
 * `i.g.s.a.k.s.IdentityProviders` (via `i.g.s.a.k.s.internal.PluginSignIn`)
 |Bean references
 |* `i.g.s.a.k.r.StudioBus` (in Replicas)

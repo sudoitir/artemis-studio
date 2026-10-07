@@ -10,6 +10,7 @@
 
 _Others_
 
+* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.AccessChangeLogStore`)
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.AuditStore`)
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ExpiredSessionStore`)
 * `i.g.s.a.k.l.Housekeeper`
