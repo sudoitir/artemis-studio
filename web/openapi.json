@@ -44,6 +44,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -143,6 +153,16 @@
         "responses" : {
           "200" : {
             "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -343,6 +363,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -428,6 +458,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -546,6 +579,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -639,6 +682,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -935,6 +981,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -1020,6 +1076,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -1121,6 +1180,16 @@
         "responses" : {
           "200" : {
             "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupMappingsView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -2825,6 +2894,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -2909,6 +2988,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -3090,6 +3179,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -3275,6 +3374,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -3382,6 +3491,9 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -3856,6 +3968,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -3963,6 +4085,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShareView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -4070,6 +4202,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PatternView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -4177,6 +4319,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -4458,6 +4610,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -4747,6 +4909,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupMappingView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -12295,6 +12467,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -12502,6 +12684,16 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PluginPurgePlanView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -12800,6 +12992,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -13154,6 +13356,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -13346,6 +13558,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -23695,6 +23917,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval; the body names the held operation.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -23805,6 +24037,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -23993,6 +24228,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -24091,6 +24329,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -24278,6 +24519,9 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval; the body names the held operation."
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -25031,6 +25275,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -25121,6 +25375,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -26466,6 +26730,40 @@
           }
         },
         "required" : [ "state" ]
+      },
+      "HeldOutcomeView" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "held" ]
+          },
+          "heldOperation" : {
+            "$ref" : "#/components/schemas/HeldRefView"
+          }
+        },
+        "required" : [ "heldOperation", "outcome" ]
+      },
+      "HeldRefView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "link" : {
+            "type" : "string",
+            "description" : "The held operation in this API."
+          }
+        },
+        "required" : [ "expiresAt", "id", "link", "summary" ]
       },
       "PluginChangesetView" : {
         "type" : "object",
