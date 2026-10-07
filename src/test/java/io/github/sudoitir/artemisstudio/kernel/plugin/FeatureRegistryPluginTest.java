@@ -50,7 +50,8 @@ class FeatureRegistryPluginTest {
                         .toList(),
                 List.of(),
                 List.of(),
-                List.of());
+                List.of(),
+                null);
     }
 
     @Test

@@ -106,6 +106,7 @@ public class PluginStore {
             PluginDescriptor descriptor, String sha256, String descriptorJson, String installedBy) {
         var entity = new PluginInstallEntity(
                 descriptor.id(), descriptor.version(), descriptor.vendor().name(), sha256, installedBy, descriptorJson);
+        entity.approvalProvider(descriptor.approvalProvider() != null);
         return installs.save(entity);
     }
 

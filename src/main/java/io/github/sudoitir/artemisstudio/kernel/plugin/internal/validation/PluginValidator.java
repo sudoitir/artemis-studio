@@ -378,6 +378,7 @@ public class PluginValidator {
         checkPermissionScopes(descriptor, violations);
         checkMetrics(descriptor, violations);
         checkIdentityProviders(descriptor, violations);
+        checkApprovalProvider(descriptor, violations);
     }
 
     private void checkId(String id, List<Violation> violations) {
@@ -696,6 +697,23 @@ public class PluginValidator {
                                 .formatted(name),
                         "Give the provider a short label such as \"Corporate directory\"."));
             }
+        }
+    }
+
+    /** ADR-0179: the approver permission is one the plugin itself declares, so Studio can offer it in the role editor. */
+    private void checkApprovalProvider(PluginDescriptor descriptor, List<Violation> violations) {
+        var provider = descriptor.approvalProvider();
+        if (provider == null) {
+            return;
+        }
+        String permission = provider.approverPermission();
+        if (permission == null
+                || descriptor.permissions().stream().noneMatch(p -> p.action().equals(permission))) {
+            violations.add(new Violation(
+                    "approval-provider-permission",
+                    "The approval provider names the approver permission \"%s\", which the plugin does not declare under permissions."
+                            .formatted(permission),
+                    "Declare that permission under permissions, or name one that is declared."));
         }
     }
 }

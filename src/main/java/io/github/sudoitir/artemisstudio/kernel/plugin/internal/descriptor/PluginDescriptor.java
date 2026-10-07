@@ -39,7 +39,8 @@ public record PluginDescriptor(
         List<McpTool> mcpTools,
         List<Metric> metrics,
         List<AlertRule> alertRules,
-        List<IdentityProvider> identityProviders) {
+        List<IdentityProvider> identityProviders,
+        ApprovalProvider approvalProvider) {
 
     public PluginDescriptor {
         requires = requires == null ? List.of() : List.copyOf(requires);
@@ -170,6 +171,14 @@ public record PluginDescriptor(
      * @param label what the login screen shows, 1 to 64 characters
      */
     public record IdentityProvider(String id, String label) {}
+
+    /**
+     * The plugin is the approval provider (ADR-0179): it exposes one {@code ApprovalProvider} bean, and
+     * Studio asks it whether gated operations may run.
+     *
+     * @param approverPermission one of the plugin's declared permission actions, which its approvers hold
+     */
+    public record ApprovalProvider(String approverPermission) {}
 
     public enum Activation {
         AUTO,

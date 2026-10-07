@@ -635,6 +635,30 @@ class CorporateDirectory implements PluginCredentialProvider {
 - Redirect (OIDC-like) providers, bearer providers and changing Studio's throttling, lockout or
   session rules are not available to plugins.
 
+### Approval providers
+
+A plugin can decide whether Studio's gated operations may run, for example by holding them until a
+second person approves. **Declare** it in `plugin.json`, naming the permission the people who approve
+hold, which must be one the plugin declares under `permissions`:
+
+```json
+"approvalProvider": { "approverPermission": "acme-notes:approve" }
+```
+
+Then expose **one** `ApprovalProvider` bean. A plugin that declares the block without the bean fails
+its activation. A plugin may also contribute `GatedOperation` beans for its own operations; each type is
+named `<plugin id>:<name>`, and no two operations share a type or a parameters record.
+
+- **Only one provider.** Activating a second plugin that declares `approvalProvider` while another is
+  meant to be active is refused (`approval-provider-exists`), naming the first. Disable or uninstall it first.
+- **The gate follows what is meant to be active, not what is running.** From the moment the provider is
+  being installed, and while it is starting, has failed, needs a restart or is incompatible with this
+  Studio, gated operations are not run and the caller is told approvals are unavailable. Only disabling
+  or uninstalling the provider disarms the gate. Updating or rolling back the provider keeps it armed.
+- **Removal is announced.** Disabling or uninstalling the provider publishes a `PluginStatusChanged`
+  event inside the same transaction, so what depended on it is cancelled together with its removal.
+- Studio logs `approval-gate` at INFO when it boots and whenever the gate arms or disarms.
+
 ### Reading metric history
 
 A plugin that wants the history of Studio's queue metrics, or of metrics plugins publish, injects
