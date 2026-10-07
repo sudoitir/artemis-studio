@@ -227,6 +227,7 @@ function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
     changes = (
       <DataTable
         variant="static"
+        columnsMenu={false}
         label="Changes"
         columns={changeColumns()}
         data={display}

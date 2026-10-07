@@ -50,6 +50,14 @@ function Static(props: Partial<Parameters<typeof DataTable<Node>>[0]> & { captio
 describe('DataTable: static variant', () => {
   afterEach(() => localStorage.clear());
 
+  it('drops the Columns control and its toolbar when asked to', () => {
+    renderWithProviders(<Static columnsMenu={false} />);
+
+    expect(screen.getByRole('table', { name: 'Nodes' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Columns/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Nodes controls' })).not.toBeInTheDocument();
+  });
+
   it('is a native table, named, with column headers and a header for each row', () => {
     renderWithProviders(<Static />);
 

@@ -84,6 +84,7 @@ export function ReviewDialog({
           )}
           <DataTable
             variant="static"
+            columnsMenu={false}
             label="Changes to apply"
             columns={columns}
             data={rows}

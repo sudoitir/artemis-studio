@@ -80,6 +80,11 @@ interface StaticVariantProps<T> extends DataTableBaseProps<T> {
   /** A small, read-only set in a native table. Above 200 rows it is drawn as the grid. */
   variant: 'static';
   caption?: ReactNode;
+  /**
+   * `false` drops the Columns control, for a short fixed set where every column is needed and there is
+   * nothing to hide, reorder or resize, such as a diff in a dialog. The grid always has it.
+   */
+  columnsMenu?: boolean;
 }
 
 export type DataTableProps<T> = GridVariantProps<T> | StaticVariantProps<T>;
@@ -145,6 +150,7 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   const { rowClassName, height = 'fill', toolbar } = props;
   const gridProps: GridOnlyProps<T> = props.variant === 'static' ? {} : props;
   const renderStatic = props.variant === 'static' && data.length <= STATIC_ROW_LIMIT;
+  const columnsMenu = props.variant !== 'static' || props.columnsMenu !== false;
   const selectable = Boolean(gridProps.selectable);
   const hasMenu = gridProps.rowMenu !== undefined;
 
@@ -353,22 +359,26 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
         } as CSSProperties
       }
     >
-      <fieldset className={classes.toolbar} aria-label={`${label} controls`}>
-        <div className={classes.toolbarStart}>{toolbar?.start}</div>
-        <div className={classes.toolbarEnd}>
-          {toolbar?.end}
-          <ColumnsMenu
-            columns={menuColumns}
-            hiddenCount={hiddenCount}
-            onToggle={(id, show) => update((s) => withVisibility(s, id, show))}
-            onMove={move}
-            density={density}
-            onDensity={setDensity}
-            canResetWidths={columns.some((c) => c.id in state.widths)}
-            onResetWidths={() => update(withoutWidths)}
-          />
-        </div>
-      </fieldset>
+      {columnsMenu || toolbar ? (
+        <fieldset className={classes.toolbar} aria-label={`${label} controls`}>
+          <div className={classes.toolbarStart}>{toolbar?.start}</div>
+          <div className={classes.toolbarEnd}>
+            {toolbar?.end}
+            {columnsMenu ? (
+              <ColumnsMenu
+                columns={menuColumns}
+                hiddenCount={hiddenCount}
+                onToggle={(id, show) => update((s) => withVisibility(s, id, show))}
+                onMove={move}
+                density={density}
+                onDensity={setDensity}
+                canResetWidths={columns.some((c) => c.id in state.widths)}
+                onResetWidths={() => update(withoutWidths)}
+              />
+            ) : null}
+          </div>
+        </fieldset>
+      ) : null}
       <RefetchBar active={loading && data.length > 0} />
       {renderStatic ? (
         <StaticTable model={model} caption={props.variant === 'static' ? props.caption : undefined} />

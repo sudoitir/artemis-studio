@@ -225,6 +225,14 @@ describe('DataTable column widths in a real browser', () => {
       expect(await axeViolations(container)).toEqual([]);
     });
 
+    it('starts each header where its cells start, and ends a number header where its figures end', async () => {
+      renderThemed(staticTable(960), 'light');
+      await screen.findByRole('table');
+      const [name, count] = screen.getAllByRole('columnheader');
+      expect(getComputedStyle(name!).textAlign).toBe('start');
+      expect(getComputedStyle(count!).textAlign).toBe('end');
+    });
+
     it('is not a stop of its own when it fits', async () => {
       renderThemed(staticTable(960), 'light');
       const table = await screen.findByRole('table');
