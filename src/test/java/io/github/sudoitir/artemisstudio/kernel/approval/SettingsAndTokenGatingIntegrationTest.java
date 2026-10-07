@@ -25,6 +25,9 @@ import io.github.sudoitir.artemisstudio.kernel.gate.HeldState;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationHeldException;
 import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
 import io.github.sudoitir.artemisstudio.kernel.gate.Vote;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.DataPermissions;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
@@ -154,6 +157,12 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     WebApplicationContext webContext;
+
+    @Autowired
+    LifecycleService lifecycle;
+
+    @Autowired
+    LifecycleRegistry stores;
 
     @MockitoBean
     PermissionHolders holders;
@@ -545,6 +554,30 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
         String listed = a.send("GET", "/api/v1/settings", null, Map.of()).body();
         assertThat(JsonPath.<String>read(listed, "$.settings['" + BrokerSettings.BULK_CAP + "'].pending[0].value"))
                 .isEqualTo("3");
+    }
+
+    @Test
+    void aStorePolicyIsHeldAsOneChangeSetOfTheValuesItChanges() {
+        Person alice = newUser(DataPermissions.DATA_READ, DataPermissions.DATA_WRITE);
+        approversAre(approver());
+        signIn(alice);
+        String retention = settings.value(stores.key("audit", "retention"));
+
+        assertThatThrownBy(() -> lifecycle.update("audit", retention, 1234, 61))
+                .isInstanceOf(OperationHeldException.class);
+
+        List<String> held = jdbc.queryForList(
+                "SELECT params::text FROM held_operation WHERE requester_id = ?", String.class, alice.id());
+        assertThat(held)
+                .singleElement()
+                .satisfies(params -> assertThat(params)
+                        .contains(stores.key("audit", "quota"), "1234", stores.key("audit", "quota-warn-percent"), "61")
+                        .doesNotContain(stores.key("audit", "retention")));
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM studio_setting WHERE key LIKE ?",
+                        Long.class,
+                        stores.key("audit", "") + "%"))
+                .isZero();
     }
 
     @Test
