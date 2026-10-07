@@ -1,8 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
-import io.github.sudoitir.artemisstudio.kernel.approval.web.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;

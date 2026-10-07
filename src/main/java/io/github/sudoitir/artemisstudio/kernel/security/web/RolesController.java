@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.RoleService;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.PermissionView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.RoleRequest;
@@ -36,7 +37,7 @@ public class RolesController {
         return ResourceQuery.ofPage(page, size).paginate(roleService.list(), null);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PostMapping("/roles")
     @ResponseStatus(HttpStatus.CREATED)
     public RoleView create(@Valid @RequestBody RoleRequest request) {
@@ -47,13 +48,13 @@ public class RolesController {
             responseCode = "200",
             description = "OK",
             content = @Content(schema = @Schema(implementation = RoleView.class)))
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PutMapping("/roles/{roleId}")
     public RoleView update(@PathVariable UUID roleId, @Valid @RequestBody RoleRequest request) {
         return roleService.update(roleId, request);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @DeleteMapping("/roles/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID roleId) {

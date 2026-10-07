@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenVi
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.UsageView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourcePattern;
@@ -77,6 +78,7 @@ public class TokensController {
                 settings.duration(ApiTokensSettings.ROTATION_OVERLAP).toString());
     }
 
+    @HeldResponse
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedTokenView create(

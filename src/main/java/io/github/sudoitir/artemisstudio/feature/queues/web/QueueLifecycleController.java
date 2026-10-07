@@ -6,7 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQ
 import io.github.sudoitir.artemisstudio.feature.queues.QueueConfigurationReader;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueConfigurationReader.QueueConfiguration;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
-import io.github.sudoitir.artemisstudio.kernel.approval.web.HeldResponse;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;

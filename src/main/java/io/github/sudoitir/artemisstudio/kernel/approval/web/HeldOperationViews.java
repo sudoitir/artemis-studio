@@ -235,18 +235,4 @@ public final class HeldOperationViews {
 
             @Schema(requiredMode = REQUIRED, description = "Whether break-glass lets operations bypass approval.")
             boolean breakGlass) {}
-
-    public record HeldOutcomeView(
-            @Schema(requiredMode = REQUIRED, allowableValues = "held")
-            String outcome,
-
-            @Schema(requiredMode = REQUIRED) HeldRefView heldOperation) {}
-
-    public record HeldRefView(
-            @Schema(requiredMode = REQUIRED) UUID id,
-            @Schema(requiredMode = REQUIRED) String summary,
-            @Schema(requiredMode = REQUIRED) Instant expiresAt,
-
-            @Schema(requiredMode = REQUIRED, description = "The held operation in this API.")
-            String link) {}
 }

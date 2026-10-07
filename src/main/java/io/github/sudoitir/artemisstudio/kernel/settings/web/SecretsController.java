@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.settings.web;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.settings.SecretRotationService;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SecretsViews.RotationView;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SecretsViews.SecretsStatus;
@@ -29,6 +30,8 @@ public class SecretsController {
         return SecretsViews.of(secrets.status());
     }
 
+    /** Starts the rotation, or, when an approval provider holds it, answers 202 with the held request and starts nothing. */
+    @HeldResponse
     @PostMapping("/rotations")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public RotationView rotate(HttpServletRequest request) {
