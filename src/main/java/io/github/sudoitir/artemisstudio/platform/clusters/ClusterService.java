@@ -168,7 +168,10 @@ public class ClusterService {
         for (RegistrationCheckContributor contributor : checkContributors) {
             contributions.put(
                     contributor.featureId(),
-                    contributor.contribute(capabilities, reachable.get(0).client()));
+                    contributor.contribute(
+                            capabilities,
+                            reachable.get(0).client(),
+                            coreSettingsFrom(request).username()));
         }
 
         audit.succeed(event, nodeCount);

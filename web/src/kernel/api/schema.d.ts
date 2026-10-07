@@ -6985,6 +6985,9 @@ export interface components {
             roles: {
                 [key: string]: string[];
             };
+            /** @description For a security setting: the roles of the account Studio connects to Core with, as the broker's user management reports them; empty when it could not */
+            accountRoles: string[];
+            accountRolesSource?: components["schemas"]["ConfigRolesSource"] | null;
             /** @description The keys this recommendation itself sets */
             keys: string[];
             manualSnippet?: string | null;
@@ -6994,6 +6997,13 @@ export interface components {
             /** @description The node the current values were read from; null when none could be read */
             seededFrom?: string | null;
             recommendations: components["schemas"]["ConfigRecommendationView"][];
+        };
+        /** @description Where a recommended security setting's roles were read from */
+        ConfigRolesSource: {
+            /** @enum {string} */
+            kind: "BROKER_ACCOUNT" | "SECURITY_SETTINGS" | "NONE";
+            /** @description Why the account's roles were not used; null when they were */
+            reason?: string | null;
         };
         /** @description One node's connector names, for a bridge to reference. known=false means Studio could not read them, not that there are none */
         ConfigNodeConnectorsView: {
