@@ -110,29 +110,6 @@ knowledge of.
 - **THEN** the client can present it, under its grouping and with its label and
   explanation, without a client-side change
 
-### Requirement: Broker credentials can be rotated
-
-The system SHALL allow replacing a cluster's stored broker credentials. The new
-credentials SHALL be stored only as authenticated ciphertext bound to that
-cluster, the change SHALL be audited in the same transaction as the write, and
-no response SHALL ever contain the credentials in plaintext.
-
-#### Scenario: Rotation re-encrypts and audits
-
-- **WHEN** an operator submits new broker credentials for a cluster
-- **THEN** the stored ciphertext is replaced, an audit event records the
-  rotation and its outcome, and the response contains no secret
-
-#### Scenario: Next scrape uses the new credentials
-
-- **WHEN** credentials are rotated and the next scrape runs
-- **THEN** the scrape authenticates with the new credentials
-
-#### Scenario: Rotation is guarded in the UI
-
-- **WHEN** an operator rotates credentials from the frontend
-- **THEN** the UI requires the cluster name to be typed to confirm
-
 ### Requirement: Settings writes require a global write permission
 
 Reading operational settings SHALL require an authenticated principal.
