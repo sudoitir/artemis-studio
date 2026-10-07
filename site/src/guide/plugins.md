@@ -718,6 +718,10 @@ exports:
     submits it. Every input box stays on the same line whatever its label, description or message
     holds, and the row wraps when the window is narrow. Use it, not your own flex row, so your
     forms line up with Studio's.
+  - `Notice` states something the operator should know about the whole page, such as a licence in
+    its grace period: a title in words, a tone (`neutral`, `info`, `warning`, `danger`) and the
+    text. A `danger` notice is announced as an alert, every other tone as a status. Use it, not
+    Mantine's `Alert`, so a plugin's notices read and contrast like Studio's.
   - `ConfirmDialog` confirms an action, and for a removal it asks for the resource's name to be
     typed. `notify` shows a toast for the outcomes of an action: pending, succeeded, failed and
     partial.

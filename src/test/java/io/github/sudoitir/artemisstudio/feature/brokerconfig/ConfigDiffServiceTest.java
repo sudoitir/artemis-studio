@@ -320,10 +320,11 @@ class ConfigDiffServiceTest {
         ClusterNode a = answering("a", config("{}"));
         answering("b", config("{}"));
 
-        assertThatThrownBy(() -> service.compare(clusterId, Set.of(a.getId())))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.compare(clusterId, Set.of(a.getId(), UUID.randomUUID())))
-                .isInstanceOf(NotFoundException.class);
+        Set<UUID> onlyOne = Set.of(a.getId());
+        Set<UUID> oneUnknown = Set.of(a.getId(), UUID.randomUUID());
+
+        assertThatThrownBy(() -> service.compare(clusterId, onlyOne)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.compare(clusterId, oneUnknown)).isInstanceOf(NotFoundException.class);
     }
 
     @Test

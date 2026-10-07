@@ -12,6 +12,7 @@ import { DescriptionList } from '../ui/DescriptionList.tsx';
 import { ErrorState } from '../ui/ErrorState.tsx';
 import { FieldRow } from '../ui/FieldRow.tsx';
 import { LoadingState } from '../ui/LoadingState.tsx';
+import { Notice } from '../ui/Notice.tsx';
 import { Page } from '../ui/Page.tsx';
 import { PageHeader } from '../ui/PageHeader.tsx';
 import { Section } from '../ui/Section.tsx';
@@ -95,7 +96,19 @@ export { METRIC_RANGES, type MetricRange } from '../kernel/time/ranges.ts';
  */
 export { notify, type ActionVerb } from '../ui/notify.ts';
 
-export { DescriptionList, ErrorState, FieldRow, LoadingState, Page, PageHeader, Section, Stat, StatusBadge, Toolbar };
+export {
+  DescriptionList,
+  ErrorState,
+  FieldRow,
+  LoadingState,
+  Notice,
+  Page,
+  PageHeader,
+  Section,
+  Stat,
+  StatusBadge,
+  Toolbar,
+};
 
 export type PageProps = ComponentProps<typeof Page>;
 export type PageHeaderProps = ComponentProps<typeof PageHeader>;
@@ -104,6 +117,7 @@ export type ToolbarProps = ComponentProps<typeof Toolbar>;
 export type ErrorStateProps = ComponentProps<typeof ErrorState>;
 export type FieldRowProps = ComponentProps<typeof FieldRow>;
 export type LoadingStateProps = ComponentProps<typeof LoadingState>;
+export type NoticeProps = ComponentProps<typeof Notice>;
 export type StatusBadgeProps = ComponentProps<typeof StatusBadge>;
 export type StatProps = ComponentProps<typeof Stat>;
 export type DescriptionListProps = ComponentProps<typeof DescriptionList>;

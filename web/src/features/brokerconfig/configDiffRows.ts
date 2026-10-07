@@ -86,9 +86,7 @@ export function summaryWords(data: ConfigDiffView): string {
     driftKeys > 0
       ? `${plural(driftKeys, 'key drifts', 'keys drift')} on ${plural(driftNodes, 'node', 'nodes')}.`
       : `No key drifts across the ${plural(answered, 'node', 'nodes')} compared.`;
-  const rest =
-    silent.length > 0
-      ? ` ${silent.join(', ')} did not answer, so ${silent.length === 1 ? 'it was' : 'they were'} not compared.`
-      : '';
+  const wasWere = silent.length === 1 ? 'it was' : 'they were';
+  const rest = silent.length > 0 ? ` ${silent.join(', ')} did not answer, so ${wasWere} not compared.` : '';
   return `${head}${expected}${rest}`;
 }

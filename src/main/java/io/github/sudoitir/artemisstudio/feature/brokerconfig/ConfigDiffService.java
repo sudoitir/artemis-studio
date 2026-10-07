@@ -73,34 +73,12 @@ public class ConfigDiffService {
         List<String> matches = ConfigReader.matchesFor(addressesOf(clusterId));
 
         List<Read> reads = nodes.stream().map(n -> read(clusterId, n, matches)).toList();
-        List<Integer> answered = new ArrayList<>();
-        for (int i = 0; i < reads.size(); i++) {
-            if (reads.get(i).config() != null) {
-                answered.add(i);
-            }
-        }
-
-        // A node that is not serving may answer with a reduced surface. On Artemis 2.44 it does
-        // not (surface check §14, Q1) — a passive backup exposes the same 90 attributes. This
-        // guard is for the broker that behaves otherwise: it contributes the keys it exposes
-        // instead of having its unexposed attributes reported as missing configuration.
-        Set<String> servingAttributes = new LinkedHashSet<>();
-        for (int i : answered) {
-            if (reads.get(i).config().active()) {
-                servingAttributes.addAll(attributeNames(reads.get(i).config()));
-            }
-        }
+        List<Integer> answered = answeredIndexes(reads);
+        Set<UUID> reduced = reducedNodes(nodes, reads, answered);
         List<ConfigNodeView> nodeViews = new ArrayList<>();
-        Set<UUID> reduced = new LinkedHashSet<>();
         for (int i = 0; i < nodes.size(); i++) {
-            NodeConfig config = reads.get(i).config();
-            boolean isReduced = config != null
-                    && !config.active()
-                    && !attributeNames(config).containsAll(servingAttributes);
-            if (isReduced) {
-                reduced.add(nodes.get(i).getId());
-            }
-            nodeViews.add(nodeView(nodes.get(i), reads.get(i), isReduced));
+            nodeViews.add(nodeView(
+                    nodes.get(i), reads.get(i), reduced.contains(nodes.get(i).getId())));
         }
 
         List<String> notes = new ArrayList<>();
@@ -127,11 +105,7 @@ public class ConfigDiffService {
             ClusterNode node = nodes.get(i);
             NodeConfig config = reads.get(i).config();
             compared = config.matchesCompared();
-            Predicate<String> brokerExposes = reduced.contains(node.getId())
-                    ? key -> attributeNames(config).contains(attributeOf(key))
-                    : key -> true;
-            broker.add(new ConfigDiff.Side(
-                    node.getId(), node.getName(), ConfigDiff.flatten(config.brokerAttributes()), brokerExposes));
+            broker.add(brokerSide(node, config, reduced.contains(node.getId())));
             addressSettings.add(side(node, ConfigDiff.flattenKeyed(config.addressSettings(), MATCH)));
             securitySettings.add(side(node, ConfigDiff.flattenKeyed(config.securitySettings(), "name")));
             acceptors.add(side(node, ConfigDiff.flattenKeyed(config.acceptors(), "name")));
@@ -164,6 +138,48 @@ public class ConfigDiffService {
                 compared,
                 matches.size(),
                 List.copyOf(notes));
+    }
+
+    private static List<Integer> answeredIndexes(List<Read> reads) {
+        List<Integer> answered = new ArrayList<>();
+        for (int i = 0; i < reads.size(); i++) {
+            if (reads.get(i).config() != null) {
+                answered.add(i);
+            }
+        }
+        return answered;
+    }
+
+    /**
+     * The nodes that are not serving and expose fewer attributes than the serving ones.
+     *
+     * <p>A node that is not serving may answer with a reduced surface. On Artemis 2.44 it does
+     * not (surface check §14, Q1) — a passive backup exposes the same 90 attributes. This
+     * guard is for the broker that behaves otherwise: it contributes the keys it exposes
+     * instead of having its unexposed attributes reported as missing configuration.
+     */
+    private Set<UUID> reducedNodes(List<ClusterNode> nodes, List<Read> reads, List<Integer> answered) {
+        Set<String> servingAttributes = new LinkedHashSet<>();
+        for (int i : answered) {
+            if (reads.get(i).config().active()) {
+                servingAttributes.addAll(attributeNames(reads.get(i).config()));
+            }
+        }
+        Set<UUID> reduced = new LinkedHashSet<>();
+        for (int i : answered) {
+            NodeConfig config = reads.get(i).config();
+            if (!config.active() && !attributeNames(config).containsAll(servingAttributes)) {
+                reduced.add(nodes.get(i).getId());
+            }
+        }
+        return reduced;
+    }
+
+    private ConfigDiff.Side brokerSide(ClusterNode node, NodeConfig config, boolean reduced) {
+        Predicate<String> brokerExposes =
+                reduced ? key -> attributeNames(config).contains(attributeOf(key)) : key -> true;
+        return new ConfigDiff.Side(
+                node.getId(), node.getName(), ConfigDiff.flatten(config.brokerAttributes()), brokerExposes);
     }
 
     private List<ClusterNode> selected(List<ClusterNode> all, Set<UUID> only) {

@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig.web;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -146,9 +145,9 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
     }
 
     private void threeNodes(String cType) {
-        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(client(B_URL, "backup", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(client(C_URL, "third", cType, true));
+        when(connections.forCluster(clusterId, A_URL)).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(clusterId, B_URL)).thenReturn(client(B_URL, "backup", "ASYNCIO", true));
+        when(connections.forCluster(clusterId, C_URL)).thenReturn(client(C_URL, "third", cType, true));
     }
 
     @Test
@@ -189,9 +188,9 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
 
     @Test
     void anUnreadableNodeIsListedWithItsReasonAndTheOthersAreStillCompared() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(client(B_URL, "backup", "NIO", true));
-        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(unauthorized(C_URL));
+        when(connections.forCluster(clusterId, A_URL)).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(clusterId, B_URL)).thenReturn(client(B_URL, "backup", "NIO", true));
+        when(connections.forCluster(clusterId, C_URL)).thenReturn(unauthorized(C_URL));
 
         mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())
@@ -208,9 +207,9 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
 
     @Test
     void whenFewerThanTwoNodesAnswerNoComparisonIsMadeAndEveryReasonIsGiven() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(unauthorized(B_URL));
-        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(unauthorized(C_URL));
+        when(connections.forCluster(clusterId, A_URL)).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(clusterId, B_URL)).thenReturn(unauthorized(B_URL));
+        when(connections.forCluster(clusterId, C_URL)).thenReturn(unauthorized(C_URL));
 
         mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())
@@ -224,8 +223,8 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
 
     @Test
     void nodesNarrowsTheComparisonToTheNamedNodes() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(A_URL))).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
-        when(connections.forCluster(eq(clusterId), eq(B_URL))).thenReturn(client(B_URL, "backup", "NIO", true));
+        when(connections.forCluster(clusterId, A_URL)).thenReturn(client(A_URL, "primary", "ASYNCIO", true));
+        when(connections.forCluster(clusterId, B_URL)).thenReturn(client(B_URL, "backup", "NIO", true));
 
         mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId).param("nodes", aId + "," + bId))
                 .andExpect(status().isOk())
@@ -243,11 +242,10 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
         // A passive backup reports AddressNames: [] where the primary reports entries.
         // That is a value difference, not a smaller surface, and must not suppress the
         // comparison — the live check against the dev pair caught exactly this.
-        when(connections.forCluster(eq(clusterId), eq(A_URL)))
+        when(connections.forCluster(clusterId, A_URL))
                 .thenReturn(client(A_URL, "primary", "ASYNCIO", true, "[\"orders\",\"events\"]"));
-        when(connections.forCluster(eq(clusterId), eq(B_URL)))
-                .thenReturn(client(B_URL, "backup", "ASYNCIO", false, "[]"));
-        when(connections.forCluster(eq(clusterId), eq(C_URL))).thenReturn(client(C_URL, "third", "ASYNCIO", true));
+        when(connections.forCluster(clusterId, B_URL)).thenReturn(client(B_URL, "backup", "ASYNCIO", false, "[]"));
+        when(connections.forCluster(clusterId, C_URL)).thenReturn(client(C_URL, "third", "ASYNCIO", true));
 
         mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())

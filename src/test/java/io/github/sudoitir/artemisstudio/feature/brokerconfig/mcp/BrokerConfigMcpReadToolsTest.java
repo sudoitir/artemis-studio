@@ -159,7 +159,10 @@ class BrokerConfigMcpReadToolsTest {
                 .thenThrow(new IllegalArgumentException(
                         "Name at least two nodes to compare, or none to compare them all."));
 
-        assertThatThrownBy(() -> tools.configDiff(CLUSTER.toString(), A.toString()))
+        String cluster = CLUSTER.toString();
+        String node = A.toString();
+
+        assertThatThrownBy(() -> tools.configDiff(cluster, node))
                 .isInstanceOf(McpError.class)
                 .hasMessageContaining("at least two nodes");
     }
