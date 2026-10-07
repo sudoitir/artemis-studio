@@ -346,7 +346,10 @@ export function useDeleteTeam() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
     mutationFn: (teamId) => request<void>(`/teams/${teamId}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.teams }),
+    // Every team query but the deleted team's own: asking for it again only answers that it is gone, while its
+    // page is still on screen for the moment before it leaves.
+    onSuccess: (_, teamId) =>
+      qc.invalidateQueries({ queryKey: keys.teams, predicate: (q) => q.queryKey[1] !== teamId }),
   });
 }
 

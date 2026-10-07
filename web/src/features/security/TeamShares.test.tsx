@@ -129,6 +129,6 @@ describe('TeamShares', () => {
       expect(screen.getByRole('button', { name: 'Remove share of orders.events.# with Billing' })).toBeDisabled(),
     );
     expect(screen.getByRole('button', { name: 'Share pattern' })).toBeDisabled();
-    expect(screen.getByText(/shares needs the user:admin permission/)).toBeInTheDocument();
+    expect(screen.getByText(/removing a share, needs the user:admin permission/)).toBeInTheDocument();
   });
 });

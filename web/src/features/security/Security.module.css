@@ -80,3 +80,12 @@
   list-style: none;
   font-size: var(--mantine-font-size-sm);
 }
+
+/* The way back from a team to the list: an arrow and the words, one link. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  align-self: flex-start;
+  font-size: var(--mantine-font-size-sm);
+}

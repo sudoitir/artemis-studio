@@ -27,7 +27,8 @@ const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: 'login',
  * The open tab is an `admin.tabs` contribution's id; the page falls back to the first tab for any
  * other. `plugin` is the plugin whose details are open on the Plugins tab; `upload` reopens an
  * inspected upload's review, which is where a single-sign-on step-up returns to. `view` is the Data
- * tab's open view. `team` is the team open on the Teams tab, and `teamTab` the section of it.
+ * tab's open view. `team` is the team open on the Teams tab, and `teamTab` the section of it; `teamQ` and
+ * `teamSort` filter and sort the list of teams.
  */
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -42,6 +43,8 @@ const adminRoute = createRoute({
     view?: 'retention' | 'health';
     team?: string;
     teamTab?: string;
+    teamQ?: string;
+    teamSort?: string;
   } => ({
     ...(typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {}),
     ...(typeof raw.plugin === 'string' && raw.plugin ? { plugin: raw.plugin } : {}),
@@ -49,6 +52,8 @@ const adminRoute = createRoute({
     ...(raw.view === 'retention' || raw.view === 'health' ? { view: raw.view } : {}),
     ...(typeof raw.team === 'string' && raw.team ? { team: raw.team } : {}),
     ...(typeof raw.teamTab === 'string' && raw.teamTab ? { teamTab: raw.teamTab } : {}),
+    ...(typeof raw.teamQ === 'string' && raw.teamQ ? { teamQ: raw.teamQ } : {}),
+    ...(typeof raw.teamSort === 'string' && raw.teamSort ? { teamSort: raw.teamSort } : {}),
   }),
 });
 
