@@ -17,8 +17,8 @@ top to bottom direction
 
 System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
   Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
     Component(ArtemisStudioApplication.ArtemisStudioApplication.Approvalgatecontract, "Approval gate contract", $techn="Module", $descr="", $tags="", $link="")
+    Component(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }

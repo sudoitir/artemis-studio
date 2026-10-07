@@ -36,15 +36,15 @@ class DocumentationTest {
     }
 
     /**
-     * The documenter emits relations in no fixed order, which would rewrite every diagram on every
-     * run. Each run of consecutive {@code Rel(} lines is sorted, so a diagram changes only when the
-     * module graph does.
+     * The documenter emits relations and components in no fixed order, which would rewrite every
+     * diagram on every run. Each run of consecutive {@code Rel(} or {@code Component(} lines is
+     * sorted, so a diagram changes only when the module graph does.
      */
     private static List<String> sortRelations(List<String> lines) {
         List<String> out = new ArrayList<>(lines.size());
         List<String> relations = new ArrayList<>();
         for (String line : lines) {
-            if (line.startsWith("Rel(")) {
+            if (line.startsWith("Rel(") || line.strip().startsWith("Component(")) {
                 relations.add(line);
                 continue;
             }
