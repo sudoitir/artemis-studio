@@ -1,9 +1,9 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { page as browserPage, userEvent } from 'vitest/browser';
 import { screen } from '@testing-library/react';
 
-import { axeViolations, SCHEMES, Themed } from '../../test/browser.tsx';
-import { renderWithProviders } from '../../test/render.tsx';
+import { axeViolations, renderThemedWithFeatures, SCHEMES, settle } from '../../test/browser.tsx';
+import { setShortcutsHelpOpen } from './shortcuts.ts';
 import { ShortcutsHelp } from './ShortcutsHelp.tsx';
 
 // A 1280 × 800 window at 100%, and the same window at 200% zoom: half the CSS pixels each way.
@@ -14,17 +14,18 @@ const WINDOWS = [
 
 async function open(scheme: (typeof SCHEMES)[number]) {
   // Every feature's views, so the "Go to" lists are as long as they are in the product.
-  renderWithProviders(
-    <Themed scheme={scheme}>
-      <ShortcutsHelp />
-    </Themed>,
-  );
+  renderThemedWithFeatures(<ShortcutsHelp />, scheme);
   await userEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
-  return screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
+  const dialog = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
+  // Measured once the popover has finished fading in and placing itself: mid-fade, its text is paler than it is.
+  await settle(() => `${JSON.stringify(dialog.getBoundingClientRect())} ${getComputedStyle(dialog).opacity}`);
+  return dialog;
 }
 
 describe('ShortcutsHelp', () => {
   afterAll(() => browserPage.viewport(1920, 1080));
+  // Whether it is open outlives a render: closed again, so the next test's click opens it rather than closing it.
+  afterEach(() => setShortcutsHelpOpen(false));
 
   describe.each(WINDOWS)('in a $name window', ({ width, height }) => {
     it.each(SCHEMES)('never scrolls sideways, and keeps inside the window, in the %s scheme', async (scheme) => {

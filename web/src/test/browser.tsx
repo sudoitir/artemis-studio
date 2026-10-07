@@ -1,8 +1,11 @@
 import type { ReactElement, ReactNode } from 'react';
 import { DEFAULT_THEME, MantineProvider, mergeMantineTheme } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import axe from 'axe-core';
 
+import { FEATURES } from '../app/features.ts';
+import { FeatureProvider } from '../kernel/FeatureProvider.tsx';
 import { cssVariablesResolver, theme } from '../theme.ts';
 
 /** The two colour schemes every browser test checks (ADR-0159). */
@@ -56,6 +59,20 @@ export const frameOf = (container: HTMLElement) => container.querySelector<HTMLE
 
 export function renderThemed(ui: ReactElement, scheme: Scheme) {
   return render(ui, { wrapper: ({ children }) => <Themed scheme={scheme}>{children}</Themed> });
+}
+
+/**
+ * `ui` in one colour scheme with the application's features installed, for a shell part that lists them (the
+ * shortcuts help, the navigation). One Mantine provider only: a second one would set its own scheme on the page.
+ */
+export function renderThemedWithFeatures(ui: ReactElement, scheme: Scheme) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return renderThemed(
+    <QueryClientProvider client={client}>
+      <FeatureProvider features={FEATURES}>{ui}</FeatureProvider>
+    </QueryClientProvider>,
+    scheme,
+  );
 }
 
 /** Frames, by browser animation frame, until `signature()` has said the same thing for a few in a row. */
