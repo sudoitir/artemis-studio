@@ -117,13 +117,15 @@ class TriageMcpToolsTest {
                                         null,
                                         io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion.Support.UNKNOWN,
                                         null,
+                                        null,
                                         AT,
-                                        true,
+                                        null,
+                                        null,
                                         false,
                                         true))))));
         when(clusters.health(CLUSTER))
-                .thenReturn(
-                        new HealthView(CLUSTER, "HEALTHY", List.of("broker-1"), "NONE", false, List.of("all good")));
+                .thenReturn(new HealthView(
+                        CLUSTER, "HEALTHY", List.of("broker-1"), "NONE", false, List.of("all good"), List.of()));
         when(clocks.assessmentFor(CLUSTER)).thenReturn(Assessment.UNKNOWN);
         when(alerts.getIfAvailable()).thenReturn(alertService);
         when(perm.can(CLUSTER, AlertPermissions.ALERT_READ)).thenReturn(true);

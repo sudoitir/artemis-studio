@@ -118,8 +118,9 @@ const topologyNode = (f: Fixture, i: number): NodeFacts => {
     versionSupport: i === 4 ? 'NEWER_THAN_TESTED' : 'SUPPORTED',
     lastError: i === 4 ? 'Connection refused: no further information' : null,
     lastSeenAt: at(i),
-    discovered: true,
-    manualOverride: false,
+    urlSource: null,
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: i !== 5,
   };
   const logical: LogicalNodeView = {

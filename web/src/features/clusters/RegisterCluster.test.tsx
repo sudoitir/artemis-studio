@@ -1,11 +1,13 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { Notifications, notifications } from '@mantine/notifications';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
+import { holding } from '../../test/access.ts';
 import { server } from '../../test/setup.ts';
+import { paged } from '../../kernel/api/paging.ts';
 
 const navigateSpy = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -40,6 +42,36 @@ function preview() {
     },
     reachableSeeds: 1,
     discoveredNodes: 2,
+    managementUrlPattern: 'http://{host}:8161/console/jolokia',
+    nodes: [
+      {
+        name: 'broker-1',
+        haRole: 'PRIMARY',
+        artemisNodeId: 'node-a',
+        version: '2.40.0',
+        managementUrl: 'http://broker-1:8161/console/jolokia',
+        urlSource: 'SEED',
+        urlProblem: null,
+        management: 'ACCEPTED',
+        core: 'REJECTED',
+      },
+      {
+        name: 'broker-2',
+        haRole: 'BACKUP',
+        artemisNodeId: 'node-a',
+        version: '2.40.0',
+        managementUrl: null,
+        urlSource: null,
+        urlProblem: 'OTHER_BROKER',
+        management: 'ACCEPTED',
+        core: 'NOT_TRIED',
+      },
+    ],
+    adoption: {
+      counts: { addresses: 3, addressSettings: 2, securitySettings: 1, diverts: 0 },
+      disagreements: [] as string[],
+      notes: [],
+    },
     contributions: {
       brokerconfig: {
         seededFrom: 'broker-1',
@@ -81,8 +113,9 @@ function preview() {
               versionSupport: 'SUPPORTED',
               lastError: null,
               lastSeenAt: null,
-              discovered: false,
-              manualOverride: false,
+              urlSource: 'SEED',
+              urlProblem: null,
+              coreUrlManual: false,
               manageable: true,
             },
           ],
@@ -110,6 +143,15 @@ function alreadyRegistered(visible = true) {
   );
 }
 
+beforeEach(() =>
+  server.use(
+    holding('environment:read'),
+    http.get('*/api/v1/environments', () =>
+      HttpResponse.json(paged([{ id: 'e1', name: 'Production', colour: null, sortOrder: 1 }])),
+    ),
+  ),
+);
+
 afterEach(() => act(() => notifications.clean()));
 
 describe('RegisterClusterForm', () => {
@@ -118,16 +160,16 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     expect(await screen.findByText(/^Connected\. Found \d+ nodes?\.$/)).toBeInTheDocument();
   });
 
-  it('tells the operator what to enter as management URLs', () => {
+  it('tells the operator that one management URL is enough', () => {
     renderWithProviders(<RegisterClusterForm />);
-    expect(screen.getByLabelText(/Broker management URLs/)).toHaveAccessibleDescription(
-      /^One per line\. Studio finds the rest of the cluster from these\./,
+    expect(screen.getByLabelText(/Broker management URL/)).toHaveAccessibleDescription(
+      /^One is enough: Studio finds the rest of the cluster from it\./,
     );
   });
 
@@ -136,11 +178,12 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
     await screen.findByText(/^Connected\./);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), '\nbroker-2');
+    await user.click(screen.getByRole('button', { name: 'Add another seed' }));
+    await user.type(screen.getByLabelText(/Another management URL/), 'broker-2');
     expect(await screen.findByText(/details changed since the last check/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
   });
@@ -153,7 +196,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     expect(await screen.findByText('Newer Artemis than Studio has tested')).toBeInTheDocument();
@@ -180,7 +223,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     expect(await screen.findByText(/Studio supports Artemis 2\.33\.0 and later/)).toBeInTheDocument();
@@ -195,7 +238,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm onDone={done} />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     const notice = await screen.findByRole('alert');
@@ -224,7 +267,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
     await screen.findByText(/^Connected\./);
     await user.click(screen.getByRole('button', { name: 'Register cluster' }));
@@ -239,7 +282,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/a registered cluster you do not have access to/);
@@ -262,7 +305,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
     expect(await screen.findByRole('button', { name: /Doing X\s*Needs Artemis 2\.60\.0/ })).toBeInTheDocument();
@@ -272,7 +315,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
 
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
     // Disabled without a reason is the thing the form must never do.
@@ -284,7 +327,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
     await screen.findByText(/^Connected\./);
 
@@ -296,7 +339,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
     await screen.findByText(/^Connected\./);
 
@@ -328,7 +371,7 @@ describe('RegisterClusterForm', () => {
     await user.click(check);
 
     expect(await screen.findByText('Add at least one management URL.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Broker management URLs/)).toHaveFocus();
+    expect(screen.getByLabelText(/Broker management URL/)).toHaveFocus();
     expect(sent).toBe(0);
   });
 
@@ -336,7 +379,7 @@ describe('RegisterClusterForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterClusterForm />);
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.type(screen.getByLabelText('Username'), 'artemis');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
@@ -360,12 +403,167 @@ describe('RegisterClusterForm', () => {
       </>,
     );
 
-    await user.type(screen.getByLabelText(/Broker management URLs/), 'broker-1');
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
     await screen.findByText(/^Connected\./);
     await user.click(screen.getByRole('button', { name: 'Register cluster' }));
 
     expect(await screen.findByText('Registered cluster prod-eu')).toBeInTheDocument();
     expect(navigateSpy).toHaveBeenCalledWith({ to: '/clusters/c1/topology' });
+  });
+
+  it('lists each node with what the management and the Core account each did there', async () => {
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    const table = await screen.findByRole('table', { name: 'Nodes found by the check' });
+    const primary = within(table).getByRole('row', { name: /broker-1/ });
+    expect(primary).toHaveTextContent('Accepted');
+    expect(primary).toHaveTextContent('Rejected');
+    expect(primary).toHaveTextContent('(from the registered seed address)');
+    const backup = within(table).getByRole('row', { name: /broker-2/ });
+    expect(backup).toHaveTextContent('None: a different broker answered at the address the pattern gives');
+    expect(backup).toHaveTextContent('Not tried');
+  });
+
+  it('prefills the management URL pattern from the first seed and sends it', async () => {
+    let body: Record<string, unknown> = {};
+    server.use(
+      http.post('*/api/v1/clusters', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(preview());
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: /Advanced/ }));
+    expect(screen.getByLabelText('Management URL pattern')).toHaveValue('http://{host}:8161/console/jolokia');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByText(/^Connected\./);
+
+    expect(body.seedUrls).toEqual(['http://broker-1:8161/console/jolokia']);
+    expect(body.managementUrlPattern).toBe('http://{host}:8161/console/jolokia');
+  });
+
+  it('offers to adopt the running configuration, on when the nodes agree, with the counts', async () => {
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(preview())));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    const adopt = await screen.findByRole('switch', { name: /Adopt what the brokers run/ });
+    expect(adopt).toBeChecked();
+    expect(adopt).toHaveAccessibleDescription(/3 addresses, 2 address settings, 1 security setting, 0 diverts/);
+  });
+
+  it('leaves the adoption off and lists the disagreements when the nodes disagree', async () => {
+    const disagreeing = preview();
+    disagreeing.adoption.disagreements = ["Address settings for orders differ between a and b; a's were kept."];
+    server.use(http.post('*/api/v1/clusters', () => HttpResponse.json(disagreeing)));
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByRole('switch', { name: /Adopt what the brokers run/ })).not.toBeChecked();
+    expect(screen.getByText(/Address settings for orders differ between a and b/)).toBeInTheDocument();
+  });
+
+  it('registers with the adoption the operator chose', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    server.use(
+      http.post('*/api/v1/clusters', async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return new URL(request.url).searchParams.get('dryRun') === 'true'
+          ? HttpResponse.json(preview())
+          : HttpResponse.json({ id: 'c1', name: 'prod-eu' }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await user.click(await screen.findByRole('switch', { name: /Adopt what the brokers run/ }));
+    await user.click(screen.getByRole('button', { name: 'Register cluster' }));
+
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[0].adopt).toBe(false);
+    expect(bodies[1].adopt).toBe(false);
+  });
+
+  it('sends the adoption on when the nodes agree and the operator leaves it', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    server.use(
+      http.post('*/api/v1/clusters', async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return new URL(request.url).searchParams.get('dryRun') === 'true'
+          ? HttpResponse.json(preview())
+          : HttpResponse.json({ id: 'c1', name: 'prod-eu' }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+    await screen.findByRole('switch', { name: /Adopt what the brokers run/ });
+    await user.click(screen.getByRole('button', { name: 'Register cluster' }));
+
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1].adopt).toBe(true);
+  });
+
+  it('refuses an account typed into a management URL and says where it goes', async () => {
+    let sent = 0;
+    server.use(
+      http.post('*/api/v1/clusters', () => {
+        sent += 1;
+        return HttpResponse.json(preview());
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'http://admin:secret@broker-1:8161');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(
+      await screen.findByText('Put the account in the Management account fields, not in the URL.'),
+    ).toBeInTheDocument();
+    expect(sent).toBe(0);
+  });
+
+  it('refuses a pattern that could name another host', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
+    await user.click(screen.getByRole('button', { name: /Advanced/ }));
+    const pattern = screen.getByLabelText('Management URL pattern');
+    await user.clear(pattern);
+    await user.type(pattern, 'http://evil/?h={{host}');
+    await user.click(screen.getByRole('button', { name: 'Check connection' }));
+
+    expect(await screen.findByText(/with \{host\} as the whole host/)).toBeInTheDocument();
+  });
+
+  it('adds and removes another seed', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Add another seed' }));
+    expect(screen.getByLabelText(/Another management URL/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove management URL 2' }));
+    expect(screen.queryByLabelText(/Another management URL/)).not.toBeInTheDocument();
   });
 });

@@ -19,6 +19,15 @@ export type ProblemDetail = Schemas['ProblemDetail'];
 export type VersionGateView = Schemas['VersionGateView'];
 export type RegisterClusterRequest = Schemas['RegisterClusterRequest'];
 export type RegisterPreview = Schemas['RegisterPreview'];
+export type NodeProbeView = Schemas['NodeProbeView'];
+export type AdoptionPreviewView = Schemas['AdoptionPreviewView'];
+export type ConnectionCheck = Schemas['ConnectionCheck'];
+export type ConnectionView = Schemas['ConnectionView'];
+export type ClusterConnectionView = Schemas['ClusterConnectionView'];
+/** The edit: `core: null` clears the Core account, which the generated type cannot say. */
+export type UpdateClusterRequest = Omit<Schemas['UpdateClusterRequest'], 'core'> & {
+  core?: Schemas['AccountUpdate'] | null;
+};
 export type TopologyView = Schemas['TopologyView'];
 
 /** String enums the backend serialises as bare strings; narrowed here for the UI. */
@@ -116,15 +125,20 @@ export function useDeleteCluster() {
   });
 }
 
-export function useRotateCredentials(clusterId: string) {
-  const qc = useQueryClient();
-  return useMutation<void, ApiError, { username: string; password: string; kind?: 'JOLOKIA_BASIC' | 'CORE' }>({
+/** Checks an edited connection node by node; nothing is saved. */
+export function useCheckConnectionEdit(clusterId: string) {
+  return useMutation<ConnectionCheck, ApiError, UpdateClusterRequest>({
     mutationFn: (body) =>
-      request(`/clusters/${clusterId}/credentials`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.detail(clusterId) }),
+      request(`/clusters/${clusterId}?dryRun=true`, { method: 'PATCH', body: JSON.stringify(body) }),
+  });
+}
+
+/** Saves an edited connection; Studio rediscovers the nodes at once. */
+export function useUpdateConnection(clusterId: string) {
+  const qc = useQueryClient();
+  return useMutation<ClusterConnectionView, ApiError, UpdateClusterRequest>({
+    mutationFn: (body) => request(`/clusters/${clusterId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
   });
 }
 

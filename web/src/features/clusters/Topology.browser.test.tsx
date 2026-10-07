@@ -43,8 +43,9 @@ const endpoint = (over: Partial<NodeEndpointView>): NodeEndpointView => ({
   versionSupport: 'SUPPORTED',
   lastError: null,
   lastSeenAt: '2026-09-30T14:00:00Z',
-  discovered: true,
-  manualOverride: false,
+  urlSource: null,
+  urlProblem: null,
+  coreUrlManual: false,
   manageable: true,
   ...over,
 });
@@ -56,6 +57,7 @@ const HEALTH: HealthView = {
   splitBrain: 'CRITICAL',
   replicationBehind: true,
   notes: [],
+  credentialRejections: [],
 };
 
 /** One pair of each state the page words: in step, behind, a split brain, and an unreachable and an unmanaged pair. */

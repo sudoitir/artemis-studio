@@ -29,6 +29,7 @@ _Others_
 * `i.g.s.a.p.c.ClusterViewMapper` (via `i.g.s.a.p.c.ClusterViewMapperImpl`)
 * `i.g.s.a.p.c.HaStateEvaluator`
 * `i.g.s.a.p.c.NodeStateRecorder`
+* `i.g.s.a.p.c.SeedExpander`
 * `i.g.s.a.p.c.StudioInfo`
 * `i.g.s.a.p.c.TopologyDiscovery`
 |Bean references
@@ -46,6 +47,7 @@ _Others_
 * `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreAccountCheck` (in Broker connectivity)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ScopedGrants` (in Security)
 * `i.g.s.a.k.p.StudioVersion` (in Plugin contract)

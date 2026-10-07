@@ -56,8 +56,10 @@ class ScrapeCycleTest {
                 observedCycle,
                 "2.44.0",
                 null,
+                null,
                 Instant.now(),
-                false,
+                null,
+                null,
                 false,
                 true);
     }

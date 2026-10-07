@@ -102,7 +102,7 @@ class ResourceEnforcementIntegrationTest extends PostgresIntegrationTest {
         // A node with a management URL that is not live: a dry run reports it skipped, with no broker to reach.
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 cluster, "n1", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl("http://127.0.0.1:1/console/jolokia");
+        node.attachSeedUrl("http://127.0.0.1:1/console/jolokia");
         UUID nodeId = brokerNodes.save(node).getId();
         snapshots.upsertBatch(List.of(
                 row(nodeId, "orders.in", 10),

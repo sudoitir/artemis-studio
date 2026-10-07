@@ -23,7 +23,7 @@ describe('ClusterHome', () => {
     expect(await screen.findByText('No clusters yet')).toBeInTheDocument();
     expect(screen.getByText(/A cluster is a set of Artemis brokers/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Register a cluster', level: 2 })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Broker management URLs/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Broker management URL/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
   });
 

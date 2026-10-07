@@ -229,7 +229,7 @@ class RrSamplerTest {
                 saved(new RrExpectationEntity(CLUSTER, "rr.request", List.of(), null, null, 10, false));
 
         BrokerNodeEntity errored = node("n-errored", "core://errored:61616");
-        errored.recordError(Instant.now(), "last scrape failed");
+        errored.recordError(Instant.now(), "last scrape failed", null);
         BrokerNodeEntity noCore = BrokerNodeEntity.fromSeed(CLUSTER, "n-no-core", "PRIMARY", "n-no-core");
         noCore.applyHaState(
                 new HaObservation(true, "STARTED", "PRIMARY", true, "2.44.0", "n-no-core"), 1L, Instant.now());

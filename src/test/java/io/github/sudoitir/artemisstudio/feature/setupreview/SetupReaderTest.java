@@ -181,11 +181,11 @@ class SetupReaderTest {
                 .thenThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "no route"));
         assertThat(reader.read(client, node(false, null)).unavailableReason()).isEqualTo("no route");
 
-        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNAUTHORIZED, null))
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.CREDENTIALS_REJECTED, null))
                 .when(client)
                 .batch(anyList());
         assertThat(reader.read(client, node(false, null)).unavailableReason())
-                .isEqualTo(BrokerConnectionException.Kind.UNAUTHORIZED.defaultMessage());
+                .isEqualTo(BrokerConnectionException.Kind.CREDENTIALS_REJECTED.defaultMessage());
     }
 
     @Test

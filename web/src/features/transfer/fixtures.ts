@@ -22,8 +22,9 @@ export function endpoint(id: string, name: string, over: Record<string, unknown>
     versionSupport: 'SUPPORTED',
     lastError: null,
     lastSeenAt: null,
-    discovered: true,
-    manualOverride: false,
+    urlSource: null,
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: true,
     ...over,
   };

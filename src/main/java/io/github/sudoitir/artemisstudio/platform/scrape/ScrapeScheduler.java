@@ -347,11 +347,11 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
             ha = connections.forCluster(clusterId, node.getJolokiaUrl()).readBrokerAttributes(HA_ATTRS);
         } catch (RuntimeException e) {
             // Studio held the read back itself, so the node was never asked and nothing is known of it.
-            if (!(e instanceof BrokerConnectionException bce)
-                    || bce.kind() != BrokerConnectionException.Kind.THROTTLED) {
+            BrokerConnectionException.Kind kind = e instanceof BrokerConnectionException bce ? bce.kind() : null;
+            if (kind != BrokerConnectionException.Kind.THROTTLED) {
                 String message =
                         e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                persist.recordNodeError(node.getId(), message);
+                persist.recordNodeError(node.getId(), message, kind);
             }
             throw e;
         }

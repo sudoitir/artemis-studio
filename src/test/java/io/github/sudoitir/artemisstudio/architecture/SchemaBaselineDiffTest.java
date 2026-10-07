@@ -66,6 +66,11 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "uq_broker_node_cluster_jolokia_url",
                     // Which cluster each broker belongs to (ADR-0167, changeset platform-clusters 0006).
                     "broker_identity",
+                    // The management URL pattern, each node's URL source and problem, and the kind of its last
+                    // error replace the discovered and manual_override flags (ADR-0175, changeset
+                    // platform-clusters 0007).
+                    "CREATE TABLE cluster ",
+                    "ck_broker_node_url_source",
                     // Plugins' secrets and message registrations (ADR-0111, changesets kernel-security 0002,
                     // feature-plugins 0001).
                     "plugin_secret",

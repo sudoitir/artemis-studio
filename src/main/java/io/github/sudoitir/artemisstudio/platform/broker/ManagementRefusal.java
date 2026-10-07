@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * during this change's groundwork and recorded in ADR-0049 / the change's
  * {@code design.md}. Authorization is <em>not</em> represented here: on the
  * console's Jolokia endpoint it arrives as HTTP 401/403 and is already classified
- * as {@link BrokerConnectionException.Kind#UNAUTHORIZED} by the client.
+ * as {@link BrokerConnectionException.Kind#CREDENTIALS_REJECTED} by the client.
  */
 public class ManagementRefusal extends RuntimeException {
 
@@ -88,7 +88,7 @@ public class ManagementRefusal extends RuntimeException {
      * Turn a failed response into the right exception: a {@link ManagementRefusal} when
      * the broker explained itself with a code we know, and a connection-level
      * {@link BrokerConnectionException} otherwise. Authorization refusals never reach
-     * here — the client raises {@code UNAUTHORIZED} from the HTTP status first, which is
+     * here — the client raises {@code CREDENTIALS_REJECTED} from the HTTP status first, which is
      * what {@code managementWrite} keys off (ADR-0049 D5).
      */
     public static void require(JolokiaResponse res, String operation) {

@@ -31,10 +31,10 @@ const BROKER: Readonly<Record<string, Omit<Reading, 'requestId' | 'detail'>>> = 
     next: 'Retry in a moment. The broker itself was not asked.',
     retry: true,
   },
-  UNAUTHORIZED: {
+  CREDENTIALS_REJECTED: {
     title: 'The broker rejected the credentials',
     cause: 'The broker refused the user name and password Studio holds for it.',
-    next: "Update the cluster's credentials, then retry.",
+    next: "Update the account under the cluster's Connection settings, then retry.",
     retry: false,
   },
   NOT_ARTEMIS: {
@@ -230,7 +230,13 @@ export function readError(error: unknown): Reading {
   const broker = kind ? BROKER[kind] : undefined;
   if (broker) {
     const problem = isRecord(e.problem) ? e.problem : {};
-    return { ...broker, detail: text(problem.detail) };
+    // A rejection names the account, so the operator edits the right one.
+    const account = problem.account === 'CORE' ? 'Core' : 'management';
+    const cause =
+      kind === 'CREDENTIALS_REJECTED' && text(problem.account)
+        ? `The broker refused the ${account} account Studio holds for it.`
+        : broker.cause;
+    return { ...broker, cause, detail: text(problem.detail) };
   }
   if (isNetworkFailure(error, given)) return NETWORK_DOWN;
   if (given === undefined) return unexpected(error);

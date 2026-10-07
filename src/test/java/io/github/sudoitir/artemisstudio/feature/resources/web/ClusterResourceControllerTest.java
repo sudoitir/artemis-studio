@@ -76,10 +76,10 @@ class ClusterResourceControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity a = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        a.attachManagementUrl(URL_A);
+        a.attachSeedUrl(URL_A);
         BrokerNodeEntity b = BrokerNodeEntity.fromSeed(
                 clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
-        b.attachManagementUrl(URL_B);
+        b.attachSeedUrl(URL_B);
         nodeAId = nodes.save(a).getId();
         nodeBId = nodes.save(b).getId();
     }
@@ -152,6 +152,6 @@ class ClusterResourceControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/clusters/{id}/sessions", clusterId))
                 .andExpect(status().is4xxClientError())
-                .andExpect(jsonPath("$.brokerErrorKind").value("UNAUTHORIZED"));
+                .andExpect(jsonPath("$.brokerErrorKind").value("CREDENTIALS_REJECTED"));
     }
 }

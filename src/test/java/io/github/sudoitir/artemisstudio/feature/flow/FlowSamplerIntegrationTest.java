@@ -87,7 +87,7 @@ class FlowSamplerIntegrationTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "artemis", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl(jolokia);
+        node.attachSeedUrl(jolokia);
         nodeId = nodes.save(node).getId();
         when(connections.forCluster(eq(clusterId), any()))
                 .thenAnswer(inv -> clients.forNode(

@@ -19,8 +19,9 @@ function facts(over: Partial<NodeEndpointView>): NodeFacts {
     versionSupport: 'SUPPORTED',
     lastError: null,
     lastSeenAt: '2026-09-30T14:00:00Z',
-    discovered: true,
-    manualOverride: false,
+    urlSource: null,
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: true,
     ...over,
   };
