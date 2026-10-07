@@ -117,6 +117,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "user_group",
                     // Idempotency keys (ADR-0150, changeset kernel-security 0009).
                     "idempotency_record",
+                    // The in-app inbox (changeset kernel-inbox 0001).
+                    "inbox_item",
                     // Usernames are unique ignoring case (kernel-security 0008).
                     "uq_app_user_username_lower",
                     // Text bodies of bytes messages are full-text indexed; binary is body_base64 (ADR-0148,
