@@ -8,6 +8,8 @@ export interface GroupedTab {
   id: string;
   title: string;
   panel: ReactNode;
+  /** Shown after the title in the list, such as a count or a marker; its words become part of the tab's name. */
+  aside?: ReactNode;
 }
 
 export interface TabGroup {
@@ -52,6 +54,7 @@ export function GroupedTabs({ label, groups }: { label: string; groups: TabGroup
         list: classes.list,
         tab: classes.tab,
         tabLabel: classes.tabLabel,
+        tabSection: classes.tabSection,
         panel: classes.panel,
       }}
     >
@@ -61,8 +64,8 @@ export function GroupedTabs({ label, groups }: { label: string; groups: TabGroup
             <Text role="presentation" className={classes.group} size="xs" fw={600} tt="uppercase" c="dimmed">
               {group.label}
             </Text>
-            {group.tabs.map(({ id, title }) => (
-              <Tabs.Tab key={id} value={id}>
+            {group.tabs.map(({ id, title, aside }) => (
+              <Tabs.Tab key={id} value={id} rightSection={aside}>
                 {title}
               </Tabs.Tab>
             ))}

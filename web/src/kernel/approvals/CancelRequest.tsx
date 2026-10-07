@@ -12,19 +12,28 @@ const CANCEL: ActionVerb = { verb: 'Cancel', past: 'Cancelled', progressive: 'Ca
 /**
  * The requester's "Cancel request", confirmed in a dialog that names the request and says what cancelling does.
  * With the request's `detail` the dialog repeats what it would have done; a list passes only its summary.
+ * `onCancelled` refreshes what the caller shows beside the request, such as a pending value.
  */
 export function CancelRequest({
   id,
   summary,
   detail,
   size = 'sm',
-}: Readonly<{ id: string; summary: string; detail?: HeldOperationDetail; size?: 'xs' | 'sm' }>) {
+  onCancelled,
+}: Readonly<{
+  id: string;
+  summary: string;
+  detail?: HeldOperationDetail;
+  size?: 'xs' | 'sm';
+  onCancelled?: () => void;
+}>) {
   const [open, setOpen] = useState(false);
   const cancel = useCancelHeld();
   const confirm = () =>
     cancel.mutate(id, {
       onSuccess: () => {
         setOpen(false);
+        onCancelled?.();
         notify.succeeded({ action: CANCEL, subject: `request "${summary}"` });
       },
     });

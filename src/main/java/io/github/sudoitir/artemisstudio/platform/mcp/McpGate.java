@@ -165,9 +165,8 @@ class McpGate {
             return new JSONRPCResponse(
                     McpSchema.JSONRPC_VERSION,
                     request.id(),
-                    McpErrors.error(
-                            "The agent surface is read-only on this installation, and " + tool
-                                    + " changes state. An administrator can turn read-only mode off in Operational configuration."),
+                    McpErrors.error("The agent surface is read-only on this installation, and " + tool
+                            + " changes state. An administrator can turn read-only mode off in Settings → MCP server."),
                     null);
         }
         try {

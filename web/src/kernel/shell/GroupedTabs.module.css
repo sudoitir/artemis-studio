@@ -26,6 +26,12 @@
   text-align: start;
 }
 
+/* A tab's aside (a count, a marker) sits at the end of the row, so asides line up down the list. */
+.tabSection[data-position='right'] {
+  margin-inline-start: auto;
+  padding-inline-start: var(--mantine-spacing-sm);
+}
+
 /* A group heading, not a tab: quiet, and spaced from the group above it. */
 .group {
   padding-inline-start: var(--mantine-spacing-sm);

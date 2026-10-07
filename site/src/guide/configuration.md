@@ -55,7 +55,7 @@ version that stored secrets are still wrapped under makes them unreadable. So:
   where `0` means unlimited).
 - Keep `oidc-client-secret` on a separate path with `artemis-studio.secrets.vault.oidc-path`, so
   editing it never adds a version to the key path.
-- Never delete or destroy a version that is still in use. **Settings → Security** lists a version
+- Never delete or destroy a version that is still in use. **Settings → Encryption keys** lists a version
   that stored secrets use but the provider lacks as missing, and the log warns with its version and
   count.
 
@@ -72,7 +72,7 @@ Rotation is online. It moves every secret to a new key version without downtime 
 reading a secret in the clear.
 
 1. Add a new version to the provider (`kek-2`, `1=…,2=…`, or a new KV version). **Keep the old one.**
-2. In **Settings → Security**, choose **Rotate key**. It needs the `settings:write` permission and
+2. In **Settings → Encryption keys**, choose **Rotate key**. It needs the `settings:write` permission and
    a recent sign-in. The same is `POST /api/v1/settings/secrets/rotations`.
 3. New secrets use the new version at once. A background job re-wraps the rest in batches. Watch
    the rotation until it reaches **Succeeded**: it waits at least 30 seconds after the start so
