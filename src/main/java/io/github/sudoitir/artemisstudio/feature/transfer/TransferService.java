@@ -21,6 +21,10 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationHeldException;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard.Requirement;
@@ -104,6 +108,23 @@ public class TransferService {
     private final SettingsService settings;
     private final ObjectMapper json;
     private final ReplicaRegistry replicas;
+    private final OperationGate gate;
+
+    /**
+     * What the gate holds of a transfer: the run, the plan it was previewed with (its hash, mode and ends, so an
+     * approver reads them without opening the run) and the confirmations the operator gave.
+     */
+    record TransferExecuteParams(
+            UUID clusterId,
+            UUID runId,
+            String planHash,
+            TransferMode mode,
+            String sourceQueue,
+            UUID targetClusterId,
+            String targetQueue,
+            boolean override,
+            List<String> acknowledged,
+            String confirmQueue) {}
 
     // ---- preview -----------------------------------------------------------
 
@@ -499,9 +520,55 @@ public class TransferService {
             throw new BulkCapExceededException(run.getEstimate(), cap);
         }
 
+        return gatedExecute(
+                new TransferExecuteParams(
+                        clusterId,
+                        runId,
+                        run.getPlanHash(),
+                        run.getMode(),
+                        run.getSourceQueue(),
+                        run.getTargetClusterId(),
+                        run.getTargetQueue(),
+                        request.override(),
+                        request.acknowledged() == null ? List.of() : List.copyOf(request.acknowledged()),
+                        request.confirmQueue()),
+                run,
+                request);
+    }
+
+    /**
+     * What a transfer would do, read from the previewed plan: its messages, and the plan's hash as the gate's state
+     * key, so a plan that changed since it was requested is refused when it would start.
+     */
+    public Reach reach(UUID clusterId, UUID runId) {
+        TransferRunEntity run = load(clusterId, runId);
+        requireRunPermissions(run);
+        return new Reach(run.getEstimate(), run.getPlanHash());
+    }
+
+    /** A preview, as the gate reads it; {@code messages} is {@code null} when the selection's size is not known. */
+    public record Reach(Long messages, String planHash) {}
+
+    /**
+     * Starts the run through the approval gate as {@code transfer.execute}. Held, the preview is kept until the hold
+     * ends, so the approved run can still start.
+     */
+    @Gated("transfer.execute")
+    private TransferRunView gatedExecute(
+            TransferExecuteParams params, TransferRunEntity run, TransferExecuteRequest request) {
+        try {
+            return gate.run(Operation.of(params), () -> start(run, request));
+        } catch (OperationHeldException e) {
+            runs.extendPreview(run.getId(), e.expiresAt().plus(PREVIEW_LIFETIME));
+            throw e;
+        }
+    }
+
+    private TransferRunView start(TransferRunEntity preview, TransferExecuteRequest request) {
+        UUID runId = preview.getId();
         Operator operator = handoff.capture();
-        claim(run, Set.of(TransferState.PREVIEWED), TransferState.RUNNING);
-        run = reload(runId);
+        claim(preview, Set.of(TransferState.PREVIEWED), TransferState.RUNNING);
+        TransferRunEntity run = reload(runId);
         run.begin(
                 TransferState.RUNNING,
                 operator.actor().displayName(),

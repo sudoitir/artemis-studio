@@ -39,6 +39,17 @@ public interface TransferRunRepository extends JpaRepository<TransferRunEntity, 
     int transition(@Param("id") UUID id, @Param("from") Collection<TransferState> from, @Param("to") TransferState to);
 
     /**
+     * Keep a preview that is held for approval until {@code to}, so it is still there when the hold is approved:
+     * zero when it is not a preview any more or already lasts that long.
+     */
+    @Modifying
+    @Transactional
+    @Query("update TransferRunEntity r set r.expiresAt = :to"
+            + " where r.id = :id and r.state = io.github.sudoitir.artemisstudio.feature.transfer.TransferState.PREVIEWED"
+            + " and r.expiresAt < :to")
+    int extendPreview(@Param("id") UUID id, @Param("to") Instant to);
+
+    /**
      * Record that the operator asked to stop a run that is executing, once: zero when it is not executing
      * or a stop was already asked. The executing replica reads it, whether or not the signal reaches it.
      */
