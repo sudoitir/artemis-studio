@@ -22,6 +22,8 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessageService;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLease;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLeases;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateTicket;
 import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
@@ -36,9 +38,11 @@ import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeS
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +73,9 @@ class BulkGateTest extends BulkTestSupport {
     @MockitoSpyBean
     OperatorHandoff handoff;
 
+    @MockitoSpyBean
+    GateLeases leases;
+
     @Autowired
     WebApplicationContext webContext;
 
@@ -84,6 +91,14 @@ class BulkGateTest extends BulkTestSupport {
             return new Attempt.Ok<>(new LifecycleOutcome(
                     false, 1000, false, List.of(new NodeOutcome(nodeA, "a", NodeStatus.APPLIED, null, null))));
         });
+    }
+
+    /** Lets the gate through again, so the shared clean-up can reset settings, which pass the gate too. */
+    @AfterEach
+    @SuppressWarnings("unchecked")
+    void openTheGate() {
+        org.mockito.Mockito.reset(gate);
+        when(gate.run(any(), any())).thenAnswer(call -> ((Supplier<Object>) call.getArgument(1)).get());
     }
 
     private void holds(Duration forHowLong) {
@@ -161,6 +176,9 @@ class BulkGateTest extends BulkTestSupport {
         BulkRunDetailView preview = pausePreview();
         GateTicket ticket = new GateTicket(null, "bulk.execute", null);
         allowsUnder(ticket);
+        org.mockito.Mockito.doAnswer(call -> Optional.of(new GateLease(ticket, () -> {})))
+                .when(leases)
+                .retain(ticket);
         org.mockito.Mockito.doAnswer(call -> {
                     operators.add(call.getArgument(0));
                     return call.callRealMethod();
@@ -174,7 +192,7 @@ class BulkGateTest extends BulkTestSupport {
         assertThat(paused).containsExactlyInAnyOrder("orders.1", "orders.2");
         assertThat(operators)
                 .isNotEmpty()
-                .allSatisfy(operator -> assertThat(operator.covered()).isSameAs(ticket));
+                .allSatisfy(operator -> assertThat(operator.covered().ticket()).isSameAs(ticket));
         verify(gate).run(any(), any());
     }
 

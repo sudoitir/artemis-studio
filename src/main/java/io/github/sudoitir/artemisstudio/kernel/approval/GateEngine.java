@@ -219,14 +219,22 @@ class GateEngine implements OperationGate {
             throw new ReplayMismatchException("An approved request runs once; its replay reached the gate again.");
         }
         GateTicket cover = tickets.covering(type.type());
-        return ScopedValue.where(GateScope.COVERED, cover).call(action::get);
+        try {
+            return ScopedValue.where(GateScope.COVERED, cover).call(action::get);
+        } finally {
+            tickets.release(cover);
+        }
     }
 
     private <R> R covered(GatedOperation<Record> type, Map<String, String> approval, Supplier<R> action) {
         GateTicket ticket = tickets.covering(type.type());
-        return ScopedValue.where(GateScope.COVERED, ticket)
-                .where(AuditScope.APPROVAL, approval)
-                .call(action::get);
+        try {
+            return ScopedValue.where(GateScope.COVERED, ticket)
+                    .where(AuditScope.APPROVAL, approval)
+                    .call(action::get);
+        } finally {
+            tickets.release(ticket);
+        }
     }
 
     private <R> R bypass(GatedOperation<Record> type, Record params, Supplier<R> action) {

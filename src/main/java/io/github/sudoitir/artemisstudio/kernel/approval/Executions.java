@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException
 import io.github.sudoitir.artemisstudio.kernel.gate.CanonicalJson;
 import io.github.sudoitir.artemisstudio.kernel.gate.Effect;
 import io.github.sudoitir.artemisstudio.kernel.gate.ExecutionMode;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLease;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateTicket;
 import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperation;
@@ -173,8 +174,8 @@ class Executions {
             return;
         }
         GateTicket ticket = tickets.replay(row.id(), row.type(), row.paramsHashHex());
-        Operator operator =
-                new Operator(checked.operator().principal(), checked.operator().actor(), ticket);
+        Operator operator = new Operator(
+                checked.operator().principal(), checked.operator().actor(), new GateLease(ticket, () -> {}));
         try {
             ScopedValue.where(AuditScope.PARENT, row.requestAuditId())
                     .where(AuditScope.APPROVAL, approval(row))
@@ -228,6 +229,8 @@ class Executions {
         } catch (RuntimeException e) {
             finish(row, HeldState.FAILED, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
             throw e;
+        } finally {
+            tickets.release(cover);
         }
         finish(row, HeldState.SUCCEEDED, "Completed by " + row.requesterUsername() + ".");
         return result;

@@ -1,7 +1,10 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLease;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLeases;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateTicket;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
@@ -11,19 +14,25 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Rol
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.artemisstudio.support.OperatorFixture;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /** Work handed to another thread acts as the operator who started it, and only while they still may (ADR-0093). */
 class OperatorHandoffTest extends PostgresIntegrationTest {
 
     @Autowired
     OperatorHandoff handoff;
+
+    @MockitoSpyBean
+    GateLeases leases;
 
     @Autowired
     ActorResolver actors;
@@ -140,18 +149,39 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theGatesCoverageTravelsToTheThreadThatRunsTheOperator() throws Exception {
+    void theGatesCoverageTravelsToTheThreadThatRunsTheOperatorAndEndsWithThatRun() throws Exception {
         GateTicket ticket = new GateTicket(null, "bulk-run", null);
+        AtomicInteger released = new AtomicInteger();
+        doReturn(Optional.of(new GateLease(ticket, released::incrementAndGet)))
+                .when(leases)
+                .retain(ticket);
         Operator operator = ScopedValue.where(GateScope.COVERED, ticket).call(() -> handoff.capture());
         AtomicReference<GateTicket> seen = new AtomicReference<>();
+        AtomicReference<GateTicket> nested = new AtomicReference<>();
 
         Thread.ofVirtual()
-                .start(() -> handoff.runAs(
-                        operator, () -> seen.set(GateScope.COVERED.isBound() ? GateScope.COVERED.get() : null)))
+                .start(() -> handoff.runAs(operator, () -> {
+                    seen.set(GateScope.COVERED.isBound() ? GateScope.COVERED.get() : null);
+                    handoff.runAs(
+                            operator, () -> nested.set(GateScope.COVERED.isBound() ? GateScope.COVERED.get() : null));
+                }))
                 .join();
+        AtomicReference<Boolean> boundAfterwards = new AtomicReference<>();
+        handoff.runAs(operator, () -> boundAfterwards.set(GateScope.COVERED.isBound()));
 
-        assertThat(operator.covered()).isSameAs(ticket);
+        assertThat(operator.covered().ticket()).isSameAs(ticket);
         assertThat(seen.get()).isSameAs(ticket);
+        assertThat(nested.get()).isSameAs(ticket);
+        assertThat(released).hasValue(1);
+        assertThat(boundAfterwards.get()).isFalse();
+    }
+
+    @Test
+    void aTicketTheGateDidNotIssueIsNotCaptured() {
+        Operator operator = ScopedValue.where(GateScope.COVERED, new GateTicket(null, "bulk-run", null))
+                .call(() -> handoff.capture());
+
+        assertThat(operator.covered()).isNull();
     }
 
     @Test
