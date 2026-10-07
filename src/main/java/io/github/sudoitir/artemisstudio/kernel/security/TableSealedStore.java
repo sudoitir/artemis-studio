@@ -9,41 +9,54 @@ import java.util.TreeMap;
 import java.util.function.UnaryOperator;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** A {@link SealedStore} for a table with a {@code sealed bytea} column and a primary key. */
+/**
+ * A {@link SealedStore} for a table with a sealed {@code bytea} column, {@code sealed} unless named, and a primary
+ * key.
+ */
 public class TableSealedStore implements SealedStore {
 
-    private static final String VERSION = SealedStore.versionOf("sealed");
-
     private final JdbcTemplate jdbc;
+    private final String name;
     private final String table;
+    private final String column;
+    private final String version;
     private final List<String> key;
     private final String selectFirst;
     private final String selectAfter;
     private final String update;
 
     public TableSealedStore(JdbcTemplate jdbc, String table, String... keyColumns) {
+        this(jdbc, table, "sealed", List.of(keyColumns));
+    }
+
+    /** A store for the sealed column {@code column}; a table with several sealed columns has one store for each. */
+    public TableSealedStore(JdbcTemplate jdbc, String table, String column, List<String> keyColumns) {
         this.jdbc = jdbc;
+        this.name = "sealed".equals(column) ? table : table + "." + column;
         this.table = table;
-        this.key = List.of(keyColumns);
+        this.column = column;
+        this.version = SealedStore.versionOf(column);
+        this.key = List.copyOf(keyColumns);
         String keys = String.join(", ", key);
-        String head = "SELECT " + keys + ", sealed FROM " + table + " WHERE sealed IS NOT NULL AND " + VERSION + " < ?";
+        String head = "SELECT " + keys + ", " + column + " FROM " + table + " WHERE " + column + " IS NOT NULL AND "
+                + version + " < ?";
         String tail = " ORDER BY " + keys + " LIMIT ?";
         this.selectFirst = head + tail;
         this.selectAfter = head + " AND (" + keys + ") > ("
                 + String.join(", ", key.stream().map(c -> "?").toList()) + ")" + tail;
-        this.update = "UPDATE " + table + " SET sealed = ? WHERE "
-                + String.join(" AND ", key.stream().map(c -> c + " = ?").toList()) + " AND sealed = ?";
+        this.update = "UPDATE " + table + " SET " + column + " = ? WHERE "
+                + String.join(" AND ", key.stream().map(c -> c + " = ?").toList()) + " AND " + column + " = ?";
     }
 
     @Override
     public String name() {
-        return table;
+        return name;
     }
 
     @Override
     public long countBelow(int version) {
         Long count = jdbc.queryForObject(
-                "SELECT count(*) FROM " + table + " WHERE sealed IS NOT NULL AND " + VERSION + " < ?",
+                "SELECT count(*) FROM " + table + " WHERE " + column + " IS NOT NULL AND " + this.version + " < ?",
                 Long.class,
                 version);
         return count == null ? 0 : count;
@@ -88,8 +101,8 @@ public class TableSealedStore implements SealedStore {
     public Map<Integer, Long> countByVersion() {
         Map<Integer, Long> counts = new TreeMap<>();
         jdbc.query(
-                "SELECT " + VERSION + " AS version, count(*) AS n FROM " + table
-                        + " WHERE sealed IS NOT NULL GROUP BY 1",
+                "SELECT " + version + " AS version, count(*) AS n FROM " + table + " WHERE " + column
+                        + " IS NOT NULL GROUP BY 1",
                 rs -> {
                     int version = rs.getInt("version");
                     if (!rs.wasNull()) {
