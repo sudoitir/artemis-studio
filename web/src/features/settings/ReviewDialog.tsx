@@ -99,6 +99,8 @@ export function ReviewDialog({
               minRows={2}
               maxRows={6}
               withAsterisk={reasonRequired}
+              // Focus enters on the one thing to write, not on the dialog's close button.
+              data-autofocus
               {...form.getInputProps('reason')}
             />
           ) : null}

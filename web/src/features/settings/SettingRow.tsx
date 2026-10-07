@@ -18,6 +18,18 @@ const FORMAT: Record<string, string> = {
   CRON: 'Six fields: second, minute, hour, day of month, month, day of week. For example: 0 0 3 * * *',
 };
 
+/**
+ * A search match: the selection tint, and an underline in the accent so it shows without the tint, while the
+ * text keeps its own colour and contrast in both schemes.
+ */
+const MATCH = {
+  backgroundColor: 'var(--as-selected)',
+  color: 'inherit',
+  textDecoration: 'underline 2px var(--as-accent)',
+  textUnderlineOffset: '0.2em',
+  padding: 0,
+} as const;
+
 /** How often the age of a pending change is brought up to date. */
 const AGE_TICK_MS = 30_000;
 
@@ -40,14 +52,14 @@ export function SettingRow({
 
   const changed = draft.changes.some((c) => c.key === settingKey);
   const label = (
-    <Highlight component="span" inherit highlight={terms}>
+    <Highlight component="span" inherit highlight={terms} highlightStyles={MATCH}>
       {setting.label}
     </Highlight>
   );
   const format = FORMAT[setting.kind];
   const description = (
     <>
-      <Highlight component="span" inherit highlight={terms}>
+      <Highlight component="span" inherit highlight={terms} highlightStyles={MATCH}>
         {setting.hint}
       </Highlight>
       {format ? <span className={classes.format}>{format}</span> : null}
@@ -110,7 +122,7 @@ export function SettingRow({
           onUndo={() => draft.undo(settingKey)}
         />
         <Text size="xs" c="dimmed" className={classes.key}>
-          <Highlight component="span" inherit highlight={terms}>
+          <Highlight component="span" inherit highlight={terms} highlightStyles={MATCH}>
             {settingKey}
           </Highlight>
         </Text>

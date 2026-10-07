@@ -19,7 +19,7 @@
 .settings {
   display: flex;
   flex-direction: column;
-  max-inline-size: 52rem;
+  max-inline-size: 48rem;
 }
 
 /* A setting: its input on the start side, where it stands and the way back on the end side, the change
@@ -147,4 +147,12 @@
 /* The display preferences stay a readable width instead of stretching across the page. */
 .display {
   max-inline-size: 28rem;
+}
+
+/* The filter beside the labelled search lines up with its input box, not with its label and box together. */
+.modifiedOnly {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  min-block-size: var(--input-height-xs);
 }

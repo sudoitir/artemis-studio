@@ -99,6 +99,7 @@ export function SettingsPage() {
               checked={Boolean(search.modified)}
               onChange={(event) => setSearch({ modified: event.currentTarget.checked || undefined })}
               size="xs"
+              className={classes.modifiedOnly}
             />
           </>
         }
