@@ -20,6 +20,7 @@ Studio has no stated limits. Operators cannot tell how many clusters, nodes, que
 - Batched broker calls where several are made for one view
 - Time, size and per-user concurrency bounds on the heavy endpoints that lack them (exports, bulk previews, flow and topology reads, audit and alert history), as the SQL console already has
 - Measured results recorded in the sizing guide
+- A review of every cache, counter, lock, queue and cross-replica signal, deciding for each whether PostgreSQL itself serves it best before reaching for another store. Options to weigh: `UNLOGGED` tables with an expiry column for shared key/value caching; `INSERT … ON CONFLICT DO UPDATE` for counters and rate limits; advisory locks; `FOR UPDATE SKIP LOCKED` work queues; and `LISTEN/NOTIFY` to invalidate per-replica in-memory caches. Studio adds no Redis or broker for these concerns
 
 ## Capabilities
 ### New Capabilities
