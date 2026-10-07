@@ -3563,13 +3563,19 @@ export interface components {
             /** Format: int32 */
             sortOrder: number;
         };
-        EnvironmentView: {
+        HeldOutcomeView: {
+            /** @enum {string} */
+            outcome: "held";
+            heldOperation: components["schemas"]["HeldRefView"];
+        };
+        HeldRefView: {
             /** Format: uuid */
             id: string;
-            name: string;
-            colour?: string | null;
-            /** Format: int32 */
-            sortOrder: number;
+            summary: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description The held operation in this API. */
+            link: string;
         };
         UpdatePolicyRequest: {
             retention: string;
@@ -4247,6 +4253,14 @@ export interface components {
             firstSeenAt: string;
             /** Format: date-time */
             lastSeenAt: string;
+        };
+        EnvironmentView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            colour?: string | null;
+            /** Format: int32 */
+            sortOrder: number;
         };
         PreviewRequest: {
             retention: string;
@@ -8835,13 +8849,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["EnvironmentView"];
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8895,6 +8909,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9143,6 +9166,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -11394,6 +11426,15 @@ export interface operations {
                     "*/*": components["schemas"]["EnvironmentView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -11587,6 +11628,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -11828,13 +11878,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description started: the run; or held for approval (X-Studio-Held-Operation), nothing started */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TransferRunView"];
+                    "*/*": components["schemas"]["TransferRunView"] | components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -13102,6 +13152,15 @@ export interface operations {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -13170,6 +13229,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -13922,13 +13990,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description started: the run; or held for approval (X-Studio-Held-Operation), nothing started */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["BulkRunView"];
+                    "*/*": components["schemas"]["BulkRunView"] | components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16336,6 +16404,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -16407,6 +16484,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConnectionCheck"] | components["schemas"]["ClusterConnectionView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16591,13 +16677,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -22770,13 +22856,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["LifecycleOutcomeView"];
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
