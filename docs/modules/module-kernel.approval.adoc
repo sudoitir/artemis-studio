@@ -3,12 +3,7 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.approval`
 |Spring components
-|_Controllers_
-
-* `i.g.s.a.k.a.web.GateController`
-* `i.g.s.a.k.a.web.HeldOperationController`
-
-_Event listeners_
+|_Event listeners_
 
 * `i.g.s.a.k.a.BreakGlass`
 
@@ -16,8 +11,6 @@ _Others_
 
 * `i.g.s.a.k.a.ApprovalSettings`
 * `i.g.s.a.k.a.Approvals`
-* `i.g.s.a.k.a.web.ApprovalReasonFilter`
-* `i.g.s.a.k.a.web.GateProblemAdvice`
 |Bean references
 |* `i.g.s.a.k.i.InboxService` (in Inbox)
 * `i.g.s.a.k.s.UserSignals` (in Event stream)
@@ -31,7 +24,6 @@ _Others_
 * `i.g.s.a.k.s.SessionAuthentication` (in Security)
 * `i.g.s.a.k.g.GatedOperationRegistry` (in Approval gate contract)
 * `i.g.s.a.k.s.OperatorHandoff` (in Security)
-* `i.g.s.a.k.s.PersonalTokens` (in Security)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 * `i.g.s.a.k.s.SettingsService` (in Settings)
 * `i.g.s.a.k.s.SecretVault` (in Security)
