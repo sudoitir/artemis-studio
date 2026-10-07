@@ -126,7 +126,7 @@ class DivertLifecycleRealBrokerTest extends PostgresIntegrationTest {
         for (String name : created) {
             try {
                 divertOps.destroyDivert(client, broker, name);
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // already gone
             }
         }

@@ -118,7 +118,7 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
     }
 
     @Test
-    void aFrozenSelectionMovesInChunksAndLeavesLaterMessages() throws Exception {
+    void aFrozenSelectionMovesInChunksAndLeavesLaterMessages() {
         String source = "move.src." + suffix;
         String target = "move.dst." + suffix;
         createQueue(source);

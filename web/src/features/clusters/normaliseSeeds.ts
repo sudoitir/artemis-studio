@@ -1,6 +1,18 @@
+import { randomId } from '@mantine/hooks';
+
 const DEFAULT_PORT = '8161';
 const DEFAULT_PATH = '/console/jolokia';
 const BARE_PATHS = new Set(['', '/', '/console', '/console/']);
+
+/** An extra seed row of a connection form: the address typed, and an id that outlives the row's position. */
+export interface SeedRow {
+  url: string;
+  key: string;
+}
+
+export function seedRow(url = ''): SeedRow {
+  return { url, key: randomId() };
+}
 
 export interface NormalisedSeed {
   /** What the operator typed, verbatim — shown back on an error. */

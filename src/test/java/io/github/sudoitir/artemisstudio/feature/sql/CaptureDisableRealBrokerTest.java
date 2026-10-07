@@ -152,7 +152,7 @@ class CaptureDisableRealBrokerTest extends PostgresIntegrationTest {
     private static void quietly(Runnable action) {
         try {
             action.run();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // already gone, or never created
         }
     }

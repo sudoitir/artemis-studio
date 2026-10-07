@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
@@ -30,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.BooleanSupplier;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -190,12 +190,13 @@ class CaptureTailRealBrokerTest extends PostgresIntegrationTest {
         // Taken off the queue before any read of it could see it: only the capture copy is left.
         send("consumed-at-once-" + run, true);
 
-        awaitTrue(
-                () -> {
+        await("the tail delivers the consumed message")
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> {
                     tailPoller.tick();
                     return collecting.rows.stream().anyMatch(row -> ("consumed-at-once-" + run).equals(row.body()));
-                },
-                Duration.ofSeconds(30));
+                });
     }
 
     private void send(String body, boolean consumeAtOnce) throws Exception {
@@ -222,10 +223,14 @@ class CaptureTailRealBrokerTest extends PostgresIntegrationTest {
         }
 
         @Override
-        public void nodeFinished(NodeOutcome outcome) {}
+        public void nodeFinished(NodeOutcome outcome) {
+            // only the rows matter to this test
+        }
 
         @Override
-        public void status(SqlTailPoller.TailStatus status) {}
+        public void status(SqlTailPoller.TailStatus status) {
+            // only the rows matter to this test
+        }
 
         @Override
         public boolean isCancelled() {
@@ -233,20 +238,10 @@ class CaptureTailRealBrokerTest extends PostgresIntegrationTest {
         }
     }
 
-    private static void awaitTrue(BooleanSupplier condition, Duration timeout) throws InterruptedException {
-        long deadline = System.nanoTime() + timeout.toNanos();
-        while (!condition.getAsBoolean()) {
-            if (System.nanoTime() > deadline) {
-                throw new AssertionError("the tail never delivered the consumed message within " + timeout);
-            }
-            Thread.sleep(200);
-        }
-    }
-
     private static void quietly(ThrowingRunnable action) {
         try {
             action.run();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // already gone, or never created
         }
     }

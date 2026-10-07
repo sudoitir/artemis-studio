@@ -56,6 +56,9 @@ import tools.jackson.databind.JsonNode;
 @Slf4j
 public class TopologyDiscovery {
 
+    private static final String PRIMARY = "PRIMARY";
+    private static final String BACKUP = "BACKUP";
+
     private static final String[] HA_ATTRS = {
         "Active", "Started", "Backup", "ReplicaSync", "NodeID", "Clustered", "Version"
     };
@@ -204,9 +207,9 @@ public class TopologyDiscovery {
         // 1. Connector-named discovered rows from every seed's topology view.
         for (SeedReading r : readings) {
             for (TopologyEntry e : r.entries()) {
-                upsertDiscovered(clusterId, e.primaryConnector(), "PRIMARY", e.nodeId());
+                upsertDiscovered(clusterId, e.primaryConnector(), PRIMARY, e.nodeId());
                 if (e.backup() != null) {
-                    upsertDiscovered(clusterId, e.backup(), "BACKUP", e.nodeId());
+                    upsertDiscovered(clusterId, e.backup(), BACKUP, e.nodeId());
                 }
             }
         }
@@ -263,12 +266,29 @@ public class TopologyDiscovery {
 
         for (SeedReading r : readings) {
             for (TopologyEntry e : r.entries()) {
-                byName.computeIfAbsent(e.primaryConnector(), k -> connectorEndpoint(k, "PRIMARY", e.nodeId()));
+                byName.computeIfAbsent(e.primaryConnector(), k -> connectorEndpoint(k, PRIMARY, e.nodeId()));
                 if (e.backup() != null) {
-                    byName.computeIfAbsent(e.backup(), k -> connectorEndpoint(k, "BACKUP", e.nodeId()));
+                    byName.computeIfAbsent(e.backup(), k -> connectorEndpoint(k, BACKUP, e.nodeId()));
                 }
             }
         }
+        attachLiveSeeds(scratch, readings, byName, management);
+        deriveUnattached(scratch, derivation, byName, management, proofs);
+        // Nothing is persisted for a preview, so there is no real cluster id yet; a
+        // fresh one only gives every rendered node a stable React key (ADR-0014's
+        // domain records are not otherwise nullable-aware).
+        return new Preview(
+                new ClusterTopology(UUID.randomUUID(), scratch.toLogicalNodes(List.copyOf(byName.values()))),
+                management,
+                proofs);
+    }
+
+    /** Lets each answering seed stand in for the connector row of its own broker, or add one named after its URL. */
+    private static void attachLiveSeeds(
+            HaStateEvaluator scratch,
+            List<SeedReading> readings,
+            Map<String, NodeEndpoint> byName,
+            Map<String, AccountResult> management) {
         Set<String> brokers = new HashSet<>();
         for (SeedReading r : readings) {
             if (!firstOfItsBroker(brokers, r)) {
@@ -289,6 +309,15 @@ public class TopologyDiscovery {
                             scratch, key, connector == null ? null : connector.coreUrl(), r, ManagementUrlSource.SEED));
             management.put(key, AccountResult.ACCEPTED);
         }
+    }
+
+    /** Derives and proves the management URL of every node no seed answered for, as a registration would. */
+    private void deriveUnattached(
+            HaStateEvaluator scratch,
+            UrlDerivation derivation,
+            Map<String, NodeEndpoint> byName,
+            Map<String, AccountResult> management,
+            Map<String, UrlProof> proofs) {
         for (Map.Entry<String, NodeEndpoint> en : List.copyOf(byName.entrySet())) {
             NodeEndpoint node = en.getValue();
             if (node.jolokiaUrl() != null) {
@@ -306,13 +335,6 @@ public class TopologyDiscovery {
                 byName.put(en.getKey(), withProblem(node, proof.problem()));
             }
         }
-        // Nothing is persisted for a preview, so there is no real cluster id yet; a
-        // fresh one only gives every rendered node a stable React key (ADR-0014's
-        // domain records are not otherwise nullable-aware).
-        return new Preview(
-                new ClusterTopology(UUID.randomUUID(), scratch.toLogicalNodes(List.copyOf(byName.values()))),
-                management,
-                proofs);
     }
 
     /**
@@ -321,7 +343,7 @@ public class TopologyDiscovery {
      * role: one broker, whose URL is the first that answered.
      */
     private static boolean firstOfItsBroker(Set<String> brokers, SeedReading r) {
-        return r.nodeId() == null || brokers.add(r.nodeId() + "|" + (r.backup() ? "BACKUP" : "LIVE"));
+        return r.nodeId() == null || brokers.add(r.nodeId() + "|" + (r.backup() ? BACKUP : "LIVE"));
     }
 
     private static NodeEndpoint liveEndpoint(
@@ -470,9 +492,9 @@ public class TopologyDiscovery {
         // A node the topology names for the first time has no row yet, and no seed answered for it.
         for (SeedReading r : survey.readings) {
             for (TopologyEntry e : r.entries()) {
-                provePending(proofs, known, survey, derivation, e.primaryConnector(), "PRIMARY", e.nodeId());
+                provePending(proofs, known, survey, derivation, e.primaryConnector(), PRIMARY, e.nodeId());
                 if (e.backup() != null) {
-                    provePending(proofs, known, survey, derivation, e.backup(), "BACKUP", e.nodeId());
+                    provePending(proofs, known, survey, derivation, e.backup(), BACKUP, e.nodeId());
                 }
             }
         }
@@ -527,30 +549,35 @@ public class TopologyDiscovery {
         for (BrokerNodeEntity node : nodes.findByClusterIdOrderByNameAsc(clusterId)) {
             UrlProof proof = proofs.get(node.getName());
             boolean replaceable = node.getJolokiaUrl() == null || node.getUrlSource() == ManagementUrlSource.DERIVED;
-            if (proof == null || !replaceable) {
-                continue;
+            if (proof != null && replaceable && applyProof(clusterId, node, proof)) {
+                nodes.save(node);
             }
-            if (proof.url() == null) {
-                node.recordUrlProblem(proof.problem(), Instant.now());
-            } else if (nodes.existsByClusterIdAndJolokiaUrlAndIdNot(clusterId, proof.url(), node.getId())) {
-                log.debug("Derived URL {} already belongs to another node of cluster {}", proof.url(), clusterId);
-                continue;
-            } else {
-                SeedReading r = proof.reading();
-                node.attachDerivedUrl(proof.url());
-                node.applyHaState(
-                        new HaObservation(
-                                r.active(),
-                                evaluator.deriveState(r.started()),
-                                evaluator.deriveHaRole(r.backup(), r.clustered()),
-                                r.replicaSync(),
-                                r.version(),
-                                r.nodeId()),
-                        0L,
-                        Instant.now());
-            }
-            nodes.save(node);
         }
+    }
+
+    /** Records what one proof found on its node, and whether the node changed and needs saving. */
+    private boolean applyProof(UUID clusterId, BrokerNodeEntity node, UrlProof proof) {
+        if (proof.url() == null) {
+            node.recordUrlProblem(proof.problem(), Instant.now());
+            return true;
+        }
+        if (nodes.existsByClusterIdAndJolokiaUrlAndIdNot(clusterId, proof.url(), node.getId())) {
+            log.debug("Derived URL {} already belongs to another node of cluster {}", proof.url(), clusterId);
+            return false;
+        }
+        SeedReading r = proof.reading();
+        node.attachDerivedUrl(proof.url());
+        node.applyHaState(
+                new HaObservation(
+                        r.active(),
+                        evaluator.deriveState(r.started()),
+                        evaluator.deriveHaRole(r.backup(), r.clustered()),
+                        r.replicaSync(),
+                        r.version(),
+                        r.nodeId()),
+                0L,
+                Instant.now());
+        return true;
     }
 
     private static String derivedUrl(UrlDerivation derivation, BrokerNodeEntity node) {
