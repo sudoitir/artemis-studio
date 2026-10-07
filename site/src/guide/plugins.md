@@ -659,6 +659,45 @@ named `<plugin id>:<name>`, and no two operations share a type or a parameters r
   event inside the same transaction, so what depended on it is cancelled together with its removal.
 - Studio logs `approval-gate` at INFO when it boots and whenever the gate arms or disarms.
 
+**The approver's page.** Studio's own Approve and Reject sit on every request's page. A provider that
+needs more of the approver, such as its own checks or a second signature, contributes to the
+`approval.decision` slot, which renders above them with the request (`heldOperation`) and a `refresh`
+to call once the provider changed it. A vote needs a fresh sign-in, and `StepUpPrompt` asks for one
+when the plugin's endpoint refused for that reason:
+
+```tsx
+import { useMutation } from '@tanstack/react-query';
+import { Button, Stack } from '@mantine/core';
+import { pluginApi, request, StepUpPrompt, type SlotProps } from '@artemis-studio/plugin-sdk';
+
+function SecondSignature({ heldOperation, refresh }: SlotProps['approval.decision']) {
+  const sign = useMutation({
+    mutationFn: () => request(pluginApi(ID, `requests/${heldOperation.operation.id}/sign`), { method: 'POST' }),
+    onSuccess: refresh,
+  });
+  if (!heldOperation.canDecide) return null;
+  return (
+    <Stack gap="xs">
+      <Button onClick={() => sign.mutate()} loading={sign.isPending}>
+        Add my signature
+      </Button>
+      <StepUpPrompt error={sign.error} returnTo={location.pathname} />
+    </Stack>
+  );
+}
+
+// in definePlugin({ … }):
+slots: {
+  'approval.decision': [{ id: `${ID}.signature`, order: 10, title: 'Second signature', Component: SecondSignature }],
+},
+```
+
+A mutation anywhere in a plugin's UI can be held too: its error is then an `OperationHeldError`, and
+`notify.settle(error, …)` turns it into the "sent for approval" toast with a link to the request
+instead of a failure. Queries under `heldOperationsKey` refresh by themselves: the shell holds the
+user's own stream open on every page. `useUserStream()` shares that connection and returns its status,
+so a view can poll while it is not `live`.
+
 ### Reading metric history
 
 A plugin that wants the history of Studio's queue metrics, or of metrics plugins publish, injects

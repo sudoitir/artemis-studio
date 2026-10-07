@@ -59,7 +59,19 @@ export type {
   HeldOperationSummary,
   HeldState,
 } from '../kernel/approvals/api.ts';
+export type { InboxItem, InboxSeverity } from '../kernel/inbox/api.ts';
 export { useCan, type AllowedActions, type ResourceWhere } from '../kernel/auth/useCan.ts';
+/**
+ * The step-up an action shows when the server refused it for want of a fresh sign-in, such as an approver's
+ * vote: render it under the control with the mutation's error. It renders nothing for any other error.
+ */
+export { StepUpPrompt } from '../kernel/auth/StepUp.tsx';
+/**
+ * The signed-in user's own stream, which the shell already holds open so their inbox and held operations stay
+ * fresh on every page. A view shares that connection and reads its status, to poll while it is not `live`.
+ */
+export { useUserStream } from '../kernel/stream/useUserStream.ts';
+export type { StreamStatus } from '../kernel/stream/useClusterStream.ts';
 export {
   ACTION_SECTIONS,
   type ActionHost,
@@ -68,6 +80,7 @@ export {
   type ActionSection,
   type ActionTargets,
   type AddressTarget,
+  type ClientTarget,
   type ConnectionTarget,
   type ConsumerTarget,
   type DivertTarget,
