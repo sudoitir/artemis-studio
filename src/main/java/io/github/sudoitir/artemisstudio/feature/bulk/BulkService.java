@@ -22,6 +22,10 @@ import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationHeldException;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard.Requirement;
@@ -76,6 +80,20 @@ public class BulkService {
     private final SettingsService settings;
     private final ObjectMapper json;
     private final ReplicaRegistry replicas;
+    private final OperationGate gate;
+
+    /**
+     * What the gate holds of a bulk run: the run, the plan it was previewed with (its hash, operation and queue
+     * count, so an approver reads them without opening the run) and how it is to be started.
+     */
+    record BulkExecuteParams(
+            UUID clusterId,
+            UUID runId,
+            String planHash,
+            BulkOperation operation,
+            int queues,
+            boolean override,
+            boolean continueOnFailure) {}
 
     // ---- preview -----------------------------------------------------------
 
@@ -269,6 +287,55 @@ public class BulkService {
             throw new BulkCapExceededException(run.getEstimate(), cap);
         }
 
+        return gatedExecute(
+                new BulkExecuteParams(
+                        clusterId,
+                        runId,
+                        run.getPlanHash(),
+                        operation,
+                        run.getTotalItems(),
+                        request.override(),
+                        request.continueOnFailure()),
+                run,
+                request);
+    }
+
+    /**
+     * What a bulk run would do, read from the previewed plan: its queues, its estimate and the plan's hash as the
+     * gate's state key, so a run whose plan changed since it was requested is refused when it would start.
+     */
+    public Reach reach(UUID clusterId, UUID runId) {
+        BulkRunEntity run = load(clusterId, runId);
+        requireOnRun(clusterId, run, run.getOperation().permission());
+        return new Reach(
+                run.getOperation(),
+                run.getTotalItems(),
+                run.getEstimate(),
+                run.isEstimateComplete(),
+                run.getPlanHash());
+    }
+
+    /** A preview, as the gate reads it. */
+    public record Reach(BulkOperation operation, long queues, long messages, boolean complete, String planHash) {}
+
+    /**
+     * Starts the run through the approval gate as {@code bulk.execute}. Held, the preview is kept until the hold ends,
+     * so the approved run can still start; started, the queues are covered by this operation and pass on their own.
+     */
+    @Gated("bulk.execute")
+    private BulkRunView gatedExecute(BulkExecuteParams params, BulkRunEntity run, BulkExecuteRequest request) {
+        try {
+            return gate.run(Operation.of(params), () -> start(run, request));
+        } catch (OperationHeldException e) {
+            runs.extendPreview(run.getId(), e.expiresAt().plus(PREVIEW_LIFETIME));
+            throw e;
+        }
+    }
+
+    private BulkRunView start(BulkRunEntity run, BulkExecuteRequest request) {
+        UUID clusterId = run.getClusterId();
+        UUID runId = run.getId();
+        BulkOperation operation = run.getOperation();
         Operator operator = handoff.capture();
         try {
             // Claimed once: a second execute of the same preview finds it no longer PREVIEWED.
