@@ -135,6 +135,8 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // part of its key (changeset feature-apitokens 0005).
                     "CREATE TABLE api_token_grant ",
                     "pk_api_token_grant",
+                    // The access change log (changeset kernel-security 0014).
+                    "access_change_log",
                     // Plugins' notices share the delivery queue: kind, source, a nullable rule (changeset
                     // feature-alerting 0006).
                     "CREATE TABLE alert_delivery ",
