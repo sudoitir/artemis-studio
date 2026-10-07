@@ -55,6 +55,7 @@ export function CancelRequest({
         onClose={() => setOpen(false)}
         title="Cancel this request?"
         confirmLabel="Cancel request"
+        dismissLabel="Keep request"
         pending={cancel.isPending}
         consequence={
           <Stack gap="sm">

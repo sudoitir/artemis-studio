@@ -70,6 +70,17 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
+  it('names the dismiss button apart from a cancelling action', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Host title="Cancel this request?" confirmLabel="Cancel request" dismissLabel="Keep request" />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    await screen.findByRole('dialog', { name: 'Cancel this request?' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Keep request' })).toHaveFocus());
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  });
+
   it('cancels from the keyboard and returns focus', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Host />);
