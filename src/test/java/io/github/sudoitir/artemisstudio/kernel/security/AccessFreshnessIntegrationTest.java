@@ -148,7 +148,7 @@ class AccessFreshnessIntegrationTest extends PostgresIntegrationTest {
         assertThat(status("/api/v1/users")).isEqualTo(200);
 
         asAdministrator();
-        userService.setDisabled(userId, true);
+        userService.disable(userId);
 
         assertThat(status("/api/v1/users")).isNotEqualTo(200);
     }

@@ -22,6 +22,9 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamSummar
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.TeamView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.UnownedView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.UserLookup;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -71,29 +74,38 @@ public class TeamsController {
         return teams.get(teamId);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PostMapping("/teams")
     @ResponseStatus(HttpStatus.CREATED)
     public TeamView create(@Valid @RequestBody TeamRequest request) {
         return teams.create(request.name());
     }
 
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = TeamView.class)))
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PutMapping("/teams/{teamId}")
     public TeamView rename(@PathVariable UUID teamId, @Valid @RequestBody TeamRequest request) {
         return teams.rename(teamId, request.name());
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @DeleteMapping("/teams/{teamId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID teamId) {
         teams.delete(teamId);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PostMapping("/teams/{teamId}/patterns")
     @ResponseStatus(HttpStatus.CREATED)
     public PatternView addPattern(@PathVariable UUID teamId, @Valid @RequestBody PatternRequest request) {
         return teams.addPattern(teamId, request);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @DeleteMapping("/teams/{teamId}/patterns/{patternId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removePattern(@PathVariable UUID teamId, @PathVariable UUID patternId) {
@@ -109,30 +121,39 @@ public class TeamsController {
         return teams.preview(teamId, clusterId, kind, pattern);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PostMapping("/teams/{teamId}/members")
     @ResponseStatus(HttpStatus.CREATED)
     public MemberView addMember(@PathVariable UUID teamId, @Valid @RequestBody MemberRequest request) {
         return teams.addMember(teamId, request);
     }
 
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = MemberView.class)))
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PutMapping("/teams/{teamId}/members/{memberId}")
     public MemberView changeMemberRole(
             @PathVariable UUID teamId, @PathVariable UUID memberId, @Valid @RequestBody MemberRoleRequest request) {
         return teams.changeMemberRole(teamId, memberId, request.roleId());
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @DeleteMapping("/teams/{teamId}/members/{memberId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeMember(@PathVariable UUID teamId, @PathVariable UUID memberId) {
         teams.removeMember(teamId, memberId);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PostMapping("/teams/{teamId}/shares")
     @ResponseStatus(HttpStatus.CREATED)
     public ShareView addShare(@PathVariable UUID teamId, @Valid @RequestBody ShareRequest request) {
         return teams.addShare(teamId, request);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @DeleteMapping("/teams/{teamId}/shares/{shareId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeShare(@PathVariable UUID teamId, @PathVariable UUID shareId) {

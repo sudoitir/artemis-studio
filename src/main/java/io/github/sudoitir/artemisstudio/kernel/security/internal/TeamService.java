@@ -2,6 +2,9 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
@@ -63,6 +66,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Teams: who owns which queue and address names on a cluster, who is a member, and what is shared
@@ -103,6 +107,8 @@ public class TeamService {
     private final SessionTerminator sessions;
     private final JdbcTemplate jdbc;
     private final FeatureRegistry features;
+    private final OperationGate gate;
+    private final TransactionTemplate tx;
 
     // ---- teams --------------------------------------------------------------------------------------
 
@@ -125,10 +131,16 @@ public class TeamService {
         return view(team);
     }
 
+    @Gated("team.create")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public TeamView create(String name) {
         String trimmed = name.strip();
+        requireFreeName(trimmed, null);
+        return gate.run(
+                Operation.of(new TeamOperations.CreateTeam(trimmed)), GatedWrites.inTx(tx, () -> createNow(trimmed)));
+    }
+
+    private TeamView createNow(String trimmed) {
         requireFreeName(trimmed, null);
         TeamEntity team = teams.save(new TeamEntity(trimmed));
         audit.changed("TEAM_CREATE", "team", trimmed, null);
@@ -136,11 +148,18 @@ public class TeamService {
         return view(team);
     }
 
+    @Gated("team.rename")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public TeamView rename(UUID teamId, String name) {
-        TeamEntity team = requireTeam(teamId);
         String trimmed = name.strip();
+        requireFreeName(trimmed, requireTeam(teamId));
+        return gate.run(
+                Operation.of(new TeamOperations.RenameTeam(teamId, trimmed)),
+                GatedWrites.inTx(tx, () -> renameNow(teamId, trimmed)));
+    }
+
+    private TeamView renameNow(UUID teamId, String trimmed) {
+        TeamEntity team = requireTeam(teamId);
         requireFreeName(trimmed, team);
         String before = team.getName();
         team.setName(trimmed);
@@ -151,9 +170,15 @@ public class TeamService {
     }
 
     /** Removes the team with its patterns, memberships and shares, in both directions. */
+    @Gated("team.delete")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public void delete(UUID teamId) {
+        requireTeam(teamId);
+        gate.run(
+                Operation.of(new TeamOperations.DeleteTeam(teamId)), GatedWrites.inTxVoid(tx, () -> deleteNow(teamId)));
+    }
+
+    private void deleteNow(UUID teamId) {
         TeamEntity team = requireTeam(teamId);
         audit.changed(
                 "TEAM_DELETE",
@@ -236,9 +261,19 @@ public class TeamService {
      * Adds a name pattern the team owns on a cluster, refused when some name on that cluster and kind could
      * match both it and a pattern of another team.
      */
+    @Gated("team.pattern.add")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public PatternView addPattern(UUID teamId, PatternRequest request) {
+        requireTeam(teamId);
+        ResourcePattern pattern = ResourcePattern.parse(request.pattern().strip());
+        requireCluster(request.clusterId());
+        return gate.run(
+                Operation.of(
+                        new TeamOperations.AddPattern(teamId, request.clusterId(), request.kind(), pattern.text())),
+                GatedWrites.inTx(tx, () -> addPatternNow(teamId, request)));
+    }
+
+    private PatternView addPatternNow(UUID teamId, PatternRequest request) {
         TeamEntity team = requireTeam(teamId);
         ResourcePattern pattern = ResourcePattern.parse(request.pattern().strip());
         requireCluster(request.clusterId());
@@ -276,12 +311,24 @@ public class TeamService {
         return patternView(saved);
     }
 
+    @Gated("team.pattern.remove")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public void removePattern(UUID teamId, UUID patternId) {
-        TeamEntity team = requireTeam(teamId);
-        TeamPatternEntity pattern = patterns.findByIdAndTeamId(patternId, teamId)
+        requireTeam(teamId);
+        requirePattern(teamId, patternId);
+        gate.run(
+                Operation.of(new TeamOperations.RemovePattern(teamId, patternId)),
+                GatedWrites.inTxVoid(tx, () -> removePatternNow(teamId, patternId)));
+    }
+
+    private TeamPatternEntity requirePattern(UUID teamId, UUID patternId) {
+        return patterns.findByIdAndTeamId(patternId, teamId)
                 .orElseThrow(() -> new NotFoundException("team pattern", patternId));
+    }
+
+    private void removePatternNow(UUID teamId, UUID patternId) {
+        TeamEntity team = requireTeam(teamId);
+        TeamPatternEntity pattern = requirePattern(teamId, patternId);
         patterns.delete(pattern);
         audit.changed(
                 "TEAM_PATTERN_REMOVE",
@@ -333,9 +380,23 @@ public class TeamService {
 
     // ---- members ------------------------------------------------------------------------------------
 
-    @Transactional
+    @Gated("team.member.add")
     public MemberView addMember(UUID teamId, MemberRequest request) {
-        TeamEntity team = requireTeam(teamId);
+        authorizeAddMember(teamId, request);
+        return gate.run(
+                Operation.of(new TeamOperations.AddMember(
+                        teamId,
+                        request.principalType(),
+                        request.userId(),
+                        request.providerId(),
+                        request.groupName(),
+                        request.roleId())),
+                GatedWrites.inTx(tx, () -> addMemberNow(teamId, request)));
+    }
+
+    /** Who may add this member at this role; read-only, so the gate and the replay both run it. */
+    private Authority authorizeAddMember(UUID teamId, MemberRequest request) {
+        requireTeam(teamId);
         Authority authority = memberAuthority(teamId);
         RoleEntity role = requireTeamRole(request.roleId());
         authority.requireMayAssign(teamId, role, permissionsOf(role));
@@ -343,6 +404,13 @@ public class TeamService {
             throw new AccessDeniedException(
                     "Only a user administrator can add a directory group as a member of a team.");
         }
+        return authority;
+    }
+
+    private MemberView addMemberNow(UUID teamId, MemberRequest request) {
+        authorizeAddMember(teamId, request);
+        TeamEntity team = requireTeam(teamId);
+        RoleEntity role = requireTeamRole(request.roleId());
         Candidate candidate = request.principalType() == PrincipalType.USER
                 ? userCandidate(teamId, request, role)
                 : groupCandidate(teamId, request, role);
@@ -383,9 +451,17 @@ public class TeamService {
                 TeamMemberEntity.ofGroup(teamId, provider, group, role.getId()), "group " + group + " of " + provider);
     }
 
-    @Transactional
+    @Gated("team.member.role")
     public MemberView changeMemberRole(UUID teamId, UUID memberId, UUID roleId) {
-        TeamEntity team = requireTeam(teamId);
+        authorizeRoleChange(teamId, memberId, roleId);
+        return gate.run(
+                Operation.of(new TeamOperations.ChangeMemberRole(teamId, memberId, roleId)),
+                GatedWrites.inTx(tx, () -> changeMemberRoleNow(teamId, memberId, roleId)));
+    }
+
+    /** Who may give the member this role; read-only, so the gate and the replay both run it. */
+    private TeamMemberEntity authorizeRoleChange(UUID teamId, UUID memberId, UUID roleId) {
+        requireTeam(teamId);
         Authority authority = memberAuthority(teamId);
         TeamMemberEntity member = members.findByIdAndTeamId(memberId, teamId)
                 .orElseThrow(() -> new NotFoundException("team member", memberId));
@@ -393,6 +469,13 @@ public class TeamService {
         authority.requireMayManage(member);
         authority.requireMayAssign(teamId, role, permissionsOf(role));
         authority.requireMayAssign(teamId, roleOf(member), permissionsOf(roleOf(member)));
+        return member;
+    }
+
+    private MemberView changeMemberRoleNow(UUID teamId, UUID memberId, UUID roleId) {
+        TeamMemberEntity member = authorizeRoleChange(teamId, memberId, roleId);
+        TeamEntity team = requireTeam(teamId);
+        RoleEntity role = requireTeamRole(roleId);
         member.setRoleId(role.getId());
         members.save(member);
         audit.changed(
@@ -405,14 +488,28 @@ public class TeamService {
         return memberView(member, roleNames(), usernames(List.of(member)));
     }
 
-    @Transactional
+    @Gated("team.member.remove")
     public void removeMember(UUID teamId, UUID memberId) {
-        TeamEntity team = requireTeam(teamId);
+        authorizeRemoveMember(teamId, memberId);
+        gate.run(
+                Operation.of(new TeamOperations.RemoveMember(teamId, memberId)),
+                GatedWrites.inTxVoid(tx, () -> removeMemberNow(teamId, memberId)));
+    }
+
+    /** Who may remove the member; read-only, so the gate and the replay both run it. */
+    private TeamMemberEntity authorizeRemoveMember(UUID teamId, UUID memberId) {
+        requireTeam(teamId);
         Authority authority = memberAuthority(teamId);
         TeamMemberEntity member = members.findByIdAndTeamId(memberId, teamId)
                 .orElseThrow(() -> new NotFoundException("team member", memberId));
         authority.requireMayManage(member);
         authority.requireMayAssign(teamId, roleOf(member), permissionsOf(roleOf(member)));
+        return member;
+    }
+
+    private void removeMemberNow(UUID teamId, UUID memberId) {
+        TeamMemberEntity member = authorizeRemoveMember(teamId, memberId);
+        TeamEntity team = requireTeam(teamId);
         members.delete(member);
         audit.changed(
                 "TEAM_MEMBER_REMOVE",
@@ -429,9 +526,25 @@ public class TeamService {
      * on the cluster: one of the owner's patterns of each kind it covers must contain it as a whole (a share
      * that only a union of the owner's patterns would cover is refused).
      */
+    @Gated("team.share.add")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public ShareView addShare(UUID ownerTeamId, ShareRequest request) {
+        requireTeam(ownerTeamId);
+        requireTeam(request.targetTeamId());
+        requireCluster(request.clusterId());
+        requireTeamRole(request.roleId());
+        return gate.run(
+                Operation.of(new TeamOperations.AddShare(
+                        ownerTeamId,
+                        request.targetTeamId(),
+                        request.clusterId(),
+                        request.kind(),
+                        request.pattern().strip(),
+                        request.roleId())),
+                GatedWrites.inTx(tx, () -> addShareNow(ownerTeamId, request)));
+    }
+
+    private ShareView addShareNow(UUID ownerTeamId, ShareRequest request) {
         TeamEntity owner = requireTeam(ownerTeamId);
         if (ownerTeamId.equals(request.targetTeamId())) {
             throw new ConflictException("share-with-self", "A team cannot share with itself.");
@@ -479,12 +592,24 @@ public class TeamService {
         return shareView(saved, teamNames(), roleNames());
     }
 
+    @Gated("team.share.remove")
     @PreAuthorize(USER_ADMIN)
-    @Transactional
     public void removeShare(UUID ownerTeamId, UUID shareId) {
-        TeamEntity owner = requireTeam(ownerTeamId);
-        TeamShareEntity share = shares.findByIdAndOwnerTeamId(shareId, ownerTeamId)
+        requireTeam(ownerTeamId);
+        requireShare(ownerTeamId, shareId);
+        gate.run(
+                Operation.of(new TeamOperations.RemoveShare(ownerTeamId, shareId)),
+                GatedWrites.inTxVoid(tx, () -> removeShareNow(ownerTeamId, shareId)));
+    }
+
+    private TeamShareEntity requireShare(UUID ownerTeamId, UUID shareId) {
+        return shares.findByIdAndOwnerTeamId(shareId, ownerTeamId)
                 .orElseThrow(() -> new NotFoundException("team share", shareId));
+    }
+
+    private void removeShareNow(UUID ownerTeamId, UUID shareId) {
+        TeamEntity owner = requireTeam(ownerTeamId);
+        TeamShareEntity share = requireShare(ownerTeamId, shareId);
         shares.delete(share);
         audit.changed(
                 "TEAM_SHARE_REMOVE",

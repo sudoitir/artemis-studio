@@ -2,14 +2,17 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.AccountLockout;
 import io.github.sudoitir.artemisstudio.kernel.security.AdministrationAudit;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
-import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -22,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +35,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The safety net for the fully-dynamic permission model (authorization spec,
@@ -62,9 +68,6 @@ class LastAdminGuardTest {
     SessionTerminator sessions;
 
     @Mock
-    SessionAuthentication sessionState;
-
-    @Mock
     AccessChanges accessChanges;
 
     UserService service;
@@ -85,10 +88,20 @@ class LastAdminGuardTest {
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                sessionState,
                 List::of,
-                accessChanges);
+                accessChanges,
+                runsAtOnce(),
+                new TransactionTemplate(mock(PlatformTransactionManager.class)));
         adminRole = role(adminRoleId, "ADMIN");
+    }
+
+    /** The gate with no provider armed: the action runs at once. */
+    private static OperationGate runsAtOnce() {
+        OperationGate gate = mock(OperationGate.class);
+        lenient()
+                .when(gate.run(any(), any()))
+                .thenAnswer(call -> call.<Supplier<?>>getArgument(1).get());
+        return gate;
     }
 
     @AfterEach
@@ -107,7 +120,7 @@ class LastAdminGuardTest {
         when(userRoles.findByIdUserId(adminUserId))
                 .thenReturn(List.of(new UserRoleEntity(adminUserId, adminRoleId, "GLOBAL", ScopeIds.GLOBAL)));
 
-        assertThatThrownBy(() -> service.setDisabled(adminUserId, true))
+        assertThatThrownBy(() -> service.disable(adminUserId))
                 .isInstanceOf(ConflictException.class)
                 .extracting(e -> ((ConflictException) e).slug())
                 .isEqualTo("last-admin");
@@ -128,7 +141,7 @@ class LastAdminGuardTest {
         when(userRoles.findByIdUserId(adminUserId))
                 .thenReturn(List.of(new UserRoleEntity(adminUserId, adminRoleId, "GLOBAL", ScopeIds.GLOBAL)));
 
-        service.setDisabled(adminUserId, true);
+        service.disable(adminUserId);
         assertThat(admin.isDisabled()).isTrue();
     }
 

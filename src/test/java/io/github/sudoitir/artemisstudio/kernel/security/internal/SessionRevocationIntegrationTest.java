@@ -95,7 +95,7 @@ class SessionRevocationIntegrationTest extends PostgresIntegrationTest {
         openSession(user.getUsername());
         String bystander = openSession("revoke-bystander");
 
-        userService.setDisabled(user.getId(), true);
+        userService.disable(user.getId());
 
         assertThat(sessions.findByPrincipalName(user.getUsername())).isEmpty();
         assertThat(sessions.findById(bystander)).isNotNull();

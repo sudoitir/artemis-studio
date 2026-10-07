@@ -4,7 +4,9 @@ import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
+import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.EffectiveAccess;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.SessionService;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.UserService;
@@ -16,6 +18,9 @@ import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.EffectiveP
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.GrantRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.SetDisabledRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.UserViews.UserView;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -97,17 +102,28 @@ public class UsersController {
         return ResourceQuery.ofPage(page, size).paginate(users.list(), null);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserView create(@Valid @RequestBody CreateUserRequest request) {
         return users.create(request);
     }
 
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = UserView.class)))
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PutMapping("/{userId}/disabled")
     public UserView setDisabled(@PathVariable UUID userId, @RequestBody SetDisabledRequest request) {
-        return users.setDisabled(userId, request.disabled());
+        return request.disabled() ? users.disable(userId) : users.enable(userId);
     }
 
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = UserView.class)))
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PutMapping("/{userId}/unlock")
     public UserView unlock(@PathVariable UUID userId) {
         return users.unlock(userId);
@@ -118,21 +134,34 @@ public class UsersController {
      * sessions. Needs {@code user:admin} and a recent step-up; refused for oneself ({@code 409 self-reset})
      * and, when the user must hold a factor, unless this session verified one ({@code 403 mfa-required}).
      */
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = UserView.class)))
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @DeleteMapping("/{userId}/second-factors")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     public UserView resetSecondFactors(@PathVariable UUID userId, HttpServletRequest req) {
         if (!sessions.recentlyAuthenticated(req)) {
             throw new ReauthenticationRequiredException();
         }
-        return users.resetSecondFactors(userId, req);
+        if (users.mustHoldSecondFactor(userId)
+                && sessions.facts(req).map(SessionFacts::mfaVerifiedAt).isEmpty()) {
+            throw new SecondFactorRequiredException(
+                    "This user must hold a second factor, so you must have verified yours in this session first."
+                            + " Sign in again and give your authenticator code or passkey.");
+        }
+        return users.resetSecondFactors(userId);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @PostMapping("/{userId}/grants")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addGrant(@PathVariable UUID userId, @Valid @RequestBody GrantRequest request) {
         users.addGrant(userId, request);
     }
 
+    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
     @DeleteMapping("/{userId}/grants/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeGrant(
