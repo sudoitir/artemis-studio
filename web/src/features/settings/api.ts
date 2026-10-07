@@ -1,10 +1,22 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query';
+
 import { ApiError, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
 
 export type SettingsResponse = Schemas['SettingsResponse'];
+export type Setting = Schemas['SettingValue'];
+export type PendingChange = Schemas['PendingChange'];
+export type SettingChange = Schemas['SettingChangeRequest'];
+export type ChangePreview = Schemas['ChangePreview'];
 export type SecretsStatus = Schemas['SecretsStatus'];
 export type RotationView = Schemas['RotationView'];
 export type StudioHealth = Schemas['StudioHealth'];
@@ -13,7 +25,10 @@ export type NodeHealth = Schemas['NodeHealth'];
 export type ReplicaHealth = Schemas['ReplicaHealth'];
 export type PoolHealth = Schemas['PoolHealth'];
 
-const SETTINGS_KEY = ['settings'] as const;
+export const SETTINGS_KEY = ['settings'] as const;
+
+/** The header a change set's reason for approval travels in. */
+const REASON_HEADER = 'X-Studio-Approval-Reason';
 const SECRETS_KEY = ['settings', 'secrets'] as const;
 const HEALTH_KEY = ['system', 'health'] as const;
 
@@ -24,28 +39,33 @@ export function useSettings(): UseQueryResult<SettingsResponse, ApiError> {
   });
 }
 
-export function useUpdateSetting() {
+/** Applies a change set together or not at all; a held one throws `OperationHeldError`. Refreshes the settings either way. */
+export function useApplyChanges() {
   const qc = useQueryClient();
-  return useMutation<void, ApiError, { key: string; value: string }>({
-    mutationFn: ({ key, value }) =>
+  return useMutation<void, ApiError, { changes: SettingChange[]; reason?: string }>({
+    mutationFn: ({ changes, reason }) =>
       request('/settings/changes', {
         method: 'POST',
-        body: JSON.stringify({ changes: [{ key, value }] }),
+        body: JSON.stringify({ changes }),
+        // A header carries only Latin-1, so the reason travels URL-encoded and the server decodes it.
+        headers: reason ? { [REASON_HEADER]: encodeURIComponent(reason) } : undefined,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
+    // Awaited, so the draft is cleared against the values the server now holds rather than the old ones.
+    onSettled: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
   });
 }
 
-export function useResetSetting() {
-  const qc = useQueryClient();
-  return useMutation<void, ApiError, string>({
-    mutationFn: (key) =>
-      request('/settings/changes', {
-        method: 'POST',
-        body: JSON.stringify({ changes: [{ key, reset: true }] }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
+/** What applying `changes` would do now: run, be held for approval or be denied, and which values are invalid. */
+export const previewQuery = (changes: SettingChange[]) =>
+  queryOptions<ChangePreview, ApiError>({
+    queryKey: [...SETTINGS_KEY, 'preview', changes],
+    queryFn: () =>
+      request<ChangePreview>('/settings/changes/preview', { method: 'POST', body: JSON.stringify({ changes }) }),
   });
+
+/** The preview of the draft, kept while the next one loads; disabled while there is nothing to preview. */
+export function useChangePreview(changes: SettingChange[]): UseQueryResult<ChangePreview, ApiError> {
+  return useQuery({ ...previewQuery(changes), enabled: changes.length > 0, placeholderData: keepPreviousData });
 }
 
 /** Key provider, key versions and the last rotation; polled every 2 s while a rotation runs. */
