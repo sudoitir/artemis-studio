@@ -113,6 +113,7 @@ export function ApplyBar({ state }: Readonly<{ state: ApplyFlow }>) {
           </Text>
         }
         confirmLabel="Discard and leave"
+        dismissLabel="Stay on this page"
         tone="danger"
         onConfirm={() => blocker.proceed?.()}
       />

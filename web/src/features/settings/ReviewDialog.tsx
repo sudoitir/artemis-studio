@@ -85,7 +85,7 @@ export function ReviewDialog({
           <DataTable
             variant="static"
             columnsMenu={false}
-            label="Changes to apply"
+            label={requesting ? 'Changes to request' : 'Changes to apply'}
             columns={columns}
             data={rows}
             rowKey={(row) => row.key}

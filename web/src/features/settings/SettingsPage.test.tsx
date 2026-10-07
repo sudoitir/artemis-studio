@@ -345,7 +345,7 @@ describe('the Settings page', () => {
 
     void router.navigate({ to: '/elsewhere' });
     const dialog = await screen.findByRole('dialog', { name: 'Leave with unsaved changes?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Stay on this page' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(router.state.location.pathname).toBe('/settings-under-test');
 
@@ -431,7 +431,7 @@ describe('the Settings page', () => {
     await user.click(primary);
 
     const dialog = await screen.findByRole('dialog', { name: 'Request approval for 2 changes' });
-    const rows = within(within(dialog).getByRole('table', { name: 'Changes to apply' })).getAllByRole('row');
+    const rows = within(within(dialog).getByRole('table', { name: 'Changes to request' })).getAllByRole('row');
     expect(rows.map((r) => r.textContent)).toEqual([
       'SettingCurrentNew',
       'Tier A interval (Scrape)5s10s',

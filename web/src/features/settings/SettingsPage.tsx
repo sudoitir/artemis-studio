@@ -104,7 +104,11 @@ export function SettingsPage() {
           </>
         }
         end={
-          filtering ? <VisuallyHidden role="status">Showing settings that match the search.</VisuallyHidden> : undefined
+          filtering ? (
+            <VisuallyHidden role="status">
+              {search.q?.trim() ? 'Showing settings that match the search.' : 'Showing modified settings only.'}
+            </VisuallyHidden>
+          ) : undefined
         }
       />
       {body}
