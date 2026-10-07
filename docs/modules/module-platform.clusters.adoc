@@ -50,6 +50,7 @@ _Others_
 * `i.g.s.a.p.b.CoreAccountCheck` (in Broker connectivity)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ScopedGrants` (in Security)
+* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
 * `i.g.s.a.k.p.StudioVersion` (in Plugin contract)
 |Events listened to
 |* `i.g.s.a.k.r.BusResumed` 

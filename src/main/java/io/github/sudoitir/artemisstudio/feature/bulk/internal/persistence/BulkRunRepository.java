@@ -36,6 +36,17 @@ public interface BulkRunRepository extends JpaRepository<BulkRunEntity, UUID> {
     int transition(@Param("id") UUID id, @Param("from") BulkRunStatus from, @Param("to") BulkRunStatus to);
 
     /**
+     * Keep a preview that is held for approval until {@code to}, so it is still there when the hold is approved:
+     * zero when it is not a preview any more or already lasts that long.
+     */
+    @Modifying
+    @Transactional
+    @Query("update BulkRunEntity r set r.expiresAt = :to"
+            + " where r.id = :id and r.status = io.github.sudoitir.artemisstudio.feature.bulk.BulkRunStatus.PREVIEWED"
+            + " and r.expiresAt < :to")
+    int extendPreview(@Param("id") UUID id, @Param("to") Instant to);
+
+    /**
      * Record that the operator asked to stop a run that is executing, once: zero when it is not executing
      * or a stop was already asked. The executing replica reads it, whether or not the signal reaches it.
      */

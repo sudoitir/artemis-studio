@@ -3,7 +3,12 @@
 |Base package
 |`io.github.sudoitir.artemisstudio.kernel.approval`
 |Spring components
-|_Event listeners_
+|_Controllers_
+
+* `i.g.s.a.k.a.web.GateController`
+* `i.g.s.a.k.a.web.HeldOperationController`
+
+_Event listeners_
 
 * `i.g.s.a.k.a.BreakGlass`
 
@@ -11,6 +16,8 @@ _Others_
 
 * `i.g.s.a.k.a.ApprovalSettings`
 * `i.g.s.a.k.a.Approvals`
+* `i.g.s.a.k.a.web.ApprovalReasonFilter`
+* `i.g.s.a.k.a.web.GateProblemAdvice`
 |Bean references
 |* `i.g.s.a.k.i.InboxService` (in Inbox)
 * `i.g.s.a.k.s.UserSignals` (in Event stream)

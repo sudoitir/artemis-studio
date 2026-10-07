@@ -40,6 +40,12 @@ public class ClusterEnvironmentIndex implements ScopeHierarchy {
         return clusters.findById(clusterId).map(ClusterEntity::getName).orElse(null);
     }
 
+    /** The cluster's name for a sentence an operator reads, or its id when it is not registered. */
+    public String labelOf(UUID clusterId) {
+        String name = clusterName(clusterId);
+        return name != null ? name : String.valueOf(clusterId);
+    }
+
     /**
      * Call after any create/update/delete that could change a cluster's environment. Drops the map
      * here at once, and on every replica (this one again) when the writing transaction commits.

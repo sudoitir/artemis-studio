@@ -8,7 +8,9 @@
         allowedDependencies = {
             "feature.messages",
             "kernel.audit",
+            "kernel.approval :: web",
             "kernel.core",
+            "kernel.gate",
             "kernel.jobs",
             "kernel.lifecycle",
             "kernel.plugin",

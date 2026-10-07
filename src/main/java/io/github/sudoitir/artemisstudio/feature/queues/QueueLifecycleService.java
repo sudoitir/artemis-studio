@@ -5,6 +5,9 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateD
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
@@ -27,6 +30,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
+import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshotUpsert;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -89,6 +93,16 @@ public class QueueLifecycleService {
     private final BrokerConnections connections;
     private final ObjectMapper mapper;
     private final jakarta.validation.Validator validator;
+    private final OperationGate gate;
+
+    /** What a delete would touch: how many messages, and the target's identity for the gate's state key. */
+    public record Reach(long count, String identity) {}
+
+    /** What the gate holds of a queue delete. */
+    record QueueDeleteParams(UUID clusterId, String queue, boolean override, boolean disconnectConsumers) {}
+
+    /** What the gate holds of an address delete. */
+    record AddressDeleteParams(UUID clusterId, String address) {}
 
     // ---- entry points ----------------------------------------------------
 
@@ -146,6 +160,36 @@ public class QueueLifecycleService {
     public Attempt<LifecycleOutcome> deleteQueue(
             UUID clusterId, String queueName, boolean dryRun, boolean override, boolean disconnectConsumers) {
         access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.DELETE_QUEUE.permission());
+        if (dryRun) {
+            return runDeleteQueue(clusterId, queueName, true, override, disconnectConsumers);
+        }
+        return gatedDeleteQueue(new QueueDeleteParams(clusterId, queueName, override, disconnectConsumers));
+    }
+
+    @Gated("queue.delete")
+    private Attempt<LifecycleOutcome> gatedDeleteQueue(QueueDeleteParams p) {
+        return gate.run(
+                Operation.of(p),
+                () -> runDeleteQueue(p.clusterId(), p.queue(), false, p.override(), p.disconnectConsumers()));
+    }
+
+    /**
+     * What deleting the queue would remove now, read without an audit row or a broker call: the messages the
+     * scrape counts on its nodes, and the queue's identity for the gate's state key.
+     */
+    public Reach reachOfQueueDelete(UUID clusterId, String queueName) {
+        access.requireResource(clusterId, ResourceRef.queue(queueName), LifecycleKind.DELETE_QUEUE.permission());
+        List<QueueLocation> found = queueLocator.locate(clusterId, queueName);
+        if (found.isEmpty()) {
+            throw new NotFoundException("queue", queueName);
+        }
+        return new Reach(
+                found.stream().mapToLong(QueueLocation::messageCount).sum(),
+                found.getFirst().address() + "|" + found.getFirst().routingType());
+    }
+
+    private Attempt<LifecycleOutcome> runDeleteQueue(
+            UUID clusterId, String queueName, boolean dryRun, boolean override, boolean disconnectConsumers) {
         ResolvedQueue queue = resolveQueue(clusterId, queueName);
         Set<String> declared = declaredDiverts.map(d -> d.names(clusterId)).orElse(Set.of());
         LifecycleKind kind = LifecycleKind.DELETE_QUEUE;
@@ -413,6 +457,18 @@ public class QueueLifecycleService {
      */
     public Attempt<LifecycleOutcome> deleteAddress(UUID clusterId, String address, boolean dryRun) {
         access.requireResource(clusterId, ResourceRef.address(address), LifecycleKind.DELETE_ADDRESS.permission());
+        if (dryRun) {
+            return runDeleteAddress(clusterId, address, true);
+        }
+        return gatedDeleteAddress(new AddressDeleteParams(clusterId, address));
+    }
+
+    @Gated("address.delete")
+    private Attempt<LifecycleOutcome> gatedDeleteAddress(AddressDeleteParams p) {
+        return gate.run(Operation.of(p), () -> runDeleteAddress(p.clusterId(), p.address(), false));
+    }
+
+    private Attempt<LifecycleOutcome> runDeleteAddress(UUID clusterId, String address, boolean dryRun) {
         // Taken here, on the caller's thread: the nodes' actions carry no security context.
         ResourceFilter readable = permissions.filter(clusterId, ResourceKind.QUEUE);
         return run(clusterId, LifecycleKind.DELETE_ADDRESS, address, Map.of(), dryRun, false, (client, broker) -> {

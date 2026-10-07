@@ -3,6 +3,8 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.gate.AuthKind;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.modelcontextprotocol.common.McpTransportContext;
@@ -169,7 +171,9 @@ class McpGate {
                     null);
         }
         try {
+            // Every tool call is an agent's, whatever the token behind it: the approval gate holds it as one.
             JSONRPCResponse response = ScopedValue.where(AuditScope.PARENT, event.getId())
+                    .where(GateContext.ORIGIN, AuthKind.AGENT)
                     .call(() -> delegate.handleRequest(context, request).block());
             String error = errorOf(response);
             if (error == null) {

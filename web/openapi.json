@@ -1235,12 +1235,12 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/EnvironmentView"
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -1330,6 +1330,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -1740,6 +1750,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -5534,6 +5554,16 @@
           "required" : true
         },
         "responses" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "201" : {
             "description" : "Created",
             "content" : {
@@ -5856,6 +5886,16 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ClusterDetail"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -6280,12 +6320,16 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "started: the run; or held for approval (X-Studio-Held-Operation), nothing started",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/TransferRunView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/TransferRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcomeView"
+                  } ]
                 }
               }
             }
@@ -8492,6 +8536,16 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -8639,6 +8693,16 @@
                   }, {
                     "$ref" : "#/components/schemas/PartialView"
                   } ]
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -9954,12 +10018,16 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "started: the run; or held for approval (X-Studio-Held-Operation), nothing started",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/BulkRunView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/BulkRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcomeView"
+                  } ]
                 }
               }
             }
@@ -13814,6 +13882,16 @@
           }
         } ],
         "responses" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                }
+              }
+            }
+          },
           "204" : {
             "description" : "No Content"
           },
@@ -13930,6 +14008,16 @@
                   }, {
                     "$ref" : "#/components/schemas/ClusterConnectionView"
                   } ]
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -14270,12 +14358,12 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -24500,12 +24588,12 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                  "$ref" : "#/components/schemas/HeldOutcomeView"
                 }
               }
             }
@@ -25635,25 +25723,39 @@
         },
         "required" : [ "name", "sortOrder" ]
       },
-      "EnvironmentView" : {
+      "HeldOutcomeView" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "held" ]
+          },
+          "heldOperation" : {
+            "$ref" : "#/components/schemas/HeldRefView"
+          }
+        },
+        "required" : [ "heldOperation", "outcome" ]
+      },
+      "HeldRefView" : {
         "type" : "object",
         "properties" : {
           "id" : {
             "type" : "string",
             "format" : "uuid"
           },
-          "name" : {
+          "summary" : {
             "type" : "string"
           },
-          "colour" : {
-            "type" : [ "string", "null" ]
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
           },
-          "sortOrder" : {
-            "type" : "integer",
-            "format" : "int32"
+          "link" : {
+            "type" : "string",
+            "description" : "The held operation in this API."
           }
         },
-        "required" : [ "id", "name", "sortOrder" ]
+        "required" : [ "expiresAt", "id", "link", "summary" ]
       },
       "UpdatePolicyRequest" : {
         "type" : "object",
@@ -27502,6 +27604,26 @@
           }
         },
         "required" : [ "address", "dataClass", "dataClassLabel", "fieldPath", "firstSeenAt", "hitCount", "id", "lastSeenAt", "location", "status" ]
+      },
+      "EnvironmentView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "colour" : {
+            "type" : [ "string", "null" ]
+          },
+          "sortOrder" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "id", "name", "sortOrder" ]
       },
       "PreviewRequest" : {
         "type" : "object",
