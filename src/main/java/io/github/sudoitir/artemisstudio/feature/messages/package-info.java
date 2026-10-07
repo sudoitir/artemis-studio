@@ -5,7 +5,9 @@
         displayName = "Messages",
         allowedDependencies = {
             "kernel.audit",
+            "kernel.approval :: web",
             "kernel.core",
+            "kernel.gate",
             "kernel.plugin",
             "kernel.security",
             "kernel.settings",

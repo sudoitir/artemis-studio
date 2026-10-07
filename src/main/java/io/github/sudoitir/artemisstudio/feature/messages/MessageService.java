@@ -1,5 +1,10 @@
 package io.github.sudoitir.artemisstudio.feature.messages;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageDeleteParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageExpireParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageMoveParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageRetryParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.QueuePurgeParams;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.MessageActionRequest;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.SendMessageRequest;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.MessageDetailView;
@@ -8,6 +13,9 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.Messag
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -96,9 +104,13 @@ public class MessageService {
     private final ClusterAccessGuard clusterAccess;
     private final ContentPolicy contentPolicy;
     private final ClearViewAudit clearViews;
+    private final OperationGate gate;
 
     /** Resolved (node, address, routingType) for a queue name on a cluster. */
     record ResolvedQueue(ClusterNode node, String address, String routingType) {}
+
+    /** What an operation would touch: how many messages, and the queue's identity for the gate's state key. */
+    public record Reach(long count, String identity) {}
 
     /** A mutation result: an executed affected-count, or a point-in-time dry-run estimate. */
     public sealed interface Outcome {
@@ -212,6 +224,10 @@ public class MessageService {
 
     // ---- move / retry / delete / expire (Slices 5 + 6) ----------------
 
+    /**
+     * Runs a message action. A dry run is never gated; a real one passes the approval gate as the {@code
+     * message.<action>} operation (ADR-0179).
+     */
     public Attempt<Outcome> execute(
             UUID clusterId,
             String queueName,
@@ -221,6 +237,77 @@ public class MessageService {
             boolean dryRun,
             boolean override) {
         requireAllowed(clusterId, queueName, action, req);
+        if (dryRun) {
+            return run(clusterId, queueName, nodeId, action, req, true, override);
+        }
+        return switch (action) {
+            case MOVE -> move(new MessageMoveParams(clusterId, queueName, nodeId, req, override));
+            case RETRY -> retry(new MessageRetryParams(clusterId, queueName, nodeId, req, override));
+            case DELETE -> delete(new MessageDeleteParams(clusterId, queueName, nodeId, req, override));
+            case EXPIRE -> expire(new MessageExpireParams(clusterId, queueName, nodeId, req, override));
+        };
+    }
+
+    @Gated("message.move")
+    private Attempt<Outcome> move(MessageMoveParams p) {
+        return gate.run(Operation.of(p), () -> runOf(p, MessageAction.MOVE));
+    }
+
+    @Gated("message.retry")
+    private Attempt<Outcome> retry(MessageRetryParams p) {
+        return gate.run(Operation.of(p), () -> runOf(p, MessageAction.RETRY));
+    }
+
+    @Gated("message.delete")
+    private Attempt<Outcome> delete(MessageDeleteParams p) {
+        return gate.run(Operation.of(p), () -> runOf(p, MessageAction.DELETE));
+    }
+
+    @Gated("message.expire")
+    private Attempt<Outcome> expire(MessageExpireParams p) {
+        return gate.run(Operation.of(p), () -> runOf(p, MessageAction.EXPIRE));
+    }
+
+    private Attempt<Outcome> runOf(MessageActionParams p, MessageAction action) {
+        return run(p.clusterId(), p.queue(), p.nodeId(), action, p.request(), false, p.override());
+    }
+
+    /**
+     * What an action would touch now, read without an audit row or a broker change: the gate estimates with it on
+     * every request and again before it runs.
+     */
+    public Reach reach(UUID clusterId, String queueName, UUID nodeId, MessageAction action, MessageActionRequest req) {
+        requireAllowed(clusterId, queueName, action, req);
+        ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
+        if (!req.byFilter() && !req.ids().isEmpty()) {
+            return new Reach(req.ids().size(), identityOf(resolved));
+        }
+        JolokiaBrokerClient client = clientFor(clusterId, resolved);
+        return new Reach(estimate(client, queueMbean(client, resolved, queueName), action, req), identityOf(resolved));
+    }
+
+    /** What a purge would remove now, read as {@link #reach} reads an action. */
+    public Reach reachOfPurge(UUID clusterId, String queueName, UUID nodeId) {
+        clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), MessagePermissions.QUEUE_PURGE);
+        ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
+        JolokiaBrokerClient client = clientFor(clusterId, resolved);
+        return new Reach(
+                messageOps.messageCount(client, queueMbean(client, resolved, queueName)), identityOf(resolved));
+    }
+
+    /** The queue as the gate pins it: the address and routing type it is bound with, so a queue recreated elsewhere differs. */
+    private static String identityOf(ResolvedQueue resolved) {
+        return resolved.address() + "|" + resolved.routingType();
+    }
+
+    private Attempt<Outcome> run(
+            UUID clusterId,
+            String queueName,
+            UUID nodeId,
+            MessageAction action,
+            MessageActionRequest req,
+            boolean dryRun,
+            boolean override) {
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
         RetryScope scope = RetryScope.UNRESTRICTED;
@@ -321,8 +408,21 @@ public class MessageService {
 
     // ---- purge (Slice 7) ---------------------------------------------
 
+    /** Purges a queue. A dry run is never gated; a real one passes the approval gate as {@code queue.purge}. */
     public Attempt<Outcome> purge(UUID clusterId, String queueName, UUID nodeId, boolean dryRun, boolean override) {
         clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), MessagePermissions.QUEUE_PURGE);
+        if (dryRun) {
+            return runPurge(clusterId, queueName, nodeId, true, override);
+        }
+        return gatedPurge(new QueuePurgeParams(clusterId, queueName, nodeId, override));
+    }
+
+    @Gated("queue.purge")
+    private Attempt<Outcome> gatedPurge(QueuePurgeParams p) {
+        return gate.run(Operation.of(p), () -> runPurge(p.clusterId(), p.queue(), p.nodeId(), false, p.override()));
+    }
+
+    private Attempt<Outcome> runPurge(UUID clusterId, String queueName, UUID nodeId, boolean dryRun, boolean override) {
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         UUID node = resolved.node().getId();
         AuditEvent event = begin("PURGE_QUEUE", queueName, clusterId, node, Map.of(), dryRun);

@@ -16,6 +16,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageDeleteParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageExpireParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageMoveParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.MessageRetryParams;
+import io.github.sudoitir.artemisstudio.feature.messages.MessageActionParams.QueuePurgeParams;
 import io.github.sudoitir.artemisstudio.feature.messages.MessageService.Outcome;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.MessageActionRequest;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.SendMessageRequest;
@@ -24,6 +29,9 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.Messag
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationHeldException;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -66,10 +74,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -99,6 +109,7 @@ class MessageServiceTest {
     private final ClusterAccessGuard access = mock(ClusterAccessGuard.class);
     private final ContentPolicy policy = mock(ContentPolicy.class);
     private final ClearViewAudit clearViews = mock(ClearViewAudit.class);
+    private final OperationGate gate = mock(OperationGate.class);
     private final JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
     private final AuditEvent event = mock(AuditEvent.class);
     private final ClusterNode nodeA = node(NODE_A, "node-a", "http://a/jolokia", "tcp://a", true);
@@ -107,7 +118,10 @@ class MessageServiceTest {
     private MessageService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
+        // No provider is armed: the gate runs every action as it is.
+        when(gate.run(any(), any())).thenAnswer(call -> ((Supplier<Object>) call.getArgument(1)).get());
         service = new MessageService(
                 locator,
                 directory,
@@ -122,7 +136,8 @@ class MessageServiceTest {
                 hub,
                 access,
                 policy,
-                clearViews);
+                clearViews,
+                gate);
         when(locator.locate(CLUSTER, "target"))
                 .thenReturn(List.of(new QueueLocation(NODE_A, "target", "target", "ANYCAST", 1)));
         when(locator.locate(CLUSTER, "t")).thenReturn(List.of(new QueueLocation(NODE_A, "t", "t", "ANYCAST", 1)));
@@ -955,5 +970,142 @@ class MessageServiceTest {
         assertThat(content.contentType()).isEqualTo("application/json");
         assertThat(MessageService.content(message(1, "b", BodyEncoding.TEXT)).base64())
                 .isFalse();
+    }
+
+    // ---- the approval gate ---------------------------------------------------------------------------------
+
+    private static MessageOperations.BulkResult bulkResult(long affected) {
+        return new MessageOperations.BulkResult(affected, List.of(), null);
+    }
+
+    private Operation gatedOperation() {
+        ArgumentCaptor<Operation> operation = ArgumentCaptor.forClass(Operation.class);
+        verify(gate).run(operation.capture(), any());
+        return operation.getValue();
+    }
+
+    @Test
+    void aDryRunIsNeverGated() {
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(4L);
+
+        service.purge(CLUSTER, "orders", null, true, false);
+        service.execute(
+                CLUSTER,
+                "orders",
+                null,
+                MessageAction.DELETE,
+                new MessageActionRequest(List.of(1L, 2L), null, null),
+                true,
+                false);
+
+        verify(gate, never()).run(any(), any());
+    }
+
+    @Test
+    void eachRealActionPassesTheGateAsItsOwnTypeWithTheRequestAsItsParameters() {
+        MessageActionRequest request = new MessageActionRequest(List.of(1L, 2L), null, "target");
+        when(messageOps.moveByIds(any(), anyString(), anyList(), anyString())).thenReturn(bulkResult(2));
+        when(messageOps.deleteByIds(any(), anyString(), anyList())).thenReturn(bulkResult(2));
+        when(messageOps.expireByIds(any(), anyString(), anyList())).thenReturn(bulkResult(2));
+        when(messageOps.retryByIds(any(), anyString(), anyList())).thenReturn(bulkResult(2));
+
+        service.execute(CLUSTER, "orders", null, MessageAction.MOVE, request, false, true);
+        service.execute(CLUSTER, "orders", null, MessageAction.RETRY, request, false, true);
+        service.execute(CLUSTER, "orders", null, MessageAction.DELETE, request, false, true);
+        service.execute(CLUSTER, "orders", null, MessageAction.EXPIRE, request, false, true);
+
+        ArgumentCaptor<Operation> operations = ArgumentCaptor.forClass(Operation.class);
+        verify(gate, times(4)).run(operations.capture(), any());
+        assertThat(operations.getAllValues())
+                .extracting(Operation::params)
+                .containsExactly(
+                        new MessageMoveParams(CLUSTER, "orders", null, request, true),
+                        new MessageRetryParams(CLUSTER, "orders", null, request, true),
+                        new MessageDeleteParams(CLUSTER, "orders", null, request, true),
+                        new MessageExpireParams(CLUSTER, "orders", null, request, true));
+    }
+
+    @Test
+    void aPurgePassesTheGateAsAQueuePurge() {
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(3L);
+        when(messageOps.purge(client, queueMbean())).thenReturn(3L);
+
+        service.purge(CLUSTER, "orders", null, false, false);
+
+        assertThat(gatedOperation().params()).isEqualTo(new QueuePurgeParams(CLUSTER, "orders", null, false));
+    }
+
+    @Test
+    void aHeldActionTouchesNeitherTheBrokerNorTheAuditTrail() {
+        doThrow(new OperationHeldException(UUID.randomUUID(), "Purge queue orders", Instant.now()))
+                .when(gate)
+                .run(any(), any());
+
+        assertThatThrownBy(() -> service.purge(CLUSTER, "orders", null, false, false))
+                .isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> service.execute(
+                        CLUSTER,
+                        "orders",
+                        null,
+                        MessageAction.DELETE,
+                        new MessageActionRequest(List.of(1L), null, null),
+                        false,
+                        false))
+                .isInstanceOf(OperationHeldException.class);
+
+        verify(messageOps, never()).purge(any(), anyString());
+        verify(messageOps, never()).deleteByIds(any(), anyString(), anyList());
+        verify(audit, never())
+                .begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), any(Boolean.class));
+    }
+
+    @Test
+    void aGatedActionStillAuthorizesFirst() {
+        doThrow(new AccessDeniedException("no")).when(access).requireAll(eq(CLUSTER), anyList());
+
+        assertThatThrownBy(() -> service.execute(
+                        CLUSTER,
+                        "orders",
+                        null,
+                        MessageAction.DELETE,
+                        new MessageActionRequest(List.of(1L), null, null),
+                        false,
+                        false))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(gate, never()).run(any(), any());
+    }
+
+    @Test
+    void whatAnActionReachesIsReadWithoutAnAuditRowAndPinsTheQueuesIdentity() {
+        when(messageOps.countMessages(client, queueMbean(), "priority > 3")).thenReturn(7L);
+
+        assertThat(service.reach(
+                        CLUSTER,
+                        "orders",
+                        null,
+                        MessageAction.DELETE,
+                        new MessageActionRequest(null, "priority > 3", null)))
+                .isEqualTo(new MessageService.Reach(7, "orders.addr|ANYCAST"));
+        assertThat(service.reach(
+                        CLUSTER,
+                        "orders",
+                        null,
+                        MessageAction.DELETE,
+                        new MessageActionRequest(List.of(1L, 2L, 3L), null, null)))
+                .isEqualTo(new MessageService.Reach(3, "orders.addr|ANYCAST"));
+        verify(audit, never())
+                .begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), any(Boolean.class));
+    }
+
+    @Test
+    void aPurgeReachIsTheQueueDepthAndAQueueBoundElsewhereHasAnotherIdentity() {
+        when(messageOps.messageCount(client, queueMbean())).thenReturn(12L);
+        assertThat(service.reachOfPurge(CLUSTER, "orders", null))
+                .isEqualTo(new MessageService.Reach(12, "orders.addr|ANYCAST"));
+
+        when(locator.locate(CLUSTER, "orders"))
+                .thenReturn(List.of(new QueueLocation(NODE_A, "orders", "other.addr", "MULTICAST", 5)));
+        assertThat(service.reachOfPurge(CLUSTER, "orders", null).identity()).isEqualTo("other.addr|MULTICAST");
     }
 }
