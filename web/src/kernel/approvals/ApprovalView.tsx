@@ -28,7 +28,7 @@ import { CancelRequest } from './CancelRequest.tsx';
 import { changeColumns, namesTargets, rowText } from './columns.tsx';
 import { DecisionPanel } from './DecisionPanel.tsx';
 import { ExpiresIn } from './ExpiresIn.tsx';
-import { AUTH_KIND, STATE, TRAIT, eventWord } from './words.ts';
+import { STATE, TRAIT, eventWord, signedInWith } from './words.ts';
 
 type ClusterDetail = components['schemas']['ClusterDetail'];
 type EnvironmentView = components['schemas']['EnvironmentView'];
@@ -301,7 +301,7 @@ function requestItems(detail: HeldOperationDetail, refresh: () => void): Descrip
   const { operation, policy } = detail;
   const items: DescriptionItem[] = [
     { term: 'Requested by', value: operation.requesterUsername },
-    { term: 'Signed in with', value: AUTH_KIND[operation.authKind] },
+    { term: 'Signed in with', value: signedInWith(operation.authKind, detail.tokenName) },
     { term: 'Requested', value: absoluteLabel(operation.requestedAt) },
     { term: 'Reason', value: detail.reason || 'None given' },
     { term: 'Policy', value: policy.name ?? policy.id, hint: `Version ${policy.version}` },

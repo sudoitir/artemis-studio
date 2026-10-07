@@ -28,6 +28,7 @@ record HeldRow(
         UUID requesterId,
         String requesterUsername,
         UUID tokenId,
+        String tokenName,
         UUID approverId,
         String approverUsername,
         String summary,

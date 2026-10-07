@@ -56,6 +56,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -523,6 +524,35 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                 .isEqualTo("SUCCESS");
         verify(signals).signal(UserSignals.HELD, alice.id());
         verify(signals).signal(UserSignals.HELD, bob.id());
+    }
+
+    @Test
+    void aRequestMadeWithAnApiTokenNamesTheToken() {
+        Person alice = requester();
+        approversAre(approver());
+        TokenPrincipal token = new TokenPrincipal(
+                alice.id(),
+                alice.username(),
+                Set.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, GateTestKit.SERVICE_PERMISSION)),
+                UUID.randomUUID(),
+                "ci-deploy",
+                Set.of());
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(token, null, token.getAuthorities()));
+        UUID id;
+        try {
+            service.purge(new PurgeParams("orders", null));
+            throw new AssertionError("expected a hold");
+        } catch (OperationHeldException e) {
+            id = e.heldId();
+        }
+        signIn(alice);
+
+        Approvals.Detail detail = approvals.get(id);
+
+        assertThat(detail.view().requester().authKind()).isEqualTo(AuthKind.TOKEN);
+        assertThat(detail.tokenName()).isEqualTo("ci-deploy");
     }
 
     @Test

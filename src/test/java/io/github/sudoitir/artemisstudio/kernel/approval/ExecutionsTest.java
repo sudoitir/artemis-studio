@@ -25,6 +25,7 @@ class ExecutionsTest {
                 UUID.randomUUID(),
                 "alice",
                 UUID.randomUUID(),
+                "ci",
                 null,
                 null,
                 "Purge",

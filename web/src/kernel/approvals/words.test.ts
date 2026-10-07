@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { effectLabel, expiryMark, remainingLabel } from './words.ts';
+import { effectLabel, expiryMark, remainingLabel, signedInWith } from './words.ts';
 
 const MIN = 60_000;
 
@@ -28,5 +28,14 @@ describe('expiryMark', () => {
 describe('effectLabel', () => {
   it('writes the count with separators and its unit', () => {
     expect(effectLabel({ count: 1204, unit: 'messages' })).toBe('1,204 messages');
+  });
+});
+
+describe('signedInWith', () => {
+  it('names the API token the requester used, and only says how they signed in otherwise', () => {
+    expect(signedInWith('TOKEN', 'ci-deploy')).toBe('API token ci-deploy');
+    expect(signedInWith('AGENT', 'assistant')).toBe('Assistant, through API token assistant');
+    expect(signedInWith('SESSION', null)).toBe('Signed-in session');
+    expect(signedInWith('TOKEN', null)).toBe('API token');
   });
 });

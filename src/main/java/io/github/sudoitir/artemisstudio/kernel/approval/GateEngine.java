@@ -413,6 +413,7 @@ class GateEngine implements OperationGate {
                         requester.userId(),
                         requester.username(),
                         requester.tokenId(),
+                        currentTokenName(),
                         built.summary(),
                         built.reason(),
                         hold.approverHint(),
@@ -515,6 +516,12 @@ class GateEngine implements OperationGate {
         boolean agent = GateContext.ORIGIN.isBound() && GateContext.ORIGIN.get() == AuthKind.AGENT;
         AuthKind kind = agent ? AuthKind.AGENT : tokenId != null ? AuthKind.TOKEN : AuthKind.SESSION;
         return Optional.of(new Requester(principal.userId(), principal.getUsername(), kind, tokenId));
+    }
+
+    /** The name of the API token the signed-in user came in with, or {@code null} for a session. */
+    private static String currentTokenName() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof StudioPrincipal principal ? principal.tokenName() : null;
     }
 
     /** The canonical parameters with each of {@code paths} (JSON Pointers) replaced by {@value #REDACTED}. */
