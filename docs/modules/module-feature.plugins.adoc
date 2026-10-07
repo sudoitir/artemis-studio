@@ -22,6 +22,8 @@ _Others_
 * `i.g.s.a.k.p.internal.host.StudioRestart` (in Plugin contract)
 * `i.g.s.a.k.p.internal.trust.PluginTrust` (in Plugin contract)
 * `i.g.s.a.k.p.PluginLicenseStore` (in Plugin contract)
+* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
+* `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
