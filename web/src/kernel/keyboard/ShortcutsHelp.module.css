@@ -1,0 +1,36 @@
+/* What a shortcut does, then its keys: the words take what is left and wrap, the keys keep their own
+   column at their own width and wrap between combinations only, so nothing scrolls sideways at any zoom. */
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+  align-items: baseline;
+  margin: 0;
+}
+
+.what {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--mantine-spacing-xs);
+  margin: 0;
+}
+
+/* One combination never breaks across lines: ⌘ and K stay together. */
+.combo {
+  display: inline-flex;
+  gap: calc(var(--mantine-spacing-xs) / 4);
+  white-space: nowrap;
+}
+
+.note {
+  margin-block-start: var(--mantine-spacing-xs);
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
