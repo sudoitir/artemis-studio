@@ -544,7 +544,7 @@ const store = (f: Fixture, i: number): StoreView => ({
     f === 'normal'
       ? ['Audit log', 'Queue samples', 'Message index', 'Metric samples', 'Broker events', 'Job runs'][i]
       : name(f, 'store', i),
-  source: i === 3 ? 'plugin-reflex' : 'core',
+  source: i === 3 ? 'plugin-workflow' : 'core',
   tables: [],
   retention: i === 2 ? 'forever' : `${7 * (i + 1)}d`,
   defaultRetention: '7d',
@@ -563,7 +563,7 @@ const store = (f: Fixture, i: number): StoreView => ({
 });
 
 const plugin = (f: Fixture, i: number): PluginView => ({
-  id: f === 'normal' ? ['reflex', 'notes', 'billing', 'mailer', 'sso', 'tracing'][i] : name(f, 'plugin', i),
+  id: f === 'normal' ? ['workflow', 'notes', 'billing', 'mailer', 'sso', 'tracing'][i] : name(f, 'plugin', i),
   version: `1.${i}.0`,
   status: (['active', 'failed', 'incompatible', 'active', 'needs_restart', 'disabled'] as const)[i],
   failure: null,
@@ -583,7 +583,9 @@ const plugin = (f: Fixture, i: number): PluginView => ({
   info: {
     name: `plugin-${i}`,
     title:
-      f === 'normal' ? ['Reflex', 'Notes', 'Billing', 'Mailer', 'Single sign-on', 'Tracing'][i] : name(f, 'plugin', i),
+      f === 'normal'
+        ? ['Workflow', 'Notes', 'Billing', 'Mailer', 'Single sign-on', 'Tracing'][i]
+        : name(f, 'plugin', i),
     description: null,
     vendor: { name: f === 'normal' ? 'Acme' : name(f, 'vendor', 0), url: null, email: null },
     license: null,

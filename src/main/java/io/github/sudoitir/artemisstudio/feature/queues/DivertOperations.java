@@ -148,14 +148,14 @@ public class DivertOperations {
                 "createDivert(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,"
                         + "java.lang.String,java.lang.String,java.util.Map,java.lang.String)",
                 config.get("name"),
-                config.getOrDefault("routing-name", config.get("name")),
-                config.get("address"),
-                config.get("forwarding-address"),
-                Boolean.TRUE.equals(config.get("exclusive")),
-                config.getOrDefault("filter-string", ""),
+                config.getOrDefault(ROUTING_NAME, config.get("name")),
+                config.get(ADDRESS),
+                config.get(FORWARDING_ADDRESS),
+                Boolean.TRUE.equals(config.get(EXCLUSIVE)),
+                config.getOrDefault(FILTER_STRING, ""),
                 transformerClass,
                 transformerProperties,
-                config.getOrDefault("routing-type", "STRIP"));
+                config.getOrDefault(ROUTING_TYPE, "STRIP"));
     }
 
     /**
