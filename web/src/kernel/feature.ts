@@ -17,6 +17,7 @@ export const FEATURE_IDS = [
   'lifecycle',
   'stream',
   'inbox',
+  'approvals',
   'broker',
   'clusters',
   'governance',
