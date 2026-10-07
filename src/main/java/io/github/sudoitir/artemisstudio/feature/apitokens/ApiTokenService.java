@@ -292,6 +292,10 @@ public class ApiTokenService implements PersonalTokens {
             return null;
         }
         pendingLastUsed.put(token.getId(), now);
+        return principalOf(token, owner);
+    }
+
+    private TokenPrincipal principalOf(ApiTokenEntity token, UserAccounts.Account owner) {
         return new TokenPrincipal(
                 owner.id(),
                 owner.username(),
@@ -317,6 +321,16 @@ public class ApiTokenService implements PersonalTokens {
                 .filter(t -> t.isActive(Instant.now(), maxLifetime()))
                 .flatMap(t -> accounts.byId(t.getUserId()).filter(owner -> !rejectsOwner(t, owner)))
                 .isPresent();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<TokenPrincipal> principal(UUID tokenId) {
+        return tokens.findById(tokenId)
+                .filter(t -> t.isActive(Instant.now(), maxLifetime()))
+                .flatMap(t -> accounts.byId(t.getUserId())
+                        .filter(owner -> !rejectsOwner(t, owner))
+                        .map(owner -> principalOf(t, owner)));
     }
 
     @Override

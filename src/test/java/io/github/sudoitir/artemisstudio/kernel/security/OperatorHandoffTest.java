@@ -2,6 +2,8 @@ package io.github.sudoitir.artemisstudio.kernel.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateTicket;
 import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RolePermissionRepository;
@@ -135,5 +137,33 @@ class OperatorHandoffTest extends PostgresIntegrationTest {
         assertThat(seen).isEqualTo(userId);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         assertThat(before).isNotNull();
+    }
+
+    @Test
+    void theGatesCoverageTravelsToTheThreadThatRunsTheOperator() throws Exception {
+        GateTicket ticket = new GateTicket(null, "bulk-run", null);
+        Operator operator = ScopedValue.where(GateScope.COVERED, ticket).call(() -> handoff.capture());
+        AtomicReference<GateTicket> seen = new AtomicReference<>();
+
+        Thread.ofVirtual()
+                .start(() -> handoff.runAs(
+                        operator, () -> seen.set(GateScope.COVERED.isBound() ? GateScope.COVERED.get() : null)))
+                .join();
+
+        assertThat(operator.covered()).isSameAs(ticket);
+        assertThat(seen.get()).isSameAs(ticket);
+    }
+
+    @Test
+    void anOperatorCapturedOutsideTheGateIsNotCovered() throws Exception {
+        Operator operator = handoff.capture();
+        AtomicReference<Boolean> bound = new AtomicReference<>();
+
+        Thread.ofVirtual()
+                .start(() -> handoff.runAs(operator, () -> bound.set(GateScope.COVERED.isBound())))
+                .join();
+
+        assertThat(operator.covered()).isNull();
+        assertThat(bound.get()).isFalse();
     }
 }

@@ -26,6 +26,8 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Starts and ends the server-side session for a principal (identity-and-sessions spec). Every
@@ -279,6 +281,23 @@ public class SessionAuthentication {
         return session == null
                 ? Optional.empty()
                 : Optional.ofNullable((SessionFacts) session.getAttribute(FACTS_ATTRIBUTE));
+    }
+
+    /**
+     * The facts of the session behind the current request: when the user last proved themselves, and
+     * whether and how they verified a second factor. Empty when the current principal is an API token,
+     * on a thread with no request (a worker, a replay) and before sign-in. Present exactly when the
+     * current principal is a browser session.
+     */
+    public Optional<SessionFacts> current() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null
+                || !(auth.getPrincipal() instanceof StudioPrincipal principal)
+                || principal instanceof TokenPrincipal
+                || !(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+            return Optional.empty();
+        }
+        return facts(attributes.getRequest());
     }
 
     /** When the user last did something in this session; its sign-in time until they do. */

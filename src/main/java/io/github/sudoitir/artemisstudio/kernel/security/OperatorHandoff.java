@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateTicket;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,8 +27,12 @@ public class OperatorHandoff {
     private final UserAccounts accounts;
     private final PermissionResolver perm;
 
-    /** Who started the work: their principal as authenticated, and the actor their audit rows carry. */
-    public record Operator(StudioPrincipal principal, Actor actor) {}
+    /**
+     * Who started the work: their principal as authenticated, the actor their audit rows carry, and the
+     * approval gate's ticket when the work runs under one (null otherwise), so the items of a bulk run
+     * keep the coverage of the operation that started it.
+     */
+    public record Operator(StudioPrincipal principal, Actor actor, GateTicket covered) {}
 
     /** On the request thread. Fails when no one is signed in: there is no one to act for. */
     public Operator capture() {
@@ -34,7 +40,7 @@ public class OperatorHandoff {
         if (auth == null || !(auth.getPrincipal() instanceof StudioPrincipal principal)) {
             throw new IllegalStateException("There is no signed-in operator to act for.");
         }
-        return new Operator(principal, actors.resolve());
+        return new Operator(principal, actors.resolve(), GateScope.COVERED.isBound() ? GateScope.COVERED.get() : null);
     }
 
     /**
@@ -47,7 +53,7 @@ public class OperatorHandoff {
         }
         return accounts.byId(userId).filter(account -> !account.disabled()).map(account -> {
             StudioPrincipal principal = StudioPrincipal.live(account.id(), account.username(), false);
-            return new Operator(principal, new Actor(account.username(), null, null, account.id()));
+            return new Operator(principal, new Actor(account.username(), null, null, account.id()), null);
         });
     }
 
@@ -57,8 +63,11 @@ public class OperatorHandoff {
         StudioPrincipal principal = operator.principal();
         context.setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
-        ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor())
-                .run(new DelegatingSecurityContextRunnable(task, context));
+        ScopedValue.Carrier carrier = ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor());
+        if (operator.covered() != null) {
+            carrier = carrier.where(GateScope.COVERED, operator.covered());
+        }
+        carrier.run(new DelegatingSecurityContextRunnable(task, context));
     }
 
     /** As {@link #runAs}, returning what {@code task} returns. */
