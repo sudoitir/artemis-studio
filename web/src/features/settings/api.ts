@@ -28,9 +28,9 @@ export function useUpdateSetting() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, { key: string; value: string }>({
     mutationFn: ({ key, value }) =>
-      request(`/settings/${encodeURIComponent(key)}`, {
-        method: 'PUT',
-        body: JSON.stringify({ value }),
+      request('/settings/changes', {
+        method: 'POST',
+        body: JSON.stringify({ changes: [{ key, value }] }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
   });
@@ -39,7 +39,11 @@ export function useUpdateSetting() {
 export function useResetSetting() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
-    mutationFn: (key) => request(`/settings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+    mutationFn: (key) =>
+      request('/settings/changes', {
+        method: 'POST',
+        body: JSON.stringify({ changes: [{ key, reset: true }] }),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),
   });
 }
