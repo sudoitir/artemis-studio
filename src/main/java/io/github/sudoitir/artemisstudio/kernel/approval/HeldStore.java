@@ -118,6 +118,16 @@ class HeldStore {
                 .findFirst();
     }
 
+    /** The open requests of one type, newest first. */
+    List<HeldRow> openByType(String type, int limit) {
+        return jdbc.query(
+                "SELECT " + COLUMNS + " FROM held_operation WHERE type = ? AND state IN (" + OPEN
+                        + ") ORDER BY id DESC LIMIT ?",
+                rows,
+                type,
+                limit);
+    }
+
     int openCount(UUID requesterId) {
         return jdbc.queryForObject(
                 "SELECT count(*) FROM held_operation WHERE requester_id = ? AND state IN (" + OPEN + ")",
