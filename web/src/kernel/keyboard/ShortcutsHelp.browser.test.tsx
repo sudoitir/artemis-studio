@@ -2,7 +2,8 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { page as browserPage, userEvent } from 'vitest/browser';
 import { screen } from '@testing-library/react';
 
-import { axeViolations, renderThemedWithFeatures, SCHEMES, settle } from '../../test/browser.tsx';
+import { axeViolations, SCHEMES, settle } from '../../test/browser.tsx';
+import { renderThemedWithFeatures } from '../../test/browserWithFeatures.tsx';
 import { setShortcutsHelpOpen } from './shortcuts.ts';
 import { ShortcutsHelp } from './ShortcutsHelp.tsx';
 
