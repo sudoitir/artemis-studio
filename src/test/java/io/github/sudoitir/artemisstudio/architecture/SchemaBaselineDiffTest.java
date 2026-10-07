@@ -134,7 +134,12 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // A token grant can be limited to a queue or address name pattern, so the pattern is
                     // part of its key (changeset feature-apitokens 0005).
                     "CREATE TABLE api_token_grant ",
-                    "pk_api_token_grant")
+                    "pk_api_token_grant",
+                    // Plugins' notices share the delivery queue: kind, source, a nullable rule (changeset
+                    // feature-alerting 0006).
+                    "CREATE TABLE alert_delivery ",
+                    "ck_alert_delivery_(kind|rule)",
+                    "ix_alert_delivery_source_created")
             .map(Pattern::compile)
             .toList();
 

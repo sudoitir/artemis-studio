@@ -15,7 +15,9 @@ import tools.jackson.databind.ObjectMapper;
  * Delivers to a generic webhook receiver, signed per the Standard Webhooks spec
  * (ADR-0036): {@code webhook-id}/{@code webhook-timestamp}/{@code webhook-signature}
  * headers over the raw payload body. {@code webhook-id} is the delivery's own row
- * id, giving the receiver a free idempotency key across retries of the same row.
+ * id, giving the receiver a free idempotency key across retries of the same row. A notice's
+ * payload is already the body a receiver gets ({@code type: "notice"}), so it is sent and signed
+ * exactly like an alert's.
  */
 @Component
 public class WebhookSender implements NotificationSender {

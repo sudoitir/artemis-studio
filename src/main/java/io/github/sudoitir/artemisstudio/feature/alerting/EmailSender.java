@@ -45,10 +45,14 @@ public class EmailSender implements NotificationSender {
     @Override
     public Result send(long deliveryId, String channelConfigJson, String password, String payloadJson) {
         EmailChannelConfig config;
-        AlertMessage message;
+        NoticePayload notice;
+        AlertMessage message = null;
         try {
             config = EmailChannelConfig.parse(channelConfigJson, mapper);
-            message = AlertMessage.parse(payloadJson, mapper);
+            notice = NoticePayload.parseOrNull(payloadJson, mapper);
+            if (notice == null) {
+                message = AlertMessage.parse(payloadJson, mapper);
+            }
         } catch (RuntimeException e) {
             return Result.permanent("The channel or payload could not be read: " + e.getMessage());
         }
@@ -59,7 +63,11 @@ public class EmailSender implements NotificationSender {
         JavaMailSenderImpl sender = sender(config, password, settings.duration(AlertingSettings.EMAIL_TIMEOUT));
         try {
             MimeMessage mime = sender.createMimeMessage();
-            compose(mime, config, message, deliveryId);
+            if (notice != null) {
+                compose(mime, config, notice, deliveryId);
+            } else {
+                compose(mime, config, message, deliveryId);
+            }
             sender.send(mime);
             return Result.ok();
         } catch (MailAuthenticationException e) {
@@ -105,12 +113,36 @@ public class EmailSender implements NotificationSender {
 
     static void compose(MimeMessage mime, EmailChannelConfig config, AlertMessage message, long deliveryId)
             throws MessagingException {
+        compose(
+                mime,
+                config,
+                AlertMessageFormatter.title(message),
+                AlertMessageFormatter.plainText(message),
+                AlertMessageFormatter.html(message),
+                deliveryId);
+    }
+
+    /** A notice's title is the subject. */
+    static void compose(MimeMessage mime, EmailChannelConfig config, NoticePayload notice, long deliveryId)
+            throws MessagingException {
+        compose(
+                mime,
+                config,
+                notice.title(),
+                NoticeFormatter.plainText(notice),
+                NoticeFormatter.html(notice),
+                deliveryId);
+    }
+
+    private static void compose(
+            MimeMessage mime, EmailChannelConfig config, String subject, String text, String html, long deliveryId)
+            throws MessagingException {
         MimeMessageHelper helper = new MimeMessageHelper(mime, true, StandardCharsets.UTF_8.name());
         helper.setFrom(config.from());
         helper.setTo(config.to().toArray(String[]::new));
         String prefix = config.subjectPrefix() == null ? "" : config.subjectPrefix() + " ";
-        helper.setSubject(AlertMessageFormatter.singleLine(prefix + AlertMessageFormatter.title(message)));
-        helper.setText(AlertMessageFormatter.plainText(message), AlertMessageFormatter.html(message));
+        helper.setSubject(AlertMessageFormatter.singleLine(prefix + subject));
+        helper.setText(text, html);
         // A stable id per delivery row lets a mail client thread a retried delivery with its first try.
         mime.setHeader("X-Artemis-Studio-Delivery", Long.toString(deliveryId));
     }

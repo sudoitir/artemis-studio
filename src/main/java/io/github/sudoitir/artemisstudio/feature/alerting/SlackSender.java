@@ -42,7 +42,9 @@ public class SlackSender implements NotificationSender {
     public Result send(long deliveryId, String channelConfigJson, String webhookUrl, String payloadJson) {
         String body;
         try {
-            body = mapper.writeValueAsString(blocks(AlertMessage.parse(payloadJson, mapper)));
+            NoticePayload notice = NoticePayload.parseOrNull(payloadJson, mapper);
+            body = mapper.writeValueAsString(
+                    notice != null ? blocks(notice) : blocks(AlertMessage.parse(payloadJson, mapper)));
         } catch (RuntimeException e) {
             log.warn("Failed to render alert payload for Slack: {}", e.toString());
             return Result.permanent("The alert payload could not be rendered: " + e.getMessage());
@@ -95,6 +97,33 @@ public class SlackSender implements NotificationSender {
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("text", AlertMessageFormatter.title(m));
+        body.put("blocks", blocks);
+        return body;
+    }
+
+    /** Block Kit for a notice: the headline, the summary, the facts as fields, and a button when there is a link. */
+    static Map<String, Object> blocks(NoticePayload n) {
+        List<Map<String, Object>> blocks = new ArrayList<>();
+        blocks.add(Map.of("type", "header", "text", plain(truncate(NoticeFormatter.headline(n), 150))));
+        if (n.summary() != null && !n.summary().isBlank()) {
+            blocks.add(Map.of("type", "section", "text", mrkdwn(truncate(escape(n.summary()), 2900))));
+        }
+        if (!n.facts().isEmpty()) {
+            List<Map<String, Object>> fields = new ArrayList<>();
+            for (NoticeMessage.Fact f : n.facts()) {
+                fields.add(mrkdwn("*" + escape(f.label()) + "*\n" + escape(f.value())));
+            }
+            blocks.add(Map.of("type", "section", "fields", fields));
+        }
+        if (n.url() != null) {
+            blocks.add(Map.of(
+                    "type",
+                    "actions",
+                    "elements",
+                    List.of(Map.of("type", "button", "text", plain("Open in Studio"), "url", n.url()))));
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("text", NoticeFormatter.headline(n));
         body.put("blocks", blocks);
         return body;
     }

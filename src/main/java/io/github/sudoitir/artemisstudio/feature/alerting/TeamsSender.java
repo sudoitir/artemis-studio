@@ -48,7 +48,9 @@ public class TeamsSender implements NotificationSender {
         }
         String body;
         try {
-            body = mapper.writeValueAsString(message(AlertMessage.parse(payloadJson, mapper)));
+            NoticePayload notice = NoticePayload.parseOrNull(payloadJson, mapper);
+            body = mapper.writeValueAsString(
+                    notice != null ? message(notice) : message(AlertMessage.parse(payloadJson, mapper)));
         } catch (RuntimeException e) {
             return Result.permanent("The alert payload could not be rendered: " + e.getMessage());
         }
@@ -104,22 +106,54 @@ public class TeamsSender implements NotificationSender {
         for (AlertMessage.Line t : m.transitions()) {
             bodyItems.add(Map.of("type", "TextBlock", "text", "• " + AlertMessageFormatter.line(t), "wrap", true));
         }
+        return envelope(bodyItems, m.studioUrl());
+    }
 
+    private static Map<String, Object> envelope(List<Object> bodyItems, String studioUrl) {
         Map<String, Object> card = new LinkedHashMap<>();
         card.put("$schema", "http://adaptivecards.io/schemas/adaptive-card.json");
         card.put("type", "AdaptiveCard");
         card.put("version", "1.4");
         card.put("body", bodyItems);
-        if (m.studioUrl() != null) {
-            card.put(
-                    "actions",
-                    List.of(Map.of("type", "Action.OpenUrl", "title", "Open in Studio", "url", m.studioUrl())));
+        if (studioUrl != null) {
+            card.put("actions", List.of(Map.of("type", "Action.OpenUrl", "title", "Open in Studio", "url", studioUrl)));
         }
         return Map.of(
                 "type",
                 "message",
                 "attachments",
                 List.of(Map.of("contentType", "application/vnd.microsoft.card.adaptive", "content", card)));
+    }
+
+    /** The same envelope as an alert's, around a card with the headline, the summary, the facts and a link. */
+    static Map<String, Object> message(NoticePayload n) {
+        List<Object> bodyItems = new ArrayList<>();
+        bodyItems.add(Map.of(
+                "type",
+                "TextBlock",
+                "text",
+                NoticeFormatter.headline(n),
+                "weight",
+                "Bolder",
+                "size",
+                "Medium",
+                "wrap",
+                true,
+                "color",
+                switch (AlertMessageFormatter.severityWord(n.severity())) {
+                    case "CRITICAL" -> "Attention";
+                    case "WARNING" -> "Warning";
+                    default -> "Default";
+                }));
+        if (n.summary() != null && !n.summary().isBlank()) {
+            bodyItems.add(Map.of("type", "TextBlock", "text", n.summary(), "wrap", true));
+        }
+        if (!n.facts().isEmpty()) {
+            List<Map<String, Object>> facts = new ArrayList<>();
+            n.facts().forEach(f -> facts.add(fact(f.label(), f.value())));
+            bodyItems.add(Map.of("type", "FactSet", "facts", facts));
+        }
+        return envelope(bodyItems, n.url());
     }
 
     private static Map<String, Object> fact(String title, String value) {

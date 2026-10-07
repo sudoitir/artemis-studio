@@ -28829,8 +28829,14 @@
             "format" : "int64"
           },
           "ruleId" : {
-            "type" : "string",
+            "type" : [ "string", "null" ],
             "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : [ "string", "null" ]
           },
           "summary" : {
             "type" : "string"
@@ -28858,7 +28864,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "attempts", "createdAt", "nextAttemptAt", "ruleId", "seq", "state", "summary" ]
+        "required" : [ "attempts", "createdAt", "kind", "nextAttemptAt", "seq", "state", "summary" ]
       },
       "ChannelTestRequest" : {
         "type" : "object",

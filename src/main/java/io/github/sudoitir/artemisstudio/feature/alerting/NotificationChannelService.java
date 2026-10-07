@@ -276,13 +276,18 @@ public class NotificationChannelService {
     private AlertDeliveryView deliveryView(AlertDeliveryEntity d) {
         String summary;
         try {
-            summary = AlertMessageFormatter.title(AlertMessage.parse(d.getPayload(), json));
+            NoticePayload notice = NoticePayload.parseOrNull(d.getPayload(), json);
+            summary = notice != null
+                    ? NoticeFormatter.headline(notice)
+                    : AlertMessageFormatter.title(AlertMessage.parse(d.getPayload(), json));
         } catch (RuntimeException _) {
             summary = "(unreadable payload)";
         }
         return new AlertDeliveryView(
                 d.getSeq(),
                 d.getRuleId(),
+                d.getKind(),
+                d.getSource(),
                 summary,
                 d.getState(),
                 d.getAttempts(),

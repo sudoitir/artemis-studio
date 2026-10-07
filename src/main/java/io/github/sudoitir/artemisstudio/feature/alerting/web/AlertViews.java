@@ -104,10 +104,13 @@ public final class AlertViews {
             @Schema(requiredMode = REQUIRED) long failedLast24h,
             @Schema(requiredMode = REQUIRED) long sentLast24h) {}
 
-    /** One entry of a channel's delivery log. {@code summary} is the notification's title line. */
+    /** One entry of a channel's delivery log. {@code summary} is the notification's title line. A notice has a
+     * {@code source} (the plugin that sent it) and no rule. */
     public record AlertDeliveryView(
             @Schema(requiredMode = REQUIRED) long seq,
-            @Schema(requiredMode = REQUIRED) UUID ruleId,
+            @Schema(nullable = true) UUID ruleId,
+            @Schema(requiredMode = REQUIRED) String kind,
+            @Schema(nullable = true) String source,
             @Schema(requiredMode = REQUIRED) String summary,
             @Schema(requiredMode = REQUIRED) String state,
             @Schema(requiredMode = REQUIRED) int attempts,

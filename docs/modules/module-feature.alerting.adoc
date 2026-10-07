@@ -14,7 +14,9 @@ _Services_
 * `i.g.s.a.f.a.AlertEvaluator`
 * `i.g.s.a.f.a.AlertRuleService`
 * `i.g.s.a.f.a.AlertService`
+* `i.g.s.a.f.a.NotificationChannels` (via `i.g.s.a.f.a.NotificationChannelDirectory`)
 * `i.g.s.a.f.a.NotificationChannelService`
+* `i.g.s.a.f.a.OutboundNoticeService`
 
 _Configuration properties_
 
