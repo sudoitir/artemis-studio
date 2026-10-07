@@ -5,6 +5,6 @@
 services:
   studio:
     build: !reset null
-    image: ${QA_RUNTIME_IMAGE:-sudoit1/artemis-studio:latest}
+    image: ${QA_RUNTIME_IMAGE:-sudoit1/artemis-studio:dev}
     volumes:
       - ${QA_JAR:?set QA_JAR to the jar to run}:/app/app.jar:ro

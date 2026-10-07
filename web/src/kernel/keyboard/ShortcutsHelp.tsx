@@ -1,12 +1,12 @@
 import { Fragment } from 'react';
-import { ActionIcon, Group, Kbd, Popover, ScrollArea, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Kbd, Popover, ScrollArea, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconKeyboard } from '@tabler/icons-react';
 
-import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { useFeatures } from '../features.ts';
 import { NAV_GROUPS } from '../nav/groups.ts';
 import { setShortcutsHelpOpen, useShortcutsHelpOpen, useSingleKeyShortcuts } from './shortcuts.ts';
+import classes from './ShortcutsHelp.module.css';
 import { viewHotkeys } from './useKeySequences.ts';
 
 interface Row {
@@ -16,7 +16,7 @@ interface Row {
 
 function Keys({ keys }: Readonly<{ keys: string[][] }>) {
   return (
-    <Group gap={6} wrap="nowrap">
+    <dd className={classes.keys}>
       {keys.map((combo, i) => (
         <Fragment key={combo.join('+')}>
           {i > 0 ? (
@@ -24,25 +24,36 @@ function Keys({ keys }: Readonly<{ keys: string[][] }>) {
               or
             </Text>
           ) : null}
-          <Group gap={2} wrap="nowrap">
+          <span className={classes.combo}>
             {combo.map((k) => (
               <Kbd key={k} size="xs">
                 {k}
               </Kbd>
             ))}
-          </Group>
+          </span>
         </Fragment>
       ))}
-    </Group>
+    </dd>
   );
 }
 
-/** One group of shortcuts: what each does, then the keys that do it. */
-function Shortcuts({ title, rows }: Readonly<{ title: string; rows: Row[] }>) {
+/**
+ * One group of shortcuts: what each does, in a line read at a glance, then the keys that do it. `note` holds
+ * what a line leaves out.
+ */
+function Shortcuts({ title, rows, note }: Readonly<{ title: string; rows: Row[]; note?: string }>) {
   if (rows.length === 0) return null;
   return (
     <Section title={title} headingLevel={3}>
-      <DescriptionList items={rows.map((row) => ({ term: row.what, value: <Keys keys={row.keys} /> }))} />
+      <dl className={classes.list}>
+        {rows.map((row) => (
+          <Fragment key={row.what}>
+            <dt className={classes.what}>{row.what}</dt>
+            <Keys keys={row.keys} />
+          </Fragment>
+        ))}
+      </dl>
+      {note ? <Text className={classes.note}>{note}</Text> : null}
     </Section>
   );
 }
@@ -72,7 +83,8 @@ export function ShortcutsHelp() {
       opened={opened}
       onChange={setShortcutsHelpOpen}
       position="bottom-end"
-      width="27.5rem"
+      // Never wider than the window, so at 200% zoom it still fits beside nothing.
+      width="min(30rem, calc(100vw - 2 * var(--mantine-spacing-md)))"
       shadow="md"
       withArrow
       trapFocus
@@ -97,7 +109,7 @@ export function ShortcutsHelp() {
         </Tooltip>
       </Popover.Target>
       <Popover.Dropdown aria-label="Keyboard shortcuts" p={0}>
-        <ScrollArea.Autosize mah="min(70vh, 40rem)" type="auto">
+        <ScrollArea.Autosize mah="min(70vh, 40rem)" type="auto" scrollbars="y">
           <Stack p="md">
             <Section title="Keyboard shortcuts">
               <Switch
@@ -105,7 +117,7 @@ export function ShortcutsHelp() {
                 onChange={(e) => setEnabled(e.currentTarget.checked)}
                 label="Single-key shortcuts"
                 data-autofocus
-                description="The shortcuts without ⌘ or Ctrl: go to a view, open this list, focus the filter. Turn them off if you use speech input, or if they get in your way. Kept in this browser."
+                description="Keys without ⌘ or Ctrl. Turn them off for speech input or if they get in your way. Kept in this browser."
               />
 
               <Shortcuts
@@ -166,7 +178,7 @@ export function ShortcutsHelp() {
                   { keys: [['Enter']], what: 'Open the row' },
                   {
                     keys: [['Space']],
-                    what: 'Select the row, where rows can be selected',
+                    what: 'Select the row',
                   },
                   {
                     keys: [['Shift', 'F10'], ['Menu']],
@@ -174,6 +186,7 @@ export function ShortcutsHelp() {
                   },
                   { keys: [['Ctrl', 'C']], what: "Copy the cell's full value" },
                 ]}
+                note="Space selects only where a list has checkboxes."
               />
 
               <Shortcuts
@@ -191,27 +204,28 @@ export function ShortcutsHelp() {
                       ['⌘', '.'],
                       ['Ctrl', '.'],
                     ],
-                    what: 'Cancel the running query, from the editor or the page',
+                    what: 'Cancel the running query',
                   },
-                  { keys: [['Ctrl', 'Space']], what: 'Complete a column or queue name' },
+                  { keys: [['Ctrl', 'Space']], what: 'Complete a name' },
                   {
                     keys: [['Escape']],
-                    what: 'Close completion, then collapse the selection, then leave the editor; it never cancels',
+                    what: 'Close completion or leave the editor',
                   },
-                  { keys: [['F8']], what: 'Step to the next diagnostic' },
+                  { keys: [['F8']], what: 'Go to the next problem' },
                   {
                     keys: [
                       ['⌘', 'Shift', 'M'],
                       ['Ctrl', 'Shift', 'M'],
                     ],
-                    what: 'Give the results the whole workspace, or take it back; Escape restores the editor',
+                    what: 'Maximise or restore the results',
                   },
                   {
                     keys: [['↑'], ['↓']],
-                    what: 'On the separator: resize the editor and the results (Shift for a larger step)',
+                    what: 'Resize the editor',
                   },
-                  { keys: [['Home'], ['End']], what: 'On the separator: the smallest or the largest editor' },
+                  { keys: [['Home'], ['End']], what: 'Smallest or largest editor' },
                 ]}
+                note="⌘ or Ctrl + . cancels from the editor or the page; Escape never cancels. Resize keys work on the separator, Shift for bigger steps."
               />
 
               <Shortcuts

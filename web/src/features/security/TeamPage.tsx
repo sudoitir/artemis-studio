@@ -1,31 +1,70 @@
 import { useState } from 'react';
-import { Button, Tabs } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { ActionIcon, Group, Stack, Tabs } from '@mantine/core';
+import { IconArrowLeft, IconPencil, IconTrash } from '@tabler/icons-react';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 
+import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Section } from '../../ui/Section.tsx';
-import { useTeam, type PatternKind } from './api.ts';
+import { useTeam, type PatternKind, type TeamView } from './api.ts';
+import classes from './Security.module.css';
+import { teamSearch } from './teamColumns.tsx';
+import { DeleteTeam, TeamNameDialog } from './teamDialogs.tsx';
+import { useTeamAccess } from './teamAccess.ts';
 import { TeamMembers } from './TeamMembers.tsx';
 import { TeamPatterns, type PatternDraft } from './TeamPatterns.tsx';
 import { TeamShares } from './TeamShares.tsx';
 import { TeamUnowned } from './TeamUnowned.tsx';
+import { countOf } from './teamWords.ts';
 
 const TABS = [
-  { id: 'patterns', title: 'Patterns' },
-  { id: 'members', title: 'Members' },
-  { id: 'shares', title: 'Shares' },
-  { id: 'unowned', title: 'Unowned' },
+  { id: 'patterns', title: 'Patterns', count: (t: TeamView) => t.patterns.length },
+  { id: 'members', title: 'Members', count: (t: TeamView) => t.members.length },
+  { id: 'shares', title: 'Shares', count: (t: TeamView) => t.sharesOut.length + t.sharesIn.length },
+  { id: 'unowned', title: 'Unowned', count: undefined },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
 
 const isTab = (value: unknown): value is TabId => TABS.some((t) => t.id === value);
 
-/** One team: its patterns, members and shares, and the resources on a cluster that no team owns. */
-export function TeamPage({ teamId, onBack }: Readonly<{ teamId: string; onBack: () => void }>) {
+/** What a team owns and who uses it, in a line: the first thing to know about a team. */
+function teamSummary(team: TeamView): string {
+  const clusters = new Set(team.patterns.map((p) => p.clusterId)).size;
+  const shares = team.sharesOut.length + team.sharesIn.length;
+  return [
+    team.patterns.length === 0
+      ? 'Owns nothing yet: add a pattern'
+      : `Owns ${countOf(team.patterns.length, 'pattern')} on ${countOf(clusters, 'cluster')}`,
+    team.members.length === 0 ? 'no members' : countOf(team.members.length, 'member'),
+    shares === 0 ? 'no shares' : `shares ${team.sharesOut.length} out and ${team.sharesIn.length} in`,
+  ].join(' · ');
+}
+
+/** The way back to the list, as a real link: it opens in a new tab like any other. */
+function AllTeams() {
+  return (
+    <Link to="." search={teamSearch(undefined) as never} className={`${linkClasses.link} ${classes.back}`}>
+      <IconArrowLeft size="1rem" aria-hidden />
+      All teams
+    </Link>
+  );
+}
+
+/**
+ * One team: its patterns, members and shares, and the resources on a cluster that no team owns. `focusNewPattern`
+ * is set when the team was just created, so its first pattern is where focus lands; `onFocused` clears it.
+ */
+export function TeamPage({
+  teamId,
+  focusNewPattern,
+  onFocused,
+  onDeleted,
+}: Readonly<{ teamId: string; focusNewPattern: boolean; onFocused: () => void; onDeleted: () => void }>) {
   const team = useTeam(teamId);
+  const { userAdmin, verdict } = useTeamAccess();
   const search = useSearch({ strict: false }) as { teamTab?: string };
   const navigate = useNavigate();
   const tab: TabId = isTab(search.teamTab) ? search.teamTab : 'patterns';
@@ -36,16 +75,24 @@ export function TeamPage({ teamId, onBack }: Readonly<{ teamId: string; onBack: 
     });
   // A name chosen in the Unowned tab, carried to the pattern form it pre-fills.
   const [draft, setDraft] = useState<PatternDraft | undefined>();
+  const [renaming, setRenaming] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const back = (
-    <Button variant="subtle" size="compact-sm" leftSection={<IconArrowLeft size="1rem" aria-hidden />} onClick={onBack}>
-      All teams
-    </Button>
-  );
-
-  if (team.isPending) return <LoadingState label="Loading team" blockSize="16rem" />;
+  if (team.isPending) {
+    return (
+      <Stack gap="xs">
+        <AllTeams />
+        <LoadingState label="Loading team" blockSize="16rem" />
+      </Stack>
+    );
+  }
   if (team.isError) {
-    return <ErrorState error={team.error} onRetry={() => void team.refetch()} actions={back} />;
+    return (
+      <Stack gap="xs">
+        <AllTeams />
+        <ErrorState error={team.error} onRetry={() => void team.refetch()} />
+      </Stack>
+    );
   }
 
   const assign = (clusterId: string, kind: PatternKind, name: string) => {
@@ -53,29 +100,66 @@ export function TeamPage({ teamId, onBack }: Readonly<{ teamId: string; onBack: 
     void setTab('patterns');
   };
 
+  const actions = (
+    <Group gap="xs">
+      <CapabilityGate verdict={verdict('Renaming a team')} what="renaming the team">
+        <ActionIcon
+          variant="default"
+          size="lg"
+          disabled={!userAdmin}
+          onClick={() => setRenaming(true)}
+          aria-label={`Rename ${team.data.name}`}
+        >
+          <IconPencil size="1rem" aria-hidden />
+        </ActionIcon>
+      </CapabilityGate>
+      <CapabilityGate verdict={verdict('Deleting a team')} what="deleting the team">
+        <ActionIcon
+          variant="default"
+          size="lg"
+          disabled={!userAdmin}
+          onClick={() => setDeleteOpen(true)}
+          aria-label={`Delete ${team.data.name}`}
+        >
+          <IconTrash size="1rem" aria-hidden />
+        </ActionIcon>
+      </CapabilityGate>
+    </Group>
+  );
+
   return (
-    <Section title={team.data.name} description="Patterns, members and shares of this team." actions={back}>
-      <Tabs value={tab} onChange={setTab}>
-        <Tabs.List aria-label={`${team.data.name} sections`}>
-          {TABS.map(({ id, title }) => (
-            <Tabs.Tab key={id} value={id}>
-              {title}
-            </Tabs.Tab>
-          ))}
-        </Tabs.List>
-        <Tabs.Panel value="patterns" pt="md">
-          <TeamPatterns team={team.data} draft={draft} />
-        </Tabs.Panel>
-        <Tabs.Panel value="members" pt="md">
-          <TeamMembers team={team.data} />
-        </Tabs.Panel>
-        <Tabs.Panel value="shares" pt="md">
-          <TeamShares team={team.data} />
-        </Tabs.Panel>
-        <Tabs.Panel value="unowned" pt="md">
-          <TeamUnowned onAssign={assign} />
-        </Tabs.Panel>
-      </Tabs>
-    </Section>
+    <Stack gap="xs">
+      <AllTeams />
+      <Section title={team.data.name} description={teamSummary(team.data)} actions={actions}>
+        <Tabs value={tab} onChange={setTab}>
+          <Tabs.List aria-label={`${team.data.name} sections`}>
+            {TABS.map(({ id, title, count }) => (
+              <Tabs.Tab key={id} value={id}>
+                {count ? `${title} (${count(team.data)})` : title}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+          <Tabs.Panel value="patterns" pt="md">
+            <TeamPatterns team={team.data} draft={draft} focusFirst={focusNewPattern} onFocused={onFocused} />
+          </Tabs.Panel>
+          <Tabs.Panel value="members" pt="md">
+            <TeamMembers team={team.data} />
+          </Tabs.Panel>
+          <Tabs.Panel value="shares" pt="md">
+            <TeamShares team={team.data} />
+          </Tabs.Panel>
+          <Tabs.Panel value="unowned" pt="md">
+            <TeamUnowned onAssign={assign} />
+          </Tabs.Panel>
+        </Tabs>
+      </Section>
+
+      <TeamNameDialog
+        naming={renaming ? team.data : null}
+        onClose={() => setRenaming(false)}
+        onDone={() => setRenaming(false)}
+      />
+      <DeleteTeam team={team.data} opened={deleteOpen} onClose={() => setDeleteOpen(false)} onDeleted={onDeleted} />
+    </Stack>
   );
 }

@@ -80,3 +80,20 @@
   list-style: none;
   font-size: var(--mantine-font-size-sm);
 }
+
+/* The way back from a team to the list: an arrow and the words, one link. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  align-self: flex-start;
+  font-size: var(--mantine-font-size-sm);
+}
+
+/* A team's name in the list: a link at least a target tall (WCAG 2.5.8), shortened in the middle. */
+.teamLink {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: 1.5rem;
+}

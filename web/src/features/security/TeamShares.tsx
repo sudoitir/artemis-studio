@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Fieldset, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Fieldset, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
@@ -20,8 +20,8 @@ import {
   type ShareView,
   type TeamView,
 } from './api.ts';
+import { KindField } from './KindField.tsx';
 import { withNotice } from './outcomes.ts';
-import classes from './Security.module.css';
 import { useTeamAccess } from './teamAccess.ts';
 import { shareColumns } from './teamColumns.tsx';
 import { KIND_OPTIONS, patternFault, teamProblem } from './teamWords.ts';
@@ -79,7 +79,7 @@ export function TeamShares({ team }: Readonly<{ team: TeamView }>) {
             <EmptyState
               kind="empty"
               title="Nothing shared"
-              description="A share lets another team see or operate part of what this team owns, without owning it."
+              description="A share lets another team see or operate part of what this team owns, without owning it. Share a pattern below."
             />
           }
         />
@@ -87,9 +87,10 @@ export function TeamShares({ team }: Readonly<{ team: TeamView }>) {
 
       <Section title="Share a pattern" headingLevel={3}>
         {userAdmin ? null : (
-          <Text size="sm" className={classes.reason}>
-            Changing a team&apos;s shares needs the user:admin permission. Ask a user administrator.
-          </Text>
+          <Notice title="Needs user:admin">
+            Sharing a team&apos;s patterns, and removing a share, needs the user:admin permission. Ask a user
+            administrator.
+          </Notice>
         )}
         <Fieldset legend="New share" disabled={!userAdmin}>
           <AddShare team={team} />
@@ -206,6 +207,12 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
             required
           />
         </FieldRow>
+        <KindField
+          label="Kind"
+          data={KIND_OPTIONS}
+          value={form.values.kind}
+          onChange={(next) => form.setFieldValue('kind', next)}
+        />
         <FieldRow>
           <Select
             label="Cluster"
@@ -223,12 +230,6 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
             required
           />
         </FieldRow>
-        <SegmentedControl
-          aria-label="Kind"
-          data={KIND_OPTIONS}
-          value={form.values.kind}
-          onChange={(next) => form.setFieldValue('kind', next as PatternKind)}
-        />
         <div>
           <Button type="submit" loading={add.isPending}>
             Share pattern

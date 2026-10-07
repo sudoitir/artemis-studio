@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Button, Fieldset, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { useEffect, useRef, useState, type Ref } from 'react';
+import { Button, Fieldset, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -8,6 +8,7 @@ import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { focusFirstInvalid, serverFieldErrors } from '../../ui/formErrors.ts';
+import { Notice } from '../../ui/Notice.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -21,6 +22,7 @@ import {
   type PatternView,
   type TeamView,
 } from './api.ts';
+import { KindField } from './KindField.tsx';
 import { withNotice } from './outcomes.ts';
 import classes from './Security.module.css';
 import { useTeamAccess } from './teamAccess.ts';
@@ -43,12 +45,27 @@ export interface PatternDraft {
 
 const rowKey = (p: PatternView) => p.id;
 
-/** A team's patterns, each with the way to remove it, and the form that adds one with a live preview. */
-export function TeamPatterns({ team, draft }: Readonly<{ team: TeamView; draft?: PatternDraft }>) {
+/**
+ * A team's patterns, each with the way to remove it, and the form that adds one with a live preview. `focusFirst`
+ * puts focus in the form's first field once, for a team just created; `onFocused` says it was done.
+ */
+export function TeamPatterns({
+  team,
+  draft,
+  focusFirst = false,
+  onFocused,
+}: Readonly<{ team: TeamView; draft?: PatternDraft; focusFirst?: boolean; onFocused?: () => void }>) {
   const clusters = useClusters();
   const { userAdmin } = useTeamAccess();
   const [removing, setRemoving] = useState<PatternView | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const firstField = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!focusFirst) return;
+    firstField.current?.focus();
+    onFocused?.();
+  }, [focusFirst, onFocused]);
 
   const clusterName = (id: string) => clusters.data?.find((c) => c.id === id)?.name ?? 'Unknown cluster';
   const columns = patternColumns({
@@ -78,7 +95,14 @@ export function TeamPatterns({ team, draft }: Readonly<{ team: TeamView; draft?:
             <EmptyState
               kind="empty"
               title="No patterns"
-              description="Until a pattern is added, this team owns nothing: its members see no queue or address on any cluster."
+              description="A pattern gives this team the queues and addresses whose names it matches on one cluster. Until one is added, the team owns nothing and its members see no queue or address."
+              action={
+                userAdmin ? (
+                  <Button size="xs" variant="default" onClick={() => firstField.current?.focus()}>
+                    Add a pattern
+                  </Button>
+                ) : undefined
+              }
             />
           }
         />
@@ -86,12 +110,12 @@ export function TeamPatterns({ team, draft }: Readonly<{ team: TeamView; draft?:
 
       <Section title="Add a pattern" headingLevel={3}>
         {userAdmin ? null : (
-          <Text size="sm" className={classes.reason}>
-            Changing a team&apos;s patterns needs the user:admin permission. Ask a user administrator.
-          </Text>
+          <Notice title="Needs user:admin">
+            Adding and removing a team&apos;s patterns needs the user:admin permission. Ask a user administrator.
+          </Notice>
         )}
         <Fieldset legend="New pattern" disabled={!userAdmin}>
-          <AddPattern key={draft?.nonce ?? 'blank'} team={team} initial={draft} />
+          <AddPattern key={draft?.nonce ?? 'blank'} team={team} initial={draft} firstField={firstField} />
         </Fieldset>
       </Section>
 
@@ -145,7 +169,11 @@ function Matches({
   );
 }
 
-function AddPattern({ team, initial }: Readonly<{ team: TeamView; initial?: PatternDraft }>) {
+function AddPattern({
+  team,
+  initial,
+  firstField,
+}: Readonly<{ team: TeamView; initial?: PatternDraft; firstField: Ref<HTMLInputElement> }>) {
   const clusters = useClusters();
   const add = useAddPattern(team.id);
   const form = useForm<{ clusterId: string | null; kind: PatternKind; pattern: string }>({
@@ -209,8 +237,15 @@ function AddPattern({ team, initial }: Readonly<{ team: TeamView; initial?: Patt
   return (
     <form noValidate onSubmit={submit}>
       <Stack gap="sm">
+        <KindField
+          label="Kind"
+          data={KIND_OPTIONS}
+          value={kind}
+          onChange={(next) => form.setFieldValue('kind', next)}
+        />
         <FieldRow>
           <Select
+            ref={firstField}
             label="Cluster"
             data={(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
             searchable
@@ -227,12 +262,6 @@ function AddPattern({ team, initial }: Readonly<{ team: TeamView; initial?: Patt
             required
           />
         </FieldRow>
-        <SegmentedControl
-          aria-label="Kind"
-          data={KIND_OPTIONS}
-          value={kind}
-          onChange={(next) => form.setFieldValue('kind', next as PatternKind)}
-        />
         <PreviewLine
           cluster={clusterLabel}
           chosen={clusterId !== null}

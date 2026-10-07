@@ -46,9 +46,7 @@ describe('ShortcutsHelp', () => {
     const popover = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
 
     const sql = within(popover).getByRole('region', { name: 'In the SQL console' });
-    expect(
-      within(sql).getByText('Cancel the running query, from the editor or the page').nextElementSibling,
-    ).toHaveTextContent('⌘.orCtrl.');
-    expect(within(sql).getByText(/it never cancels/)).toBeInTheDocument();
+    expect(within(sql).getByText('Cancel the running query').nextElementSibling).toHaveTextContent('⌘.orCtrl.');
+    expect(within(sql).getByText(/Escape never cancels/)).toBeInTheDocument();
   });
 });

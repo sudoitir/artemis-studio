@@ -14,7 +14,7 @@
  */
 import type { Page } from '@playwright/test';
 
-import { CONNECTION_SCENES, REGISTER_AGAIN_SCENES, REGISTER_SCENES } from './scenes.ts';
+import { CONNECTION_SCENES, REGISTER_AGAIN_SCENES, REGISTER_SCENES, TEAMS_SCENES } from './scenes.ts';
 
 export interface DataCall {
   path: string;
@@ -132,6 +132,15 @@ export const ROUTES: RouteSpec[] = [
     data,
     forbidden: true,
   })),
+  {
+    area: 'admin',
+    id: 'admin-teams',
+    path: '/admin?tab=teams',
+    data: [paged('/teams')],
+    filter: `&teamQ=${NO_MATCH}`,
+    forbidden: true,
+    scenes: TEAMS_SCENES,
+  },
 
   // Registering a cluster. `register` needs a stack with no cluster, so that the check can succeed:
   // `just qa-up`'s seed registers one, which has to be removed first.

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 
@@ -23,6 +23,7 @@ import {
   type MemberView,
   type TeamView,
 } from './api.ts';
+import { KindField } from './KindField.tsx';
 import { withNotice } from './outcomes.ts';
 import classes from './Security.module.css';
 import { useTeamAccess } from './teamAccess.ts';
@@ -88,7 +89,7 @@ export function TeamMembers({ team }: Readonly<{ team: TeamView }>) {
             <EmptyState
               kind="empty"
               title="No members"
-              description="A team's members are users or directory groups. Add one to give them the team's access."
+              description="Members are users or directory groups, each with a team role on what this team owns. Add one below to give them that access."
             />
           }
         />
@@ -218,14 +219,14 @@ function AddMember({
   return (
     <form noValidate onSubmit={submit}>
       <Stack gap="sm">
-        <SegmentedControl
-          aria-label="Member type"
+        <KindField
+          label="Member type"
           data={[
             { value: 'USER', label: 'User' },
             { value: 'GROUP', label: 'Directory group', disabled: !userAdmin },
           ]}
           value={form.values.type}
-          onChange={(next) => form.setFieldValue('type', next as Values['type'])}
+          onChange={(next) => form.setFieldValue('type', next)}
         />
         {userAdmin ? null : (
           <Text size="sm" className={classes.reason}>

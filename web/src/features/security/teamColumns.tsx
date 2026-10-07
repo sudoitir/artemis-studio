@@ -1,63 +1,93 @@
 import { ActionIcon, Button, Menu, Select, Text } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { Link } from '@tanstack/react-router';
 
+import linkClasses from '../../ui/InlineLink.module.css';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { Column } from '../../ui/table/index.ts';
+import { MiddleTruncate, type Column } from '../../ui/table/index.ts';
 import type { MemberView, PatternKind, PatternView, ShareView, TeamSummary, UnownedView } from './api.ts';
 import classes from './Security.module.css';
 import { KIND_OPTIONS, KIND_WORDS } from './teamWords.ts';
 
-/** A pattern with its cluster and kind, in one line: `prod: orders.# (queues)`. */
-export const patternText = (p: PatternView, clusterName: (clusterId: string) => string): string =>
-  `${clusterName(p.clusterId)}: ${p.pattern} (${KIND_WORDS[p.kind].toLowerCase()})`;
+/** A team's patterns, one line per cluster: `prod: orders.# (queues), billing.* (addresses)`. */
+export function ownedByCluster(patterns: PatternView[], clusterName: (clusterId: string) => string): string[] {
+  const lines = new Map<string, string[]>();
+  for (const p of patterns) {
+    const cluster = clusterName(p.clusterId);
+    lines.set(cluster, [...(lines.get(cluster) ?? []), `${p.pattern} (${KIND_WORDS[p.kind].toLowerCase()})`]);
+  }
+  return [...lines].map(([cluster, owned]) => `${cluster}: ${owned.join(', ')}`);
+}
+
+/** The address of a team's page, keeping the list's filter and sort for the way back. */
+export const teamSearch =
+  (teamId: string | undefined) =>
+  (prev: Record<string, unknown>): Record<string, unknown> => ({ ...prev, team: teamId, teamTab: undefined });
 
 /** What the teams table needs from its panel. `editable` is whether the caller may rename and delete teams. */
 export interface TeamRows {
   clusterName: (clusterId: string) => string;
   editable: boolean;
-  onOpen: (team: TeamSummary) => void;
   onRename: (team: TeamSummary) => void;
   onDelete: (team: TeamSummary) => void;
 }
 
-/** The teams: the name opens the team and is never hidden, nor are the actions; the counts go last when narrow. */
-export function teamColumns({ clusterName, editable, onOpen, onRename, onDelete }: TeamRows): Column<TeamSummary>[] {
+/**
+ * The teams: the name is a link to the team, and is never hidden, nor are the actions; what each team owns, per
+ * cluster, then its members and shares, which go first when narrow.
+ */
+export function teamColumns({ clusterName, editable, onRename, onDelete }: TeamRows): Column<TeamSummary>[] {
   return [
     {
       id: 'name',
       header: 'Team',
       accessor: (t) => t.name,
       cell: (t) => (
-        <Button variant="subtle" size="compact-sm" onClick={() => onOpen(t)}>
-          {t.name}
-        </Button>
+        <Link to="." search={teamSearch(t.id) as never} className={`${linkClasses.link} ${classes.teamLink}`}>
+          <MiddleTruncate text={t.name} tooltip />
+        </Link>
       ),
       kind: 'identifier',
       priority: 'essential',
+      sortKey: 'name',
     },
-    { id: 'members', header: 'Members', accessor: (t) => t.memberCount, kind: 'number', priority: 'high' },
     {
       id: 'patterns',
-      header: 'Patterns',
-      accessor: (t) => t.patterns.map((p) => patternText(p, clusterName)).join('; '),
+      header: 'Owns',
+      accessor: (t) => ownedByCluster(t.patterns, clusterName).join('; '),
       cell: (t) =>
         t.patterns.length === 0 ? (
           <Text size="sm" c="dimmed">
-            None
+            Nothing yet
           </Text>
         ) : (
-          <ul className={classes.sources} aria-label={`Patterns of ${t.name}`}>
-            {t.patterns.map((p) => (
-              <li key={p.id}>{patternText(p, clusterName)}</li>
+          <ul className={classes.sources} aria-label={`What ${t.name} owns`}>
+            {ownedByCluster(t.patterns, clusterName).map((line) => (
+              <li key={line}>{line}</li>
             ))}
           </ul>
         ),
       kind: 'text',
       wrap: true,
       priority: 'high',
+      sortKey: 'patterns',
     },
-    { id: 'sharesOut', header: 'Shared out', accessor: (t) => t.sharesOut, kind: 'number', priority: 'low' },
-    { id: 'sharesIn', header: 'Shared in', accessor: (t) => t.sharesIn, kind: 'number', priority: 'low' },
+    {
+      id: 'members',
+      header: 'Members',
+      accessor: (t) => t.memberCount,
+      kind: 'number',
+      priority: 'high',
+      sortKey: 'members',
+    },
+    {
+      id: 'shares',
+      header: 'Shares',
+      accessor: (t) => `${t.sharesOut} out, ${t.sharesIn} in`,
+      kind: 'status',
+      priority: 'low',
+      sortKey: 'shares',
+    },
     {
       id: 'actions',
       header: 'Actions',
@@ -205,7 +235,7 @@ export function shareColumns({ clusterName, direction, editable, onRemove }: Sha
       id: 'team',
       header: direction === 'out' ? 'Shared with' : 'Shared by',
       accessor: other,
-      kind: 'text',
+      kind: 'identifier',
       priority: 'essential',
     },
     { id: 'cluster', header: 'Cluster', accessor: (s) => clusterName(s.clusterId), kind: 'text', priority: 'high' },

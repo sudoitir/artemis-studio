@@ -16,7 +16,8 @@
 #   - 18 messages with long headers, properties and bodies on the dead-letter and expiry queues, and 250 small
 #     ones on one order queue, for a query with many rows;
 #   - an environment, channels, alert rules, masking rules, API tokens, a role and a user with long names;
-#   - `qa-reader`, a read-only account whose password is known, for the permission-denied captures.
+#   - `qa-reader`, a read-only account whose password is known, for the permission-denied captures;
+#   - three teams: one owning patterns with members and a share, one with a long name, and one with nothing.
 #
 # Not built: a signed plugin. Installing one needs a step-up and a trusted publisher key, which is
 # an administrator's decision in the UI rather than something a seed script should take.
@@ -222,6 +223,21 @@ if [ -z "$(find_id /users username qa-reader)" ]; then
 fi
 reader_id=$(find_id /users username qa-reader)
 api POST "/users/$reader_id/grants" -d "{\"roleId\":\"$reader\",\"scopeType\":\"CLUSTER\",\"scopeId\":\"$cluster\"}" -o /dev/null || true
+
+say "creating teams"
+# One team that owns several patterns on the cluster, with members and a share; one with a long name that is
+# shared with; and one with nothing yet, for the empty tabs.
+team_operator=$(api GET /teams/lookups/roles | python3 -c "import json,sys; print(next(r['id'] for r in json.load(sys.stdin)['roles'] if r['name']=='TEAM_OPERATOR'))")
+orders=$(ensure /teams name qa-orders '{"name":"qa-orders"}')
+long_team="qa-team-for-the-regional-compliance-and-$(repeat 'onboarding-' 5)desk"
+long_team_id=$(ensure /teams name "$long_team" "{\"name\":\"$long_team\"}")
+ensure /teams name qa-team-empty '{"name":"qa-team-empty"}' >/dev/null
+post "orders: reconciliation queues" "/teams/$orders/patterns" "{\"clusterId\":\"$cluster\",\"kind\":\"QUEUE\",\"pattern\":\"qa.reconciliation.#\"}"
+post "orders: long address" "/teams/$orders/patterns" "{\"clusterId\":\"$cluster\",\"kind\":\"BOTH\",\"pattern\":\"qa.long-address.#\"}"
+post "long team: onboarding" "/teams/$long_team_id/patterns" "{\"clusterId\":\"$cluster\",\"kind\":\"QUEUE\",\"pattern\":\"qa.customer-onboarding.#\"}"
+post "orders: member $long_user" "/teams/$orders/members" "{\"principalType\":\"USER\",\"userId\":\"$long_user_id\",\"roleId\":\"$team_operator\"}"
+post "orders: member qa-reader" "/teams/$orders/members" "{\"principalType\":\"USER\",\"userId\":\"$reader_id\",\"roleId\":\"$team_operator\"}"
+post "orders shares with the long team" "/teams/$orders/shares" "{\"targetTeamId\":\"$long_team_id\",\"clusterId\":\"$cluster\",\"kind\":\"QUEUE\",\"pattern\":\"qa.reconciliation.nightly-settlement-batch.#\",\"roleId\":\"$team_operator\"}" optional
 
 if [ "$failed" -gt 0 ]; then
   say "$failed required step(s) failed; the content above is incomplete"

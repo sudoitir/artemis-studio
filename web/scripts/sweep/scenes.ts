@@ -124,3 +124,59 @@ export const CONNECTION_SCENES: Scene[] = [
     },
   },
 ];
+
+/** Opens a seeded team from the Teams list by its name, the link a person follows. */
+async function openTeam(page: Page, name: string) {
+  await page.getByRole('link', { name, exact: true }).click();
+  await page.getByRole('heading', { level: 2, name, exact: true }).waitFor();
+}
+
+/** A tab of a team page; its name carries a count. */
+async function openTab(page: Page, tab: string) {
+  await page.getByRole('tab', { name: new RegExp(`^${tab}`) }).click();
+  await page.waitForTimeout(300);
+}
+
+/**
+ * The Teams list's dialogs and each tab of a team page, populated (`qa-orders`) and empty (`qa-team-empty`),
+ * as qa-seed.sh makes them; and the keyboard-shortcuts help, which the header opens over any page.
+ */
+export const TEAMS_SCENES: Scene[] = [
+  { id: 'new-team', act: (page) => press(page, 'New team') },
+  {
+    id: 'created',
+    act: async (page) => {
+      await press(page, 'New team');
+      await page
+        .getByRole('dialog', { name: 'New team' })
+        .getByRole('textbox', { name: /^Name/ })
+        .fill(`qa-created-${Date.now()}`);
+      await press(page, 'Create team');
+      await page.getByRole('tab', { name: 'Patterns (0)' }).waitFor();
+    },
+  },
+  ...['Patterns', 'Members', 'Shares', 'Unowned'].flatMap((tab): Scene[] => [
+    {
+      id: `team-${tab.toLowerCase()}`,
+      act: async (page) => {
+        await openTeam(page, 'qa-orders');
+        await openTab(page, tab);
+      },
+    },
+    {
+      id: `team-${tab.toLowerCase()}-empty`,
+      act: async (page) => {
+        await openTeam(page, 'qa-team-empty');
+        await openTab(page, tab);
+      },
+    },
+  ]),
+  {
+    id: 'delete-team',
+    act: async (page) => {
+      await openTeam(page, 'qa-orders');
+      await press(page, 'Delete qa-orders');
+    },
+  },
+  { id: 'shortcuts', act: (page) => press(page, 'Keyboard shortcuts') },
+];
