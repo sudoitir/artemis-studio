@@ -128,6 +128,15 @@
         }
       }
     },
+    "approvalProvider": {
+      "type": "object",
+      "description": "The plugin is the approval provider: it exposes one ApprovalProvider bean and Studio asks it whether gated operations may run. At most one active plugin may declare it.",
+      "additionalProperties": false,
+      "required": ["approverPermission"],
+      "properties": {
+        "approverPermission": { "type": "string", "description": "A permission the plugin declares under permissions; the users who approve hold it." }
+      }
+    },
     "settingKeys": { "type": "array", "items": { "type": "string", "description": "Namespaced <id>.<key>." } },
     "streamTopics": { "type": "array", "items": { "type": "string", "description": "<id> or <id>.<topic>." } },
     "mcpTools": {

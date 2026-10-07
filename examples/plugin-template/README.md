@@ -106,6 +106,10 @@ update signed by a different trusted key is allowed, but the installer must conf
   The role editor and the effective-permissions preview show the scope. Studio's
   `permissions` health check (in `/actuator/health/studio`) reports a guard or manifest entry naming a
   permission you did not declare.
+- **Deciding whether other operations may run?** Declare `"approvalProvider": { "approverPermission":
+  "acme-notes:approve" }` in `plugin.json` (the permission must be one you declare) and expose one
+  `ApprovalProvider` bean. This template is not one, so its descriptor has no such block. At most one
+  active plugin may declare it. See Approval providers in the plugin guide.
 - **Audit every change** with `AuditService`, the way `NotesService` does. Operators rely on Studio's audit
   log being complete.
 - **Your schema is yours alone.** No foreign keys into Studio's tables and nothing created outside your schema;
