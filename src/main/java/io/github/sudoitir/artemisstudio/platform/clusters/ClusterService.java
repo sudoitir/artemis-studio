@@ -5,6 +5,9 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -142,6 +145,37 @@ public class ClusterService {
 
     private final BrokerNodeMapper nodeMapper;
     private final ClusterViewMapper viewMapper;
+    private final OperationGate gate;
+
+    /**
+     * What the gate holds of a connection edit: the request with the Core account's {@code null}, which clears it,
+     * as {@code clearCore}. Both accounts' passwords are redacted for those who read it.
+     */
+    record ClusterUpdateParams(
+            UUID clusterId,
+            String name,
+            String description,
+            List<String> seedUrls,
+            String managementUrlPattern,
+            String tlsBundle,
+            AccountUpdate management,
+            AccountUpdate core,
+            boolean clearCore) {
+
+        UpdateClusterRequest toRequest() {
+            return new UpdateClusterRequest(
+                    name,
+                    description,
+                    seedUrls,
+                    managementUrlPattern,
+                    tlsBundle,
+                    management,
+                    clearCore ? AccountUpdate.CLEAR : core);
+        }
+    }
+
+    /** What the gate holds of a cluster delete. */
+    record ClusterDeleteParams(UUID clusterId) {}
 
     private record Probe(
             String url,
@@ -347,6 +381,15 @@ public class ClusterService {
         if (request.environmentId() != null && !environments.existsById(request.environmentId())) {
             throw new NotFoundException("environment", request.environmentId());
         }
+        return gatedRegister(request);
+    }
+
+    @Gated("cluster.register")
+    private Attempt<ClusterDetail> gatedRegister(RegisterClusterRequest request) {
+        return gate.run(Operation.of(request), () -> registerNow(request));
+    }
+
+    private Attempt<ClusterDetail> registerNow(RegisterClusterRequest request) {
         ConnectionInputs inputs = inputsOf(request);
         List<Probe> probes = connectAll(inputs);
         List<Probe> reachable = probes.stream().filter(Probe::ok).toList();
@@ -911,6 +954,32 @@ public class ClusterService {
         Edited edited = merge(clusterId, cluster, request);
         Set<String> knownHosts = knownHostPorts(nodes.findByClusterIdOrderByNameAsc(clusterId));
         edited.seedUrls().forEach(url -> requireSuppliedForNewHost(edited, url, knownHosts));
+        return gatedUpdate(updateParams(clusterId, request), cluster, edited, request);
+    }
+
+    /** The request as the gate holds it: the Core account's {@code null}, which clears it, as a flag. */
+    private static ClusterUpdateParams updateParams(UUID clusterId, UpdateClusterRequest request) {
+        boolean clearCore = request.core() == AccountUpdate.CLEAR;
+        return new ClusterUpdateParams(
+                clusterId,
+                request.name(),
+                request.description(),
+                request.seedUrls(),
+                request.managementUrlPattern(),
+                request.tlsBundle(),
+                request.management(),
+                clearCore ? null : request.core(),
+                clearCore);
+    }
+
+    @Gated("cluster.update")
+    private ClusterConnectionView gatedUpdate(
+            ClusterUpdateParams params, ClusterEntity cluster, Edited edited, UpdateClusterRequest request) {
+        return gate.run(Operation.of(params), () -> updateNow(params.clusterId(), cluster, edited, request));
+    }
+
+    private ClusterConnectionView updateNow(
+            UUID clusterId, ClusterEntity cluster, Edited edited, UpdateClusterRequest request) {
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 UPDATE_CONNECTION,
@@ -1201,9 +1270,21 @@ public class ClusterService {
         }
     }
 
-    @Transactional
     public void delete(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, ClusterPermissions.CLUSTER_WRITE);
+        requireCluster(clusterId);
+        gatedDelete(new ClusterDeleteParams(clusterId));
+    }
+
+    @Gated("cluster.delete")
+    private void gatedDelete(ClusterDeleteParams params) {
+        gate.run(Operation.of(params), () -> {
+            transactions.executeWithoutResult(status -> deleteNow(params.clusterId()));
+            return null;
+        });
+    }
+
+    private void deleteNow(UUID clusterId) {
         ClusterEntity cluster = requireCluster(clusterId);
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),

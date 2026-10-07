@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
+import io.github.sudoitir.artemisstudio.kernel.approval.web.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
@@ -59,6 +60,7 @@ public class ClusterController {
             responseCode = "201",
             description = "cluster registered",
             content = @Content(schema = @Schema(implementation = ClusterDetail.class)))
+    @HeldResponse
     @PostMapping
     public ResponseEntity<Object> register(
             @Valid @RequestBody RegisterClusterRequest request, @RequestParam(defaultValue = "false") boolean dryRun) {
@@ -80,6 +82,7 @@ public class ClusterController {
         return service.get(clusterId);
     }
 
+    @HeldResponse
     @DeleteMapping("/{clusterId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clusterId) {
@@ -110,6 +113,7 @@ public class ClusterController {
             responseCode = "200",
             description = "dryRun=true: per-node probe result, nothing saved; otherwise the saved cluster",
             content = @Content(schema = @Schema(oneOf = {ConnectionCheck.class, ClusterConnectionView.class})))
+    @HeldResponse
     @PatchMapping("/{clusterId}")
     public Object update(
             @PathVariable UUID clusterId,

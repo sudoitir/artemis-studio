@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
+import io.github.sudoitir.artemisstudio.kernel.approval.web.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService;
@@ -32,17 +33,20 @@ public class EnvironmentsController {
         return ResourceQuery.ofPage(page, size).paginate(environments.list(), null);
     }
 
+    @HeldResponse
     @PostMapping("/environments")
     @ResponseStatus(HttpStatus.CREATED)
     public EnvironmentView create(@Valid @RequestBody EnvironmentRequest request) {
         return environments.create(request);
     }
 
+    @HeldResponse
     @PutMapping("/environments/{environmentId}")
     public EnvironmentView update(@PathVariable UUID environmentId, @Valid @RequestBody EnvironmentRequest request) {
         return environments.update(environmentId, request);
     }
 
+    @HeldResponse
     @DeleteMapping("/environments/{environmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID environmentId) {
@@ -51,6 +55,7 @@ public class EnvironmentsController {
 
     public record AssignEnvironmentRequest(UUID environmentId) {}
 
+    @HeldResponse
     @PutMapping("/clusters/{clusterId}/environment")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void assign(@PathVariable UUID clusterId, @RequestBody AssignEnvironmentRequest request) {

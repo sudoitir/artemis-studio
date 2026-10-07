@@ -1,0 +1,391 @@
+package io.github.sudoitir.artemisstudio.platform.clusters;
+
+import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.DisplayRow;
+import io.github.sudoitir.artemisstudio.kernel.gate.Effect;
+import io.github.sudoitir.artemisstudio.kernel.gate.ExecutionMode;
+import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationScope;
+import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
+import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.ClusterDeleteParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService.ClusterUpdateParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.ClusterAssignParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentCreateParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentDeleteParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.EnvironmentService.EnvironmentUpdateParams;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.AccountUpdate;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RegisterClusterRequest;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.EnvironmentViews.EnvironmentRequest;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * The gated cluster and environment operations (ADR-0179): {@code environment.create/update/delete} and {@code
+ * cluster.register/update/delete/assign-environment}. They change what Studio manages and who sees it, so each is
+ * access control, and a delete is destructive too. The secrets in a registration or an edit are redacted for those who
+ * read it. A cluster's state key is its id and creation time, so a cluster deleted and registered again is refused.
+ */
+@Configuration(proxyBeanMethods = false)
+class ClusterGatedOperations {
+
+    private static final String REDACTED_PASSWORD = "(a new password)";
+
+    @Bean
+    GatedOperation<EnvironmentCreateParams> environmentCreateOperation(EnvironmentService environments) {
+        return new Operations.Base<>(
+                "environment.create", EnvironmentCreateParams.class, Set.of(Trait.ACCESS_CONTROL)) {
+            @Override
+            public OperationScope scope(EnvironmentCreateParams p) {
+                return OperationScope.GLOBAL;
+            }
+
+            @Override
+            public String summary(EnvironmentCreateParams p) {
+                return "Create environment " + p.name();
+            }
+
+            @Override
+            public List<DisplayRow> display(EnvironmentCreateParams p) {
+                return List.of(DisplayRow.of("Environment", p.name()));
+            }
+
+            @Override
+            public Effect estimate(EnvironmentCreateParams p) {
+                return new Effect(1, "environments", "name:" + p.name(), null);
+            }
+
+            @Override
+            public void replay(EnvironmentCreateParams p) {
+                environments.create(new EnvironmentRequest(p.name(), p.colour(), p.sortOrder()));
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<EnvironmentUpdateParams> environmentUpdateOperation(EnvironmentService environments) {
+        return new Operations.Base<>(
+                "environment.update", EnvironmentUpdateParams.class, Set.of(Trait.ACCESS_CONTROL)) {
+            @Override
+            public OperationScope scope(EnvironmentUpdateParams p) {
+                return OperationScope.GLOBAL;
+            }
+
+            @Override
+            public String summary(EnvironmentUpdateParams p) {
+                return "Edit environment " + environments.labelOf(p.environmentId()) + " (now " + p.name() + ")";
+            }
+
+            @Override
+            public List<DisplayRow> display(EnvironmentUpdateParams p) {
+                return List.of(
+                        new DisplayRow("Name", environments.labelOf(p.environmentId()), p.name()),
+                        DisplayRow.of("Colour", p.colour()),
+                        DisplayRow.of("Order", String.valueOf(p.sortOrder())));
+            }
+
+            @Override
+            public Effect estimate(EnvironmentUpdateParams p) {
+                return new Effect(1, "environments", p.environmentId().toString(), null);
+            }
+
+            @Override
+            public void replay(EnvironmentUpdateParams p) {
+                environments.update(p.environmentId(), new EnvironmentRequest(p.name(), p.colour(), p.sortOrder()));
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<EnvironmentDeleteParams> environmentDeleteOperation(EnvironmentService environments) {
+        return new Operations.Base<>(
+                "environment.delete", EnvironmentDeleteParams.class, Set.of(Trait.ACCESS_CONTROL, Trait.DESTRUCTIVE)) {
+            @Override
+            public OperationScope scope(EnvironmentDeleteParams p) {
+                return OperationScope.GLOBAL;
+            }
+
+            @Override
+            public String summary(EnvironmentDeleteParams p) {
+                return "Delete environment " + environments.labelOf(p.environmentId());
+            }
+
+            @Override
+            public List<DisplayRow> display(EnvironmentDeleteParams p) {
+                return List.of(DisplayRow.of("Environment", environments.labelOf(p.environmentId())));
+            }
+
+            @Override
+            public Effect estimate(EnvironmentDeleteParams p) {
+                long members = environments.memberCount(p.environmentId());
+                return new Effect(
+                        members,
+                        "clusters",
+                        p.environmentId().toString(),
+                        "Its clusters stay, without an environment, and every grant on it is removed.");
+            }
+
+            @Override
+            public void replay(EnvironmentDeleteParams p) {
+                environments.delete(p.environmentId());
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<ClusterAssignParams> clusterAssignEnvironmentOperation(
+            EnvironmentService environments, ClusterEnvironmentIndex clusters) {
+        return new Operations.Base<>(
+                "cluster.assign-environment", ClusterAssignParams.class, Set.of(Trait.ACCESS_CONTROL)) {
+            @Override
+            public OperationScope scope(ClusterAssignParams p) {
+                return OperationScope.cluster(p.clusterId(), clusters.environmentOf(p.clusterId()));
+            }
+
+            @Override
+            public String summary(ClusterAssignParams p) {
+                return "Move cluster " + clusters.labelOf(p.clusterId()) + " to "
+                        + environments.labelOf(p.environmentId());
+            }
+
+            @Override
+            public List<DisplayRow> display(ClusterAssignParams p) {
+                return List.of(
+                        DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())),
+                        new DisplayRow(
+                                "Environment",
+                                environments.labelOf(clusters.environmentOf(p.clusterId())),
+                                environments.labelOf(p.environmentId())));
+            }
+
+            @Override
+            public Effect estimate(ClusterAssignParams p) {
+                return new Effect(1, "clusters", p.clusterId() + "|" + p.environmentId(), null);
+            }
+
+            @Override
+            public void replay(ClusterAssignParams p) {
+                environments.assignCluster(p.clusterId(), p.environmentId());
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<RegisterClusterRequest> clusterRegisterOperation(
+            ClusterService service, EnvironmentService environments) {
+        return new Operations.Base<>("cluster.register", RegisterClusterRequest.class, Set.of(Trait.ACCESS_CONTROL)) {
+            @Override
+            public OperationScope scope(RegisterClusterRequest p) {
+                return new OperationScope(null, p.environmentId());
+            }
+
+            @Override
+            public String summary(RegisterClusterRequest p) {
+                return "Register cluster "
+                        + (p.name() != null ? p.name() : p.seedUrls().getFirst());
+            }
+
+            @Override
+            public List<DisplayRow> display(RegisterClusterRequest p) {
+                List<DisplayRow> rows = new ArrayList<>();
+                rows.add(DisplayRow.of("Name", p.name()));
+                rows.add(DisplayRow.of("Seed URLs", String.join(", ", p.seedUrls())));
+                rows.add(DisplayRow.of("Environment", environments.labelOf(p.environmentId())));
+                if (p.hasCredentials()) {
+                    rows.add(DisplayRow.of("Management account", p.credentials().username()));
+                }
+                if (p.hasCoreCredentials()) {
+                    rows.add(DisplayRow.of("Core account", p.coreCredentials().username()));
+                }
+                rows.add(DisplayRow.of("Adopt the running configuration", p.adopts() ? "yes" : "no"));
+                return rows;
+            }
+
+            @Override
+            public Set<String> redactedPaths() {
+                return Set.of("/credentials/password", "/coreCredentials/password");
+            }
+
+            @Override
+            public Effect estimate(RegisterClusterRequest p) {
+                return new Effect(
+                        1,
+                        "clusters",
+                        "seeds:"
+                                + String.join(
+                                        ",", p.seedUrls().stream().sorted().toList()),
+                        null);
+            }
+
+            @Override
+            public void replay(RegisterClusterRequest p) {
+                if (service.register(p) instanceof Attempt.Failed<?>(var kind, var detail)) {
+                    throw new BrokerConnectionException(kind, detail);
+                }
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<ClusterUpdateParams> clusterUpdateOperation(
+            ClusterService service, ClusterDirectory directory, ClusterEnvironmentIndex clusters) {
+        return new Operations.Base<>("cluster.update", ClusterUpdateParams.class, Set.of(Trait.ACCESS_CONTROL)) {
+            @Override
+            public OperationScope scope(ClusterUpdateParams p) {
+                return OperationScope.cluster(p.clusterId(), clusters.environmentOf(p.clusterId()));
+            }
+
+            @Override
+            public String summary(ClusterUpdateParams p) {
+                return "Change the connection of cluster " + clusters.labelOf(p.clusterId());
+            }
+
+            @Override
+            public List<DisplayRow> display(ClusterUpdateParams p) {
+                List<DisplayRow> rows = new ArrayList<>();
+                rows.add(DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())));
+                addIfSet(rows, "Name", p.name());
+                addIfSet(rows, "Description", p.description());
+                if (p.seedUrls() != null) {
+                    rows.add(DisplayRow.of("Seed URLs", String.join(", ", p.seedUrls())));
+                }
+                addIfSet(rows, "Management URL pattern", p.managementUrlPattern());
+                addIfSet(rows, "TLS bundle", p.tlsBundle());
+                account(rows, "Management account", p.management());
+                if (p.clearCore()) {
+                    rows.add(new DisplayRow("Core account", null, "cleared"));
+                } else {
+                    account(rows, "Core account", p.core());
+                }
+                return rows;
+            }
+
+            @Override
+            public Set<String> redactedPaths() {
+                return Set.of("/management/password", "/core/password");
+            }
+
+            @Override
+            public Effect estimate(ClusterUpdateParams p) {
+                return new Effect(1, "clusters", identity(directory, p.clusterId()), null);
+            }
+
+            @Override
+            public void replay(ClusterUpdateParams p) {
+                service.updateConnection(p.clusterId(), p.toRequest());
+            }
+
+            private void account(List<DisplayRow> rows, String label, AccountUpdate account) {
+                if (account == null) {
+                    return;
+                }
+                rows.add(DisplayRow.of(label, account.username()));
+                if (account.password() != null && !account.password().isEmpty()) {
+                    rows.add(DisplayRow.of(label + " password", REDACTED_PASSWORD));
+                }
+            }
+        };
+    }
+
+    @Bean
+    GatedOperation<ClusterDeleteParams> clusterDeleteOperation(
+            ClusterDirectory directory, ClusterService service, ClusterEnvironmentIndex clusters) {
+        return new Operations.Base<>(
+                "cluster.delete", ClusterDeleteParams.class, Set.of(Trait.ACCESS_CONTROL, Trait.DESTRUCTIVE)) {
+            @Override
+            public OperationScope scope(ClusterDeleteParams p) {
+                return OperationScope.cluster(p.clusterId(), clusters.environmentOf(p.clusterId()));
+            }
+
+            @Override
+            public String summary(ClusterDeleteParams p) {
+                return "Delete cluster " + clusters.labelOf(p.clusterId());
+            }
+
+            @Override
+            public List<DisplayRow> display(ClusterDeleteParams p) {
+                return List.of(DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())));
+            }
+
+            @Override
+            public Effect estimate(ClusterDeleteParams p) {
+                return new Effect(
+                        directory.nodes(p.clusterId()).size(),
+                        "nodes",
+                        identity(directory, p.clusterId()),
+                        "Studio stops managing the cluster and forgets its history; the brokers are not touched.");
+            }
+
+            @Override
+            public void replay(ClusterDeleteParams p) {
+                service.delete(p.clusterId());
+            }
+        };
+    }
+
+    /** The cluster as the gate pins it: its id and when it was registered, so one registered again is a different one. */
+    private static String identity(ClusterDirectory directory, UUID clusterId) {
+        RegisteredCluster cluster =
+                directory.cluster(clusterId).orElseThrow(() -> new NotFoundException("cluster", clusterId));
+        return clusterId + "|" + cluster.getCreatedAt();
+    }
+
+    private static void addIfSet(List<DisplayRow> rows, String label, String value) {
+        if (value != null) {
+            rows.add(DisplayRow.of(label, value));
+        }
+    }
+
+    /** What every operation here shares: one version, run when approved, and no secrets unless it says so. */
+    private static final class Operations {
+
+        private Operations() {}
+
+        abstract static class Base<P extends Record> implements GatedOperation<P> {
+            private final String type;
+            private final Class<P> paramsType;
+            private final Set<Trait> traits;
+
+            Base(String type, Class<P> paramsType, Set<Trait> traits) {
+                this.type = type;
+                this.paramsType = paramsType;
+                this.traits = traits;
+            }
+
+            @Override
+            public String type() {
+                return type;
+            }
+
+            @Override
+            public int version() {
+                return 1;
+            }
+
+            @Override
+            public Class<P> paramsType() {
+                return paramsType;
+            }
+
+            @Override
+            public Set<Trait> traits(P params) {
+                return traits;
+            }
+
+            @Override
+            public ExecutionMode mode() {
+                return ExecutionMode.ON_APPROVAL;
+            }
+
+            @Override
+            public Set<String> redactedPaths() {
+                return Set.of();
+            }
+        }
+    }
+}
