@@ -41,7 +41,14 @@ export {
 } from '../kernel/slots.ts';
 export { NAV_GROUPS, type NavGroupId } from '../kernel/nav/groups.ts';
 export { clusterRoute, rootRoute } from '../kernel/routing/roots.ts';
-export { ApiError, clusterKey, request } from '../kernel/api/request.ts';
+export {
+  ApiError,
+  clusterKey,
+  heldOperationsKey,
+  OperationHeldError,
+  request,
+  type HeldOperation,
+} from '../kernel/api/request.ts';
 export { useCan, type AllowedActions, type ResourceWhere } from '../kernel/auth/useCan.ts';
 export {
   ACTION_SECTIONS,

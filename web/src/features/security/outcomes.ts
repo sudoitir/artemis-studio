@@ -12,6 +12,6 @@ export function withNotice(action: ActionVerb, subject: string, next: string, on
       notify.succeeded({ action, subject, pendingId });
       onSuccess?.();
     },
-    onError: (error: Error) => notify.failed({ action, subject, pendingId, cause: error.message, next }),
+    onError: (error: Error) => notify.settle(error, { action, subject, pendingId, cause: error.message, next }),
   };
 }

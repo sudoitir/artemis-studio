@@ -55,7 +55,7 @@ function TeamNameForm({ team, onDone }: Readonly<{ team: Naming; onDone: (team: 
         form.setErrors({ name: 'A team with that name already exists. Choose another name.' });
         form.getInputNode('name')?.focus();
       } else {
-        notify.failed({ action, subject, cause: error.message, next });
+        notify.settle(error, { action, subject, cause: error.message, next });
       }
     };
     const onSuccess = (action: ActionVerb) => (saved: TeamView) => {

@@ -161,7 +161,7 @@ export function RulesPanel() {
       {
         onSuccess: () => notify.succeeded({ action, subject }),
         onError: (e) =>
-          notify.failed({
+          notify.settle(e, {
             action,
             subject,
             cause: e.message,
@@ -179,7 +179,7 @@ export function RulesPanel() {
         notify.succeeded({ action: DELETE, subject });
       },
       onError: (e) =>
-        notify.failed({
+        notify.settle(e, {
           action: DELETE,
           subject,
           cause: e.message,

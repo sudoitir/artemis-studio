@@ -138,7 +138,12 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
           onDone();
         },
         onError: (error) =>
-          notify.failed({ action: CREATE, subject, cause: error.message, next: 'No role was created. Try again.' }),
+          notify.settle(error, {
+            action: CREATE,
+            subject,
+            cause: error.message,
+            next: 'No role was created. Try again.',
+          }),
       });
     } else {
       update.mutate(
@@ -149,7 +154,12 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
             onDone();
           },
           onError: (error) =>
-            notify.failed({ action: SAVE, subject, cause: error.message, next: 'The role is unchanged. Try again.' }),
+            notify.settle(error, {
+              action: SAVE,
+              subject,
+              cause: error.message,
+              next: 'The role is unchanged. Try again.',
+            }),
         },
       );
     }
@@ -231,7 +241,7 @@ function DeleteRole({
         notify.succeeded({ action: DELETE, subject: `role "${r.name}"` });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: DELETE,
           subject: `role "${r.name}"`,
           cause: error.message,

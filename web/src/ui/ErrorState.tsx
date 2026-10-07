@@ -3,6 +3,9 @@ import { Button, Text } from '@mantine/core';
 
 import classes from './ErrorState.module.css';
 import { readError } from './errorReading.tsx';
+import { heldOf } from './held.ts';
+import { HeldRequestLink } from './HeldRequestLink.tsx';
+import { Notice } from './Notice.tsx';
 
 /**
  * A failure shown in place of the content that could not load. It reads the error by its shape (see
@@ -21,6 +24,9 @@ import { readError } from './errorReading.tsx';
  *
  * <p>`blockSize` keeps the panel at least that tall, so it can take the place of a `LoadingState` of the
  * same size without pulling what follows up the page when the failure arrives.
+ *
+ * <p>An operation held for approval is not a failure, so it renders as a polite `Notice` that says it
+ * was sent and links to the request, wherever a screen hands its mutation's error here.
  */
 export function ErrorState({
   error,
@@ -44,6 +50,14 @@ export function ErrorState({
   blockSize?: string;
 }>) {
   const reading = readError(error);
+  const held = heldOf(error);
+  if (held) {
+    return (
+      <Notice tone="info" title={reading.title} action={<HeldRequestLink id={held.id} />}>
+        {reading.cause} {reading.next}
+      </Notice>
+    );
+  }
   return (
     <div className={classes.root} role="alert" data-variant={variant} style={{ minBlockSize: blockSize }}>
       <div className={classes.title}>{reading.title}</div>

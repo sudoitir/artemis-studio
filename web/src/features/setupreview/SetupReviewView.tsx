@@ -142,7 +142,7 @@ export function SetupReviewView() {
           ? notify.failed({ action: RUN, subject, cause: v.notice, next: 'The last review is shown.' })
           : notify.succeeded({ action: RUN, subject }),
       onError: (e) =>
-        notify.failed({
+        notify.settle(e, {
           action: RUN,
           subject,
           cause: e.message,

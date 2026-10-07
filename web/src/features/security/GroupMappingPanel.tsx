@@ -232,7 +232,12 @@ function NewMappingModal({
           close();
         },
         onError: (error) =>
-          notify.failed({ action: ADD, subject, cause: error.message, next: 'No mapping was added. Try again.' }),
+          notify.settle(error, {
+            action: ADD,
+            subject,
+            cause: error.message,
+            next: 'No mapping was added. Try again.',
+          }),
       },
     );
   }, focusFirstInvalid(form.getInputNode));

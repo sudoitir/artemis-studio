@@ -173,7 +173,7 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
           if (/share-with-self/.test(error.type)) fields.targetTeamId = reason;
           if (/not-a-team-role/.test(error.type)) fields.roleId = reason;
           if (Object.keys(fields).length > 0) form.setErrors(fields);
-          notify.failed({
+          notify.settle(error, {
             action: ADD,
             subject,
             pendingId,

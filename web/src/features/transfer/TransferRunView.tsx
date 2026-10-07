@@ -346,7 +346,7 @@ export function TransferRunView() {
     mutation.mutate(undefined, {
       onSuccess: () => notify.succeeded({ action, subject, pendingId }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action,
           subject,
           pendingId,

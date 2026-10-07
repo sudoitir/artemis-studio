@@ -110,7 +110,7 @@ export function FindingCard({
       {
         onSuccess: () => notify.succeeded({ action: REVOKE, subject }),
         onError: (e) =>
-          notify.failed({
+          notify.settle(e, {
             action: REVOKE,
             subject,
             cause: e.message,

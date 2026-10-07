@@ -145,7 +145,7 @@ export function BulkRunView() {
     stop.mutate(undefined, {
       onSuccess: () => notify.succeeded({ action: STOP, subject: 'this run', pendingId }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: STOP,
           subject: 'this run',
           pendingId,
