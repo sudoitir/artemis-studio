@@ -46,10 +46,10 @@ class BrokerVersionTest {
     @Test
     void ciTestsBothEndsOfTheSupportedRange() throws Exception {
         String ci = Files.readString(Path.of(".github/workflows/ci.yml"));
-        var m = Pattern.compile("artemis: \\[(.*)]").matcher(ci);
+        var m = Pattern.compile("artemis: \\[([^\\]]*)]").matcher(ci);
         assertThat(m.find()).as("the backend job's artemis matrix").isTrue();
         assertThat(m.group(1).split(","))
-                .extracting(image -> image.replaceAll("[\" ]", "").replaceAll(".*:", ""))
+                .extracting(image -> image.replaceAll("[\" ]", "").replaceAll("[^:]*:", ""))
                 .containsExactly(BrokerVersion.MINIMUM.toString(), BrokerVersion.LATEST_TESTED.toString());
     }
 }
