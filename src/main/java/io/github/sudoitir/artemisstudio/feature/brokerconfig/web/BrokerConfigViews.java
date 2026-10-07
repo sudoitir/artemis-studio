@@ -986,6 +986,18 @@ public final class BrokerConfigViews {
             @Schema(requiredMode = REQUIRED, description = "Permission type to role names, prefilled from the broker")
             Map<String, List<String>> roles,
 
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "For a security setting: the roles of the account Studio connects to Core with,"
+                            + " as the broker's user management reports them; empty when it could not")
+            List<String> accountRoles,
+
+            @Schema(
+                    nullable = true,
+                    description = "For a security setting: where the prefilled roles came from. Null for any other"
+                            + " recommendation")
+            RolesSourceView accountRolesSource,
+
             @Schema(requiredMode = REQUIRED, description = "The keys this recommendation itself sets")
             List<String> keys,
 
@@ -1005,8 +1017,25 @@ public final class BrokerConfigViews {
                     r.match(),
                     r.values(),
                     roles,
+                    r.accountRoles(),
+                    r.accountRolesSource() == null ? null : RolesSourceView.of(r.accountRolesSource()),
                     r.keys(),
                     r.manualSnippet());
+        }
+    }
+
+    @Schema(name = "ConfigRolesSource", description = "Where a recommended security setting's roles were read from")
+    public record RolesSourceView(
+            @Schema(
+                    requiredMode = REQUIRED,
+                    allowableValues = {"BROKER_ACCOUNT", "SECURITY_SETTINGS", "NONE"})
+            String kind,
+
+            @Schema(nullable = true, description = "Why the account's roles were not used; null when they were")
+            String reason) {
+
+        public static RolesSourceView of(BrokerConfigRecommendations.RolesSource source) {
+            return new RolesSourceView(source.kind().name(), source.reason());
         }
     }
 }

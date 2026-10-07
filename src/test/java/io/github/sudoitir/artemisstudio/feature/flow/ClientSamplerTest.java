@@ -551,7 +551,7 @@ class ClientSamplerTest {
     void anUnusableNodeIsPersistedWithItsErrorAndNoEdgesOrRoutes() {
         UUID id = UUID.randomUUID();
         serving(node(id, "n", "http://n/j", "N", true));
-        doThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.UNAUTHORIZED))
+        doThrow(BrokerConnectionException.of(BrokerConnectionException.Kind.CREDENTIALS_REJECTED))
                 .when(connections)
                 .forCluster(any(), any());
 
@@ -559,7 +559,7 @@ class ClientSamplerTest {
 
         ArgumentCaptor<NodeSample> sample = ArgumentCaptor.forClass(NodeSample.class);
         verify(store).persistNode(sample.capture(), eq(List.of()), eq(List.of()));
-        assertThat(sample.getValue().errorKind()).isEqualTo("UNAUTHORIZED");
+        assertThat(sample.getValue().errorKind()).isEqualTo("CREDENTIALS_REJECTED");
     }
 
     @Test

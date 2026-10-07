@@ -111,7 +111,7 @@ class McpConnectionControlIntegrationTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity node = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        node.attachManagementUrl("http://a:8161/console/jolokia");
+        node.attachSeedUrl("http://a:8161/console/jolokia");
         node.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.56.0", null), 1L, Instant.now());
         nodeId = nodes.save(node).getId();
 

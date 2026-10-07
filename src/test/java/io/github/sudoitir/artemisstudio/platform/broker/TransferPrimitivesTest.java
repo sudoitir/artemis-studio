@@ -62,7 +62,7 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
     }
 
     @Test
-    void stagingIsCreatedRepeatablyListedAndDestroyedOnlyWhenEmpty() throws Exception {
+    void stagingIsCreatedRepeatablyListedAndDestroyedOnlyWhenEmpty() {
         UUID run = UUID.randomUUID();
         String queue = StagingQueues.queueName(run);
 
@@ -124,9 +124,9 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
         createQueue(source);
         createQueue(target);
         produce(source, 5);
-        Thread.sleep(20);
+        awaitClockAdvance();
         Instant t0 = Instant.now();
-        Thread.sleep(20);
+        awaitClockAdvance();
         produce(source, 2);
 
         String frozen = FrozenFilter.compose(null, t0);
@@ -259,6 +259,14 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
             }
         } catch (Exception e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    /** Block until the clock has moved on, so messages produced after this call carry a later timestamp. */
+    private static void awaitClockAdvance() {
+        Instant until = Instant.now().plusMillis(20);
+        while (Instant.now().isBefore(until)) {
+            Thread.onSpinWait();
         }
     }
 

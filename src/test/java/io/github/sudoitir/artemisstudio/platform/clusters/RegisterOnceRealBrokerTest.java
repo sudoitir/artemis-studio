@@ -85,7 +85,10 @@ class RegisterOnceRealBrokerTest extends PostgresIntegrationTest {
                 new RegisterClusterRequest.Credentials(
                         ArtemisIntegrationTest.BROKER_USER, ArtemisIntegrationTest.BROKER_PASSWORD),
                 null,
-                null);
+                null,
+                null,
+                null,
+                false);
     }
 
     private UUID registered(RegisterClusterRequest request) {

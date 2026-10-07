@@ -6,6 +6,7 @@ import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useOverrideNodeUrl, type NodeEndpointView } from './api.ts';
 import classes from './Clusters.module.css';
+import { urlProblemWords } from './connectionWords.ts';
 
 const UPDATE: ActionVerb = { verb: 'Update', past: 'Updated', progressive: 'Updating' };
 
@@ -67,7 +68,9 @@ export function AddManagementUrl({
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
             Its pair reported <code>{endpoint?.coreUrl}</code>. That is a broker-to-broker connector, not a management
-            URL, so Studio cannot reach it yet. Enter the Jolokia URL you can reach this broker on.
+            URL. Studio derives one from the cluster&apos;s management URL pattern, but could not for this node
+            {endpoint?.urlProblem ? `: ${urlProblemWords(endpoint.urlProblem)}` : ' yet'}. Enter the Jolokia URL you can
+            reach this broker on.
           </Text>
           <TextInput
             label="Management URL"

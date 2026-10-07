@@ -9,7 +9,7 @@ import { ClusterHeader } from './ClusterHeader.tsx';
 import { ClusterPalette } from './ClusterPalette.tsx';
 import { RemoveClusterSection } from './RemoveClusterSection.tsx';
 import { ClusterSwitcher } from './ClusterSwitcher.tsx';
-import { CapabilitiesSection, CredentialsSection, RegisterSection } from './ClusterSettings.tsx';
+import { CapabilitiesSection, ConnectionSection, RegisterSection } from './ClusterSettings.tsx';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
 import { validateTopologySearch } from './topologySearch.ts';
 
@@ -55,11 +55,11 @@ export const clustersFeature = defineFeature({
     'settings.sections': [
       { id: 'clusters-register', order: 30, group: 'studio', title: 'Clusters', Component: RegisterSection },
       {
-        id: 'clusters-credentials',
+        id: 'clusters-connection',
         order: 40,
         group: 'cluster',
-        title: 'Broker credentials',
-        Component: CredentialsSection,
+        title: 'Connection',
+        Component: ConnectionSection,
       },
       {
         id: 'clusters-capabilities',

@@ -196,22 +196,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/clusters/{clusterId}/credentials": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["rotateCredentials"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/clusters/{clusterId}/config": {
         parameters: {
             query?: never;
@@ -1588,6 +1572,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clusters/{clusterId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_5"];
+        options?: never;
+        head?: never;
+        patch: operations["update_5"];
+        trace?: never;
+    };
     "/api/v1/clusters/{clusterId}/sql/index/{id}": {
         parameters: {
             query?: never;
@@ -1598,10 +1598,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["delete_5"];
+        delete: operations["delete_6"];
         options?: never;
         head?: never;
-        patch: operations["update_5"];
+        patch: operations["update_6"];
         trace?: never;
     };
     "/api/v1/clusters/{clusterId}/queues/{queueName}": {
@@ -2031,22 +2031,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clusters/{clusterId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_2"];
-        put?: never;
-        post?: never;
-        delete: operations["delete_6"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3465,11 +3449,6 @@ export interface components {
             /** Format: uuid */
             environmentId?: string;
         };
-        RotateCredentialsRequest: {
-            username: string;
-            password: string;
-            kind?: string;
-        };
         /** @description One address-setting match; values are keyed by the catalogue's JSON names and hold only declared keys */
         ConfigAddressSettingView: {
             match: string;
@@ -4016,6 +3995,26 @@ export interface components {
             credentials?: components["schemas"]["Credentials"];
             coreCredentials?: components["schemas"]["Credentials"];
             tlsBundle?: string;
+            managementUrlPattern?: string;
+            /** Format: uuid */
+            environmentId?: string;
+            adopt?: boolean;
+        };
+        AdoptionCountsView: {
+            /** Format: int32 */
+            addresses: number;
+            /** Format: int32 */
+            addressSettings: number;
+            /** Format: int32 */
+            securitySettings: number;
+            /** Format: int32 */
+            diverts: number;
+        };
+        AdoptionPreviewView: {
+            counts: components["schemas"]["AdoptionCountsView"];
+            /** @description Items the live nodes report differently, each naming the nodes and their values */
+            disagreements: string[];
+            notes: string[];
         };
         CapabilitiesView: {
             managementRead: components["schemas"]["CapabilityView"];
@@ -4055,11 +4054,38 @@ export interface components {
              */
             versionSupport: "SUPPORTED" | "BELOW_MINIMUM" | "NEWER_THAN_TESTED" | "UNKNOWN";
             lastError?: string | null;
+            /** @enum {string|null} */
+            lastErrorKind?: "UNREACHABLE" | "THROTTLED" | "CREDENTIALS_REJECTED" | "NOT_ARTEMIS" | "WRONG_PATH" | "TLS_FAILED" | "BAD_RESPONSE" | "UNSUPPORTED_VERSION" | null;
             /** Format: date-time */
             lastSeenAt?: string | null;
-            discovered: boolean;
-            manualOverride: boolean;
+            /**
+             * @description Where the management URL came from; null while there is none
+             * @enum {string|null}
+             */
+            urlSource?: "SEED" | "DERIVED" | "MANUAL" | null;
+            /**
+             * @description Why the node has no management URL
+             * @enum {string|null}
+             */
+            urlProblem?: "NO_PATTERN" | "UNREACHABLE" | "CREDENTIALS_REJECTED" | "WRONG_ENDPOINT" | "TLS_FAILED" | "OTHER_BROKER" | null;
+            /** @description Whether an operator set the Core URL */
+            coreUrlManual: boolean;
             manageable: boolean;
+        };
+        NodeProbeView: {
+            name: string;
+            haRole: string;
+            artemisNodeId?: string | null;
+            version?: string | null;
+            managementUrl?: string | null;
+            /** @enum {string|null} */
+            urlSource?: "SEED" | "DERIVED" | "MANUAL" | null;
+            /** @enum {string|null} */
+            urlProblem?: "NO_PATTERN" | "UNREACHABLE" | "CREDENTIALS_REJECTED" | "WRONG_ENDPOINT" | "TLS_FAILED" | "OTHER_BROKER" | null;
+            /** @enum {string} */
+            management: "ACCEPTED" | "REJECTED" | "UNREACHABLE" | "NOT_TRIED";
+            /** @enum {string} */
+            core: "ACCEPTED" | "REJECTED" | "UNREACHABLE" | "NOT_TRIED";
         };
         NodeVersionView: {
             /** Format: uuid */
@@ -4075,6 +4101,11 @@ export interface components {
             /** Format: int32 */
             discoveredNodes: number;
             topology: components["schemas"]["TopologyView"];
+            /** @description The pattern the check derived management URLs from */
+            managementUrlPattern: string;
+            /** @description One row per node the check found */
+            nodes: components["schemas"]["NodeProbeView"][];
+            adoption?: components["schemas"]["AdoptionPreviewView"] | null;
             /** @description What each enabled feature adds to the check, keyed by feature id and read from the reachable node. brokerconfig contributes a ConfigRecommendationsView: what to declare once the cluster is registered */
             contributions: {
                 [key: string]: unknown;
@@ -4094,6 +4125,15 @@ export interface components {
             brokerXmlSnippet?: string | null;
             nodes: components["schemas"]["NodeVersionView"][];
         };
+        ClusterConnectionDetail: {
+            managementUrlPattern?: string | null;
+            /** @description The management URLs the operator gave as seeds, from the nodes that hold one */
+            seedUrls: string[];
+            tlsBundle?: string | null;
+            managementUsername?: string | null;
+            /** @description The Core account's user name, or null while Core uses the management account */
+            coreUsername?: string | null;
+        };
         ClusterDetail: {
             /** Format: uuid */
             id: string;
@@ -4104,6 +4144,12 @@ export interface components {
             health: components["schemas"]["HealthView"];
             /** Format: uuid */
             environmentId?: string | null;
+            connection?: components["schemas"]["ClusterConnectionDetail"] | null;
+        };
+        CredentialRejectionView: {
+            /** @enum {string} */
+            account: "MANAGEMENT" | "CORE";
+            nodeNames: string[];
         };
         HealthView: {
             /** Format: uuid */
@@ -4113,6 +4159,8 @@ export interface components {
             splitBrain: string;
             replicationBehind: boolean;
             notes: string[];
+            /** @description The accounts a broker rejected, and on which nodes, so the view can link to where the account is edited */
+            credentialRejections: components["schemas"]["CredentialRejectionView"][];
         };
         Finding: {
             /** @enum {string} */
@@ -5171,6 +5219,30 @@ export interface components {
             sections: string[];
         };
         StreamingResponseBody: unknown;
+        AccountUpdate: {
+            username?: string;
+            password?: string;
+        };
+        UpdateClusterRequest: {
+            name?: string;
+            description?: string;
+            seedUrls?: string[];
+            managementUrlPattern?: string;
+            tlsBundle?: string;
+            management?: components["schemas"]["AccountUpdate"];
+            core?: components["schemas"]["AccountUpdate"];
+        };
+        ConnectionCheck: {
+            managementUrlPattern: string;
+            nodes: components["schemas"]["NodeProbeView"][];
+        };
+        ClusterConnectionView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string | null;
+            connection: components["schemas"]["ClusterConnectionDetail"];
+        };
         UpdateQueueRequest: {
             /** @description A JMS selector limiting what the queue accepts. */
             filter?: string | null;
@@ -5933,6 +6005,8 @@ export interface components {
                 message?: string;
             }[];
             brokerErrorKind?: string;
+            /** @description MANAGEMENT or CORE: the account a broker rejected. */
+            account?: string;
             refusalKind?: string;
             /** Format: int64 */
             affectedCount?: number;
@@ -6985,6 +7059,9 @@ export interface components {
             roles: {
                 [key: string]: string[];
             };
+            /** @description For a security setting: the roles of the account Studio connects to Core with, as the broker's user management reports them; empty when it could not */
+            accountRoles: string[];
+            accountRolesSource?: components["schemas"]["ConfigRolesSource"] | null;
             /** @description The keys this recommendation itself sets */
             keys: string[];
             manualSnippet?: string | null;
@@ -6994,6 +7071,13 @@ export interface components {
             /** @description The node the current values were read from; null when none could be read */
             seededFrom?: string | null;
             recommendations: components["schemas"]["ConfigRecommendationView"][];
+        };
+        /** @description Where a recommended security setting's roles were read from */
+        ConfigRolesSource: {
+            /** @enum {string} */
+            kind: "BROKER_ACCOUNT" | "SECURITY_SETTINGS" | "NONE";
+            /** @description Why the account's roles were not used; null when they were */
+            reason?: string | null;
         };
         /** @description One node's connector names, for a bridge to reference. known=false means Studio could not read them, not that there are none */
         ConfigNodeConnectorsView: {
@@ -7091,49 +7175,70 @@ export interface components {
             plan: components["schemas"]["ConfigPlanView"];
             nodes: components["schemas"]["ConfigNodeApplyView"][];
         };
-        /** @description Broker configuration compared across two nodes */
+        /** @description Broker configuration compared across every node of a cluster */
         ConfigDiffView: {
             /** Format: uuid */
             clusterId: string;
-            left: components["schemas"]["ConfigSideView"];
-            right: components["schemas"]["ConfigSideView"];
+            nodes: components["schemas"]["ConfigNodeView"][];
             comparable: boolean;
             sections: components["schemas"]["ConfigSectionView"][];
-            /** Format: int32 */
-            driftCount: number;
+            summary: components["schemas"]["ConfigSummaryView"];
             /** Format: int32 */
             matchesCompared: number;
             /** Format: int32 */
             matchesAvailable: number;
-            note?: string | null;
+            notes: string[];
         };
-        /** @description One configuration key, compared across both nodes */
-        ConfigEntryView: {
+        /** @description One configuration key, compared across every node */
+        ConfigKeyView: {
             key: string;
-            left?: string | null;
-            right?: string | null;
-            status: string;
-            statusWord: string;
+            state: string;
+            stateWord: string;
             classification: string;
             drift: boolean;
+            values: components["schemas"]["ConfigNodeValueView"][];
+            majority?: string | null;
+            outliers: components["schemas"]["ConfigNodeValueView"][];
+            valueGroups: components["schemas"]["ConfigValueGroupView"][];
         };
-        /** @description One section of the comparison */
-        ConfigSectionView: {
-            section: string;
-            label: string;
-            entries: components["schemas"]["ConfigEntryView"][];
-            /** Format: int32 */
-            driftCount: number;
+        /** @description One node's value for a configuration key */
+        ConfigNodeValueView: {
+            /** Format: uuid */
+            nodeId: string;
+            nodeName: string;
+            value?: string | null;
+            missing: boolean;
         };
         /** @description One node in a configuration comparison */
-        ConfigSideView: {
+        ConfigNodeView: {
             /** Format: uuid */
             nodeId: string;
             nodeName: string;
             available: boolean;
             active: boolean;
             reducedSurface: boolean;
+            unavailableKind?: string | null;
             unavailableReason?: string | null;
+        };
+        /** @description One section of the comparison */
+        ConfigSectionView: {
+            section: string;
+            label: string;
+            keys: components["schemas"]["ConfigKeyView"][];
+        };
+        /** @description Counts for a configuration comparison */
+        ConfigSummaryView: {
+            /** Format: int32 */
+            driftKeys: number;
+            /** Format: int32 */
+            driftNodes: number;
+            /** Format: int32 */
+            expectedKeys: number;
+        };
+        /** @description A distinct value and the nodes that hold it */
+        ConfigValueGroupView: {
+            value: string;
+            nodes: components["schemas"]["ConfigNodeValueView"][];
         };
         PagedViewBulkRunView: {
             data: components["schemas"]["BulkRunView"][];
@@ -8706,68 +8811,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AssignEnvironmentRequest"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Too many requests. Wait for Retry-After seconds. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before retrying. */
-                    "Retry-After"?: number;
-                    /** @description Requests allowed in the window (API tokens). */
-                    "RateLimit-Limit"?: number;
-                    /** @description Requests left in the window (API tokens). */
-                    "RateLimit-Remaining"?: number;
-                    /** @description Seconds until the window resets (API tokens). */
-                    "RateLimit-Reset"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Client error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Server error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    rotateCredentials: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                clusterId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RotateCredentialsRequest"];
             };
         };
         responses: {
@@ -15707,7 +15750,188 @@ export interface operations {
             };
         };
     };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_5: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    update_5: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clusterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateClusterRequest"];
+            };
+        };
+        responses: {
+            /** @description dryRun=true: per-node probe result, nothing saved; otherwise the saved cluster */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConnectionCheck"] | components["schemas"]["ClusterConnectionView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_6: {
         parameters: {
             query?: never;
             header?: {
@@ -15768,7 +15992,7 @@ export interface operations {
             };
         };
     };
-    update_5: {
+    update_6: {
         parameters: {
             query?: never;
             header?: {
@@ -17491,121 +17715,6 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["HealthResponse"];
                 };
-            };
-            /** @description Too many requests. Wait for Retry-After seconds. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before retrying. */
-                    "Retry-After"?: number;
-                    /** @description Requests allowed in the window (API tokens). */
-                    "RateLimit-Limit"?: number;
-                    /** @description Requests left in the window (API tokens). */
-                    "RateLimit-Remaining"?: number;
-                    /** @description Seconds until the window resets (API tokens). */
-                    "RateLimit-Reset"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Client error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Server error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    get_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                clusterId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ClusterDetail"];
-                };
-            };
-            /** @description Too many requests. Wait for Retry-After seconds. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before retrying. */
-                    "Retry-After"?: number;
-                    /** @description Requests allowed in the window (API tokens). */
-                    "RateLimit-Limit"?: number;
-                    /** @description Requests left in the window (API tokens). */
-                    "RateLimit-Remaining"?: number;
-                    /** @description Seconds until the window resets (API tokens). */
-                    "RateLimit-Reset"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Client error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Server error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_6: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                clusterId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
@@ -19851,8 +19960,7 @@ export interface operations {
     compare: {
         parameters: {
             query?: {
-                left?: string;
-                right?: string;
+                nodes?: string[];
             };
             header?: never;
             path: {

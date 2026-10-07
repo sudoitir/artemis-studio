@@ -131,7 +131,7 @@ class McpBrokerConfigIntegrationTest extends PostgresIntegrationTest {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
         String url = "http://" + name + ":8161/console/jolokia";
-        n.attachManagementUrl(url);
+        n.attachSeedUrl(url);
         n.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         UUID id = nodes.save(n).getId();
         JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);

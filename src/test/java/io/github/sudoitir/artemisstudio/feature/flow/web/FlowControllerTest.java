@@ -61,7 +61,7 @@ class FlowControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity a = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        a.attachManagementUrl("http://a:8161/console/jolokia");
+        a.attachSeedUrl("http://a:8161/console/jolokia");
         UUID nodeId = nodes.save(a).getId();
         upsert.upsertBatch(List.of(new QueueRow(
                 clusterId, nodeId, "orders", "orders.dead", "ANYCAST", true, 12, 0, 0, 0, 0, 0, 0, false)));

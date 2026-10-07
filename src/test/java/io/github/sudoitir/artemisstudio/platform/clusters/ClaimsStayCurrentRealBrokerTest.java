@@ -71,7 +71,10 @@ class ClaimsStayCurrentRealBrokerTest extends PostgresIntegrationTest {
                 new RegisterClusterRequest.Credentials(
                         ArtemisIntegrationTest.BROKER_USER, ArtemisIntegrationTest.BROKER_PASSWORD),
                 null,
-                null));
+                null,
+                null,
+                null,
+                false));
         if (!(attempt instanceof Attempt.Ok<ClusterDetail> ok)) {
             throw new IllegalStateException("could not register " + seed + ": " + attempt);
         }

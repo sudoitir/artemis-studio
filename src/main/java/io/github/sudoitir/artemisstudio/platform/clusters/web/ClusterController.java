@@ -3,14 +3,17 @@ package io.github.sudoitir.artemisstudio.platform.clusters.web;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterService;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.NodeOverrideRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RegisterClusterRequest;
-import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.RotateCredentialsRequest;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterRequests.UpdateClusterRequest;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.CapabilitiesView;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterConnectionView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterDetail;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ClusterSummary;
+import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.ConnectionCheck;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.HealthView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.NodeEndpointView;
 import io.github.sudoitir.artemisstudio.platform.clusters.web.ClusterViews.RegisterPreview;
@@ -28,7 +31,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -99,10 +101,21 @@ public class ClusterController {
         return service.health(clusterId);
     }
 
-    @PutMapping("/{clusterId}/credentials")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void rotateCredentials(@PathVariable UUID clusterId, @Valid @RequestBody RotateCredentialsRequest request) {
-        service.rotateCredentials(clusterId, request.username(), request.password(), request.kindOrDefault());
+    /**
+     * Edit the cluster's connection: name, description, seeds, management URL pattern, TLS bundle
+     * and both accounts, in one request. {@code ?dryRun=true} checks the edited connection node by node and saves
+     * nothing.
+     */
+    @ApiResponse(
+            responseCode = "200",
+            description = "dryRun=true: per-node probe result, nothing saved; otherwise the saved cluster",
+            content = @Content(schema = @Schema(oneOf = {ConnectionCheck.class, ClusterConnectionView.class})))
+    @PatchMapping("/{clusterId}")
+    public Object update(
+            @PathVariable UUID clusterId,
+            @Valid @RequestBody UpdateClusterRequest request,
+            @RequestParam(defaultValue = "false") boolean dryRun) {
+        return dryRun ? service.checkUpdate(clusterId, request) : service.updateConnection(clusterId, request);
     }
 
     @PatchMapping("/{clusterId}/nodes/{nodeId}")
@@ -111,11 +124,18 @@ public class ClusterController {
         return unwrap(service.overrideNodeUrl(clusterId, nodeId, request));
     }
 
-    /** A {@link Attempt.Failed} becomes a classified {@link BrokerConnectionException} for the advice to render. */
+    /**
+     * A {@link Attempt.Failed} becomes a classified {@link BrokerConnectionException} for the advice to render.
+     * Only management calls fail an attempt here (Core results are reported per node, never as a failure), so a
+     * rejected credential is the management account.
+     */
     private static <T> T unwrap(Attempt<T> attempt) {
         return switch (attempt) {
             case Attempt.Ok<T>(var value) -> value;
-            case Attempt.Failed<T>(var kind, var detail) -> throw new BrokerConnectionException(kind, detail);
+            case Attempt.Failed<T>(var kind, var detail) ->
+                throw kind == BrokerConnectionException.Kind.CREDENTIALS_REJECTED
+                        ? BrokerConnectionException.credentialsRejected(BrokerAccount.MANAGEMENT, detail, null)
+                        : new BrokerConnectionException(kind, detail);
         };
     }
 }

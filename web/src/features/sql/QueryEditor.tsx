@@ -122,6 +122,7 @@ export function QueryEditor({
   onChange,
   onRun,
   onCancel,
+  onMaximise,
   onEscape,
   queues,
   label = 'Query',
@@ -133,6 +134,8 @@ export function QueryEditor({
   onRun: () => void;
   /** Mod+. */
   onCancel: () => void;
+  /** Mod+Shift+M: give the results the whole workspace, or take it back. */
+  onMaximise: () => void;
   /** Escape with nothing left to close or collapse: the caller moves focus out of the editor. */
   onEscape: () => void;
   /** Queue names for completion, from the cluster's current snapshot. */
@@ -150,8 +153,8 @@ export function QueryEditor({
   // The extensions are built once, so the keymap and completion source close over
   // the first render's callbacks. These refs keep them current without tearing
   // the editor down and losing the cursor on every parent render.
-  const latest = useRef({ value, onChange, onRun, onCancel, onEscape, queues });
-  latest.current = { value, onChange, onRun, onCancel, onEscape, queues };
+  const latest = useRef({ value, onChange, onRun, onCancel, onMaximise, onEscape, queues });
+  latest.current = { value, onChange, onRun, onCancel, onMaximise, onEscape, queues };
 
   useEffect(() => {
     if (!host.current) return;
@@ -186,6 +189,21 @@ export function QueryEditor({
           },
         ]),
       ),
+      Prec.high(
+        keymap.of([
+          {
+            // The same key as the page's, so it means one thing wherever focus is. It takes the lint
+            // keymap's Mod-Shift-m (the diagnostics list): the error is already marked in the editor
+            // and stated in words under it.
+            key: 'Mod-Shift-m',
+            preventDefault: true,
+            run: () => {
+              latest.current.onMaximise();
+              return true;
+            },
+          },
+        ]),
+      ),
       // In this order Escape closes the completion list, then collapses the selection to one
       // cursor, and only then, with nothing left to close, hands focus on.
       keymap.of([
@@ -193,7 +211,7 @@ export function QueryEditor({
         ...completionKeymap,
         ...defaultKeymap,
         ...historyKeymap,
-        // F8 steps through the diagnostics and Mod-Shift-m lists them.
+        // F8 steps through the diagnostics.
         ...lintKeymap,
         {
           key: 'Escape',

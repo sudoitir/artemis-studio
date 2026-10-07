@@ -119,11 +119,7 @@ export function RecommendedConfiguration({
                       ml="xl"
                       size="xs"
                       label="Roles that get these permissions"
-                      description={
-                        rolesOf(r).length > 0
-                          ? 'Read from the broker; change it if a different role should hold them.'
-                          : 'The broker names no role here, so there is nothing to copy. Name the one your account holds.'
-                      }
+                      description={rolesDescription(r)}
                       error={
                         taken.includes(r.capability) && (roles[r.match] ?? []).length === 0
                           ? 'At least one role, or this grants nobody anything.'
@@ -229,4 +225,21 @@ function rolesOf(r: ConfigRecommendationView): string[] {
   const all = new Set<string>();
   Object.values(r.roles).forEach((names) => names.forEach((n) => all.add(n)));
   return [...all].sort((a, b) => a.localeCompare(b));
+}
+
+/** Where the prefilled roles came from, in words, so the operator knows how far to trust them (ADR-0177). */
+function rolesDescription(r: ConfigRecommendationView): string | undefined {
+  const source = r.accountRolesSource;
+  if (!source) return undefined;
+  if (source.kind === 'BROKER_ACCOUNT') {
+    const narrowed = rolesOf(r).length < r.accountRoles.length;
+    return (
+      `Read from Studio's broker account (${r.accountRoles.join(', ')}).` +
+      (narrowed ? ' Narrowed to the roles the broker already names for this address.' : '')
+    );
+  }
+  const unread = `Studio's account roles could not be read: ${source.reason}.`;
+  return source.kind === 'SECURITY_SETTINGS'
+    ? `${unread} These are the roles the broker names for this address.`
+    : `${unread} The broker names no role for this address either, so there is nothing to copy. Name the one your account holds.`;
 }

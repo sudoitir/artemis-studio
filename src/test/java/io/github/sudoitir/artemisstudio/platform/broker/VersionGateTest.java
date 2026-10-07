@@ -27,7 +27,9 @@ class VersionGateTest {
                 version,
                 null,
                 null,
-                false,
+                null,
+                null,
+                null,
                 false,
                 true);
     }

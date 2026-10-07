@@ -1992,106 +1992,6 @@
         }
       }
     },
-    "/api/v1/clusters/{clusterId}/credentials" : {
-      "put" : {
-        "tags" : [ "cluster-controller" ],
-        "operationId" : "rotateCredentials",
-        "parameters" : [ {
-          "name" : "clusterId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "Idempotency-Key",
-          "in" : "header",
-          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "maxLength" : 255,
-            "minLength" : 1
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RotateCredentialsRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "204" : {
-            "description" : "No Content"
-          },
-          "4XX" : {
-            "description" : "Client error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "5XX" : {
-            "description" : "Server error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "429" : {
-            "description" : "Too many requests. Wait for Retry-After seconds.",
-            "headers" : {
-              "Retry-After" : {
-                "description" : "Seconds to wait before retrying.",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Limit" : {
-                "description" : "Requests allowed in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Remaining" : {
-                "description" : "Requests left in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Reset" : {
-                "description" : "Seconds until the window resets (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              }
-            },
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/clusters/{clusterId}/config" : {
       "get" : {
         "tags" : [ "broker-config-controller" ],
@@ -13497,10 +13397,302 @@
         }
       }
     },
+    "/api/v1/clusters/{clusterId}" : {
+      "get" : {
+        "tags" : [ "cluster-controller" ],
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClusterDetail"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "cluster-controller" ],
+        "operationId" : "delete_5",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "cluster-controller" ],
+        "operationId" : "update_5",
+        "parameters" : [ {
+          "name" : "clusterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateClusterRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "dryRun=true: per-node probe result, nothing saved; otherwise the saved cluster",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/ConnectionCheck"
+                  }, {
+                    "$ref" : "#/components/schemas/ClusterConnectionView"
+                  } ]
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/clusters/{clusterId}/sql/index/{id}" : {
       "delete" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "delete_5",
+        "operationId" : "delete_6",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -13603,7 +13795,7 @@
       },
       "patch" : {
         "tags" : [ "sql-index-controller" ],
-        "operationId" : "update_5",
+        "operationId" : "update_6",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -16387,181 +16579,6 @@
                 }
               }
             }
-          },
-          "4XX" : {
-            "description" : "Client error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "5XX" : {
-            "description" : "Server error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "429" : {
-            "description" : "Too many requests. Wait for Retry-After seconds.",
-            "headers" : {
-              "Retry-After" : {
-                "description" : "Seconds to wait before retrying.",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Limit" : {
-                "description" : "Requests allowed in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Remaining" : {
-                "description" : "Requests left in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Reset" : {
-                "description" : "Seconds until the window resets (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              }
-            },
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/clusters/{clusterId}" : {
-      "get" : {
-        "tags" : [ "cluster-controller" ],
-        "operationId" : "get_2",
-        "parameters" : [ {
-          "name" : "clusterId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ClusterDetail"
-                }
-              }
-            }
-          },
-          "4XX" : {
-            "description" : "Client error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "5XX" : {
-            "description" : "Server error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "429" : {
-            "description" : "Too many requests. Wait for Retry-After seconds.",
-            "headers" : {
-              "Retry-After" : {
-                "description" : "Seconds to wait before retrying.",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Limit" : {
-                "description" : "Requests allowed in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Remaining" : {
-                "description" : "Requests left in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Reset" : {
-                "description" : "Seconds until the window resets (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              }
-            },
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "cluster-controller" ],
-        "operationId" : "delete_6",
-        "parameters" : [ {
-          "name" : "clusterId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "Idempotency-Key",
-          "in" : "header",
-          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "maxLength" : 255,
-            "minLength" : 1
-          }
-        } ],
-        "responses" : {
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -20424,20 +20441,16 @@
             "format" : "uuid"
           }
         }, {
-          "name" : "left",
+          "name" : "nodes",
           "in" : "query",
           "required" : false,
           "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "right",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            },
+            "uniqueItems" : true
           }
         } ],
         "responses" : {
@@ -24820,23 +24833,6 @@
           }
         }
       },
-      "RotateCredentialsRequest" : {
-        "type" : "object",
-        "properties" : {
-          "username" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "password" : {
-            "type" : "string",
-            "minLength" : 1
-          },
-          "kind" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "password", "username" ]
-      },
       "ConfigAddressSettingView" : {
         "type" : "object",
         "description" : "One address-setting match; values are keyed by the catalogue's JSON names and hold only declared keys",
@@ -26313,9 +26309,63 @@
           },
           "tlsBundle" : {
             "type" : "string"
+          },
+          "managementUrlPattern" : {
+            "type" : "string"
+          },
+          "environmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "adopt" : {
+            "type" : "boolean"
           }
         },
         "required" : [ "seedUrls" ]
+      },
+      "AdoptionCountsView" : {
+        "type" : "object",
+        "properties" : {
+          "addresses" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "addressSettings" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "securitySettings" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "diverts" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "addressSettings", "addresses", "diverts", "securitySettings" ]
+      },
+      "AdoptionPreviewView" : {
+        "type" : "object",
+        "properties" : {
+          "counts" : {
+            "$ref" : "#/components/schemas/AdoptionCountsView"
+          },
+          "disagreements" : {
+            "type" : "array",
+            "description" : "Items the live nodes report differently, each naming the nodes and their values",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "counts", "disagreements", "notes" ]
       },
       "CapabilitiesView" : {
         "type" : "object",
@@ -26423,21 +26473,70 @@
           "lastError" : {
             "type" : [ "string", "null" ]
           },
+          "lastErrorKind" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "UNREACHABLE", "THROTTLED", "CREDENTIALS_REJECTED", "NOT_ARTEMIS", "WRONG_PATH", "TLS_FAILED", "BAD_RESPONSE", "UNSUPPORTED_VERSION", null ]
+          },
           "lastSeenAt" : {
             "type" : [ "string", "null" ],
             "format" : "date-time"
           },
-          "discovered" : {
-            "type" : "boolean"
+          "urlSource" : {
+            "type" : [ "string", "null" ],
+            "description" : "Where the management URL came from; null while there is none",
+            "enum" : [ "SEED", "DERIVED", "MANUAL", null ]
           },
-          "manualOverride" : {
-            "type" : "boolean"
+          "urlProblem" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why the node has no management URL",
+            "enum" : [ "NO_PATTERN", "UNREACHABLE", "CREDENTIALS_REJECTED", "WRONG_ENDPOINT", "TLS_FAILED", "OTHER_BROKER", null ]
+          },
+          "coreUrlManual" : {
+            "type" : "boolean",
+            "description" : "Whether an operator set the Core URL"
           },
           "manageable" : {
             "type" : "boolean"
           }
         },
-        "required" : [ "active", "discovered", "haRole", "id", "manageable", "manualOverride", "name", "state", "versionSupport" ]
+        "required" : [ "active", "coreUrlManual", "haRole", "id", "manageable", "name", "state", "versionSupport" ]
+      },
+      "NodeProbeView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "haRole" : {
+            "type" : "string"
+          },
+          "artemisNodeId" : {
+            "type" : [ "string", "null" ]
+          },
+          "version" : {
+            "type" : [ "string", "null" ]
+          },
+          "managementUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "urlSource" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "SEED", "DERIVED", "MANUAL", null ]
+          },
+          "urlProblem" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "NO_PATTERN", "UNREACHABLE", "CREDENTIALS_REJECTED", "WRONG_ENDPOINT", "TLS_FAILED", "OTHER_BROKER", null ]
+          },
+          "management" : {
+            "type" : "string",
+            "enum" : [ "ACCEPTED", "REJECTED", "UNREACHABLE", "NOT_TRIED" ]
+          },
+          "core" : {
+            "type" : "string",
+            "enum" : [ "ACCEPTED", "REJECTED", "UNREACHABLE", "NOT_TRIED" ]
+          }
+        },
+        "required" : [ "core", "haRole", "management", "name" ]
       },
       "NodeVersionView" : {
         "type" : "object",
@@ -26475,13 +26574,31 @@
           "topology" : {
             "$ref" : "#/components/schemas/TopologyView"
           },
+          "managementUrlPattern" : {
+            "type" : "string",
+            "description" : "The pattern the check derived management URLs from"
+          },
+          "nodes" : {
+            "type" : "array",
+            "description" : "One row per node the check found",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeProbeView"
+            }
+          },
+          "adoption" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/AdoptionPreviewView"
+            }, {
+              "type" : "null"
+            } ]
+          },
           "contributions" : {
             "type" : "object",
             "additionalProperties" : { },
             "description" : "What each enabled feature adds to the check, keyed by feature id and read from the reachable node. brokerconfig contributes a ConfigRecommendationsView: what to declare once the cluster is registered"
           }
         },
-        "required" : [ "capabilities", "contributions", "discoveredNodes", "reachableSeeds", "topology" ]
+        "required" : [ "capabilities", "contributions", "discoveredNodes", "managementUrlPattern", "nodes", "reachableSeeds", "topology" ]
       },
       "TopologyView" : {
         "type" : "object",
@@ -26529,6 +26646,32 @@
         },
         "required" : [ "feature", "label", "nodes", "reason", "requiredVersion", "status" ]
       },
+      "ClusterConnectionDetail" : {
+        "type" : "object",
+        "properties" : {
+          "managementUrlPattern" : {
+            "type" : [ "string", "null" ]
+          },
+          "seedUrls" : {
+            "type" : "array",
+            "description" : "The management URLs the operator gave as seeds, from the nodes that hold one",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "tlsBundle" : {
+            "type" : [ "string", "null" ]
+          },
+          "managementUsername" : {
+            "type" : [ "string", "null" ]
+          },
+          "coreUsername" : {
+            "type" : [ "string", "null" ],
+            "description" : "The Core account's user name, or null while Core uses the management account"
+          }
+        },
+        "required" : [ "seedUrls" ]
+      },
       "ClusterDetail" : {
         "type" : "object",
         "properties" : {
@@ -26554,9 +26697,32 @@
           "environmentId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid"
+          },
+          "connection" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/ClusterConnectionDetail"
+            }, {
+              "type" : "null"
+            } ]
           }
         },
         "required" : [ "capabilities", "health", "id", "name", "topology" ]
+      },
+      "CredentialRejectionView" : {
+        "type" : "object",
+        "properties" : {
+          "account" : {
+            "type" : "string",
+            "enum" : [ "MANAGEMENT", "CORE" ]
+          },
+          "nodeNames" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "account", "nodeNames" ]
       },
       "HealthView" : {
         "type" : "object",
@@ -26585,9 +26751,16 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "credentialRejections" : {
+            "type" : "array",
+            "description" : "The accounts a broker rejected, and on which nodes, so the view can link to where the account is edited",
+            "items" : {
+              "$ref" : "#/components/schemas/CredentialRejectionView"
+            }
           }
         },
-        "required" : [ "clusterId", "level", "liveEndpointNames", "notes", "replicationBehind", "splitBrain" ]
+        "required" : [ "clusterId", "credentialRejections", "level", "liveEndpointNames", "notes", "replicationBehind", "splitBrain" ]
       },
       "Finding" : {
         "type" : "object",
@@ -29157,6 +29330,81 @@
         "required" : [ "sections" ]
       },
       "StreamingResponseBody" : { },
+      "AccountUpdate" : {
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string"
+          }
+        }
+      },
+      "UpdateClusterRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "seedUrls" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "minLength" : 1
+            }
+          },
+          "managementUrlPattern" : {
+            "type" : "string"
+          },
+          "tlsBundle" : {
+            "type" : "string"
+          },
+          "management" : {
+            "$ref" : "#/components/schemas/AccountUpdate"
+          },
+          "core" : {
+            "$ref" : "#/components/schemas/AccountUpdate"
+          }
+        }
+      },
+      "ConnectionCheck" : {
+        "type" : "object",
+        "properties" : {
+          "managementUrlPattern" : {
+            "type" : "string"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeProbeView"
+            }
+          }
+        },
+        "required" : [ "managementUrlPattern", "nodes" ]
+      },
+      "ClusterConnectionView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "connection" : {
+            "$ref" : "#/components/schemas/ClusterConnectionDetail"
+          }
+        },
+        "required" : [ "connection", "id", "name" ]
+      },
       "UpdateQueueRequest" : {
         "type" : "object",
         "properties" : {
@@ -30975,6 +31223,10 @@
           },
           "brokerErrorKind" : {
             "type" : "string"
+          },
+          "account" : {
+            "type" : "string",
+            "description" : "MANAGEMENT or CORE: the account a broker rejected."
           },
           "refusalKind" : {
             "type" : "string"
@@ -33507,6 +33759,20 @@
             },
             "description" : "Permission type to role names, prefilled from the broker"
           },
+          "accountRoles" : {
+            "type" : "array",
+            "description" : "For a security setting: the roles of the account Studio connects to Core with, as the broker's user management reports them; empty when it could not",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "accountRolesSource" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/ConfigRolesSource"
+            }, {
+              "type" : "null"
+            } ]
+          },
           "keys" : {
             "type" : "array",
             "description" : "The keys this recommendation itself sets",
@@ -33518,7 +33784,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
+        "required" : [ "accountRoles", "appliable", "capability", "keys", "rationale", "roles", "title", "values" ]
       },
       "ConfigRecommendationsView" : {
         "type" : "object",
@@ -33536,6 +33802,21 @@
           }
         },
         "required" : [ "recommendations" ]
+      },
+      "ConfigRolesSource" : {
+        "type" : "object",
+        "description" : "Where a recommended security setting's roles were read from",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "BROKER_ACCOUNT", "SECURITY_SETTINGS", "NONE" ]
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why the account's roles were not used; null when they were"
+          }
+        },
+        "required" : [ "kind" ]
       },
       "ConfigNodeConnectorsView" : {
         "type" : "object",
@@ -33775,17 +34056,17 @@
       },
       "ConfigDiffView" : {
         "type" : "object",
-        "description" : "Broker configuration compared across two nodes",
+        "description" : "Broker configuration compared across every node of a cluster",
         "properties" : {
           "clusterId" : {
             "type" : "string",
             "format" : "uuid"
           },
-          "left" : {
-            "$ref" : "#/components/schemas/ConfigSideView"
-          },
-          "right" : {
-            "$ref" : "#/components/schemas/ConfigSideView"
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeView"
+            }
           },
           "comparable" : {
             "type" : "boolean"
@@ -33796,9 +34077,8 @@
               "$ref" : "#/components/schemas/ConfigSectionView"
             }
           },
-          "driftCount" : {
-            "type" : "integer",
-            "format" : "int32"
+          "summary" : {
+            "$ref" : "#/components/schemas/ConfigSummaryView"
           },
           "matchesCompared" : {
             "type" : "integer",
@@ -33808,29 +34088,26 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "note" : {
-            "type" : [ "string", "null" ]
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "clusterId", "comparable", "driftCount", "left", "matchesAvailable", "matchesCompared", "right", "sections" ]
+        "required" : [ "clusterId", "comparable", "matchesAvailable", "matchesCompared", "nodes", "notes", "sections", "summary" ]
       },
-      "ConfigEntryView" : {
+      "ConfigKeyView" : {
         "type" : "object",
-        "description" : "One configuration key, compared across both nodes",
+        "description" : "One configuration key, compared across every node",
         "properties" : {
           "key" : {
             "type" : "string"
           },
-          "left" : {
-            "type" : [ "string", "null" ]
-          },
-          "right" : {
-            "type" : [ "string", "null" ]
-          },
-          "status" : {
+          "state" : {
             "type" : "string"
           },
-          "statusWord" : {
+          "stateWord" : {
             "type" : "string"
           },
           "classification" : {
@@ -33838,34 +34115,52 @@
           },
           "drift" : {
             "type" : "boolean"
-          }
-        },
-        "required" : [ "classification", "drift", "key", "status", "statusWord" ]
-      },
-      "ConfigSectionView" : {
-        "type" : "object",
-        "description" : "One section of the comparison",
-        "properties" : {
-          "section" : {
-            "type" : "string"
           },
-          "label" : {
-            "type" : "string"
-          },
-          "entries" : {
+          "values" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/ConfigEntryView"
+              "$ref" : "#/components/schemas/ConfigNodeValueView"
             }
           },
-          "driftCount" : {
-            "type" : "integer",
-            "format" : "int32"
+          "majority" : {
+            "type" : [ "string", "null" ]
+          },
+          "outliers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeValueView"
+            }
+          },
+          "valueGroups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigValueGroupView"
+            }
           }
         },
-        "required" : [ "driftCount", "entries", "label", "section" ]
+        "required" : [ "classification", "drift", "key", "outliers", "state", "stateWord", "valueGroups", "values" ]
       },
-      "ConfigSideView" : {
+      "ConfigNodeValueView" : {
+        "type" : "object",
+        "description" : "One node's value for a configuration key",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "nodeName" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : [ "string", "null" ]
+          },
+          "missing" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "missing", "nodeId", "nodeName" ]
+      },
+      "ConfigNodeView" : {
         "type" : "object",
         "description" : "One node in a configuration comparison",
         "properties" : {
@@ -33885,11 +34180,68 @@
           "reducedSurface" : {
             "type" : "boolean"
           },
+          "unavailableKind" : {
+            "type" : [ "string", "null" ]
+          },
           "unavailableReason" : {
             "type" : [ "string", "null" ]
           }
         },
         "required" : [ "active", "available", "nodeId", "nodeName", "reducedSurface" ]
+      },
+      "ConfigSectionView" : {
+        "type" : "object",
+        "description" : "One section of the comparison",
+        "properties" : {
+          "section" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "keys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigKeyView"
+            }
+          }
+        },
+        "required" : [ "keys", "label", "section" ]
+      },
+      "ConfigSummaryView" : {
+        "type" : "object",
+        "description" : "Counts for a configuration comparison",
+        "properties" : {
+          "driftKeys" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "driftNodes" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "expectedKeys" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "driftKeys", "driftNodes", "expectedKeys" ]
+      },
+      "ConfigValueGroupView" : {
+        "type" : "object",
+        "description" : "A distinct value and the nodes that hold it",
+        "properties" : {
+          "value" : {
+            "type" : "string"
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ConfigNodeValueView"
+            }
+          }
+        },
+        "required" : [ "nodes", "value" ]
       },
       "PagedViewBulkRunView" : {
         "type" : "object",

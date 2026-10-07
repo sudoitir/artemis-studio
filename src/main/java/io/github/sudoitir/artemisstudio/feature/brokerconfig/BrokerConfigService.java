@@ -27,6 +27,7 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterLock;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterSecrets;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
+import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationAdoption;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshots;
 import java.time.Instant;
@@ -472,16 +473,45 @@ public class BrokerConfigService {
     @Transactional(readOnly = true)
     public Adoption adopt(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
-        List<String> notes = new ArrayList<>();
-        List<String> disagreements = new ArrayList<>();
-        notes.add("A broker reports the settings an address resolves to, not the match patterns its"
-                + " configuration declares. Address settings and security settings are therefore keyed by"
-                + " '#' and by address; merge them into the patterns you know before applying.");
-
+        List<String> notes = adoptionNotes();
         List<ObservedNodeConfig> observed = readLiveNodes(clusterId, notes);
         if (observed.isEmpty()) {
             throw new ConflictException("no-live-node", "No live node could be read, so there is nothing to adopt.");
         }
+        return build(observed, notes, clusterId);
+    }
+
+    /**
+     * What adopting would declare from nodes read before the cluster is registered (ADR-0176): the same
+     * document as {@link #adopt}, without the queues a scrape has not yet cached and without drift findings,
+     * because there are none. A node that cannot be read is noted and contributes nothing; empty when none
+     * could be read.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Adoption> previewAdoption(List<RegistrationAdoption.LiveNode> nodes) {
+        List<String> notes = adoptionNotes();
+        List<ObservedNodeConfig> observed = new ArrayList<>();
+        for (RegistrationAdoption.LiveNode node : nodes) {
+            try {
+                observed.add(ops.readForAdoption(node.client(), new UUID(0, 0), node.name()));
+            } catch (RuntimeException e) {
+                notes.add(node.name() + " could not be read and contributed nothing: " + e.getMessage());
+            }
+        }
+        return observed.isEmpty() ? Optional.empty() : Optional.of(build(observed, notes, null));
+    }
+
+    private static List<String> adoptionNotes() {
+        List<String> notes = new ArrayList<>();
+        notes.add("A broker reports the settings an address resolves to, not the match patterns its"
+                + " configuration declares. Address settings and security settings are therefore keyed by"
+                + " '#' and by address; merge them into the patterns you know before applying.");
+        return notes;
+    }
+
+    /** The declaration the observed nodes add up to; {@code clusterId} is null before the cluster exists. */
+    private Adoption build(List<ObservedNodeConfig> observed, List<String> notes, UUID clusterId) {
+        List<String> disagreements = new ArrayList<>();
         ObservedNodeConfig first = observed.getFirst();
 
         // Addresses and queues: the union across nodes; queues from the snapshot cache.
@@ -492,7 +522,9 @@ public class BrokerConfigService {
                     return x;
                 })));
         Map<String, List<QueueDecl>> queuesByAddress = new TreeMap<>();
-        addSnapshotQueues(clusterId, addresses, queuesByAddress);
+        if (clusterId != null) {
+            addSnapshotQueues(clusterId, addresses, queuesByAddress);
+        }
         List<AddressDecl> addressDecls = new ArrayList<>();
         addresses.forEach((name, types) -> {
             if (types.isEmpty()) {
@@ -515,7 +547,7 @@ public class BrokerConfigService {
                 // fields BridgeControl reports, and declaring the other ten as unset would
                 // silently drop them on the next apply (ADR-0090 D4a).
                 List.of());
-        List<ClosedFinding> closes = openFindings(clusterId);
+        List<ClosedFinding> closes = clusterId == null ? List.of() : openFindings(clusterId);
         if (!closes.isEmpty()) {
             notes.add(closes.size() + " open drift finding(s) will be closed by adopting this document, and no"
                     + " broker will be written: the declaration moves to match the cluster. Apply the current"

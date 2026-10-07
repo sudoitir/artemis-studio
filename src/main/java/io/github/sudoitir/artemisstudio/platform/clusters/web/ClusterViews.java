@@ -2,7 +2,12 @@ package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.platform.broker.AccountResult;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlProblem;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlSource;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterHealth;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -41,7 +46,40 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) TopologyView topology,
             @Schema(requiredMode = REQUIRED) CapabilitiesView capabilities,
             @Schema(requiredMode = REQUIRED) HealthView health,
-            @Schema(nullable = true) UUID environmentId) {}
+            @Schema(nullable = true) UUID environmentId,
+
+            @Schema(
+                    nullable = true,
+                    description = "How Studio reaches the cluster. Absent for a caller who sees the cluster only"
+                            + " through a team's queues")
+            ClusterConnectionDetail connection) {}
+
+    /** {@code PATCH /clusters/{id}}: the cluster as the edit left it. */
+    public record ClusterConnectionView(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(requiredMode = REQUIRED) String name,
+            @Schema(nullable = true) String description,
+            @Schema(requiredMode = REQUIRED) ClusterConnectionDetail connection) {}
+
+    /**
+     * What an operator may edit about a cluster's connection ({@code PATCH /clusters/{id}}), minus both
+     * passwords, which are never returned.
+     */
+    public record ClusterConnectionDetail(
+            @Schema(nullable = true) String managementUrlPattern,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The management URLs the operator gave as seeds, from the nodes that hold one")
+            List<String> seedUrls,
+
+            @Schema(nullable = true) String tlsBundle,
+            @Schema(nullable = true) String managementUsername,
+
+            @Schema(
+                    nullable = true,
+                    description = "The Core account's user name, or null while Core uses the management account")
+            String coreUsername) {}
 
     /** One broker endpoint — a {@code broker_node} row, minus anything secret. */
     public record NodeEndpointView(
@@ -60,9 +98,18 @@ public final class ClusterViews {
             BrokerVersion.Support versionSupport,
 
             @Schema(nullable = true) String lastError,
+            @Schema(nullable = true) BrokerConnectionException.Kind lastErrorKind,
             @Schema(nullable = true) Instant lastSeenAt,
-            @Schema(requiredMode = REQUIRED) boolean discovered,
-            @Schema(requiredMode = REQUIRED) boolean manualOverride,
+
+            @Schema(nullable = true, description = "Where the management URL came from; null while there is none")
+            ManagementUrlSource urlSource,
+
+            @Schema(nullable = true, description = "Why the node has no management URL")
+            ManagementUrlProblem urlProblem,
+
+            @Schema(requiredMode = REQUIRED, description = "Whether an operator set the Core URL")
+            boolean coreUrlManual,
+
             @Schema(requiredMode = REQUIRED) boolean manageable) {
 
         /** The endpoint without where it is reached or what went wrong reaching it. */
@@ -80,9 +127,11 @@ public final class ClusterViews {
                     version,
                     versionSupport,
                     null,
+                    null,
                     lastSeenAt,
-                    discovered,
-                    manualOverride,
+                    urlSource,
+                    urlProblem,
+                    coreUrlManual,
                     manageable);
         }
     }
@@ -182,7 +231,53 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) List<String> liveEndpointNames,
             @Schema(requiredMode = REQUIRED) String splitBrain,
             @Schema(requiredMode = REQUIRED) boolean replicationBehind,
+            @Schema(requiredMode = REQUIRED) List<String> notes,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "The accounts a broker rejected, and on which nodes, so the view can link to"
+                            + " where the account is edited")
+            List<CredentialRejectionView> credentialRejections) {}
+
+    /** One account the brokers refused, with the nodes that refused it. */
+    public record CredentialRejectionView(
+            @Schema(requiredMode = REQUIRED) BrokerAccount account,
+            @Schema(requiredMode = REQUIRED) List<String> nodeNames) {}
+
+    /** One node as a connection check found it: its address, and what each account did there. */
+    public record NodeProbeView(
+            @Schema(requiredMode = REQUIRED) String name,
+            @Schema(requiredMode = REQUIRED) String haRole,
+            @Schema(nullable = true) String artemisNodeId,
+            @Schema(nullable = true) String version,
+            @Schema(nullable = true) String managementUrl,
+            @Schema(nullable = true) ManagementUrlSource urlSource,
+            @Schema(nullable = true) ManagementUrlProblem urlProblem,
+            @Schema(requiredMode = REQUIRED) AccountResult management,
+            @Schema(requiredMode = REQUIRED) AccountResult core) {}
+
+    /** How many entries of each section adopting the running configuration would declare. */
+    public record AdoptionCountsView(
+            @Schema(requiredMode = REQUIRED) int addresses,
+            @Schema(requiredMode = REQUIRED) int addressSettings,
+            @Schema(requiredMode = REQUIRED) int securitySettings,
+            @Schema(requiredMode = REQUIRED) int diverts) {}
+
+    /** What adopting the running configuration at registration would declare, for review. */
+    public record AdoptionPreviewView(
+            @Schema(requiredMode = REQUIRED) AdoptionCountsView counts,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Items the live nodes report differently, each naming the nodes and their values")
+            List<String> disagreements,
+
             @Schema(requiredMode = REQUIRED) List<String> notes) {}
+
+    /** {@code PATCH /clusters/{id}?dryRun=true} — what the edited connection would find, nothing saved. */
+    public record ConnectionCheck(
+            @Schema(requiredMode = REQUIRED) String managementUrlPattern,
+            @Schema(requiredMode = REQUIRED) List<NodeProbeView> nodes) {}
 
     /** {@code POST /clusters?dryRun=true} — what a connection check found, nothing saved. */
     public record RegisterPreview(
@@ -190,6 +285,18 @@ public final class ClusterViews {
             @Schema(requiredMode = REQUIRED) int reachableSeeds,
             @Schema(requiredMode = REQUIRED) int discoveredNodes,
             @Schema(requiredMode = REQUIRED) TopologyView topology,
+
+            @Schema(requiredMode = REQUIRED, description = "The pattern the check derived management URLs from")
+            String managementUrlPattern,
+
+            @Schema(requiredMode = REQUIRED, description = "One row per node the check found")
+            List<NodeProbeView> nodes,
+
+            @Schema(
+                    nullable = true,
+                    description = "What adopting the running configuration would declare. Absent when the caller"
+                            + " may not declare configuration, or the configuration feature is off")
+            AdoptionPreviewView adoption,
 
             @Schema(
                     requiredMode = REQUIRED,

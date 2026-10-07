@@ -163,7 +163,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
     private UUID node(String name, boolean active) {
         BrokerNodeEntity n = BrokerNodeEntity.fromSeed(
                 clusterId, name, "PRIMARY", UUID.randomUUID().toString());
-        n.attachManagementUrl("http://" + name + ":8161/console/jolokia");
+        n.attachSeedUrl("http://" + name + ":8161/console/jolokia");
         n.applyHaState(new HaObservation(active, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         return nodes.save(n).getId();
     }

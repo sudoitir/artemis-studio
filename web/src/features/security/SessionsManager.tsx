@@ -25,6 +25,14 @@ const FRAME_BLOCK = `calc(${LIST_BLOCK} + 1.875rem + 2 * var(--mantine-spacing-m
 const describeSession = (s: AccountSessionView) =>
   `${describeClient(s.userAgent)} at ${s.clientAddress ?? 'an unknown address'}`;
 
+const endLabel = (s: AccountSessionView, admin: boolean) => {
+  if (s.current) {
+    return 'Sign out of this session';
+  }
+  const verb = admin ? 'End' : 'Sign out';
+  return `${verb} ${describeSession(s)}`;
+};
+
 /** Ending sessions, one or every other, and saying how it went. */
 function useSessionEnding(userId: string | undefined) {
   const admin = userId !== undefined;
@@ -200,9 +208,7 @@ function SessionRows({
             <Button
               size="xs"
               variant="subtle"
-              aria-label={
-                s.current ? 'Sign out of this session' : `${admin ? 'End' : 'Sign out'} ${describeSession(s)}`
-              }
+              aria-label={endLabel(s, admin)}
               loading={ending.isEnding(s)}
               disabled={ending.busy}
               onClick={() => ending.endOne(s)}

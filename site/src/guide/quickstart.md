@@ -79,9 +79,23 @@ sets one up with `POST /api/v1/auth/mfa/totp` (it returns the `secret` and an
 
 ## Register a cluster
 
-Sign in, then **Clusters → Add**. You give Studio one seed node's management
-endpoint and its credentials; the rest of the topology is discovered from the
-broker itself. Credentials are encrypted at rest with `ARTEMIS_STUDIO_SECRET_KEY`.
+Sign in, then **Clusters → Add**. One broker's management URL is enough: give Studio that URL and the
+management account (and a separate Core account, if the brokers use one), and it finds the rest of the
+cluster from the broker itself. Credentials are encrypted at rest with `ARTEMIS_STUDIO_SECRET_KEY`.
+
+Artemis advertises only its Core connectors, never where a broker's management endpoint is. Studio
+therefore keeps a **management URL pattern** for the cluster (`http://{host}:8161/console/jolokia`: your
+URL with the host left free, editable under *Advanced*), puts each other node's host into it, and asks
+that address which broker answers. The address is kept only when the answering broker reports the node's
+NodeID; otherwise the node is listed as found, with the reason, and you can give it a URL by hand. If your
+host name resolves to several addresses, Studio tries each one as a seed. Choose an environment on the same form.
+
+**Check connection** lists every node it found, with its role, NodeID, version, management URL (and whether
+it came from your seed, from the pattern or was set by hand), and what the management account and the Core
+account each did there: accepted, rejected, unreachable or not tried. A refused Core account does not hide
+an accepted management account. When the brokers' running configuration can be read, the check also offers
+to **adopt** it as the cluster's first declared revision: the switch is on when the nodes agree, and off,
+with the differences listed, when they do not. Nothing is written to a broker either way.
 
 Brokers are registered once. Studio knows a broker by the NodeID it reports, not by the URL you
 typed, so the same broker reached by its IP address, another port or with a trailing slash is still the

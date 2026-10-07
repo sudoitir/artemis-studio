@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The broker configuration comparison API (ADR-0043). Read-only introspection: no
+ * The broker configuration comparison API (ADR-0043, ADR-0178). Read-only introspection: no
  * broker state changes and no audit event is written.
  *
  * <p>{@code @Schema} on every component so the generated OpenAPI document (and the
@@ -19,47 +19,89 @@ public final class ConfigViews {
     private ConfigViews() {}
 
     /**
-     * One side of the comparison.
+     * One node in the comparison.
      *
-     * @param unavailableReason why this node could not be read; when set, no per-key
-     *     drift is reported at all rather than a half-diff whose absent keys read as
-     *     removals
-     * @param reducedSurface true when the node is not serving and answered with less
-     *     than the other side exposes — stated plainly instead of diffed
+     * @param unavailableKind the classified failure ({@code UNREACHABLE}, {@code UNAUTHORIZED}, …)
+     *     of a node that could not be read; such a node is left out of every majority and every
+     *     state, so its absent keys never read as missing
+     * @param reducedSurface true when the node is not serving and answered with fewer attributes
+     *     than a serving node exposes; it contributes only the keys it exposes
      */
     @Schema(description = "One node in a configuration comparison")
-    public record ConfigSideView(
+    public record ConfigNodeView(
             @Schema(requiredMode = REQUIRED) UUID nodeId,
             @Schema(requiredMode = REQUIRED) String nodeName,
             @Schema(requiredMode = REQUIRED) boolean available,
             @Schema(requiredMode = REQUIRED) boolean active,
             @Schema(requiredMode = REQUIRED) boolean reducedSurface,
+            @Schema(nullable = true) String unavailableKind,
             @Schema(nullable = true) String unavailableReason) {}
+
+    /**
+     * A node's value for one key.
+     *
+     * @param missing true when the node answered but does not have the key; {@code value} is
+     *     then null, never an empty string
+     */
+    @Schema(description = "One node's value for a configuration key")
+    public record ConfigNodeValueView(
+            @Schema(requiredMode = REQUIRED) UUID nodeId,
+            @Schema(requiredMode = REQUIRED) String nodeName,
+            @Schema(nullable = true) String value,
+            @Schema(requiredMode = REQUIRED) boolean missing) {}
+
+    /** One distinct value of a key that has no majority, with the nodes that hold it. */
+    @Schema(description = "A distinct value and the nodes that hold it")
+    public record ConfigValueGroupView(
+            @Schema(requiredMode = REQUIRED) String value,
+            @Schema(requiredMode = REQUIRED) List<ConfigNodeValueView> nodes) {}
 
     /**
      * One compared key.
      *
-     * @param status {@code SAME} | {@code DIFFERENT} | {@code ONLY_IN_LEFT} | {@code ONLY_IN_RIGHT}
-     * @param statusWord the same thing as a phrase, so the UI never carries status by
-     *     colour alone
-     * @param classification {@code CONFIGURATION} | {@code EXPECTED} | {@code UNCLASSIFIED}
+     * @param state {@code SAME} | {@code DIFFERENT} | {@code MISSING_ON_SOME}
+     * @param stateWord the same thing as a phrase, so the UI never carries state by colour alone
+     * @param classification {@code DRIFT} | {@code EXPECTED} | {@code UNCLASSIFIED}
+     * @param values each node that counts for this key, in node order
+     * @param majority the value more than half of the nodes that return the key hold; null when
+     *     there is none
+     * @param outliers the nodes whose value differs from the majority, including nodes missing the
+     *     key; empty when there is no majority
+     * @param valueGroups every distinct value with its nodes when there is no majority
+     * @param drift true when the key is classified as drift and its nodes do not all agree
      */
-    @Schema(description = "One configuration key, compared across both nodes")
-    public record ConfigEntryView(
+    @Schema(description = "One configuration key, compared across every node")
+    public record ConfigKeyView(
             @Schema(requiredMode = REQUIRED) String key,
-            @Schema(nullable = true) String left,
-            @Schema(nullable = true) String right,
-            @Schema(requiredMode = REQUIRED) String status,
-            @Schema(requiredMode = REQUIRED) String statusWord,
+            @Schema(requiredMode = REQUIRED) String state,
+            @Schema(requiredMode = REQUIRED) String stateWord,
             @Schema(requiredMode = REQUIRED) String classification,
-            @Schema(requiredMode = REQUIRED) boolean drift) {}
+            @Schema(requiredMode = REQUIRED) boolean drift,
+            @Schema(requiredMode = REQUIRED) List<ConfigNodeValueView> values,
+            @Schema(nullable = true) String majority,
+            @Schema(requiredMode = REQUIRED) List<ConfigNodeValueView> outliers,
+            @Schema(requiredMode = REQUIRED) List<ConfigValueGroupView> valueGroups) {}
 
     @Schema(description = "One section of the comparison")
     public record ConfigSectionView(
             @Schema(requiredMode = REQUIRED) String section,
             @Schema(requiredMode = REQUIRED) String label,
-            @Schema(requiredMode = REQUIRED) List<ConfigEntryView> entries,
-            @Schema(requiredMode = REQUIRED) int driftCount) {}
+            @Schema(requiredMode = REQUIRED) List<ConfigKeyView> keys) {}
+
+    /**
+     * What the comparison found, counted over the drift class and the expected class only;
+     * unclassified differences are listed but never counted.
+     *
+     * @param driftKeys keys classified as drift on which the nodes do not agree
+     * @param driftNodes nodes that differ from the majority on a drift key, or that hold one of
+     *     several values on a drift key with no majority
+     * @param expectedKeys differences that are correct by design and were set aside
+     */
+    @Schema(description = "Counts for a configuration comparison")
+    public record ConfigSummaryView(
+            @Schema(requiredMode = REQUIRED) int driftKeys,
+            @Schema(requiredMode = REQUIRED) int driftNodes,
+            @Schema(requiredMode = REQUIRED) int expectedKeys) {}
 
     /** One configuration key and its value on a single node. */
     @Schema(description = "One configuration key on one node")
@@ -103,22 +145,24 @@ public final class ConfigViews {
             @Schema(nullable = true) String note) {}
 
     /**
-     * @param comparable false when either side is unavailable, or when a passive node's
-     *     reduced surface makes the comparison meaningless; the sections are then empty
-     *     and {@code note} says why
+     * @param nodes every node the request covered, available or not, each with its reason when
+     *     it could not be read
+     * @param comparable false when fewer than two nodes answered; the sections are then empty and
+     *     {@code notes} says why
      * @param matchesCompared how many address-setting match patterns were compared
      * @param matchesAvailable how many were known about; when it exceeds
-     *     {@code matchesCompared} the cap applied, and the UI says so
+     *     {@code matchesCompared} the cap applied, and {@code notes} says so
+     * @param notes limitations stated plainly: the address-setting cap, a passive backup's reduced
+     *     surface, a comparison that could not be made
      */
-    @Schema(description = "Broker configuration compared across two nodes")
+    @Schema(description = "Broker configuration compared across every node of a cluster")
     public record ConfigDiffView(
             @Schema(requiredMode = REQUIRED) UUID clusterId,
-            @Schema(requiredMode = REQUIRED) ConfigSideView left,
-            @Schema(requiredMode = REQUIRED) ConfigSideView right,
+            @Schema(requiredMode = REQUIRED) List<ConfigNodeView> nodes,
             @Schema(requiredMode = REQUIRED) boolean comparable,
             @Schema(requiredMode = REQUIRED) List<ConfigSectionView> sections,
-            @Schema(requiredMode = REQUIRED) int driftCount,
+            @Schema(requiredMode = REQUIRED) ConfigSummaryView summary,
             @Schema(requiredMode = REQUIRED) int matchesCompared,
             @Schema(requiredMode = REQUIRED) int matchesAvailable,
-            @Schema(nullable = true) String note) {}
+            @Schema(requiredMode = REQUIRED) List<String> notes) {}
 }

@@ -1,0 +1,11 @@
+{
+  "request": {
+    "mbean": "org.apache.activemq.artemis:broker=\"primary\"",
+    "arguments": ["artemis"],
+    "type": "exec",
+    "operation": "listUser(java.lang.String)"
+  },
+  "error_type": "java.lang.SecurityException",
+  "error": "java.lang.SecurityException : User: artemis does not have permission='MANAGE'",
+  "status": 500
+}

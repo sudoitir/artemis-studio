@@ -21,6 +21,7 @@ _Configuration properties_
 _Others_
 
 * `i.g.s.a.p.b.AcceptanceProbe`
+* `i.g.s.a.p.b.BrokerAccountRoles`
 * `i.g.s.a.p.b.BrokerClientFactory`
 * `i.g.s.a.p.b.BrokerConnections`
 * `i.g.s.a.p.b.BrokerConnectors`
@@ -28,6 +29,7 @@ _Others_
 * `i.g.s.a.p.b.BrokerSettings`
 * `i.g.s.a.p.b.CapabilityProbe`
 * `i.g.s.a.p.b.ClockOffsetRegistry`
+* `i.g.s.a.p.b.CoreAccountCheck`
 * `i.g.s.a.p.b.CoreConnectionFactory`
 * `i.g.s.a.p.b.MessageTransport` (via `i.g.s.a.p.b.CoreMessageTransport`)
 * `i.g.s.a.p.b.CoreObservations`

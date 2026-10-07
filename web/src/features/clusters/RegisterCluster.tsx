@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Button, Collapse, PasswordInput, Text, Textarea, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Collapse, PasswordInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconX } from '@tabler/icons-react';
 import { Link, useNavigate } from '@tanstack/react-router';
 
 import {
   alreadyRegistered,
   useCheckConnection,
+  useEnvironments,
   useRegisterCluster,
+  type AdoptionPreviewView,
   type ProblemDetail,
   type RegisterClusterRequest,
   type TopologyView,
@@ -22,36 +24,47 @@ import linkClasses from '../../ui/InlineLink.module.css';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import classes from './Clusters.module.css';
+import { adoptionCountsWords, defaultPattern } from './connectionWords.ts';
+import { NodeProbeTable } from './NodeProbeTable.tsx';
 import { normaliseSeeds } from './normaliseSeeds.ts';
+import { isValidPattern } from './pattern.ts';
 
 const EXAMPLE = 'http://broker-1:8161/console/jolokia';
 
 const REGISTER: ActionVerb = { verb: 'Register', past: 'Registered', progressive: 'Registering' };
 
 interface Fields {
-  seeds: string;
+  seed: string;
+  moreSeeds: string[];
   name: string;
   username: string;
   password: string;
   coreUsername: string;
   corePassword: string;
+  environmentId: string;
   tlsBundle: string;
+  /** What the operator typed in the pattern field; empty while the field follows the first seed. */
+  pattern: string;
 }
 
 const EMPTY: Fields = {
-  seeds: '',
+  seed: '',
+  moreSeeds: [],
   name: '',
   username: '',
   password: '',
   coreUsername: '',
   corePassword: '',
+  environmentId: '',
   tlsBundle: '',
+  pattern: '',
 };
 
-/** What is wrong with the management URLs typed so far, once the field has been touched. */
-function seedsProblem(count: number, unparseable: { original: string }[]): string | null {
-  if (count === 0) return 'Add at least one management URL.';
-  if (unparseable.length > 0) return `Couldn't make sense of: ${unparseable.map((s) => s.original).join(', ')}`;
+/** What is wrong with one management URL as typed, or null. */
+function seedProblem(value: string): string | null {
+  const [first] = normaliseSeeds(value);
+  if (first?.url === null) return `Couldn't make sense of: ${first.original}`;
+  if (first && new URL(first.url).username) return 'Put the account in the Management account fields, not in the URL.';
   return null;
 }
 
@@ -87,13 +100,15 @@ function CheckOutcome({
   register: ReturnType<typeof useRegisterCluster>;
   onLeave?: () => void;
 }>) {
+  const nodes = check.data?.nodes.length ?? 0;
   return (
     <div aria-live="polite" className={classes.form}>
       {check.isSuccess ? (
         <Text size="sm" c="dimmed">
-          {`Connected. Found ${check.data.discoveredNodes} node${check.data.discoveredNodes === 1 ? '' : 's'}.`}
+          {`Connected. Found ${nodes} node${nodes === 1 ? '' : 's'}.`}
         </Text>
       ) : null}
+      {check.isSuccess ? <NodeProbeTable nodes={check.data.nodes} label="Nodes found by the check" /> : null}
       {check.isSuccess ? <UntestedVersions topology={check.data.topology} /> : null}
       {check.isError ? <Failure error={check.error} onLeave={onLeave} /> : null}
       {register.isError ? <Failure error={register.error} onLeave={onLeave} /> : null}
@@ -136,6 +151,72 @@ function AlreadyRegistered({ problem, onLeave }: Readonly<{ problem: ProblemDeta
 }
 
 /**
+ * What registering can also do: save what the brokers run as the cluster's first declared revision
+ * (ADR-0176). On when the nodes agree; off, with each disagreement listed, when they do not, because
+ * declaring one node's value over another's is a choice for the operator to make.
+ */
+function AdoptionChoice({
+  adoption,
+  adopt,
+  onChange,
+}: Readonly<{ adoption: AdoptionPreviewView; adopt: boolean; onChange: (value: boolean) => void }>) {
+  const disagree = adoption.disagreements.length > 0;
+  return (
+    <Stack gap="xs">
+      <Switch
+        label="Adopt what the brokers run as the cluster's first configuration"
+        description={`Declares ${adoptionCountsWords(adoption.counts)} as revision 1, so the cluster starts in sync and every later change shows as a difference from it. Nothing is written to a broker.`}
+        checked={adopt}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
+      {disagree ? (
+        <Notice title={`The nodes disagree on ${adoption.disagreements.length} item(s)`} tone="warning">
+          <Stack gap="xs">
+            <Text size="sm">
+              Adopting keeps the first node&apos;s value for each, so it is off until you choose it.
+            </Text>
+            {adoption.disagreements.map((d) => (
+              <Text key={d} size="sm">
+                {d}
+              </Text>
+            ))}
+          </Stack>
+        </Notice>
+      ) : null}
+    </Stack>
+  );
+}
+
+/** The seeds typed so far, normalised, with the ones that do not parse. */
+function seedsOf(f: Fields): { urls: string[]; problems: Record<string, string> } {
+  const urls: string[] = [];
+  const problems: Record<string, string> = {};
+  [f.seed, ...f.moreSeeds].forEach((value, i) => {
+    const path = i === 0 ? 'seed' : `moreSeeds.${i - 1}`;
+    const issue = seedProblem(value);
+    if (issue) problems[path] = issue;
+    const [first] = normaliseSeeds(value);
+    if (first?.url) urls.push(first.url);
+  });
+  if (urls.length === 0 && !problems.seed) problems.seed = 'Add at least one management URL.';
+  return { urls, problems };
+}
+
+const USERNAME_PAIR = 'Provide both a username and a password, or neither.';
+const CORE_PAIR = 'Provide both a Core username and password, or neither.';
+
+/** What is wrong with the values as they stand, by field: the form can be sent only when this is empty. */
+function problemsOf(values: Fields): Record<string, string> {
+  const problems = seedsOf(values).problems;
+  if (values.pattern && !isValidPattern(values.pattern)) {
+    problems.pattern = 'Use http(s)://{host}[:port][/path], with {host} as the whole host.';
+  }
+  if (unpairedProblem(values.username, values.password, USERNAME_PAIR)) problems.username = USERNAME_PAIR;
+  if (unpairedProblem(values.coreUsername, values.corePassword, CORE_PAIR)) problems.coreUsername = CORE_PAIR;
+  return problems;
+}
+
+/**
  * The registration form. Rendered inline on the empty state, in a modal after. `onDone` is called when
  * the form has nothing left to do: a cluster was registered, or the operator went to the cluster that
  * already holds the brokers.
@@ -143,40 +224,36 @@ function AlreadyRegistered({ problem, onLeave }: Readonly<{ problem: ProblemDeta
 export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }>) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [checkedInputs, setCheckedInputs] = useState<string | null>(null);
+  const [adoptChoice, setAdoptChoice] = useState<boolean | null>(null);
 
   const check = useCheckConnection();
   const register = useRegisterCluster();
+  const environments = useEnvironments();
   const navigate = useNavigate();
 
   const form = useForm<Fields>({
     initialValues: EMPTY,
     validateInputOnBlur: true,
-    validate: { seeds: () => seedsIssue, username: () => credIssue, coreUsername: () => coreCredIssue },
+    validate: problemsOf,
   });
   const f = form.values;
 
-  const normalised = normaliseSeeds(f.seeds);
-  const seedList = normalised.map((s) => s.url).filter((u): u is string => u !== null);
-  const rewritten = normalised.filter((s) => s.url !== null && s.url !== s.original);
-  const unparseable = normalised.filter((s) => s.url === null);
+  const { urls: seedList } = seedsOf(f);
+  const rewritten = [f.seed, ...f.moreSeeds]
+    .map((value) => normaliseSeeds(value)[0])
+    .filter((s) => s?.url && s.url !== s.original);
+  const pattern = f.pattern || defaultPattern(seedList[0]);
 
   // What is wrong, whether or not the field was touched: that decides if the form can be sent. A message
   // shows beside its field once the field was left, or the form was pressed while invalid.
-  const seedsIssue = seedsProblem(normalised.length, unparseable);
-  const credIssue = unpairedProblem(f.username, f.password, 'Provide both a username and a password, or neither.');
-  const coreCredIssue = unpairedProblem(
-    f.coreUsername,
-    f.corePassword,
-    'Provide both a Core username and password, or neither.',
-  );
-
-  const valid = !seedsIssue && !credIssue && !coreCredIssue;
+  const valid = Object.keys(problemsOf(f)).length === 0;
 
   // Everything the check's verdict depends on, credentials included — a check that
   // stayed valid across a password edit would vouch for credentials it never saw,
   // which is the exact failure this gate exists to prevent.
   const inputSignature = JSON.stringify([
     seedList,
+    pattern,
     f.username,
     f.password,
     f.coreUsername,
@@ -186,16 +263,18 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
   const checkedThis = checkedInputs === inputSignature;
   const stale = check.isSuccess && checkedInputs !== null && !checkedThis;
 
-  // Registering is gated on a passing check of these exact inputs. The check now
-  // opens a real Core subscription, so it is the only thing that can catch a Core
-  // account the broker refuses — the failure that otherwise surfaces after
-  // registration, where it reads as a broken cluster rather than a typo.
+  // Registering is gated on a passing check of these exact inputs. The check opens a real Core
+  // session per node, so it is the only thing that can catch a Core account the broker refuses —
+  // the failure that otherwise surfaces after registration, where it reads as a broken cluster.
   const checkPassed = check.isSuccess && checkedThis;
   const afterProbe = useSlot('cluster.registration.afterProbe');
   // Brokers a registered cluster holds stay refused whichever call found it: the check, or a registration
   // that lost a race with another one. Only a new check of changed details can clear it.
   const registeredAlready = checkedThis && Boolean(alreadyRegistered(check.error) ?? alreadyRegistered(register.error));
   const registerBlockedReason = blockedReason(valid, check, checkPassed, stale, registeredAlready);
+
+  const adoption = checkPassed ? (check.data.adoption ?? null) : null;
+  const adopt = adoption ? (adoptChoice ?? adoption.disagreements.length === 0) : false;
 
   // Open the advanced fields on their own once a check reveals they'd matter —
   // the operator never has to know they exist until the ledger says so.
@@ -210,16 +289,16 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
     if (gap) setAdvancedOpen(true);
   }, [check.data]);
 
-  // A rejected press shows every field's message and takes the first invalid one into focus. The
-  // advanced fields are opened first when one of them is the problem, so there is something to focus.
+  // A rejected press shows every field's message and takes the first invalid one into focus.
   const checkConnection = form.onSubmit(
     () => {
       setCheckedInputs(inputSignature);
+      setAdoptChoice(null);
       register.reset();
       check.mutate(payload());
     },
     (errors) => {
-      if (errors.coreUsername) flushSync(() => setAdvancedOpen(true));
+      if (errors.pattern) flushSync(() => setAdvancedOpen(true));
       focusFirstInvalid(form.getInputNode)(errors);
     },
   );
@@ -231,19 +310,46 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
       credentials: f.username ? { username: f.username, password: f.password } : undefined,
       coreCredentials: f.coreUsername ? { username: f.coreUsername, password: f.corePassword } : undefined,
       tlsBundle: f.tlsBundle || undefined,
+      managementUrlPattern: pattern || undefined,
+      environmentId: f.environmentId || undefined,
+      adopt,
     };
   }
+
+  const environmentOptions = (environments.data ?? []).map((e) => ({ value: e.id, label: e.name }));
 
   return (
     <div className={classes.register}>
       <form className={classes.form} noValidate onSubmit={checkConnection}>
-        <Textarea
-          label="Broker management URLs"
-          description={`One per line. Studio finds the rest of the cluster from these. For example: ${EXAMPLE}`}
-          autosize
-          minRows={2}
-          {...form.getInputProps('seeds')}
+        <TextInput
+          label="Broker management URL"
+          description={`One is enough: Studio finds the rest of the cluster from it. For example: ${EXAMPLE}`}
+          {...form.getInputProps('seed')}
         />
+        {f.moreSeeds.map((_, i) => (
+          <FieldRow key={`more-${i}`}>
+            <TextInput
+              label={`Another management URL (${i + 2})`}
+              autoComplete="off"
+              {...form.getInputProps(`moreSeeds.${i}`)}
+            />
+            <ActionIcon
+              variant="subtle"
+              aria-label={`Remove management URL ${i + 2}`}
+              onClick={() => form.removeListItem('moreSeeds', i)}
+            >
+              <IconX size={16} aria-hidden />
+            </ActionIcon>
+          </FieldRow>
+        ))}
+        <Button
+          variant="subtle"
+          size="compact-sm"
+          className={classes.start}
+          onClick={() => form.insertListItem('moreSeeds', '')}
+        >
+          Add another seed
+        </Button>
         {rewritten.length > 0 ? (
           <Text size="xs" c="dimmed">
             Normalised to:{' '}
@@ -260,10 +366,39 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
           description="Optional. Defaults to the first broker's host."
           {...form.getInputProps('name')}
         />
+
+        <Text size="sm" fw={600}>
+          Management account
+        </Text>
         <FieldRow>
           <TextInput label="Username" autoComplete="off" {...form.getInputProps('username')} />
           <PasswordInput label="Password" autoComplete="off" {...form.getInputProps('password')} />
         </FieldRow>
+        <Text size="sm" fw={600}>
+          Core account
+        </Text>
+        <FieldRow>
+          <TextInput
+            label="Core username"
+            description="Optional. Defaults to the management account."
+            autoComplete="off"
+            {...form.getInputProps('coreUsername')}
+          />
+          <PasswordInput label="Core password" autoComplete="off" {...form.getInputProps('corePassword')} />
+        </FieldRow>
+
+        <Select
+          label="Environment"
+          description={
+            environmentOptions.length > 0
+              ? 'Optional. Groups the cluster with others.'
+              : 'Optional. There are no environments yet; create one under Administration.'
+          }
+          data={environmentOptions}
+          disabled={environmentOptions.length === 0}
+          clearable
+          {...form.getInputProps('environmentId')}
+        />
 
         <Button
           variant="subtle"
@@ -275,19 +410,17 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
             advancedOpen ? <IconChevronDown size={16} aria-hidden /> : <IconChevronRight size={16} aria-hidden />
           }
         >
-          Advanced: Core protocol and TLS
+          Advanced: management URL pattern and TLS
         </Button>
         <Collapse expanded={advancedOpen}>
           <div className={classes.form}>
-            <FieldRow>
-              <TextInput
-                label="Core username"
-                description="Optional. Defaults to the Jolokia credentials above."
-                autoComplete="off"
-                {...form.getInputProps('coreUsername')}
-              />
-              <PasswordInput label="Core password" autoComplete="off" {...form.getInputProps('corePassword')} />
-            </FieldRow>
+            <TextInput
+              label="Management URL pattern"
+              description="How Studio finds each other node's management URL: its host replaces {host}. A broker answering there is accepted only when it is that node."
+              value={pattern}
+              onChange={(event) => form.setFieldValue('pattern', event.currentTarget.value)}
+              error={form.errors.pattern}
+            />
             <TextInput
               label="TLS bundle"
               description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
@@ -299,6 +432,8 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
         <CheckOutcome check={check} register={register} onLeave={onDone} />
 
         {check.isSuccess ? <CapabilityLedger capabilities={check.data.capabilities} /> : null}
+
+        {adoption ? <AdoptionChoice adoption={adoption} adopt={adopt} onChange={setAdoptChoice} /> : null}
 
         {/* What the enabled features make of the check, such as the configuration it
             recommends; each reads its own part of the check's contributions. */}
@@ -344,9 +479,10 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
 function UntestedVersions({ topology }: Readonly<{ topology: TopologyView }>) {
   const untested = topology.nodes.flatMap((n) => n.endpoints).filter((e) => e.versionSupport === 'NEWER_THAN_TESTED');
   if (untested.length === 0) return null;
+  const which = untested.map((e) => `${e.name} runs Artemis ${e.version}`).join('; ');
   return (
     <Notice title="Newer Artemis than Studio has tested" tone="warning">
-      {`${untested.map((e) => `${e.name} runs Artemis ${e.version}`).join('; ')}. Registration will go ahead, but this release is outside the range Studio's tests cover, so a management call may behave differently. The supported versions page lists the tested range.`}
+      {`${which}. Registration will go ahead, but this release is outside the range Studio's tests cover, so a management call may behave differently. The supported versions page lists the tested range.`}
     </Notice>
   );
 }

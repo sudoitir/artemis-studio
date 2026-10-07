@@ -92,7 +92,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
                 .getId();
         BrokerNodeEntity a = BrokerNodeEntity.fromSeed(
                 clusterId, "node-a", "PRIMARY", UUID.randomUUID().toString());
-        a.attachManagementUrl(URL);
+        a.attachSeedUrl(URL);
         nodeId = nodes.save(a).getId();
         upsert.upsertBatch(List.of(new QueueRow(clusterId, nodeId, Q, Q, "ANYCAST", true, 3, 0, 0, 0, 0, 0, 0, false)));
         settings.reset(BrokerSettings.BULK_CAP);
@@ -326,7 +326,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":3,\"durable\":true,\"body\":\"hi\"}"))
                 .andExpect(status().is4xxClientError())
-                .andExpect(jsonPath("$.brokerErrorKind").value("UNAUTHORIZED"));
+                .andExpect(jsonPath("$.brokerErrorKind").value("CREDENTIALS_REJECTED"));
 
         assertThat(onlyAudit().getOutcome()).isEqualTo("FAILURE");
     }

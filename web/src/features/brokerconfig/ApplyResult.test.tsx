@@ -354,7 +354,8 @@ describe('ApplyResult step tables', () => {
   it('draws the before and after of a step as terms and values, with no key and value table', () => {
     renderWithProviders(<ApplyResult outcome={plan()} />);
 
-    const term = screen.getAllByText('addressFullMessagePolicy')[0];
+    // A term that does not fit is shortened in the middle, so the text that names it is inside the term.
+    const term = screen.getAllByText('addressFullMessagePolicy')[0].closest('dt')!;
     expect(term.tagName).toBe('DT');
     expect(term.nextElementSibling).toHaveTextContent('PAGE → DROP');
     expect(screen.getAllByRole('table').every((t) => t.getAttribute('aria-label')?.startsWith('Steps on'))).toBe(true);

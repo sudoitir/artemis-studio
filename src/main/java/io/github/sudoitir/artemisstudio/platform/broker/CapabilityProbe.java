@@ -81,7 +81,7 @@ public class CapabilityProbe {
             return CapabilityAssessment.unavailable("The broker MBean read failed: "
                     + (response.error() != null ? response.error() : "status " + response.status()));
         } catch (BrokerConnectionException e) {
-            if (e.kind() == BrokerConnectionException.Kind.UNAUTHORIZED) {
+            if (e.kind() == BrokerConnectionException.Kind.CREDENTIALS_REJECTED) {
                 return CapabilityAssessment.unavailable("The broker rejected these credentials for a management read.");
             }
             throw e;

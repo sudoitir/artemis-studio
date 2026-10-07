@@ -29,11 +29,11 @@ public final class BrokerConfigModule {
             .mcpTool(new McpToolDef(
                     "config_diff",
                     McpToolDef.Posture.READ,
-                    "Classified configuration differences between two nodes.",
+                    "Every node's configuration against the majority: the drifting keys and the nodes that differ.",
                     List.of(McpToolDef.Param.note(
-                            "nodeA",
-                            "Node ids come from cluster://{clusterId}/topology. Omit both to compare the "
-                                    + "cluster's HA pair."))))
+                            "nodes",
+                            "Comma-separated node ids, at least two, from cluster://{clusterId}/topology. "
+                                    + "Omit to compare every node."))))
             .mcpTool(new McpToolDef(
                     "broker_config",
                     McpToolDef.Posture.READ,

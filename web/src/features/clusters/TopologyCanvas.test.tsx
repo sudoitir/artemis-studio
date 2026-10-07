@@ -40,8 +40,9 @@ function endpoint(over: Partial<NodeEndpointView>): NodeEndpointView {
     versionSupport: 'SUPPORTED',
     lastError: null,
     lastSeenAt: '2026-09-30T14:00:00Z',
-    discovered: true,
-    manualOverride: false,
+    urlSource: null,
+    urlProblem: null,
+    coreUrlManual: false,
     manageable: true,
     ...over,
   };
@@ -54,6 +55,7 @@ const HEALTH: HealthView = {
   splitBrain: 'NONE',
   replicationBehind: false,
   notes: [],
+  credentialRejections: [],
 };
 
 /** Two pairs, A (primary above backup) and B (a primary whose second node was found but not given a URL). */

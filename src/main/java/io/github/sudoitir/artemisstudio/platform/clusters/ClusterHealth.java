@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.clusters;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import java.util.UUID;
  * @param splitBrain the worst split-brain status across the cluster's pairs
  * @param replicationBehind any pair whose backup is not caught up
  * @param notes human-readable lines, one per abnormal finding; empty when healthy
+ * @param credentialRejections the accounts a broker refused, with the nodes that refused them
  */
 public record ClusterHealth(
         UUID clusterId,
@@ -18,7 +20,11 @@ public record ClusterHealth(
         List<String> liveEndpointNames,
         SplitBrainStatus splitBrain,
         boolean replicationBehind,
-        List<String> notes) {
+        List<String> notes,
+        List<CredentialRejection> credentialRejections) {
+
+    /** One account the brokers refused, and the nodes that refused it. */
+    public record CredentialRejection(BrokerAccount account, List<String> nodeNames) {}
 
     public enum Level {
         /** Nothing wrong. Rendered near-monochrome. */

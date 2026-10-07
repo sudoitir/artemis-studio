@@ -1,5 +1,8 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlProblem;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlSource;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterNode;
 import io.github.sudoitir.artemisstudio.platform.clusters.SplitBrainStatus;
 import jakarta.persistence.Column;
@@ -18,7 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * Maps the {@code broker_node} table (changesets 002 + 008). One row per broker
+ * Maps the {@code broker_node} table. One row per broker
  * endpoint. HA state is written by dirty-checking these fields (ADR-0011), so the
  * row's {@code id} never changes and {@code audit_event.node_id} stays valid.
  */
@@ -68,11 +71,23 @@ public class BrokerNodeEntity implements ClusterNode {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
-    @Column(name = "discovered", nullable = false)
-    private boolean discovered;
+    @Column(name = "url_checked_at")
+    private Instant urlCheckedAt;
 
-    @Column(name = "manual_override", nullable = false)
-    private boolean manualOverride;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "url_source")
+    private ManagementUrlSource urlSource;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "url_problem")
+    private ManagementUrlProblem urlProblem;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_error_kind")
+    private BrokerConnectionException.Kind lastErrorKind;
+
+    @Column(name = "core_url_manual", nullable = false)
+    private boolean coreUrlManual;
 
     @Column(name = "active")
     private Boolean active;
@@ -105,7 +120,6 @@ public class BrokerNodeEntity implements ClusterNode {
         n.haRole = haRole;
         n.pairGroup = nodeId;
         n.artemisNodeId = nodeId;
-        n.discovered = true;
         return n;
     }
 
@@ -120,12 +134,9 @@ public class BrokerNodeEntity implements ClusterNode {
         return n;
     }
 
-    /** Discovery merge: enrich a non-overridden row without touching its management URL. */
+    /** Discovery merge: enrich a row with what the topology reports, leaving a manual Core URL and the management URL as they are. */
     public void mergeDiscovered(String coreUrl, String haRole, String nodeId) {
-        if (manualOverride) {
-            return;
-        }
-        if (coreUrl != null) {
+        if (coreUrl != null && !coreUrlManual) {
             this.coreUrl = coreUrl;
         }
         this.haRole = haRole;
@@ -135,27 +146,62 @@ public class BrokerNodeEntity implements ClusterNode {
         }
     }
 
-    /** A management URL learned at registration; leaves {@code manualOverride} false so discovery may still enrich. */
-    public void attachManagementUrl(String jolokiaUrl) {
+    /**
+     * A management URL the operator gave as a seed. A URL already set manually stays manual; any other
+     * source becomes {@code SEED}, because the operator has now named it.
+     */
+    public void attachSeedUrl(String jolokiaUrl) {
         this.jolokiaUrl = jolokiaUrl;
-        this.discovered = false;
+        if (urlSource != ManagementUrlSource.MANUAL) {
+            this.urlSource = ManagementUrlSource.SEED;
+        }
+        this.urlProblem = null;
+    }
+
+    /** A management URL built from the cluster's pattern and proved by the broker's NodeID (ADR-0175). */
+    public void attachDerivedUrl(String jolokiaUrl) {
+        this.jolokiaUrl = jolokiaUrl;
+        this.urlSource = ManagementUrlSource.DERIVED;
+        this.urlProblem = null;
+        this.urlCheckedAt = null;
+    }
+
+    /** The attempt to derive a management URL failed: the node has none, and says why. */
+    public void recordUrlProblem(ManagementUrlProblem problem, Instant checkedAt) {
+        this.jolokiaUrl = null;
+        this.urlSource = null;
+        this.urlProblem = problem;
+        this.urlCheckedAt = checkedAt;
+    }
+
+    /** The account, the pattern or the TLS bundle changed, so the reason a URL was not derived may no longer hold. */
+    public void clearUrlProblem() {
+        this.urlProblem = null;
+        this.urlCheckedAt = null;
+    }
+
+    /** A seed the operator no longer lists: the node keeps no URL until one is derived again. */
+    public void releaseSeedUrl() {
+        this.jolokiaUrl = null;
+        this.urlSource = null;
+        this.urlProblem = null;
     }
 
     /** The {@code PATCH} override: an operator supplies a reachable URL; discovery must never overwrite it. */
     public void applyManualUrl(String jolokiaUrl) {
         this.jolokiaUrl = jolokiaUrl;
-        this.manualOverride = true;
-        this.discovered = false;
+        this.urlSource = ManagementUrlSource.MANUAL;
+        this.urlProblem = null;
     }
 
     /**
      * The {@code PATCH} override for the Core URL: discovery stores the
      * broker-advertised connector, which is often unreachable from where Studio
-     * runs (ADR-0026). Marks the row overridden so discovery leaves it alone.
+     * runs (ADR-0026). Marks the Core URL manual so discovery leaves it alone.
      */
     public void applyManualCoreUrl(String coreUrl) {
         this.coreUrl = coreUrl;
-        this.manualOverride = true;
+        this.coreUrlManual = true;
     }
 
     /** What one HA read of a broker reported; a null {@code version} or {@code artemisNodeId} leaves the stored one. */
@@ -177,6 +223,7 @@ public class BrokerNodeEntity implements ClusterNode {
         }
         this.lastSeenAt = lastSeenAt;
         this.lastError = null;
+        this.lastErrorKind = null;
     }
 
     /** The corroborated split-brain verdict for this node's NodeID. */
@@ -185,9 +232,10 @@ public class BrokerNodeEntity implements ClusterNode {
     }
 
     /** An unanswered tier-A probe: record it without disturbing the last-known-good HA state. */
-    public void recordError(Instant seenAt, String error) {
+    public void recordError(Instant seenAt, String error, BrokerConnectionException.Kind kind) {
         this.lastSeenAt = seenAt;
         this.lastError = error;
+        this.lastErrorKind = kind;
     }
 
     /**

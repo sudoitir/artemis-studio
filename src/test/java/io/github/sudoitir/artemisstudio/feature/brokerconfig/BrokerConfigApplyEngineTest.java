@@ -585,7 +585,7 @@ class BrokerConfigApplyEngineTest {
     @Test
     void aWriteTheBrokerRefusedForItsCredentialsIsRecordedOnTheCapabilityLedger() {
         document = fullDocument();
-        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.UNAUTHORIZED, "403"))
+        doThrow(new BrokerConnectionException(BrokerConnectionException.Kind.CREDENTIALS_REJECTED, "403"))
                 .when(ops)
                 .createAddress(any(), anyString(), anyString(), any());
 

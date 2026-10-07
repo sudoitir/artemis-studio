@@ -3,14 +3,27 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import io.github.sudoitir.artemisstudio.platform.broker.AccountResult;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlProblem;
+import io.github.sudoitir.artemisstudio.platform.broker.ManagementUrlSource;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeEndpoint;
 import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.ProbedSeed;
+import io.github.sudoitir.artemisstudio.platform.clusters.TopologyDiscovery.UrlDerivation;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.ClusterEntity;
@@ -19,12 +32,16 @@ import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +52,9 @@ import tools.jackson.databind.json.JsonMapper;
 class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
     private static final String SEED_URL = "http://localhost:8161/console/jolokia";
+    private static final String PATTERN = "http://{host}:8161/console/jolokia";
+    private static final String BACKUP_URL = "http://artemis-backup:8161/console/jolokia";
+    private static final String OTHER_NODE_ID = "00000000-0000-0000-0000-000000000000";
     private final JsonMapper mapper = new JsonMapper();
 
     @Autowired
@@ -46,9 +66,16 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
     @Autowired
     BrokerNodeRepository nodes;
 
+    @MockitoBean
+    BrokerClientFactory clientFactory;
+
     private UUID newCluster() {
         return clusters.save(new ClusterEntity("t-" + UUID.randomUUID(), null, null))
                 .getId();
+    }
+
+    private static UrlDerivation derivation(String pattern) {
+        return new UrlDerivation(pattern, BrokerConnectionSettings.basicAuth(null, "admin", "secret"));
     }
 
     /** A fresh client + mock server answering, in order: search broker, HA read, listNetworkTopology. */
@@ -77,6 +104,21 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
         return new ProbedSeed(url, new JolokiaBrokerClient(builder.build(), url, mapper));
     }
 
+    /** The client the factory hands out for a derived URL: search broker, then HA read, answered as given. */
+    private void derivedAnswers(String url, ResponseCreator search, ResponseCreator ha) {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(url)).andRespond(search);
+        if (ha != null) {
+            server.expect(requestTo(url)).andRespond(ha);
+        }
+        when(clientFactory.forNode(any(), eq(url))).thenReturn(new JolokiaBrokerClient(builder.build(), url, mapper));
+    }
+
+    private void backupAnswersWithItsOwnNodeId() {
+        derivedAnswers(BACKUP_URL, json("search-broker.json"), json("ha-read-backup.json"));
+    }
+
     private static ResponseCreator json(String fixture) {
         try {
             String body = new String(
@@ -87,11 +129,16 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
         }
     }
 
-    @Test
-    void discoversBothSidesOfAPairFromOneSeed() {
-        UUID clusterId = newCluster();
+    private BrokerNodeEntity backup(UUID clusterId) {
+        return nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616").orElseThrow();
+    }
 
-        ClusterTopology topology = discovery.discover(clusterId, List.of(seed("topology.json")));
+    @Test
+    void discoversBothSidesOfAPairFromOneSeedAndDerivesTheBackupsUrl() {
+        UUID clusterId = newCluster();
+        backupAnswersWithItsOwnNodeId();
+
+        ClusterTopology topology = discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
 
         List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
         assertThat(rows)
@@ -102,25 +149,293 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
                 .filter(n -> n.getName().equals("artemis-primary:61616"))
                 .findFirst()
                 .orElseThrow();
-        BrokerNodeEntity backup = rows.stream()
-                .filter(n -> n.getName().equals("artemis-backup:61616"))
-                .findFirst()
-                .orElseThrow();
+        BrokerNodeEntity backup = backup(clusterId);
 
-        // The seed's management URL is attached to the primary side.
+        // The seed's management URL is attached to the primary side, and is a seed.
         assertThat(primary.getJolokiaUrl()).isEqualTo(SEED_URL);
+        assertThat(primary.getUrlSource()).isEqualTo(ManagementUrlSource.SEED);
         assertThat(primary.getHaRole()).isEqualTo("PRIMARY");
 
-        // The backup is known only by report: core connector, no management URL.
-        assertThat(backup.getJolokiaUrl()).isNull();
+        // The backup's URL is derived from the pattern with its connector host, and proved by its NodeID.
+        assertThat(backup.getJolokiaUrl()).isEqualTo(BACKUP_URL);
+        assertThat(backup.getUrlSource()).isEqualTo(ManagementUrlSource.DERIVED);
+        assertThat(backup.getUrlProblem()).isNull();
         assertThat(backup.getCoreUrl()).isEqualTo("artemis-backup:61616");
-        assertThat(backup.isDiscovered()).isTrue();
+        assertThat(backup.getHaRole()).isEqualTo("BACKUP");
 
         // Both sides share the NodeID → one logical node.
         assertThat(primary.getArtemisNodeId()).isEqualTo(backup.getArtemisNodeId());
         assertThat(topology.nodes()).hasSize(1);
         assertThat(topology.nodes().get(0).endpoints()).hasSize(2);
+        assertThat(topology.unmanaged()).isEmpty();
+    }
+
+    @Test
+    void aDerivedUrlThatAnswersForAnotherBrokerIsNotAttached() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, json("search-broker.json"), haReadWithNodeId(OTHER_NODE_ID));
+
+        ClusterTopology topology = discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        BrokerNodeEntity backup = backup(clusterId);
+        assertThat(backup.getJolokiaUrl()).isNull();
+        assertThat(backup.getUrlSource()).isNull();
+        assertThat(backup.getUrlProblem()).isEqualTo(ManagementUrlProblem.OTHER_BROKER);
         assertThat(topology.unmanaged()).extracting(NodeEndpoint::name).containsExactly("artemis-backup:61616");
+    }
+
+    @Test
+    void aDerivedUrlThatRejectsTheManagementAccountIsNamedForIt() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, withStatus(HttpStatus.UNAUTHORIZED), null);
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        assertThat(backup(clusterId).getUrlProblem()).isEqualTo(ManagementUrlProblem.CREDENTIALS_REJECTED);
+    }
+
+    @Test
+    void aDerivedUrlThatDoesNotAnswerIsUnreachable() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, withException(new ConnectException("Connection refused")), null);
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        BrokerNodeEntity backup = backup(clusterId);
+        assertThat(backup.getJolokiaUrl()).isNull();
+        assertThat(backup.getUrlProblem()).isEqualTo(ManagementUrlProblem.UNREACHABLE);
+    }
+
+    @Test
+    void aNodeThatDidNotAnswerIsNotAskedAgainOnTheNextTick() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, withException(new ConnectException("Connection refused")), null);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        verify(clientFactory, times(1)).forNode(any(), eq(BACKUP_URL));
+        assertThat(backup(clusterId).getUrlProblem()).isEqualTo(ManagementUrlProblem.UNREACHABLE);
+    }
+
+    @Test
+    void aNodeThatDidNotAnswerIsAskedAgainAfterTheBackoffAndThenProved() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, withException(new ConnectException("Connection refused")), null);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+        BrokerNodeEntity waiting = backup(clusterId);
+        waiting.recordUrlProblem(
+                ManagementUrlProblem.UNREACHABLE,
+                Instant.now().minus(TopologyDiscovery.RETRY_AFTER).minusSeconds(60));
+        nodes.saveAndFlush(waiting);
+        backupAnswersWithItsOwnNodeId();
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        verify(clientFactory, times(2)).forNode(any(), eq(BACKUP_URL));
+        BrokerNodeEntity after = backup(clusterId);
+        assertThat(after.getJolokiaUrl()).isEqualTo(BACKUP_URL);
+        assertThat(after.getUrlProblem()).isNull();
+    }
+
+    @Test
+    void aNodeWhoseAddressRefusedTheAccountOrAnsweredForAnotherBrokerWaitsForAChange() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, withStatus(HttpStatus.UNAUTHORIZED), null);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+        BrokerNodeEntity refused = backup(clusterId);
+        refused.recordUrlProblem(
+                ManagementUrlProblem.CREDENTIALS_REJECTED, Instant.now().minus(Duration.ofDays(2)));
+        nodes.saveAndFlush(refused);
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+        refused.recordUrlProblem(
+                ManagementUrlProblem.OTHER_BROKER, Instant.now().minus(Duration.ofDays(2)));
+        nodes.saveAndFlush(refused);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+        refused.recordUrlProblem(
+                ManagementUrlProblem.WRONG_ENDPOINT, Instant.now().minus(Duration.ofDays(2)));
+        nodes.saveAndFlush(refused);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        verify(clientFactory, times(1)).forNode(any(), eq(BACKUP_URL));
+    }
+
+    @Test
+    void aClearedReasonLetsTheNodeBeAskedAgain() {
+        UUID clusterId = newCluster();
+        derivedAnswers(BACKUP_URL, withStatus(HttpStatus.UNAUTHORIZED), null);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+        BrokerNodeEntity refused = backup(clusterId);
+        refused.clearUrlProblem();
+        nodes.saveAndFlush(refused);
+        backupAnswersWithItsOwnNodeId();
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        assertThat(backup(clusterId).getJolokiaUrl()).isEqualTo(BACKUP_URL);
+    }
+
+    @Test
+    void aClusterWithoutAPatternDerivesNothing() {
+        UUID clusterId = newCluster();
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(null));
+
+        assertThat(backup(clusterId).getUrlProblem()).isEqualTo(ManagementUrlProblem.NO_PATTERN);
+        verify(clientFactory, never()).forNode(any(), any());
+    }
+
+    @Test
+    void aManualUrlSurvivesRediscoveryUnchangedAndIsNotProbed() {
+        UUID clusterId = newCluster();
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(null));
+
+        BrokerNodeEntity backup = backup(clusterId);
+        backup.applyManualUrl("http://localhost:8261/console/jolokia");
+        nodes.saveAndFlush(backup);
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        BrokerNodeEntity after = backup(clusterId);
+        assertThat(after.getJolokiaUrl()).isEqualTo("http://localhost:8261/console/jolokia");
+        assertThat(after.getUrlSource()).isEqualTo(ManagementUrlSource.MANUAL);
+        verify(clientFactory, never()).forNode(any(), any());
+    }
+
+    @Test
+    void aManualCoreUrlSurvivesRediscovery() {
+        UUID clusterId = newCluster();
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(null));
+        BrokerNodeEntity backup = backup(clusterId);
+        backup.applyManualCoreUrl("tcp://core.example:61617");
+        nodes.saveAndFlush(backup);
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(null));
+
+        BrokerNodeEntity after = backup(clusterId);
+        assertThat(after.getCoreUrl()).isEqualTo("tcp://core.example:61617");
+        assertThat(after.isCoreUrlManual()).isTrue();
+    }
+
+    @Test
+    void aProvedDerivedUrlIsNotProbedAgainOnTheSamePattern() {
+        UUID clusterId = newCluster();
+        backupAnswersWithItsOwnNodeId();
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        verify(clientFactory, org.mockito.Mockito.times(1)).forNode(any(), any());
+        assertThat(backup(clusterId).getJolokiaUrl()).isEqualTo(BACKUP_URL);
+    }
+
+    @Test
+    void aChangedPatternRederivesDerivedUrlsAndLeavesSeedsAlone() {
+        UUID clusterId = newCluster();
+        backupAnswersWithItsOwnNodeId();
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        String moved = "http://artemis-backup:9161/console/jolokia";
+        derivedAnswers(moved, json("search-broker.json"), json("ha-read-backup.json"));
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation("http://{host}:9161/console/jolokia"));
+
+        assertThat(backup(clusterId).getJolokiaUrl()).isEqualTo(moved);
+        assertThat(backup(clusterId).getUrlSource()).isEqualTo(ManagementUrlSource.DERIVED);
+        assertThat(nodes.findByClusterIdAndName(clusterId, "artemis-primary:61616")
+                        .orElseThrow()
+                        .getJolokiaUrl())
+                .isEqualTo(SEED_URL);
+    }
+
+    @Test
+    void aDerivedUrlThatStopsAnsweringAfterAPatternChangeIsClearedWithItsReason() {
+        UUID clusterId = newCluster();
+        backupAnswersWithItsOwnNodeId();
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
+
+        String moved = "http://artemis-backup:9161/console/jolokia";
+        derivedAnswers(moved, withException(new ConnectException("Connection refused")), null);
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation("http://{host}:9161/console/jolokia"));
+
+        BrokerNodeEntity backup = backup(clusterId);
+        assertThat(backup.getJolokiaUrl()).isNull();
+        assertThat(backup.getUrlProblem()).isEqualTo(ManagementUrlProblem.UNREACHABLE);
+    }
+
+    @Test
+    void aSeedThatIsNotAttachableReportsItsNodesButNeverBecomesTheirUrl() {
+        UUID clusterId = newCluster();
+        ProbedSeed read = seed("topology.json");
+
+        discovery.discover(
+                clusterId, List.of(new ProbedSeed(read.jolokiaUrl(), read.client(), false)), derivation(null));
+
+        assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId))
+                .extracting(BrokerNodeEntity::getName, BrokerNodeEntity::getJolokiaUrl)
+                .containsExactlyInAnyOrder(tuple("artemis-primary:61616", null), tuple("artemis-backup:61616", null));
+    }
+
+    @Test
+    void twoSeedAddressesOfOneBrokerAreOneNodeWithTheFirstAddressAsItsUrl() {
+        UUID clusterId = newCluster();
+        String sameBroker = "http://[0:0:0:0:0:0:0:1]:8161/console/jolokia";
+
+        discovery.discover(
+                clusterId,
+                List.of(seed("topology.json"), seed(sameBroker, "ha-read-primary.json", "topology.json")),
+                derivation(null));
+
+        List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
+        assertThat(rows).extracting(BrokerNodeEntity::getName).hasSize(2);
+        assertThat(rows).extracting(BrokerNodeEntity::getJolokiaUrl).containsExactlyInAnyOrder(SEED_URL, null);
+        assertThat(discovery
+                        .preview(
+                                discovery.survey(List.of(
+                                        seed("topology.json"),
+                                        seed(sameBroker, "ha-read-primary.json", "topology.json"))),
+                                derivation(null))
+                        .topology()
+                        .nodes()
+                        .stream()
+                        .flatMap(n -> n.endpoints().stream())
+                        .map(NodeEndpoint::jolokiaUrl))
+                .containsExactlyInAnyOrder(SEED_URL, null);
+    }
+
+    @Test
+    void thePreviewDerivesAndProvesLikeARegistrationWouldAndPersistsNothing() {
+        UUID clusterId = newCluster();
+        backupAnswersWithItsOwnNodeId();
+
+        TopologyDiscovery.Preview preview =
+                discovery.preview(discovery.survey(List.of(seed("topology.json"))), derivation(PATTERN));
+
+        List<NodeEndpoint> endpoints = preview.topology().nodes().stream()
+                .flatMap(n -> n.endpoints().stream())
+                .toList();
+        assertThat(endpoints)
+                .extracting(NodeEndpoint::name, NodeEndpoint::jolokiaUrl, NodeEndpoint::urlSource)
+                .containsExactlyInAnyOrder(
+                        tuple("artemis-primary:61616", SEED_URL, ManagementUrlSource.SEED),
+                        tuple("artemis-backup:61616", BACKUP_URL, ManagementUrlSource.DERIVED));
+        assertThat(preview.management())
+                .containsEntry("artemis-primary:61616", AccountResult.ACCEPTED)
+                .containsEntry("artemis-backup:61616", AccountResult.ACCEPTED);
+        assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).isEmpty();
+    }
+
+    @Test
+    void thePreviewReportsAFoundNodeWhoseManagementAccountWasRejected() {
+        derivedAnswers(BACKUP_URL, withStatus(HttpStatus.FORBIDDEN), null);
+
+        TopologyDiscovery.Preview preview =
+                discovery.preview(discovery.survey(List.of(seed("topology.json"))), derivation(PATTERN));
+
+        assertThat(preview.management()).containsEntry("artemis-backup:61616", AccountResult.REJECTED);
+        assertThat(preview.topology().unmanaged())
+                .extracting(NodeEndpoint::name, NodeEndpoint::urlProblem)
+                .containsExactly(tuple("artemis-backup:61616", ManagementUrlProblem.CREDENTIALS_REJECTED));
     }
 
     @Test
@@ -128,36 +443,19 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
         UUID clusterId = newCluster();
 
         List<ProbedSeed> seeds = List.of(seed("ha-read-instance-not-found.json", "topology.json"));
-        assertThatThrownBy(() -> discovery.discover(clusterId, seeds)).isInstanceOf(BrokerConnectionException.class);
+        assertThatThrownBy(() -> discovery.discover(clusterId, seeds, derivation(PATTERN)))
+                .isInstanceOf(BrokerConnectionException.class);
 
         assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).isEmpty();
     }
 
     @Test
-    void manualOverrideRowSurvivesRediscoveryUnchanged() {
-        UUID clusterId = newCluster();
-        discovery.discover(clusterId, List.of(seed("topology.json")));
-
-        BrokerNodeEntity backup =
-                nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616").orElseThrow();
-        backup.applyManualUrl("http://localhost:8261/console/jolokia");
-        nodes.saveAndFlush(backup);
-
-        discovery.discover(clusterId, List.of(seed("topology.json")));
-
-        BrokerNodeEntity after =
-                nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616").orElseThrow();
-        assertThat(after.getJolokiaUrl()).isEqualTo("http://localhost:8261/console/jolokia");
-        assertThat(after.isManualOverride()).isTrue();
-    }
-
-    @Test
     void postFailoverTopologyWithNoBackupKeyKeepsTheBackupRow() {
         UUID clusterId = newCluster();
-        discovery.discover(clusterId, List.of(seed("topology.json")));
+        discovery.discover(clusterId, List.of(seed("topology.json")), derivation(null));
 
         // The seed now reports a single-node topology (no "backup" key).
-        discovery.discover(clusterId, List.of(seed("topology-after-failover.json")));
+        discovery.discover(clusterId, List.of(seed("topology-after-failover.json")), derivation(null));
 
         assertThat(nodes.findByClusterIdAndName(clusterId, "artemis-backup:61616"))
                 .isPresent();
@@ -172,14 +470,16 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
                 clusterId,
                 List.of(
                         seed(primaryUrl, "ha-read-primary.json", "topology-secondary-pair.json"),
-                        seed(backupUrl, "ha-read-backup.json", "topology-secondary-pair.json")));
+                        seed(backupUrl, "ha-read-backup.json", "topology-secondary-pair.json")),
+                derivation(PATTERN));
 
         // The backup took over and reports itself PRIMARY; the old primary is back as a backup.
         discovery.discover(
                 clusterId,
                 List.of(
                         seed(backupUrl, "ha-read-primary.json", "topology-secondary-after-failover.json"),
-                        seed(primaryUrl, "ha-read-backup.json", "topology-secondary-after-failover.json")));
+                        seed(primaryUrl, "ha-read-backup.json", "topology-secondary-after-failover.json")),
+                derivation(PATTERN));
 
         List<BrokerNodeEntity> rows = nodes.findByClusterIdOrderByNameAsc(clusterId);
         assertThat(rows)
@@ -194,11 +494,26 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
         UUID clusterId = newCluster();
 
         discovery.discover(
-                clusterId, List.of(deadSeed("http://artemis-backup:8161/console/jolokia"), seed("topology.json")));
+                clusterId,
+                List.of(deadSeed("http://artemis-backup:8161/console/jolokia"), seed("topology.json")),
+                derivation(null));
 
         BrokerNodeEntity primary =
                 nodes.findByClusterIdAndName(clusterId, "artemis-primary:61616").orElseThrow();
         assertThat(primary.getJolokiaUrl()).isEqualTo(SEED_URL);
         assertThat(nodes.findByClusterIdOrderByNameAsc(clusterId)).hasSize(2);
+    }
+
+    /** The primary's HA read with another broker's NodeID: what a load balancer or a recycled address answers. */
+    private static ResponseCreator haReadWithNodeId(String nodeId) {
+        try {
+            String body = new String(
+                            new ClassPathResource("jolokia/ha-read-backup.json").getContentAsByteArray(),
+                            StandardCharsets.UTF_8)
+                    .replace("f7734597-a768-11f1-aa4c-ceae3fa2df1d", nodeId);
+            return withSuccess(body, MediaType.APPLICATION_JSON);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

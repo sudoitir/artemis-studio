@@ -1060,7 +1060,7 @@ public class FlowGraphService {
         }
         return switch (errorKind) {
             case "UNREACHABLE", "TLS_FAILED", "WRONG_PATH", "NOT_ARTEMIS" -> NodeSampleState.UNREACHABLE;
-            case "UNAUTHORIZED", "PERMISSION_DENIED" -> NodeSampleState.PERMISSION_DENIED;
+            case "CREDENTIALS_REJECTED", "PERMISSION_DENIED" -> NodeSampleState.PERMISSION_DENIED;
             case "COUNTER_UNAVAILABLE" -> NodeSampleState.COUNTER_UNAVAILABLE;
             case "ROUTING_UNAVAILABLE" -> NodeSampleState.ROUTING_UNAVAILABLE;
             default -> NodeSampleState.FAILED;

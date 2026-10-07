@@ -53,8 +53,10 @@ class CoreSubscriptionManagerStartFailureTest {
                 1L,
                 "2.56.0",
                 null,
+                null,
                 Instant.now(),
-                false,
+                null,
+                null,
                 false,
                 false);
     }

@@ -53,7 +53,7 @@ curl -s https://studio.example.com/mcp \
 | Tool | `diagnose` | یک کلاستر (نقش HA هر نود، split-brain، تأخیر replication، هشدارهای فعال) یا یک صف از ابتدا تا انتها |
 | Tool | `list_resources` | صف‌ها، آدرس‌ها، مصرف‌کننده‌ها، نشست‌ها، اتصال‌ها، تولیدکننده‌ها، divertها، bridgeها |
 | Tool | `metric_series` | یک سری زمانی سطل‌بندی‌شده برای یک سنجه |
-| Tool | `config_diff` | تفاوت‌های پیکربندی طبقه‌بندی‌شده میان دو نود |
+| Tool | `config_diff` | پیکربندی هر نود در برابر اکثریت: کلیدهای دچار انحراف و نودهای متفاوت |
 | Tool | `broker_config` | اعلامیهٔ کلاستر، انحراف هر نود، قطعهٔ `broker.xml`، یا اعمال‌های گذشته |
 | Tool | `browse_messages` | هدرها، یا یک بدنه بر اساس id |
 | Tool | `trace_request_reply` | جریان‌ها، آمار تأخیر و timeout، انتظارات پیکربندی‌شده |

@@ -147,7 +147,7 @@ describe('ErrorState', () => {
   it.each([
     ['UNREACHABLE', 'The broker is unreachable', 502, true],
     ['THROTTLED', 'Studio is throttling calls to this broker', 503, true],
-    ['UNAUTHORIZED', 'The broker rejected the credentials', 422, false],
+    ['CREDENTIALS_REJECTED', 'The broker rejected the credentials', 422, false],
     ['NOT_ARTEMIS', 'There is no Artemis broker at this agent', 422, false],
     ['WRONG_PATH', 'There is no Jolokia agent at this address', 422, false],
     ['TLS_FAILED', 'The TLS handshake with the broker failed', 502, false],
@@ -171,6 +171,17 @@ describe('ErrorState', () => {
     expect(screen.getByText('Nothing answered at the broker address.')).toBeInTheDocument();
     expect(screen.getByText('Connection refused: artemis-1:8161')).toBeInTheDocument();
     expect(screen.getByText(/Check that the broker is running/)).toBeInTheDocument();
+  });
+
+  it('names the account the broker rejected', () => {
+    renderWithProviders(
+      <ErrorState
+        error={apiError(422, { account: 'CORE' }, { brokerErrorKind: 'CREDENTIALS_REJECTED' })}
+        onRetry={() => undefined}
+      />,
+    );
+    expect(screen.getByText('The broker refused the Core account Studio holds for it.')).toBeInTheDocument();
+    expect(screen.getByText(/Connection settings/)).toBeInTheDocument();
   });
 
   it('replaces the next step with the one it is given', () => {

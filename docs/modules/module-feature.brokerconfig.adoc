@@ -38,6 +38,8 @@ _Others_
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
 * `i.g.s.a.p.c.ClusterService` (in Clusters)
+* `i.g.s.a.p.b.BrokerAccountRoles` (in Broker connectivity)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.p.b.BrokerConnectors` (in Broker connectivity)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
 |===

@@ -9,7 +9,7 @@ import { DescriptionList } from '../../ui/DescriptionList.tsx';
 import linkClasses from '../../ui/InlineLink.module.css';
 import { Section } from '../../ui/Section.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import { DataTable, type Column } from '../../ui/table/index.ts';
+import { DataTable, MiddleTruncate, type Column } from '../../ui/table/index.ts';
 import { findingKindWords, findingRows, nodeStateWords, wireSectionLabel, WIRE_SECTIONS } from './words.ts';
 
 const KIND_ORDER = ['UNDECLARED', 'DIVERGENT_QUEUE', 'DIVERGENT_ADDRESS', 'UNVERIFIABLE', 'NOT_EVALUATED'];
@@ -61,7 +61,7 @@ export function NodesPanel({
           <Link to={`/clusters/${declaration.clusterId}/config-diff`} className={linkClasses.link}>
             Config diff
           </Link>{' '}
-          compares two nodes with each other; this screen compares every node with the declaration.
+          sets every node against the majority of the others; this screen compares every node with the declaration.
         </>
       }
     >
@@ -144,15 +144,16 @@ function findingColumns(nodeName: string, catalogue?: ConfigCatalogueView): Colu
       accessor: (r) => `${r.finding.key ?? '—'} ${r.finding.detail}`,
       cell: (r) => (
         <>
-          <div>{r.finding.key ?? '—'}</div>
-          <Text size="sm" c="dimmed">
+          <div>
+            <MiddleTruncate text={r.finding.key ?? '—'} tooltip />
+          </div>
+          <Text size="sm" c="dimmed" truncate>
             {r.finding.detail}
           </Text>
         </>
       ),
-      kind: 'text',
+      kind: 'identifier',
       priority: 'essential',
-      wrap: true,
     },
     {
       id: 'observed',
@@ -168,12 +169,14 @@ function findingColumns(nodeName: string, catalogue?: ConfigCatalogueView): Colu
           '—'
         ) : (
           <DescriptionList
+            oneLine
             items={ordered.map((x) => ({ term: x.key, value: x.observed === '—' ? x.declared : x.observed }))}
           />
         );
       },
       kind: 'text',
       priority: 'essential',
+      min: 28,
       wrap: true,
     },
   ];
