@@ -1,43 +1,34 @@
-import { Fragment, useRef } from 'react';
-import { Tabs, Text } from '@mantine/core';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { SETTINGS_GROUPS, useSlot } from '../slots.ts';
-import classes from './SettingsView.module.css';
+import { GroupedTabs } from './GroupedTabs.tsx';
 
 /**
  * A cluster's Settings page: one tab per section the features contribute, under fixed headings in
  * the order an operator's reach widens — their own preferences, what Studio shares, this cluster,
- * then what plugins added (operator-ui spec). The open tab is in the URL, so it can be shared and
- * survives a reload.
- *
- * Arrow keys move between tabs without opening them; Enter or Space opens one and moves focus to
- * its panel, which the tab names, so a keyboard user reads the section they chose rather than
- * staying in the list.
+ * then what plugins added (operator-ui spec). The open tab is in the URL.
  */
 export function SettingsView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
-  const search = useSearch({ strict: false }) as { tab?: string };
-  const navigate = useNavigate();
-  const panels = useRef(new Map<string, HTMLDivElement>());
-
   const sections = useSlot('settings.sections');
+
   const groups = SETTINGS_GROUPS.map((group) => ({
     ...group,
-    sections: sections.filter((section) => (section.group ?? 'plugins') === group.id),
-  })).filter((group) => group.sections.length > 0);
-  const ordered = groups.flatMap((group) => group.sections);
-
-  const tab = ordered.some((section) => section.id === search.tab) ? search.tab : ordered[0]?.id;
-
-  const open = (id: string | null) => {
-    if (!id) return;
-    void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: id }), replace: true });
-    requestAnimationFrame(() => panels.current.get(id)?.focus());
-  };
+    tabs: sections
+      .filter((section) => (section.group ?? 'plugins') === group.id)
+      .map(({ id, title, Component }) => ({
+        id,
+        title: title ?? id,
+        panel: (
+          <Section title={title ?? id}>
+            <Component clusterId={clusterId} />
+          </Section>
+        ),
+      })),
+  }));
 
   return (
     <Page>
@@ -45,51 +36,7 @@ export function SettingsView() {
         title="Settings"
         description="Your own preferences, what Studio shares across clusters, and this cluster's configuration."
       />
-      <Tabs
-        value={tab ?? null}
-        onChange={open}
-        orientation="vertical"
-        activateTabWithKeyboard={false}
-        keepMounted={false}
-        classNames={{
-          root: classes.root,
-          list: classes.list,
-          tab: classes.tab,
-          tabLabel: classes.tabLabel,
-          panel: classes.panel,
-        }}
-      >
-        <Tabs.List aria-label="Settings sections">
-          {groups.map((group) => (
-            <Fragment key={group.id}>
-              <Text role="presentation" className={classes.group} size="xs" fw={600} tt="uppercase" c="dimmed">
-                {group.label}
-              </Text>
-              {group.sections.map(({ id, title }) => (
-                <Tabs.Tab key={id} value={id}>
-                  {title}
-                </Tabs.Tab>
-              ))}
-            </Fragment>
-          ))}
-        </Tabs.List>
-
-        {ordered.map(({ id, title, Component }) => (
-          <Tabs.Panel
-            key={id}
-            value={id}
-            tabIndex={-1}
-            ref={(el) => {
-              if (el) panels.current.set(id, el);
-              else panels.current.delete(id);
-            }}
-          >
-            <Section title={title ?? id}>
-              <Component clusterId={clusterId} />
-            </Section>
-          </Tabs.Panel>
-        ))}
-      </Tabs>
+      <GroupedTabs label="Settings sections" groups={groups} />
     </Page>
   );
 }
