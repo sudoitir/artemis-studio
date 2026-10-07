@@ -10,6 +10,7 @@ import { branding } from '../../branding.ts';
 import { useMe } from '../auth/api.ts';
 import { usePluginsChanged } from '../plugins/usePluginsChanged.tsx';
 import { useSlot } from '../slots.ts';
+import { InboxBell } from '../inbox/InboxBell.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
 import { ColorSchemeToggle } from './ColorSchemeToggle.tsx';
@@ -144,6 +145,7 @@ export function RootLayout() {
             {/* The data's state on the left of the rule, the console's own controls on the right. */}
             <Divider orientation="vertical" />
             <ColorSchemeToggle />
+            <InboxBell />
             {/* A visible way into the palette: a shortcut nobody can see is one nobody finds. */}
             <Button
               size="xs"

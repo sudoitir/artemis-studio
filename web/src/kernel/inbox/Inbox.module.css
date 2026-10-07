@@ -1,0 +1,139 @@
+/* One notice: the severity mark, then its words, then its actions at the inline end. */
+.notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--mantine-spacing-xs);
+  padding-block: var(--mantine-spacing-xs);
+  border-block-start: 1px solid var(--as-border);
+}
+
+.notice:first-child {
+  border-block-start: 0;
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-block-size: 1.5rem;
+  color: var(--as-text-dimmed);
+}
+
+.mark[data-severity='warning'] {
+  color: var(--as-warning);
+}
+
+.mark[data-severity='danger'] {
+  color: var(--as-danger);
+}
+
+/* The unread dot keeps its space when read, so marking a notice read moves nothing. */
+.dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+}
+
+.notice[data-unread] .dot {
+  background: var(--as-accent);
+}
+
+.words {
+  min-inline-size: 0;
+}
+
+.title {
+  display: block;
+  min-block-size: 1.5rem;
+  color: var(--as-text);
+  font: inherit;
+  font-size: var(--mantine-font-size-sm);
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.notice[data-unread] .title {
+  font-weight: 600;
+}
+
+a.title {
+  text-decoration: none;
+}
+
+a.title:hover {
+  text-decoration: underline;
+}
+
+button.title {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+
+.title:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+.body {
+  color: var(--as-text-dimmed);
+  overflow-wrap: anywhere;
+}
+
+.when {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The popover: a header line, the latest notices in a bounded scroll, and the way to the full inbox. */
+.dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-xs);
+  inline-size: 24rem;
+  max-inline-size: calc(100vw - 2rem);
+}
+
+.dropdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-xs);
+}
+
+.dropdownTitle {
+  font-weight: 600;
+}
+
+.latest {
+  max-block-size: 24rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.dropdownFooter {
+  border-block-start: 1px solid var(--as-border);
+  padding-block-start: var(--mantine-spacing-xs);
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  padding-block-start: var(--mantine-spacing-sm);
+}
