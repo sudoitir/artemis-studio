@@ -45,7 +45,7 @@ const VIEWPORTS = {
   '1920': { width: 1920, height: 1080, deviceScaleFactor: 1, schemes: ['light', 'dark'] },
   '1440': { width: 1440, height: 900, deviceScaleFactor: 1, schemes: ['light', 'dark', 'system'] },
   '1280': { width: 1280, height: 800, deviceScaleFactor: 1, schemes: ['light', 'dark'] },
-  zoom: { width: 640, height: 400, deviceScaleFactor: 2, schemes: ['light'] },
+  zoom: { width: 640, height: 400, deviceScaleFactor: 2, schemes: ['light', 'dark'] },
 } as const;
 type Width = keyof typeof VIEWPORTS;
 type Scheme = 'light' | 'dark' | 'system';

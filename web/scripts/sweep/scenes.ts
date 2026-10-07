@@ -147,7 +147,10 @@ export const TEAMS_SCENES: Scene[] = [
     id: 'created',
     act: async (page) => {
       await press(page, 'New team');
-      await exact(page, 'Name').fill(`qa-created-${Date.now()}`);
+      await page
+        .getByRole('dialog', { name: 'New team' })
+        .getByRole('textbox', { name: /^Name/ })
+        .fill(`qa-created-${Date.now()}`);
       await press(page, 'Create team');
       await page.getByRole('tab', { name: 'Patterns (0)' }).waitFor();
     },
