@@ -45,11 +45,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/UserView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -162,11 +171,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/UserView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -364,11 +382,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/TeamView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -458,11 +485,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -580,11 +623,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/MemberView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -682,11 +734,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -796,11 +864,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/RoleView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -890,11 +967,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -1003,11 +1096,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/GroupMappingsView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -1304,12 +1406,31 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+          "200" : {
+            "description" : "OK",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "$ref" : "#/components/schemas/EnvironmentView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -1399,18 +1520,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -1510,6 +1640,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -1819,18 +1968,27 @@
           "required" : true
         },
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -2729,11 +2887,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -2822,18 +2989,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -3013,18 +3189,27 @@
           "required" : true
         },
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -3208,8 +3393,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -3218,12 +3403,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/UserView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -3325,11 +3519,27 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -3519,6 +3729,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/CreatedTokenView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -3802,8 +4031,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -3812,12 +4041,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/TeamView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -3919,8 +4157,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -3929,12 +4167,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/ShareView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -4036,8 +4283,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -4046,12 +4293,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/PatternView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -4153,8 +4409,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -4163,12 +4419,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/MemberView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -4253,11 +4518,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/RotationView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/RotationView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -4353,6 +4631,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -4635,8 +4932,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -4645,12 +4942,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/RoleView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -4934,8 +5240,8 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation.",
+          "201" : {
+            "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -4944,12 +5250,21 @@
               }
             }
           },
-          "201" : {
-            "description" : "Created",
-            "content" : {
-              "*/*" : {
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/GroupMappingView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -5726,22 +6041,31 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
-                }
-              }
-            }
-          },
           "201" : {
             "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/EnvironmentView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -6064,10 +6388,19 @@
           },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -6493,14 +6826,23 @@
         },
         "responses" : {
           "202" : {
-            "description" : "started: the run; or held for approval (X-Studio-Held-Operation), nothing started",
+            "description" : "Started: the run; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
                   "oneOf" : [ {
                     "$ref" : "#/components/schemas/TransferRunView"
                   }, {
-                    "$ref" : "#/components/schemas/HeldOutcomeView"
+                    "$ref" : "#/components/schemas/HeldOutcome"
                   } ]
                 }
               }
@@ -8710,10 +9052,19 @@
           },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -8871,10 +9222,19 @@
           },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -10191,14 +10551,23 @@
         },
         "responses" : {
           "202" : {
-            "description" : "started: the run; or held for approval (X-Studio-Held-Operation), nothing started",
+            "description" : "Started: the run; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
                   "oneOf" : [ {
                     "$ref" : "#/components/schemas/BulkRunView"
                   }, {
-                    "$ref" : "#/components/schemas/HeldOutcomeView"
+                    "$ref" : "#/components/schemas/HeldOutcome"
                   } ]
                 }
               }
@@ -12540,18 +12909,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -12648,11 +13026,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PluginPlanView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/PluginPlanView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -12762,11 +13153,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -12866,11 +13266,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PluginPlanView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/PluginPlanView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -13065,18 +13478,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -13173,11 +13595,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PluginPlanView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/PluginPlanView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -13429,22 +13864,31 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
-                }
-              }
-            }
-          },
           "201" : {
             "description" : "Created",
             "content" : {
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/TrustedKeyView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -13631,18 +14075,27 @@
           "required" : true
         },
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -14104,18 +14557,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -14236,10 +14698,19 @@
           },
           "202" : {
             "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
-            "content" : {
-              "*/*" : {
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -14580,12 +15051,31 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+          "200" : {
+            "description" : "OK",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -14821,6 +15311,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/NodeEndpointView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -24011,11 +24520,20 @@
             }
           },
           "202" : {
-            "description" : "Held for approval; the body names the held operation.",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/UserView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -24130,11 +24648,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -24321,11 +24855,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -24422,11 +24972,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -24612,11 +25178,27 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval; the body names the held operation."
-          },
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -24832,12 +25414,31 @@
           }
         } ],
         "responses" : {
-          "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+          "200" : {
+            "description" : "OK",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -25282,6 +25883,25 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -25368,18 +25988,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -25468,18 +26097,27 @@
           }
         } ],
         "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "202" : {
-            "description" : "Held for approval",
-            "content" : {
-              "*/*" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "$ref" : "#/components/schemas/HeldOutcomeView"
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -25618,6 +26256,40 @@
           }
         },
         "required" : [ "disabled", "grants", "id", "mustChangePassword", "passwordAccount", "providerId", "secondFactorRequired", "secondFactors", "username" ]
+      },
+      "HeldOutcome" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "held" ]
+          },
+          "heldOperation" : {
+            "$ref" : "#/components/schemas/HeldRef"
+          }
+        },
+        "required" : [ "heldOperation", "outcome" ]
+      },
+      "HeldRef" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "link" : {
+            "type" : "string",
+            "description" : "The held operation in this API."
+          }
+        },
+        "required" : [ "expiresAt", "id", "link", "summary" ]
       },
       "SetDisabledRequest" : {
         "type" : "object",
@@ -25987,39 +26659,25 @@
         },
         "required" : [ "name", "sortOrder" ]
       },
-      "HeldOutcomeView" : {
-        "type" : "object",
-        "properties" : {
-          "outcome" : {
-            "type" : "string",
-            "enum" : [ "held" ]
-          },
-          "heldOperation" : {
-            "$ref" : "#/components/schemas/HeldRefView"
-          }
-        },
-        "required" : [ "heldOperation", "outcome" ]
-      },
-      "HeldRefView" : {
+      "EnvironmentView" : {
         "type" : "object",
         "properties" : {
           "id" : {
             "type" : "string",
             "format" : "uuid"
           },
-          "summary" : {
+          "name" : {
             "type" : "string"
           },
-          "expiresAt" : {
-            "type" : "string",
-            "format" : "date-time"
+          "colour" : {
+            "type" : [ "string", "null" ]
           },
-          "link" : {
-            "type" : "string",
-            "description" : "The held operation in this API."
+          "sortOrder" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         },
-        "required" : [ "expiresAt", "id", "link", "summary" ]
+        "required" : [ "id", "name", "sortOrder" ]
       },
       "UpdatePolicyRequest" : {
         "type" : "object",
@@ -26827,40 +27485,6 @@
           }
         },
         "required" : [ "state" ]
-      },
-      "HeldOutcomeView" : {
-        "type" : "object",
-        "properties" : {
-          "outcome" : {
-            "type" : "string",
-            "enum" : [ "held" ]
-          },
-          "heldOperation" : {
-            "$ref" : "#/components/schemas/HeldRefView"
-          }
-        },
-        "required" : [ "heldOperation", "outcome" ]
-      },
-      "HeldRefView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "summary" : {
-            "type" : "string"
-          },
-          "expiresAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "link" : {
-            "type" : "string",
-            "description" : "The held operation in this API."
-          }
-        },
-        "required" : [ "expiresAt", "id", "link", "summary" ]
       },
       "PluginChangesetView" : {
         "type" : "object",
@@ -27741,6 +28365,10 @@
             "type" : "integer",
             "format" : "int32"
           },
+          "tokenName" : {
+            "type" : [ "string", "null" ],
+            "description" : "The name of the API token the requester used; null for a session."
+          },
           "effect" : {
             "$ref" : "#/components/schemas/HeldEffectView"
           },
@@ -27902,26 +28530,6 @@
           }
         },
         "required" : [ "address", "dataClass", "dataClassLabel", "fieldPath", "firstSeenAt", "hitCount", "id", "lastSeenAt", "location", "status" ]
-      },
-      "EnvironmentView" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "colour" : {
-            "type" : [ "string", "null" ]
-          },
-          "sortOrder" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "id", "name", "sortOrder" ]
       },
       "PreviewRequest" : {
         "type" : "object",
@@ -32055,6 +32663,14 @@
           },
           "categoryTitle" : {
             "type" : "string"
+          },
+          "min" : {
+            "type" : [ "string", "null" ],
+            "description" : "The smallest accepted value, in the kind's own syntax. Always set for an INT; null elsewhere when any positive value is accepted."
+          },
+          "max" : {
+            "type" : [ "string", "null" ],
+            "description" : "The largest accepted value; null for none. A DURATION's \"forever\" also allows forever as a value."
           },
           "pending" : {
             "type" : "array",
