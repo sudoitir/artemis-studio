@@ -714,6 +714,10 @@ exports:
     holds the space of what it stands for.
   - `StatusBadge` shows a state in words. `Stat` shows a figure, and `null` reads "Unavailable",
     never 0. `DescriptionList` shows terms and values.
+  - `FieldRow` puts fields on one line, such as a name and a value, or a field and the button that
+    submits it. Every input box stays on the same line whatever its label, description or message
+    holds, and the row wraps when the window is narrow. Use it, not your own flex row, so your
+    forms line up with Studio's.
   - `ConfirmDialog` confirms an action, and for a removal it asks for the resource's name to be
     typed. `notify` shows a toast for the outcomes of an action: pending, succeeded, failed and
     partial.

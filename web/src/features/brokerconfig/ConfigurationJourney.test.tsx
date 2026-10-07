@@ -100,7 +100,7 @@ describe('the configuration screen', () => {
     expect(within(row).getByText(/differs on broker-2/)).toBeInTheDocument();
     // declared → observed, on the row, so the comparison needs no second screen.
     expect(within(row).getAllByText(/PAGE/).length).toBeGreaterThanOrEqual(1);
-    expect(within(row).getByText(/→ DROP/)).toBeInTheDocument();
+    expect(within(row).getByText('DROP').closest('dd')).toHaveTextContent('PAGE → DROP');
   });
 
   it('reviews and applies over the rows, and renders a partial run as partial', async () => {

@@ -192,7 +192,7 @@ describe('ConfigurationView', () => {
     // The key is shown by its broker.xml element name, from the catalogue, and
     // declared and observed are one row, so the two never fall out of line.
     expect(within(row).getAllByText('address-full-policy').length).toBeGreaterThanOrEqual(1);
-    expect(within(row).getByText(/→ DROP/)).toBeInTheDocument();
+    expect(within(row).getByText('DROP').closest('dd')).toHaveTextContent('PAGE → DROP');
   });
 
   it('says a missing item is missing once, without reprinting every key as "declared → —"', async () => {

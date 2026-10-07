@@ -43,6 +43,21 @@
   color: var(--as-text-dimmed);
 }
 
+/* A value that moved, on one line: each side shrinks, the arrow does not. */
+.transition {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+
+.side {
+  display: block;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 /* A field and the control beside it: the field takes the width, and may shrink below its content. */
 .growField {
   flex: 1;
@@ -83,4 +98,10 @@
 /* Room for the counts an adoption would declare, held while the nodes are read. */
 .reading {
   min-block-size: 10rem;
+}
+
+/* A drawer's title is a name that can be longer than the drawer: it shortens instead of widening it. */
+.drawerTitle {
+  min-inline-size: 0;
+  overflow: hidden;
 }

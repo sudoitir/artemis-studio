@@ -29,6 +29,7 @@ describe('QueryEditor under Trusted Types', () => {
           onChange={onChange}
           onRun={vi.fn()}
           onCancel={vi.fn()}
+          onMaximise={vi.fn()}
           onEscape={vi.fn()}
           queues={['orders.<new>&co']}
         />

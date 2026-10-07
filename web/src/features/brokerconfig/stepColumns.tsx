@@ -2,7 +2,7 @@ import { Text } from '@mantine/core';
 
 import type { ConfigApplyOutcomeView, ConfigStepApplyView } from './api.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { Column } from '../../ui/table/index.ts';
+import { MiddleTruncate, type Column } from '../../ui/table/index.ts';
 import { StepDiff } from './stepCells.tsx';
 import { stepStatusWords, valueWords, wireSectionLabel } from './words.ts';
 
@@ -34,13 +34,14 @@ export function stepColumns(): Column<StepRow>[] {
       cell: ({ step }) => (
         <>
           <div>{step.description}</div>
-          <Text size="sm" c="dimmed">
-            {step.op.toLowerCase()} {wireSectionLabel(step.section)} {step.key}
+          <Text size="sm" c="dimmed" component="div">
+            <MiddleTruncate text={`${step.op.toLowerCase()} ${wireSectionLabel(step.section)} ${step.key}`} tooltip />
           </Text>
         </>
       ),
       kind: 'text',
       priority: 'essential',
+      min: 24,
       wrap: true,
     },
     {
@@ -55,6 +56,7 @@ export function stepColumns(): Column<StepRow>[] {
       cell: ({ plan }) => (plan ? <StepDiff before={plan.before} after={plan.after} /> : '—'),
       kind: 'text',
       priority: 'essential',
+      min: 24,
       wrap: true,
     },
     {
