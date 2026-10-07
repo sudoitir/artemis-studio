@@ -2,6 +2,9 @@ package io.github.sudoitir.artemisstudio.feature.plugins;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
@@ -26,6 +29,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +68,7 @@ public class PluginAdministration {
     private final StudioRestart restart;
     private final PluginTrust trust;
     private final PluginLicenseStore licenses;
+    private final OperationGate gate;
 
     /** Why the caller cannot install right now, or empty when they can. */
     public Optional<PluginAccessDeniedException> installBlocker() {
@@ -150,64 +155,86 @@ public class PluginAdministration {
 
     // ---- lifecycle ----------------------------------------------------------------------------------
 
-    /** Installs or updates from a pending upload; the outcome arrives on the plugin's status. */
+    /**
+     * Installs or updates from a pending upload; the outcome arrives on the plugin's status. A held request
+     * keeps only the jar's sha256: the bytes stay in the plugin artifact store, and the replay refuses when the
+     * upload is no longer pending.
+     */
+    @Gated("plugin.activate-upload")
     public ActivationPlan activate(String sha256, boolean acknowledge) {
         requireInstaller();
         requireUploadEnabled();
         String pluginId = host.uploadPluginId(sha256).orElse(sha256);
-        return activation(
-                "PLUGIN_ACTIVATE",
-                pluginId,
-                withTrust(Map.of("sha256", sha256), sha256),
-                () -> host.activateUpload(sha256, actor().username(), acknowledge));
+        return gate.run(
+                Operation.of(new PluginOperations.ActivateUpload(sha256, acknowledge)),
+                () -> activation(
+                        "PLUGIN_ACTIVATE",
+                        pluginId,
+                        withTrust(Map.of("sha256", sha256), sha256),
+                        () -> host.activateUpload(sha256, actor().username(), acknowledge)));
     }
 
+    @Gated("plugin.enable")
     public ActivationPlan enable(String id, boolean acknowledge) {
         requireInstaller();
-        String sha256 = host.status(id).map(PluginSummary::sha256).orElse(null);
-        return activation(
-                "PLUGIN_ENABLE",
-                id,
-                withTrust(Map.of(), sha256),
-                () -> host.enable(id, actor().username(), acknowledge));
+        return gate.run(Operation.of(new PluginOperations.EnablePlugin(id, acknowledge)), () -> {
+            String sha256 = host.status(id).map(PluginSummary::sha256).orElse(null);
+            return activation(
+                    "PLUGIN_ENABLE",
+                    id,
+                    withTrust(Map.of(), sha256),
+                    () -> host.enable(id, actor().username(), acknowledge));
+        });
     }
 
+    @Gated("plugin.rollback")
     public ActivationPlan rollback(String id, boolean acknowledge) {
         requireInstaller();
-        String sha256 = host.status(id).map(PluginSummary::previousSha256).orElse(null);
-        return activation(
-                "PLUGIN_ROLLBACK",
-                id,
-                withTrust(Map.of(), sha256),
-                () -> host.rollback(id, actor().username(), acknowledge));
+        return gate.run(Operation.of(new PluginOperations.RollbackPlugin(id, acknowledge)), () -> {
+            String sha256 = host.status(id).map(PluginSummary::previousSha256).orElse(null);
+            return activation(
+                    "PLUGIN_ROLLBACK",
+                    id,
+                    withTrust(Map.of(), sha256),
+                    () -> host.rollback(id, actor().username(), acknowledge));
+        });
     }
 
+    @Gated("plugin.disable")
     public void disable(String id, boolean cascade) {
         requireInstaller();
-        audited("PLUGIN_DISABLE", id, Map.of("cascade", cascade), () -> {
-            host.disable(id, cascade, actor().username());
-            return null;
-        });
+        gate.run(
+                Operation.of(new PluginOperations.DisablePlugin(id, cascade)),
+                () -> audited("PLUGIN_DISABLE", id, Map.of("cascade", cascade), () -> {
+                    host.disable(id, cascade, actor().username());
+                    return null;
+                }));
     }
 
+    @Gated("plugin.uninstall")
     public void uninstall(String id, boolean cascade) {
         requireInstaller();
-        audited("PLUGIN_UNINSTALL", id, Map.of("cascade", cascade), () -> {
-            host.uninstall(id, cascade, actor().username());
-            return null;
-        });
+        gate.run(
+                Operation.of(new PluginOperations.UninstallPlugin(id, cascade)),
+                () -> audited("PLUGIN_UNINSTALL", id, Map.of("cascade", cascade), () -> {
+                    host.uninstall(id, cascade, actor().username());
+                    return null;
+                }));
     }
 
-    /** A dry run is a read and needs no step-up; the real purge does (the caller demands it). */
+    /** A dry run is a read, is never gated and needs no step-up; the real purge does (the caller demands it). */
+    @Gated("plugin.purge")
     public PurgePlan purge(String id, boolean dryRun) {
         requireInstaller();
         if (dryRun) {
             return host.purgePlan(id);
         }
-        PurgePlan plan = host.purgePlan(id);
-        return audited("PLUGIN_PURGE", id, Map.of("schema", plan.schema()), () -> {
-            host.purge(id, actor().username());
-            return plan;
+        return gate.run(Operation.of(new PluginOperations.PurgePlugin(id)), () -> {
+            PurgePlan plan = host.purgePlan(id);
+            return audited("PLUGIN_PURGE", id, Map.of("schema", plan.schema()), () -> {
+                host.purge(id, actor().username());
+                return plan;
+            });
         });
     }
 
@@ -215,27 +242,36 @@ public class PluginAdministration {
 
     /**
      * Stores or replaces the plugin's license file. The audit row opens first, so a refusal is
-     * recorded too, with the plugin, the file's hash and its size and never its content. The
-     * {@code stepUp} check runs inside that row for the same reason: the web layer passes its
-     * request's check, and a replay passes none. The other audited actions below do the same.
+     * recorded too, with the plugin, the file's hash and its size and never its content. The installer
+     * tier and the {@code stepUp} check are demanded before the request reaches the gate, since they are
+     * bound to the request: the web layer passes its request's check, and a replay passes none. The other
+     * gated actions below do the same.
      */
+    @Gated("plugin.license.put")
     public void uploadLicense(String id, byte[] content, Runnable stepUp) {
-        Map<String, Object> params = Map.of("size", content.length, "sha256", PluginLicenseStore.sha256(content));
-        audited("PLUGIN_LICENSE_UPLOAD", id, params, () -> {
-            requireInstaller();
-            stepUp.run();
-            licenses.put(id, content, actor().username());
-            return null;
-        });
+        String sha256 = PluginLicenseStore.sha256(content);
+        Map<String, Object> params = Map.of("size", content.length, "sha256", sha256);
+        checkedFirst("PLUGIN_LICENSE_UPLOAD", id, params, stepUp, () -> {});
+        gate.run(
+                Operation.of(new PluginOperations.PutLicense(
+                        id, Base64.getEncoder().encodeToString(content), sha256, content.length)),
+                () -> audited("PLUGIN_LICENSE_UPLOAD", id, params, () -> {
+                    requireInstaller();
+                    licenses.put(id, content, actor().username());
+                    return null;
+                }));
     }
 
+    @Gated("plugin.license.delete")
     public void removeLicense(String id, Runnable stepUp) {
-        audited("PLUGIN_LICENSE_REMOVE", id, Map.of(), () -> {
-            requireInstaller();
-            stepUp.run();
-            licenses.remove(id);
-            return null;
-        });
+        checkedFirst("PLUGIN_LICENSE_REMOVE", id, Map.of(), stepUp, () -> {});
+        gate.run(
+                Operation.of(new PluginOperations.DeleteLicense(id)),
+                () -> audited("PLUGIN_LICENSE_REMOVE", id, Map.of(), () -> {
+                    requireInstaller();
+                    licenses.remove(id);
+                    return null;
+                }));
     }
 
     // ---- restart ----------------------------------------------------------------------------------
@@ -269,30 +305,36 @@ public class PluginAdministration {
                 .toList();
     }
 
+    @Gated("plugin.installer.add")
     public void grantInstaller(String username) {
         requireInstaller();
         UserAccounts.Account account = accounts.byUsername(username)
                 .orElseThrow(() -> new PluginRefusedException(List.of(
                         new Violation("not-found", "No user named '" + username + "'.", "Check the username."))));
-        audited("PLUGIN_INSTALLER_GRANT", username, Map.of(), () -> {
-            installers.grant(account.id(), actor().username());
-            return null;
-        });
+        gate.run(
+                Operation.of(new PluginOperations.GrantInstaller(username)),
+                () -> audited("PLUGIN_INSTALLER_GRANT", username, Map.of(), () -> {
+                    installers.grant(account.id(), actor().username());
+                    return null;
+                }));
     }
 
+    @Gated("plugin.installer.remove")
     public void revokeInstaller(UUID userId) {
         requireInstaller();
         String username =
                 accounts.byId(userId).map(UserAccounts.Account::username).orElse(userId.toString());
-        audited("PLUGIN_INSTALLER_REVOKE", username, Map.of(), () -> {
-            if (!installers.revoke(userId)) {
-                throw new PluginRefusedException(List.of(new Violation(
-                        "last-installer",
-                        "'" + username + "' is the only one who can install plugins.",
-                        "Add another installer first.")));
-            }
-            return null;
-        });
+        gate.run(
+                Operation.of(new PluginOperations.RevokeInstaller(userId)),
+                () -> audited("PLUGIN_INSTALLER_REVOKE", username, Map.of(), () -> {
+                    if (!installers.revoke(userId)) {
+                        throw new PluginRefusedException(List.of(new Violation(
+                                "last-installer",
+                                "'" + username + "' is the only one who can install plugins.",
+                                "Add another installer first.")));
+                    }
+                    return null;
+                }));
     }
 
     // ---- trusted keys and the allowance (design.md §6) --------------------------------------------------
@@ -316,6 +358,7 @@ public class PluginAdministration {
      * Trusts a publisher key given as exactly one of a pending upload, whose own signer is taken
      * from the stored jar, or a PEM. The audit row opens first, so a refusal is recorded too.
      */
+    @Gated("plugin.trust-key.add")
     public PluginTrust.TrustedKey addKey(String name, String uploadSha256, String pem, Runnable stepUp) {
         Map<String, Object> params = new HashMap<>();
         // The PEM itself is not recorded: it can be 8 KB of whatever the client sent.
@@ -323,35 +366,45 @@ public class PluginAdministration {
         if (uploadSha256 != null) {
             params.put(UPLOAD, uploadSha256);
         }
-        return audited("PLUGIN_KEY_ADD", name.strip(), params, () -> {
-            requireInstaller();
-            stepUp.run();
+        checkedFirst("PLUGIN_KEY_ADD", name.strip(), params, stepUp, () -> {
             if ((uploadSha256 == null) == (pem == null)) {
                 throw new IllegalArgumentException("Give exactly one of upload and pem.");
             }
-            Signer signer = uploadSha256 != null ? host.uploadSigner(uploadSha256) : PublisherKeys.parse(pem);
-            return trust.add(name.strip(), signer, actor().username());
         });
+        return gate.run(
+                Operation.of(new PluginOperations.AddTrustKey(name.strip(), uploadSha256, pem)),
+                () -> audited("PLUGIN_KEY_ADD", name.strip(), params, () -> {
+                    requireInstaller();
+                    Signer signer = uploadSha256 != null ? host.uploadSigner(uploadSha256) : PublisherKeys.parse(pem);
+                    return trust.add(name.strip(), signer, actor().username());
+                }));
     }
 
+    @Gated("plugin.trust-key.remove")
     public void removeKey(String fingerprint, Runnable stepUp) {
-        audited("PLUGIN_KEY_REMOVE", fingerprint, Map.of(), () -> {
-            requireInstaller();
-            stepUp.run();
-            if (!trust.remove(fingerprint)) {
-                throw notFound("No trusted key " + fingerprint + ".");
-            }
-            return null;
-        });
+        checkedFirst("PLUGIN_KEY_REMOVE", fingerprint, Map.of(), stepUp, () -> {});
+        gate.run(
+                Operation.of(new PluginOperations.RemoveTrustKey(fingerprint)),
+                () -> audited("PLUGIN_KEY_REMOVE", fingerprint, Map.of(), () -> {
+                    requireInstaller();
+                    if (!trust.remove(fingerprint)) {
+                        throw notFound("No trusted key " + fingerprint + ".");
+                    }
+                    return null;
+                }));
     }
 
+    @Gated("plugin.trust-policy.set")
     public void setAllowUnverified(boolean allow, Runnable stepUp) {
-        audited("PLUGIN_TRUST_POLICY", "allow-unverified", Map.of("allowUnverified", allow), () -> {
-            requireInstaller();
-            stepUp.run();
-            trust.setAllowUnverified(allow, actor().username());
-            return null;
-        });
+        Map<String, Object> params = Map.of("allowUnverified", allow);
+        checkedFirst("PLUGIN_TRUST_POLICY", "allow-unverified", params, stepUp, () -> {});
+        gate.run(
+                Operation.of(new PluginOperations.SetTrustPolicy(allow)),
+                () -> audited("PLUGIN_TRUST_POLICY", "allow-unverified", params, () -> {
+                    requireInstaller();
+                    trust.setAllowUnverified(allow, actor().username());
+                    return null;
+                }));
     }
 
     // ---- checks and audit ------------------------------------------------------------------------------
@@ -360,6 +413,22 @@ public class PluginAdministration {
         installBlocker().ifPresent(e -> {
             throw e;
         });
+    }
+
+    /**
+     * The checks bound to the request, before it reaches the gate: the installer tier, the step-up and
+     * {@code more}. A refusal is audited, as an action that begins its own audit row would have.
+     */
+    private void checkedFirst(String action, String target, Map<String, ?> params, Runnable stepUp, Runnable more) {
+        try {
+            requireInstaller();
+            stepUp.run();
+            more.run();
+        } catch (RuntimeException e) {
+            AuditEvent event = audit.begin(actors.resolve(), action, "plugin", target, null, null, params, false);
+            audit.fail(event, e.getMessage());
+            throw e;
+        }
     }
 
     /**

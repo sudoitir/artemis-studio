@@ -30,11 +30,16 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ApprovalProviderRegistry implements PluginBridge {
 
-    private static final String ARMED_SQL = "SELECT id FROM plugin_install WHERE approval_provider AND status IN ("
+    private static final String ARMED_WHERE = " FROM plugin_install WHERE approval_provider AND status IN ("
             + PluginInstallStatus.desiredActiveDbValues().stream()
                     .map(status -> "'" + status + "'")
                     .collect(Collectors.joining(", "))
             + ") ORDER BY id LIMIT 1";
+
+    private static final String ARMED_SQL = "SELECT id" + ARMED_WHERE;
+
+    private static final String ARMED_PERMISSION_SQL =
+            "SELECT descriptor->'approvalProvider'->>'approverPermission'" + ARMED_WHERE;
 
     private record Attached(PluginHandle handle, ApprovalProvider provider) {}
 
@@ -49,6 +54,35 @@ public class ApprovalProviderRegistry implements PluginBridge {
     /** The plugin id of the approval provider that is meant to be running, whether or not it is. */
     public Optional<String> armedProviderId() {
         return jdbc.queryForList(ARMED_SQL, String.class).stream().findFirst();
+    }
+
+    /**
+     * The permission the armed provider's approvers hold, read from the installed descriptor so that it is known
+     * whether or not the plugin is running here; empty when no provider is armed.
+     */
+    public Optional<String> armedApproverPermission() {
+        return jdbc.queryForList(ARMED_PERMISSION_SQL, String.class).stream()
+                .filter(java.util.Objects::nonNull)
+                .findFirst();
+    }
+
+    /** Whether the installed plugin declares {@code approvalProvider}, running or not, so that changing it can re-arm or disarm the gate. */
+    public boolean isProviderPlugin(String pluginId) {
+        return jdbc
+                .queryForList("SELECT approval_provider FROM plugin_install WHERE id = ?", Boolean.class, pluginId)
+                .stream()
+                .anyMatch(Boolean.TRUE::equals);
+    }
+
+    /** Whether a pending upload's descriptor declares {@code approvalProvider}; read from the stored descriptor, never by planning. */
+    public boolean uploadDeclaresProvider(String sha256) {
+        return jdbc
+                .queryForList(
+                        "SELECT jsonb_typeof(descriptor->'approvalProvider') = 'object' FROM plugin_upload WHERE sha256 = ?",
+                        Boolean.class,
+                        sha256)
+                .stream()
+                .anyMatch(Boolean.TRUE::equals);
     }
 
     /**

@@ -730,9 +730,17 @@ public class PluginHost implements SmartLifecycle {
     /** An inspected upload: stored and planned, installed only once someone activates it. */
     public record Inspection(String sha256, ActivationPlan plan, List<Violation> warnings) {}
 
+    /**
+     * An open request to activate the upload, waiting for approval or about to run: the upload outlives its
+     * day until that request ends, because an approver may take far longer to decide.
+     */
+    private static final String HELD_FOR_ACTIVATION = "EXISTS (SELECT 1 FROM held_operation h WHERE"
+            + " h.type = 'plugin.activate-upload' AND h.state IN ('HELD', 'APPROVED', 'EXECUTING')"
+            + " AND h.params->>'sha256' = plugin_upload.sha256)";
+
     /** Uploads nobody activated within a day are forgotten, and their artifacts removed. */
     private static final String EXPIRE_UPLOADS =
-            "DELETE FROM plugin_upload WHERE uploaded_at < now() - interval '1 day'";
+            "DELETE FROM plugin_upload WHERE uploaded_at < now() - interval '1 day' AND NOT " + HELD_FOR_ACTIVATION;
 
     /**
      * Validates {@code jar}, and only when it is valid stores it as an inert upload and plans what
@@ -773,7 +781,8 @@ public class PluginHost implements SmartLifecycle {
     /** Whether {@code sha256} is an upload still waiting to be activated. */
     public boolean isPendingUpload(String sha256) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
-                "SELECT EXISTS (SELECT 1 FROM plugin_upload WHERE sha256 = ? AND uploaded_at >= now() - interval '1 day')",
+                "SELECT EXISTS (SELECT 1 FROM plugin_upload WHERE sha256 = ? AND (uploaded_at >= now() - interval '1 day' OR "
+                        + HELD_FOR_ACTIVATION + "))",
                 Boolean.class,
                 sha256));
     }

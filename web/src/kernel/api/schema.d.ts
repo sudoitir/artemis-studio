@@ -3913,6 +3913,20 @@ export interface components {
             /** Format: date-time */
             reportedAt?: string | null;
         };
+        HeldOutcomeView: {
+            /** @enum {string} */
+            outcome: "held";
+            heldOperation: components["schemas"]["HeldRefView"];
+        };
+        HeldRefView: {
+            /** Format: uuid */
+            id: string;
+            summary: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description The held operation in this API. */
+            link: string;
+        };
         PluginChangesetView: {
             id: string;
             author: string;
@@ -8042,6 +8056,15 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8099,6 +8122,15 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8227,6 +8259,15 @@ export interface operations {
                     "*/*": components["schemas"]["TeamView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8278,6 +8319,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -8350,6 +8398,15 @@ export interface operations {
                     "*/*": components["schemas"]["MemberView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MemberView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8402,6 +8459,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -8473,6 +8537,15 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8524,6 +8597,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -8588,6 +8668,15 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroupMappingsView"];
+                };
+            };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9654,6 +9743,15 @@ export interface operations {
                     "*/*": components["schemas"]["PluginLicenseView"];
                 };
             };
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -9705,6 +9803,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9823,6 +9930,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9950,6 +10066,15 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10005,6 +10130,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -10312,6 +10444,15 @@ export interface operations {
                     "*/*": components["schemas"]["TeamView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10369,6 +10510,15 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShareView"];
+                };
+            };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10440,6 +10590,15 @@ export interface operations {
                     "*/*": components["schemas"]["PatternView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PatternView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10497,6 +10656,15 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MemberView"];
+                };
+            };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10804,6 +10972,15 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10980,6 +11157,15 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GroupMappingView"];
+                };
+            };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15495,6 +15681,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -15624,6 +15819,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginPurgePlanView"];
+                };
+            };
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -15801,6 +16005,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -16043,6 +16256,15 @@ export interface operations {
                     "*/*": components["schemas"]["TrustedKeyView"];
                 };
             };
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -16154,6 +16376,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -22429,6 +22660,15 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -22484,6 +22724,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -22601,6 +22848,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -22660,6 +22914,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -22777,6 +23038,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval; the body names the held operation. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -23249,6 +23517,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -23307,6 +23584,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOutcomeView"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
