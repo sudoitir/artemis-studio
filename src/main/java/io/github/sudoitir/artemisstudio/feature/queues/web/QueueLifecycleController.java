@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.queues.LifecycleRequests.UpdateQ
 import io.github.sudoitir.artemisstudio.feature.queues.QueueConfigurationReader;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueConfigurationReader.QueueConfiguration;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleService;
+import io.github.sudoitir.artemisstudio.kernel.approval.web.HeldResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.clusters.LifecycleOutcome;
@@ -81,6 +82,7 @@ public class QueueLifecycleController {
      * {@code disconnectConsumers} is set, and the diverts that forward only into this queue
      * are removed with it; the preview names both.
      */
+    @HeldResponse
     @DeleteMapping("/queues/{queueName}")
     public LifecycleOutcomeView deleteQueue(
             @PathVariable UUID clusterId,
@@ -131,6 +133,7 @@ public class QueueLifecycleController {
      * explicitly. One click that destroys an unbounded amount of data with no
      * per-queue count in the confirmation is not a safe default.
      */
+    @HeldResponse
     @DeleteMapping("/addresses/{address}")
     public LifecycleOutcomeView deleteAddress(
             @PathVariable UUID clusterId,

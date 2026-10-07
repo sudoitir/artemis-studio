@@ -81,7 +81,8 @@ public final class QueuesModule {
                                             + "that forwards into the queue's address, where it is the last queue, "
                                             + "is removed with it, and the preview names it per node."),
                             McpToolDef.Param.note("dryRun", McpToolDef.DRY_RUN),
-                            McpToolDef.Param.note("confirm", McpToolDef.CONFIRM))))
+                            McpToolDef.Param.note("confirm", McpToolDef.CONFIRM),
+                            McpToolDef.Param.note("approvalReason", McpToolDef.APPROVAL_REASON))))
             .build();
 
     private QueuesModule() {}

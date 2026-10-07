@@ -4,7 +4,9 @@
 @ApplicationModule(
         displayName = "Queues",
         allowedDependencies = {
+            "kernel.approval :: web",
             "kernel.core",
+            "kernel.gate",
             "kernel.plugin",
             "kernel.stream",
             "platform.broker",
