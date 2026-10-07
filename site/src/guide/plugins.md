@@ -761,6 +761,14 @@ React, Mantine and the SDK's components work as they are. A library of your own 
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
 
+### Moving a plugin from contract 11 to 12
+
+Contract 12 adds the approval gate's types (`io.github.sudoitir.artemisstudio.kernel.gate`): what a
+gated operation declares, and the `ApprovalProvider` interface a plugin can implement to decide which
+operations need a second person's approval. Studio refuses a plugin built for contract 11 with "built for
+extension contract 11", so rebuild it and set `<studio.contract>12</studio.contract>` in its `pom.xml`.
+Nothing else in an existing plugin has to change.
+
 ### Moving a plugin from contract 10 to 11
 
 Contract 11 lets a plugin decide, filter and guard permissions on one queue or address, and lets its
