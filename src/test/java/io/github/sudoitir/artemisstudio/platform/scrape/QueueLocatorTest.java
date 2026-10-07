@@ -29,7 +29,9 @@ class QueueLocatorTest {
         when(connections.forCluster(any(), any()))
                 .thenThrow(new BrokerConnectionException(BrokerConnectionException.Kind.THROTTLED, "held back"));
 
-        assertThatThrownBy(() -> new QueueLocator(snapshots, clusters, connections).locate(clusterId, "orders"))
+        QueueLocator locator = new QueueLocator(snapshots, clusters, connections);
+
+        assertThatThrownBy(() -> locator.locate(clusterId, "orders"))
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessage("held back");
     }
