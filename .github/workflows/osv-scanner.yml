@@ -47,7 +47,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan
-        uses: google/osv-scanner-action/osv-scanner-action@7f58dd6750d78fc29a900ba64b1a0f946f62fba4 # v2.6.0
+        uses: google/osv-scanner-action/osv-scanner-action@8ac9e5ce44cc7178e0e04229a91bdcc003166e57 # v2.6.0
         env:
           GOTOOLCHAIN: auto
         # A scan with findings exits non-zero; the gate judges the results file.
