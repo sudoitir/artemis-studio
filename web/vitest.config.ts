@@ -66,6 +66,7 @@ export default defineConfig({
             'dompurify',
             'elkjs/lib/elk-api.js',
             'elkjs/lib/elk.bundled.js',
+            'react-dom/client',
             'shiki/core',
             'shiki/engine/oniguruma',
             'shiki/wasm',
