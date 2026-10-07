@@ -38,7 +38,7 @@ export const settingsFeature = defineFeature({
   slots: {
     'settings.sections': [
       { id: 'settings-display', order: 10, group: 'personal', title: 'Display', Component: DisplaySection },
-      { id: 'settings-security', order: 30, group: 'studio', title: 'Security', Component: SecuritySection },
+      { id: 'settings-security', order: 30, group: 'studio', title: 'Encryption keys', Component: SecuritySection },
       { id: 'settings-health', order: 40, group: 'studio', title: 'Studio health', Component: HealthSection },
     ],
   },
