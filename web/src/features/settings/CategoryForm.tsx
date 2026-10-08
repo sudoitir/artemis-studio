@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { Stack, Text } from '@mantine/core';
 
 import { Section } from '../../ui/Section.tsx';
@@ -41,7 +41,7 @@ export function CategoryForm({
   // One group named like its category needs no heading of its own.
   const headed = groups.length > 1 || (groups[0] && groups[0].name !== category.title);
 
-  const submit = (event: FormEvent) => {
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
   };

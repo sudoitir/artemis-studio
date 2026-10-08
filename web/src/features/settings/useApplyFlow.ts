@@ -91,7 +91,7 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
     let preview: ChangePreview | undefined = draft.previewCurrent ? draft.preview : undefined;
     if (!preview) {
       try {
-        preview = await qc.fetchQuery(previewQuery(draft.changes));
+        preview = await qc.query(previewQuery(draft.changes));
       } catch {
         // The preview is advice; the server decides when the change set arrives.
         preview = undefined;
