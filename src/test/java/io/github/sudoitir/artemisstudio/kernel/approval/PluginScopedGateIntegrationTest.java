@@ -9,11 +9,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.jayway.jsonpath.JsonPath;
+import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationCatalogue;
 import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationRegistry;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldState;
 import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.PluginHost;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginArtifactRepository;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginApiContext;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
@@ -52,6 +54,9 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
 
     @Autowired
     GatedOperationRegistry operations;
+
+    @Autowired
+    PluginApiContext pluginApi;
 
     private final String pluginId = "own-gate-" + Long.toString(System.nanoTime(), 36);
     private String sha;
@@ -223,6 +228,33 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
                         .run(Operation.of(thing), () -> "ran"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(pluginId + ":thing");
+    }
+
+    @Test
+    void theCatalogueListsStudiosAndThePluginsTypesForPluginsAndSignedInUsers() throws Exception {
+        TrustedTestKey.trust(jdbc);
+        sha = host.inspect(gatingPlugin().build(), "tester").sha256();
+        host.activate(sha, "tester", true);
+        await("the plugin's operation is registered")
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> operations.forType(pluginId + ":thing").isPresent());
+        Browser browser = new Browser(port, "test", "198.51.100.33");
+        assertThat(browser.send("GET", "/api/v1/gate/operations", null).statusCode())
+                .isEqualTo(401);
+        assertThat(browser.post("/api/v1/auth/login", login(requester())).statusCode())
+                .isEqualTo(200);
+
+        HttpResponse<String> response = browser.send("GET", "/api/v1/gate/operations", null);
+
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        assertThat(JsonPath.<List<String>>read(response.body(), "$[*].type"))
+                .contains("plugin.purge", pluginId + ":thing")
+                .isSorted();
+        assertThat(JsonPath.<List<String>>read(response.body(), "$[?(@.type=='" + pluginId + ":thing')].mode"))
+                .containsExactly("ON_APPROVAL");
+        assertThat(pluginApi.context().getBeansOfType(GatedOperationCatalogue.class))
+                .hasSize(1);
     }
 
     private static String login(Person person) {
