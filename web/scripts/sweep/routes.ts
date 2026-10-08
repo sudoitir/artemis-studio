@@ -308,8 +308,8 @@ export const ROUTES: RouteSpec[] = [
     id: 'settings-search',
     path: cluster('settings?q=timeout'),
     data: [{ path: '/settings' }],
-    filter: `&q=${NO_MATCH}`,
   },
+  { area: 'settings', id: 'settings-search-none', path: cluster(`settings?q=${NO_MATCH}`) },
   { area: 'settings', id: 'settings-modified', path: cluster('settings?modified=true'), data: [{ path: '/settings' }] },
   { area: 'settings', id: 'settings-pending', path: cluster('settings?tab=approvals'), auth: 'requester' },
 
@@ -355,6 +355,9 @@ export const ROUTES: RouteSpec[] = [
     scenes: HELD_TOAST_SCENES,
   },
   { area: 'approvals', id: 'inbox-requester', path: '/inbox', auth: 'requester', scenes: BELL_SCENES },
+  // Run with `artemis-studio.gate.break-glass` set in Studio's environment: every page shows the banner.
+  { area: 'breakglass', id: 'break-glass-admin', path: cluster('queues') },
+  { area: 'breakglass', id: 'break-glass-requester', path: '/approvals?tab=mine', auth: 'requester' },
   {
     area: 'approvals',
     id: 'account-requests',
