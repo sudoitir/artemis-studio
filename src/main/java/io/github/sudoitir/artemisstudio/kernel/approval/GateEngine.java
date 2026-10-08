@@ -219,14 +219,22 @@ class GateEngine implements OperationGate {
             throw new ReplayMismatchException("An approved request runs once; its replay reached the gate again.");
         }
         GateTicket cover = tickets.covering(type.type());
-        return ScopedValue.where(GateScope.COVERED, cover).call(action::get);
+        try {
+            return ScopedValue.where(GateScope.COVERED, cover).call(action::get);
+        } finally {
+            tickets.release(cover);
+        }
     }
 
     private <R> R covered(GatedOperation<Record> type, Map<String, String> approval, Supplier<R> action) {
         GateTicket ticket = tickets.covering(type.type());
-        return ScopedValue.where(GateScope.COVERED, ticket)
-                .where(AuditScope.APPROVAL, approval)
-                .call(action::get);
+        try {
+            return ScopedValue.where(GateScope.COVERED, ticket)
+                    .where(AuditScope.APPROVAL, approval)
+                    .call(action::get);
+        } finally {
+            tickets.release(ticket);
+        }
     }
 
     private <R> R bypass(GatedOperation<Record> type, Record params, Supplier<R> action) {
@@ -405,6 +413,7 @@ class GateEngine implements OperationGate {
                         requester.userId(),
                         requester.username(),
                         requester.tokenId(),
+                        currentTokenName(),
                         built.summary(),
                         built.reason(),
                         hold.approverHint(),
@@ -507,6 +516,12 @@ class GateEngine implements OperationGate {
         boolean agent = GateContext.ORIGIN.isBound() && GateContext.ORIGIN.get() == AuthKind.AGENT;
         AuthKind kind = agent ? AuthKind.AGENT : tokenId != null ? AuthKind.TOKEN : AuthKind.SESSION;
         return Optional.of(new Requester(principal.userId(), principal.getUsername(), kind, tokenId));
+    }
+
+    /** The name of the API token the signed-in user came in with, or {@code null} for a session. */
+    private static String currentTokenName() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getPrincipal() instanceof StudioPrincipal principal ? principal.tokenName() : null;
     }
 
     /** The canonical parameters with each of {@code paths} (JSON Pointers) replaced by {@value #REDACTED}. */

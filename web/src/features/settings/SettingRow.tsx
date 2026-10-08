@@ -9,6 +9,7 @@ import { useServerNow } from '../../kernel/time/time.ts';
 import { HeldRequestLink } from '../../ui/HeldRequestLink.tsx';
 import { SETTINGS_KEY, type PendingChange, type Setting } from './api.ts';
 import { useSettingsDraft } from './draftContext.ts';
+import { boundsText } from './model.ts';
 import classes from './Settings.module.css';
 
 /** How each kind is written, said once beneath the setting's own hint. */
@@ -56,7 +57,7 @@ export function SettingRow({
       {setting.label}
     </Highlight>
   );
-  const format = FORMAT[setting.kind];
+  const format = [FORMAT[setting.kind], boundsText(setting)].filter(Boolean).join(' ');
   const description = (
     <>
       <Highlight component="span" inherit highlight={terms} highlightStyles={MATCH}>
@@ -90,6 +91,8 @@ export function SettingRow({
         className={classes.input}
         value={field.value}
         onChange={(value) => draft.edit(settingKey, String(value))}
+        min={setting.min == null ? undefined : Number(setting.min)}
+        max={setting.max == null ? undefined : Number(setting.max)}
         allowDecimal={false}
         // Out of range is the server's to say, beside the field; clamping on blur would hide it.
         clampBehavior="none"

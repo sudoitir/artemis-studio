@@ -308,6 +308,8 @@ public class SettingsService {
                             spec.kind().name(),
                             owner != null ? owner.id() : key.substring(0, Math.max(0, key.indexOf('.'))),
                             owner != null ? owner.title() : spec.group(),
+                            spec.kind() == SettingDef.Kind.INT && spec.min() == null ? "1" : spec.min(),
+                            spec.max(),
                             pending.getOrDefault(key, List.of())));
         });
         return out;

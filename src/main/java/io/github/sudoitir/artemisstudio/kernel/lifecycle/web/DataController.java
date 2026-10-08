@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle.web;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleService;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StorageHealthService;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.web.DataViews.HealthResponse;
@@ -41,6 +42,7 @@ public class DataController {
         return new StoresResponse(lifecycle.stores().stream().map(StoreView::of).toList());
     }
 
+    @HeldResponse
     @PutMapping("/stores/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void update(@PathVariable String id, @Valid @RequestBody UpdatePolicyRequest request) {

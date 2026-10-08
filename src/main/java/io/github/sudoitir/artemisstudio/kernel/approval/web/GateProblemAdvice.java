@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalReasonRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldOutcome;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationDeniedException;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationHeldException;
 import java.net.URI;
@@ -27,12 +28,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GateProblemAdvice {
 
     @ExceptionHandler(OperationHeldException.class)
-    ResponseEntity<HeldOperationViews.HeldOutcomeView> onHeld(OperationHeldException e) {
+    ResponseEntity<HeldOutcome> onHeld(OperationHeldException e) {
         return ResponseEntity.accepted()
                 .header(GateContext.HELD_HEADER, e.heldId().toString())
                 .location(URI.create(e.link()))
-                .body(new HeldOperationViews.HeldOutcomeView(
-                        "held", new HeldOperationViews.HeldRefView(e.heldId(), e.summary(), e.expiresAt(), e.link())));
+                .body(HeldOutcome.of(e));
     }
 
     @ExceptionHandler(OperationDeniedException.class)

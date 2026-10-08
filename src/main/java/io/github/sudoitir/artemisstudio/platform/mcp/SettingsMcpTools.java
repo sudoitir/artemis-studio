@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.mcp;
 
-import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -14,12 +13,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * The {@code studio_setting} MCP tool. It stays in the MCP module: the kernel's settings
- * module must not depend on MCP. *
- * <p>Mutating tools (ADR-0045). They go through the same services the REST layer calls, so
- * authorization, the bulk cap and the audit row are the existing ones; this class adds only
- * the model-facing gate: {@code dryRun} defaults to true, a real destructive run needs
- * {@code confirm} to equal the subject's name, and {@code override} is the separate bulk-cap
- * escape that {@code confirm} never satisfies.
+ * module must not depend on MCP.
+ *
+ * <p>A mutating tool (ADR-0045): {@code set} goes through the same service the REST layer calls, so
+ * authorization, the approval gate and the audit row are the existing ones. {@code approvalReason} is
+ * what the gate shows whoever decides when the change is held.
  */
 @Component
 @RequiredArgsConstructor
@@ -48,12 +46,12 @@ public class SettingsMcpTools {
             @McpToolParam(required = false) String value,
             @McpToolParam(required = false) String approvalReason) {
         SettingOp operation = McpArgs.enumOf(SettingOp.class, "op", op, SettingOp.GET);
-        return McpErrors.guard(() -> {
+        return McpErrors.guard(approvalReason, () -> {
             Map<String, SettingValue> effective = settings.effective();
             if (operation == SettingOp.SET) {
                 String k = McpArgs.required("key", key);
                 String v = McpArgs.required("value", value);
-                withReason(approvalReason, () -> settings.put(k, v));
+                settings.put(k, v);
                 effective = settings.effective();
                 return entry(k, effective.get(k));
             }
@@ -64,15 +62,6 @@ public class SettingsMcpTools {
             effective.forEach((k, v) -> all.add(entry(k, v)));
             return all;
         });
-    }
-
-    /** Runs the change with the agent's reason, which the approval gate reads when the change is held. */
-    private static void withReason(String reason, Runnable change) {
-        if (reason == null || reason.isBlank()) {
-            change.run();
-            return;
-        }
-        ScopedValue.where(GateContext.REASON, reason).run(change);
     }
 
     private static McpViews.SettingEntry entry(String key, SettingValue value) {

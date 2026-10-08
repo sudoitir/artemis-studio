@@ -91,3 +91,18 @@ export function localError(kind: string, value: string): string | null {
   }
   return null;
 }
+
+/** The range a bounded setting accepts, in the setting's own syntax; empty when only the kind limits it. */
+export function boundsText({ kind, min, max }: Pick<Setting, 'kind' | 'min' | 'max'>): string {
+  if (kind === 'INT') {
+    return max == null ? `A whole number, at least ${min ?? 1}.` : `A whole number from ${min ?? 1} to ${max}.`;
+  }
+  if (kind !== 'DURATION' && kind !== 'DURATION_OR_OFF') return '';
+  const forever = max === 'forever';
+  const ceiling = max == null || forever ? null : max;
+  let range = '';
+  if (min != null && ceiling != null) range = `From ${min} to ${ceiling}.`;
+  else if (min != null) range = `At least ${min}.`;
+  else if (ceiling != null) range = `At most ${ceiling}.`;
+  return forever ? `${range} Enter forever for no limit.`.trim() : range;
+}

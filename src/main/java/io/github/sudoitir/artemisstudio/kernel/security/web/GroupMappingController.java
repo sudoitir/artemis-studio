@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingService;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.DefaultRoleRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingRequest;
@@ -35,14 +36,14 @@ public class GroupMappingController {
         return mappings.list(providerId);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GroupMappingView create(@PathVariable String providerId, @Valid @RequestBody GroupMappingRequest request) {
         return mappings.create(providerId, request);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @DeleteMapping("/{mappingId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String providerId, @PathVariable UUID mappingId) {
@@ -53,7 +54,7 @@ public class GroupMappingController {
             responseCode = "200",
             description = "OK",
             content = @Content(schema = @Schema(implementation = GroupMappingsView.class)))
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PutMapping("/default-role")
     public GroupMappingsView setDefaultRole(@PathVariable String providerId, @RequestBody DefaultRoleRequest request) {
         return mappings.setDefaultRole(providerId, request.roleId());

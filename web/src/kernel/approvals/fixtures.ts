@@ -40,6 +40,7 @@ export function detail(
     params: '{"queue":"orders.dlq"}',
     paramsHash: 'hash-1',
     version: 3,
+    tokenName: null,
     effect: { count: 1204, unit: 'messages', detail: null },
     policy: { id: 'default', version: '2', name: 'Two people for destructive changes' },
     reason: 'Poison messages block the consumer',

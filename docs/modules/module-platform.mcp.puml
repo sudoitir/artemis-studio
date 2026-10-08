@@ -54,7 +54,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioAp
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.MCPserver, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Approvalgatecontract, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Approvalgatecontract, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")

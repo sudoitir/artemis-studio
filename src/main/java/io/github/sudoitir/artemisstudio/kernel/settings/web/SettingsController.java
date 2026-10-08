@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.settings.web;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.ChangePreview;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.ChangeSetRequest;
@@ -33,6 +34,7 @@ public class SettingsController {
         return new SettingsResponse(settings.effective());
     }
 
+    @HeldResponse
     @PostMapping("/changes")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void apply(@Valid @RequestBody ChangeSetRequest request) {

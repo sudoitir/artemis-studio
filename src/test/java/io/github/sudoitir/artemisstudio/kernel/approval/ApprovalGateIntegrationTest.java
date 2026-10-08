@@ -47,6 +47,8 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
+import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff;
+import io.github.sudoitir.artemisstudio.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionHolders;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.SealedStore;
@@ -54,6 +56,7 @@ import io.github.sudoitir.artemisstudio.kernel.security.SecretVault;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionFacts;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
+import io.github.sudoitir.artemisstudio.kernel.security.TokenGrant;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
@@ -186,6 +189,9 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     SecretVault vault;
+
+    @Autowired
+    OperatorHandoff handoff;
 
     @MockitoBean
     PermissionHolders holders;
@@ -357,6 +363,41 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void workThatContinuesAnAllowedOperationAfterItReturnedIsStillCovered() throws Exception {
+        provider.decide = request -> new GateDecision.Allow(GateTestKit.POLICY);
+        signIn(requester());
+
+        Operator worker = gate.run(Operation.of(new BulkParams(List.of("a", "b"))), handoff::capture);
+        Thread run = Thread.ofVirtual()
+                .start(() -> handoff.runAs(worker, () -> {
+                    service.purge(new PurgeParams("a", null));
+                    handoff.runAs(worker, () -> service.purge(new PurgeParams("b", null)));
+                }));
+        run.join();
+
+        assertThat(service.purged).containsExactly("a", "b");
+        assertThat(provider.decisions).hasValue(1);
+    }
+
+    @Test
+    void aCapturedOperatorRunAgainAfterItsWorkEndedIsNoLongerCovered() {
+        provider.decide = request -> new GateDecision.Allow(GateTestKit.POLICY);
+        signIn(requester());
+        Operator worker = gate.run(Operation.of(new BulkParams(List.of("a"))), handoff::capture);
+        handoff.runAs(worker, () -> service.purge(new PurgeParams("a", null)));
+        assertThat(provider.decisions).hasValue(1);
+
+        provider.decide =
+                request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), false, "a platform lead");
+        approversAre(approver());
+
+        assertThatThrownBy(() -> handoff.runAs(worker, () -> service.purge(new PurgeParams("b", null))))
+                .isInstanceOf(OperationHeldException.class);
+        assertThat(service.purged).containsExactly("a");
+        assertThat(provider.decisions).hasValue(2);
+    }
+
+    @Test
     void aDeniedOperationIsRefusedWithTheReasonAndAudited() {
         provider.decide = request -> new GateDecision.Deny("Not on Fridays");
         Person alice = requester();
@@ -483,6 +524,35 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                 .isEqualTo("SUCCESS");
         verify(signals).signal(UserSignals.HELD, alice.id());
         verify(signals).signal(UserSignals.HELD, bob.id());
+    }
+
+    @Test
+    void aRequestMadeWithAnApiTokenNamesTheToken() {
+        Person alice = requester();
+        approversAre(approver());
+        TokenPrincipal token = new TokenPrincipal(
+                alice.id(),
+                alice.username(),
+                Set.of(TokenGrant.of(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, GateTestKit.SERVICE_PERMISSION)),
+                UUID.randomUUID(),
+                "ci-deploy",
+                Set.of());
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(token, null, token.getAuthorities()));
+        UUID id;
+        try {
+            service.purge(new PurgeParams("orders", null));
+            throw new AssertionError("expected a hold");
+        } catch (OperationHeldException e) {
+            id = e.heldId();
+        }
+        signIn(alice);
+
+        Approvals.Detail detail = approvals.get(id);
+
+        assertThat(detail.view().requester().authKind()).isEqualTo(AuthKind.TOKEN);
+        assertThat(detail.tokenName()).isEqualTo("ci-deploy");
     }
 
     @Test

@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException
 import io.github.sudoitir.artemisstudio.kernel.gate.CanonicalJson;
 import io.github.sudoitir.artemisstudio.kernel.gate.Effect;
 import io.github.sudoitir.artemisstudio.kernel.gate.ExecutionMode;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLease;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateTicket;
 import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperation;
@@ -67,7 +68,9 @@ class Executions {
     private final ProviderCalls calls;
     private final IssuedTickets tickets;
     private final OperatorHandoff handoff;
-    private final PersonalTokens personalTokens;
+    /** Absent when API tokens are switched off; a request made with a token is then refused. */
+    private final Optional<PersonalTokens> personalTokens;
+
     private final AuditService audit;
     private final ApprovalNotices notices;
     private final ReplicaRegistry replicas;
@@ -83,7 +86,7 @@ class Executions {
             ProviderCalls calls,
             IssuedTickets tickets,
             OperatorHandoff handoff,
-            PersonalTokens personalTokens,
+            Optional<PersonalTokens> personalTokens,
             AuditService audit,
             ApprovalNotices notices,
             ReplicaRegistry replicas,
@@ -171,8 +174,8 @@ class Executions {
             return;
         }
         GateTicket ticket = tickets.replay(row.id(), row.type(), row.paramsHashHex());
-        Operator operator =
-                new Operator(checked.operator().principal(), checked.operator().actor(), ticket);
+        Operator operator = new Operator(
+                checked.operator().principal(), checked.operator().actor(), new GateLease(ticket, () -> {}));
         try {
             ScopedValue.where(AuditScope.PARENT, row.requestAuditId())
                     .where(AuditScope.APPROVAL, approval(row))
@@ -226,6 +229,8 @@ class Executions {
         } catch (RuntimeException e) {
             finish(row, HeldState.FAILED, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
             throw e;
+        } finally {
+            tickets.release(cover);
         }
         finish(row, HeldState.SUCCEEDED, "Completed by " + row.requesterUsername() + ".");
         return result;
@@ -306,9 +311,13 @@ class Executions {
      * refused, when the user is disabled or the token revoked or expired.
      */
     Operator requesterNow(HeldRow row) {
+        if (row.tokenId() != null && personalTokens.isEmpty()) {
+            throw new Refusal("The requester used an API token, and API tokens are switched off on this Studio.");
+        }
         Optional<Operator> operator = row.tokenId() == null
                 ? handoff.forUser(row.requesterId())
                 : personalTokens
+                        .orElseThrow()
                         .principal(row.tokenId())
                         .filter(token -> row.requesterId().equals(token.userId()))
                         .map(token -> new Operator(

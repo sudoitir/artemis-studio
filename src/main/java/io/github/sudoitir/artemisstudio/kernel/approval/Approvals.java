@@ -75,6 +75,7 @@ public class Approvals {
      */
     public record Detail(
             HeldOperationView view,
+            String tokenName,
             int version,
             String approverHint,
             String link,
@@ -165,6 +166,7 @@ public class Approvals {
         }
         return new Detail(
                 row.view(),
+                row.tokenName(),
                 row.version(),
                 row.approverHint(),
                 row.link(),

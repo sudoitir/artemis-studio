@@ -4,7 +4,14 @@
  */
 @ApplicationModule(
         displayName = "Data lifecycle",
-        allowedDependencies = {"kernel.audit", "kernel.jobs", "kernel.plugin", "kernel.security", "kernel.settings"})
+        allowedDependencies = {
+            "kernel.audit",
+            "kernel.gate",
+            "kernel.jobs",
+            "kernel.plugin",
+            "kernel.security",
+            "kernel.settings"
+        })
 package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 
 import org.springframework.modulith.ApplicationModule;

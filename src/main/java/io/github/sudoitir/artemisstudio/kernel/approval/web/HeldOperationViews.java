@@ -156,6 +156,10 @@ public final class HeldOperationViews {
             String paramsHash,
 
             @Schema(requiredMode = REQUIRED) int version,
+
+            @Schema(nullable = true, description = "The name of the API token the requester used; null for a session.")
+            String tokenName,
+
             @Schema(requiredMode = REQUIRED) HeldEffectView effect,
             @Schema(requiredMode = REQUIRED) HeldPolicyView policy,
             @Schema(nullable = true) String reason,
@@ -193,6 +197,7 @@ public final class HeldOperationViews {
                     view.params(),
                     view.paramsHash(),
                     detail.version(),
+                    detail.tokenName(),
                     HeldEffectView.of(view.effect()),
                     HeldPolicyView.of(view.policy()),
                     view.reason(),
@@ -235,18 +240,4 @@ public final class HeldOperationViews {
 
             @Schema(requiredMode = REQUIRED, description = "Whether break-glass lets operations bypass approval.")
             boolean breakGlass) {}
-
-    public record HeldOutcomeView(
-            @Schema(requiredMode = REQUIRED, allowableValues = "held")
-            String outcome,
-
-            @Schema(requiredMode = REQUIRED) HeldRefView heldOperation) {}
-
-    public record HeldRefView(
-            @Schema(requiredMode = REQUIRED) UUID id,
-            @Schema(requiredMode = REQUIRED) String summary,
-            @Schema(requiredMode = REQUIRED) Instant expiresAt,
-
-            @Schema(requiredMode = REQUIRED, description = "The held operation in this API.")
-            String link) {}
 }

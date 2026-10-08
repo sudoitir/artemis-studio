@@ -4,7 +4,6 @@
 @ApplicationModule(
         displayName = "Clusters",
         allowedDependencies = {
-            "kernel.approval :: web",
             "kernel.audit",
             "kernel.core",
             "kernel.gate",

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.security.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.security.SecondFactorRequiredException;
@@ -102,7 +103,7 @@ public class UsersController {
         return ResourceQuery.ofPage(page, size).paginate(users.list(), null);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserView create(@Valid @RequestBody CreateUserRequest request) {
@@ -113,7 +114,7 @@ public class UsersController {
             responseCode = "200",
             description = "OK",
             content = @Content(schema = @Schema(implementation = UserView.class)))
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PutMapping("/{userId}/disabled")
     public UserView setDisabled(@PathVariable UUID userId, @RequestBody SetDisabledRequest request) {
         return request.disabled() ? users.disable(userId) : users.enable(userId);
@@ -123,7 +124,7 @@ public class UsersController {
             responseCode = "200",
             description = "OK",
             content = @Content(schema = @Schema(implementation = UserView.class)))
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PutMapping("/{userId}/unlock")
     public UserView unlock(@PathVariable UUID userId) {
         return users.unlock(userId);
@@ -138,7 +139,7 @@ public class UsersController {
             responseCode = "200",
             description = "OK",
             content = @Content(schema = @Schema(implementation = UserView.class)))
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @DeleteMapping("/{userId}/second-factors")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     public UserView resetSecondFactors(@PathVariable UUID userId, HttpServletRequest req) {
@@ -154,14 +155,14 @@ public class UsersController {
         return users.resetSecondFactors(userId);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @PostMapping("/{userId}/grants")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addGrant(@PathVariable UUID userId, @Valid @RequestBody GrantRequest request) {
         users.addGrant(userId, request);
     }
 
-    @ApiResponse(responseCode = "202", description = "Held for approval; the body names the held operation.")
+    @HeldResponse
     @DeleteMapping("/{userId}/grants/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeGrant(

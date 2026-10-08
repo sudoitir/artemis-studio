@@ -22,6 +22,7 @@ CREATE TABLE held_operation (
     auth_kind text NOT NULL,
     provider_id text NOT NULL,
     requester_username text NOT NULL,
+    token_name text,
     approver_username text,
     summary text NOT NULL,
     reason text,
@@ -51,7 +52,9 @@ CREATE TABLE held_operation (
     CONSTRAINT ck_held_operation_mode CHECK (mode IN ('ON_APPROVAL', 'BY_REQUESTER')),
     CONSTRAINT ck_held_operation_auth_kind CHECK (auth_kind IN ('SESSION', 'TOKEN', 'AGENT')),
     CONSTRAINT ck_held_operation_session_token CHECK (
-        (auth_kind <> 'SESSION' OR token_id IS NULL) AND (auth_kind <> 'TOKEN' OR token_id IS NOT NULL)),
+        (auth_kind <> 'SESSION' OR (token_id IS NULL AND token_name IS NULL))
+        AND (auth_kind <> 'TOKEN' OR token_id IS NOT NULL)
+        AND ((token_id IS NULL) = (token_name IS NULL))),
     CONSTRAINT ck_held_operation_not_self CHECK (approver_id <> requester_id),
     CONSTRAINT ck_held_operation_decided CHECK (
         state IN ('HELD', 'CANCELLED', 'EXPIRED')
@@ -131,12 +134,12 @@ DECLARE
         'OUTCOME_UNKNOWN');
 BEGIN
     IF (NEW.id, NEW.type, NEW.type_version, NEW.mode, NEW.auth_kind, NEW.provider_id, NEW.requester_id,
-            NEW.token_id, NEW.requester_username, NEW.summary, NEW.reason, NEW.approver_hint, NEW.traits,
+            NEW.token_id, NEW.token_name, NEW.requester_username, NEW.summary, NEW.reason, NEW.approver_hint, NEW.traits,
             NEW.params, NEW.display, NEW.effect, NEW.policy, NEW.params_hash, NEW.cluster_id, NEW.environment_id,
             NEW.requested_at, NEW.expires_at, NEW.request_audit_id)
         IS DISTINCT FROM
         (OLD.id, OLD.type, OLD.type_version, OLD.mode, OLD.auth_kind, OLD.provider_id, OLD.requester_id,
-            OLD.token_id, OLD.requester_username, OLD.summary, OLD.reason, OLD.approver_hint, OLD.traits,
+            OLD.token_id, OLD.token_name, OLD.requester_username, OLD.summary, OLD.reason, OLD.approver_hint, OLD.traits,
             OLD.params, OLD.display, OLD.effect, OLD.policy, OLD.params_hash, OLD.cluster_id, OLD.environment_id,
             OLD.requested_at, OLD.expires_at, OLD.request_audit_id) THEN
         RAISE EXCEPTION 'held operation %: what was requested never changes', OLD.id

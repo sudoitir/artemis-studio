@@ -43,6 +43,12 @@ export const AUTH_KIND: Readonly<Record<HeldOperationSummary['authKind'], string
   AGENT: 'Assistant, through an API token',
 };
 
+/** How the requester was signed in, naming the API token when they used one. */
+export function signedInWith(authKind: HeldOperationSummary['authKind'], tokenName?: string | null): string {
+  if (tokenName == null) return AUTH_KIND[authKind];
+  return authKind === 'AGENT' ? `Assistant, through API token ${tokenName}` : `API token ${tokenName}`;
+}
+
 /** A trait as an approver reads it. */
 export const TRAIT: Readonly<Record<string, string>> = {
   DESTRUCTIVE: 'Destroys or moves data',

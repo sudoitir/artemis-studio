@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.support.TrustedTestKey;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
@@ -103,11 +104,15 @@ class PluginGatingIntegrationTest extends GatedAccessTestBase {
         return sha;
     }
 
-    /** An installed plugin that is not the provider: only its row matters to a request that is held. */
+    /**
+     * An installed plugin that is not the provider and needs a license: only its row matters to a request that is
+     * held, and to a license file it is given.
+     */
     private String installedPlugin() {
         String id = plugin("gate-other");
         String sha = pluginStore.put(("gate-other-" + UUID.randomUUID()).getBytes());
-        installs.save(new PluginInstallEntity(id, "1.0.0", "Acme", sha, "tester", "{}"));
+        installs.save(new PluginInstallEntity(
+                id, "1.0.0", "Acme", sha, "tester", storedDescriptor(id, Map.of("requiresLicense", true))));
         jdbc.update("UPDATE plugin_install SET status = 'active' WHERE id = ?", id);
         return id;
     }
@@ -326,6 +331,136 @@ class PluginGatingIntegrationTest extends GatedAccessTestBase {
 
         hold(alice, () -> administration.removeLicense(id, () -> {}));
         assertTraits("plugin.license.delete", Trait.ACCESS_CONTROL);
+    }
+
+    @Test
+    void anApprovedLicenseFileIsStoredOnceAndAnApprovedRemovalRemovesIt() {
+        setUp();
+        String id = installedPlugin();
+        byte[] content = ("license-" + UUID.randomUUID()).getBytes();
+
+        UUID put = hold(alice, () -> administration.uploadLicense(id, content, () -> {}));
+        approve(bob, put);
+        awaitState(put, HeldState.SUCCEEDED);
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM plugin_license WHERE plugin_id = ? AND size = ?",
+                        Long.class,
+                        id,
+                        content.length))
+                .isOne();
+        assertThat(ran("PLUGIN_LICENSE_UPLOAD", id)).isOne();
+
+        UUID delete = hold(alice, () -> administration.removeLicense(id, () -> {}));
+        approve(bob, delete);
+        awaitState(delete, HeldState.SUCCEEDED);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM plugin_license WHERE plugin_id = ?", Long.class, id))
+                .isZero();
+        assertThat(ran("PLUGIN_LICENSE_REMOVE", id)).isOne();
+    }
+
+    // ---- lifecycle replays ---------------------------------------------------------------------------
+
+    @Test
+    void anApprovedEnableStartsTheDisabledPluginOnce() throws Exception {
+        String id = plugin("gate-enable");
+        people();
+        String sha = activated(id, "1.0.0");
+        administration.disable(id, false);
+        awaitStatus(id, PluginInstallStatus.DISABLED);
+        arm();
+
+        UUID held = hold(alice, () -> administration.enable(id, false));
+        assertThat(installs.findById(id).orElseThrow().status()).isEqualTo(PluginInstallStatus.DISABLED);
+        approve(bob, held);
+
+        awaitState(held, HeldState.SUCCEEDED);
+        awaitStatus(id, PluginInstallStatus.ACTIVE);
+        assertThat(installs.findById(id).orElseThrow().getSha256()).isEqualTo(sha);
+        assertThat(ran("PLUGIN_ENABLE", id)).isOne();
+    }
+
+    @Test
+    void anApprovedRollbackReturnsToThePreviousVersionOnce() throws Exception {
+        String id = plugin("gate-rollback");
+        people();
+        String first = activated(id, "1.0.0");
+        String second = activated(id, "1.1.0");
+        arm();
+
+        UUID held = hold(alice, () -> administration.rollback(id, false));
+        assertThat(installs.findById(id).orElseThrow().getSha256()).isEqualTo(second);
+        approve(bob, held);
+
+        awaitState(held, HeldState.SUCCEEDED);
+        await("the plugin '" + id + "' runs " + first + " again")
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> installs.findById(id)
+                        .filter(e -> e.status() == PluginInstallStatus.ACTIVE
+                                && e.getSha256().equals(first))
+                        .isPresent());
+        assertThat(ran("PLUGIN_ROLLBACK", id)).isOne();
+    }
+
+    @Test
+    void anApprovedUninstallThenAnApprovedPurgeEachRunOnce() throws Exception {
+        String id = plugin("gate-remove");
+        people();
+        activated(id, "1.0.0");
+        arm();
+
+        UUID uninstall = hold(alice, () -> administration.uninstall(id, false));
+        assertThat(installs.findById(id).orElseThrow().status()).isEqualTo(PluginInstallStatus.ACTIVE);
+        approve(bob, uninstall);
+        awaitState(uninstall, HeldState.SUCCEEDED);
+        awaitStatus(id, PluginInstallStatus.UNINSTALLED);
+        assertThat(ran("PLUGIN_UNINSTALL", id)).isOne();
+
+        UUID purge = hold(alice, () -> administration.purge(id, false));
+        assertThat(installs.findById(id)).isPresent();
+        approve(bob, purge);
+        awaitState(purge, HeldState.SUCCEEDED);
+
+        assertThat(installs.findById(id)).isEmpty();
+        assertThat(ran("PLUGIN_PURGE", id)).isOne();
+    }
+
+    /** The requester and the approver, the requester signed in, with the gate not yet armed. */
+    private void people() {
+        alice = requester();
+        bob = approver();
+        approversAre(bob);
+        signIn(alice);
+    }
+
+    /** Uploads and activates {@code version} of the plugin as the signed-in requester; its jar's sha256. */
+    private String activated(String id, String version) throws Exception {
+        String sha = upload(new PluginJarBuilder(id).descriptorField("version", version));
+        administration.activate(sha, true);
+        await("the plugin '" + id + "' becomes active on " + sha)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() -> installs.findById(id)
+                        .filter(e -> e.status() == PluginInstallStatus.ACTIVE
+                                && e.getSha256().equals(sha))
+                        .isPresent());
+        return sha;
+    }
+
+    private void awaitStatus(String id, PluginInstallStatus status) {
+        await("the plugin '" + id + "' becomes " + status)
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(50))
+                .until(() ->
+                        installs.findById(id).filter(e -> e.status() == status).isPresent());
+    }
+
+    /** How many times the action ran on the plugin, by its audit rows, whatever came of it. */
+    private long ran(String action, String pluginId) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = ? AND target_name = ?", Long.class, action, pluginId);
     }
 
     @Test

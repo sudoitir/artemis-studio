@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallEntity;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.store.PluginStore;
+import io.github.sudoitir.artemisstudio.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.Grant;
 import io.github.sudoitir.artemisstudio.kernel.security.GrantLoader;
@@ -40,6 +41,7 @@ import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -53,6 +55,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * What the tests of gated services share: an approval provider that holds every request (armed on demand, so a test
@@ -141,14 +144,21 @@ abstract class GatedAccessTestBase extends PostgresIntegrationTest {
     /** Installs the provider plugin, whose approvers hold {@link GateTestKit#APPROVER_PERMISSION}, so the gate holds. */
     void arm() {
         String sha = pluginStore.put(("gate-access-" + UUID.randomUUID()).getBytes());
-        String descriptor =
-                "{\"approvalProvider\":{\"approverPermission\":\"" + GateTestKit.APPROVER_PERMISSION + "\"}}";
+        String descriptor = storedDescriptor(
+                PROVIDER, Map.of("approvalProvider", Map.of("approverPermission", GateTestKit.APPROVER_PERMISSION)));
         PluginInstallEntity entity = new PluginInstallEntity(PROVIDER, "1.0.0", "Acme", sha, "tester", descriptor);
         entity.approvalProvider(true);
         installs.save(entity);
         jdbc.update("UPDATE plugin_install SET status = 'active' WHERE id = ?", PROVIDER);
         handle = new FakeHandle(PROVIDER, provider);
         providers.attach(handle);
+    }
+
+    /** A readable stored {@code plugin.json} for {@code id}, with {@code fields} on top of the defaults. */
+    static String storedDescriptor(String id, Map<String, Object> fields) {
+        Map<String, Object> descriptor = PluginJarBuilder.defaultDescriptor(id);
+        descriptor.putAll(fields);
+        return JsonMapper.builder().build().writeValueAsString(descriptor);
     }
 
     Person newUser(String... permissions) {

@@ -47,6 +47,19 @@ public final class SettingsViews {
             @Schema(requiredMode = REQUIRED) String kind,
             @Schema(requiredMode = REQUIRED) String category,
             @Schema(requiredMode = REQUIRED) String categoryTitle,
+
+            @Schema(
+                    nullable = true,
+                    description = "The smallest accepted value, in the kind's own syntax. Always set for an INT; null "
+                            + "elsewhere when any positive value is accepted.")
+            String min,
+
+            @Schema(
+                    nullable = true,
+                    description = "The largest accepted value; null for none. A DURATION's \"forever\" also allows "
+                            + "forever as a value.")
+            String max,
+
             @Schema(requiredMode = REQUIRED) List<PendingChange> pending) {}
 
     /**
