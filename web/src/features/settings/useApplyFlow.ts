@@ -38,12 +38,7 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
       to: '.',
       search: (prev: SettingsSearch) => ({ ...prev, tab: category, q: undefined, modified: undefined }),
       replace: true,
-    }).then(() =>
-      requestAnimationFrame(() => {
-        const path = draft.field(key)?.path;
-        if (path) draft.form.getInputNode(path)?.focus();
-      }),
-    );
+    }).then(() => requestAnimationFrame(() => draft.focus(key)));
   };
 
   const submit = (reason: string | undefined) => {

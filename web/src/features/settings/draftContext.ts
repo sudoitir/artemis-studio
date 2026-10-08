@@ -1,5 +1,4 @@
 import { createContext, useContext } from 'react';
-import type { UseFormReturnType } from '@mantine/form';
 
 import type { ChangePreview, Setting, SettingChange } from './api.ts';
 import type { DraftField } from './model.ts';
@@ -10,7 +9,8 @@ export interface DraftValues {
 
 export interface SettingsDraft {
   settings: Record<string, Setting>;
-  form: UseFormReturnType<DraftValues>;
+  /** Moves focus to a setting's value input. */
+  focus: (key: string) => void;
   /** The draft field of a setting, and the form path of its value. */
   field: (key: string) => { field: DraftField; path: string } | undefined;
   /** Every change the draft makes, in the server's order. */
