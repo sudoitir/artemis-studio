@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { boundsText } from './model.ts';
+import { besideField, boundsText } from './model.ts';
+
+describe('besideField', () => {
+  it('drops the key the server names and makes a sentence of the rest', () => {
+    expect(besideField('gate.max-hold', 'gate.max-hold must be between 1m and 365d')).toBe(
+      'Must be between 1m and 365d.',
+    );
+  });
+
+  it('leaves a message that does not start with the key as it is', () => {
+    expect(besideField('gate.max-hold', 'Not a duration.')).toBe('Not a duration.');
+  });
+});
 
 describe('boundsText', () => {
   it('says the range a whole number takes', () => {

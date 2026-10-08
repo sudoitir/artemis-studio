@@ -13,7 +13,7 @@ import { manifestView, pluginEntry } from '../../test/manifest.ts';
 import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { ChangePreview, Setting, SettingChange } from './api.ts';
-import { SettingsPage, type SettingsSearch } from './SettingsPage.tsx';
+import { SettingsPage, settingsSearch } from './SettingsPage.tsx';
 
 /**
  * The Settings page (operator-ui spec): grouped tabs with one per settings category, one search across
@@ -31,11 +31,7 @@ const route = createRoute({
       <SettingsPage />
     </FeatureProvider>
   ),
-  validateSearch: (raw: Record<string, unknown>): SettingsSearch => ({
-    ...(typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {}),
-    ...(typeof raw.q === 'string' && raw.q ? { q: raw.q } : {}),
-    ...(raw.modified === true || raw.modified === 'true' ? { modified: true } : {}),
-  }),
+  validateSearch: settingsSearch,
 });
 
 const elsewhere = createRoute({
@@ -499,8 +495,8 @@ describe('the Settings page', () => {
     await user.type(tierA, '-5s');
     await user.tab();
 
-    expect(await screen.findByText('scrape.tier-a must be a positive duration')).toBeInTheDocument();
-    expect(tierA).toHaveAccessibleDescription(/must be a positive duration/);
+    expect(await screen.findByText('Must be a positive duration.')).toBeInTheDocument();
+    expect(tierA).toHaveAccessibleDescription(/Must be a positive duration/);
 
     await user.click(screen.getByRole('tab', { name: /Audit/ }));
     await user.click(within(footer()).getByRole('button', { name: 'Apply 1 change' }));
@@ -525,7 +521,7 @@ describe('the Settings page', () => {
     await waitFor(() => expect(within(footer()).getByText('Applies at once, with no restart.')).toBeInTheDocument());
     await user.click(within(footer()).getByRole('button', { name: 'Apply 1 change' }));
 
-    expect(await screen.findByText('audit.batch must be at least 1')).toBeInTheDocument();
+    expect(await screen.findByText('Must be at least 1.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText('Batch size')).toHaveFocus());
   });
 
@@ -592,5 +588,15 @@ describe('the Settings page', () => {
     const panel = await screen.findByRole('tabpanel', { name: 'Configuration' });
     expect(await within(panel).findByRole('alert')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Display' })).toBeInTheDocument();
+  });
+});
+
+describe('settingsSearch', () => {
+  it('keeps a search the router read as a number, as the text typed', () => {
+    expect(settingsSearch({ q: 123 })).toEqual({ q: '123' });
+  });
+
+  it('drops a repeated search rather than passing a list to the page', () => {
+    expect(settingsSearch({ q: ['timeout', 'other'], tab: 'approvals' })).toEqual({ tab: 'approvals' });
   });
 });

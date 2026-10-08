@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "qa-approvals",
+  "name": "QA approvals",
+  "title": "QA approvals",
+  "version": "1.0.0",
+  "vendor": { "name": "Studio QA" },
+  "basePackage": "com.example.qaapprovals",
+  "configuration": "com.example.qaapprovals.PluginConfig",
+  "contract": 12,
+  "studio": { "since": "2026.01.0" },
+  "ui": false,
+  "activation": "AUTO",
+  "permissions": [{ "action": "qa-approvals:approve", "description": "Decide held requests", "scope": "global" }],
+  "approvalProvider": { "approverPermission": "qa-approvals:approve" }
+}

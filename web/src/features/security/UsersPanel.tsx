@@ -303,6 +303,7 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
               subject,
               cause: error.message,
               next: 'No user was created. Try again.',
+              onHeld: close,
             });
           }
         },

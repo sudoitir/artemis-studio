@@ -92,7 +92,7 @@ function Request({ detail, refresh }: Readonly<{ detail: HeldOperationDetail; re
     <>
       <PageHeader
         title={operation.summary}
-        description="An operation held until a second person approves it."
+        description="An operation that runs only once a second person approves it."
         meta={
           <Group gap="xs" wrap="wrap">
             <StatusBadge tone={state.tone}>{state.word}</StatusBadge>
@@ -108,7 +108,7 @@ function Request({ detail, refresh }: Readonly<{ detail: HeldOperationDetail; re
 
       <Outcome detail={detail} />
 
-      <Section title="What will happen">
+      <Section title={whatHeading(operation.state)}>
         <WhatHappens detail={detail} />
       </Section>
 
@@ -122,7 +122,8 @@ function Request({ detail, refresh }: Readonly<{ detail: HeldOperationDetail; re
         <DescriptionList items={requestItems(detail, refresh)} />
       </Section>
 
-      {operation.state === 'HELD' ? (
+      {/* The requester's own waiting request has nothing to decide: the outcome above already says who does. */}
+      {operation.state === 'HELD' && !detail.mine ? (
         <Section title="Decision">
           {decision.map(({ id, Component }) => (
             <Component key={id} heldOperation={detail} refresh={refresh} />
@@ -138,7 +139,16 @@ function Request({ detail, refresh }: Readonly<{ detail: HeldOperationDetail; re
   );
 }
 
-/** What became of the request, said first once there is something to say. */
+/** The heading over what the request does: still ahead of it, done, or what it asked for and never did. */
+function whatHeading(state: HeldOperationDetail['operation']['state']): string {
+  if (!isClosed(state)) return 'What will happen';
+  return state === 'SUCCEEDED' ? 'What it did' : 'What it asked for';
+}
+
+/**
+ * What became of the request, said first once there is something to say. The header's badge already names the
+ * state, so each notice's title says what follows from it.
+ */
 function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
   const { operation } = detail;
   const approver = operation.approverUsername ?? 'An approver';
@@ -146,8 +156,9 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
   switch (operation.state) {
     case 'HELD':
       return detail.mine ? (
-        <Notice tone="info" title="Waiting for approval">
-          It runs only once someone else approves it. You are told in your inbox when it is decided.
+        <Notice tone="info" title="Someone else decides">
+          It runs only once another person approves it. You can cancel it while it waits, and you are told in your inbox
+          when it is decided.
         </Notice>
       ) : null;
     case 'APPROVED':
@@ -157,7 +168,10 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
           shown only to you.
         </Notice>
       ) : (
-        <Notice tone="neutral" title="Approved">
+        <Notice
+          tone="neutral"
+          title={detail.mode === 'BY_REQUESTER' ? 'The requester completes it' : 'Studio runs it next'}
+        >
           {detail.mode === 'BY_REQUESTER'
             ? `${approver} approved it. ${operation.requesterUsername} completes it.`
             : `${approver} approved it. Studio runs it next.`}
@@ -165,52 +179,51 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
       );
     case 'EXECUTING':
       return (
-        <Notice tone="neutral" title="Running">
+        <Notice tone="neutral" title="In progress">
           {approver} approved it, and Studio is running it now.
         </Notice>
       );
     case 'SUCCEEDED':
       return (
-        <Notice tone="neutral" title="Succeeded">
+        <Notice tone="neutral" title="Done">
           {outcome ?? 'It ran as requested.'}
         </Notice>
       );
     case 'FAILED':
       return (
-        <Notice tone="danger" title="Failed">
+        <Notice tone="danger" title="It did not complete">
           {outcome ?? 'It ran and failed.'} Check the target, then request it again if it is still needed.
         </Notice>
       );
     case 'REFUSED':
       return (
-        <Notice tone="danger" title="Refused when run">
-          {outcome ?? 'Studio checked it again before running it and refused.'} Nothing was changed.
+        <Notice tone="danger" title="Nothing was changed">
+          {outcome ?? 'Studio checked it again before running it and refused.'}
         </Notice>
       );
     case 'OUTCOME_UNKNOWN':
       return (
-        <Notice tone="warning" title="Outcome unknown">
+        <Notice tone="warning" title="Check the target">
           {outcome ? `${outcome} ` : ''}Studio started it but cannot tell whether it finished, so it will never run it
           again. Check the target before requesting it again.
         </Notice>
       );
     case 'REJECTED':
       return (
-        <Notice tone="neutral" title="Rejected">
-          {detail.decisionReason ? `${approver} rejected it: “${detail.decisionReason}”` : `${approver} rejected it.`}{' '}
-          It will not run.
+        <Notice tone="neutral" title="It will not run">
+          {detail.decisionReason ? `${approver} rejected it: “${detail.decisionReason}”` : `${approver} rejected it.`}
         </Notice>
       );
     case 'CANCELLED':
       return (
-        <Notice tone="neutral" title="Cancelled">
-          {operation.requesterUsername} cancelled it. It will not run.
+        <Notice tone="neutral" title="It will not run">
+          {operation.requesterUsername} cancelled it.
         </Notice>
       );
     case 'EXPIRED':
       return (
-        <Notice tone="neutral" title="Expired">
-          Nobody decided it in time, so it will not run. Request it again if it is still needed.
+        <Notice tone="neutral" title="It will not run">
+          Nobody decided it in time. Request it again if it is still needed.
         </Notice>
       );
   }
@@ -218,7 +231,8 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
 
 /** The changes, the estimated effect and where it acts. */
 function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
-  const { display, effect } = detail;
+  const { effect } = detail;
+  const display = withoutScopeRows(detail);
   const targets = namesTargets(display);
   let changes = null;
   if (display.length > 0 && targets) {
@@ -250,6 +264,15 @@ function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
       <DescriptionList items={scopeItems(detail)} />
     </>
   );
+}
+
+/**
+ * The operation's own rows, less a plain "Cluster" row when the facts below already name the request's cluster.
+ * A row that changes the cluster (one with a `from`) says more than where it acts, and stays.
+ */
+function withoutScopeRows({ display, operation }: HeldOperationDetail) {
+  if (!operation.clusterId) return display;
+  return display.filter((row) => row.label !== 'Cluster' || row.from != null);
 }
 
 /** Where the request acts: its cluster and environment by name where they can be read, and its kind. */

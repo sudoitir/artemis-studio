@@ -81,7 +81,10 @@ export function BulkActionPreview({
           onDone();
         },
         onError: (e) =>
-          announceFailure(action, `${messageCount(preview?.affectedCount ?? 0)} in queue "${queueName}"`, e),
+          announceFailure(action, `${messageCount(preview?.affectedCount ?? 0)} in queue "${queueName}"`, e, () => {
+            reset();
+            onDone();
+          }),
       },
     );
 

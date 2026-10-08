@@ -228,6 +228,7 @@ function AddPattern({
             pendingId,
             cause: error.message,
             next: 'No pattern was added. Fix the pattern and try again.',
+            onHeld: () => form.reset(),
           });
         },
       },

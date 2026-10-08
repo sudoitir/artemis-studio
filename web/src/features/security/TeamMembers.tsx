@@ -182,6 +182,7 @@ function AddMember({
             problemSlug(error) === 'team-member-exists'
               ? 'Change their role in the list instead.'
               : 'No member was added. Try again.',
+          onHeld: () => form.reset(),
         }),
     });
   }, focusFirstInvalid(form.getInputNode));

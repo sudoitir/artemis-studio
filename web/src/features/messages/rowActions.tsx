@@ -166,7 +166,7 @@ function OneMessageDialog({
           }
           onClose();
         },
-        onError: (e) => announceFailure(action, subject, e),
+        onError: (e) => announceFailure(action, subject, e, onClose),
       },
     );
   }, focusFirstInvalid(form.getInputNode));

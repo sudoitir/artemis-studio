@@ -179,6 +179,7 @@ function AddShare({ team }: Readonly<{ team: TeamView }>) {
             pendingId,
             cause: reason,
             next: 'Nothing was shared. Fix the share and try again.',
+            onHeld: () => form.reset(),
           });
         },
       },

@@ -141,10 +141,11 @@ public class InboxService implements PluginScopedBeans {
             throw new IllegalArgumentException("A notice's title must be 1 to " + Notice.MAX_TITLE + " characters.");
         }
         List<UUID> changed = jdbc.query(
-                "UPDATE inbox_item SET read_at = ?, title = coalesce(?, title)"
+                "UPDATE inbox_item SET read_at = ?, severity = ?, title = coalesce(?, title)"
                         + " WHERE source = ? AND dedupe_key = ? AND read_at IS NULL RETURNING recipient_id",
                 (rs, i) -> rs.getObject(1, UUID.class),
                 Timestamp.from(clock.instant()),
+                Severity.INFO.wire(),
                 newTitle,
                 source,
                 dedupeKey);

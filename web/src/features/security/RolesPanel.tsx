@@ -143,6 +143,7 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
             subject,
             cause: error.message,
             next: 'No role was created. Try again.',
+            onHeld: onDone,
           }),
       });
     } else {
@@ -159,6 +160,7 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
               subject,
               cause: error.message,
               next: 'The role is unchanged. Try again.',
+              onHeld: onDone,
             }),
         },
       );
@@ -249,6 +251,7 @@ function DeleteRole({
             error.status === 409
               ? 'Remove it from the users who hold it, then delete it.'
               : 'The role still exists. Try again.',
+          onHeld: onClose,
         }),
     });
 

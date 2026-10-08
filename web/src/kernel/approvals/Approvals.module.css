@@ -41,8 +41,9 @@
 }
 
 /* The break-glass banner: first in the main area, above whatever page is open. */
+/* Above the page, inset like a cluster page's content, and clear of the breadcrumb that starts it. */
 .banner {
-  padding: var(--mantine-spacing-lg) var(--mantine-spacing-lg) 0;
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-md) var(--mantine-spacing-sm);
 }
 
 /* "My requests": one request per line, its state, then its actions at the inline end. */

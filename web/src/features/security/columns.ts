@@ -60,6 +60,7 @@ export function userColumns({ controls }: UserRows): Column<UserView>[] {
     {
       id: 'twoStep',
       header: 'Two-step verification',
+      short: 'Two-step',
       accessor: twoStepText,
       cell: (u) => createElement(TwoStepStatus, { user: u, onReset: () => controls.onReset(u) }),
       kind: 'text',
@@ -90,6 +91,9 @@ export function userColumns({ controls }: UserRows): Column<UserView>[] {
       cell: (u) => createElement(UserActions, { user: u, controls }),
       kind: 'status',
       wrap: true,
+      // The buttons stack and never wrap their labels: the column is as wide as the longest, "Access check",
+      // with a button's padding, or that label is cut off.
+      min: 15,
       priority: 'essential',
     },
   ];

@@ -48,7 +48,7 @@ export function TwoStepStatus({ user, onReset }: Readonly<{ user: UserView; onRe
           aria-describedby={statusId}
           onClick={onReset}
         >
-          Reset two-step verification
+          Reset
         </Button>
       )}
     </Stack>

@@ -144,6 +144,19 @@ describe('notify', () => {
       expect(screen.queryByText(/Could not delete/)).not.toBeInTheDocument();
     });
 
+    it('runs onHeld only for a held error, so the dialog that sent it closes', () => {
+      mount();
+      const onHeld = vi.fn();
+      act(() => {
+        notify.settle(new Error('nope'), { ...failure, onHeld });
+      });
+      expect(onHeld).not.toHaveBeenCalled();
+      act(() => {
+        notify.settle(held, { ...failure, onHeld });
+      });
+      expect(onHeld).toHaveBeenCalledOnce();
+    });
+
     it('settles any other error as the failure it was given', async () => {
       mount();
       act(() => {

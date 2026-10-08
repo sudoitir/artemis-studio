@@ -16,8 +16,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * {@code GET /api/v1/me/stream}: the signed-in user's own stream, which tells the console to refetch the
  * inbox and the held operations. At most {@value UserStreamHub#MAX_STREAMS_PER_USER} streams per user and
- * replica; a further one is refused with 429. A replica that is draining answers 503 so the client
- * retries elsewhere.
+ * replica; a further one ends the oldest. A replica that is draining answers 503 so the client retries
+ * elsewhere.
  */
 @RestController
 public class UserStreamController {
@@ -42,11 +42,7 @@ public class UserStreamController {
         }
         var userId = subscriber.principal().userId();
         response.setHeader("X-Accel-Buffering", "no");
-        if (!hub.register(userId, subscriber)) {
-            throw new ResponseStatusException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "At most " + UserStreamHub.MAX_STREAMS_PER_USER + " streams may be open at once");
-        }
+        hub.register(userId, subscriber);
         emitter.onCompletion(() -> hub.remove(userId, subscriber));
         emitter.onTimeout(() -> hub.remove(userId, subscriber));
         emitter.onError(e -> hub.remove(userId, subscriber));

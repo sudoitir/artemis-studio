@@ -121,6 +121,7 @@ function RevokeKey({
           subject: `${t.owner}'s key "${t.name}"`,
           cause: error.message,
           next: 'The key still works. Try again.',
+          onHeld: close,
         }),
     });
 

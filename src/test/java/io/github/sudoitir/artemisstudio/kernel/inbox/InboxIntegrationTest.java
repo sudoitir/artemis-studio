@@ -126,6 +126,9 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
         }
 
         /** Opens {@code /me/stream}; the lines it receives accumulate in the returned list. */
+        /** The line {@link #openStream} adds once the server ended the stream. */
+        static final String ENDED = "<ended>";
+
         List<String> openStream() throws Exception {
             var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/me/stream"))
                     .build();
@@ -138,6 +141,7 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
                     while ((line = reader.readLine()) != null) {
                         lines.add(line);
                     }
+                    lines.add(ENDED);
                 } catch (IOException _) {
                     // closed
                 }
@@ -360,16 +364,30 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void resolveReadsAndRetitlesWhatWasPostedUnderTheKey() {
+    void resolveReadsRetitlesAndCalmsWhatWasPostedUnderTheKey() {
         Person alice = newUser();
         Person bob = newUser();
-        inbox.post("approval", notice("Needs a decision", "req-9"), List.of(alice.id(), bob.id()));
+        inbox.post(
+                "approval",
+                new Notice(
+                        "approval",
+                        Severity.WARNING,
+                        "Needs a decision",
+                        "body",
+                        "/approvals/1",
+                        "req-9",
+                        Map.of(),
+                        null),
+                List.of(alice.id(), bob.id()));
 
         assertThat(inbox.resolve("approval", "req-9", "Approved by carol")).isEqualTo(2);
         assertThat(inbox.resolve("approval", "req-9", "Approved by carol")).isZero();
 
         assertThat(jdbc.queryForObject("SELECT title FROM inbox_item WHERE recipient_id = ?", String.class, bob.id()))
                 .isEqualTo("Approved by carol");
+        assertThat(jdbc.queryForObject(
+                        "SELECT severity FROM inbox_item WHERE recipient_id = ?", String.class, bob.id()))
+                .isEqualTo("info");
         assertThat(inbox.count(bob.id()).unread()).isZero();
     }
 
@@ -448,20 +466,19 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aSixthStreamOfOneUserIsRefused() throws Exception {
+    void aSixthStreamOfOneUserEndsTheOldest() throws Exception {
         Person alice = newUser();
-        List<Browser> tabs = new ArrayList<>();
+        List<List<String>> streams = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            Browser b = new Browser().signIn(alice);
-            b.openStream();
-            tabs.add(b);
+            streams.add(new Browser().signIn(alice).openStream());
         }
 
-        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/me/stream"))
-                .build();
-        var refused = new Browser().signIn(alice).http.send(request, BodyHandlers.ofString());
+        new Browser().signIn(alice).openStream();
 
-        assertThat(refused.statusCode()).isEqualTo(429);
+        await("the oldest stream ends")
+                .atMost(Duration.ofSeconds(5))
+                .until(() -> streams.getFirst().contains(Browser.ENDED));
+        assertThat(streams.subList(1, 5)).noneMatch(lines -> lines.contains(Browser.ENDED));
     }
 
     @Test

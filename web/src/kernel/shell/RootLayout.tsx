@@ -11,6 +11,7 @@ import { useMe } from '../auth/api.ts';
 import { usePluginsChanged } from '../plugins/usePluginsChanged.tsx';
 import { useSlot } from '../slots.ts';
 import { BreakGlassBanner } from '../approvals/BreakGlassBanner.tsx';
+import { useGateStatus } from '../approvals/api.ts';
 import { InboxBell } from '../inbox/InboxBell.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
@@ -58,6 +59,9 @@ export function RootLayout() {
   const navigate = useNavigate();
   const isPublicRoute = PUBLIC_PATHS.has(location.pathname);
   const me = useMe();
+  // Asked beside the session, not after it: the break-glass banner above every page is then in the first paint
+  // instead of pushing the page down when it arrives.
+  const gate = useGateStatus({ enabled: !isPublicRoute });
   const header = useSlot('shell.header');
   const navbar = useSlot('shell.navbar');
 
@@ -111,7 +115,7 @@ export function RootLayout() {
     return <Outlet />;
   }
 
-  if (me.isLoading) {
+  if (me.isLoading || gate.isLoading) {
     return <LoadingState label="Loading Studio" blockSize="100dvh" />;
   }
 

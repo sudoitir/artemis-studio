@@ -180,3 +180,71 @@ export const TEAMS_SCENES: Scene[] = [
   },
   { id: 'shortcuts', act: (page) => press(page, 'Keyboard shortcuts') },
 ];
+
+/** Changes a setting on the open category and leaves the field, so the draft is previewed and the apply bar shows. */
+async function editSetting(page: Page, label: string, value: string) {
+  const field = exact(page, label);
+  await field.fill(value);
+  await field.blur();
+  // The draft is previewed after a pause in typing; the preview decides what the bar offers.
+  await page.waitForTimeout(1500);
+}
+
+/**
+ * The Approvals settings category with a draft: dirty (the apply bar), the review dialog it opens, and a value the
+ * server refuses. Without an approval provider the bar applies; as the requester, with one, it asks for approval.
+ */
+export const SETTINGS_DRAFT_SCENES: Scene[] = [
+  { id: 'dirty', act: (page) => editSetting(page, 'Run window', '45m') },
+  {
+    id: 'review',
+    act: async (page) => {
+      await editSetting(page, 'Run window', '45m');
+      await press(page, 'Review');
+      await page.getByRole('dialog').waitFor();
+    },
+  },
+  { id: 'invalid', act: (page) => editSetting(page, 'Longest hold', 'forever'), expectedStatus: [400] },
+  { id: 'request-dirty', auth: 'requester', act: (page) => editSetting(page, 'Run window', '25m') },
+  {
+    id: 'request-review',
+    auth: 'requester',
+    act: async (page) => {
+      await editSetting(page, 'Run window', '25m');
+      await page.getByRole('button', { name: 'Request approval…' }).click();
+      await page.getByRole('dialog').waitFor();
+    },
+  },
+];
+
+/** The header's notification bell, open over the page it sits on. */
+export const BELL_SCENES: Scene[] = [
+  {
+    id: 'bell-open',
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Notifications/ }).click();
+      await page.getByRole('dialog', { name: 'Notifications' }).waitFor();
+    },
+  },
+];
+
+/**
+ * The requester purges a team queue: the approval provider holds it, and the held toast says where the request
+ * went. Purging the same queue again finds the open request instead of making another.
+ */
+export const HELD_TOAST_SCENES: Scene[] = [
+  {
+    id: 'held-toast',
+    auth: 'requester',
+    act: async (page) => {
+      await press(page, 'Purge queue');
+      const dialog = page.getByRole('dialog');
+      await dialog.getByRole('textbox').fill(HELD_QUEUE);
+      await dialog.getByRole('button', { name: 'Purge queue', exact: true }).click();
+      await page.getByRole('alert').or(page.locator('.mantine-Notification-root')).first().waitFor();
+    },
+  },
+];
+
+/** The team queue the held-toast scene purges, which `approval-provider/install.sh` creates. */
+export const HELD_QUEUE = 'qa.reconciliation.held-toast';

@@ -120,7 +120,8 @@ export function MessageActions({
           setOpened(false);
           onCleared();
         },
-        onError: (e) => announceFailure(action, `${messageCount(ids.length)} in queue "${queueName}"`, e),
+        onError: (e) =>
+          announceFailure(action, `${messageCount(ids.length)} in queue "${queueName}"`, e, () => setOpened(false)),
       },
     );
   }, focusFirstInvalid(form.getInputNode));

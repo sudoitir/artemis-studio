@@ -87,9 +87,10 @@ export function useCancelHeld() {
 const GATE_POLL_MS = 5 * 60_000;
 
 /** Whether an approval provider is installed, and whether break-glass bypasses it. */
-export function useGateStatus() {
+export function useGateStatus({ enabled = true }: Readonly<{ enabled?: boolean }> = {}) {
   return useQuery({
     queryKey: heldKeys.gate,
+    enabled,
     queryFn: () => request<GateStatus>('/gate/status'),
     staleTime: GATE_POLL_MS,
     refetchInterval: GATE_POLL_MS,

@@ -87,6 +87,20 @@ describe('ApprovalView', () => {
     expect(screen.queryByRole('button', { name: 'Cancel request' })).not.toBeInTheDocument();
   });
 
+  it('names the cluster once, in the facts, when the operation also lists it among its rows', async () => {
+    serve(detail({}, { clusterId: 'c-1' }));
+    renderPage();
+    await screen.findByRole('heading', { level: 2, name: 'What will happen' });
+    expect(screen.getAllByText('Cluster')).toHaveLength(1);
+    expect(screen.queryByText('prod-eu', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('keeps the operation’s Cluster row when the request names no cluster of its own', async () => {
+    serve(detail());
+    renderPage();
+    expect(await screen.findByText('prod-eu', { exact: true })).toBeInTheDocument();
+  });
+
   it('shows changed values as a table, with a secret as hidden', async () => {
     serve(
       detail({
@@ -111,7 +125,7 @@ describe('ApprovalView', () => {
     expect(await screen.findByText('Unavailable')).toBeInTheDocument();
   });
 
-  it('tells the requester it waits, offers Cancel, and explains why they cannot decide', async () => {
+  it('tells the requester someone else decides and offers Cancel, with no decision to make', async () => {
     serve(
       detail({
         mine: true,
@@ -121,8 +135,9 @@ describe('ApprovalView', () => {
       }),
     );
     renderPage();
-    expect(await screen.findByText('It runs only once someone else approves it.', { exact: false })).toBeVisible();
-    expect(screen.getByText('You made this request, so someone else must decide it.')).toBeInTheDocument();
+    expect(await screen.findByText('Someone else decides')).toBeVisible();
+    expect(screen.getByText('It runs only once another person approves it.', { exact: false })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Decision' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Approve…' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel request' })).toBeInTheDocument();
   });
@@ -163,7 +178,8 @@ describe('ApprovalView', () => {
     renderPage();
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('The queue changed since it was requested.');
-    expect(alert).toHaveTextContent('Nothing was changed.');
+    expect(alert).toHaveTextContent('Nothing was changed');
+    expect(screen.getByRole('heading', { level: 2, name: 'What it asked for' })).toBeInTheDocument();
   });
 
   it('shows a rejected request with the approver and their reason', async () => {
@@ -171,7 +187,8 @@ describe('ApprovalView', () => {
       detail({ canDecide: false, decisionReason: 'Drain it instead' }, { state: 'REJECTED', approverUsername: 'bob' }),
     );
     renderPage();
-    expect(await screen.findByText('bob rejected it: “Drain it instead” It will not run.')).toBeInTheDocument();
+    expect(await screen.findByText('It will not run')).toBeInTheDocument();
+    expect(screen.getByText('bob rejected it: “Drain it instead”')).toBeInTheDocument();
   });
 
   it('shows an expired request as closed, with no countdown and no decision', async () => {
@@ -359,7 +376,7 @@ describe('ApprovalView', () => {
     expect(dialog).toHaveTextContent('Purge queue orders.dlq on prod-eu');
     await user.click(within(dialog).getByRole('button', { name: 'Cancel request' }));
     await waitFor(() => expect(cancelled).toBe(1));
-    expect(await screen.findByText('alice cancelled it. It will not run.')).toBeInTheDocument();
+    expect(await screen.findByText('alice cancelled it.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel request' })).not.toBeInTheDocument();
   });
 

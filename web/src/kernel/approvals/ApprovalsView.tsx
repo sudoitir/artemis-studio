@@ -74,7 +74,7 @@ function RequestList({ tab }: Readonly<{ tab: ApprovalsTab }>) {
       <DataTable
         variant="static"
         label={tab === 'waiting' ? 'Requests waiting for your decision' : 'Your requests'}
-        columns={requestColumns()}
+        columns={requestColumns({ mine: tab === 'mine' })}
         data={rows}
         rowKey={(r) => r.id}
         storageKey={`approvals.${tab}`}
