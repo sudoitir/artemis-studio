@@ -1041,16 +1041,11 @@ class MessageServiceTest {
                 .when(gate)
                 .run(any(), any());
 
+        MessageActionRequest request = new MessageActionRequest(List.of(1L), null, null);
+
         assertThatThrownBy(() -> service.purge(CLUSTER, "orders", null, false, false))
                 .isInstanceOf(OperationHeldException.class);
-        assertThatThrownBy(() -> service.execute(
-                        CLUSTER,
-                        "orders",
-                        null,
-                        MessageAction.DELETE,
-                        new MessageActionRequest(List.of(1L), null, null),
-                        false,
-                        false))
+        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.DELETE, request, false, false))
                 .isInstanceOf(OperationHeldException.class);
 
         verify(messageOps, never()).purge(any(), anyString());
@@ -1063,14 +1058,9 @@ class MessageServiceTest {
     void aGatedActionStillAuthorizesFirst() {
         doThrow(new AccessDeniedException("no")).when(access).requireAll(eq(CLUSTER), anyList());
 
-        assertThatThrownBy(() -> service.execute(
-                        CLUSTER,
-                        "orders",
-                        null,
-                        MessageAction.DELETE,
-                        new MessageActionRequest(List.of(1L), null, null),
-                        false,
-                        false))
+        MessageActionRequest request = new MessageActionRequest(List.of(1L), null, null);
+
+        assertThatThrownBy(() -> service.execute(CLUSTER, "orders", null, MessageAction.DELETE, request, false, false))
                 .isInstanceOf(AccessDeniedException.class);
 
         verify(gate, never()).run(any(), any());

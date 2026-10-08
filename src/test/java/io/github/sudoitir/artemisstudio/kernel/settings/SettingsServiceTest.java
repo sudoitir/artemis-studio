@@ -245,8 +245,10 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aSettingAppearingTwiceInAChangeSetIsRefused() {
-        assertThatThrownBy(() -> settings.apply(java.util.List.of(
-                        SettingChange.set(BrokerSettings.BULK_CAP, "3"), SettingChange.reset(BrokerSettings.BULK_CAP))))
+        var changes = java.util.List.of(
+                SettingChange.set(BrokerSettings.BULK_CAP, "3"), SettingChange.reset(BrokerSettings.BULK_CAP));
+
+        assertThatThrownBy(() -> settings.apply(changes))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("twice");
     }

@@ -152,9 +152,9 @@ class ClusterGateTest extends PostgresIntegrationTest {
     @Test
     void aHeldEnvironmentCreateChangesNothingAndReplaysOnce() {
         holds();
+        EnvironmentRequest request = new EnvironmentRequest(name, "teal", 3);
 
-        assertThatThrownBy(() -> environmentService.create(new EnvironmentRequest(name, "teal", 3)))
-                .isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> environmentService.create(request)).isInstanceOf(OperationHeldException.class);
 
         assertThat(environments.existsByName(name)).isFalse();
         assertThat(gated().params()).isEqualTo(new EnvironmentCreateParams(name, "teal", 3));
@@ -170,9 +170,9 @@ class ClusterGateTest extends PostgresIntegrationTest {
     @Test
     void aNameInUseIsRefusedBeforeTheGate() {
         createdEnvironment();
+        EnvironmentRequest request = new EnvironmentRequest(name, null, 0);
 
-        assertThatThrownBy(() -> environmentService.create(new EnvironmentRequest(name, null, 0)))
-                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> environmentService.create(request)).isInstanceOf(ConflictException.class);
 
         verify(gate, never()).run(any(), any());
     }
@@ -181,10 +181,11 @@ class ClusterGateTest extends PostgresIntegrationTest {
     void aHeldEnvironmentEditAndDeleteChangeNothing() {
         EnvironmentView env = createdEnvironment();
         holds();
+        UUID envId = env.id();
+        EnvironmentRequest edit = new EnvironmentRequest(name + "-b", "red", 9);
 
-        assertThatThrownBy(() -> environmentService.update(env.id(), new EnvironmentRequest(name + "-b", "red", 9)))
-                .isInstanceOf(OperationHeldException.class);
-        assertThatThrownBy(() -> environmentService.delete(env.id())).isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> environmentService.update(envId, edit)).isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> environmentService.delete(envId)).isInstanceOf(OperationHeldException.class);
 
         assertThat(environmentService.list()).anySatisfy(e -> {
             assertThat(e.id()).isEqualTo(env.id());
@@ -236,8 +237,9 @@ class ClusterGateTest extends PostgresIntegrationTest {
     void movingAClusterIsHeldUnchangedAndReplaysOnce() {
         EnvironmentView env = createdEnvironment();
         holds();
+        UUID envId = env.id();
 
-        assertThatThrownBy(() -> environmentService.assignCluster(clusterId, env.id()))
+        assertThatThrownBy(() -> environmentService.assignCluster(clusterId, envId))
                 .isInstanceOf(OperationHeldException.class);
 
         assertThat(clusters.findById(clusterId).orElseThrow().getEnvironmentId())
@@ -301,9 +303,9 @@ class ClusterGateTest extends PostgresIntegrationTest {
         UUID nodeId = nodes.save(seeded).getId();
         NodeOverrideParams params = new NodeOverrideParams(clusterId, nodeId, null, "tcp://a-core:61616");
         holds();
+        NodeOverrideRequest override = new NodeOverrideRequest(null, "tcp://a-core:61616");
 
-        assertThatThrownBy(() -> clusterService.overrideNodeUrl(
-                        clusterId, nodeId, new NodeOverrideRequest(null, "tcp://a-core:61616")))
+        assertThatThrownBy(() -> clusterService.overrideNodeUrl(clusterId, nodeId, override))
                 .isInstanceOf(OperationHeldException.class);
 
         assertThat(nodes.findById(nodeId).orElseThrow().getCoreUrl()).isNotEqualTo("tcp://a-core:61616");

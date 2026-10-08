@@ -145,9 +145,9 @@ class BulkGateTest extends BulkTestSupport {
         UUID runId = preview.run().id();
         jdbc.update("UPDATE bulk_run SET expires_at = now() + interval '30 seconds' WHERE id = ?", runId);
         holds(Duration.ofHours(2));
+        BulkExecuteRequest request = request(preview);
 
-        assertThatThrownBy(() -> bulk.execute(clusterId, runId, request(preview)))
-                .isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> bulk.execute(clusterId, runId, request)).isInstanceOf(OperationHeldException.class);
 
         assertThat(bulk.get(clusterId, runId).run().status()).isEqualTo(BulkRunStatus.PREVIEWED);
         assertThat(paused).isEmpty();
@@ -164,9 +164,10 @@ class BulkGateTest extends BulkTestSupport {
     void aRunThatIsNotTheOnePreviewedIsRefusedBeforeItIsGated() {
         BulkRunDetailView preview = pausePreview();
 
-        assertThatThrownBy(() -> bulk.execute(
-                        clusterId, preview.run().id(), new BulkExecuteRequest("not-the-plan", false, false)))
-                .isInstanceOf(ConflictException.class);
+        UUID runId = preview.run().id();
+        BulkExecuteRequest request = new BulkExecuteRequest("not-the-plan", false, false);
+
+        assertThatThrownBy(() -> bulk.execute(clusterId, runId, request)).isInstanceOf(ConflictException.class);
 
         verify(gate, never()).run(any(), any());
     }
