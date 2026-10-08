@@ -11,6 +11,7 @@ import io.github.sudoitir.artemisstudio.feature.alerting.NoticeMessage.Fact;
 import io.github.sudoitir.artemisstudio.feature.alerting.NoticeMessage.Severity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
+import io.github.sudoitir.artemisstudio.kernel.plugin.internal.runtime.PluginApiContext;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.util.List;
@@ -28,6 +29,9 @@ import org.springframework.web.context.WebApplicationContext;
 /** A plugin's notices on the delivery queue, against a real Postgres. */
 @ExtendWith(AdminAuthenticationExtension.class)
 class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
+
+    @Autowired
+    PluginApiContext pluginApi;
 
     @Autowired
     NotificationChannelRepository channels;
@@ -233,5 +237,11 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
                         "INSERT INTO alert_delivery (kind, channel_id, payload) VALUES ('alert', ?, '{}'::jsonb)",
                         channelId))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void pluginsCanListTheNotificationChannels() {
+        assertThat(pluginApi.context().getBeansOfType(NotificationChannels.class))
+                .hasSize(1);
     }
 }
