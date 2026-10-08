@@ -18078,6 +18078,84 @@
         }
       }
     },
+    "/api/v1/gate/operations" : {
+      "get" : {
+        "tags" : [ "gate-controller" ],
+        "operationId" : "operations",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GatedOperationListView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/diagnostics/summary" : {
       "get" : {
         "tags" : [ "diagnostics-controller" ],
@@ -28414,12 +28492,16 @@
           "canCancel" : {
             "type" : "boolean"
           },
+          "mfaVerified" : {
+            "type" : "boolean",
+            "description" : "Whether the current user's session verified a second factor; a policy may need it."
+          },
           "requesterLacksPermission" : {
             "type" : [ "boolean", "null" ],
             "description" : "Whether the requester could no longer run it; null when unknown or ended."
           }
         },
-        "required" : [ "canCancel", "canDecide", "display", "effect", "events", "link", "mine", "mode", "operation", "params", "paramsHash", "policy", "traits", "typeVersion", "version" ]
+        "required" : [ "canCancel", "canDecide", "display", "effect", "events", "link", "mfaVerified", "mine", "mode", "operation", "params", "paramsHash", "policy", "traits", "typeVersion", "version" ]
       },
       "HeldOperationSummaryView" : {
         "type" : "object",
@@ -33243,6 +33325,36 @@
           }
         },
         "required" : [ "armed", "attached", "breakGlass" ]
+      },
+      "GatedOperationInfo" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "ON_APPROVAL", "BY_REQUESTER" ]
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "GatedOperationListView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "description" : "Every operation type the gate covers, ordered by type.",
+            "items" : {
+              "$ref" : "#/components/schemas/GatedOperationInfo"
+            }
+          }
+        },
+        "required" : [ "items" ]
       },
       "PagedViewEnvironmentView" : {
         "type" : "object",

@@ -63,6 +63,7 @@ export function detail(
     canDecide: true,
     decideRefusal: null,
     canCancel: false,
+    mfaVerified: false,
     requesterLacksPermission: false,
     ...over,
   };
