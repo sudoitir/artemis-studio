@@ -31,7 +31,8 @@ function useArrivalAnnouncement(count: InboxCount | undefined): string {
     previous.current = count.unread;
     if (before === null || count.unread <= before) return;
     const arrived = count.unread - before;
-    setMessage(`${arrived === 1 ? 'A new notice' : `${arrived} new notices`}. ${unreadLabel(count)} unread.`);
+    const notices = arrived === 1 ? 'A new notice' : `${arrived} new notices`;
+    setMessage(`${notices}. ${unreadLabel(count)} unread.`);
   }, [count]);
   return message;
 }
