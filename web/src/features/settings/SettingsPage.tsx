@@ -32,6 +32,19 @@ export interface SettingsSearch {
 }
 
 /**
+ * The page's search from the address. The router reads each value as JSON, so a search for `123` arrives as a
+ * number and a repeated `q` as a list; a search is always the text typed, and anything else is no search.
+ */
+export function settingsSearch(raw: Record<string, unknown>): SettingsSearch {
+  const q = typeof raw.q === 'number' ? String(raw.q) : raw.q;
+  return {
+    ...(typeof raw.tab === 'string' && raw.tab ? { tab: raw.tab } : {}),
+    ...(typeof q === 'string' && q ? { q } : {}),
+    ...(raw.modified === true || raw.modified === 'true' ? { modified: true } : {}),
+  };
+}
+
+/**
  * A cluster's Settings page: one tab per section the features contribute and one per settings category,
  * under fixed headings in the order an operator's reach widens — their own preferences, what Studio
  * shares, this cluster, then what plugins added (operator-ui spec). One search finds settings across every
@@ -39,7 +52,7 @@ export interface SettingsSearch {
  * search are in the address.
  */
 export function SettingsPage() {
-  const search = useSearch({ strict: false }) as SettingsSearch;
+  const search = settingsSearch(useSearch({ strict: false }));
   const navigate = useNavigate();
   const settings = useSettings();
   const filtering = Boolean(search.q?.trim()) || Boolean(search.modified);
