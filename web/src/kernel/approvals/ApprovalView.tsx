@@ -231,7 +231,8 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
 
 /** The changes, the estimated effect and where it acts. */
 function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
-  const { display, effect } = detail;
+  const { effect } = detail;
+  const display = withoutScopeRows(detail);
   const targets = namesTargets(display);
   let changes = null;
   if (display.length > 0 && targets) {
@@ -263,6 +264,15 @@ function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
       <DescriptionList items={scopeItems(detail)} />
     </>
   );
+}
+
+/**
+ * The operation's own rows, less a plain "Cluster" row when the facts below already name the request's cluster.
+ * A row that changes the cluster (one with a `from`) says more than where it acts, and stays.
+ */
+function withoutScopeRows({ display, operation }: HeldOperationDetail) {
+  if (!operation.clusterId) return display;
+  return display.filter((row) => row.label !== 'Cluster' || row.from != null);
 }
 
 /** Where the request acts: its cluster and environment by name where they can be read, and its kind. */

@@ -87,6 +87,20 @@ describe('ApprovalView', () => {
     expect(screen.queryByRole('button', { name: 'Cancel request' })).not.toBeInTheDocument();
   });
 
+  it('names the cluster once, in the facts, when the operation also lists it among its rows', async () => {
+    serve(detail({}, { clusterId: 'c-1' }));
+    renderPage();
+    await screen.findByRole('heading', { level: 2, name: 'What will happen' });
+    expect(screen.getAllByText('Cluster')).toHaveLength(1);
+    expect(screen.queryByText('prod-eu', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('keeps the operation’s Cluster row when the request names no cluster of its own', async () => {
+    serve(detail());
+    renderPage();
+    expect(await screen.findByText('prod-eu', { exact: true })).toBeInTheDocument();
+  });
+
   it('shows changed values as a table, with a secret as hidden', async () => {
     serve(
       detail({
