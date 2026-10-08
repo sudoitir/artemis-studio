@@ -23,7 +23,6 @@ public class TableSealedStore implements SealedStore {
     private final JdbcTemplate jdbc;
     private final String name;
     private final String table;
-    private final String column;
     private final String version;
     private final List<String> key;
     private final String selectFirst;
@@ -42,7 +41,6 @@ public class TableSealedStore implements SealedStore {
         Stream.concat(Stream.of(table, column), keyColumns.stream()).forEach(TableSealedStore::requireIdentifier);
         this.name = "sealed".equals(column) ? table : table + "." + column;
         this.table = table;
-        this.column = column;
         this.version = SealedStore.versionOf(column);
         this.key = List.copyOf(keyColumns);
         String keys = String.join(", ", key);
