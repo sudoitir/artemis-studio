@@ -613,13 +613,28 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aProviderHoldOutsideStudiosBoundsFailsClosed() {
+    void aProviderHoldUnderTheMinimumFailsClosed() {
         provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofSeconds(5), false, null);
         approversAre(approver());
         signIn(requester());
 
         assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
                 .isInstanceOf(ApprovalUnavailableException.class);
+    }
+
+    @Test
+    void aProviderHoldOverTheMaximumIsShortenedToIt() {
+        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofDays(365), false, null);
+        approversAre(approver());
+        signIn(requester());
+
+        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+                .isInstanceOfSatisfying(
+                        OperationHeldException.class,
+                        held -> assertThat(held.expiresAt())
+                                .isBetween(
+                                        Instant.now().plus(Duration.ofDays(30)).minusSeconds(60),
+                                        Instant.now().plus(Duration.ofDays(30)).plusSeconds(60)));
     }
 
     @Test

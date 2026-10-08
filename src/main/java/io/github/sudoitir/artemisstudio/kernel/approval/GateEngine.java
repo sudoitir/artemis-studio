@@ -34,6 +34,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginScopedBeans;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -347,13 +348,22 @@ class GateEngine implements OperationGate, PluginScopedBeans {
     }
 
     private OperationHeldException hold(Built built, AttachedProvider provider, GateDecision.Hold hold) {
-        if (hold.ttl().compareTo(ApprovalSettings.MIN_HOLD) < 0 || hold.ttl().compareTo(bounds.maxHold()) > 0) {
+        if (hold.ttl().compareTo(ApprovalSettings.MIN_HOLD) < 0) {
             log.warn(
-                    "approval-gate provider={} asked to hold for {}, outside Studio's bounds",
+                    "approval-gate provider={} asked to hold for {}, under Studio's minimum",
                     provider.pluginId(),
                     hold.ttl());
             throw new ApprovalUnavailableException("The approval provider asked to hold this for " + hold.ttl()
-                    + ", outside the 1 minute to " + bounds.maxHold() + " Studio allows; nothing was run.");
+                    + ", under the 1 minute Studio allows; nothing was run.");
+        }
+        Duration maxHold = bounds.maxHold();
+        Duration ttl = hold.ttl().compareTo(maxHold) > 0 ? maxHold : hold.ttl();
+        if (ttl != hold.ttl()) {
+            log.info(
+                    "approval-gate provider={} asked to hold for {}, held for {}, Studio's maximum",
+                    provider.pluginId(),
+                    hold.ttl(),
+                    ttl);
         }
         if (hold.reasonRequired() && built.reason() == null) {
             throw new ApprovalReasonRequiredException("This needs approval, and the policy \""
@@ -435,7 +445,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                         sealed,
                         built.scope().clusterId(),
                         built.scope().environmentId(),
-                        hold.ttl(),
+                        ttl,
                         event.getId()));
                 if (!inserted) {
                     return null;
