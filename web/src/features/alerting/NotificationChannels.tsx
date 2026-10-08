@@ -160,6 +160,7 @@ function DeleteChannel({
           subject: `channel "${c.name}"`,
           cause: error.message,
           next: 'It is still configured. Try again.',
+          onHeld: onClose,
         }),
     });
 

@@ -95,7 +95,7 @@ export function PurgeQueue({
           announceResult('purge', queueName, r, preview?.affectedCount ?? 0);
           setOpened(false);
         },
-        onError: (e) => announceFailure('purge', `queue "${queueName}"`, e),
+        onError: (e) => announceFailure('purge', `queue "${queueName}"`, e, () => setOpened(false)),
       },
     );
 

@@ -237,6 +237,7 @@ function NewMappingModal({
             subject,
             cause: error.message,
             next: 'No mapping was added. Try again.',
+            onHeld: close,
           }),
       },
     );

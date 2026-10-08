@@ -149,11 +149,16 @@ export const notify = {
 
   /**
    * Settles a mutation that threw: a held operation becomes {@link notify.held}, an approval gate refusal a
-   * failure in the gate's own words, and anything else {@link notify.failed} as given.
+   * failure in the gate's own words, and anything else {@link notify.failed} as given. `onHeld` runs when it was
+   * held, so a dialog that closes on success closes then too: the request waits elsewhere, and leaving the
+   * dialog open and armed invites submitting it again.
    */
-  settle(error: unknown, failure: Notice & Settles & Readonly<{ cause: string; next: string }>) {
+  settle(error: unknown, failure: Notice & Settles & Readonly<{ cause: string; next: string; onHeld?: () => void }>) {
     const held = heldOf(error);
-    if (held) return notify.held({ ...held, pendingId: failure.pendingId });
+    if (held) {
+      failure.onHeld?.();
+      return notify.held({ ...held, pendingId: failure.pendingId });
+    }
     const refusal = readGateRefusal(error);
     if (refusal && typeof refusal.next === 'string') {
       return notify.failed({ ...failure, cause: refusal.cause, next: refusal.next });

@@ -160,6 +160,7 @@ function RevokeKey({
           subject: `key "${t.name}"`,
           cause: error.message,
           next: 'The key still works. Try again.',
+          onHeld: close,
         }),
     });
 
