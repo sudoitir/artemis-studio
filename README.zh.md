@@ -60,7 +60,7 @@ docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrato
 
 ```bash
 git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # 同一套环境，锁定到最新发布版本
+just up          # 两个副本置于 HAProxy 之后，锁定到最新发布版本（just up-single：单副本）
 ```
 
 ```bash

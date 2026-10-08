@@ -20,7 +20,7 @@ git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
 just up
 ```
 
-`just up` 会先执行 `just setup`：在干净的检出上，它会写入 `deploy/compose/.env`，其中包含随机生成的 `SECRET_KEY` 与 `DB_PASSWORD`，并把 `STUDIO_IMAGE` 固定到最新的发布标签。随后启动 Studio 与 Postgres 并等待其就绪。打开 <http://localhost:8080>。
+`just up` 会先执行 `just setup`：在干净的检出上，它会写入 `deploy/compose/.env`，其中包含随机生成的 `SECRET_KEY` 与 `DB_PASSWORD`，并把 `STUDIO_IMAGE` 固定到最新的发布标签。随后启动两个 Studio 副本、HAProxy 与 Postgres 并等待其就绪（`just up-single` 只启动一个副本，不含负载均衡）。打开 <http://localhost:8080>。
 
 之后再次运行 `just setup` 即可把版本固定向前推进。
 

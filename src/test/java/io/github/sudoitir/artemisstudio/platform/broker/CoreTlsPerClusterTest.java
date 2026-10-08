@@ -48,7 +48,7 @@ class CoreTlsPerClusterTest {
         Path xml = dir.resolve("broker.xml");
         Files.writeString(
                 xml,
-                Files.readString(Path.of("deploy/compose/artemis/primary/broker.xml"))
+                Files.readString(Path.of("deploy/compose/dev/artemis/primary/broker.xml"))
                         .replace(
                                 "tcp://0.0.0.0:61616?",
                                 "tcp://0.0.0.0:61616?sslEnabled=true;keyStoreType=PKCS12;keyStorePath=" + OVERRIDE
@@ -81,7 +81,7 @@ class CoreTlsPerClusterTest {
                 again.start();
             }
         }
-        assertThatThrownBy(() -> connect(brokerB, "ca-a").close())
+        assertThatThrownBy(() -> openAndClose(brokerB, "ca-a"))
                 .as("broker B's certificate is not signed by authority A")
                 .isInstanceOf(Exception.class);
     }
@@ -94,6 +94,11 @@ class CoreTlsPerClusterTest {
         try (Connection a = connect(brokerA, "ca-a")) {
             a.start();
         }
+    }
+
+    /** Opens a connection and closes it again: the handshake is what is under test. */
+    private static void openAndClose(GenericContainer<?> broker, String bundle) throws Exception {
+        connect(broker, bundle).close();
     }
 
     private static Connection connect(GenericContainer<?> broker, String bundle) throws Exception {

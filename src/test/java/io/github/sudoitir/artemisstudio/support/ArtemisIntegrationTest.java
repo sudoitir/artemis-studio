@@ -46,7 +46,7 @@ public abstract class ArtemisIntegrationTest {
                     // The dev-compose primary fixture is the single source of truth for the
                     // broker.xml Studio expects; path is relative to the module root, the CWD
                     // during `mvn test`.
-                    MountableFile.forHostPath("deploy/compose/artemis/primary/broker.xml"),
+                    MountableFile.forHostPath("deploy/compose/dev/artemis/primary/broker.xml"),
                     "/var/lib/artemis-instance/etc-override/broker.xml")
             .withExposedPorts(61616, 8161)
             .waitingFor(

@@ -24,7 +24,7 @@ ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 # The bootstrap admin must change its password before it can do anything else, so
 # the script does that once and uses the new one from then on.
 NEW_PASSWORD=${NEW_PASSWORD:-capture-e2e-Passw0rd!}
-COMPOSE=${COMPOSE:-docker compose -f deploy/compose/compose.dev.yaml}
+COMPOSE=${COMPOSE:-docker compose -f deploy/compose/dev/compose.dev.yaml}
 QUEUE=${QUEUE:-CAPTURE.PROOF}
 COUNT=${COUNT:-200}
 

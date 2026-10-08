@@ -117,6 +117,9 @@ one is missing.
 - **Read before you write.** Open the token file and the nearest existing screen
   before adding UI. Grep for an existing helper before writing one.
 - **Smallest correct change.** No drive-by refactors. Fix the thing, file the rest.
+- **Portable shell.** Scripts and recipes run on bash 3.2 (macOS) and Linux bash, with BSD and GNU tools:
+  no `mapfile`, `${v,,}`, `declare -A`, `timeout`, `sed -i` without a suffix, `grep -P` or `date -d`.
+  `scripts/lib/signin.sh` also sources cleanly from zsh, so it avoids `path`, `status` and `options`.
 - **Don't fake the receipt.** If you didn't run it, say so. If a test fails, show the
   output. A confident wrong answer costs more than an honest "let me check".
 
@@ -124,7 +127,8 @@ one is missing.
 
 ```bash
 just                 # menu of all tasks, grouped
-just up / just down  # Studio + Postgres from the published image (runs `just setup`: .env + version pin)
+just up / just down  # HA stack from the published image: 2 Studio replicas + HAProxy + Postgres (runs `just setup`: .env + version pin)
+just up-single / down-single  # the one-replica compose.prod.yaml stack
 just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + studio, built locally
 just dev             # backend :8080 + vite :5173 (proxied), together
 just verify          # everything CI runs: verify-api + verify-web
@@ -137,7 +141,8 @@ just db-status / db-sql / db-rollback [n] / db-shell
 
 `./mvnw verify` needs Docker (Testcontainers). The frontend build is behind the
 `frontend` Maven profile so day-to-day `./mvnw test` stays fast. Compose files
-live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
+live in `deploy/compose/`: `compose.prod.yaml` and `compose.ha.yaml` for operators, everything for
+development, demos and tests in `deploy/compose/dev/`.
 
 Pull requests carry the verification: parallel, path-filtered jobs behind the one required
 `ci-ok` check, on a branch up to date with `main`; `gh pr merge <n> --merge --auto` merges a ready PR, and

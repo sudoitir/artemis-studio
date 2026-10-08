@@ -10,10 +10,11 @@
             "new order body",
             true,
             "artemis",
-            "artemis"
+            "artemis",
+            true
         ],
         "type": "exec",
-        "operation": "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String)"
+        "operation": "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String,boolean)"
     },
     "value": "152",
     "status": 200

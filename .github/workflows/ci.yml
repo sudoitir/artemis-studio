@@ -358,7 +358,7 @@ jobs:
     timeout-minutes: 30
     env:
       # `just ha-failover` runs the same stack and script.
-      COMPOSE: docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml
+      COMPOSE: docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -27,7 +27,7 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up 
 # Once the admin has two-step verification (the first run enrols it), the secret that run printed.
 ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 NEW_PASSWORD=${NEW_PASSWORD:-config-e2e-Passw0rd!}
-COMPOSE=${COMPOSE:-docker compose -f deploy/compose/compose.dev.yaml}
+COMPOSE=${COMPOSE:-docker compose -f deploy/compose/dev/compose.dev.yaml}
 CLUSTER_NAME=${CLUSTER_NAME:-config-e2e}
 
 JAR=/var/lib/artemis-instance/bin/artemis
@@ -408,7 +408,7 @@ body=$(xml_import "/clusters/$CLUSTER/config/import-xml" "$bigfile")
 if py "any('KiB' in json.dumps(v) for v in d.get('errors', []))" <<<"$body" | grep -q True; then
   pass "P-7 an oversized import is refused by the size cap"
 else
-  fail "P-7 a $(wc -c <"$bigfile")-byte import was accepted — no size cap"
+  fail "P-7 a $(($(wc -c <"$bigfile")))-byte import was accepted — no size cap"
 fi
 rm -f "$bigfile"
 

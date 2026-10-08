@@ -67,7 +67,7 @@ docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrato
 
 ```bash
 git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # همین استک، قفل‌شده روی آخرین نسخه
+just up          # دو replica پشت HAProxy، قفل‌شده روی آخرین نسخه (just up-single: یک replica)
 ```
 
 ```bash

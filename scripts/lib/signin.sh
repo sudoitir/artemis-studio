@@ -5,18 +5,19 @@
 # it signs in with the password and a code computed from ADMIN_TOTP_SECRET, the secret the first run printed.
 #
 # Needs STUDIO, COOKIES (a curl cookie jar) and ADMIN_USER, ADMIN_PASSWORD and, once enrolled, ADMIN_TOTP_SECRET.
-# Provides csrf, api and studio_sign_in.
+# Provides csrf, api and studio_sign_in. Works sourced from bash (3.2 and later) and zsh, so no variable here is
+# named path, status or options, which zsh ties to its own state.
 
-_SIGNIN_LIB=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+_SIGNIN_LIB=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)
 
 # Studio protects mutating calls with the double-submit CSRF cookie a browser sends by itself; curl echoes it by hand.
 csrf() { awk '$6 == "XSRF-TOKEN" { print $7 }' "$COOKIES" | tail -1; }
 
 # api METHOD PATH [curl args...] → response body on stdout
 api() {
-  local method=$1 path=$2
+  local method=$1 endpoint=$2
   shift 2
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$path" \
+  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$endpoint" \
     -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
 }
 
@@ -76,7 +77,7 @@ _enrol_totp() {
 # NEW_PASSWORD is what a one-time password becomes, and what an earlier run may already have changed it to;
 # NAME is the variable that holds it, for the message when it is missing.
 studio_sign_in() {
-  local new=${1:-} name=${2:-NEW_PASSWORD} me status
+  local new=${1:-} name=${2:-NEW_PASSWORD} me http_code
   curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/auth/me" >/dev/null || true # issues the CSRF cookie
   local password rc=1
   for password in "$ADMIN_PASSWORD" ${new:+"$new"}; do
@@ -100,11 +101,11 @@ studio_sign_in() {
       return 1
     fi
     # The change re-establishes the session, so the cookies stay valid for the rest of the run.
-    status=$(python3 -c 'import json,sys; print(json.dumps({"currentPassword": sys.argv[1], "newPassword": sys.argv[2]}))' \
+    http_code=$(python3 -c 'import json,sys; print(json.dumps({"currentPassword": sys.argv[1], "newPassword": sys.argv[2]}))' \
         "$ADMIN_PASSWORD" "$new" \
       | api POST /auth/password --data-binary @- -o /dev/null -w '%{http_code}')
-    if [ "$status" != 204 ]; then
-      echo "changing the admin password failed with HTTP $status" >&2
+    if [ "$http_code" != 204 ]; then
+      echo "changing the admin password failed with HTTP $http_code" >&2
       return 1
     fi
     ADMIN_PASSWORD=$new

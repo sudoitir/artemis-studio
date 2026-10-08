@@ -19,8 +19,13 @@ public class MessageOperations {
 
     private static final String ORIGINAL_ADDRESS = "_AMQ_ORIG_ADDRESS";
 
+    /**
+     * The overload with {@code createMessageId} (Artemis 2.33 and later): without it a message sent over
+     * Jolokia carries no message id, unlike one sent over Core, so a consumer could not tell a redelivery
+     * from a new message.
+     */
     private static final String SEND_SIG =
-            "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String)";
+            "sendMessage(java.util.Map,int,java.lang.String,boolean,java.lang.String,java.lang.String,boolean)";
 
     /** A message to enqueue. {@code headers} are string properties. */
     public record Outgoing(Map<String, Object> headers, int type, String body, boolean durable) {}
@@ -46,7 +51,8 @@ public class MessageOperations {
                 message.body() == null ? "" : message.body(),
                 message.durable(),
                 sender.user(),
-                sender.password()));
+                sender.password(),
+                true));
         requireOk(res, "sendMessage");
         JsonNode v = res.value();
         return v == null || v.isNull() ? null : v.asText();

@@ -53,7 +53,7 @@ features:
 
 ```bash
 git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # Studio و Postgres، با کلیدهای تولیدشده و پین‌شده به آخرین انتشار
+just up          # دو replica از Studio + HAProxy + Postgres، با کلیدهای تولیدشده و پین‌شده به آخرین انتشار
 ```
 
 بروکرهای شما از پیش وجود دارند — Studio آن‌ها را ثبت می‌کند، اجرا نمی‌کند. جز فعال‌کردن endpointهای مدیریتی که تقریباً حتماً همین حالا هم دارید، نیازی به بازنویسی `broker.xml` نیست. [شروع سریع کامل ←](/fa/guide/quickstart)

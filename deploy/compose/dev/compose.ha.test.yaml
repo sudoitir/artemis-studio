@@ -2,8 +2,8 @@
 # balancer on a port the dev stack does not use. `just ha-failover` runs it with
 # web/scripts/ha-failover.ts, and CI runs the same against the image it builds.
 #
-#   DB_PASSWORD=… SECRET_KEY=… docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env \
-#     -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml up -d --wait
+#   DB_PASSWORD=… SECRET_KEY=… docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env \
+#     -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml up -d --wait
 
 services:
   # Named and configured as the dev stack's primary: its broker.xml advertises tcp://artemis-primary:61616
@@ -16,7 +16,7 @@ services:
       ANONYMOUS_LOGIN: "false"
       JAVA_ARGS_APPEND: "-Xms64m -Xmx512m"
     volumes:
-      - ./artemis/primary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
+      - ./dev/artemis/primary/broker.xml:/var/lib/artemis-instance/etc-override/broker.xml:ro
     healthcheck:
       # The image has no curl, so bash speaks HTTP itself (as in compose.dev.yaml).
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8161 && printf 'GET /console/jolokia/read/org.apache.activemq.artemis:broker=%%22primary%%22/Started HTTP/1.0\\r\\nAuthorization: Basic %s\\r\\n\\r\\n' \"$$(printf artemis:artemis | base64)\" >&3 && grep -q '\"value\":true' <&3"]
