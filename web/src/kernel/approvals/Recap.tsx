@@ -2,7 +2,7 @@ import { Text } from '@mantine/core';
 
 import { DescriptionList, type DescriptionItem } from '../../ui/DescriptionList.tsx';
 import type { HeldOperationDetail } from './api.ts';
-import { namesTargets, rowText } from './columns.tsx';
+import { changeText, namesTargets, targetText } from './columns.tsx';
 import classes from './Approvals.module.css';
 import { effectLabel } from './words.ts';
 
@@ -15,7 +15,7 @@ const RECAP_ROWS = 5;
  */
 export function Recap({ detail, reason }: Readonly<{ detail: HeldOperationDetail; reason?: string | null }>) {
   const { effect, display } = detail;
-  const targets = namesTargets(display);
+  const rowText = namesTargets(display) ? targetText : changeText;
   const items: DescriptionItem[] = [
     {
       term: 'Effect',
@@ -24,7 +24,7 @@ export function Recap({ detail, reason }: Readonly<{ detail: HeldOperationDetail
     },
     ...display.slice(0, RECAP_ROWS).map((row) => ({
       term: row.label,
-      value: rowText(row, targets),
+      value: rowText(row),
     })),
   ];
   if (reason !== undefined) items.push({ term: 'Your reason', value: reason || 'None given' });

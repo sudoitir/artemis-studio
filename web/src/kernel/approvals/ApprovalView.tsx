@@ -25,7 +25,7 @@ import views from '../shell/Views.module.css';
 import { isClosed, useHeldOperation, type HeldOperationDetail } from './api.ts';
 import classes from './Approvals.module.css';
 import { CancelRequest } from './CancelRequest.tsx';
-import { changeColumns, namesTargets, rowText } from './columns.tsx';
+import { changeColumns, namesTargets, targetText } from './columns.tsx';
 import { DecisionPanel } from './DecisionPanel.tsx';
 import { ExpiresIn } from './ExpiresIn.tsx';
 import { STATE, TRAIT, eventWord, signedInWith } from './words.ts';
@@ -162,21 +162,7 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
         </Notice>
       ) : null;
     case 'APPROVED':
-      return detail.mode === 'BY_REQUESTER' && detail.mine ? (
-        <Notice tone="info" title="Approved: complete it yourself">
-          {approver} approved it. Submit the same operation again before the request expires to run it; its result is
-          shown only to you.
-        </Notice>
-      ) : (
-        <Notice
-          tone="neutral"
-          title={detail.mode === 'BY_REQUESTER' ? 'The requester completes it' : 'Studio runs it next'}
-        >
-          {detail.mode === 'BY_REQUESTER'
-            ? `${approver} approved it. ${operation.requesterUsername} completes it.`
-            : `${approver} approved it. Studio runs it next.`}
-        </Notice>
-      );
+      return <ApprovedNotice detail={detail} approver={approver} />;
     case 'EXECUTING':
       return (
         <Notice tone="neutral" title="In progress">
@@ -229,6 +215,30 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
   }
 }
 
+/** An approved request: who completes it, and what the requester does when it is theirs to complete. */
+function ApprovedNotice({ detail, approver }: Readonly<{ detail: HeldOperationDetail; approver: string }>) {
+  if (detail.mode !== 'BY_REQUESTER') {
+    return (
+      <Notice tone="neutral" title="Studio runs it next">
+        {approver} approved it. Studio runs it next.
+      </Notice>
+    );
+  }
+  if (detail.mine) {
+    return (
+      <Notice tone="info" title="Approved: complete it yourself">
+        {approver} approved it. Submit the same operation again before the request expires to run it; its result is
+        shown only to you.
+      </Notice>
+    );
+  }
+  return (
+    <Notice tone="neutral" title="The requester completes it">
+      {approver} approved it. {detail.operation.requesterUsername} completes it.
+    </Notice>
+  );
+}
+
 /** The changes, the estimated effect and where it acts. */
 function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
   const { effect } = detail;
@@ -236,7 +246,7 @@ function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
   const targets = namesTargets(display);
   let changes = null;
   if (display.length > 0 && targets) {
-    changes = <DescriptionList items={display.map((row) => ({ term: row.label, value: rowText(row, true) }))} />;
+    changes = <DescriptionList items={display.map((row) => ({ term: row.label, value: targetText(row) }))} />;
   } else if (display.length > 0) {
     changes = (
       <DataTable
