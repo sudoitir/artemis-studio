@@ -56,6 +56,12 @@ public class SseHub {
     /** Sent to every subscriber before its stream is closed: reconnect at once, presenting the last event id. */
     public static final String RECONNECT = "reconnect";
 
+    /**
+     * Sent before a stream is closed because its user opened a newer one past their limit: do not reconnect until the
+     * tab is in use again, or the user's tabs would keep closing each other.
+     */
+    public static final String EVICTED = "evicted";
+
     private final Map<UUID, Set<Subscriber>> byCluster = new ConcurrentHashMap<>();
     /** Topics whose last publish failed, so an outage is logged once per topic and not once per frame. */
     private final Set<String> unpublished = ConcurrentHashMap.newKeySet();

@@ -38,7 +38,7 @@ class UserStreamHubTest {
     }
 
     @Test
-    void aSixthStreamEndsTheOldest() throws Exception {
+    void aSixthStreamEndsTheOldestAndTellsItWhy() throws Exception {
         UUID user = UUID.randomUUID();
         SseEmitter oldest = mock(SseEmitter.class);
         hub.register(user, subscriber(oldest, null));
@@ -51,6 +51,8 @@ class UserStreamHubTest {
 
         assertThat(hub.streamCount(user)).isEqualTo(UserStreamHub.MAX_STREAMS_PER_USER);
         verify(oldest, timeout(2_000)).complete();
+        // The only frame the oldest ever got is the eviction notice, sent before it was completed.
+        verify(oldest).send(any(SseEmitter.SseEventBuilder.class));
         hub.onSignal(new ReplicaSignal(UserSignals.INBOX, user.toString()));
         verify(newest, timeout(2_000)).send(any(SseEmitter.SseEventBuilder.class));
     }

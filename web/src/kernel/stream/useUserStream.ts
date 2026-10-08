@@ -3,7 +3,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { heldOperationsKey } from '../api/request.ts';
 import { inboxKeys } from '../inbox/api.ts';
-import { backoff, OFFLINE_AFTER, PING, RECONNECT, RESYNC, SILENCE_MS } from './sse.ts';
+import { backoff, EVICTED, OFFLINE_AFTER, PING, RECONNECT, RESYNC, SILENCE_MS } from './sse.ts';
 import type { StreamStatus } from './useClusterStream.ts';
 
 /** A notice was posted to, read or dismissed for this user (`UserSignals.INBOX`). */
@@ -49,6 +49,7 @@ function open(): () => void {
   let source: EventSource | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let watchdog: ReturnType<typeof setTimeout> | undefined;
+  let resume: (() => void) | null = null;
 
   const heard = () => {
     if (watchdog) clearTimeout(watchdog);
@@ -65,6 +66,13 @@ function open(): () => void {
     refetchOnOpen = true;
     publish(failures >= OFFLINE_AFTER ? 'offline' : 'reconnecting');
     retry = setTimeout(connect, backoff(failures));
+  };
+
+  const stopWaiting = () => {
+    if (!resume) return;
+    document.removeEventListener('visibilitychange', resume);
+    window.removeEventListener('focus', resume);
+    resume = null;
   };
 
   const connect = () => {
@@ -91,6 +99,21 @@ function open(): () => void {
       connect();
     });
 
+    source.addEventListener(EVICTED, () => {
+      // A newer tab took this one's place. Views poll while the stream is not live; reconnect once the tab is used.
+      source?.close();
+      if (watchdog) clearTimeout(watchdog);
+      publish('offline');
+      resume = () => {
+        if (document.visibilityState !== 'visible') return;
+        stopWaiting();
+        refetchOnOpen = true;
+        connect();
+      };
+      document.addEventListener('visibilitychange', resume);
+      window.addEventListener('focus', resume);
+    });
+
     source.addEventListener(PING, heard);
 
     for (const [event, keys] of Object.entries(STALE_ON)) {
@@ -110,6 +133,7 @@ function open(): () => void {
   connect();
   return () => {
     closed = true;
+    stopWaiting();
     if (retry) clearTimeout(retry);
     if (watchdog) clearTimeout(watchdog);
     source?.close();
@@ -128,7 +152,8 @@ function subscribe(listener: () => void) {
  * The signed-in user's own event stream (`GET /api/v1/me/stream`): their inbox and their held operations,
  * on every page rather than only a cluster's. Each signal invalidates the queries it covers, and a
  * `resync`, or a reconnect after a failure, refetches all of them. It reconnects indefinitely with capped,
- * jittered backoff and treats silence as failure, as the cluster stream does.
+ * jittered backoff and treats silence as failure, as the cluster stream does. A stream the server closed for
+ * a newer tab (`evicted`) waits until this tab is in use again.
  *
  * Returns the connection's state, so a view can poll while it is not `live`.
  */

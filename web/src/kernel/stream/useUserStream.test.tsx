@@ -96,4 +96,24 @@ describe('useUserStream', () => {
     expect(result.current).toBe('live');
     expect(stale(inboxKeys.count)).toBe(true);
   });
+
+  it('waits until the tab is used again after a newer tab took its place', async () => {
+    const { result } = renderHook(() => useUserStream(), { wrapper: Wrapper });
+    await settle();
+    seed();
+    act(() => EventSourceStub.emit('evicted', ''));
+    expect(result.current).toBe('offline');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+    expect(EventSourceStub.instances).toHaveLength(1);
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(EventSourceStub.instances).toHaveLength(2);
+    expect(result.current).toBe('live');
+    expect(stale(inboxKeys.count)).toBe(true);
+  });
 });

@@ -40,7 +40,9 @@ public class UserStreamHub {
      * Adds {@code subscriber} to {@code userId}'s streams and starts its writer. A user who already holds {@link
      * #MAX_STREAMS_PER_USER} loses the oldest. A closed tab's stream is only noticed when a write to it fails, up to a
      * heartbeat later, so the oldest is most likely one nobody reads any more: refusing the new stream instead would
-     * leave a user who reloads a few times without live updates until the heartbeat.
+     * leave a user who reloads a few times without live updates until the heartbeat. The evicted stream is told so
+     * ({@link SseHub#EVICTED}), and its tab waits until it is in use again before reconnecting, so open tabs do not keep
+     * closing each other.
      */
     public void register(UUID userId, Subscriber subscriber) {
         Subscriber[] evicted = {null};
@@ -54,7 +56,7 @@ public class UserStreamHub {
             return streams;
         });
         if (evicted[0] != null) {
-            evicted[0].discard();
+            evicted[0].evict();
         }
         subscriber.startDrain(frame -> write(userId, subscriber, frame), () -> complete(subscriber));
     }

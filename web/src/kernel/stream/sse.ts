@@ -4,6 +4,11 @@
 export const PING = 'ping';
 /** The server is about to close this stream (`SseHub.RECONNECT`): reconnect at once, without backoff. */
 export const RECONNECT = 'reconnect';
+/**
+ * The server closed this stream for a newer one of the same user past their limit (`SseHub.EVICTED`): wait
+ * until the tab is in use again before reconnecting, or the user's tabs would keep closing each other.
+ */
+export const EVICTED = 'evicted';
 /** Frames were lost (`SseHub.RESYNC`): the bus came back, or a replay was capped. Refetch the views. */
 export const RESYNC = 'resync';
 
