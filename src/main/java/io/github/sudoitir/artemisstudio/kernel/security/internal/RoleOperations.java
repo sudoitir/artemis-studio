@@ -21,6 +21,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class RoleOperations {
 
+    private static final String LABEL_PERMISSIONS = "Permissions";
+
     record CreateRole(String name, List<String> permissions, boolean requiresMfa, boolean teamAssignable) {}
 
     record UpdateRole(
@@ -55,7 +57,7 @@ class RoleOperations {
             public List<DisplayRow> display(CreateRole p) {
                 return List.of(
                         DisplayRow.of("Role", p.name()),
-                        DisplayRow.of("Permissions", join(p.permissions())),
+                        DisplayRow.of(LABEL_PERMISSIONS, join(p.permissions())),
                         DisplayRow.of("Requires a second factor", String.valueOf(p.requiresMfa())),
                         DisplayRow.of("Team role", String.valueOf(p.teamAssignable())));
             }
@@ -91,7 +93,7 @@ class RoleOperations {
                 RoleEntity now = role(p.roleId());
                 return List.of(
                         new DisplayRow("Name", now.getName(), p.name()),
-                        new DisplayRow("Permissions", join(permissionsOf(p.roleId())), join(p.permissions())),
+                        new DisplayRow(LABEL_PERMISSIONS, join(permissionsOf(p.roleId())), join(p.permissions())),
                         new DisplayRow(
                                 "Requires a second factor",
                                 String.valueOf(now.isRequiresMfa()),
@@ -142,7 +144,7 @@ class RoleOperations {
             public List<DisplayRow> display(DeleteRole p) {
                 return List.of(
                         DisplayRow.of("Role", role(p.roleId()).getName()),
-                        DisplayRow.of("Permissions", join(permissionsOf(p.roleId()))));
+                        DisplayRow.of(LABEL_PERMISSIONS, join(permissionsOf(p.roleId()))));
             }
 
             @Override

@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessOperation;
 import io.github.sudoitir.artemisstudio.kernel.security.PatternKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
+import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamEntity;
@@ -16,12 +17,9 @@ import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.Tea
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamPatternRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamRepository;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareEntity;
-import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamShareRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PatternRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.PrincipalType;
-import io.github.sudoitir.artemisstudio.kernel.security.web.TeamViews.ShareRequest;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -31,6 +29,9 @@ import org.springframework.context.annotation.Configuration;
 /** The gated operations of {@link TeamService}. */
 @Configuration(proxyBeanMethods = false)
 class TeamOperations {
+
+    private static final String LABEL_PATTERN = "Pattern";
+    private static final String UNIT_MEMBER = "member";
 
     record CreateTeam(String name) {}
 
@@ -49,15 +50,9 @@ class TeamOperations {
 
     record RemoveMember(UUID teamId, UUID memberId) {}
 
-    record AddShare(
-            UUID ownerTeamId, UUID targetTeamId, UUID clusterId, PatternKind kind, String pattern, UUID roleId) {}
-
-    record RemoveShare(UUID ownerTeamId, UUID shareId) {}
-
     private final TeamRepository teams;
     private final TeamPatternRepository patterns;
     private final TeamMemberRepository members;
-    private final TeamShareRepository shares;
     private final RoleRepository roles;
     private final AppUserRepository users;
     private final ApproverAccess approvers;
@@ -67,7 +62,6 @@ class TeamOperations {
             TeamRepository teams,
             TeamPatternRepository patterns,
             TeamMemberRepository members,
-            TeamShareRepository shares,
             RoleRepository roles,
             AppUserRepository users,
             ApproverAccess approvers,
@@ -75,7 +69,6 @@ class TeamOperations {
         this.teams = teams;
         this.patterns = patterns;
         this.members = members;
-        this.shares = shares;
         this.roles = roles;
         this.users = users;
         this.approvers = approvers;
@@ -196,7 +189,7 @@ class TeamOperations {
                 return List.of(
                         DisplayRow.of("Team", team(p.teamId()).getName()),
                         DisplayRow.of("Kind", p.kind().name()),
-                        DisplayRow.of("Pattern", p.pattern()),
+                        DisplayRow.of(LABEL_PATTERN, p.pattern()),
                         DisplayRow.of("Cluster", clusterLabel(p.clusterId())));
             }
 
@@ -232,7 +225,7 @@ class TeamOperations {
                 return List.of(
                         DisplayRow.of("Team", team(p.teamId()).getName()),
                         DisplayRow.of("Kind", pattern.getKind()),
-                        new DisplayRow("Pattern", pattern.getPattern(), null),
+                        new DisplayRow(LABEL_PATTERN, pattern.getPattern(), null),
                         DisplayRow.of("Cluster", clusterLabel(pattern.getClusterId())));
             }
 
@@ -277,7 +270,7 @@ class TeamOperations {
             public Effect estimate(AddMember p) {
                 return new Effect(
                         1,
-                        "member",
+                        UNIT_MEMBER,
                         stateKey(p.teamId(), p.principalType(), p.userId(), p.providerId(), p.groupName(), p.roleId()),
                         null);
             }
@@ -316,7 +309,7 @@ class TeamOperations {
             public Effect estimate(ChangeMemberRole p) {
                 return new Effect(
                         1,
-                        "member",
+                        UNIT_MEMBER,
                         stateKey(
                                 p.teamId(),
                                 p.memberId(),
@@ -356,7 +349,7 @@ class TeamOperations {
             public Effect estimate(RemoveMember p) {
                 return new Effect(
                         1,
-                        "member",
+                        UNIT_MEMBER,
                         stateKey(
                                 p.teamId(),
                                 p.memberId(),
@@ -367,86 +360,6 @@ class TeamOperations {
             @Override
             public void replay(RemoveMember p) {
                 service.removeMember(p.teamId(), p.memberId());
-            }
-        };
-    }
-
-    @Bean
-    GatedOperation<AddShare> teamShareAddOperation(TeamService service) {
-        return new AccessOperation<>("team.share.add", AddShare.class) {
-            @Override
-            public Set<Trait> traits(AddShare p) {
-                return access(approvers.armed());
-            }
-
-            @Override
-            public String summary(AddShare p) {
-                return "Share " + p.pattern() + " of team "
-                        + team(p.ownerTeamId()).getName() + " with team "
-                        + team(p.targetTeamId()).getName();
-            }
-
-            @Override
-            public List<DisplayRow> display(AddShare p) {
-                return List.of(
-                        DisplayRow.of("Owner team", team(p.ownerTeamId()).getName()),
-                        DisplayRow.of("Shared with", team(p.targetTeamId()).getName()),
-                        DisplayRow.of("Kind", p.kind().name()),
-                        DisplayRow.of("Pattern", p.pattern()),
-                        DisplayRow.of("Role", role(p.roleId())));
-            }
-
-            @Override
-            public Effect estimate(AddShare p) {
-                return new Effect(
-                        1,
-                        "share",
-                        stateKey(p.ownerTeamId(), p.targetTeamId(), p.clusterId(), p.kind(), p.pattern(), p.roleId()),
-                        null);
-            }
-
-            @Override
-            public void replay(AddShare p) {
-                service.addShare(
-                        p.ownerTeamId(),
-                        new ShareRequest(p.targetTeamId(), p.clusterId(), p.kind(), p.pattern(), p.roleId()));
-            }
-        };
-    }
-
-    @Bean
-    GatedOperation<RemoveShare> teamShareRemoveOperation(TeamService service) {
-        return new AccessOperation<>("team.share.remove", RemoveShare.class) {
-            @Override
-            public Set<Trait> traits(RemoveShare p) {
-                return access(approvers.armed());
-            }
-
-            @Override
-            public String summary(RemoveShare p) {
-                return "Stop sharing " + share(p).getPattern() + " of team "
-                        + team(p.ownerTeamId()).getName();
-            }
-
-            @Override
-            public List<DisplayRow> display(RemoveShare p) {
-                TeamShareEntity share = share(p);
-                return List.of(
-                        DisplayRow.of("Owner team", team(p.ownerTeamId()).getName()),
-                        DisplayRow.of(
-                                "Shared with", team(share.getTargetTeamId()).getName()),
-                        new DisplayRow("Pattern", share.getPattern(), null),
-                        DisplayRow.of("Role", role(share.getRoleId())));
-            }
-
-            @Override
-            public Effect estimate(RemoveShare p) {
-                return new Effect(1, "share", stateKey(p.ownerTeamId(), p.shareId(), share(p).getPattern()), null);
-            }
-
-            @Override
-            public void replay(RemoveShare p) {
-                service.removeShare(p.ownerTeamId(), p.shareId());
             }
         };
     }
@@ -465,11 +378,6 @@ class TeamOperations {
                 .orElseThrow(() -> new NotFoundException("team pattern", p.patternId()));
     }
 
-    private TeamShareEntity share(RemoveShare p) {
-        return shares.findByIdAndOwnerTeamId(p.shareId(), p.ownerTeamId())
-                .orElseThrow(() -> new NotFoundException("team share", p.shareId()));
-    }
-
     private String role(UUID roleId) {
         return roles.findById(roleId)
                 .orElseThrow(() -> new NotFoundException("role", roleId))
@@ -480,7 +388,7 @@ class TeamOperations {
         return p.principalType() == PrincipalType.USER
                 ? "user "
                         + users.findById(p.userId())
-                                .map(user -> user.getUsername())
+                                .map(AppUserEntity::getUsername)
                                 .orElse(String.valueOf(p.userId()))
                 : "group " + p.groupName() + " of " + p.providerId();
     }
