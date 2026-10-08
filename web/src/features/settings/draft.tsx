@@ -4,7 +4,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 
 import { useChangePreview, type Setting, type SettingChange } from './api.ts';
 import { DraftContext, type DraftValues, type SettingsDraft } from './draftContext.ts';
-import { changeOf, fieldOf, localError } from './model.ts';
+import { besideField, changeOf, fieldOf, localError } from './model.ts';
 
 /** How long typing pauses before the draft is previewed: long enough not to ask on every key. */
 const PREVIEW_DEBOUNCE_MS = 400;
@@ -78,7 +78,8 @@ export function SettingsDraftProvider({
     const local = i === undefined ? undefined : form.errors[pathOf(i)];
     if (typeof local === 'string') return local;
     if (!changedKeys.has(key)) return undefined;
-    return (visited.has(key) ? preview?.fieldErrors[key] : undefined) ?? applyErrors[key];
+    const server = (visited.has(key) ? preview?.fieldErrors[key] : undefined) ?? applyErrors[key];
+    return server === undefined ? undefined : besideField(key, server);
   };
   const invalidKeys = fields.map((f) => f.key).filter((key) => errorOf(key) !== undefined);
 

@@ -65,7 +65,10 @@
   padding-block-start: 0.125rem;
 }
 
+/* The setting's key, an identifier rather than a word: set apart from the state above it, so "Default" never reads as its label. */
 .key {
+  margin-block-start: var(--mantine-spacing-xs);
+  font-family: var(--mantine-font-family-monospace);
   overflow-wrap: anywhere;
 }
 

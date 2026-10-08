@@ -499,8 +499,8 @@ describe('the Settings page', () => {
     await user.type(tierA, '-5s');
     await user.tab();
 
-    expect(await screen.findByText('scrape.tier-a must be a positive duration')).toBeInTheDocument();
-    expect(tierA).toHaveAccessibleDescription(/must be a positive duration/);
+    expect(await screen.findByText('Must be a positive duration.')).toBeInTheDocument();
+    expect(tierA).toHaveAccessibleDescription(/Must be a positive duration/);
 
     await user.click(screen.getByRole('tab', { name: /Audit/ }));
     await user.click(within(footer()).getByRole('button', { name: 'Apply 1 change' }));
@@ -525,7 +525,7 @@ describe('the Settings page', () => {
     await waitFor(() => expect(within(footer()).getByText('Applies at once, with no restart.')).toBeInTheDocument());
     await user.click(within(footer()).getByRole('button', { name: 'Apply 1 change' }));
 
-    expect(await screen.findByText('audit.batch must be at least 1')).toBeInTheDocument();
+    expect(await screen.findByText('Must be at least 1.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText('Batch size')).toHaveFocus());
   });
 

@@ -92,6 +92,18 @@ export function localError(kind: string, value: string): string | null {
   return null;
 }
 
+/**
+ * The server's reason a value is refused, as it reads beside the field: the server names the setting's key
+ * ("gate.max-hold must be between 1m and 365d") because an API caller needs it, but beside its own field the key
+ * only repeats the label above.
+ */
+export function besideField(key: string, message: string): string {
+  if (!message.startsWith(`${key} `)) return message;
+  const rest = message.slice(key.length + 1);
+  const sentence = rest.charAt(0).toUpperCase() + rest.slice(1);
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+}
+
 /** The range a bounded setting accepts, in the setting's own syntax; empty when only the kind limits it. */
 export function boundsText({ kind, min, max }: Pick<Setting, 'kind' | 'min' | 'max'>): string {
   if (kind === 'INT') {
