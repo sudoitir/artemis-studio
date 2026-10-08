@@ -248,10 +248,10 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
         HttpResponse<String> response = browser.send("GET", "/api/v1/gate/operations", null);
 
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
-        assertThat(JsonPath.<List<String>>read(response.body(), "$[*].type"))
+        assertThat(JsonPath.<List<String>>read(response.body(), "$.items[*].type"))
                 .contains("plugin.purge", pluginId + ":thing")
                 .isSorted();
-        assertThat(JsonPath.<List<String>>read(response.body(), "$[?(@.type=='" + pluginId + ":thing')].mode"))
+        assertThat(JsonPath.<List<String>>read(response.body(), "$.items[?(@.type=='" + pluginId + ":thing')].mode"))
                 .containsExactly("ON_APPROVAL");
         assertThat(pluginApi.context().getBeansOfType(GatedOperationCatalogue.class))
                 .hasSize(1);

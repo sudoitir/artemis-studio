@@ -2,8 +2,6 @@ package io.github.sudoitir.artemisstudio.kernel.approval.web;
 
 import io.github.sudoitir.artemisstudio.kernel.approval.Approvals;
 import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationCatalogue;
-import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationInfo;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,7 +26,7 @@ public class GateController {
 
     /** Every operation type the gate covers, Studio's and the plugins', so the console can name them. */
     @GetMapping("/operations")
-    public List<GatedOperationInfo> operations() {
-        return catalogue.list();
+    public HeldOperationViews.GatedOperationListView operations() {
+        return new HeldOperationViews.GatedOperationListView(catalogue.list());
     }
 }

@@ -5,6 +5,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import io.github.sudoitir.artemisstudio.kernel.approval.Approvals;
 import io.github.sudoitir.artemisstudio.kernel.gate.DisplayRow;
 import io.github.sudoitir.artemisstudio.kernel.gate.Effect;
+import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationInfo;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldEvent;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldOperationView;
 import io.github.sudoitir.artemisstudio.kernel.gate.PolicyRef;
@@ -232,6 +233,10 @@ public final class HeldOperationViews {
 
             @Schema(requiredMode = REQUIRED, description = "The version of the request as shown.")
             Integer version) {}
+
+    public record GatedOperationListView(
+            @Schema(requiredMode = REQUIRED, description = "Every operation type the gate covers, ordered by type.")
+            List<GatedOperationInfo> items) {}
 
     public record GateStatusView(
             @Schema(
