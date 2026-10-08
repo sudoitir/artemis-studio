@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.concurrent.DelegatingSecurityContextRunnable;
 import org.springframework.security.core.context.SecurityContext;
@@ -27,7 +28,8 @@ public class OperatorHandoff {
     private final ActorResolver actors;
     private final UserAccounts accounts;
     private final PermissionResolver perm;
-    private final GateLeases leases;
+    /** Absent in a slice without the gate's engine, where no operation can be covered. */
+    private final ObjectProvider<GateLeases> leases;
 
     /**
      * Who started the work: their principal as authenticated, the actor their audit rows carry, and a lease on the
@@ -43,8 +45,9 @@ public class OperatorHandoff {
         if (auth == null || !(auth.getPrincipal() instanceof StudioPrincipal principal)) {
             throw new IllegalStateException("There is no signed-in operator to act for.");
         }
-        GateLease covered = GateScope.COVERED.isBound()
-                ? leases.retain(GateScope.COVERED.get()).orElse(null)
+        GateLeases engine = leases.getIfAvailable();
+        GateLease covered = engine != null && GateScope.COVERED.isBound()
+                ? engine.retain(GateScope.COVERED.get()).orElse(null)
                 : null;
         return new Operator(principal, actors.resolve(), covered);
     }
