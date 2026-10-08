@@ -9,7 +9,12 @@ import java.util.Objects;
 public sealed interface GateDecision {
 
     /** Run it now; the policy is recorded on the operation's audit row. */
-    record Allow(PolicyRef policy) implements GateDecision {}
+    record Allow(PolicyRef policy) implements GateDecision {
+
+        public Allow {
+            Objects.requireNonNull(policy, "policy");
+        }
+    }
 
     /**
      * Hold it for approval.

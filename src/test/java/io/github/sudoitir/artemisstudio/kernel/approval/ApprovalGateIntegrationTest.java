@@ -638,6 +638,18 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void anAllowWithoutAPolicyFailsClosedAsAnUnavailableProvider() {
+        assertThatThrownBy(() -> new GateDecision.Allow(null)).isInstanceOf(NullPointerException.class);
+        provider.decide = request -> new GateDecision.Allow(null);
+        signIn(requester());
+
+        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+                .isInstanceOf(ApprovalUnavailableException.class);
+
+        assertThat(service.purged).isEmpty();
+    }
+
+    @Test
     void aPreviewHoldsNothing() {
         Person alice = requester();
         approversAre(approver());
