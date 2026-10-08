@@ -68,13 +68,17 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
                 "Approval requested", "alice asks", Severity.WARNING, List.of(new Fact("By", "alice")), "/approvals/3");
     }
 
+    private String key() {
+        return UUID.randomUUID().toString();
+    }
+
     private int rows() {
         return jdbc.queryForObject("SELECT count(*) FROM alert_delivery WHERE source = ?", Integer.class, source);
     }
 
     @Test
     void aNoticeIsQueuedForTheDispatcherAsAPendingRowWithItsSource() {
-        service.enqueue(source, channelId, notice());
+        service.enqueue(source, channelId, notice(), key());
 
         var row = jdbc.queryForMap(
                 "SELECT kind, source, rule_id, state, payload::text AS payload FROM alert_delivery WHERE source = ?",
@@ -89,7 +93,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
     @Test
     void aNoticeIsWrittenInTheCallersTransaction() {
         assertThatThrownBy(() -> tx.executeWithoutResult(status -> {
-                    service.enqueue(source, channelId, notice());
+                    service.enqueue(source, channelId, notice(), key());
                     throw new IllegalStateException("rolled back");
                 }))
                 .isInstanceOf(IllegalStateException.class);
@@ -99,7 +103,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void anUnknownChannelIsRefused() {
-        assertThatThrownBy(() -> service.enqueue(source, UUID.randomUUID(), notice()))
+        assertThatThrownBy(() -> service.enqueue(source, UUID.randomUUID(), notice(), key()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown notification channel");
     }
@@ -111,7 +115,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
                 .toList();
         NoticeMessage big = new NoticeMessage("t", "s".repeat(2000), Severity.INFO, facts, null);
 
-        assertThatThrownBy(() -> service.enqueue(source, channelId, big))
+        assertThatThrownBy(() -> service.enqueue(source, channelId, big, key()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("8192");
         assertThat(rows()).isZero();
@@ -126,12 +130,49 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
                 channelId,
                 OutboundNotices.MAX_PER_HOUR - 1);
 
-        service.enqueue(source, channelId, notice());
-        assertThatThrownBy(() -> service.enqueue(source, channelId, notice()))
+        service.enqueue(source, channelId, notice(), key());
+        assertThatThrownBy(() -> service.enqueue(source, channelId, notice(), key()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("600");
-        service.enqueue(source + "-other", channelId, notice());
+        service.enqueue(source + "-other", channelId, notice(), key());
         assertThat(rows()).isEqualTo(OutboundNotices.MAX_PER_HOUR);
+    }
+
+    @Test
+    void aRepeatedDedupeKeyIsANoOpPerSourceAndDoesNotCountTowardsTheCap() {
+        jdbc.update(
+                "INSERT INTO alert_delivery (kind, source, channel_id, payload)"
+                        + " SELECT 'notice', ?, ?, '{}'::jsonb FROM generate_series(1, ?)",
+                source,
+                channelId,
+                OutboundNotices.MAX_PER_HOUR - 1);
+
+        service.enqueue(source, channelId, notice(), "event-7");
+        // The source is now at the cap: a repeat is silent, while a new key is refused.
+        service.enqueue(source, channelId, notice(), "event-7");
+        assertThatThrownBy(() -> service.enqueue(source, channelId, notice(), "event-8"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("600");
+        service.enqueue(source + "-other", channelId, notice(), "event-7");
+
+        assertThat(rows()).isEqualTo(OutboundNotices.MAX_PER_HOUR);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM alert_delivery WHERE dedupe_key = 'event-7' AND source LIKE ?",
+                        Integer.class,
+                        source + "%"))
+                .isEqualTo(2);
+    }
+
+    @Test
+    void aDedupeKeyIsRequiredAndAtMost200Characters() {
+        for (String bad : new String[] {null, "", "  ", "k".repeat(OutboundNotices.MAX_DEDUPE_KEY + 1)}) {
+            assertThatThrownBy(() -> service.enqueue(source, channelId, notice(), bad))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("dedupe key");
+        }
+        service.enqueue(source, channelId, notice(), "k".repeat(OutboundNotices.MAX_DEDUPE_KEY));
+
+        assertThat(rows()).isOne();
     }
 
     @Test
@@ -143,7 +184,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
                 channelId,
                 OutboundNotices.MAX_PER_HOUR);
 
-        service.enqueue(source, channelId, notice());
+        service.enqueue(source, channelId, notice(), key());
 
         assertThat(rows()).isEqualTo(OutboundNotices.MAX_PER_HOUR + 1);
     }
@@ -165,7 +206,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aNoticeShowsInTheDeliveryHistoryWithItsSource() throws Exception {
-        service.enqueue(source, channelId, notice());
+        service.enqueue(source, channelId, notice(), key());
 
         MockMvc mvc = webAppContextSetup(webContext).build();
         mvc.perform(get("/api/v1/channels/{id}/deliveries", channelId))

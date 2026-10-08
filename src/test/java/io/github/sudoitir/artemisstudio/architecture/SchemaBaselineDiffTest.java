@@ -147,7 +147,9 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     // feature-alerting 0006).
                     "CREATE TABLE alert_delivery ",
                     "ck_alert_delivery_(kind|rule)",
-                    "ix_alert_delivery_source_created")
+                    "ix_alert_delivery_source_created",
+                    // A notice's dedupe key, unique per source (changeset feature-alerting 0007).
+                    "ux_alert_delivery_source_dedupe")
             .map(Pattern::compile)
             .toList();
 

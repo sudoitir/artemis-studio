@@ -24,7 +24,8 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>The row is written in the caller's transaction. The hourly limit counts the source's rows from the last
  * hour, under a transaction-scoped advisory lock on the source so that concurrent senders cannot both pass it.
- * The stored payload is the exact body a webhook receives.
+ * A notice's dedupe key is unique per source, so queueing it again does nothing. The stored payload is the exact
+ * body a webhook receives.
  */
 @Service
 @RequiredArgsConstructor
@@ -45,9 +46,13 @@ public class OutboundNoticeService implements PluginScopedBeans {
     }
 
     @Transactional
-    public void enqueue(String source, UUID channelId, NoticeMessage notice) {
+    public void enqueue(String source, UUID channelId, NoticeMessage notice, String dedupeKey) {
         if (source == null || source.isBlank() || channelId == null || notice == null) {
             throw new IllegalArgumentException("A notice needs a source, a channel and a message.");
+        }
+        if (dedupeKey == null || dedupeKey.isBlank() || dedupeKey.length() > OutboundNotices.MAX_DEDUPE_KEY) {
+            throw new IllegalArgumentException(
+                    "A notice needs a dedupe key of 1 to " + OutboundNotices.MAX_DEDUPE_KEY + " characters.");
         }
         if (!channels.existsById(channelId)) {
             throw new IllegalArgumentException("Unknown notification channel " + channelId + ".");
@@ -58,13 +63,23 @@ public class OutboundNoticeService implements PluginScopedBeans {
                     "A notice is larger than " + OutboundNotices.MAX_BYTES + " bytes as JSON.");
         }
         jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> {}, "alert_delivery.notice|" + source);
-        if (deliveries.countBySourceAndCreatedAtGreaterThanEqual(
-                        source, Instant.now().minus(Duration.ofHours(1)))
-                >= OutboundNotices.MAX_PER_HOUR) {
+        int inserted = jdbc.update(
+                "INSERT INTO alert_delivery (kind, source, channel_id, payload, dedupe_key)"
+                        + " VALUES (?, ?, ?, ?::jsonb, ?) ON CONFLICT DO NOTHING",
+                AlertDeliveryEntity.NOTICE,
+                source,
+                channelId,
+                payload,
+                dedupeKey);
+        // A duplicate adds no row, so it is neither counted nor refused at the cap. The new row is counted, so a
+        // notice past the cap rolls back with the caller's transaction.
+        if (inserted == 1
+                && deliveries.countBySourceAndCreatedAtGreaterThanEqual(
+                                source, Instant.now().minus(Duration.ofHours(1)))
+                        > OutboundNotices.MAX_PER_HOUR) {
             throw new IllegalArgumentException("Source " + source + " already sent " + OutboundNotices.MAX_PER_HOUR
                     + " notices in the last hour.");
         }
-        deliveries.save(AlertDeliveryEntity.notice(source, channelId, payload));
     }
 
     private String payload(String source, NoticeMessage notice, Instant at) {

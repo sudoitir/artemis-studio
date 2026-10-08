@@ -14,7 +14,7 @@ final class ScopedOutboundNotices implements OutboundNotices {
     }
 
     @Override
-    public void enqueue(UUID channelId, NoticeMessage notice) {
-        service.enqueue(pluginId, channelId, notice);
+    public void enqueue(UUID channelId, NoticeMessage notice, String dedupeKey) {
+        service.enqueue(pluginId, channelId, notice, dedupeKey);
     }
 }

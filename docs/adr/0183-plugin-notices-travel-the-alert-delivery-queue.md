@@ -23,8 +23,10 @@ rules: `alert_delivery.rule_id` is `NOT NULL`. Channel configuration holds secre
    the title as the email subject.
 3. **Plugins see channels, never their configuration.** `@PluginApi NotificationChannels.list()`
    returns id, name, kind and enabled.
-4. **Plugins enqueue through a scoped `OutboundNotices.enqueue(channelId, notice)`,** in the
-   caller's transaction. It accepts in-app paths only and makes them absolute from the public URL
+4. **Plugins enqueue through a scoped `OutboundNotices.enqueue(channelId, notice, dedupeKey)`,** in the
+   caller's transaction. The key is required (at most 200 characters) and unique per source: queueing a
+   key again is a silent no-op that does not count toward the cap, so a relay that keeps its cursor in
+   its own transaction can retry safely. It accepts in-app paths only and makes them absolute from the public URL
    (no public URL, no link), allows 600 notices per hour per source and 8 KB per notice, and is
    absent when alerting is disabled.
 5. **Notices never carry a way to act.** An approval notice links to the request; it carries the
