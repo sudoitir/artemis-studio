@@ -51,6 +51,8 @@ class HeldStore {
             params_hash, sealed_payload, sealed_decision, cluster_id, environment_id, requested_at, expires_at,
             decided_at, run_deadline, claimed_at, claimed_by, finished_at, request_audit_id, version""";
 
+    private static final String SELECT_HELD = "SELECT " + COLUMNS + " FROM held_operation";
+
     private static final String H_COLUMNS = Arrays.stream(COLUMNS.split(","))
             .map(String::strip)
             .map(c -> "h." + c)
@@ -88,7 +90,23 @@ class HeldStore {
             UUID clusterId,
             UUID environmentId,
             Duration ttl,
-            long requestAuditId) {}
+            long requestAuditId) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof NewHeld that && id.equals(that.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return id.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "NewHeld[id=" + id + ", type=" + type + ", requesterId=" + requesterId + "]";
+        }
+    }
 
     // ---- reads -------------------------------------------------------------------------------------
 
@@ -102,16 +120,14 @@ class HeldStore {
     }
 
     Optional<HeldRow> get(UUID id) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM held_operation WHERE id = ?", rows, id).stream()
-                .findFirst();
+        return jdbc.query(SELECT_HELD + " WHERE id = ?", rows, id).stream().findFirst();
     }
 
     /** The open request this requester already made with exactly these parameters. */
     Optional<HeldRow> openDuplicate(UUID requesterId, byte[] paramsHash) {
         return jdbc
                 .query(
-                        "SELECT " + COLUMNS + " FROM held_operation WHERE requester_id = ? AND params_hash = ?"
-                                + " AND state IN (" + OPEN + ")",
+                        SELECT_HELD + " WHERE requester_id = ? AND params_hash = ?" + " AND state IN (" + OPEN + ")",
                         rows,
                         requesterId,
                         paramsHash)
@@ -122,8 +138,7 @@ class HeldStore {
     /** The open requests of one type, newest first. */
     List<HeldRow> openByType(String type, int limit) {
         return jdbc.query(
-                "SELECT " + COLUMNS + " FROM held_operation WHERE type = ? AND state IN (" + OPEN
-                        + ") ORDER BY id DESC LIMIT ?",
+                SELECT_HELD + " WHERE type = ? AND state IN (" + OPEN + ") ORDER BY id DESC LIMIT ?",
                 rows,
                 type,
                 limit);
@@ -139,7 +154,7 @@ class HeldStore {
     /** Newest first, with an id below {@code before} when given (ids are time-ordered). */
     List<HeldRow> list(
             Collection<HeldState> states, UUID requesterId, String providerId, UUID clusterId, UUID before, int limit) {
-        StringBuilder sql = new StringBuilder("SELECT " + COLUMNS + " FROM held_operation WHERE true");
+        StringBuilder sql = new StringBuilder(SELECT_HELD + " WHERE true");
         List<Object> args = new ArrayList<>();
         if (!states.isEmpty()) {
             sql.append(" AND state IN (")
@@ -240,20 +255,15 @@ class HeldStore {
                 == 1;
     }
 
+    /** What an approver decided: the state it moves to, who decided, when, and the reason they gave. */
+    record Verdict(HeldState to, UUID approverId, String approverUsername, Instant decidedAt, String reason) {}
+
     /**
      * Decides a held request, if it is still held, unexpired and at the version the approver saw. Empty when another
      * decision, a cancellation, an expiry or a change came first.
      */
-    Optional<HeldRow> decide(
-            UUID id,
-            int version,
-            HeldState to,
-            UUID approverId,
-            String approverUsername,
-            byte[] sealedDecision,
-            Instant decidedAt,
-            String decisionReason,
-            Duration runWindow) {
+    Optional<HeldRow> decide(UUID id, int version, Verdict verdict, byte[] sealedDecision, Duration runWindow) {
+        String to = verdict.to().name();
         return jdbc
                 .query(
                         "UPDATE held_operation SET state = ?, approver_id = ?, approver_username = ?,"
@@ -264,16 +274,16 @@ class HeldStore {
                                 + " WHERE id = ? AND state = 'HELD' AND version = ? AND expires_at > now()"
                                 + " RETURNING " + COLUMNS,
                         rows,
-                        to.name(),
-                        approverId,
-                        approverUsername,
+                        to,
+                        verdict.approverId(),
+                        verdict.approverUsername(),
                         sealedDecision,
-                        Timestamp.from(decidedAt),
-                        decisionReason,
-                        to.name(),
+                        Timestamp.from(verdict.decidedAt()),
+                        verdict.reason(),
+                        to,
                         runWindow.toMillis() / 1000.0,
-                        to.name(),
-                        to.name(),
+                        to,
+                        to,
                         id,
                         version)
                 .stream()
@@ -295,16 +305,17 @@ class HeldStore {
 
     /** Ends a request that is in one of {@code from}, wiping its sealed request. */
     Optional<HeldRow> end(UUID id, Collection<HeldState> from, HeldState to, String detail) {
-        List<Object> args = new ArrayList<>(List.of(to.name(), truncate(detail), id));
-        from.forEach(s -> args.add(s.name()));
+        String fromStates = from.stream().map(HeldState::name).collect(Collectors.joining(",", "{", "}"));
         return jdbc
                 .query(
                         "UPDATE held_operation SET state = ?, finished_at = now(), outcome_detail = ?,"
-                                + " sealed_payload = NULL WHERE id = ? AND state IN ("
-                                + from.stream().map(s -> "?").collect(Collectors.joining(", ")) + ") RETURNING "
+                                + " sealed_payload = NULL WHERE id = ? AND state = ANY (?::text[]) RETURNING "
                                 + COLUMNS,
                         rows,
-                        args.toArray())
+                        to.name(),
+                        truncate(detail),
+                        id,
+                        fromStates)
                 .stream()
                 .findFirst();
     }

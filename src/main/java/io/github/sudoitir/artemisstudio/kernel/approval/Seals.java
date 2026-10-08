@@ -80,7 +80,7 @@ class Seals {
         try {
             decision = JSON.readValue(
                     vault.open(decisionAad(row.id(), row.paramsHashHex()), row.sealedDecision()), Decision.class);
-        } catch (SecretVault.SecretDecryptException | JacksonException e) {
+        } catch (SecretVault.SecretDecryptException | JacksonException _) {
             throw new Integrity("the decision seal does not open for this request");
         }
         String rehash =
@@ -112,7 +112,7 @@ class Seals {
         }
         try {
             return JSON.readValue(vault.open(payloadAad(row.id(), row.type()), row.sealedPayload()), Payload.class);
-        } catch (SecretVault.SecretDecryptException | JacksonException e) {
+        } catch (SecretVault.SecretDecryptException | JacksonException _) {
             throw new Integrity("the request seal does not open for this request");
         }
     }
