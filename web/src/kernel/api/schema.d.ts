@@ -2148,6 +2148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/gate/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["operations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/diagnostics/summary": {
         parameters: {
             query?: never;
@@ -4246,6 +4262,8 @@ export interface components {
             /** @description Why the current user may not decide it. */
             decideRefusal?: string | null;
             canCancel: boolean;
+            /** @description Whether the current user's session verified a second factor; a policy may need it. */
+            mfaVerified: boolean;
             /** @description Whether the requester could no longer run it; null when unknown or ended. */
             requesterLacksPermission?: boolean | null;
         };
@@ -6222,6 +6240,17 @@ export interface components {
             attached: boolean;
             /** @description Whether break-glass lets operations bypass approval. */
             breakGlass: boolean;
+        };
+        GatedOperationInfo: {
+            type?: string;
+            /** Format: int32 */
+            version: number;
+            /** @enum {string} */
+            mode?: "ON_APPROVAL" | "BY_REQUESTER";
+        };
+        GatedOperationListView: {
+            /** @description Every operation type the gate covers, ordered by type. */
+            items: components["schemas"]["GatedOperationInfo"][];
         };
         PagedViewEnvironmentView: {
             data: components["schemas"]["EnvironmentView"][];
@@ -18911,6 +18940,61 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GateStatusView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    operations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GatedOperationListView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */

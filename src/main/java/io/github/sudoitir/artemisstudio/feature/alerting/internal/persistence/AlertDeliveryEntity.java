@@ -82,11 +82,6 @@ public class AlertDeliveryEntity {
         this(ruleId, channelId, payload, ALERT, null);
     }
 
-    /** A notice a plugin sent to a channel. */
-    public static AlertDeliveryEntity notice(String source, UUID channelId, String payload) {
-        return new AlertDeliveryEntity(null, channelId, payload, NOTICE, source);
-    }
-
     private AlertDeliveryEntity(UUID ruleId, UUID channelId, String payload, String kind, String source) {
         this.ruleId = ruleId;
         this.channelId = channelId;

@@ -613,13 +613,40 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aProviderHoldOutsideStudiosBoundsFailsClosed() {
+    void aProviderHoldUnderTheMinimumFailsClosed() {
         provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofSeconds(5), false, null);
         approversAre(approver());
         signIn(requester());
 
         assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
                 .isInstanceOf(ApprovalUnavailableException.class);
+    }
+
+    @Test
+    void aProviderHoldOverTheMaximumIsShortenedToIt() {
+        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofDays(365), false, null);
+        approversAre(approver());
+        signIn(requester());
+
+        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+                .isInstanceOfSatisfying(
+                        OperationHeldException.class,
+                        held -> assertThat(held.expiresAt())
+                                .isBetween(
+                                        Instant.now().plus(Duration.ofDays(30)).minusSeconds(60),
+                                        Instant.now().plus(Duration.ofDays(30)).plusSeconds(60)));
+    }
+
+    @Test
+    void anAllowWithoutAPolicyFailsClosedAsAnUnavailableProvider() {
+        assertThatThrownBy(() -> new GateDecision.Allow(null)).isInstanceOf(NullPointerException.class);
+        provider.decide = request -> new GateDecision.Allow(null);
+        signIn(requester());
+
+        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+                .isInstanceOf(ApprovalUnavailableException.class);
+
+        assertThat(service.purged).isEmpty();
     }
 
     @Test
@@ -744,6 +771,23 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                 .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.security.ReauthenticationRequiredException.class);
 
         assertThat(stateOf(id)).isEqualTo(HeldState.HELD);
+    }
+
+    @Test
+    void theDetailSaysWhetherTheViewersSessionVerifiedASecondFactor() {
+        Person alice = requester();
+        Person bob = approver();
+        approversAre(bob);
+        UUID id = hold(alice, "orders");
+        signIn(bob);
+
+        assertThat(approvals.get(id).mfaVerified()).isFalse();
+
+        Instant now = Instant.now();
+        doReturn(Optional.of(new SessionFacts(now, now, SessionFacts.Method.TOTP, now, "127.0.0.1", "test")))
+                .when(sessions)
+                .current();
+        assertThat(approvals.get(id).mfaVerified()).isTrue();
     }
 
     @Test

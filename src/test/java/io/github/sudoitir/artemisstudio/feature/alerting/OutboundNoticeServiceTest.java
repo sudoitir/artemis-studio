@@ -2,12 +2,13 @@ package io.github.sudoitir.artemisstudio.feature.alerting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.NoticeMessage.Severity;
-import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryEntity;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertDeliveryRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.NotificationChannelRepository;
 import io.github.sudoitir.artemisstudio.kernel.core.StudioProperties;
@@ -21,6 +22,7 @@ class OutboundNoticeServiceTest {
 
     private final AlertDeliveryRepository deliveries = mock(AlertDeliveryRepository.class);
     private final NotificationChannelRepository channels = mock(NotificationChannelRepository.class);
+    private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final UUID channelId = UUID.randomUUID();
 
     private String enqueueWith(String publicUrl) {
@@ -30,15 +32,21 @@ class OutboundNoticeServiceTest {
                 channels,
                 new StudioProperties(publicUrl),
                 JsonMapper.builder().build(),
-                mock(JdbcTemplate.class));
+                jdbc);
 
-        service.enqueue("approvals", channelId, new NoticeMessage("t", null, Severity.INFO, null, "/approvals/3"));
+        service.enqueue(
+                "approvals", channelId, new NoticeMessage("t", null, Severity.INFO, null, "/approvals/3"), "request-3");
 
-        ArgumentCaptor<AlertDeliveryEntity> saved = ArgumentCaptor.forClass(AlertDeliveryEntity.class);
-        verify(deliveries).save(saved.capture());
-        assertThat(saved.getValue().getSource()).isEqualTo("approvals");
-        assertThat(saved.getValue().getKind()).isEqualTo("notice");
-        return saved.getValue().getPayload();
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(jdbc)
+                .update(
+                        contains("INSERT INTO alert_delivery"),
+                        eq("notice"),
+                        eq("approvals"),
+                        eq(channelId),
+                        payload.capture(),
+                        eq("request-3"));
+        return payload.getValue();
     }
 
     @Test
@@ -60,13 +68,18 @@ class OutboundNoticeServiceTest {
                 channels,
                 new StudioProperties(""),
                 JsonMapper.builder().build(),
-                mock(JdbcTemplate.class));
+                jdbc);
         OutboundNotices scoped = (OutboundNotices) service.beansFor("my-plugin").get(OutboundNoticeService.BEAN_NAME);
 
-        scoped.enqueue(channelId, new NoticeMessage("t", null, Severity.INFO, null, null));
+        scoped.enqueue(channelId, new NoticeMessage("t", null, Severity.INFO, null, null), "e-1");
 
-        ArgumentCaptor<AlertDeliveryEntity> saved = ArgumentCaptor.forClass(AlertDeliveryEntity.class);
-        verify(deliveries).save(saved.capture());
-        assertThat(saved.getValue().getSource()).isEqualTo("my-plugin");
+        verify(jdbc)
+                .update(
+                        contains("INSERT INTO alert_delivery"),
+                        eq("notice"),
+                        eq("my-plugin"),
+                        eq(channelId),
+                        any(),
+                        eq("e-1"));
     }
 }
