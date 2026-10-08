@@ -88,6 +88,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,6 +118,8 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
     private static final String PROVIDER = "gate-test-provider";
     private static final String PASSWORD = "correct-horse-battery";
+    private static final PurgeParams ORDERS = new PurgeParams("orders", null);
+    private static final TokenParams CI_TOKEN = new TokenParams("ci");
 
     @LocalServerPort
     int port;
@@ -339,15 +342,14 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         Person alice = requester();
         signIn(alice);
 
-        assertThat(service.purge(new PurgeParams("orders", null))).isEqualTo(1);
+        assertThat(service.purge(ORDERS)).isEqualTo(1);
 
         assertThat(service.purged).containsExactly("orders");
         assertThat(provider.decisions).hasValue(0);
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM held_operation WHERE requester_id = ?", Long.class, alice.id()))
                 .isZero();
-        assertThat(gate.preview(Operation.of(new PurgeParams("orders", null))).outcome())
-                .isEqualTo(GatePreview.Outcome.RUN);
+        assertThat(gate.preview(Operation.of(ORDERS)).outcome()).isEqualTo(GatePreview.Outcome.RUN);
     }
 
     @Test
@@ -403,7 +405,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         Person alice = requester();
         signIn(alice);
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+        assertThatThrownBy(() -> service.purge(ORDERS))
                 .isInstanceOf(OperationDeniedException.class)
                 .hasMessage("Not on Fridays");
 
@@ -420,8 +422,8 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     void aSlowProviderFailsClosed() {
         provider.decide = request -> {
             try {
-                Thread.sleep(10_000);
-            } catch (InterruptedException e) {
+                new CountDownLatch(1).await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
             return new GateDecision.Allow(GateTestKit.POLICY);
@@ -429,8 +431,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         signIn(requester());
         long started = System.nanoTime();
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
-                .isInstanceOf(ApprovalUnavailableException.class);
+        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalUnavailableException.class);
 
         assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(8));
         assertThat(service.purged).isEmpty();
@@ -442,12 +443,11 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         provider.decide = request -> {
             throw new IllegalStateException("policy store down");
         };
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+        assertThatThrownBy(() -> service.purge(ORDERS))
                 .isInstanceOf(ApprovalUnavailableException.class)
                 .hasMessageNotContaining("policy store");
         provider.decide = request -> null;
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
-                .isInstanceOf(ApprovalUnavailableException.class);
+        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalUnavailableException.class);
         assertThat(service.purged).isEmpty();
     }
 
@@ -456,8 +456,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         providers.detach(handle);
         signIn(requester());
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
-                .isInstanceOf(ApprovalUnavailableException.class);
+        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalUnavailableException.class);
 
         assertThat(service.purged).isEmpty();
         assertThat(provider.decisions).hasValue(0);
@@ -467,7 +466,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     void theGateRefusesToRunInsideATransaction() {
         signIn(requester());
 
-        assertThatThrownBy(() -> tx.execute(status -> service.purge(new PurgeParams("orders", null))))
+        assertThatThrownBy(() -> tx.execute(status -> service.purge(ORDERS)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("inside a transaction");
 
@@ -481,13 +480,11 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(approver());
         signIn(alice);
 
-        assertThatThrownBy(() -> ScopedValue.where(GateScope.COVERED, new GateTicket(null, "test.purge", null))
-                        .call(() -> service.purge(new PurgeParams("orders", null))))
-                .isInstanceOf(OperationHeldException.class);
-        assertThatThrownBy(() -> ScopedValue.where(
-                                GateScope.COVERED, new GateTicket(UUID.randomUUID(), "test.purge", "00"))
-                        .call(() -> service.purge(new PurgeParams("orders", null))))
-                .isInstanceOf(OperationHeldException.class);
+        GateTicket unissued = new GateTicket(null, "test.purge", null);
+        GateTicket guessed = new GateTicket(UUID.randomUUID(), "test.purge", "00");
+
+        assertThatThrownBy(() -> purgeCoveredBy(unissued)).isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> purgeCoveredBy(guessed)).isInstanceOf(OperationHeldException.class);
 
         assertThat(service.purged).isEmpty();
         assertThat(provider.decisions).hasValue(2);
@@ -506,9 +503,9 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(service.purged).isEmpty();
         Map<String, Object> row = jdbc.queryForMap("SELECT * FROM held_operation WHERE id = ?", id);
-        assertThat(row.get("state")).isEqualTo("HELD");
-        assertThat(row.get("auth_kind")).isEqualTo("SESSION");
-        assertThat(row.get("provider_id")).isEqualTo(PROVIDER);
+        assertThat(row).containsEntry("state", "HELD");
+        assertThat(row).containsEntry("auth_kind", "SESSION");
+        assertThat(row).containsEntry("provider_id", PROVIDER);
         assertThat(row.get("params").toString()).contains("[redacted]").doesNotContain("s3cret");
         assertThat((byte[]) row.get("sealed_payload")).isNotEmpty();
         assertThat(new String((byte[]) row.get("sealed_payload"))).doesNotContain("s3cret");
@@ -542,7 +539,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                         UsernamePasswordAuthenticationToken.authenticated(token, null, token.getAuthorities()));
         UUID id;
         try {
-            service.purge(new PurgeParams("orders", null));
+            service.purge(ORDERS);
             throw new AssertionError("expected a hold");
         } catch (OperationHeldException e) {
             id = e.heldId();
@@ -576,10 +573,8 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(approver());
         signIn(alice);
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
-                .isInstanceOf(ApprovalReasonRequiredException.class);
-        assertThatThrownBy(() -> ScopedValue.where(GateContext.REASON, "Poison messages since 09:00")
-                        .call(() -> service.purge(new PurgeParams("orders", null))))
+        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalReasonRequiredException.class);
+        assertThatThrownBy(() -> purgeWithReason("Poison messages since 09:00"))
                 .isInstanceOf(OperationHeldException.class);
 
         assertThat(jdbc.queryForObject(
@@ -593,11 +588,10 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(alice);
         signIn(alice);
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+        assertThatThrownBy(() -> service.purge(ORDERS))
                 .isInstanceOf(OperationDeniedException.class)
                 .hasMessage(GateEngine.NO_APPROVER);
-        assertThat(gate.preview(Operation.of(new PurgeParams("orders", null))).outcome())
-                .isEqualTo(GatePreview.Outcome.DENY);
+        assertThat(gate.preview(Operation.of(ORDERS)).outcome()).isEqualTo(GatePreview.Outcome.DENY);
     }
 
     @Test
@@ -608,8 +602,9 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
             hold(alice, "q" + i);
         }
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("one-more", null)))
-                .isInstanceOf(TooManyHeldOperationsException.class);
+        PurgeParams oneMore = new PurgeParams("one-more", null);
+
+        assertThatThrownBy(() -> service.purge(oneMore)).isInstanceOf(TooManyHeldOperationsException.class);
     }
 
     @Test
@@ -618,8 +613,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(approver());
         signIn(requester());
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
-                .isInstanceOf(ApprovalUnavailableException.class);
+        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalUnavailableException.class);
     }
 
     @Test
@@ -628,7 +622,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(approver());
         signIn(requester());
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
+        assertThatThrownBy(() -> service.purge(ORDERS))
                 .isInstanceOfSatisfying(
                         OperationHeldException.class,
                         held -> assertThat(held.expiresAt())
@@ -643,8 +637,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         provider.decide = request -> new GateDecision.Allow(null);
         signIn(requester());
 
-        assertThatThrownBy(() -> service.purge(new PurgeParams("orders", null)))
-                .isInstanceOf(ApprovalUnavailableException.class);
+        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalUnavailableException.class);
 
         assertThat(service.purged).isEmpty();
     }
@@ -655,7 +648,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(approver());
         signIn(alice);
 
-        GatePreview preview = gate.preview(Operation.of(new PurgeParams("orders", null)));
+        GatePreview preview = gate.preview(Operation.of(ORDERS));
 
         assertThat(preview.outcome()).isEqualTo(GatePreview.Outcome.HOLD);
         assertThat(preview.effect().count()).isEqualTo(7);
@@ -732,21 +725,19 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                 new TokenPrincipal(bob.id(), bob.username(), Set.of(), UUID.randomUUID(), "cli", Set.of());
         SecurityContextHolder.getContext()
                 .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(token, null, List.of()));
-        assertThatThrownBy(() ->
-                        approvals.decide(id, Vote.APPROVE, null, detail.view().paramsHash(), detail.version()))
+        String hash = detail.view().paramsHash();
+        int version = detail.version();
+        assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, hash, version))
                 .isInstanceOf(VoteRefusedException.class)
                 .hasMessageContaining("API token");
 
         signIn(bob);
-        assertThatThrownBy(() -> ScopedValue.where(GateContext.ORIGIN, AuthKind.AGENT)
-                        .call(() -> approvals.decide(
-                                id, Vote.APPROVE, null, detail.view().paramsHash(), detail.version())))
+        assertThatThrownBy(() -> decideAsAssistant(id, hash, version))
                 .isInstanceOf(VoteRefusedException.class)
                 .hasMessageContaining("assistant");
 
         doReturn(Optional.empty()).when(sessions).current();
-        assertThatThrownBy(() ->
-                        approvals.decide(id, Vote.APPROVE, null, detail.view().paramsHash(), detail.version()))
+        assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, hash, version))
                 .isInstanceOf(VoteRefusedException.class);
 
         assertThat(stateOf(id)).isEqualTo(HeldState.HELD);
@@ -828,8 +819,9 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
         assertThatThrownBy(() -> approvals.get(id))
                 .isInstanceOf(io.github.sudoitir.artemisstudio.kernel.core.NotFoundException.class);
-        assertThatThrownBy(() ->
-                        approvals.decide(id, Vote.APPROVE, null, shown.view().paramsHash(), shown.version()))
+        String hash = shown.view().paramsHash();
+        int version = shown.version();
+        assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, hash, version))
                 .isInstanceOf(VoteRefusedException.class)
                 .hasMessageContaining(GateTestKit.APPROVER_PERMISSION);
         assertThat(timeline(id)).containsExactly("REQUESTED", "VOTE_REFUSED");
@@ -864,8 +856,8 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, "00".repeat(32), detail.version()))
                 .isInstanceOfSatisfying(
                         VoteRefusedException.class, e -> assertThat(e.slug()).isEqualTo("held-operation-changed"));
-        assertThatThrownBy(() ->
-                        approvals.decide(id, Vote.APPROVE, null, detail.view().paramsHash(), 7))
+        String hash = detail.view().paramsHash();
+        assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, hash, 7))
                 .isInstanceOf(VoteRefusedException.class);
 
         assertThat(stateOf(id)).isEqualTo(HeldState.HELD);
@@ -929,7 +921,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                 try {
                     approvals.decide(id, Vote.APPROVE, null, detail.view().paramsHash(), detail.version());
                     return "won";
-                } catch (ConflictException e) {
+                } catch (ConflictException _) {
                     return "conflict";
                 } finally {
                     SecurityContextHolder.clearContext();
@@ -1205,7 +1197,22 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT sealed_payload FROM held_operation WHERE id = ?", byte[].class, id))
                 .isNull();
         signIn(alice);
-        assertThatThrownBy(() -> service.createToken(new TokenParams("ci"))).isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> service.createToken(CI_TOKEN)).isInstanceOf(OperationHeldException.class);
+    }
+
+    private int purgeCoveredBy(GateTicket ticket) throws Exception {
+        return ScopedValue.where(GateScope.COVERED, ticket).call(() -> service.purge(ORDERS));
+    }
+
+    private int purgeWithReason(String reason) throws Exception {
+        return ScopedValue.where(GateContext.REASON, reason).call(() -> service.purge(ORDERS));
+    }
+
+    private void decideAsAssistant(UUID id, String hash, int version) throws Exception {
+        ScopedValue.where(GateContext.ORIGIN, AuthKind.AGENT).call(() -> {
+            approvals.decide(id, Vote.APPROVE, null, hash, version);
+            return null;
+        });
     }
 
     private UUID holdToken(Person person, String name) {
@@ -1239,8 +1246,8 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
             SecurityContextHolder.setContext(context);
             start.await();
             try {
-                return service.createToken(new TokenParams("ci"));
-            } catch (OperationDeniedException | OperationHeldException e) {
+                return service.createToken(CI_TOKEN);
+            } catch (OperationDeniedException | OperationHeldException _) {
                 return "refused";
             } finally {
                 SecurityContextHolder.clearContext();

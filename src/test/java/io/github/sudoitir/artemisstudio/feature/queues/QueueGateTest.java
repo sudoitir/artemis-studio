@@ -201,8 +201,9 @@ class QueueGateTest extends PostgresIntegrationTest {
 
     @Test
     void aQueueThatIsGoneCannotBeEstimated() {
-        assertThatThrownBy(() -> queueDeleteOperation.estimate(new QueueDeleteParams(clusterId, "gone", false, false)))
-                .isInstanceOf(NotFoundException.class);
+        QueueDeleteParams params = new QueueDeleteParams(clusterId, "gone", false, false);
+
+        assertThatThrownBy(() -> queueDeleteOperation.estimate(params)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -222,7 +223,9 @@ class QueueGateTest extends PostgresIntegrationTest {
                 .when(ops)
                 .deleteAddress(any(), anyString(), anyString());
 
-        assertThatThrownBy(() -> addressDeleteOperation.replay(new AddressDeleteParams(clusterId, "orders.addr")))
+        AddressDeleteParams params = new AddressDeleteParams(clusterId, "orders.addr");
+
+        assertThatThrownBy(() -> addressDeleteOperation.replay(params))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed on");
     }

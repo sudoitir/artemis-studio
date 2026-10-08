@@ -224,8 +224,10 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
         Record thing = (Record) params.getDeclaredConstructors()[0].newInstance("a");
         Object other = engine.beansFor("someone-else").get(GateEngine.PLUGIN_BEAN_NAME);
 
-        assertThatThrownBy(() -> ((io.github.sudoitir.artemisstudio.kernel.gate.OperationGate) other)
-                        .run(Operation.of(thing), () -> "ran"))
+        var otherGate = (io.github.sudoitir.artemisstudio.kernel.gate.OperationGate) other;
+        Operation operation = Operation.of(thing);
+
+        assertThatThrownBy(() -> otherGate.run(operation, () -> "ran"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(pluginId + ":thing");
     }

@@ -86,9 +86,10 @@ class MessageGatedOperationsTest {
         when(messages.purge(eq(CLUSTER), eq("orders"), any(), eq(false), eq(false)))
                 .thenReturn(new Attempt.Failed<>(BrokerConnectionException.Kind.UNREACHABLE, "down"));
 
-        assertThatThrownBy(() -> operations
-                        .queuePurgeOperation(messages, clusters)
-                        .replay(new QueuePurgeParams(CLUSTER, "orders", null, false)))
+        var operation = operations.queuePurgeOperation(messages, clusters);
+        QueuePurgeParams params = new QueuePurgeParams(CLUSTER, "orders", null, false);
+
+        assertThatThrownBy(() -> operation.replay(params))
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessageContaining("down");
     }

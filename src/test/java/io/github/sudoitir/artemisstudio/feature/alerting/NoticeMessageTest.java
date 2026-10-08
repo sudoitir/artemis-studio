@@ -31,9 +31,11 @@ class NoticeMessageTest {
 
     @Test
     void theLimitsAreEnforced() {
+        String longBody = "x".repeat(2001);
+        String longValue = "v".repeat(501);
         assertThatThrownBy(() -> new NoticeMessage(" ", null, Severity.INFO, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new NoticeMessage("t", "x".repeat(2001), Severity.INFO, null, null))
+        assertThatThrownBy(() -> new NoticeMessage("t", longBody, Severity.INFO, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new NoticeMessage("t", null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -41,6 +43,6 @@ class NoticeMessageTest {
                 IntStream.range(0, 11).mapToObj(i -> new Fact("l" + i, "v")).toList();
         assertThatThrownBy(() -> new NoticeMessage("t", null, Severity.INFO, tooMany, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Fact("l", "v".repeat(501))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Fact("l", longValue)).isInstanceOf(IllegalArgumentException.class);
     }
 }

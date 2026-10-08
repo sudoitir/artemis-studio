@@ -83,7 +83,8 @@ class NoticeTest {
 
         assertThat(service.json(Map.of("a", "b"))).isEqualTo("{\"a\":\"b\"}");
         assertThat(service.json(Map.of())).isNull();
-        assertThatThrownBy(() -> service.json(Map.of("a", "x".repeat(Notice.MAX_DATA_BYTES))))
+        Map<String, String> tooBig = Map.of("a", "x".repeat(Notice.MAX_DATA_BYTES));
+        assertThatThrownBy(() -> service.json(tooBig))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("data");
     }

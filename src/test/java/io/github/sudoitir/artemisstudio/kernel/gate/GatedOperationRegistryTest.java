@@ -66,7 +66,9 @@ class GatedOperationRegistryTest {
         }
 
         @Override
-        public void replay(P params) {}
+        public void replay(P params) {
+            // the registry never replays; only its lookups are under test
+        }
     }
 
     private static GatedOperationRegistry registry(GatedOperation<?>... studio) {
@@ -112,33 +114,38 @@ class GatedOperationRegistryTest {
     void aPluginTypeOutsideItsNamespaceFailsTheAttach() throws Exception {
         var registry = registry();
 
-        assertThatThrownBy(() -> registry.attach(plugin("acme-notes", new Op<>("queue.purge", Purge.class))))
+        PluginHandle studioType = plugin("acme-notes", new Op<>("queue.purge", Purge.class));
+        PluginHandle otherNamespace = plugin("acme-notes", new Op<>("other-plugin:x", Purge.class));
+
+        assertThatThrownBy(() -> registry.attach(studioType))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("acme-notes:");
-        assertThatThrownBy(() -> registry.attach(plugin("acme-notes", new Op<>("other-plugin:x", Purge.class))))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> registry.attach(otherNamespace)).isInstanceOf(IllegalStateException.class);
         assertThat(registry.all()).isEmpty();
     }
 
     @Test
     void aStudioTypeWithAColonIsRefusedAtBoot() {
-        assertThatThrownBy(() -> registry(new Op<>("acme-notes:rename", Rename.class)))
-                .isInstanceOf(IllegalStateException.class);
+        Op<Rename> namespaced = new Op<>("acme-notes:rename", Rename.class);
+
+        assertThatThrownBy(() -> registry(namespaced)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void aDuplicateTypeOrParametersFailsTheAttachAndChangesNothing() throws Exception {
         var registry = registry(new Op<>("queue.purge", Purge.class));
 
-        assertThatThrownBy(() -> registry.attach(plugin(
-                        "acme-notes", new Op<>("acme-notes:a", Rename.class), new Op<>("acme-notes:b", Purge.class))))
+        PluginHandle sharesParameters =
+                plugin("acme-notes", new Op<>("acme-notes:a", Rename.class), new Op<>("acme-notes:b", Purge.class));
+
+        assertThatThrownBy(() -> registry.attach(sharesParameters))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("share the parameters");
         assertThat(registry.all()).hasSize(1);
 
         registry.attach(plugin("acme-notes", new Op<>("acme-notes:a", Rename.class)));
-        assertThatThrownBy(() -> registry.attach(plugin("acme-other", new Op<>("acme-other:a", Rename.class))))
-                .isInstanceOf(IllegalStateException.class);
+        PluginHandle duplicateType = plugin("acme-other", new Op<>("acme-other:a", Rename.class));
+        assertThatThrownBy(() -> registry.attach(duplicateType)).isInstanceOf(IllegalStateException.class);
         assertThat(registry.all()).hasSize(2);
     }
 

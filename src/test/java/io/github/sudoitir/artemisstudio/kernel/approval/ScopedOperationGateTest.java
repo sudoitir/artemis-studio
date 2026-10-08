@@ -22,7 +22,7 @@ class ScopedOperationGateTest {
 
     @SuppressWarnings("unchecked")
     private void registered(String type) {
-        GatedOperation<Params> operation = mock(GatedOperation.class);
+        GatedOperation operation = mock(GatedOperation.class);
         when(operation.type()).thenReturn(type);
         when(registry.forParams(Params.class)).thenReturn(Optional.of(operation));
     }
@@ -31,12 +31,12 @@ class ScopedOperationGateTest {
     void aStudioTypeIsRefusedAndNeverReachesTheEngine() {
         registered("queue.purge");
         OperationGate gate = new ScopedOperationGate(engine, registry, "acme");
+        Operation operation = Operation.of(new Params("a"));
 
-        assertThatThrownBy(() -> gate.run(Operation.of(new Params("a")), () -> "ran"))
+        assertThatThrownBy(() -> gate.run(operation, () -> "ran"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("queue.purge");
-        assertThatThrownBy(() -> gate.preview(Operation.of(new Params("a"))))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gate.preview(operation)).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(engine);
     }
 
@@ -44,9 +44,9 @@ class ScopedOperationGateTest {
     void anotherPluginsTypeIsRefused() {
         registered("other:thing");
         OperationGate gate = new ScopedOperationGate(engine, registry, "acme");
+        Operation operation = Operation.of(new Params("a"));
 
-        assertThatThrownBy(() -> gate.run(Operation.of(new Params("a")), () -> "ran"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gate.run(operation, () -> "ran")).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(engine);
     }
 

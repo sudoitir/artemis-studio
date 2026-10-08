@@ -151,9 +151,10 @@ class TransferGateTest extends PostgresIntegrationTest {
     @Test
     void aHeldTransferStartsNothingAndKeepsItsPreviewUntilTheHoldEnds() {
         holds();
+        UUID runId = run.getId();
+        TransferExecuteRequest request = request();
 
-        assertThatThrownBy(() -> transfers.execute(source, run.getId(), request()))
-                .isInstanceOf(OperationHeldException.class);
+        assertThatThrownBy(() -> transfers.execute(source, runId, request)).isInstanceOf(OperationHeldException.class);
 
         assertThat(runs.findById(run.getId()).orElseThrow().getState()).isEqualTo(TransferState.PREVIEWED);
         verify(runner, never()).start(any(), any());
@@ -178,9 +179,10 @@ class TransferGateTest extends PostgresIntegrationTest {
 
     @Test
     void aTransferThatIsNotTheOnePreviewedIsRefusedBeforeItIsGated() {
-        assertThatThrownBy(() -> transfers.execute(
-                        source, run.getId(), new TransferExecuteRequest("not-the-plan", false, null, "orders.dlq")))
-                .isInstanceOf(ConflictException.class);
+        UUID runId = run.getId();
+        TransferExecuteRequest request = new TransferExecuteRequest("not-the-plan", false, null, "orders.dlq");
+
+        assertThatThrownBy(() -> transfers.execute(source, runId, request)).isInstanceOf(ConflictException.class);
 
         verify(gate, never()).run(any(), any());
     }

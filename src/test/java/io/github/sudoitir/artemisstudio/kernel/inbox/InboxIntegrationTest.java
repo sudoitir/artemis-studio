@@ -302,9 +302,11 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
             assertThatThrownBy(() -> insertRaw(alice, "t", link, null))
                     .isInstanceOf(DataIntegrityViolationException.class);
         }
-        assertThatThrownBy(() -> insertRaw(alice, "t".repeat(201), null, null))
+        String longTitle = "t".repeat(201);
+        String longData = "{\"a\":\"" + "x".repeat(4100) + "\"}";
+        assertThatThrownBy(() -> insertRaw(alice, longTitle, null, null))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> insertRaw(alice, "t", null, "{\"a\":\"" + "x".repeat(4100) + "\"}"))
+        assertThatThrownBy(() -> insertRaw(alice, "t", null, longData))
                 .isInstanceOf(DataIntegrityViolationException.class);
         insertRaw(alice, "t", "/approvals/1", "{\"a\":\"b\"}");
     }
@@ -321,11 +323,11 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void severityIsCheckedByTheTable() {
-        Person alice = newUser();
+        UUID aliceId = newUser().id();
         assertThatThrownBy(() -> jdbc.update(
                         "INSERT INTO inbox_item (recipient_id, source, kind, severity, title, created_at)"
                                 + " VALUES (?, 's', 'k', 'fatal', 't', now())",
-                        alice.id()))
+                        aliceId))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -336,7 +338,9 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
             many.add(UUID.randomUUID());
         }
 
-        assertThatThrownBy(() -> inbox.post("approval", notice("t", null), many))
+        var notice = notice("t", null);
+
+        assertThatThrownBy(() -> inbox.post("approval", notice, many))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("500");
     }
@@ -449,8 +453,10 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
             s.setRollbackOnly();
         });
 
-        Thread.sleep(500);
-        assertThat(lines).doesNotContain("event:inbox");
+        await("no inbox event")
+                .during(Duration.ofMillis(500))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(lines).doesNotContain("event:inbox"));
     }
 
     @Test
@@ -483,7 +489,8 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void userSignalsRefuseAKindThatIsNoUserKind(@Autowired UserSignals signals) {
-        assertThatThrownBy(() -> signals.signal("session-ended", UUID.randomUUID()))
-                .isInstanceOf(IllegalArgumentException.class);
+        UUID user = UUID.randomUUID();
+
+        assertThatThrownBy(() -> signals.signal("session-ended", user)).isInstanceOf(IllegalArgumentException.class);
     }
 }

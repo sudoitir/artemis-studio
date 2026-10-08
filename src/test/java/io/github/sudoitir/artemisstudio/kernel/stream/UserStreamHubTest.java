@@ -91,6 +91,11 @@ class UserStreamHubTest {
 
     @Test
     void aMalformedKeyIsIgnored() {
+        UUID user = UUID.randomUUID();
+        hub.register(user, subscriber(mock(SseEmitter.class), "live"));
+
         hub.onSignal(new ReplicaSignal(UserSignals.HELD, "not-a-uuid"));
+
+        assertThat(hub.streamCount(user)).isEqualTo(1);
     }
 }
