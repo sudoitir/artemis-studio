@@ -93,7 +93,7 @@ public class UserStreamHub {
         UUID userId;
         try {
             userId = UUID.fromString(signal.key());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             log.warn("Ignored a '{}' signal with the key '{}'", signal.kind(), signal.key());
             return;
         }
