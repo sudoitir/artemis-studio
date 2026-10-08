@@ -32,6 +32,7 @@ public class PagerDutySender implements NotificationSender {
     public static final String DEFAULT_URL = "https://events.pagerduty.com/v2/enqueue";
 
     private static final int SUMMARY_MAX = 1024;
+    private static final String SUMMARY = "summary";
 
     private final RestClient restClient;
     private final ObjectMapper mapper;
@@ -125,12 +126,12 @@ public class PagerDutySender implements NotificationSender {
     static Map<String, Object> noticeEvent(String routingKey, long deliveryId, NoticePayload n) {
         String summary = AlertMessageFormatter.singleLine(n.title());
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("summary", summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
+        payload.put(SUMMARY, summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
         payload.put("source", n.source() != null ? n.source() : "artemis-studio");
         payload.put("severity", "info");
         Map<String, Object> details = new LinkedHashMap<>();
         if (n.summary() != null) {
-            details.put("summary", n.summary());
+            details.put(SUMMARY, n.summary());
         }
         n.facts().forEach(f -> details.put(f.label(), f.value()));
         payload.put("custom_details", details);
@@ -152,7 +153,7 @@ public class PagerDutySender implements NotificationSender {
                 + AlertMessageFormatter.severityWord(m.severity()) + "] " + m.ruleName() + " — " + line.label()
                 + (m.clusterName() != null ? " (" + m.clusterName() + ")" : ""));
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("summary", summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
+        payload.put(SUMMARY, summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
         payload.put("source", m.clusterName() != null ? m.clusterName() : "artemis-studio");
         payload.put("severity", severity(m.severity()));
         if (line.at() != null) {

@@ -26,7 +26,7 @@ public record NoticeMessage(String title, String summary, Severity severity, Lis
     public static final int MAX_VALUE = 500;
 
     private static final int MAX_URL = 500;
-    private static final Pattern URL = Pattern.compile("/[A-Za-z0-9][^\\\\\\p{Cntrl}]*");
+    private static final Pattern URL_PATTERN = Pattern.compile("/[A-Za-z0-9][^\\\\\\p{Cntrl}]*");
 
     /** How loudly a receiver shows a notice. */
     public enum Severity {
@@ -63,7 +63,7 @@ public record NoticeMessage(String title, String summary, Severity severity, Lis
         if (facts.size() > MAX_FACTS) {
             throw new IllegalArgumentException("A notice has at most " + MAX_FACTS + " facts.");
         }
-        if (url != null && (url.length() > MAX_URL || !URL.matcher(url).matches() || url.contains("//"))) {
+        if (url != null && (url.length() > MAX_URL || !URL_PATTERN.matcher(url).matches() || url.contains("//"))) {
             throw new IllegalArgumentException(
                     "A notice's url must be a path inside Studio, such as /approvals/3, up to " + MAX_URL
                             + " characters.");
