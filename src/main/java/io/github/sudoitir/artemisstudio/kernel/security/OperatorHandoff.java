@@ -75,13 +75,17 @@ public class OperatorHandoff {
         StudioPrincipal principal = operator.principal();
         context.setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
-        ScopedValue.Carrier onBehalf = ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor());
+        Runnable body = new DelegatingSecurityContextRunnable(task, context);
         GateLease lease = operator.covered();
         boolean owner = lease != null && lease.enter();
         try {
-            ScopedValue.Carrier carrier =
-                    lease != null && !lease.released() ? onBehalf.where(GateScope.COVERED, lease.ticket()) : onBehalf;
-            carrier.run(new DelegatingSecurityContextRunnable(task, context));
+            if (lease != null && !lease.released()) {
+                ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor())
+                        .where(GateScope.COVERED, lease.ticket())
+                        .run(body);
+            } else {
+                ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor()).run(body);
+            }
         } finally {
             if (owner) {
                 lease.release();
