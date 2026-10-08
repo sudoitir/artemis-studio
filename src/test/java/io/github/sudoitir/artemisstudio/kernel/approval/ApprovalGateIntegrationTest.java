@@ -774,6 +774,23 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void theDetailSaysWhetherTheViewersSessionVerifiedASecondFactor() {
+        Person alice = requester();
+        Person bob = approver();
+        approversAre(bob);
+        UUID id = hold(alice, "orders");
+        signIn(bob);
+
+        assertThat(approvals.get(id).mfaVerified()).isFalse();
+
+        Instant now = Instant.now();
+        doReturn(Optional.of(new SessionFacts(now, now, SessionFacts.Method.TOTP, now, "127.0.0.1", "test")))
+                .when(sessions)
+                .current();
+        assertThat(approvals.get(id).mfaVerified()).isTrue();
+    }
+
+    @Test
     void anAccountCreatedAfterTheRequestMayNotDecideIt() {
         Person alice = requester();
         approversAre(approver());

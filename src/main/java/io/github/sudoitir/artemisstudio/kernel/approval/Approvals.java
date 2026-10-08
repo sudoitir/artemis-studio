@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.HeldState;
 import io.github.sudoitir.artemisstudio.kernel.gate.Vote;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.kernel.security.SessionAuthentication;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +40,7 @@ public class Approvals {
     private final Decisions decisions;
     private final Executions executions;
     private final BreakGlass breakGlass;
+    private final SessionAuthentication sessions;
 
     Approvals(
             HeldStore store,
@@ -47,7 +49,8 @@ public class Approvals {
             PermissionResolver permissions,
             Decisions decisions,
             Executions executions,
-            BreakGlass breakGlass) {
+            BreakGlass breakGlass,
+            SessionAuthentication sessions) {
         this.store = store;
         this.rules = rules;
         this.providers = providers;
@@ -55,6 +58,7 @@ public class Approvals {
         this.decisions = decisions;
         this.executions = executions;
         this.breakGlass = breakGlass;
+        this.sessions = sessions;
     }
 
     /** Which requests a listing shows. */
@@ -71,6 +75,7 @@ public class Approvals {
      * @param version what a decision must echo, with {@code view.paramsHash()}
      * @param link the request's page in the console
      * @param decideRefusal why the current user may not decide it, or null when they may
+     * @param mfaVerified whether the current user's session verified a second factor, which a policy may need
      * @param requesterLacksPermission whether its requester could no longer run it; null when unknown or ended
      */
     public record Detail(
@@ -84,6 +89,7 @@ public class Approvals {
             boolean canDecide,
             String decideRefusal,
             boolean canCancel,
+            boolean mfaVerified,
             Boolean requesterLacksPermission) {}
 
     /** A page of requests, newest first, and the id to pass as {@code before} for the next; null at the end. */
@@ -175,6 +181,7 @@ public class Approvals {
                 refusal == null,
                 refusal,
                 mine && (row.state() == HeldState.HELD || row.state() == HeldState.APPROVED),
+                sessions.current().map(facts -> facts.mfaVerifiedAt() != null).orElse(false),
                 executions.requesterLacksPermission(row).orElse(null));
     }
 

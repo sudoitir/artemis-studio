@@ -181,6 +181,11 @@ public final class HeldOperationViews {
             @Schema(requiredMode = REQUIRED) boolean canCancel,
 
             @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether the current user's session verified a second factor; a policy may need it.")
+            boolean mfaVerified,
+
+            @Schema(
                     nullable = true,
                     description = "Whether the requester could no longer run it; null when unknown or ended.")
             Boolean requesterLacksPermission) {
@@ -211,6 +216,7 @@ public final class HeldOperationViews {
                     detail.canDecide(),
                     detail.decideRefusal(),
                     detail.canCancel(),
+                    detail.mfaVerified(),
                     detail.requesterLacksPermission());
         }
     }
