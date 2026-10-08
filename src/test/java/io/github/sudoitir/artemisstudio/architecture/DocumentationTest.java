@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.architecture;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,12 +29,14 @@ class DocumentationTest {
                 .writeModulesAsPlantUml()
                 .writeIndividualModulesAsPlantUml()
                 .writeModuleCanvases();
-        try (Stream<Path> diagrams = Files.list(OUTPUT)) {
-            for (Path diagram :
-                    diagrams.filter(p -> p.toString().endsWith(".puml")).toList()) {
-                Files.write(diagram, sortRelations(Files.readAllLines(diagram)));
-            }
+        List<Path> diagrams;
+        try (Stream<Path> files = Files.list(OUTPUT)) {
+            diagrams = files.filter(p -> p.toString().endsWith(".puml")).toList();
         }
+        for (Path diagram : diagrams) {
+            Files.write(diagram, sortRelations(Files.readAllLines(diagram)));
+        }
+        assertThat(diagrams).isNotEmpty();
     }
 
     /**
