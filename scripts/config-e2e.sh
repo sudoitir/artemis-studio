@@ -408,7 +408,7 @@ body=$(xml_import "/clusters/$CLUSTER/config/import-xml" "$bigfile")
 if py "any('KiB' in json.dumps(v) for v in d.get('errors', []))" <<<"$body" | grep -q True; then
   pass "P-7 an oversized import is refused by the size cap"
 else
-  fail "P-7 a $(wc -c <"$bigfile")-byte import was accepted — no size cap"
+  fail "P-7 a $(($(wc -c <"$bigfile")))-byte import was accepted — no size cap"
 fi
 rm -f "$bigfile"
 

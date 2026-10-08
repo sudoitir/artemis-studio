@@ -192,7 +192,7 @@ post "masking rule" /governance/rules \
   "{\"addressPattern\":\"qa.long-pattern.$(repeat 'segment.' 28)*\",\"target\":\"PROPERTY\",\"selector\":\"$(repeat 'nationalIdentifier' 14)\",\"dataClass\":\"NATIONAL_ID\",\"action\":\"REDACT\",\"enabled\":true}" optional
 post "masking rule" /governance/rules \
   '{"addressPattern":"PAYMENTS.*","target":"BODY_PATH","selector":"$.card.number","dataClass":"PAN","action":"PARTIAL","enabled":true}' optional
-expires=$(date -u -d '+7 days' +%Y-%m-%dT%H:%M:%SZ)
+expires=$(python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
 for n in 1 2 3; do
   post "API token $n" /tokens \
     "{\"name\":\"qa-token-$n-$(repeat 'integration-token-' 8)\",\"expiresAt\":\"$expires\",\"grants\":[{\"action\":\"cluster:read\",\"scopeType\":\"GLOBAL\"}]}" optional

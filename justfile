@@ -86,10 +86,8 @@ setup:
 # Full dev stack: Postgres + a real Artemis primary/backup pair + Studio, built locally.
 [group('develop')]
 dev-up:
-    {{compose_dev}} up --build -d
+    {{compose_dev}} up --build -d --wait --wait-timeout 180
     @echo "→ http://localhost:8080   (Artemis console: http://localhost:8161)"
-    @echo "→ waiting for Studio to be ready…"
-    @timeout 90 bash -c 'until {{compose_dev}} logs studio 2>/dev/null | grep -q "Started ArtemisStudioApplication\|Created administrator"; do sleep 2; done' || true
     @{{compose_dev}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
         || echo "→ admin account already exists (reset with 'just dev-down' then 'just dev-up')"
 
@@ -99,9 +97,7 @@ dev-up:
 # the admin's authenticator app (its role requires one) and prints ADMIN_TOTP_SECRET, which later runs need.
 [group('develop')]
 demo:
-    {{compose_demo}} up --build -d
-    @echo "→ waiting for all six brokers…"
-    @timeout 180 bash -c 'until {{compose_demo}} ps --format json | grep -c healthy | grep -qv "^[0-5]$"; do sleep 3; done' || true
+    {{compose_demo}} up --build -d --wait --wait-timeout 300
     COMPOSE="{{compose_demo}}" ./scripts/demo-seed.sh
 
 # Capture the README screenshots against whatever is running on :8080.

@@ -117,6 +117,9 @@ one is missing.
 - **Read before you write.** Open the token file and the nearest existing screen
   before adding UI. Grep for an existing helper before writing one.
 - **Smallest correct change.** No drive-by refactors. Fix the thing, file the rest.
+- **Portable shell.** Scripts and recipes run on bash 3.2 (macOS) and Linux bash, with BSD and GNU tools:
+  no `mapfile`, `${v,,}`, `declare -A`, `timeout`, `sed -i` without a suffix, `grep -P` or `date -d`.
+  `scripts/lib/signin.sh` also sources cleanly from zsh, so it avoids `path`, `status` and `options`.
 - **Don't fake the receipt.** If you didn't run it, say so. If a test fails, show the
   output. A confident wrong answer costs more than an honest "let me check".
 
