@@ -26,6 +26,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class PluginOperations {
 
+    private static final String LABEL_PLUGIN = "Plugin";
+    private static final String LABEL_STATUS = "Status";
+    private static final String UNIT_PLUGIN = "plugin";
+
     record ActivateUpload(String sha256, boolean acknowledge) {}
 
     record EnablePlugin(String id, boolean acknowledge) {}
@@ -81,14 +85,14 @@ class PluginOperations {
             @Override
             public List<DisplayRow> display(ActivateUpload p) {
                 return List.of(
-                        DisplayRow.of("Plugin", pluginOf(p)),
+                        DisplayRow.of(LABEL_PLUGIN, pluginOf(p)),
                         DisplayRow.of("Upload (sha256)", p.sha256()),
                         DisplayRow.of("Current version", versionOf(pluginOf(p))));
             }
 
             @Override
             public Effect estimate(ActivateUpload p) {
-                return new Effect(1, "plugin", stateKey(pluginOf(p), shaOf(pluginOf(p)), p.sha256()), null);
+                return new Effect(1, UNIT_PLUGIN, stateKey(pluginOf(p), shaOf(pluginOf(p)), p.sha256()), null);
             }
 
             @Override
@@ -113,12 +117,13 @@ class PluginOperations {
 
             @Override
             public List<DisplayRow> display(EnablePlugin p) {
-                return List.of(DisplayRow.of("Plugin", p.id()), new DisplayRow("Status", statusOf(p.id()), "enabled"));
+                return List.of(
+                        DisplayRow.of(LABEL_PLUGIN, p.id()), new DisplayRow(LABEL_STATUS, statusOf(p.id()), "enabled"));
             }
 
             @Override
             public Effect estimate(EnablePlugin p) {
-                return new Effect(1, "plugin", stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), null);
+                return new Effect(1, UNIT_PLUGIN, stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), null);
             }
 
             @Override
@@ -143,12 +148,13 @@ class PluginOperations {
 
             @Override
             public List<DisplayRow> display(RollbackPlugin p) {
-                return List.of(DisplayRow.of("Plugin", p.id()), DisplayRow.of("Current version", versionOf(p.id())));
+                return List.of(
+                        DisplayRow.of(LABEL_PLUGIN, p.id()), DisplayRow.of("Current version", versionOf(p.id())));
             }
 
             @Override
             public Effect estimate(RollbackPlugin p) {
-                return new Effect(1, "plugin", stateKey(p.id(), shaOf(p.id())), null);
+                return new Effect(1, UNIT_PLUGIN, stateKey(p.id(), shaOf(p.id())), null);
             }
 
             @Override
@@ -174,14 +180,14 @@ class PluginOperations {
             @Override
             public List<DisplayRow> display(DisablePlugin p) {
                 return List.of(
-                        DisplayRow.of("Plugin", p.id()),
-                        new DisplayRow("Status", statusOf(p.id()), "disabled"),
+                        DisplayRow.of(LABEL_PLUGIN, p.id()),
+                        new DisplayRow(LABEL_STATUS, statusOf(p.id()), "disabled"),
                         DisplayRow.of("Also its dependents", String.valueOf(p.cascade())));
             }
 
             @Override
             public Effect estimate(DisablePlugin p) {
-                return new Effect(1, "plugin", stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), null);
+                return new Effect(1, UNIT_PLUGIN, stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), null);
             }
 
             @Override
@@ -207,13 +213,13 @@ class PluginOperations {
             @Override
             public List<DisplayRow> display(UninstallPlugin p) {
                 return List.of(
-                        DisplayRow.of("Plugin", p.id()),
+                        DisplayRow.of(LABEL_PLUGIN, p.id()),
                         DisplayRow.of("Also its dependents", String.valueOf(p.cascade())));
             }
 
             @Override
             public Effect estimate(UninstallPlugin p) {
-                return new Effect(1, "plugin", stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), null);
+                return new Effect(1, UNIT_PLUGIN, stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), null);
             }
 
             @Override
@@ -242,13 +248,16 @@ class PluginOperations {
 
             @Override
             public List<DisplayRow> display(PurgePlugin p) {
-                return List.of(DisplayRow.of("Plugin", p.id()), DisplayRow.of("Status", statusOf(p.id())));
+                return List.of(DisplayRow.of(LABEL_PLUGIN, p.id()), DisplayRow.of(LABEL_STATUS, statusOf(p.id())));
             }
 
             @Override
             public Effect estimate(PurgePlugin p) {
                 return new Effect(
-                        1, "plugin", stateKey(p.id(), shaOf(p.id()), statusOf(p.id())), "Drops the plugin's schema.");
+                        1,
+                        UNIT_PLUGIN,
+                        stateKey(p.id(), shaOf(p.id()), statusOf(p.id())),
+                        "Drops the plugin's schema.");
             }
 
             @Override
@@ -274,7 +283,7 @@ class PluginOperations {
             @Override
             public List<DisplayRow> display(PutLicense p) {
                 return List.of(
-                        DisplayRow.of("Plugin", p.id()),
+                        DisplayRow.of(LABEL_PLUGIN, p.id()),
                         DisplayRow.of("License file (sha256)", p.sha256()),
                         DisplayRow.of("Size", p.size() + " bytes"));
             }
@@ -301,7 +310,7 @@ class PluginOperations {
 
             @Override
             public List<DisplayRow> display(DeleteLicense p) {
-                return List.of(DisplayRow.of("Plugin", p.id()));
+                return List.of(DisplayRow.of(LABEL_PLUGIN, p.id()));
             }
 
             @Override
