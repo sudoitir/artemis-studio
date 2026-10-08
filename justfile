@@ -149,8 +149,7 @@ qa-up name port demo="":
     (umask 077; printf 'ADMIN_PASSWORD=%s\nADMIN_TOTP_SECRET=%s\nQA_USER_PASSWORD=%s\n' \
         "$ADMIN_PASSWORD" "${ADMIN_TOTP_SECRET:-}" "$QA_USER_PASSWORD" > "$creds")
     # Sessions created after this last for the sweep: 24 hours idle, 72 hours absolute (ADR-0145).
-    api PUT /settings/security.session.idle-timeout -d '{"value":"PT24H"}' -f -o /dev/null
-    api PUT /settings/security.session.absolute-lifetime -d '{"value":"PT72H"}' -f -o /dev/null
+    api POST /settings/changes -f -o /dev/null -d '{"changes":[{"key":"security.session.idle-timeout","value":"PT24H"},{"key":"security.session.absolute-lifetime","value":"PT72H"}]}'
     export ADMIN_PASSWORD ADMIN_TOTP_SECRET QA_USER_PASSWORD
     if [ -n "{{demo}}" ]; then TRAFFIC_MINUTES=${TRAFFIC_MINUTES:-3} ./scripts/demo-seed.sh; fi
     ./scripts/qa-seed.sh
