@@ -364,16 +364,30 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void resolveReadsAndRetitlesWhatWasPostedUnderTheKey() {
+    void resolveReadsRetitlesAndCalmsWhatWasPostedUnderTheKey() {
         Person alice = newUser();
         Person bob = newUser();
-        inbox.post("approval", notice("Needs a decision", "req-9"), List.of(alice.id(), bob.id()));
+        inbox.post(
+                "approval",
+                new Notice(
+                        "approval",
+                        Severity.WARNING,
+                        "Needs a decision",
+                        "body",
+                        "/approvals/1",
+                        "req-9",
+                        Map.of(),
+                        null),
+                List.of(alice.id(), bob.id()));
 
         assertThat(inbox.resolve("approval", "req-9", "Approved by carol")).isEqualTo(2);
         assertThat(inbox.resolve("approval", "req-9", "Approved by carol")).isZero();
 
         assertThat(jdbc.queryForObject("SELECT title FROM inbox_item WHERE recipient_id = ?", String.class, bob.id()))
                 .isEqualTo("Approved by carol");
+        assertThat(jdbc.queryForObject(
+                        "SELECT severity FROM inbox_item WHERE recipient_id = ?", String.class, bob.id()))
+                .isEqualTo("info");
         assertThat(inbox.count(bob.id()).unread()).isZero();
     }
 

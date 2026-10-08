@@ -33,7 +33,8 @@ public interface Inbox {
 
     /**
      * Marks as read, and retitles to {@code newTitle}, every unread notice of this source with
-     * {@code dedupeKey}, for every recipient: the work they announced is done.
+     * {@code dedupeKey}, for every recipient: the work they announced is done. Their severity becomes
+     * {@link Notice.Severity#INFO}, since nothing is left to act on.
      *
      * @return how many notices changed
      */
