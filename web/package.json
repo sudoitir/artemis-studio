@@ -48,7 +48,7 @@
     "@tabler/icons-react": "3.48.0",
     "@tanstack/react-query": "5.104.1",
     "@tanstack/react-router": "1.170.41",
-    "@tanstack/react-table": "9.2.4",
+    "@tanstack/react-table": "9.2.6",
     "@tanstack/react-virtual": "3.14.13",
     "@xyflow/react": "12.12.0",
     "codemirror": "6.0.2",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
     "@eslint/js": "10.0.1",
-    "@module-federation/vite": "1.23.1",
+    "@module-federation/vite": "1.23.2",
     "@playwright/test": "1.63.0",
     "@tanstack/router-plugin": "1.168.42",
     "@testing-library/jest-dom": "7.0.1",
