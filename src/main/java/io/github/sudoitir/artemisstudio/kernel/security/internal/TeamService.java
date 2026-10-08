@@ -534,7 +534,7 @@ public class TeamService {
         requireCluster(request.clusterId());
         requireTeamRole(request.roleId());
         return gate.run(
-                Operation.of(new TeamOperations.AddShare(
+                Operation.of(new TeamShareOperations.AddShare(
                         ownerTeamId,
                         request.targetTeamId(),
                         request.clusterId(),
@@ -598,7 +598,7 @@ public class TeamService {
         requireTeam(ownerTeamId);
         requireShare(ownerTeamId, shareId);
         gate.run(
-                Operation.of(new TeamOperations.RemoveShare(ownerTeamId, shareId)),
+                Operation.of(new TeamShareOperations.RemoveShare(ownerTeamId, shareId)),
                 GatedWrites.inTxVoid(tx, () -> removeShareNow(ownerTeamId, shareId)));
     }
 

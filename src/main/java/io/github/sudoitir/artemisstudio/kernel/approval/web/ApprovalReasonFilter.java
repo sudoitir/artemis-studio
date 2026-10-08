@@ -30,7 +30,7 @@ public class ApprovalReasonFilter extends OncePerRequestFilter {
         String reason;
         try {
             reason = URLDecoder.decode(header, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             reason = header;
         }
         try {

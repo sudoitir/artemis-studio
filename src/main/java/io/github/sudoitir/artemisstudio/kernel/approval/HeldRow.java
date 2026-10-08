@@ -13,6 +13,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,6 +56,22 @@ record HeldRow(
         Instant finishedAt,
         long requestAuditId,
         int version) {
+
+    /** A row is the same row at the same version; the sealed bytes are neither compared nor printed. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof HeldRow that && id.equals(that.id) && version == that.version;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, version);
+    }
+
+    @Override
+    public String toString() {
+        return "HeldRow[id=" + id + ", type=" + type + ", state=" + state + ", version=" + version + "]";
+    }
 
     String paramsHashHex() {
         return HexFormat.of().formatHex(paramsHash);

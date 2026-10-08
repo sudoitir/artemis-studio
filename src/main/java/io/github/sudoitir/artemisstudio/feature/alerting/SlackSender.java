@@ -25,6 +25,8 @@ import tools.jackson.databind.ObjectMapper;
 @Slf4j
 public class SlackSender implements NotificationSender {
 
+    private static final String SECTION = "section";
+
     private final RestClient restClient;
     private final ObjectMapper mapper;
 
@@ -82,12 +84,12 @@ public class SlackSender implements NotificationSender {
         if (m.clusterName() != null) {
             fields.add(mrkdwn("*Cluster*\n" + escape(m.clusterName())));
         }
-        blocks.add(Map.of("type", "section", "fields", fields));
+        blocks.add(Map.of("type", SECTION, "fields", fields));
         StringBuilder lines = new StringBuilder();
         for (AlertMessage.Line t : m.transitions()) {
             lines.append("• ").append(escape(AlertMessageFormatter.line(t))).append('\n');
         }
-        blocks.add(Map.of("type", "section", "text", mrkdwn(truncate(lines.toString(), 2900))));
+        blocks.add(Map.of("type", SECTION, "text", mrkdwn(truncate(lines.toString(), 2900))));
         if (m.studioUrl() != null) {
             blocks.add(Map.of(
                     "type",
@@ -106,14 +108,14 @@ public class SlackSender implements NotificationSender {
         List<Map<String, Object>> blocks = new ArrayList<>();
         blocks.add(Map.of("type", "header", "text", plain(truncate(NoticeFormatter.headline(n), 150))));
         if (n.summary() != null && !n.summary().isBlank()) {
-            blocks.add(Map.of("type", "section", "text", mrkdwn(truncate(escape(n.summary()), 2900))));
+            blocks.add(Map.of("type", SECTION, "text", mrkdwn(truncate(escape(n.summary()), 2900))));
         }
         if (!n.facts().isEmpty()) {
             List<Map<String, Object>> fields = new ArrayList<>();
             for (NoticeMessage.Fact f : n.facts()) {
                 fields.add(mrkdwn("*" + escape(f.label()) + "*\n" + escape(f.value())));
             }
-            blocks.add(Map.of("type", "section", "fields", fields));
+            blocks.add(Map.of("type", SECTION, "fields", fields));
         }
         if (n.url() != null) {
             blocks.add(Map.of(

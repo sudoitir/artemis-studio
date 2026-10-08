@@ -82,13 +82,14 @@ public final class McpErrors {
         } catch (BulkCapExceededException e) {
             return error("This would affect " + e.affectedCount() + " messages, over the safety cap of " + e.cap()
                     + ". Re-run with override=true to proceed, or narrow the filter to stay under the cap.");
-        } catch (ConflictException e) {
-            return error(e.getMessage());
         } catch (OperationHeldException e) {
             // Not a failure: the operation waits for a second person, and the agent must not retry it.
             return error("Held for approval: " + e.summary() + " (request " + e.heldId()
                     + "). A second person must approve it in Studio: /approvals/" + e.heldId());
-        } catch (OperationDeniedException | ApprovalUnavailableException | ApprovalReasonRequiredException e) {
+        } catch (ConflictException
+                | OperationDeniedException
+                | ApprovalUnavailableException
+                | ApprovalReasonRequiredException e) {
             return error(e.getMessage());
         } catch (BrokerConnectionException e) {
             return error("The broker could not be reached: " + e.kind().defaultMessage()

@@ -74,6 +74,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
     static final int MAX_REASON = 500;
     static final String NO_APPROVER = "No other user may approve this.";
 
+    private static final String PARAMS_HASH = "paramsHash";
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final GatedOperationRegistry operations;
@@ -162,8 +163,8 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         GateDecision decision =
                 calls.call("decide", () -> provider.provider().decide(built.request(GateRequest.Mode.SUBMIT)));
         return switch (decision) {
-            case GateDecision.Allow allow -> covered(type, approval(provider.pluginId(), allow.policy()), action);
-            case GateDecision.Deny deny -> throw deny(type, built, deny.reason());
+            case GateDecision.Allow(var policy) -> covered(type, approval(provider.pluginId(), policy), action);
+            case GateDecision.Deny(var reason) -> throw deny(type, built, reason);
             case GateDecision.Hold hold -> throw hold(built, provider, hold);
         };
     }
@@ -189,10 +190,10 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         GateDecision decision =
                 calls.call("decide", () -> provider.provider().decide(built.request(GateRequest.Mode.PREVIEW)));
         return switch (decision) {
-            case GateDecision.Allow allow ->
-                new GatePreview(GatePreview.Outcome.RUN, allow.policy(), false, built.effect(), null);
-            case GateDecision.Deny deny ->
-                new GatePreview(GatePreview.Outcome.DENY, null, false, built.effect(), deny.reason());
+            case GateDecision.Allow(var policy) ->
+                new GatePreview(GatePreview.Outcome.RUN, policy, false, built.effect(), null);
+            case GateDecision.Deny(var reason) ->
+                new GatePreview(GatePreview.Outcome.DENY, null, false, built.effect(), reason);
             case GateDecision.Hold hold ->
                 rules.eligible(
                                         requester.userId(),
@@ -265,7 +266,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                 summary,
                 clusterId,
                 null,
-                Map.of("type", type.type(), "paramsHash", hash, "breakGlass", breakGlass.reason()),
+                Map.of("type", type.type(), PARAMS_HASH, hash, "breakGlass", breakGlass.reason()),
                 false);
         audit.succeed(event, 1);
         log.warn("approval-gate bypassed type={} reason=\"break-glass\"", type.type());
@@ -284,7 +285,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
     record Built(
             GatedOperation<Record> type,
             String canonical,
-            byte[] hash,
+            String hashHex,
             String redacted,
             Set<Trait> traits,
             OperationScope scope,
@@ -294,8 +295,8 @@ class GateEngine implements OperationGate, PluginScopedBeans {
             Requester requester,
             String reason) {
 
-        String hashHex() {
-            return HexFormat.of().formatHex(hash);
+        byte[] hash() {
+            return HexFormat.of().parseHex(hashHex);
         }
 
         GateRequest request(GateRequest.Mode mode) {
@@ -309,7 +310,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                     summary,
                     display,
                     redacted,
-                    hashHex(),
+                    hashHex,
                     effect,
                     requester,
                     reason);
@@ -336,7 +337,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         return new Built(
                 type,
                 canonical,
-                hash,
+                HexFormat.of().formatHex(hash),
                 redact(canonical, type.redactedPaths()),
                 Set.copyOf(type.traits(params)),
                 scope == null ? OperationScope.GLOBAL : scope,
@@ -358,7 +359,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         }
         Duration maxHold = bounds.maxHold();
         Duration ttl = hold.ttl().compareTo(maxHold) > 0 ? maxHold : hold.ttl();
-        if (ttl != hold.ttl()) {
+        if (!ttl.equals(hold.ttl())) {
             log.info(
                     "approval-gate provider={} asked to hold for {}, held for {}, Studio's maximum",
                     provider.pluginId(),
@@ -406,7 +407,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         auditParams.put("type", type);
         auditParams.put("provider", provider.pluginId());
         auditParams.put("policy", policyLabel(hold.policy()));
-        auditParams.put("paramsHash", built.hashHex());
+        auditParams.put(PARAMS_HASH, built.hashHex());
         if (built.reason() != null) {
             auditParams.put("reason", built.reason());
         }
@@ -483,7 +484,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("type", type.type());
         if (built != null) {
-            params.put("paramsHash", built.hashHex());
+            params.put(PARAMS_HASH, built.hashHex());
         }
         audit.refused(
                 actors.resolve(),
@@ -533,7 +534,12 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         }
         UUID tokenId = principal instanceof TokenPrincipal token ? token.tokenId() : null;
         boolean agent = GateContext.ORIGIN.isBound() && GateContext.ORIGIN.get() == AuthKind.AGENT;
-        AuthKind kind = agent ? AuthKind.AGENT : tokenId != null ? AuthKind.TOKEN : AuthKind.SESSION;
+        AuthKind kind = AuthKind.SESSION;
+        if (agent) {
+            kind = AuthKind.AGENT;
+        } else if (tokenId != null) {
+            kind = AuthKind.TOKEN;
+        }
         return Optional.of(new Requester(principal.userId(), principal.getUsername(), kind, tokenId));
     }
 

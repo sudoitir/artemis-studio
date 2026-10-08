@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.stereotype.Component;
@@ -35,7 +36,7 @@ public class GatedOperationRegistry implements PluginBridge, SmartInitializingSi
     private final ObjectProvider<GatedOperation<?>> studioBeans;
     private final Map<String, Attached> attached = new HashMap<>();
     private List<GatedOperation<?>> studioOperations;
-    private volatile Index index;
+    private final AtomicReference<Index> index = new AtomicReference<>();
 
     public GatedOperationRegistry(ObjectProvider<GatedOperation<?>> studioOperations) {
         this.studioBeans = studioOperations;
@@ -61,15 +62,15 @@ public class GatedOperationRegistry implements PluginBridge, SmartInitializingSi
     }
 
     private Index index() {
-        Index current = index;
+        Index current = index.get();
         if (current != null) {
             return current;
         }
         synchronized (this) {
-            if (index == null) {
-                index = indexOf(studio(), attached);
+            if (index.get() == null) {
+                index.set(indexOf(studio(), attached));
             }
-            return index;
+            return index.get();
         }
     }
 
@@ -105,7 +106,7 @@ public class GatedOperationRegistry implements PluginBridge, SmartInitializingSi
         }
         Map<String, Attached> next = new HashMap<>(attached);
         next.put(handle.id(), new Attached(handle, operations));
-        index = indexOf(studio(), next);
+        index.set(indexOf(studio(), next));
         attached.put(handle.id(), next.get(handle.id()));
     }
 
@@ -114,7 +115,7 @@ public class GatedOperationRegistry implements PluginBridge, SmartInitializingSi
         Attached current = attached.get(handle.id());
         if (current != null && current.handle() == handle) {
             attached.remove(handle.id());
-            index = indexOf(studio(), attached);
+            index.set(indexOf(studio(), attached));
         }
     }
 

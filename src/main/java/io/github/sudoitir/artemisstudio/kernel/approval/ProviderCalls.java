@@ -38,7 +38,7 @@ class ProviderCalls {
                 throw new ApprovalUnavailableException("The approval provider gave no answer to " + what + ".");
             }
             return answer;
-        } catch (TimeoutException e) {
+        } catch (TimeoutException _) {
             future.cancel(true);
             log.warn("approval-provider call={} outcome=timeout after={}", what, timeout);
             throw new ApprovalUnavailableException(
@@ -46,7 +46,7 @@ class ProviderCalls {
         } catch (ExecutionException e) {
             log.warn("approval-provider call={} outcome=error", what, e.getCause());
             throw new ApprovalUnavailableException("The approval provider failed to answer; nothing was run.");
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             future.cancel(true);
             throw new ApprovalUnavailableException("Interrupted while waiting for the approval provider.");

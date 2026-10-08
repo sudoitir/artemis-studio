@@ -66,66 +66,72 @@ public final class CanonicalJson {
 
     private static void append(JsonNode node, String path, StringBuilder out) {
         if (node.isObject()) {
-            List<Map.Entry<String, JsonNode>> members = new ArrayList<>();
-            for (Map.Entry<String, JsonNode> member : node.properties()) {
-                if (!member.getValue().isNull()) {
-                    members.add(Map.entry(nfc(member.getKey(), path), member.getValue()));
-                }
-            }
-            members.sort(Map.Entry.comparingByKey());
-            out.append('{');
-            for (int i = 0; i < members.size(); i++) {
-                Map.Entry<String, JsonNode> member = members.get(i);
-                if (i > 0) {
-                    if (member.getKey().equals(members.get(i - 1).getKey())) {
-                        throw new IllegalArgumentException(path + "/" + member.getKey() + ": duplicate key after NFC");
-                    }
-                    out.append(',');
-                }
-                string(member.getKey(), out);
-                out.append(':');
-                append(member.getValue(), path + "/" + member.getKey(), out);
-            }
-            out.append('}');
+            appendObject(node, path, out);
         } else if (node.isArray()) {
-            out.append('[');
-            int i = 0;
-            for (JsonNode item : node.values()) {
-                if (item.isNull()) {
-                    throw new IllegalArgumentException(path + "/" + i + ": null is not allowed in an array");
-                }
-                if (i > 0) {
-                    out.append(',');
-                }
-                append(item, path + "/" + i, out);
-                i++;
-            }
-            out.append(']');
+            appendArray(node, path, out);
         } else if (node.isString()) {
             string(nfc(node.stringValue(), path), out);
         } else if (node.isIntegralNumber()) {
             out.append(node.bigIntegerValue());
         } else if (node.isNumber()) {
-            throw new IllegalArgumentException((path.isEmpty() ? "/" : path)
-                    + ": floating-point numbers are not allowed; use an integer or a string");
+            throw new IllegalArgumentException(
+                    shown(path) + ": floating-point numbers are not allowed; use an integer or a string");
         } else if (node.isBoolean()) {
             out.append(node.booleanValue());
         } else {
-            throw new IllegalArgumentException(
-                    (path.isEmpty() ? "/" : path) + ": " + node.getNodeType() + " has no canonical form");
+            throw new IllegalArgumentException(shown(path) + ": " + node.getNodeType() + " has no canonical form");
         }
     }
 
-    private static String nfc(String value, String path) {
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            if (Character.isHighSurrogate(c)
-                    && i + 1 < value.length()
-                    && Character.isLowSurrogate(value.charAt(i + 1))) {
-                i++;
-            } else if (Character.isSurrogate(c)) {
-                throw new IllegalArgumentException((path.isEmpty() ? "/" : path) + ": unpaired surrogate");
+    private static void appendObject(JsonNode node, String path, StringBuilder out) {
+        List<Map.Entry<String, JsonNode>> members = new ArrayList<>();
+        for (Map.Entry<String, JsonNode> member : node.properties()) {
+            if (!member.getValue().isNull()) {
+                members.add(Map.entry(nfc(member.getKey(), path), member.getValue()));
             }
+        }
+        members.sort(Map.Entry.comparingByKey());
+        out.append('{');
+        for (int i = 0; i < members.size(); i++) {
+            Map.Entry<String, JsonNode> member = members.get(i);
+            if (i > 0) {
+                if (member.getKey().equals(members.get(i - 1).getKey())) {
+                    throw new IllegalArgumentException(path + "/" + member.getKey() + ": duplicate key after NFC");
+                }
+                out.append(',');
+            }
+            string(member.getKey(), out);
+            out.append(':');
+            append(member.getValue(), path + "/" + member.getKey(), out);
+        }
+        out.append('}');
+    }
+
+    private static void appendArray(JsonNode node, String path, StringBuilder out) {
+        out.append('[');
+        int i = 0;
+        for (JsonNode item : node.values()) {
+            if (item.isNull()) {
+                throw new IllegalArgumentException(path + "/" + i + ": null is not allowed in an array");
+            }
+            if (i > 0) {
+                out.append(',');
+            }
+            append(item, path + "/" + i, out);
+            i++;
+        }
+        out.append(']');
+    }
+
+    /** The JSON Pointer to show for an error; the document root is {@code /}. */
+    private static String shown(String path) {
+        return path.isEmpty() ? "/" : path;
+    }
+
+    private static String nfc(String value, String path) {
+        // code points: a surrogate pair is one supplementary code point, so only an unpaired surrogate is left
+        if (value.codePoints().anyMatch(cp -> cp >= Character.MIN_SURROGATE && cp <= Character.MAX_SURROGATE)) {
+            throw new IllegalArgumentException(shown(path) + ": unpaired surrogate");
         }
         return Normalizer.normalize(value, Normalizer.Form.NFC);
     }

@@ -54,6 +54,7 @@ import org.springframework.stereotype.Service;
 public class PluginAdministration {
 
     private static final String UPLOAD = "upload";
+    private static final String AUDIT_TARGET = "plugin";
 
     private final PluginHost host;
     private final PluginInstallers installers;
@@ -425,7 +426,7 @@ public class PluginAdministration {
             stepUp.run();
             more.run();
         } catch (RuntimeException e) {
-            AuditEvent event = audit.begin(actors.resolve(), action, "plugin", target, null, null, params, false);
+            AuditEvent event = audit.begin(actors.resolve(), action, AUDIT_TARGET, target, null, null, params, false);
             audit.fail(event, e.getMessage());
             throw e;
         }
@@ -483,7 +484,7 @@ public class PluginAdministration {
     /** Audits a synchronous action: the row is committed before it runs and finished with its outcome. */
     private <T> T audited(String action, String target, Map<String, ?> params, Supplier<T> work) {
         Actor actor = actors.resolve();
-        AuditEvent event = audit.begin(actor, action, "plugin", target, null, null, params, false);
+        AuditEvent event = audit.begin(actor, action, AUDIT_TARGET, target, null, null, params, false);
         try {
             T result = work.get();
             audit.succeed(event, 1);
@@ -497,7 +498,7 @@ public class PluginAdministration {
     /** Audits an activation, whose outcome the host reports later, from its own thread. */
     private ActivationPlan activation(
             String action, String pluginId, Map<String, ?> params, Supplier<ActivationPlan> start) {
-        AuditEvent event = audit.begin(actors.resolve(), action, "plugin", pluginId, null, null, params, false);
+        AuditEvent event = audit.begin(actors.resolve(), action, AUDIT_TARGET, pluginId, null, null, params, false);
         trail.activationBegan(pluginId, event);
         try {
             return start.get();

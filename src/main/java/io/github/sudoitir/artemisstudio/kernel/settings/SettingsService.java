@@ -35,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -395,6 +396,22 @@ public class SettingsService {
         if (changes == null || changes.isEmpty()) {
             throw new IllegalArgumentException("A change set needs at least one setting.");
         }
+        Map<String, SettingChange> byKey = authorizedByKey(changes);
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (SettingChange change : byKey.values()) {
+            SettingDef spec = requireKnown(change.key());
+            if (!change.isReset()) {
+                validationError(spec, change).ifPresent(message -> errors.put(change.key(), message));
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new SettingsInvalidException(errors);
+        }
+        return new SettingsChangeSet(new ArrayList<>(byKey.values()));
+    }
+
+    /** The changes keyed and sorted by setting, each value unquoted and its write permission checked. */
+    private Map<String, SettingChange> authorizedByKey(List<SettingChange> changes) {
         Map<String, SettingChange> byKey = new TreeMap<>();
         for (SettingChange change : changes) {
             if (!permissions.can(writePermission(change.key()))) {
@@ -407,26 +424,21 @@ public class SettingsService {
                 throw new IllegalArgumentException("The setting " + change.key() + " appears twice in the change set.");
             }
         }
-        Map<String, String> errors = new LinkedHashMap<>();
-        for (SettingChange change : byKey.values()) {
-            SettingDef spec = requireKnown(change.key());
-            if (change.isReset()) {
-                continue;
-            }
-            try {
-                validate(spec, change.value());
-            } catch (NumberFormatException e) {
-                errors.put(change.key(), change.key() + " must be a whole number");
-            } catch (DateTimeException e) {
-                errors.put(change.key(), change.key() + " must be a duration such as 30s, 15m, 12h or 7d");
-            } catch (IllegalArgumentException e) {
-                errors.put(change.key(), e.getMessage());
-            }
+        return byKey;
+    }
+
+    /** What is wrong with one change's value, in operator words, or empty when it is valid. */
+    private Optional<String> validationError(SettingDef spec, SettingChange change) {
+        try {
+            validate(spec, change.value());
+            return Optional.empty();
+        } catch (NumberFormatException _) {
+            return Optional.of(change.key() + " must be a whole number");
+        } catch (DateTimeException _) {
+            return Optional.of(change.key() + " must be a duration such as 30s, 15m, 12h or 7d");
+        } catch (IllegalArgumentException e) {
+            return Optional.of(e.getMessage());
         }
-        if (!errors.isEmpty()) {
-            throw new SettingsInvalidException(errors);
-        }
-        return new SettingsChangeSet(new ArrayList<>(byKey.values()));
     }
 
     /**

@@ -261,7 +261,7 @@ class Executions {
         Record params;
         try {
             params = JSON.readValue(payload.canonical(), type.paramsType());
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             throw new Refusal("Its parameters no longer read as this operation's; request it again.");
         }
         String rehash =
@@ -273,7 +273,7 @@ class Executions {
         Effect now;
         try {
             now = operator == null ? type.estimate(params) : handoff.callAs(operator, () -> type.estimate(params));
-        } catch (AccessDeniedException e) {
+        } catch (AccessDeniedException _) {
             throw new Refusal("The requester no longer holds the permission this needs.");
         } catch (RuntimeException e) {
             log.warn("approval-run id={} estimate failed", row.id(), e);
@@ -341,7 +341,7 @@ class Executions {
         GatedOperation<Record> type;
         try {
             type = typeOf(row);
-        } catch (Refusal e) {
+        } catch (Refusal _) {
             return Optional.empty();
         }
         try {
@@ -349,9 +349,9 @@ class Executions {
             Record params = JSON.readValue(seals.openPayload(row).canonical(), type.paramsType());
             handoff.callAs(operator, () -> type.estimate(params));
             return Optional.of(false);
-        } catch (Refusal | AccessDeniedException e) {
+        } catch (Refusal | AccessDeniedException _) {
             return Optional.of(true);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return Optional.empty();
         }
     }

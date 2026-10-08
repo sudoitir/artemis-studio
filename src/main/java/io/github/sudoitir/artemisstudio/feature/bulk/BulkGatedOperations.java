@@ -81,9 +81,11 @@ class BulkGatedOperations {
             @Override
             public Effect estimate(BulkExecuteParams p) {
                 Reach reach = bulk.reach(p.clusterId(), p.runId());
-                String detail = reach.operation().destructive()
-                        ? "About " + reach.messages() + " messages" + (reach.complete() ? "." : ", some unknown.")
-                        : null;
+                String detail = null;
+                if (reach.operation().destructive()) {
+                    String ending = reach.complete() ? "." : ", some unknown.";
+                    detail = "About " + reach.messages() + " messages" + ending;
+                }
                 return new Effect(reach.queues(), "queues", reach.planHash(), detail);
             }
 

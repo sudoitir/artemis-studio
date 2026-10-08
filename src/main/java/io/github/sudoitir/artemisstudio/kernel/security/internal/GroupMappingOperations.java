@@ -22,6 +22,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class GroupMappingOperations {
 
+    private static final String LABEL_PROVIDER = "Identity provider";
+
     record CreateMapping(String providerId, String groupName, UUID roleId, String scopeType, UUID scopeId) {}
 
     record DeleteMapping(String providerId, UUID mappingId) {}
@@ -61,7 +63,7 @@ class GroupMappingOperations {
             @Override
             public List<DisplayRow> display(CreateMapping p) {
                 return List.of(
-                        DisplayRow.of("Identity provider", p.providerId()),
+                        DisplayRow.of(LABEL_PROVIDER, p.providerId()),
                         DisplayRow.of("Group", p.groupName()),
                         DisplayRow.of("Role", role(p.roleId())),
                         DisplayRow.of("Scope", p.scopeType()));
@@ -102,7 +104,7 @@ class GroupMappingOperations {
             public List<DisplayRow> display(DeleteMapping p) {
                 GroupMappingEntity mapping = mapping(p);
                 return List.of(
-                        DisplayRow.of("Identity provider", p.providerId()),
+                        DisplayRow.of(LABEL_PROVIDER, p.providerId()),
                         DisplayRow.of("Group", mapping.getGroupName()),
                         new DisplayRow("Role", role(mapping.getRoleId()), null));
             }
@@ -144,7 +146,7 @@ class GroupMappingOperations {
             public List<DisplayRow> display(SetDefaultRole p) {
                 UUID now = currentDefault(p.providerId());
                 return List.of(
-                        DisplayRow.of("Identity provider", p.providerId()),
+                        DisplayRow.of(LABEL_PROVIDER, p.providerId()),
                         new DisplayRow(
                                 "Default role",
                                 now == null ? null : role(now),

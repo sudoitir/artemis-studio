@@ -25,6 +25,8 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class TeamsSender implements NotificationSender {
 
+    private static final String TEXT_BLOCK = "TextBlock";
+
     /** Statuses retrying cannot fix: a malformed card, a revoked or deleted flow. */
     private static final Set<Integer> PERMANENT = Set.of(400, 401, 403, 404, 410);
 
@@ -80,7 +82,7 @@ public class TeamsSender implements NotificationSender {
         List<Object> bodyItems = new ArrayList<>();
         bodyItems.add(Map.of(
                 "type",
-                "TextBlock",
+                TEXT_BLOCK,
                 "text",
                 AlertMessageFormatter.title(m),
                 "weight",
@@ -104,7 +106,7 @@ public class TeamsSender implements NotificationSender {
         }
         bodyItems.add(Map.of("type", "FactSet", "facts", facts));
         for (AlertMessage.Line t : m.transitions()) {
-            bodyItems.add(Map.of("type", "TextBlock", "text", "• " + AlertMessageFormatter.line(t), "wrap", true));
+            bodyItems.add(Map.of("type", TEXT_BLOCK, "text", "• " + AlertMessageFormatter.line(t), "wrap", true));
         }
         return envelope(bodyItems, m.studioUrl());
     }
@@ -130,7 +132,7 @@ public class TeamsSender implements NotificationSender {
         List<Object> bodyItems = new ArrayList<>();
         bodyItems.add(Map.of(
                 "type",
-                "TextBlock",
+                TEXT_BLOCK,
                 "text",
                 NoticeFormatter.headline(n),
                 "weight",
@@ -146,7 +148,7 @@ public class TeamsSender implements NotificationSender {
                     default -> "Default";
                 }));
         if (n.summary() != null && !n.summary().isBlank()) {
-            bodyItems.add(Map.of("type", "TextBlock", "text", n.summary(), "wrap", true));
+            bodyItems.add(Map.of("type", TEXT_BLOCK, "text", n.summary(), "wrap", true));
         }
         if (!n.facts().isEmpty()) {
             List<Map<String, Object>> facts = new ArrayList<>();

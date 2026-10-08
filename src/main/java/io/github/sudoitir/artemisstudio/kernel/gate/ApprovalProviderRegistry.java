@@ -30,11 +30,12 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ApprovalProviderRegistry implements PluginBridge {
 
-    private static final String ARMED_WHERE = " FROM plugin_install WHERE approval_provider AND status IN ("
-            + PluginInstallStatus.desiredActiveDbValues().stream()
-                    .map(status -> "'" + status + "'")
-                    .collect(Collectors.joining(", "))
-            + ") ORDER BY id LIMIT 1";
+    /** The statuses a plugin is meant to run in, as the text of a PostgreSQL array. */
+    private static final String DESIRED_ACTIVE =
+            PluginInstallStatus.desiredActiveDbValues().stream().collect(Collectors.joining(",", "{", "}"));
+
+    private static final String ARMED_WHERE =
+            " FROM plugin_install WHERE approval_provider AND status = ANY (?::text[]) ORDER BY id LIMIT 1";
 
     private static final String ARMED_SQL = "SELECT id" + ARMED_WHERE;
 
@@ -53,7 +54,8 @@ public class ApprovalProviderRegistry implements PluginBridge {
 
     /** The plugin id of the approval provider that is meant to be running, whether or not it is. */
     public Optional<String> armedProviderId() {
-        return jdbc.queryForList(ARMED_SQL, String.class).stream().findFirst();
+        return jdbc.queryForList(ARMED_SQL, String.class, DESIRED_ACTIVE).stream()
+                .findFirst();
     }
 
     /**
@@ -61,7 +63,7 @@ public class ApprovalProviderRegistry implements PluginBridge {
      * whether or not the plugin is running here; empty when no provider is armed.
      */
     public Optional<String> armedApproverPermission() {
-        return jdbc.queryForList(ARMED_PERMISSION_SQL, String.class).stream()
+        return jdbc.queryForList(ARMED_PERMISSION_SQL, String.class, DESIRED_ACTIVE).stream()
                 .filter(java.util.Objects::nonNull)
                 .findFirst();
     }

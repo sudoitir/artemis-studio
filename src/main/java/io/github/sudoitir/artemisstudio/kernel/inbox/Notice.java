@@ -37,8 +37,8 @@ public record Notice(
 
     private static final int MAX_LINK = 500;
     private static final int MAX_DEDUPE_KEY = 200;
-    private static final Pattern KIND = Pattern.compile("[a-z0-9][a-z0-9.-]{0,63}");
-    private static final Pattern LINK = Pattern.compile("/[A-Za-z0-9][^\\\\\\p{Cntrl}]*");
+    private static final Pattern KIND_PATTERN = Pattern.compile("[a-z0-9][a-z0-9.-]{0,63}");
+    private static final Pattern LINK_PATTERN = Pattern.compile("/[A-Za-z0-9][^\\\\\\p{Cntrl}]*");
 
     /** How loudly the console shows a notice. */
     public enum Severity {
@@ -54,7 +54,7 @@ public record Notice(
     }
 
     public Notice {
-        if (kind == null || !KIND.matcher(kind).matches()) {
+        if (kind == null || !KIND_PATTERN.matcher(kind).matches()) {
             throw new IllegalArgumentException(
                     "A notice's kind must be lower-case letters, digits, dots and dashes, up to 64 characters.");
         }
@@ -67,17 +67,26 @@ public record Notice(
         if (body != null && body.length() > MAX_BODY) {
             throw new IllegalArgumentException("A notice's body is longer than " + MAX_BODY + " characters.");
         }
-        if (link != null && (link.length() > MAX_LINK || !LINK.matcher(link).matches() || link.contains("//"))) {
+        if (!validLink(link)) {
             throw new IllegalArgumentException(
                     "A notice's link must be a path inside Studio, such as /approvals/3, up to " + MAX_LINK
                             + " characters.");
         }
-        if (dedupeKey != null && (dedupeKey.isEmpty() || dedupeKey.length() > MAX_DEDUPE_KEY)) {
+        if (!validDedupeKey(dedupeKey)) {
             throw new IllegalArgumentException("A notice's dedupe key must be 1 to " + MAX_DEDUPE_KEY + " characters.");
         }
         if (ttl != null && (ttl.isNegative() || ttl.isZero())) {
             throw new IllegalArgumentException("A notice's ttl must be positive.");
         }
         data = data == null ? null : Map.copyOf(data);
+    }
+
+    private static boolean validLink(String link) {
+        return link == null
+                || link.length() <= MAX_LINK && LINK_PATTERN.matcher(link).matches() && !link.contains("//");
+    }
+
+    private static boolean validDedupeKey(String dedupeKey) {
+        return dedupeKey == null || !dedupeKey.isEmpty() && dedupeKey.length() <= MAX_DEDUPE_KEY;
     }
 }

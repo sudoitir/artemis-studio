@@ -47,6 +47,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Slf4j
 class Decisions {
 
+    private static final String SESSION_REQUIRED = "session-required";
+    private static final String HELD_OPERATION_PARAM = "heldOperation";
+    private static final String HELD_OPERATION_TARGET = "HELD_OPERATION";
+
     private final HeldStore store;
     private final Seals seals;
     private final ApproverRules rules;
@@ -100,59 +104,8 @@ class Decisions {
         StudioPrincipal me = principal();
         HeldRow row = store.get(id).orElseThrow(() -> new NotFoundException("Held operation", id));
         String why = reason == null || reason.isBlank() ? null : reason.strip();
-        if (me instanceof TokenPrincipal) {
-            throw refuse(
-                    row,
-                    me,
-                    vote,
-                    HttpStatus.FORBIDDEN,
-                    "session-required",
-                    "Only a person signed in to the console may decide a request; an API token cannot.");
-        }
-        if (GateContext.ORIGIN.isBound() && GateContext.ORIGIN.get() == AuthKind.AGENT) {
-            throw refuse(
-                    row, me, vote, HttpStatus.FORBIDDEN, "session-required", "An assistant may not decide a request.");
-        }
-        Optional<SessionFacts> facts = sessions.current();
-        if (facts.isEmpty()) {
-            throw refuse(
-                    row,
-                    me,
-                    vote,
-                    HttpStatus.FORBIDDEN,
-                    "session-required",
-                    "Only a person signed in to the console may decide a request.");
-        }
-        Instant authenticatedAt = facts.get().authenticatedAt();
-        if (authenticatedAt == null
-                || authenticatedAt.isBefore(Instant.now().minus(SessionAuthentication.REAUTHENTICATION_WINDOW))) {
-            record(row, me, vote, "Sign-in not fresh; confirmation asked.");
-            throw new ReauthenticationRequiredException();
-        }
-        if (row.state() != HeldState.HELD || !row.expiresAt().isAfter(store.now())) {
-            throw new ConflictException("held-operation-closed", closedMessage(row));
-        }
-        if (paramsHash == null || !paramsHash.equalsIgnoreCase(row.paramsHashHex()) || version != row.version()) {
-            throw refuse(
-                    row,
-                    me,
-                    vote,
-                    HttpStatus.CONFLICT,
-                    "held-operation-changed",
-                    "This request is not the one you were shown. Reload it and decide again.");
-        }
-        if (why != null && why.length() > GateEngine.MAX_REASON) {
-            throw new IllegalArgumentException("A reason is at most " + GateEngine.MAX_REASON + " characters.");
-        }
-        if (vote == Vote.REJECT && why == null) {
-            throw refuse(
-                    row,
-                    me,
-                    vote,
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    "decision-reason-required",
-                    "Say why you reject it; the requester sees your reason.");
-        }
+        SessionFacts session = requireFreshSession(row, me, vote);
+        requireShownRequest(row, me, vote, paramsHash, version, why);
         AttachedProvider provider = providers
                 .armedProviderId()
                 .filter(row.providerId()::equals)
@@ -160,38 +113,13 @@ class Decisions {
                 .orElseThrow(() -> new ApprovalUnavailableException(
                         "The approval provider that held this request is not running here, so it cannot be decided"
                                 + " now."));
-        ApproverRules.Subject subject =
-                new ApproverRules.Subject(row.requesterId(), row.requestedAt(), row.clusterId());
-        Optional<String> refusal =
-                rules.refusal(me.userId(), me.getUsername(), subject, provider.approverPermission(), vote);
-        if (refusal.isPresent()) {
-            throw refuse(row, me, vote, HttpStatus.FORBIDDEN, "vote-refused", refusal.get());
-        }
-        SessionFacts session = facts.get();
-        Approver approver = new Approver(
-                me.userId(),
-                me.getUsername(),
-                session.authenticatedAt(),
-                session.mfaVerifiedAt(),
-                session.mfaMethod() == null ? null : session.mfaMethod().name().toLowerCase(Locale.ROOT));
-        VoteCheck check = calls.call("checkVote", () -> provider.provider().checkVote(row.view(), approver, vote));
-        if (!check.allowed()) {
-            throw refuse(
-                    row,
-                    me,
-                    vote,
-                    HttpStatus.FORBIDDEN,
-                    "vote-refused",
-                    check.reason() == null
-                            ? "The approval policy does not let you decide this request."
-                            : check.reason());
-        }
+        requireVotePermitted(row, me, vote, session, provider);
         HeldState to = vote == Vote.APPROVE ? HeldState.APPROVED : HeldState.REJECTED;
         Instant decidedAt = store.now();
         byte[] sealed = seals.sealDecision(
                 row.id(), row.paramsHashHex(), new Seals.Decision(me.userId(), vote, decidedAt.toString()));
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("heldOperation", row.id().toString());
+        params.put(HELD_OPERATION_PARAM, row.id().toString());
         params.put("type", row.type());
         if (why != null) {
             params.put("reason", why);
@@ -200,7 +128,7 @@ class Decisions {
                 .call(() -> audit.begin(
                         actors.resolve(),
                         vote == Vote.APPROVE ? "OPERATION_APPROVED" : "OPERATION_REJECTED",
-                        "HELD_OPERATION",
+                        HELD_OPERATION_TARGET,
                         row.summary(),
                         row.clusterId(),
                         null,
@@ -212,12 +140,8 @@ class Decisions {
                 Optional<HeldRow> updated = store.decide(
                         row.id(),
                         version,
-                        to,
-                        me.userId(),
-                        me.getUsername(),
+                        new HeldStore.Verdict(to, me.userId(), me.getUsername(), decidedAt, why),
                         sealed,
-                        decidedAt,
-                        why,
                         bounds.runWindow());
                 updated.ifPresent(d -> {
                     store.event(d.id(), Executions.kindOf(to), me.userId(), me.getUsername(), why);
@@ -243,6 +167,97 @@ class Decisions {
         return decided.get();
     }
 
+    /** Only a person in a browser session decides, and only while their sign-in is fresh. */
+    private SessionFacts requireFreshSession(HeldRow row, StudioPrincipal me, Vote vote) {
+        if (me instanceof TokenPrincipal) {
+            throw refuse(
+                    row,
+                    me,
+                    vote,
+                    HttpStatus.FORBIDDEN,
+                    SESSION_REQUIRED,
+                    "Only a person signed in to the console may decide a request; an API token cannot.");
+        }
+        if (GateContext.ORIGIN.isBound() && GateContext.ORIGIN.get() == AuthKind.AGENT) {
+            throw refuse(
+                    row, me, vote, HttpStatus.FORBIDDEN, SESSION_REQUIRED, "An assistant may not decide a request.");
+        }
+        SessionFacts facts = sessions.current()
+                .orElseThrow(() -> refuse(
+                        row,
+                        me,
+                        vote,
+                        HttpStatus.FORBIDDEN,
+                        SESSION_REQUIRED,
+                        "Only a person signed in to the console may decide a request."));
+        Instant authenticatedAt = facts.authenticatedAt();
+        if (authenticatedAt == null
+                || authenticatedAt.isBefore(Instant.now().minus(SessionAuthentication.REAUTHENTICATION_WINDOW))) {
+            record(row, me, vote, "Sign-in not fresh; confirmation asked.");
+            throw new ReauthenticationRequiredException();
+        }
+        return facts;
+    }
+
+    /** The request is still open, is the one the voter was shown, and the vote carries the reason it needs. */
+    private void requireShownRequest(
+            HeldRow row, StudioPrincipal me, Vote vote, String paramsHash, int version, String why) {
+        if (row.state() != HeldState.HELD || !row.expiresAt().isAfter(store.now())) {
+            throw new ConflictException("held-operation-closed", closedMessage(row));
+        }
+        if (paramsHash == null || !paramsHash.equalsIgnoreCase(row.paramsHashHex()) || version != row.version()) {
+            throw refuse(
+                    row,
+                    me,
+                    vote,
+                    HttpStatus.CONFLICT,
+                    "held-operation-changed",
+                    "This request is not the one you were shown. Reload it and decide again.");
+        }
+        if (why != null && why.length() > GateEngine.MAX_REASON) {
+            throw new IllegalArgumentException("A reason is at most " + GateEngine.MAX_REASON + " characters.");
+        }
+        if (vote == Vote.REJECT && why == null) {
+            throw refuse(
+                    row,
+                    me,
+                    vote,
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "decision-reason-required",
+                    "Say why you reject it; the requester sees your reason.");
+        }
+    }
+
+    /** Studio's rules say whether this person may vote, then the provider's check does. */
+    private void requireVotePermitted(
+            HeldRow row, StudioPrincipal me, Vote vote, SessionFacts session, AttachedProvider provider) {
+        ApproverRules.Subject subject =
+                new ApproverRules.Subject(row.requesterId(), row.requestedAt(), row.clusterId());
+        Optional<String> refusal =
+                rules.refusal(me.userId(), me.getUsername(), subject, provider.approverPermission(), vote);
+        if (refusal.isPresent()) {
+            throw refuse(row, me, vote, HttpStatus.FORBIDDEN, "vote-refused", refusal.get());
+        }
+        Approver approver = new Approver(
+                me.userId(),
+                me.getUsername(),
+                session.authenticatedAt(),
+                session.mfaVerifiedAt(),
+                session.mfaMethod() == null ? null : session.mfaMethod().name().toLowerCase(Locale.ROOT));
+        VoteCheck check = calls.call("checkVote", () -> provider.provider().checkVote(row.view(), approver, vote));
+        if (!check.allowed()) {
+            throw refuse(
+                    row,
+                    me,
+                    vote,
+                    HttpStatus.FORBIDDEN,
+                    "vote-refused",
+                    check.reason() == null
+                            ? "The approval policy does not let you decide this request."
+                            : check.reason());
+        }
+    }
+
     /** The requester withdraws a request that is still held or approved. */
     HeldRow cancel(UUID id) {
         StudioPrincipal me = principal();
@@ -254,11 +269,11 @@ class Decisions {
                 .call(() -> audit.begin(
                         actors.resolve(),
                         "OPERATION_CANCELLED",
-                        "HELD_OPERATION",
+                        HELD_OPERATION_TARGET,
                         row.summary(),
                         row.clusterId(),
                         null,
-                        Map.of("heldOperation", row.id().toString(), "type", row.type()),
+                        Map.of(HELD_OPERATION_PARAM, row.id().toString(), "type", row.type()),
                         false));
         Optional<HeldRow> cancelled = tx.execute(status -> {
             Optional<HeldRow> ended = store.end(
@@ -303,10 +318,10 @@ class Decisions {
                 .run(() -> audit.refused(
                         actors.resolve(),
                         vote == Vote.REJECT ? "OPERATION_REJECTED" : "OPERATION_APPROVED",
-                        "HELD_OPERATION",
+                        HELD_OPERATION_TARGET,
                         row.summary(),
                         row.clusterId(),
-                        Map.of("heldOperation", row.id().toString(), "type", row.type()),
+                        Map.of(HELD_OPERATION_PARAM, row.id().toString(), "type", row.type()),
                         message));
         tx.executeWithoutResult(
                 status -> store.event(row.id(), HeldEvent.Kind.VOTE_REFUSED, me.userId(), me.getUsername(), message));

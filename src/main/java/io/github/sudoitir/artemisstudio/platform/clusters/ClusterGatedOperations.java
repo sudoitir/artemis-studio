@@ -36,6 +36,10 @@ import org.springframework.context.annotation.Configuration;
 class ClusterGatedOperations {
 
     private static final String REDACTED_PASSWORD = "(a new password)";
+    private static final String LABEL_CLUSTER = "Cluster";
+    private static final String LABEL_ENVIRONMENT = "Environment";
+    private static final String LABEL_CORE_ACCOUNT = "Core account";
+    private static final String UNIT_CLUSTERS = "clusters";
 
     @Bean
     GatedOperation<EnvironmentCreateParams> environmentCreateOperation(EnvironmentService environments) {
@@ -53,7 +57,7 @@ class ClusterGatedOperations {
 
             @Override
             public List<DisplayRow> display(EnvironmentCreateParams p) {
-                return List.of(DisplayRow.of("Environment", p.name()));
+                return List.of(DisplayRow.of(LABEL_ENVIRONMENT, p.name()));
             }
 
             @Override
@@ -118,7 +122,7 @@ class ClusterGatedOperations {
 
             @Override
             public List<DisplayRow> display(EnvironmentDeleteParams p) {
-                return List.of(DisplayRow.of("Environment", environments.labelOf(p.environmentId())));
+                return List.of(DisplayRow.of(LABEL_ENVIRONMENT, environments.labelOf(p.environmentId())));
             }
 
             @Override
@@ -126,7 +130,7 @@ class ClusterGatedOperations {
                 long members = environments.memberCount(p.environmentId());
                 return new Effect(
                         members,
-                        "clusters",
+                        UNIT_CLUSTERS,
                         p.environmentId().toString(),
                         "Its clusters stay, without an environment, and every grant on it is removed.");
             }
@@ -157,16 +161,16 @@ class ClusterGatedOperations {
             @Override
             public List<DisplayRow> display(ClusterAssignParams p) {
                 return List.of(
-                        DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())),
+                        DisplayRow.of(LABEL_CLUSTER, clusters.labelOf(p.clusterId())),
                         new DisplayRow(
-                                "Environment",
+                                LABEL_ENVIRONMENT,
                                 environments.labelOf(clusters.environmentOf(p.clusterId())),
                                 environments.labelOf(p.environmentId())));
             }
 
             @Override
             public Effect estimate(ClusterAssignParams p) {
-                return new Effect(1, "clusters", p.clusterId() + "|" + p.environmentId(), null);
+                return new Effect(1, UNIT_CLUSTERS, p.clusterId() + "|" + p.environmentId(), null);
             }
 
             @Override
@@ -196,12 +200,13 @@ class ClusterGatedOperations {
                 List<DisplayRow> rows = new ArrayList<>();
                 rows.add(DisplayRow.of("Name", p.name()));
                 rows.add(DisplayRow.of("Seed URLs", String.join(", ", p.seedUrls())));
-                rows.add(DisplayRow.of("Environment", environments.labelOf(p.environmentId())));
+                rows.add(DisplayRow.of(LABEL_ENVIRONMENT, environments.labelOf(p.environmentId())));
                 if (p.hasCredentials()) {
                     rows.add(DisplayRow.of("Management account", p.credentials().username()));
                 }
                 if (p.hasCoreCredentials()) {
-                    rows.add(DisplayRow.of("Core account", p.coreCredentials().username()));
+                    rows.add(DisplayRow.of(
+                            LABEL_CORE_ACCOUNT, p.coreCredentials().username()));
                 }
                 rows.add(DisplayRow.of("Adopt the running configuration", p.adopts() ? "yes" : "no"));
                 return rows;
@@ -216,7 +221,7 @@ class ClusterGatedOperations {
             public Effect estimate(RegisterClusterRequest p) {
                 return new Effect(
                         1,
-                        "clusters",
+                        UNIT_CLUSTERS,
                         "seeds:"
                                 + String.join(
                                         ",", p.seedUrls().stream().sorted().toList()),
@@ -249,7 +254,7 @@ class ClusterGatedOperations {
             @Override
             public List<DisplayRow> display(ClusterUpdateParams p) {
                 List<DisplayRow> rows = new ArrayList<>();
-                rows.add(DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())));
+                rows.add(DisplayRow.of(LABEL_CLUSTER, clusters.labelOf(p.clusterId())));
                 addIfSet(rows, "Name", p.name());
                 addIfSet(rows, "Description", p.description());
                 if (p.seedUrls() != null) {
@@ -259,9 +264,9 @@ class ClusterGatedOperations {
                 addIfSet(rows, "TLS bundle", p.tlsBundle());
                 account(rows, "Management account", p.management());
                 if (p.clearCore()) {
-                    rows.add(new DisplayRow("Core account", null, "cleared"));
+                    rows.add(new DisplayRow(LABEL_CORE_ACCOUNT, null, "cleared"));
                 } else {
-                    account(rows, "Core account", p.core());
+                    account(rows, LABEL_CORE_ACCOUNT, p.core());
                 }
                 return rows;
             }
@@ -273,7 +278,7 @@ class ClusterGatedOperations {
 
             @Override
             public Effect estimate(ClusterUpdateParams p) {
-                return new Effect(1, "clusters", identity(directory, p.clusterId()), null);
+                return new Effect(1, UNIT_CLUSTERS, identity(directory, p.clusterId()), null);
             }
 
             @Override
@@ -312,7 +317,7 @@ class ClusterGatedOperations {
             public List<DisplayRow> display(NodeOverrideParams p) {
                 ClusterNode node = node(p);
                 List<DisplayRow> rows = new ArrayList<>();
-                rows.add(DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())));
+                rows.add(DisplayRow.of(LABEL_CLUSTER, clusters.labelOf(p.clusterId())));
                 rows.add(DisplayRow.of("Node", node.getName()));
                 if (p.jolokiaUrl() != null) {
                     rows.add(new DisplayRow("Management URL", node.getJolokiaUrl(), p.jolokiaUrl()));
@@ -364,7 +369,7 @@ class ClusterGatedOperations {
 
             @Override
             public List<DisplayRow> display(ClusterDeleteParams p) {
-                return List.of(DisplayRow.of("Cluster", clusters.labelOf(p.clusterId())));
+                return List.of(DisplayRow.of(LABEL_CLUSTER, clusters.labelOf(p.clusterId())));
             }
 
             @Override

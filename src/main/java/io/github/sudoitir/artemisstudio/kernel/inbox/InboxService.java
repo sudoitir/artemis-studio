@@ -77,6 +77,10 @@ public class InboxService implements PluginScopedBeans {
 
     @Transactional
     public int post(String source, Notice notice, Collection<UUID> recipients) {
+        return insert(source, notice, recipients);
+    }
+
+    private int insert(String source, Notice notice, Collection<UUID> recipients) {
         requireSource(source);
         Set<UUID> ids = new LinkedHashSet<>(recipients);
         if (ids.size() > Inbox.MAX_RECIPIENTS) {
@@ -128,7 +132,7 @@ public class InboxService implements PluginScopedBeans {
                     Inbox.MAX_RECIPIENTS);
             found = found.subList(0, Inbox.MAX_RECIPIENTS);
         }
-        return post(source, notice, found);
+        return insert(source, notice, found);
     }
 
     @Transactional
