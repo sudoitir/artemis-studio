@@ -60,6 +60,7 @@ export function userColumns({ controls }: UserRows): Column<UserView>[] {
     {
       id: 'twoStep',
       header: 'Two-step verification',
+      short: 'Two-step',
       accessor: twoStepText,
       cell: (u) => createElement(TwoStepStatus, { user: u, onReset: () => controls.onReset(u) }),
       kind: 'text',
