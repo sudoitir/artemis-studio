@@ -51,6 +51,10 @@ class AuditCoverageTest {
                     "feature.setupreview.SetupReviewStore",
                     "caches the latest configuration review; accepting or revoking a risk is what SetupReviewService audits"),
             Map.entry("feature.flow.FlowStore", "caches sampled client activity while a flow view is open"),
+            Map.entry(
+                    "feature.alerting.OutboundNoticeService",
+                    "queues a plugin's notice in its caller's transaction; the operation that sends it is what is"
+                            + " audited"),
             Map.entry("feature.rr.RrCorrelator", "records observed request-reply flows"),
             Map.entry(
                     "feature.rr.RrEventRemasker",

@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.TokenVi
 import io.github.sudoitir.artemisstudio.feature.apitokens.web.TokenViews.UsageView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,6 +42,7 @@ public class AdminTokensController {
         return TokenViewAssembler.usage(tokens.usageAny(tokenId, TokenViewAssembler.period(days)));
     }
 
+    @HeldResponse
     @DeleteMapping("/{tokenId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revoke(@PathVariable UUID tokenId) {

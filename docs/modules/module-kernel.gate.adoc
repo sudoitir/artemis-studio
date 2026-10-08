@@ -1,0 +1,17 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.gate`
+|Spring components
+|_Event listeners_
+
+* `i.g.s.a.k.g.ApprovalProviderRegistry`
+
+_Others_
+
+* `i.g.s.a.k.g.GatedOperationRegistry`
+* `i.g.s.a.k.g.GatedOperationCatalogue` (via `i.g.s.a.k.g.GatedOperations`)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `i.g.s.a.k.p.PluginStatusChanged` 
+|===

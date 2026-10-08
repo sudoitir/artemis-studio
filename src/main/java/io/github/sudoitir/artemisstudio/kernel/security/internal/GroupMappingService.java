@@ -1,6 +1,10 @@
 package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
+import io.github.sudoitir.artemisstudio.kernel.security.AccessChanges;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeIds;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleEntity;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.DefaultRoleRepository;
@@ -16,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Group mappings and default roles for external identity providers (ADR-0073). Every call needs
@@ -29,6 +34,9 @@ public class GroupMappingService {
     private final DefaultRoleRepository defaultRoles;
     private final RoleRepository roles;
     private final IdentityProviderCatalog providers;
+    private final AccessChanges accessChanges;
+    private final OperationGate gate;
+    private final TransactionTemplate tx;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -37,27 +45,60 @@ public class GroupMappingService {
         return view(providerId);
     }
 
+    @Gated("group-mapping.create")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-    @Transactional
     public GroupMappingView create(String providerId, GroupMappingRequest request) {
         requireExternal(providerId);
         requireRole(request.roleId());
         UUID scopeId = request.scopeId() != null ? request.scopeId() : ScopeIds.GLOBAL;
-        return toView(mappings.save(new GroupMappingEntity(
-                providerId, request.groupName(), request.roleId(), request.scopeType(), scopeId)));
+        return gate.run(
+                Operation.of(new GroupMappingOperations.CreateMapping(
+                        providerId, request.groupName(), request.roleId(), request.scopeType(), scopeId)),
+                GatedWrites.inTx(tx, () -> createNow(providerId, request, scopeId)));
     }
 
-    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-    @Transactional
-    public void delete(String providerId, UUID mappingId) {
+    private GroupMappingView createNow(String providerId, GroupMappingRequest request, UUID scopeId) {
         requireExternal(providerId);
-        mappings.delete(mappings.findByIdAndProviderId(mappingId, providerId)
-                .orElseThrow(() -> new NotFoundException("group mapping", mappingId)));
+        requireRole(request.roleId());
+        GroupMappingEntity saved = mappings.save(new GroupMappingEntity(
+                providerId, request.groupName(), request.roleId(), request.scopeType(), scopeId));
+        accessChanges.changed();
+        return toView(saved);
     }
 
+    @Gated("group-mapping.delete")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-    @Transactional
+    public void delete(String providerId, UUID mappingId) {
+        requireMapping(providerId, mappingId);
+        gate.run(
+                Operation.of(new GroupMappingOperations.DeleteMapping(providerId, mappingId)),
+                GatedWrites.inTxVoid(tx, () -> deleteNow(providerId, mappingId)));
+    }
+
+    private void deleteNow(String providerId, UUID mappingId) {
+        mappings.delete(requireMapping(providerId, mappingId));
+        accessChanges.changed();
+    }
+
+    private GroupMappingEntity requireMapping(String providerId, UUID mappingId) {
+        requireExternal(providerId);
+        return mappings.findByIdAndProviderId(mappingId, providerId)
+                .orElseThrow(() -> new NotFoundException("group mapping", mappingId));
+    }
+
+    @Gated("default-role.set")
+    @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     public GroupMappingsView setDefaultRole(String providerId, UUID roleId) {
+        requireExternal(providerId);
+        if (roleId != null) {
+            requireRole(roleId);
+        }
+        return gate.run(
+                Operation.of(new GroupMappingOperations.SetDefaultRole(providerId, roleId)),
+                GatedWrites.inTx(tx, () -> setDefaultRoleNow(providerId, roleId)));
+    }
+
+    private GroupMappingsView setDefaultRoleNow(String providerId, UUID roleId) {
         requireExternal(providerId);
         if (roleId == null) {
             defaultRoles.deleteById(providerId);
@@ -65,6 +106,7 @@ public class GroupMappingService {
             requireRole(roleId);
             defaultRoles.save(new DefaultRoleEntity(providerId, roleId));
         }
+        accessChanges.changed();
         return view(providerId);
     }
 

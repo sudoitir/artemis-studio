@@ -215,3 +215,34 @@ describe('RootLayout second-factor enrolment', () => {
     expect(navigate).not.toHaveBeenCalledWith({ to: '/enrol-second-factor' });
   });
 });
+
+describe('RootLayout break-glass banner', () => {
+  it('says in words, on every page, that approval checks are bypassed while break-glass is on', async () => {
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(
+      http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/gate/status', () =>
+        HttpResponse.json({ armed: true, providerId: 'acme', attached: true, breakGlass: true }),
+      ),
+    );
+    renderWithProviders(<RootLayout />);
+
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Break-glass is on');
+    expect(banner).toHaveTextContent(
+      "Approval checks are bypassed by the deployment's break-glass setting. Every bypassed operation is audited.",
+    );
+    expect(screen.queryByRole('button', { name: /dismiss|close/i })).not.toBeInTheDocument();
+  });
+
+  it('shows no banner while break-glass is off', async () => {
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))));
+    renderWithProviders(<RootLayout />);
+
+    expect(await screen.findByRole('button', { name: 'User menu' })).toBeInTheDocument();
+    expect(screen.queryByText('Break-glass is on')).not.toBeInTheDocument();
+  });
+});

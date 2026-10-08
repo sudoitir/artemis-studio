@@ -42,11 +42,12 @@ export function announceResult(
 }
 
 /** Announces that an operation did not happen, with its cause and what to do next. */
-export function announceFailure(kind: keyof typeof VERBS, subject: string, error: ApiError): void {
-  notify.failed({
+export function announceFailure(kind: keyof typeof VERBS, subject: string, error: ApiError, onHeld?: () => void): void {
+  notify.settle(error, {
     action: VERBS[kind],
     subject,
     cause: error.message,
     next: 'Check the audit log for what ran, then try again.',
+    onHeld,
   });
 }

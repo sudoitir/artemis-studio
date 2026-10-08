@@ -138,7 +138,13 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
           onDone();
         },
         onError: (error) =>
-          notify.failed({ action: CREATE, subject, cause: error.message, next: 'No role was created. Try again.' }),
+          notify.settle(error, {
+            action: CREATE,
+            subject,
+            cause: error.message,
+            next: 'No role was created. Try again.',
+            onHeld: onDone,
+          }),
       });
     } else {
       update.mutate(
@@ -149,7 +155,13 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
             onDone();
           },
           onError: (error) =>
-            notify.failed({ action: SAVE, subject, cause: error.message, next: 'The role is unchanged. Try again.' }),
+            notify.settle(error, {
+              action: SAVE,
+              subject,
+              cause: error.message,
+              next: 'The role is unchanged. Try again.',
+              onHeld: onDone,
+            }),
         },
       );
     }
@@ -231,7 +243,7 @@ function DeleteRole({
         notify.succeeded({ action: DELETE, subject: `role "${r.name}"` });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: DELETE,
           subject: `role "${r.name}"`,
           cause: error.message,
@@ -239,6 +251,7 @@ function DeleteRole({
             error.status === 409
               ? 'Remove it from the users who hold it, then delete it.'
               : 'The role still exists. Try again.',
+          onHeld: onClose,
         }),
     });
 

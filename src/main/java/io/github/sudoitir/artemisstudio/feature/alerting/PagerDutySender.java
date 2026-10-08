@@ -32,6 +32,7 @@ public class PagerDutySender implements NotificationSender {
     public static final String DEFAULT_URL = "https://events.pagerduty.com/v2/enqueue";
 
     private static final int SUMMARY_MAX = 1024;
+    private static final String SUMMARY = "summary";
 
     private final RestClient restClient;
     private final ObjectMapper mapper;
@@ -54,6 +55,10 @@ public class PagerDutySender implements NotificationSender {
         String url = endpoint(channelConfigJson, mapper);
         AlertMessage m;
         try {
+            NoticePayload notice = NoticePayload.parseOrNull(payloadJson, mapper);
+            if (notice != null) {
+                return post(url, noticeEvent(routingKey, deliveryId, notice));
+            }
             m = AlertMessage.parse(payloadJson, mapper);
         } catch (RuntimeException e) {
             return Result.permanent("The alert payload could not be rendered: " + e.getMessage());
@@ -114,12 +119,41 @@ public class PagerDutySender implements NotificationSender {
         return event;
     }
 
+    /**
+     * A notice is one {@code info} trigger. Its key is the delivery row, so a retried delivery is the same
+     * incident; nothing resolves it, because a notice announces rather than tracks.
+     */
+    static Map<String, Object> noticeEvent(String routingKey, long deliveryId, NoticePayload n) {
+        String summary = AlertMessageFormatter.singleLine(n.title());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put(SUMMARY, summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
+        payload.put("source", n.source() != null ? n.source() : "artemis-studio");
+        payload.put("severity", "info");
+        Map<String, Object> details = new LinkedHashMap<>();
+        if (n.summary() != null) {
+            details.put(SUMMARY, n.summary());
+        }
+        n.facts().forEach(f -> details.put(f.label(), f.value()));
+        payload.put("custom_details", details);
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("routing_key", routingKey);
+        event.put("event_action", "trigger");
+        event.put("dedup_key", "artemis-studio|notice|" + deliveryId);
+        event.put("payload", payload);
+        if (n.url() != null) {
+            event.put("links", java.util.List.of(Map.of("href", n.url(), "text", "Open in Studio")));
+            event.put("client", "Artemis Studio");
+            event.put("client_url", n.url());
+        }
+        return event;
+    }
+
     private static Map<String, Object> payload(AlertMessage m, AlertMessage.Line line) {
         String summary = AlertMessageFormatter.singleLine("["
                 + AlertMessageFormatter.severityWord(m.severity()) + "] " + m.ruleName() + " — " + line.label()
                 + (m.clusterName() != null ? " (" + m.clusterName() + ")" : ""));
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("summary", summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
+        payload.put(SUMMARY, summary.length() <= SUMMARY_MAX ? summary : summary.substring(0, SUMMARY_MAX));
         payload.put("source", m.clusterName() != null ? m.clusterName() : "artemis-studio");
         payload.put("severity", severity(m.severity()));
         if (line.at() != null) {

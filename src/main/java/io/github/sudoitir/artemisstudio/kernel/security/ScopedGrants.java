@@ -20,6 +20,7 @@ public class ScopedGrants {
     private final TeamPatternRepository teamPatterns;
     private final TeamShareRepository teamShares;
     private final ApplicationEventPublisher events;
+    private final AccessChanges accessChanges;
 
     /**
      * Drop every role assignment and group mapping scoped to {@code scopeId}, and for a cluster the
@@ -34,6 +35,7 @@ public class ScopedGrants {
             teamPatterns.deleteByClusterId(scopeId);
             teamShares.deleteByClusterId(scopeId);
         }
+        accessChanges.changed();
         events.publishEvent(new ScopeGrantsRevoked(scopeType, scopeId));
     }
 }

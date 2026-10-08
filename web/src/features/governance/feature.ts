@@ -8,8 +8,14 @@ export const governanceFeature = defineFeature({
   id: 'governance',
   slots: {
     'admin.tabs': [
-      { id: 'governance-rules', order: 50, title: 'Masking rules', Component: RulesPanel },
-      { id: 'governance-findings', order: 51, title: 'Classification inbox', Component: FindingsInbox },
+      { id: 'governance-rules', order: 50, title: 'Masking rules', group: 'governance', Component: RulesPanel },
+      {
+        id: 'governance-findings',
+        order: 51,
+        title: 'Classification inbox',
+        group: 'governance',
+        Component: FindingsInbox,
+      },
     ],
   },
 });

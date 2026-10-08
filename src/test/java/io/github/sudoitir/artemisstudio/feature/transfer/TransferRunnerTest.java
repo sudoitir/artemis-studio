@@ -101,7 +101,7 @@ class TransferRunnerTest {
     private JolokiaBrokerClient client;
     private RelayLink link;
     private TransferRunner runner;
-    private final Operator operator = new Operator(null, null);
+    private final Operator operator = new Operator(null, null, null);
 
     @BeforeEach
     void setUp() {

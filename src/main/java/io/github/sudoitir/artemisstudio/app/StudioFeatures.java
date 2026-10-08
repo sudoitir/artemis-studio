@@ -40,7 +40,9 @@ import io.github.sudoitir.artemisstudio.feature.transfer.TransferFeature;
 import io.github.sudoitir.artemisstudio.feature.transfer.TransferModule;
 import io.github.sudoitir.artemisstudio.feature.triage.TriageFeature;
 import io.github.sudoitir.artemisstudio.feature.triage.TriageModule;
+import io.github.sudoitir.artemisstudio.kernel.approval.ApprovalModule;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditModule;
+import io.github.sudoitir.artemisstudio.kernel.inbox.InboxModule;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleModule;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
@@ -94,6 +96,8 @@ public class StudioFeatures {
                 AuditModule.DESCRIPTOR,
                 SettingsModule.DESCRIPTOR,
                 LifecycleModule.DESCRIPTOR,
+                InboxModule.DESCRIPTOR,
+                ApprovalModule.DESCRIPTOR,
                 StreamModule.DESCRIPTOR,
                 BrokerModule.DESCRIPTOR,
                 ClustersModule.DESCRIPTOR,

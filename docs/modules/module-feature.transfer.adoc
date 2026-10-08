@@ -35,6 +35,7 @@ _Others_
 * `i.g.s.a.p.s.QueueLocator` (in Scraping)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

@@ -1,23 +1,24 @@
-import { Tabs } from '@mantine/core';
-import { useNavigate, useSearch } from '@tanstack/react-router';
-
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
-import { useSlot } from '../slots.ts';
+import { ADMIN_GROUPS, useSlot } from '../slots.ts';
+import { GroupedTabs } from './GroupedTabs.tsx';
 import classes from './Views.module.css';
 
 /**
  * Studio-wide administration (authorization spec): one tab per contribution, such as users, roles,
- * environments and identity provider group mappings. The open tab is in the URL.
+ * environments and identity provider group mappings, under fixed headings — who may do what, what is
+ * installed, what rules data and changes follow, then support (operator-ui spec). The open tab is in
+ * the URL. Each panel brings its own heading.
  */
 export function AdminView() {
-  const search = useSearch({ strict: false }) as { tab?: string };
-  const navigate = useNavigate();
   const tabs = useSlot('admin.tabs');
 
-  const tab = tabs.some((candidate) => candidate.id === search.tab) ? search.tab : tabs[0]?.id;
-  const setTab = (v: string | null) =>
-    navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, tab: v ?? undefined }) });
+  const groups = ADMIN_GROUPS.map((group) => ({
+    ...group,
+    tabs: tabs
+      .filter((tab) => tab.group === group.id)
+      .map(({ id, title, Component }) => ({ id, title: title ?? id, panel: <Component /> })),
+  }));
 
   return (
     <div className={classes.page}>
@@ -26,22 +27,7 @@ export function AdminView() {
           title="Administration"
           description="What applies to the whole installation: who can sign in and what they may do, the environments, and what is installed."
         />
-
-        <Tabs value={tab ?? null} onChange={setTab}>
-          <Tabs.List aria-label="Administration sections">
-            {tabs.map(({ id, title }) => (
-              <Tabs.Tab key={id} value={id}>
-                {title}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-
-          {tabs.map(({ id, Component }) => (
-            <Tabs.Panel key={id} value={id} pt="md">
-              <Component />
-            </Tabs.Panel>
-          ))}
-        </Tabs>
+        <GroupedTabs label="Administration sections" groups={groups} />
       </Page>
     </div>
   );

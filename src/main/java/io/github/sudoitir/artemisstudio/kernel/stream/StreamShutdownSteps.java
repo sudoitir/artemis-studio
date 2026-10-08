@@ -9,7 +9,10 @@ import org.springframework.context.annotation.Configuration;
 class StreamShutdownSteps {
 
     @Bean
-    ShutdownStep streamShutdown(SseHub hub) {
-        return new ShutdownStep("stream", ShutdownPhases.STREAM, hub::closeAll);
+    ShutdownStep streamShutdown(SseHub hub, UserStreamHub userHub) {
+        return new ShutdownStep("stream", ShutdownPhases.STREAM, () -> {
+            hub.closeAll();
+            userHub.closeAll();
+        });
     }
 }

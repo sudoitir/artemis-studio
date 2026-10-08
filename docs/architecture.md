@@ -136,7 +136,10 @@ component appears: `shell.header`, `shell.navbar`, `home.empty`, `cluster.header
 are slots too (ADR-0107): `<kind>.actions` for queue, address, connection, session,
 consumer, producer, message, divert and client, each item naming its section (Open, Copy,
 Operate, Destroy); and `<kind>.link` for queue, address, connection and session, which
-plugins may not contribute.
+plugins may not contribute. Two tab slots list their tabs under fixed, kernel-owned group
+headings: `settings.sections` under `SETTINGS_GROUPS` (a plugin's always under Plugins), and
+`admin.tabs` under `ADMIN_GROUPS` (Access, Installation, Governance, Support), where every
+contribution, a plugin's included, names its group.
 
 The shell reads the manifest and drops a disabled feature's navigation, slots and
 topics; every feature's routes stay registered so a deep link reaches the page that

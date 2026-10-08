@@ -94,7 +94,7 @@ for (const wanted of askedStates ?? []) {
 }
 for (const wanted of wantedWidths) if (!(wanted in VIEWPORTS)) throw new Error(`unknown width: ${wanted}`);
 
-type Auth = 'admin' | 'reader' | 'none';
+type Auth = 'admin' | 'reader' | 'requester' | 'none';
 interface Job {
   route: RouteSpec;
   width: Width;
@@ -125,7 +125,7 @@ function jobsFor(route: RouteSpec): Job[] {
           width,
           scheme,
           state,
-          auth: anonymous ? 'none' : state === 'forbidden' ? 'reader' : 'admin',
+          auth: anonymous ? 'none' : state === 'forbidden' ? 'reader' : (route.auth ?? 'admin'),
         });
       }
     }
@@ -133,7 +133,7 @@ function jobsFor(route: RouteSpec): Job[] {
   for (const scene of (route.scenes ?? []).filter(wantsScene)) {
     for (const width of wantedWidths) {
       for (const scheme of VIEWPORTS[width].schemes) {
-        jobs.push({ route, width, scheme, state: scene.id, scene, auth: 'admin' });
+        jobs.push({ route, width, scheme, state: scene.id, scene, auth: scene.auth ?? route.auth ?? 'admin' });
       }
     }
   }
@@ -263,7 +263,11 @@ async function capture(context: BrowserContext, job: Job, clusterId: string): Pr
   const { route, width, scheme, state, auth, scene } = job;
   const file = `${width === 'zoom' ? 'zoom200' : width}-${scheme}-${state}.png`;
   const png = resolve(OUT, route.area, route.id, file);
-  const path = route.path.replaceAll(':cluster', clusterId) + (state === 'filtered-empty' ? (route.filter ?? '') : '');
+  const path =
+    route.path
+      .replaceAll(':cluster', clusterId)
+      .replaceAll(/:held:([A-Z]+)/g, (_, held: string) => heldIds.get(held) ?? held) +
+    (state === 'filtered-empty' ? (route.filter ?? '') : '');
   const result: Capture = {
     area: route.area,
     id: route.id,
@@ -390,6 +394,18 @@ async function clusterId(browser: Browser): Promise<string> {
   return found?.id ?? '';
 }
 
+/** The requester's newest request in each state, for the routes that name one as `:held:<STATE>`. */
+const heldIds = new Map<string, string>();
+
+async function loadHeldIds(browser: Browser) {
+  const context = await browser.newContext({ storageState: await sessionOf('requester') });
+  const response = await context.request.get(`${BASE}/api/v1/held-operations?scope=MINE&limit=100`);
+  const body = (await response.json()) as { items?: { id: string; state: string }[] };
+  await context.close();
+  if (!response.ok()) throw new Error(`no held requests at ${BASE} (${response.status()})`);
+  for (const { id, state } of body.items ?? []) if (!heldIds.has(state)) heldIds.set(state, id);
+}
+
 async function main() {
   const jobs = ROUTES.filter((route) => !only || only.includes(route.area) || only.includes(route.id)).flatMap(jobsFor);
   if (jobs.length === 0) throw new Error('nothing to capture: check --only, --states and --widths');
@@ -409,6 +425,7 @@ async function main() {
   const cluster = await clusterId(browser);
   const needing = jobs.find((job) => !cluster && job.route.path.includes(':cluster'));
   if (needing) throw new Error(`${needing.route.id} needs a registered cluster at ${BASE}`);
+  if (jobs.some((job) => job.route.path.includes(':held:'))) await loadHeldIds(browser);
   const contexts = new Map<string, Promise<BrowserContext>>();
   const contextOf = (job: Job) => {
     const key = `${job.auth}|${job.width}|${job.scheme}`;

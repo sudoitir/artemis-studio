@@ -13,12 +13,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * The {@code studio_setting} MCP tool. It stays in the MCP module: the kernel's settings
- * module must not depend on MCP. *
- * <p>Mutating tools (ADR-0045). They go through the same services the REST layer calls, so
- * authorization, the bulk cap and the audit row are the existing ones; this class adds only
- * the model-facing gate: {@code dryRun} defaults to true, a real destructive run needs
- * {@code confirm} to equal the subject's name, and {@code override} is the separate bulk-cap
- * escape that {@code confirm} never satisfies.
+ * module must not depend on MCP.
+ *
+ * <p>A mutating tool (ADR-0045): {@code set} goes through the same service the REST layer calls, so
+ * authorization, the approval gate and the audit row are the existing ones. {@code approvalReason} is
+ * what the gate shows whoever decides when the change is held.
  */
 @Component
 @RequiredArgsConstructor
@@ -44,13 +43,15 @@ public class SettingsMcpTools {
     public McpSchema.CallToolResult studioSetting(
             @McpToolParam(required = false) String op,
             @McpToolParam(required = false) String key,
-            @McpToolParam(required = false) String value) {
+            @McpToolParam(required = false) String value,
+            @McpToolParam(required = false) String approvalReason) {
         SettingOp operation = McpArgs.enumOf(SettingOp.class, "op", op, SettingOp.GET);
-        return McpErrors.guard(() -> {
+        return McpErrors.guard(approvalReason, () -> {
             Map<String, SettingValue> effective = settings.effective();
             if (operation == SettingOp.SET) {
                 String k = McpArgs.required("key", key);
-                settings.put(k, McpArgs.required("value", value));
+                String v = McpArgs.required("value", value);
+                settings.put(k, v);
                 effective = settings.effective();
                 return entry(k, effective.get(k));
             }

@@ -7,7 +7,9 @@
  * One sign-in per account, not one per capture: a second factor Studio has seen is refused as a replay
  * (ADR-0143), and repeated sign-ins would come close to the lockout (ADR-0144). The state goes to
  * `web/.sweep/auth/<account>.json`: `admin` for everything, `reader` (the read-only `qa-reader` that
- * `scripts/qa-seed.sh` creates) for the permission-denied captures.
+ * `scripts/qa-seed.sh` creates) for the permission-denied captures, and `requester` (`qa-requester`, which
+ * `approval-provider/install.sh` creates) for the held-request captures. Name accounts as arguments to sign in
+ * only those, as `install.sh` does with `requester`.
  */
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
@@ -26,16 +28,19 @@ const need = (name: string): string => {
   return value;
 };
 
-const accounts = [
-  { name: 'admin', user: USER, password: need('ADMIN_PASSWORD'), secret: need('ADMIN_TOTP_SECRET') },
-  { name: 'reader', user: 'qa-reader', password: need('QA_USER_PASSWORD'), secret: undefined },
+const wanted = process.argv.slice(2);
+const all = [
+  { name: 'admin', user: USER, password: () => need('ADMIN_PASSWORD'), secret: () => need('ADMIN_TOTP_SECRET') },
+  { name: 'reader', user: 'qa-reader', password: () => need('QA_USER_PASSWORD'), secret: () => undefined },
+  { name: 'requester', user: 'qa-requester', password: () => need('REQUESTER_PASSWORD'), secret: () => undefined },
 ];
+const accounts = wanted.length ? all.filter((a) => wanted.includes(a.name)) : all.filter((a) => a.name !== 'requester');
 
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch();
 for (const { name, user, password, secret } of accounts) {
   const context = await browser.newContext();
-  await login(await context.newPage(), user, password, secret);
+  await login(await context.newPage(), user, password(), secret());
   await context.storageState({ path: resolve(OUT, `${name}.json`) });
   await context.close();
   console.log(`saved ${name} (${user}) to web/.sweep/auth/${name}.json`);

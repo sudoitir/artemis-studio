@@ -41,7 +41,7 @@ class MessagesMcpActionToolsTest {
 
     private CallToolResult action(String action, String ids, Boolean dryRun, String confirm, Boolean override) {
         return tools.queueAction(
-                cluster.toString(), "orders", action, ids, "color='red'", "dlq", dryRun, confirm, override);
+                cluster.toString(), "orders", action, ids, "color='red'", "dlq", dryRun, confirm, override, null);
     }
 
     @Test
@@ -157,9 +157,10 @@ class MessagesMcpActionToolsTest {
     void malformedArgumentsAreProtocolErrors() {
         String clusterId = cluster.toString();
 
-        assertThatThrownBy(() -> tools.queueAction("not-a-uuid", "orders", "move", null, null, null, true, null, null))
+        assertThatThrownBy(() ->
+                        tools.queueAction("not-a-uuid", "orders", "move", null, null, null, true, null, null, null))
                 .isInstanceOf(McpError.class);
-        assertThatThrownBy(() -> tools.queueAction(clusterId, " ", "move", null, null, null, true, null, null))
+        assertThatThrownBy(() -> tools.queueAction(clusterId, " ", "move", null, null, null, true, null, null, null))
                 .isInstanceOf(McpError.class)
                 .hasMessageContaining("queue is required");
         assertThatThrownBy(() -> action("explode", null, true, null, null))

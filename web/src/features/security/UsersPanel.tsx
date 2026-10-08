@@ -298,7 +298,13 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
             form.setErrors({ password: error.message });
             form.getInputNode('password')?.focus();
           } else {
-            notify.failed({ action: CREATE, subject, cause: error.message, next: 'No user was created. Try again.' });
+            notify.settle(error, {
+              action: CREATE,
+              subject,
+              cause: error.message,
+              next: 'No user was created. Try again.',
+              onHeld: close,
+            });
           }
         },
       },

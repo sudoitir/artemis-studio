@@ -635,6 +635,69 @@ class CorporateDirectory implements PluginCredentialProvider {
 - Redirect (OIDC-like) providers, bearer providers and changing Studio's throttling, lockout or
   session rules are not available to plugins.
 
+### Approval providers
+
+A plugin can decide whether Studio's gated operations may run, for example by holding them until a
+second person approves. **Declare** it in `plugin.json`, naming the permission the people who approve
+hold, which must be one the plugin declares under `permissions`:
+
+```json
+"approvalProvider": { "approverPermission": "acme-notes:approve" }
+```
+
+Then expose **one** `ApprovalProvider` bean. A plugin that declares the block without the bean fails
+its activation. A plugin may also contribute `GatedOperation` beans for its own operations; each type is
+named `<plugin id>:<name>`, and no two operations share a type or a parameters record.
+
+- **Only one provider.** Activating a second plugin that declares `approvalProvider` while another is
+  meant to be active is refused (`approval-provider-exists`), naming the first. Disable or uninstall it first.
+- **The gate follows what is meant to be active, not what is running.** From the moment the provider is
+  being installed, and while it is starting, has failed, needs a restart or is incompatible with this
+  Studio, gated operations are not run and the caller is told approvals are unavailable. Only disabling
+  or uninstalling the provider disarms the gate. Updating or rolling back the provider keeps it armed.
+- **Removal is announced.** Disabling or uninstalling the provider publishes a `PluginStatusChanged`
+  event inside the same transaction, so what depended on it is cancelled together with its removal.
+- Studio logs `approval-gate` at INFO when it boots and whenever the gate arms or disarms.
+
+**The approver's page.** Studio's own Approve and Reject sit on every request's page. A provider that
+needs more of the approver, such as its own checks or a second signature, contributes to the
+`approval.decision` slot, which renders above them with the request (`heldOperation`) and a `refresh`
+to call once the provider changed it. A vote needs a fresh sign-in, and `StepUpPrompt` asks for one
+when the plugin's endpoint refused for that reason:
+
+```tsx
+import { useMutation } from '@tanstack/react-query';
+import { Button, Stack } from '@mantine/core';
+import { pluginApi, request, StepUpPrompt, type SlotProps } from '@artemis-studio/plugin-sdk';
+
+function SecondSignature({ heldOperation, refresh }: SlotProps['approval.decision']) {
+  const sign = useMutation({
+    mutationFn: () => request(pluginApi(ID, `requests/${heldOperation.operation.id}/sign`), { method: 'POST' }),
+    onSuccess: refresh,
+  });
+  if (!heldOperation.canDecide) return null;
+  return (
+    <Stack gap="xs">
+      <Button onClick={() => sign.mutate()} loading={sign.isPending}>
+        Add my signature
+      </Button>
+      <StepUpPrompt error={sign.error} returnTo={location.pathname} />
+    </Stack>
+  );
+}
+
+// in definePlugin({ … }):
+slots: {
+  'approval.decision': [{ id: `${ID}.signature`, order: 10, title: 'Second signature', Component: SecondSignature }],
+},
+```
+
+A mutation anywhere in a plugin's UI can be held too: its error is then an `OperationHeldError`, and
+`notify.settle(error, …)` turns it into the "sent for approval" toast with a link to the request
+instead of a failure. Queries under `heldOperationsKey` refresh by themselves: the shell holds the
+user's own stream open on every page. `useUserStream()` shares that connection and returns its status,
+so a view can poll while it is not `live`.
+
 ### Reading metric history
 
 A plugin that wants the history of Studio's queue metrics, or of metrics plugins publish, injects
@@ -760,6 +823,33 @@ string into markup or script (Trusted Types):
 React, Mantine and the SDK's components work as they are. A library of your own that sets `innerHTML`
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
+
+### Moving a plugin from contract 11 to 12
+
+Contract 12 adds the approval gate's types (`io.github.sudoitir.artemisstudio.kernel.gate`): what a
+gated operation declares, and the `ApprovalProvider` interface a plugin can implement to decide which
+operations need a second person's approval. Studio refuses a plugin built for contract 11 with "built for
+extension contract 11", so rebuild it and set `<studio.contract>12</studio.contract>` in its `pom.xml`.
+
+The Administration page now lists its tabs in a vertical navigation under four headings, so a plugin
+that adds an Administration tab (`admin.tabs`) names the one it belongs under in `group`:
+
+| `group` | For |
+| --- | --- |
+| `access` | who can sign in and what they may do |
+| `installation` | what is installed and where it runs |
+| `governance` | the rules data and changes follow |
+| `support` | what helps when something is wrong |
+
+```ts
+slots: {
+  'admin.tabs': [{ id: 'acme-notes.policy', order: 60, title: 'Note policy', group: 'governance', Component: NotePolicy }],
+},
+```
+
+The SDK exports the headings as `ADMIN_GROUPS`, and its typings require `group`. Studio refuses a plugin
+whose Administration tab names no group, or one not in the list, with "names no administration group".
+Nothing else in an existing plugin has to change.
 
 ### Moving a plugin from contract 10 to 11
 

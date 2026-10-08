@@ -23,4 +23,5 @@ _Others_
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.p.c.BrokerCommands` (in Clusters)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
 |===

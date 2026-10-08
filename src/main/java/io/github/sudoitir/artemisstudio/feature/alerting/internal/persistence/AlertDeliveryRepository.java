@@ -24,6 +24,9 @@ public interface AlertDeliveryRepository extends JpaRepository<AlertDeliveryEnti
             nativeQuery = true)
     List<AlertDeliveryEntity> claimDue(@Param("limit") int limit);
 
+    /** How many notices {@code source} queued since {@code since}; served by {@code ix_alert_delivery_source_created}. */
+    long countBySourceAndCreatedAtGreaterThanEqual(String source, Instant since);
+
     /** A channel's delivery log, newest first. Served by {@code ix_alert_delivery_channel_seq}. */
     Page<AlertDeliveryEntity> findByChannelIdOrderBySeqDesc(UUID channelId, Pageable page);
 

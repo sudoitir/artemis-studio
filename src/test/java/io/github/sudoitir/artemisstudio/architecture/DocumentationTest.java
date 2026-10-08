@@ -1,5 +1,7 @@
 package io.github.sudoitir.artemisstudio.architecture;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.sudoitir.artemisstudio.ArtemisStudioApplication;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,24 +29,26 @@ class DocumentationTest {
                 .writeModulesAsPlantUml()
                 .writeIndividualModulesAsPlantUml()
                 .writeModuleCanvases();
-        try (Stream<Path> diagrams = Files.list(OUTPUT)) {
-            for (Path diagram :
-                    diagrams.filter(p -> p.toString().endsWith(".puml")).toList()) {
-                Files.write(diagram, sortRelations(Files.readAllLines(diagram)));
-            }
+        List<Path> diagrams;
+        try (Stream<Path> files = Files.list(OUTPUT)) {
+            diagrams = files.filter(p -> p.toString().endsWith(".puml")).toList();
         }
+        for (Path diagram : diagrams) {
+            Files.write(diagram, sortRelations(Files.readAllLines(diagram)));
+        }
+        assertThat(diagrams).isNotEmpty();
     }
 
     /**
-     * The documenter emits relations in no fixed order, which would rewrite every diagram on every
-     * run. Each run of consecutive {@code Rel(} lines is sorted, so a diagram changes only when the
-     * module graph does.
+     * The documenter emits relations and components in no fixed order, which would rewrite every
+     * diagram on every run. Each run of consecutive {@code Rel(} or {@code Component(} lines is
+     * sorted, so a diagram changes only when the module graph does.
      */
     private static List<String> sortRelations(List<String> lines) {
         List<String> out = new ArrayList<>(lines.size());
         List<String> relations = new ArrayList<>();
         for (String line : lines) {
-            if (line.startsWith("Rel(")) {
+            if (line.startsWith("Rel(") || line.strip().startsWith("Component(")) {
                 relations.add(line);
                 continue;
             }

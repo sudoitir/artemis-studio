@@ -80,6 +80,11 @@ interface StaticVariantProps<T> extends DataTableBaseProps<T> {
   /** A small, read-only set in a native table. Above 200 rows it is drawn as the grid. */
   variant: 'static';
   caption?: ReactNode;
+  /**
+   * `false` drops the Columns control, for a short fixed set where every column is needed and there is
+   * nothing to hide, reorder or resize, such as a diff in a dialog. The grid always has it.
+   */
+  columnsMenu?: boolean;
 }
 
 export type DataTableProps<T> = GridVariantProps<T> | StaticVariantProps<T>;
@@ -116,10 +121,77 @@ export interface TableModel<T> {
   interaction: { set: (kind: 'pointer' | 'focus' | 'scrolled', on: boolean) => void };
 }
 
+/** What shows under the table instead of rows: its failure, or its empty state once nothing is loading. */
+function stateSlot({
+  error,
+  empty,
+  reserve,
+  idle,
+}: Readonly<{ error: ReactNode; empty: ReactNode; reserve: boolean; idle: boolean }>): ReactNode {
+  if (error) return <StateSlot reserveRows={reserve ? SKELETON_ROWS : undefined}>{error}</StateSlot>;
+  return idle ? <StateSlot>{empty}</StateSlot> : null;
+}
+
 /** The px of a row at `density`, from the theme, in the root font size the page is using. */
 function rowHeightPx(rowH: number): number {
   const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
   return Math.round((rowH / 16) * (Number.isFinite(root) ? root : 16));
+}
+
+/**
+ * The table's live region: what it announces itself (columns hidden by narrowing, a sort once its rows
+ * land) and `announce` for everything else.
+ *
+ * The live region is mounted by the first announcement, empty, before its text arrives: a region
+ * that exists before it changes is what screen readers announce reliably, and a table nobody
+ * announces from adds none.
+ * Cleared before every message, so the same words twice (copying one cell twice) are announced twice.
+ */
+function useTableAnnouncer<T>({
+  hiddenCount,
+  sort,
+  data,
+  loading,
+  columns,
+}: Readonly<{ hiddenCount: number; sort: string | undefined; data: T[]; loading: boolean; columns: Column<T>[] }>) {
+  const [message, setMessage] = useState<string | null>(null);
+  const announce = useCallback((text: string) => {
+    setMessage('');
+    requestAnimationFrame(() => setMessage(text));
+  }, []);
+
+  const lastHidden = useRef(hiddenCount);
+  useEffect(() => {
+    if (lastHidden.current === hiddenCount) return;
+    lastHidden.current = hiddenCount;
+    const noun = hiddenCount === 1 ? 'column' : 'columns';
+    announce(hiddenCount === 0 ? 'No columns hidden' : `${hiddenCount} ${noun} hidden`);
+  }, [hiddenCount, announce]);
+
+  // A sort is announced once the sorted rows have landed: the data differs from the rows shown before
+  // the sort changed, with nothing loading. Rows already cached for that sort land in the same render
+  // as the sort, so the comparison is with the previous render's rows, not this one's.
+  const pendingSort = useRef<{ sort: string | undefined; data: T[] } | null>(null);
+  const lastSort = useRef(sort);
+  const previousData = useRef(data);
+  useEffect(() => {
+    if (lastSort.current !== sort) {
+      lastSort.current = sort;
+      pendingSort.current = { sort, data: previousData.current };
+    }
+    previousData.current = data;
+  }, [sort, data]);
+  useEffect(() => {
+    const pending = pendingSort.current;
+    if (!pending || loading || pending.data === data) return;
+    pendingSort.current = null;
+    const { field, desc } = parseSort(pending.sort);
+    const column = columns.find((c) => c.sortKey === field);
+    const direction = desc ? 'descending' : 'ascending';
+    announce(column ? `Sorted by ${column.header}, ${direction}` : 'Sorting cleared');
+  }, [data, loading, columns, announce]);
+
+  return { message, announce };
 }
 
 /**
@@ -145,6 +217,7 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   const { rowClassName, height = 'fill', toolbar } = props;
   const gridProps: GridOnlyProps<T> = props.variant === 'static' ? {} : props;
   const renderStatic = props.variant === 'static' && data.length <= STATIC_ROW_LIMIT;
+  const columnsMenu = props.variant !== 'static' || props.columnsMenu !== false;
   const selectable = Boolean(gridProps.selectable);
   const hasMenu = gridProps.rowMenu !== undefined;
 
@@ -224,46 +297,7 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
   const order = useMemo(() => ordered.map((c) => c.id), [ordered]);
 
   // ── Announcements ──────────────────────────────────────────────────────────
-  // The live region is mounted by the first announcement, empty, before its text arrives: a region
-  // that exists before it changes is what screen readers announce reliably, and a table nobody
-  // announces from adds none.
-  // Cleared before every message, so the same words twice (copying one cell twice) are announced twice.
-  const [message, setMessage] = useState<string | null>(null);
-  const announce = useCallback((text: string) => {
-    setMessage('');
-    requestAnimationFrame(() => setMessage(text));
-  }, []);
-
-  const lastHidden = useRef(hiddenCount);
-  useEffect(() => {
-    if (lastHidden.current === hiddenCount) return;
-    lastHidden.current = hiddenCount;
-    const noun = hiddenCount === 1 ? 'column' : 'columns';
-    announce(hiddenCount === 0 ? 'No columns hidden' : `${hiddenCount} ${noun} hidden`);
-  }, [hiddenCount, announce]);
-
-  // A sort is announced once the sorted rows have landed: the data differs from the rows shown before
-  // the sort changed, with nothing loading. Rows already cached for that sort land in the same render
-  // as the sort, so the comparison is with the previous render's rows, not this one's.
-  const pendingSort = useRef<{ sort: string | undefined; data: T[] } | null>(null);
-  const lastSort = useRef(sort);
-  const previousData = useRef(data);
-  useEffect(() => {
-    if (lastSort.current !== sort) {
-      lastSort.current = sort;
-      pendingSort.current = { sort, data: previousData.current };
-    }
-    previousData.current = data;
-  }, [sort, data]);
-  useEffect(() => {
-    const pending = pendingSort.current;
-    if (!pending || loading || pending.data === data) return;
-    pendingSort.current = null;
-    const { field, desc } = parseSort(pending.sort);
-    const column = columns.find((c) => c.sortKey === field);
-    const direction = desc ? 'descending' : 'ascending';
-    announce(column ? `Sorted by ${column.header}, ${direction}` : 'Sorting cleared');
-  }, [data, loading, columns, announce]);
+  const { message, announce } = useTableAnnouncer({ hiddenCount, sort, data, loading, columns });
 
   // ── Widths ─────────────────────────────────────────────────────────────────
   const setWidth = useCallback(
@@ -336,11 +370,13 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
     locked: i === 0 || c.priority === 'essential',
   }));
 
-  let slot: ReactNode = null;
   // A static table that never had rows shows placeholder rows while it loads; its failure holds their height.
-  if (error)
-    slot = <StateSlot reserveRows={renderStatic && data.length === 0 ? SKELETON_ROWS : undefined}>{error}</StateSlot>;
-  else if (data.length === 0 && !loading) slot = <StateSlot>{empty}</StateSlot>;
+  const slot = stateSlot({
+    error,
+    empty,
+    reserve: renderStatic && data.length === 0,
+    idle: data.length === 0 && !loading,
+  });
 
   return (
     <div
@@ -353,22 +389,26 @@ export function DataTable<T>(props: Readonly<DataTableProps<T>>) {
         } as CSSProperties
       }
     >
-      <fieldset className={classes.toolbar} aria-label={`${label} controls`}>
-        <div className={classes.toolbarStart}>{toolbar?.start}</div>
-        <div className={classes.toolbarEnd}>
-          {toolbar?.end}
-          <ColumnsMenu
-            columns={menuColumns}
-            hiddenCount={hiddenCount}
-            onToggle={(id, show) => update((s) => withVisibility(s, id, show))}
-            onMove={move}
-            density={density}
-            onDensity={setDensity}
-            canResetWidths={columns.some((c) => c.id in state.widths)}
-            onResetWidths={() => update(withoutWidths)}
-          />
-        </div>
-      </fieldset>
+      {columnsMenu || toolbar ? (
+        <fieldset className={classes.toolbar} aria-label={`${label} controls`}>
+          <div className={classes.toolbarStart}>{toolbar?.start}</div>
+          <div className={classes.toolbarEnd}>
+            {toolbar?.end}
+            {columnsMenu ? (
+              <ColumnsMenu
+                columns={menuColumns}
+                hiddenCount={hiddenCount}
+                onToggle={(id, show) => update((s) => withVisibility(s, id, show))}
+                onMove={move}
+                density={density}
+                onDensity={setDensity}
+                canResetWidths={columns.some((c) => c.id in state.widths)}
+                onResetWidths={() => update(withoutWidths)}
+              />
+            ) : null}
+          </div>
+        </fieldset>
+      ) : null}
       <RefetchBar active={loading && data.length > 0} />
       {renderStatic ? (
         <StaticTable model={model} caption={props.variant === 'static' ? props.caption : undefined} />

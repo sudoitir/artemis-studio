@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Button } from '@mantine/core';
 
+import { heldOf } from './held.ts';
+
 /** What the failure is, why, and what the operator can do about it. */
 export interface Reading {
   title: string;
@@ -200,6 +202,59 @@ const BY_STATUS: Readonly<Record<number, (problem: Problem) => Reading>> = {
   429: rateLimited,
 };
 
+/**
+ * The approval gate's refusals, by problem type. Each says that nothing ran, because an operator who
+ * meets one mid-action needs that first. They win over the status, which only says who was at fault.
+ */
+const BY_TYPE: Readonly<Record<string, (problem: Problem) => Reading>> = {
+  'operation-denied': ({ detail }) => ({
+    title: 'The approval policy denied this',
+    cause: detail ?? 'The approval policy does not allow this operation.',
+    next: 'Nothing was changed. If it must be done, ask an administrator about the policy.',
+    retry: false,
+  }),
+  'approval-unavailable': ({ detail }) => ({
+    title: 'Approvals are unavailable',
+    cause: detail ?? 'The approval provider did not answer, so Studio did not run the operation.',
+    next: 'Nothing was changed. Try again in a moment, or ask an administrator to check the approval provider.',
+    retry: true,
+  }),
+  'approval-reason-required': ({ detail }) => ({
+    title: 'A reason is required',
+    cause: detail ?? 'This operation needs a reason before it can be sent for approval.',
+    next: 'Nothing was changed. Give a reason for the request, then submit again.',
+    retry: false,
+  }),
+  'vote-refused': ({ detail }) => ({
+    title: 'You cannot decide this request',
+    cause: detail ?? 'The approval rules do not let you decide this request.',
+    next: 'Nothing was decided. Someone else who may approve it has to decide it.',
+    retry: false,
+  }),
+  'session-required': ({ detail }) => ({
+    title: 'Decide from a signed-in session',
+    cause:
+      detail ?? 'A request is decided only by a person signed in to Studio, not with an API token or an assistant.',
+    next: 'Nothing was decided. Sign in to Studio in a browser and decide it there.',
+    retry: false,
+  }),
+};
+
+/** The last segment of a problem's `type` URI, such as `operation-denied`. */
+const slugOf = (type: unknown): string | undefined =>
+  typeof type === 'string' ? type.slice(type.lastIndexOf('/') + 1) || undefined : undefined;
+
+/**
+ * The reading of an approval gate refusal, or `undefined` for any other error: for a mutation's toast,
+ * whose own cause and next step would otherwise read as an ordinary failure.
+ */
+export function readGateRefusal(error: unknown): Reading | undefined {
+  const e = isRecord(error) ? error : {};
+  const slug = slugOf(e.type);
+  const byType = slug ? BY_TYPE[slug] : undefined;
+  return byType && typeof e.status === 'number' ? byType(problemOf(e, e.status)) : undefined;
+}
+
 /** The parts of an error's problem body that a reading quotes. */
 function problemOf(e: Record<string, unknown>, status: number): Problem {
   const problem = isRecord(e.problem) ? e.problem : {};
@@ -228,13 +283,26 @@ function brokerReading(kind: string, broker: (typeof BROKER)[string], e: Record<
 }
 
 /**
- * Reads an error by its shape, for `ErrorState` and for a caller that needs only its title. An `ApiError` carries `status`, `brokerErrorKind`, `fieldErrors` and
+ * Reads an error by its shape, for `ErrorState` and for a caller that needs only its title. An operation held
+ * for approval reads as sent, not failed; an approval gate refusal reads by its problem type. An `ApiError` carries `status`, `brokerErrorKind`, `fieldErrors` and
  * the whole problem body as `problem` (`title`, `detail`, `hint`, `permission`, `retryAfter`,
  * `requestId`); a string `hint` is the next step; a 422 with no field errors reads as its own title and
  * detail; a failed
  * fetch reads as the network being down; anything else with no status is an error inside the console.
  */
 export function readError(error: unknown): Reading {
+  const held = heldOf(error);
+  if (held) {
+    // Not a failure: the operation waits for a second person. ErrorState shows it as such.
+    return {
+      title: 'Sent for approval',
+      cause: `${held.summary} waits for a second person.`,
+      next: 'Nothing has run yet. It runs once someone else approves it.',
+      retry: false,
+    };
+  }
+  const gate = readGateRefusal(error);
+  if (gate) return gate;
   const e = isRecord(error) ? error : {};
   const given = typeof e.status === 'number' ? e.status : undefined;
   const kind = text(e.brokerErrorKind);

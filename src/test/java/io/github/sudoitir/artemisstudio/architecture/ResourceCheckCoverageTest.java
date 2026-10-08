@@ -159,6 +159,15 @@ class ResourceCheckCoverageTest {
                     "feature.identitylocal.mfa.SecondFactorService.trustDevice",
                     "'source' is where a sign-in came from"),
             Map.entry(
+                    "feature.alerting.OutboundNoticeService.enqueue",
+                    "'source' names the module or plugin that sends the notice, not a queue"),
+            Map.entry(
+                    "kernel.inbox.InboxService.post",
+                    "'source' names the module or plugin that posts the notice, not a queue"),
+            Map.entry(
+                    "kernel.inbox.InboxService.resolve",
+                    "'source' names the module or plugin that posted the notice, not a queue"),
+            Map.entry(
                     "feature.plugins.messaging.internal.AccessCheck.needsOf",
                     "only lists the needs of a registration; AccessCheck.denial checks them for the acting user"),
             Map.entry(

@@ -81,7 +81,7 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
             notify.succeeded({ action: SAVE, subject });
           },
           onError: (error) =>
-            notify.failed({
+            notify.settle(error, {
               action: SAVE,
               subject,
               cause: error.message,
@@ -93,7 +93,7 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
       create.mutate(body, {
         onSuccess: () => notify.succeeded({ action: ADD, subject }),
         onError: (error) =>
-          notify.failed({
+          notify.settle(error, {
             action: ADD,
             subject,
             cause: error.message,
@@ -111,7 +111,7 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
       {
         onSuccess: () => notify.succeeded({ action, subject }),
         onError: (error) =>
-          notify.failed({
+          notify.settle(error, {
             action,
             subject,
             cause: error.message,
@@ -129,7 +129,7 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
         notify.succeeded({ action: DELETE, subject });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: DELETE,
           subject,
           cause: error.message,

@@ -1,0 +1,34 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`io.github.sudoitir.artemisstudio.kernel.approval`
+|Spring components
+|_Event listeners_
+
+* `i.g.s.a.k.a.BreakGlass`
+
+_Others_
+
+* `i.g.s.a.k.a.ApprovalSettings`
+* `i.g.s.a.k.a.Approvals`
+|Bean references
+|* `i.g.s.a.k.i.InboxService` (in Inbox)
+* `i.g.s.a.k.s.UserSignals` (in Event stream)
+* `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
+* `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.s.SessionAuthentication` (in Security)
+* `i.g.s.a.k.s.UserIdentityFacts` (in Security)
+* `i.g.s.a.k.s.PermissionHolders` (in Security)
+* `i.g.s.a.k.s.AccessChangeLog` (in Security)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.g.GatedOperationRegistry` (in Approval gate contract)
+* `i.g.s.a.k.s.OperatorHandoff` (in Security)
+* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
+* `i.g.s.a.k.s.SecretVault` (in Security)
+* `i.g.s.a.k.g.GatedOperationCatalogue` (in Approval gate contract)
+|Events listened to
+|* `org.springframework.boot.context.event.ApplicationReadyEvent` 
+* `i.g.s.a.k.p.PluginStatusChanged` 
+|===

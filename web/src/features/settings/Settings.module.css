@@ -15,9 +15,126 @@
   gap: var(--mantine-spacing-md);
 }
 
-/* A setting's field stays a readable width instead of stretching across its row. */
-.settingField {
+/* A category's settings: one row each, divided by hairlines, a readable width rather than the page's. */
+.settings {
+  display: flex;
+  flex-direction: column;
+  max-inline-size: 48rem;
+}
+
+/* A setting: its input on the start side, where it stands and the way back on the end side, the change
+   waiting for approval beneath both. It wraps by its own width, so a zoomed page stacks instead of
+   scrolling sideways. */
+.setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+  padding-block: var(--mantine-spacing-sm) 0;
+  padding-inline-start: var(--mantine-spacing-sm);
+  border-block-start: 1px solid var(--as-border);
+  border-inline-start: 2px solid transparent;
+}
+
+.setting:first-child {
+  border-block-start: 0;
+}
+
+/* An edited setting is marked at its edge too, besides the words that say so. */
+.setting[data-changed] {
+  border-inline-start-color: var(--as-accent);
+}
+
+.settingInput {
+  flex: 1 1 22rem;
+  min-inline-size: 0;
+}
+
+/* The input box itself stays a width a value fits, while its hint may run across the row. */
+.input :global(.mantine-Input-wrapper) {
   max-inline-size: 22rem;
+}
+
+.settingState {
+  flex: 0 1 13rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  padding-block-start: 0.125rem;
+}
+
+/* The setting's key, an identifier rather than a word: set apart from the state above it, so "Default" never reads as its label. */
+.key {
+  margin-block-start: var(--mantine-spacing-xs);
+  font-family: var(--mantine-font-family-monospace);
+  overflow-wrap: anywhere;
+}
+
+/* How a kind is written, on its own line beneath the hint. */
+.format {
+  display: block;
+}
+
+/* Changes waiting for approval: under the setting, across its row, one line each. */
+.pending {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pendingLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  padding-block-end: var(--mantine-spacing-sm);
+}
+
+/* A category's count of matches and its unsaved marker, in the tab list. */
+.tabAside {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  color: var(--as-text-dimmed);
+}
+
+.matchCount {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.editMark {
+  color: var(--as-accent);
+}
+
+/* The draft's footer: stays at the bottom of the window while there is anything unsaved, over the page. */
+.footer {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: var(--as-z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  background: var(--as-surface-raised);
+  border: 1px solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-md);
+  box-shadow: var(--mantine-shadow-md);
+}
+
+.footerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm) var(--mantine-spacing-lg);
+}
+
+.footerSummary {
+  min-inline-size: 0;
 }
 
 /* A fault the operator must read first: a hairline in the danger token around words that state it. */
@@ -33,4 +150,12 @@
 /* The display preferences stay a readable width instead of stretching across the page. */
 .display {
   max-inline-size: 28rem;
+}
+
+/* The filter beside the labelled search lines up with its input box, not with its label and box together. */
+.modifiedOnly {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  min-block-size: var(--input-height-xs);
 }

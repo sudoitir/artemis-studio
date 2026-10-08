@@ -222,12 +222,13 @@ function AddPattern({
             form.setErrors(fields);
             form.getInputNode('pattern')?.focus();
           }
-          notify.failed({
+          notify.settle(error, {
             action: ADD,
             subject,
             pendingId,
             cause: error.message,
             next: 'No pattern was added. Fix the pattern and try again.',
+            onHeld: () => form.reset(),
           });
         },
       },

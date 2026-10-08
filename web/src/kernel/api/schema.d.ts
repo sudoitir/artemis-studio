@@ -68,22 +68,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/settings/{key}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["put"];
-        post?: never;
-        delete: operations["reset"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/roles/{roleId}": {
         parameters: {
             query?: never;
@@ -452,6 +436,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/changes/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roles": {
         parameters: {
             query?: never;
@@ -468,6 +484,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/identity/providers/{providerId}/group-mappings": {
         parameters: {
             query?: never;
@@ -478,6 +510,38 @@ export interface paths {
         get: operations["list_4"];
         put?: never;
         post: operations["create_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/held-operations/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/held-operations/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -557,7 +621,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview"];
+        post: operations["preview_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -653,7 +717,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview_1"];
+        post: operations["preview_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1005,7 +1069,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["apply"];
+        post: operations["apply_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1069,7 +1133,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["preview_2"];
+        post: operations["preview_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1755,7 +1819,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["preview_3"];
+        get: operations["preview_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1892,6 +1956,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stream_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/access": {
         parameters: {
             query?: never;
@@ -1956,6 +2036,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_11"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["count"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/held-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_12"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/held-operations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/governance/remask": {
         parameters: {
             query?: never;
@@ -1980,6 +2124,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["findings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gate/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["operations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2075,7 +2251,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_3"];
+        get: operations["get_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2123,7 +2299,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["stream_1"];
+        get: operations["stream_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2379,7 +2555,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2395,7 +2571,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_4"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2683,7 +2859,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2715,7 +2891,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_14"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2731,7 +2907,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2843,7 +3019,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["status_1"];
+        get: operations["status_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2891,7 +3067,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_15"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2923,7 +3099,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_16"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2939,7 +3115,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_7"];
+        get: operations["get_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3076,7 +3252,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}": {
+    "/api/v1/inbox/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3087,6 +3263,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["delete_7"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_8"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3269,6 +3461,20 @@ export interface components {
             passwordAccount: boolean;
             grants: components["schemas"]["GrantSummary"][];
         };
+        HeldOutcome: {
+            /** @enum {string} */
+            outcome: "held";
+            heldOperation: components["schemas"]["HeldRef"];
+        };
+        HeldRef: {
+            /** Format: uuid */
+            id: string;
+            summary: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description The held operation in this API. */
+            link: string;
+        };
         SetDisabledRequest: {
             disabled: boolean;
         };
@@ -3332,9 +3538,6 @@ export interface components {
         MemberRoleRequest: {
             /** Format: uuid */
             roleId: string;
-        };
-        UpdateSettingRequest: {
-            value: string;
         };
         RoleRequest: {
             name: string;
@@ -3951,6 +4154,37 @@ export interface components {
             remaining: number;
             error?: string | null;
         };
+        ChangeSetRequest: {
+            changes: components["schemas"]["SettingChangeRequest"][];
+        };
+        SettingChangeRequest: {
+            key: string;
+            value?: string;
+            reset?: boolean;
+        };
+        ChangePreview: {
+            /** @enum {string} */
+            outcome?: "RUN" | "HOLD" | "DENY";
+            reasonRequired: boolean;
+            policyLabel?: string;
+            denyReason?: string;
+            fieldErrors: {
+                [key: string]: string;
+            };
+        };
+        ReadRequest: {
+            /** @description The notices to mark read. Exactly one of ids and upTo. */
+            ids?: number[] | null;
+            /**
+             * Format: int64
+             * @description Mark every notice with an id up to this one read.
+             */
+            upTo?: number | null;
+        };
+        ReadView: {
+            /** Format: int32 */
+            updated: number;
+        };
         GroupMappingRequest: {
             groupName: string;
             /** Format: uuid */
@@ -3958,6 +4192,110 @@ export interface components {
             scopeType: string;
             /** Format: uuid */
             scopeId?: string | null;
+        };
+        HeldDecisionRequest: {
+            /** @enum {string} */
+            vote: "APPROVE" | "REJECT";
+            /** @description Required to reject; at most 500 characters. */
+            reason?: string | null;
+            /** @description The paramsHash of the request as shown. */
+            paramsHash: string;
+            /**
+             * Format: int32
+             * @description The version of the request as shown.
+             */
+            version: number;
+        };
+        HeldDisplayRowView: {
+            label: string;
+            from?: string | null;
+            to?: string | null;
+        };
+        HeldEffectView: {
+            /** Format: int64 */
+            count: number;
+            unit: string;
+            detail?: string | null;
+        };
+        HeldEventView: {
+            /** Format: int64 */
+            seq: number;
+            kind: string;
+            /** Format: uuid */
+            actorId?: string | null;
+            actorUsername?: string | null;
+            detail?: string | null;
+            /** Format: date-time */
+            at: string;
+        };
+        HeldOperationDetailView: {
+            operation: components["schemas"]["HeldOperationSummaryView"];
+            /** Format: int32 */
+            typeVersion: number;
+            /** @enum {string} */
+            mode: "ON_APPROVAL" | "BY_REQUESTER";
+            traits: string[];
+            /** Format: uuid */
+            environmentId?: string | null;
+            display: components["schemas"]["HeldDisplayRowView"][];
+            /** @description The canonical parameters, secrets redacted. */
+            params: string;
+            /** @description Echo it, with version, to decide. */
+            paramsHash: string;
+            /** Format: int32 */
+            version: number;
+            /** @description The name of the API token the requester used; null for a session. */
+            tokenName?: string | null;
+            effect: components["schemas"]["HeldEffectView"];
+            policy: components["schemas"]["HeldPolicyView"];
+            reason?: string | null;
+            approverHint?: string | null;
+            /** Format: uuid */
+            approverId?: string | null;
+            decisionReason?: string | null;
+            outcomeDetail?: string | null;
+            /** @description The request's page in the console. */
+            link: string;
+            events: components["schemas"]["HeldEventView"][];
+            mine: boolean;
+            canDecide: boolean;
+            /** @description Why the current user may not decide it. */
+            decideRefusal?: string | null;
+            canCancel: boolean;
+            /** @description Whether the current user's session verified a second factor; a policy may need it. */
+            mfaVerified: boolean;
+            /** @description Whether the requester could no longer run it; null when unknown or ended. */
+            requesterLacksPermission?: boolean | null;
+        };
+        HeldOperationSummaryView: {
+            /** Format: uuid */
+            id: string;
+            /** @description The operation type, such as queue.purge. */
+            type: string;
+            /** @enum {string} */
+            state: "HELD" | "APPROVED" | "EXECUTING" | "REJECTED" | "CANCELLED" | "EXPIRED" | "SUCCEEDED" | "FAILED" | "REFUSED" | "OUTCOME_UNKNOWN";
+            summary: string;
+            /** Format: uuid */
+            requesterId: string;
+            requesterUsername: string;
+            /** @enum {string} */
+            authKind: "SESSION" | "TOKEN" | "AGENT";
+            /** Format: uuid */
+            clusterId?: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            approverUsername?: string | null;
+            /** Format: date-time */
+            decidedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        HeldPolicyView: {
+            id: string;
+            version: string;
+            name?: string | null;
         };
         FindingView: {
             /** Format: uuid */
@@ -5033,7 +5371,9 @@ export interface components {
             /** Format: int64 */
             seq: number;
             /** Format: uuid */
-            ruleId: string;
+            ruleId?: string | null;
+            kind: string;
+            source?: string | null;
             summary: string;
             state: string;
             /** Format: int32 */
@@ -5657,6 +5997,15 @@ export interface components {
             /** Format: int64 */
             timeout?: number;
         };
+        PendingChange: {
+            /** Format: uuid */
+            heldId: string;
+            value?: string;
+            reset: boolean;
+            requester: string;
+            /** Format: date-time */
+            requestedAt: string;
+        };
         SettingValue: {
             value: string;
             overridden: boolean;
@@ -5665,6 +6014,13 @@ export interface components {
             label: string;
             hint: string;
             kind: string;
+            category: string;
+            categoryTitle: string;
+            /** @description The smallest accepted value, in the kind's own syntax. Always set for an INT; null elsewhere when any positive value is accepted. */
+            min?: string | null;
+            /** @description The largest accepted value; null for none. A DURATION's "forever" also allows forever as a value. */
+            max?: string | null;
+            pending: components["schemas"]["PendingChange"][];
         };
         SettingsResponse: {
             settings: {
@@ -5797,6 +6153,51 @@ export interface components {
             permissionCatalogue: components["schemas"]["ManifestPermissionView"][];
             identityProviders: components["schemas"]["ManifestIdentityProviderView"][];
         };
+        ItemView: {
+            /** Format: int64 */
+            id: number;
+            /** @description Who posted it: a Studio feature or a plugin id. */
+            source: string;
+            kind: string;
+            /** @enum {string} */
+            severity: "info" | "success" | "warning" | "danger";
+            title: string;
+            body?: string | null;
+            /** @description A path inside Studio. */
+            link?: string | null;
+            data?: {
+                [key: string]: string;
+            } | null;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Null while unread.
+             */
+            readAt?: string | null;
+        };
+        PageView: {
+            items: components["schemas"]["ItemView"][];
+            /**
+             * Format: int64
+             * @description Pass as `before` for the next page; null on the last page.
+             */
+            next?: number | null;
+        };
+        CountView: {
+            /** Format: int32 */
+            unread: number;
+            /** @description True when there are at least this many; show 99+. */
+            capped: boolean;
+        };
+        HeldOperationPageView: {
+            items: components["schemas"]["HeldOperationSummaryView"][];
+            /**
+             * Format: uuid
+             * @description Pass as before for the next page; null at the end.
+             */
+            next?: string | null;
+        };
         PagedViewRuleView: {
             data: components["schemas"]["RuleView"][];
             /** Format: int32 */
@@ -5830,6 +6231,26 @@ export interface components {
              */
             count?: number | null;
             hasNext: boolean;
+        };
+        GateStatusView: {
+            /** @description Whether an approval provider is installed and meant to run. */
+            armed: boolean;
+            providerId?: string | null;
+            /** @description Whether the provider runs on this Studio instance. */
+            attached: boolean;
+            /** @description Whether break-glass lets operations bypass approval. */
+            breakGlass: boolean;
+        };
+        GatedOperationInfo: {
+            type?: string;
+            /** Format: int32 */
+            version: number;
+            /** @enum {string} */
+            mode?: "ON_APPROVAL" | "BY_REQUESTER";
+        };
+        GatedOperationListView: {
+            /** @description Every operation type the gate covers, ordered by type. */
+            items: components["schemas"]["GatedOperationInfo"][];
         };
         PagedViewEnvironmentView: {
             data: components["schemas"]["EnvironmentView"][];
@@ -7656,6 +8077,17 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -7718,6 +8150,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UserView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -7841,6 +8284,17 @@ export interface operations {
                     "*/*": components["schemas"]["TeamView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -7892,6 +8346,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -7964,6 +8429,17 @@ export interface operations {
                     "*/*": components["schemas"]["MemberView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8016,126 +8492,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
                 headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Too many requests. Wait for Retry-After seconds. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before retrying. */
-                    "Retry-After"?: number;
-                    /** @description Requests allowed in the window (API tokens). */
-                    "RateLimit-Limit"?: number;
-                    /** @description Requests left in the window (API tokens). */
-                    "RateLimit-Remaining"?: number;
-                    /** @description Seconds until the window resets (API tokens). */
-                    "RateLimit-Reset"?: number;
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
-            /** @description Client error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Server error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    put: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateSettingRequest"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Too many requests. Wait for Retry-After seconds. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before retrying. */
-                    "Retry-After"?: number;
-                    /** @description Requests allowed in the window (API tokens). */
-                    "RateLimit-Limit"?: number;
-                    /** @description Requests left in the window (API tokens). */
-                    "RateLimit-Remaining"?: number;
-                    /** @description Seconds until the window resets (API tokens). */
-                    "RateLimit-Reset"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Client error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Server error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    reset: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
             /** @description No Content */
             204: {
                 headers: {
@@ -8207,6 +8574,17 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8258,6 +8636,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -8327,6 +8716,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GroupMappingsView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -8515,6 +8915,17 @@ export interface operations {
                     "*/*": components["schemas"]["EnvironmentView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -8566,6 +8977,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -8628,6 +9050,17 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -8814,6 +9247,17 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9370,6 +9814,17 @@ export interface operations {
                     "*/*": components["schemas"]["PluginLicenseView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -9421,6 +9876,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9539,6 +10005,17 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9666,6 +10143,17 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -9721,6 +10209,17 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -9846,6 +10345,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CreatedTokenView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -10028,6 +10538,17 @@ export interface operations {
                     "*/*": components["schemas"]["TeamView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10090,6 +10611,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ShareView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -10156,6 +10688,17 @@ export interface operations {
                     "*/*": components["schemas"]["PatternView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10220,6 +10763,17 @@ export interface operations {
                     "*/*": components["schemas"]["MemberView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10269,13 +10823,148 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted */
+            /** @description Accepted; or held for approval: the operation has not run */
             202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RotationView"] | components["schemas"]["HeldOutcome"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["RotationView"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    apply: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChangePreview"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -10398,6 +11087,79 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReadView"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10517,6 +11279,141 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["GroupMappingView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeldDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationDetailView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationDetailView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -10879,6 +11776,17 @@ export interface operations {
                     "*/*": components["schemas"]["EnvironmentView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -10916,7 +11824,7 @@ export interface operations {
             };
         };
     };
-    preview: {
+    preview_1: {
         parameters: {
             query?: never;
             header?: {
@@ -11072,6 +11980,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -11313,13 +12232,15 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Started: the run; or held for approval: the operation has not run */
+            202: {
                 headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TransferRunView"];
+                    "*/*": components["schemas"]["TransferRunView"] | components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -11359,7 +12280,7 @@ export interface operations {
             };
         };
     };
-    preview_1: {
+    preview_2: {
         parameters: {
             query?: never;
             header?: {
@@ -12587,6 +13508,17 @@ export interface operations {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -12655,6 +13587,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -13200,7 +14143,7 @@ export interface operations {
             };
         };
     };
-    apply: {
+    apply_1: {
         parameters: {
             query?: {
                 dryRun?: boolean;
@@ -13407,13 +14350,15 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Started: the run; or held for approval: the operation has not run */
+            202: {
                 headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["BulkRunView"];
+                    "*/*": components["schemas"]["BulkRunView"] | components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -13453,7 +14398,7 @@ export interface operations {
             };
         };
     };
-    preview_2: {
+    preview_3: {
         parameters: {
             query?: never;
             header?: {
@@ -14867,6 +15812,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -14927,13 +15883,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted */
+            /** @description Accepted; or held for approval: the operation has not run */
             202: {
                 headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PluginPlanView"];
+                    "*/*": components["schemas"]["PluginPlanView"] | components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -14998,6 +15956,17 @@ export interface operations {
                     "*/*": components["schemas"]["PluginPurgePlanView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -15051,13 +16020,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted */
+            /** @description Accepted; or held for approval: the operation has not run */
             202: {
                 headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PluginPlanView"];
+                    "*/*": components["schemas"]["PluginPlanView"] | components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -15173,6 +16144,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -15233,13 +16215,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted */
+            /** @description Accepted; or held for approval: the operation has not run */
             202: {
                 headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PluginPlanView"];
+                    "*/*": components["schemas"]["PluginPlanView"] | components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -15415,6 +16399,17 @@ export interface operations {
                     "*/*": components["schemas"]["TrustedKeyView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -15526,6 +16521,17 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -15821,6 +16827,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -15892,6 +16909,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ConnectionCheck"] | components["schemas"]["ClusterConnectionView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16085,6 +17113,17 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -16215,6 +17254,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["NodeEndpointView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -16730,7 +17780,7 @@ export interface operations {
             };
         };
     };
-    preview_3: {
+    preview_4: {
         parameters: {
             query: {
                 clusterId: string;
@@ -17245,6 +18295,61 @@ export interface operations {
             };
         };
     };
+    stream_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["SseEmitter"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     mine: {
         parameters: {
             query?: {
@@ -17474,6 +18579,237 @@ export interface operations {
             };
         };
     };
+    list_11: {
+        parameters: {
+            query?: {
+                unread?: boolean;
+                before?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    count: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CountView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_12: {
+        parameters: {
+            query?: {
+                scope?: "MINE" | "DECIDABLE";
+                state?: ("HELD" | "APPROVED" | "EXECUTING" | "REJECTED" | "CANCELLED" | "EXPIRED" | "SUCCEEDED" | "FAILED" | "REFUSED" | "OUTCOME_UNKNOWN")[];
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationPageView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    get_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["HeldOperationDetailView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     remask: {
         parameters: {
             query?: never;
@@ -17549,6 +18885,116 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PagedViewFindingView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    status_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GateStatusView"];
+                };
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    operations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GatedOperationListView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -17874,7 +19320,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -18049,7 +19495,7 @@ export interface operations {
             };
         };
     };
-    stream_1: {
+    stream_2: {
         parameters: {
             query?: {
                 queryId?: string;
@@ -19010,7 +20456,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_13: {
         parameters: {
             query?: {
                 type?: string;
@@ -19075,7 +20521,7 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    get_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -20133,7 +21579,7 @@ export interface operations {
             };
         };
     };
-    get_5: {
+    get_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -20250,7 +21696,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_14: {
         parameters: {
             query?: {
                 user?: string;
@@ -20316,7 +21762,7 @@ export interface operations {
             };
         };
     };
-    get_6: {
+    get_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -20788,7 +22234,7 @@ export interface operations {
             };
         };
     };
-    status_1: {
+    status_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -20956,7 +22402,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_15: {
         parameters: {
             query?: {
                 page?: number;
@@ -21073,7 +22519,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_16: {
         parameters: {
             query?: never;
             header?: never;
@@ -21128,7 +22574,7 @@ export interface operations {
             };
         };
     };
-    get_7: {
+    get_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -21442,6 +22888,17 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description Too many requests. Wait for Retry-After seconds. */
             429: {
                 headers: {
@@ -21497,6 +22954,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -21614,6 +23082,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -21673,6 +23152,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -21725,6 +23215,64 @@ export interface operations {
                 "Idempotency-Key"?: string;
             };
             path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many requests. Wait for Retry-After seconds. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before retrying. */
+                    "Retry-After"?: number;
+                    /** @description Requests allowed in the window (API tokens). */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the window (API tokens). */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the window resets (API tokens). */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Client error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Server error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_8: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
                 providerId: string;
                 mappingId: string;
             };
@@ -21732,6 +23280,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -21863,6 +23422,17 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
+                };
+            };
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -22146,6 +23716,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -22204,6 +23785,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {
@@ -22262,6 +23854,17 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            202: {
+                headers: {
+                    /** @description The held operation's id, when the operation was held. */
+                    "X-Studio-Held-Operation"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeldOutcome"];
+                };
+            };
             /** @description No Content */
             204: {
                 headers: {

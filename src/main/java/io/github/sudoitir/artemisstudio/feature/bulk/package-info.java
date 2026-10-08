@@ -11,6 +11,7 @@
             "feature.resources :: web",
             "kernel.audit",
             "kernel.core",
+            "kernel.gate",
             "kernel.jobs",
             "kernel.lifecycle",
             "kernel.plugin",

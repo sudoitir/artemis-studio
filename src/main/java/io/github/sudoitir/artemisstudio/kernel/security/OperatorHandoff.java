@@ -1,10 +1,14 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLease;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateLeases;
+import io.github.sudoitir.artemisstudio.kernel.gate.GateScope;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.concurrent.DelegatingSecurityContextRunnable;
 import org.springframework.security.core.context.SecurityContext;
@@ -24,9 +28,16 @@ public class OperatorHandoff {
     private final ActorResolver actors;
     private final UserAccounts accounts;
     private final PermissionResolver perm;
+    /** Absent in a slice without the gate's engine, where no operation can be covered. */
+    private final ObjectProvider<GateLeases> leases;
 
-    /** Who started the work: their principal as authenticated, and the actor their audit rows carry. */
-    public record Operator(StudioPrincipal principal, Actor actor) {}
+    /**
+     * Who started the work: their principal as authenticated, the actor their audit rows carry, and a lease on the
+     * approval gate's ticket when the work was captured inside a covered operation (null otherwise), so the items of
+     * a bulk run keep the coverage of the operation that started it. The first {@link #runAs} of the operator owns
+     * the lease and releases it when it ends; after that the operator carries no coverage.
+     */
+    public record Operator(StudioPrincipal principal, Actor actor, GateLease covered) {}
 
     /** On the request thread. Fails when no one is signed in: there is no one to act for. */
     public Operator capture() {
@@ -34,7 +45,11 @@ public class OperatorHandoff {
         if (auth == null || !(auth.getPrincipal() instanceof StudioPrincipal principal)) {
             throw new IllegalStateException("There is no signed-in operator to act for.");
         }
-        return new Operator(principal, actors.resolve());
+        GateLeases engine = leases.getIfAvailable();
+        GateLease covered = engine != null && GateScope.COVERED.isBound()
+                ? engine.retain(GateScope.COVERED.get()).orElse(null)
+                : null;
+        return new Operator(principal, actors.resolve(), covered);
     }
 
     /**
@@ -47,18 +62,31 @@ public class OperatorHandoff {
         }
         return accounts.byId(userId).filter(account -> !account.disabled()).map(account -> {
             StudioPrincipal principal = StudioPrincipal.live(account.id(), account.username(), false);
-            return new Operator(principal, new Actor(account.username(), null, null, account.id()));
+            return new Operator(principal, new Actor(account.username(), null, null, account.id()), null);
         });
     }
 
-    /** Run {@code task} on this thread as the operator, leaving the thread as it was afterwards. */
+    /**
+     * Run {@code task} on this thread as the operator, leaving the thread as it was afterwards. Under the gate's
+     * coverage while the operator's lease is held; the first run owns the lease and releases it when it ends.
+     */
     public void runAs(Operator operator, Runnable task) {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         StudioPrincipal principal = operator.principal();
         context.setAuthentication(
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
-        ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor())
-                .run(new DelegatingSecurityContextRunnable(task, context));
+        ScopedValue.Carrier onBehalf = ScopedValue.where(ActorResolver.ON_BEHALF_OF, operator.actor());
+        GateLease lease = operator.covered();
+        boolean owner = lease != null && lease.enter();
+        try {
+            ScopedValue.Carrier carrier =
+                    lease != null && !lease.released() ? onBehalf.where(GateScope.COVERED, lease.ticket()) : onBehalf;
+            carrier.run(new DelegatingSecurityContextRunnable(task, context));
+        } finally {
+            if (owner) {
+                lease.release();
+            }
+        }
     }
 
     /** As {@link #runAs}, returning what {@code task} returns. */

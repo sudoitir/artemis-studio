@@ -82,7 +82,25 @@ describe('AccountView', () => {
     expect(await screen.findByText('This session')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'API keys' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'MCP connection' })).toBeInTheDocument();
+    // No approval provider: nothing is ever held, so there is no "My requests".
+    expect(screen.queryByRole('heading', { level: 2, name: 'My requests' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change password' })).toHaveAttribute('href', '/change-password');
+  });
+
+  it('lists the user’s approval requests right after who they are while approvals are on', async () => {
+    mockAccountApis();
+    server.use(
+      http.get('*/api/v1/gate/status', () =>
+        HttpResponse.json({ armed: true, providerId: 'acme-approvals', attached: true, breakGlass: false }),
+      ),
+      http.get('*/api/v1/held-operations', () => HttpResponse.json({ items: [], next: null })),
+    );
+    renderWithProviders(<AccountView />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'My requests' })).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings.slice(0, 2)).toEqual(['Identity', 'My requests']);
+    expect(await screen.findByText('You have no approval requests')).toBeInTheDocument();
   });
 
   it('shows the MCP endpoint and never a real key', async () => {

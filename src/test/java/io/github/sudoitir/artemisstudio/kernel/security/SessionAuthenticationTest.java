@@ -16,10 +16,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /** What a session holds once someone is signed in to it, whichever way they signed in. */
 class SessionAuthenticationTest {
@@ -69,5 +72,50 @@ class SessionAuthenticationTest {
         assertThat(Collections.list(request.getSession().getAttributeNames()))
                 .noneMatch(name -> name.startsWith(SessionAuthentication.PENDING_PREFIX))
                 .contains("unrelated", SessionAuthentication.FACTS_ATTRIBUTE);
+    }
+
+    private static void signedInAs(StudioPrincipal principal, MockHttpServletRequest request) {
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    }
+
+    private static void clear() {
+        SecurityContextHolder.clearContext();
+        RequestContextHolder.resetRequestAttributes();
+    }
+
+    @Test
+    void theCurrentSessionsFactsAreThoseOfTheRequestsSession() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/anything");
+        SessionFacts facts = SessionFacts.signedInWithSecondFactor(request, SessionFacts.Method.TOTP);
+        request.getSession().setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, facts);
+        signedInAs(new StudioPrincipal(UUID.randomUUID(), "ann", Set.of(), false), request);
+
+        try {
+            assertThat(sessions.current()).contains(facts);
+        } finally {
+            clear();
+        }
+    }
+
+    @Test
+    void anApiTokenAndAThreadWithNoRequestHaveNoSession() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/anything");
+        request.getSession().setAttribute(SessionAuthentication.FACTS_ATTRIBUTE, SessionFacts.signedIn(request));
+        TokenPrincipal token =
+                new TokenPrincipal(UUID.randomUUID(), "ann", Set.of(), UUID.randomUUID(), "ci", Set.of());
+        signedInAs(token, request);
+
+        try {
+            assertThat(sessions.current()).isEmpty();
+            RequestContextHolder.resetRequestAttributes();
+            signedInAs(new StudioPrincipal(UUID.randomUUID(), "ann", Set.of(), false), request);
+            RequestContextHolder.resetRequestAttributes();
+            assertThat(sessions.current()).isEmpty();
+        } finally {
+            clear();
+        }
     }
 }

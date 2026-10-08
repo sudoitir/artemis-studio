@@ -63,7 +63,7 @@ export function FindingsInbox() {
       {
         onSuccess: () => notify.succeeded({ action, subject }),
         onError: (e) =>
-          notify.failed({ action, subject, cause: e.message, next: 'The finding is unchanged. Try again.' }),
+          notify.settle(e, { action, subject, cause: e.message, next: 'The finding is unchanged. Try again.' }),
         onSettled: () => setPending(null),
       },
     );

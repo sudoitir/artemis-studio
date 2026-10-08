@@ -77,7 +77,9 @@ export const clustersFeature = defineFeature({
         Component: RemoveClusterSection,
       },
     ],
-    'admin.tabs': [{ id: 'environments', order: 30, title: 'Environments', Component: EnvironmentsPanel }],
+    'admin.tabs': [
+      { id: 'environments', order: 30, title: 'Environments', group: 'installation', Component: EnvironmentsPanel },
+    ],
   },
   streamTopics: {
     topology: ({ clusterId, invalidate }) => invalidate(keys.topology(clusterId)),

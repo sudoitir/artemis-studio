@@ -15,13 +15,16 @@ class StreamJobs {
     static final Duration SESSION_CHECK_INTERVAL = Duration.ofSeconds(10);
 
     @Bean
-    ScheduledJob sseHeartbeatJob(SseHub hub, SettingsService settings) {
+    ScheduledJob sseHeartbeatJob(SseHub hub, UserStreamHub userHub, SettingsService settings) {
         return ScheduledJob.fixedDelay(
                 "sse-heartbeat",
                 "stream",
                 ScheduledJob.Scope.INSTANCE,
                 () -> settings.duration(StreamSettings.HEARTBEAT_INTERVAL),
-                hub::heartbeat);
+                () -> {
+                    hub.heartbeat();
+                    userHub.heartbeat();
+                });
     }
 
     /**
@@ -30,11 +33,16 @@ class StreamJobs {
      * events must not depend on the proxy-tuned heartbeat. The token module is optional.
      */
     @Bean
-    ScheduledJob sseSessionCheckJob(SseHub hub, SessionAuthentication sessions, Optional<PersonalTokens> tokens) {
+    ScheduledJob sseSessionCheckJob(
+            SseHub hub, UserStreamHub userHub, SessionAuthentication sessions, Optional<PersonalTokens> tokens) {
         return ScheduledJob.fixedDelay(
                 "sse-session-check", "stream", ScheduledJob.Scope.INSTANCE, () -> SESSION_CHECK_INTERVAL, () -> {
                     hub.closeEndedSessions(sessions::isLive);
-                    tokens.ifPresent(t -> hub.closeEndedTokens(t::isLive));
+                    userHub.closeEndedSessions(sessions::isLive);
+                    tokens.ifPresent(t -> {
+                        hub.closeEndedTokens(t::isLive);
+                        userHub.closeEndedTokens(t::isLive);
+                    });
                 });
     }
 }

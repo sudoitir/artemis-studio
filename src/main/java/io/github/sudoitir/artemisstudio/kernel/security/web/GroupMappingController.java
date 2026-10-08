@@ -1,10 +1,14 @@
 package io.github.sudoitir.artemisstudio.kernel.security.web;
 
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.GroupMappingService;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.DefaultRoleRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingRequest;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingView;
 import io.github.sudoitir.artemisstudio.kernel.security.web.GroupMappingViews.GroupMappingsView;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -32,18 +36,25 @@ public class GroupMappingController {
         return mappings.list(providerId);
     }
 
+    @HeldResponse
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GroupMappingView create(@PathVariable String providerId, @Valid @RequestBody GroupMappingRequest request) {
         return mappings.create(providerId, request);
     }
 
+    @HeldResponse
     @DeleteMapping("/{mappingId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String providerId, @PathVariable UUID mappingId) {
         mappings.delete(providerId, mappingId);
     }
 
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = GroupMappingsView.class)))
+    @HeldResponse
     @PutMapping("/default-role")
     public GroupMappingsView setDefaultRole(@PathVariable String providerId, @RequestBody DefaultRoleRequest request) {
         return mappings.setDefaultRole(providerId, request.roleId());

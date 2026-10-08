@@ -75,7 +75,7 @@ function useRotationFlow() {
         onError: (error) => {
           // A stale sign-in is answered by the prompt in the dialog, not by a failure.
           if (!needsReauthentication(error)) {
-            notify.failed({
+            notify.settle(error, {
               action: ROTATE,
               subject: 'the key rotation',
               cause: error.message,

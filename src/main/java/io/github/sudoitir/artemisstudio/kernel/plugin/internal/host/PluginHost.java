@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLifecycleListener;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginPurged;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginStatusChanged;
 import io.github.sudoitir.artemisstudio.kernel.plugin.SemVer;
 import io.github.sudoitir.artemisstudio.kernel.plugin.StudioVersion;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
@@ -729,9 +730,17 @@ public class PluginHost implements SmartLifecycle {
     /** An inspected upload: stored and planned, installed only once someone activates it. */
     public record Inspection(String sha256, ActivationPlan plan, List<Violation> warnings) {}
 
+    /**
+     * An open request to activate the upload, waiting for approval or about to run: the upload outlives its
+     * day until that request ends, because an approver may take far longer to decide.
+     */
+    private static final String HELD_FOR_ACTIVATION = "EXISTS (SELECT 1 FROM held_operation h WHERE"
+            + " h.type = 'plugin.activate-upload' AND h.state IN ('HELD', 'APPROVED', 'EXECUTING')"
+            + " AND h.params->>'sha256' = plugin_upload.sha256)";
+
     /** Uploads nobody activated within a day are forgotten, and their artifacts removed. */
     private static final String EXPIRE_UPLOADS =
-            "DELETE FROM plugin_upload WHERE uploaded_at < now() - interval '1 day'";
+            "DELETE FROM plugin_upload WHERE uploaded_at < now() - interval '1 day' AND NOT " + HELD_FOR_ACTIVATION;
 
     /**
      * Validates {@code jar}, and only when it is valid stores it as an inert upload and plans what
@@ -772,7 +781,8 @@ public class PluginHost implements SmartLifecycle {
     /** Whether {@code sha256} is an upload still waiting to be activated. */
     public boolean isPendingUpload(String sha256) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
-                "SELECT EXISTS (SELECT 1 FROM plugin_upload WHERE sha256 = ? AND uploaded_at >= now() - interval '1 day')",
+                "SELECT EXISTS (SELECT 1 FROM plugin_upload WHERE sha256 = ? AND (uploaded_at >= now() - interval '1 day' OR "
+                        + HELD_FOR_ACTIVATION + "))",
                 Boolean.class,
                 sha256));
     }
@@ -943,6 +953,7 @@ public class PluginHost implements SmartLifecycle {
                     "Install and activate the required plugin, or enable the required feature, first.")));
         }
         checkConnectionBudget(plan.pluginId());
+        checkSingleApprovalProvider(plan.pluginId(), plan.descriptor());
 
         String id = plan.pluginId();
         String descriptorJson = json.writeValueAsString(ctx.descriptor());
@@ -964,6 +975,23 @@ public class PluginHost implements SmartLifecycle {
         return plan;
     }
 
+    /** ADR-0179: at most one plugin is the approval provider, counting one that is meant to be active but is not running. */
+    private void checkSingleApprovalProvider(String pluginId, PluginDescriptor descriptor) {
+        if (descriptor.approvalProvider() == null) {
+            return;
+        }
+        installs.findByApprovalProviderTrueAndStatusIn(PluginInstallStatus.desiredActiveDbValues()).stream()
+                .filter(other -> !other.getId().equals(pluginId))
+                .findFirst()
+                .ifPresent(other -> {
+                    throw new PluginRefusedException(List.of(new Violation(
+                            "approval-provider-exists",
+                            "Plugin '%s' is already the approval provider; only one may be active."
+                                    .formatted(other.getId()),
+                            "Disable or uninstall '%s' first.".formatted(other.getId()))));
+                });
+    }
+
     private void runActivation(PlanContext ctx, String actor, String sha256, String descriptorJson, boolean fresh) {
         String id = ctx.descriptor().id();
         try {
@@ -975,6 +1003,7 @@ public class PluginHost implements SmartLifecycle {
                     store.update(id, e -> {
                         if (!sha256.equals(e.getSha256())) {
                             e.update(ctx.plan().toVersion(), sha256, descriptorJson, schemaChanged);
+                            e.approvalProvider(ctx.descriptor().approvalProvider() != null);
                         }
                         e.signer(
                                 ctx.plan().trust().fingerprint(),
@@ -1067,6 +1096,7 @@ public class PluginHost implements SmartLifecycle {
                 // version before it, so Roll back still has somewhere to go.
                 if (!sha256.equals(e.getSha256())) {
                     e.update(ctx.plan().toVersion(), sha256, descriptorJson, schemaChanged);
+                    e.approvalProvider(ctx.descriptor().approvalProvider() != null);
                 } else if (schemaChanged) {
                     e.schemaChanged(true);
                 }
@@ -1225,7 +1255,13 @@ public class PluginHost implements SmartLifecycle {
         }
         activeRuntime(id).ifPresent(this::closeRuntime);
         registry.remove(id);
-        store.update(id, e -> e.transitionTo(finalStatus));
+        PluginInstallStatus from = requireInstall(id).status();
+        transactions.executeWithoutResult(status -> {
+            store.update(id, e -> e.transitionTo(finalStatus));
+            if (from.desiredActive()) {
+                events.publishEvent(new PluginStatusChanged(id, from, finalStatus, actor));
+            }
+        });
         PluginInstallEntity entity = requireInstall(id);
         log.info(
                 "plugin-lifecycle id={} from={} to={} sha256={} actor={} step={} outcome=succeeded",

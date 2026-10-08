@@ -1,7 +1,6 @@
 import { Text } from '@mantine/core';
 
 import { DisplayPreferences } from './DisplayPreferences.tsx';
-import { OperationalConfig } from './OperationalConfig.tsx';
 import { SecuritySettings } from './SecuritySettings.tsx';
 import { StudioHealth } from './StudioHealth.tsx';
 
@@ -14,19 +13,6 @@ export function DisplaySection() {
         permission and affects nobody else&rsquo;s screen.
       </Text>
       <DisplayPreferences />
-    </>
-  );
-}
-
-/** Settings section: Studio's operational configuration, stored in Postgres. */
-export function OperationalSection() {
-  return (
-    <>
-      <Text size="sm" c="dimmed" mb="sm">
-        Overrides the packaged defaults. Stored in Postgres, not the container, and applied without a restart. Reset
-        clears the override and the packaged default takes over again.
-      </Text>
-      <OperationalConfig />
     </>
   );
 }

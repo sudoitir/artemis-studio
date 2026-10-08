@@ -106,7 +106,7 @@ function RotateModal({ token, onClose }: Readonly<{ token: TokenView | null; onC
     rotate.mutate(t.id, {
       onSuccess: () => notify.succeeded({ action: ROTATE, subject: `key "${t.name}"` }),
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: ROTATE,
           subject: `key "${t.name}"`,
           cause: error.message,
@@ -155,11 +155,12 @@ function RevokeKey({
         notify.succeeded({ action: REVOKE, subject: `key "${t.name}"` });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: REVOKE,
           subject: `key "${t.name}"`,
           cause: error.message,
           next: 'The key still works. Try again.',
+          onHeld: close,
         }),
     });
 

@@ -31,14 +31,18 @@ export function TeamNameDialog({
       title={naming === 'new' ? 'New team' : `Rename ${naming?.name ?? ''}`}
     >
       {naming === null ? null : (
-        <TeamNameForm key={naming === 'new' ? 'new' : naming.id} team={naming} onDone={onDone} />
+        <TeamNameForm key={naming === 'new' ? 'new' : naming.id} team={naming} onDone={onDone} onHeld={onClose} />
       )}
     </Modal>
   );
 }
 
 /** The name of a new or renamed team. A name already taken is answered beside the field. */
-function TeamNameForm({ team, onDone }: Readonly<{ team: Naming; onDone: (team: TeamView) => void }>) {
+function TeamNameForm({
+  team,
+  onDone,
+  onHeld,
+}: Readonly<{ team: Naming; onDone: (team: TeamView) => void; onHeld: () => void }>) {
   const create = useCreateTeam();
   const rename = useRenameTeam();
   const form = useForm({
@@ -55,7 +59,7 @@ function TeamNameForm({ team, onDone }: Readonly<{ team: Naming; onDone: (team: 
         form.setErrors({ name: 'A team with that name already exists. Choose another name.' });
         form.getInputNode('name')?.focus();
       } else {
-        notify.failed({ action, subject, cause: error.message, next });
+        notify.settle(error, { action, subject, cause: error.message, next, onHeld });
       }
     };
     const onSuccess = (action: ActionVerb) => (saved: TeamView) => {
@@ -120,10 +124,16 @@ export function DeleteTeam({
   const confirm = (t: TeamSummary | TeamView) =>
     remove.mutate(
       t.id,
-      withNotice(DELETE, `team ${t.name}`, 'The team still exists. Try again.', () => {
-        onClose();
-        onDeleted?.();
-      }),
+      withNotice(
+        DELETE,
+        `team ${t.name}`,
+        'The team still exists. Try again.',
+        () => {
+          onClose();
+          onDeleted?.();
+        },
+        onClose,
+      ),
     );
 
   return (

@@ -28,6 +28,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         sharedModules = {
             "kernel.audit",
             "kernel.core",
+            "kernel.gate",
             "kernel.jobs",
             "kernel.plugin",
             "kernel.replica",

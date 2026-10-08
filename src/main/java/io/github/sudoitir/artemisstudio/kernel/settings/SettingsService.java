@@ -2,6 +2,13 @@ package io.github.sudoitir.artemisstudio.kernel.settings;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.gate.GatePreview;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldOperationQueries;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldOperationView;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
+import io.github.sudoitir.artemisstudio.kernel.gate.PolicyRef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDisabledException;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
@@ -9,26 +16,41 @@ import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.PendingChange;
 import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.support.CronExpression;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The runtime configuration layer: a stored {@code studio_setting} row wins over the
@@ -63,11 +85,19 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Slf4j
 public class SettingsService {
 
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
     private final StudioSettingRepository repo;
     private final AuditService audit;
     private final ActorResolver actorResolver;
     private final FeatureRegistry features;
     private final StudioBus bus;
+    private final PermissionResolver permissions;
+    private final ObjectProvider<OperationGate> gate;
+    /** Absent where the approval engine is not part of the application: nothing is then held. */
+    private final ObjectProvider<HeldOperationQueries> held;
+
+    private final TransactionTemplate tx;
 
     /** Whether the stored values have been pushed to their holders once, at boot. */
     private boolean pushed;
@@ -100,12 +130,20 @@ public class SettingsService {
             ActorResolver actorResolver,
             FeatureRegistry features,
             StudioBus bus,
+            PermissionResolver permissions,
+            ObjectProvider<OperationGate> gate,
+            ObjectProvider<HeldOperationQueries> held,
+            PlatformTransactionManager transactions,
             List<SettingsContribution> contributions) {
         this.repo = repo;
         this.audit = audit;
         this.actorResolver = actorResolver;
         this.features = features;
         this.bus = bus;
+        this.permissions = permissions;
+        this.gate = gate;
+        this.held = held;
+        this.tx = new TransactionTemplate(transactions);
         for (FeatureDescriptor module : features.enabled()) {
             for (SettingsContribution contribution : contributions) {
                 if (contribution.featureId().equals(module.id())) {
@@ -243,12 +281,14 @@ public class SettingsService {
     // ---- read / write -----------------------------------------------------
 
     /**
-     * Every operator-tunable key of the Settings screen: its effective value, its default, and how
-     * to render it. Keys another screen owns (a different write permission) are left out.
+     * Every operator-tunable key of the Settings screen: its effective value, its default, its category, how to
+     * render it, and the changes waiting for approval. Keys another screen owns (a different write permission)
+     * are left out.
      */
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions).SETTINGS_READ)")
     public Map<String, SettingValue> effective() {
         Map<String, String> stored = overrides;
+        Map<String, List<PendingChange>> pending = pendingChanges();
         Map<String, SettingValue> out = new LinkedHashMap<>();
         registry.forEach((key, spec) -> {
             if (writePermissions.containsKey(key)) {
@@ -256,6 +296,7 @@ public class SettingsService {
             }
             String defaultValue = spec.defaultValue().get();
             String override = stored.get(key);
+            FeatureDescriptor owner = features.ownerOfSetting(key).orElse(null);
             out.put(
                     key,
                     new SettingValue(
@@ -265,65 +306,209 @@ public class SettingsService {
                             spec.group(),
                             spec.label(),
                             spec.hint(),
-                            spec.kind().name()));
+                            spec.kind().name(),
+                            owner != null ? owner.id() : key.substring(0, Math.max(0, key.indexOf('.'))),
+                            owner != null ? owner.title() : spec.group(),
+                            spec.kind() == SettingDef.Kind.INT && spec.min() == null ? "1" : spec.min(),
+                            spec.max(),
+                            pending.getOrDefault(key, List.of())));
         });
         return out;
     }
 
-    /**
-     * Audited in the same transaction as the write (non-negotiable #3), so a change
-     * and the record of it commit or roll back together.
-     *
-     * <p>Validation happens <em>before</em> the audit row rather than after: a rejected
-     * value never becomes a transaction, so a {@code begin}/{@code fail} pair around it
-     * would roll back with everything else and record nothing.
-     */
-    @PreAuthorize("@perm.can(@settingsService.writePermission(#key))")
-    @Transactional
-    public void put(String key, String rawValue) {
-        SettingDef spec = requireKnown(key);
-        String value = unquote(rawValue);
-        validate(spec, value);
-
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                "UPDATE_SETTING",
-                "SETTING",
-                key,
-                null,
-                null,
-                Map.of("from", overrides.getOrDefault(key, spec.defaultValue().get()), "to", value),
-                false);
-
-        String json = asJsonScalar(value);
-        repo.findById(key).ifPresentOrElse(e -> e.setValue(json), () -> repo.save(new StudioSettingEntity(key, json)));
-        repo.flush();
-        changed();
-        audit.succeed(event, 1);
+    /** The open {@code settings.apply} requests, by the keys they would change. */
+    private Map<String, List<PendingChange>> pendingChanges() {
+        Map<String, List<PendingChange>> byKey = new LinkedHashMap<>();
+        HeldOperationQueries queries = held.getIfAvailable();
+        if (queries == null) {
+            return Map.of();
+        }
+        for (HeldOperationView view : queries.openByType(ApplySettingsOperation.TYPE)) {
+            SettingsChangeSet set;
+            try {
+                set = JSON.readValue(view.params(), SettingsChangeSet.class);
+            } catch (RuntimeException e) {
+                log.warn("A held settings change {} could not be read: {}", view.id(), e.toString());
+                continue;
+            }
+            for (SettingChange change : set.changes()) {
+                byKey.computeIfAbsent(change.key(), k -> new ArrayList<>())
+                        .add(new PendingChange(
+                                view.id(),
+                                change.value(),
+                                change.isReset(),
+                                view.requester().username(),
+                                view.requestedAt()));
+            }
+        }
+        return byKey;
     }
 
-    /** Clears the override so the packaged default takes over again. Audited like {@link #put}. */
-    @PreAuthorize("@perm.can(@settingsService.writePermission(#key))")
-    @Transactional
+    /** Sets one setting: a change set of one. */
+    public void put(String key, String rawValue) {
+        apply(List.of(SettingChange.set(key, rawValue)));
+    }
+
+    /** Clears one override so the packaged default takes over again: a change set of one. */
     public void reset(String key) {
-        SettingDef spec = requireKnown(key);
+        apply(List.of(SettingChange.reset(key)));
+    }
 
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                "RESET_SETTING",
-                "SETTING",
-                key,
-                null,
-                null,
-                Map.of(
-                        "from", overrides.getOrDefault(key, spec.defaultValue().get()),
-                        "to", spec.defaultValue().get()),
-                false);
+    /**
+     * Applies several changes and resets together or not at all. A change set is checked as a whole before anything
+     * is written, so one invalid value leaves every setting as it was. It is the gated operation
+     * {@code settings.apply}: with an approval provider installed it may be held, and the stored values it was
+     * approved against must still be the same when it runs.
+     *
+     * @throws SettingsInvalidException when a value is not allowed, naming each setting
+     */
+    @Gated(ApplySettingsOperation.TYPE)
+    public void apply(List<SettingChange> changes) {
+        SettingsChangeSet set = prepare(changes);
+        gate.getObject().run(Operation.of(set), () -> {
+            write(set.changes());
+            return null;
+        });
+    }
 
-        repo.deleteById(key);
-        repo.flush();
-        changed();
-        audit.succeed(event, 1);
+    /** Says what {@link #apply} would do now, without changing or holding anything. */
+    public SettingsChangePreview preview(List<SettingChange> changes) {
+        SettingsChangeSet set;
+        try {
+            set = prepare(changes);
+        } catch (SettingsInvalidException e) {
+            return new SettingsChangePreview(null, false, null, null, e.fieldErrors());
+        }
+        GatePreview preview = gate.getObject().preview(Operation.of(set));
+        return new SettingsChangePreview(
+                preview.outcome(), preview.reasonRequired(), policyLabel(preview.policy()), preview.reason(), Map.of());
+    }
+
+    private static String policyLabel(PolicyRef policy) {
+        if (policy == null) {
+            return null;
+        }
+        return policy.name() != null ? policy.name() : policy.id();
+    }
+
+    /** Sorts, normalizes, authorizes and validates a change set; the same checks run again on replay. */
+    private SettingsChangeSet prepare(List<SettingChange> changes) {
+        if (changes == null || changes.isEmpty()) {
+            throw new IllegalArgumentException("A change set needs at least one setting.");
+        }
+        Map<String, SettingChange> byKey = authorizedByKey(changes);
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (SettingChange change : byKey.values()) {
+            SettingDef spec = requireKnown(change.key());
+            if (!change.isReset()) {
+                validationError(spec, change).ifPresent(message -> errors.put(change.key(), message));
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new SettingsInvalidException(errors);
+        }
+        return new SettingsChangeSet(new ArrayList<>(byKey.values()));
+    }
+
+    /** The changes keyed and sorted by setting, each value unquoted and its write permission checked. */
+    private Map<String, SettingChange> authorizedByKey(List<SettingChange> changes) {
+        Map<String, SettingChange> byKey = new TreeMap<>();
+        for (SettingChange change : changes) {
+            if (!permissions.can(writePermission(change.key()))) {
+                throw new AccessDeniedException(
+                        "Changing " + change.key() + " needs the " + writePermission(change.key()) + " permission.");
+            }
+            SettingChange normalized =
+                    change.isReset() ? change : new SettingChange(change.key(), unquote(change.value()));
+            if (byKey.put(change.key(), normalized) != null) {
+                throw new IllegalArgumentException("The setting " + change.key() + " appears twice in the change set.");
+            }
+        }
+        return byKey;
+    }
+
+    /** What is wrong with one change's value, in operator words, or empty when it is valid. */
+    private Optional<String> validationError(SettingDef spec, SettingChange change) {
+        try {
+            validate(spec, change.value());
+            return Optional.empty();
+        } catch (NumberFormatException _) {
+            return Optional.of(change.key() + " must be a whole number");
+        } catch (DateTimeException _) {
+            return Optional.of(change.key() + " must be a duration such as 30s, 15m, 12h or 7d");
+        } catch (IllegalArgumentException e) {
+            return Optional.of(e.getMessage());
+        }
+    }
+
+    /**
+     * One transaction for the whole change set, with an audit row per setting (non-negotiable #3), so the changes
+     * and the record of them commit or roll back together. Validation happened before, so a rejected value never
+     * becomes a transaction.
+     */
+    private void write(List<SettingChange> changes) {
+        tx.executeWithoutResult(status -> {
+            for (SettingChange change : changes) {
+                SettingDef spec = requireKnown(change.key());
+                String current =
+                        overrides.getOrDefault(change.key(), spec.defaultValue().get());
+                if (change.isReset()) {
+                    AuditEvent event = audit.begin(
+                            actorResolver.resolve(),
+                            "RESET_SETTING",
+                            "SETTING",
+                            change.key(),
+                            null,
+                            null,
+                            Map.of("from", current, "to", spec.defaultValue().get()),
+                            false);
+                    repo.deleteById(change.key());
+                    audit.succeed(event, 1);
+                } else {
+                    AuditEvent event = audit.begin(
+                            actorResolver.resolve(),
+                            "UPDATE_SETTING",
+                            "SETTING",
+                            change.key(),
+                            null,
+                            null,
+                            Map.of("from", current, "to", change.value()),
+                            false);
+                    String json = asJsonScalar(change.value());
+                    repo.findById(change.key())
+                            .ifPresentOrElse(
+                                    e -> e.setValue(json),
+                                    () -> repo.save(new StudioSettingEntity(change.key(), json)));
+                    audit.succeed(event, 1);
+                }
+            }
+            repo.flush();
+            changed();
+        });
+    }
+
+    /** The definition of {@code key}, for describing a change. */
+    public SettingDef definition(String key) {
+        return requireKnown(key);
+    }
+
+    /**
+     * A hash of the effective values of {@code keys} and whether each is overridden, so an approved change set
+     * runs only against the state it was approved for.
+     */
+    public String stateKey(List<String> keys) {
+        MessageDigest sha;
+        try {
+            sha = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        Map<String, String> stored = overrides;
+        keys.stream().sorted().forEach(key -> {
+            String line = key + (stored.containsKey(key) ? "=" : "~") + value(key) + "\n";
+            sha.update(line.getBytes(StandardCharsets.UTF_8));
+        });
+        return HexFormat.of().formatHex(sha.digest());
     }
 
     /**

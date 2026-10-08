@@ -220,4 +220,28 @@ describe('ErrorState', () => {
     renderWithProviders(<ErrorState error={apiError(404)} variant="inline" />);
     expect(screen.getByRole('alert')).toHaveAttribute('data-variant', 'inline');
   });
+
+  it('shows an operation held for approval as sent, not as a failure, with a link to the request', () => {
+    const held = { name: 'OperationHeldError', heldOperation: { id: 'h-9', summary: 'Delete queue "orders"' } };
+    renderWithProviders(<ErrorState error={held} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('Sent for approval');
+    expect(status).toHaveTextContent('Delete queue "orders" waits for a second person.');
+    expect(within(status).getByRole('link', { name: 'View request' })).toHaveAttribute('href', '/approvals/h-9');
+  });
+
+  it.each([
+    ['operation-denied', 403, 'The approval policy denied this', 'Outside the change window.'],
+    ['approval-unavailable', 503, 'Approvals are unavailable', 'Outside the change window.'],
+    ['approval-reason-required', 422, 'A reason is required', 'Outside the change window.'],
+  ])('reads the gate refusal %s by its type, saying nothing was changed', (slug, status, title, detail) => {
+    renderWithProviders(
+      <ErrorState error={apiError(status, { detail }, { type: `https://artemis-studio.dev/problems/${slug}` })} />,
+    );
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(title);
+    expect(alert).toHaveTextContent(detail);
+    expect(alert).toHaveTextContent('Nothing was changed.');
+  });
 });

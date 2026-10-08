@@ -12,6 +12,7 @@
             "kernel.audit",
             "kernel.audit::web",
             "kernel.core",
+            "kernel.gate",
             "kernel.jobs",
             "kernel.plugin",
             "kernel.plugin::descriptor",

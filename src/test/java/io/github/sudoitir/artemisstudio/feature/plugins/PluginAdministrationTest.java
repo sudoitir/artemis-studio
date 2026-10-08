@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallers;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginProperties;
@@ -56,7 +57,8 @@ class PluginAdministrationTest {
                 new UpdateChecker(JsonMapper.builder().build()),
                 mock(StudioRestart.class),
                 mock(PluginTrust.class),
-                licenses);
+                licenses,
+                mock(OperationGate.class));
     }
 
     @Test
@@ -81,9 +83,8 @@ class PluginAdministrationTest {
         byte[] secret = "sk-license-content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
         var administration = administration(true);
-        var request = mock(HttpServletRequest.class);
 
-        assertThatThrownBy(() -> administration.uploadLicense(request, "acme-notes", secret))
+        assertThatThrownBy(() -> administration.uploadLicense("acme-notes", secret, () -> {}))
                 .isInstanceOf(PluginAccessDeniedException.class);
 
         verify(audit)
@@ -107,7 +108,8 @@ class PluginAdministrationTest {
         var request = mock(HttpServletRequest.class);
         var administration = administration(true);
 
-        assertThatThrownBy(() -> administration.removeLicense(request, "acme-notes"))
+        assertThatThrownBy(
+                        () -> administration.removeLicense("acme-notes", () -> administration.requireStepUp(request)))
                 .isInstanceOf(ReauthenticationRequiredException.class);
 
         verify(audit).fail(any(), any());

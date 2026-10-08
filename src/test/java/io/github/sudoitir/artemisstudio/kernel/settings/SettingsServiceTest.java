@@ -6,11 +6,13 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.sudoitir.artemisstudio.feature.alerting.AlertingSettings;
 import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalSettings;
+import io.github.sudoitir.artemisstudio.kernel.approval.ApprovalSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
+import io.github.sudoitir.artemisstudio.kernel.settings.web.SettingsViews.SettingValue;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSettings;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
@@ -79,6 +81,19 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         assertThat(settings.intValue(BrokerSettings.RATE_LIMIT)).isEqualTo(20);
         assertThat(settings.effective().get(BrokerSettings.RATE_LIMIT).overridden())
                 .isFalse();
+    }
+
+    @Test
+    void eachSettingSaysTheRangeItAccepts() {
+        var effective = settings.effective();
+
+        assertThat(effective.get(ApprovalSettings.MAX_OPEN_PER_REQUESTER))
+                .extracting(SettingValue::min, SettingValue::max)
+                .containsExactly("1", "1000");
+        assertThat(effective.get(BrokerSettings.RATE_LIMIT))
+                .extracting(SettingValue::min, SettingValue::max)
+                .containsExactly("1", null);
+        assertThat(effective.get(ScrapeSettings.TIER_A).max()).isNull();
     }
 
     @Test
@@ -193,5 +208,75 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
         assertThat(settings.value("acme.retention")).isEqualTo("30d");
         settings.removeSettings("acme");
+    }
+
+    @Test
+    void aChangeSetAppliesSettingsAndResetsTogether() {
+        settings.put(BrokerSettings.BULK_CAP, "3");
+
+        settings.apply(java.util.List.of(
+                SettingChange.reset(BrokerSettings.BULK_CAP), SettingChange.set(BrokerSettings.BULK_QUEUE_CAP, "2")));
+
+        assertThat(settings.effective().get(BrokerSettings.BULK_CAP).overridden())
+                .isFalse();
+        assertThat(settings.intValue(BrokerSettings.BULK_QUEUE_CAP)).isEqualTo(2);
+        assertThat(auditEvents.findAll())
+                .extracting(AuditEventEntity::getAction, AuditEventEntity::getTargetName)
+                .contains(
+                        tuple("RESET_SETTING", BrokerSettings.BULK_CAP),
+                        tuple("UPDATE_SETTING", BrokerSettings.BULK_QUEUE_CAP));
+    }
+
+    @Test
+    void aChangeSetWithOneInvalidValueChangesNothingAndNamesTheInvalidSetting() {
+        assertThatThrownBy(() -> settings.apply(java.util.List.of(
+                        SettingChange.set(BrokerSettings.BULK_CAP, "3"),
+                        SettingChange.set(BrokerSettings.BULK_QUEUE_CAP, "0"),
+                        SettingChange.set(ScrapeSettings.TIER_A, "soon"))))
+                .isInstanceOfSatisfying(
+                        SettingsInvalidException.class,
+                        e -> assertThat(e.fieldErrors())
+                                .containsOnlyKeys(BrokerSettings.BULK_QUEUE_CAP, ScrapeSettings.TIER_A));
+
+        assertThat(settings.effective().get(BrokerSettings.BULK_CAP).overridden())
+                .isFalse();
+        assertThat(auditEvents.findAll()).isEmpty();
+    }
+
+    @Test
+    void aSettingAppearingTwiceInAChangeSetIsRefused() {
+        var changes = java.util.List.of(
+                SettingChange.set(BrokerSettings.BULK_CAP, "3"), SettingChange.reset(BrokerSettings.BULK_CAP));
+
+        assertThatThrownBy(() -> settings.apply(changes))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("twice");
+    }
+
+    @Test
+    void withoutAProviderThePreviewSaysRunAndReportsInvalidFields() {
+        assertThat(settings.preview(java.util.List.of(SettingChange.set(BrokerSettings.BULK_CAP, "3"))))
+                .satisfies(preview -> {
+                    assertThat(preview.outcome())
+                            .isEqualTo(io.github.sudoitir.artemisstudio.kernel.gate.GatePreview.Outcome.RUN);
+                    assertThat(preview.fieldErrors()).isEmpty();
+                });
+        assertThat(settings.preview(java.util.List.of(SettingChange.set(BrokerSettings.BULK_CAP, "0"))))
+                .satisfies(preview -> {
+                    assertThat(preview.outcome()).isNull();
+                    assertThat(preview.fieldErrors()).containsOnlyKeys(BrokerSettings.BULK_CAP);
+                });
+        assertThat(settings.effective().get(BrokerSettings.BULK_CAP).overridden())
+                .isFalse();
+    }
+
+    @Test
+    void everySettingNamesItsCategoryAndHasNoPendingChange() {
+        var cap = settings.effective().get(BrokerSettings.BULK_CAP);
+
+        assertThat(cap.category()).isNotBlank();
+        assertThat(cap.categoryTitle()).isNotBlank();
+        assertThat(cap.defaultValue()).isNotBlank();
+        assertThat(cap.pending()).isEmpty();
     }
 }

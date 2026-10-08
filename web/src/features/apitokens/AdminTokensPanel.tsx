@@ -64,7 +64,7 @@ function Inventory() {
   return (
     <Section
       title="API keys"
-      description="Every user's keys. A key unused for longer than the stale period in Operational configuration is flagged."
+      description="Every user's keys. A key unused for longer than the stale period in Settings → API tokens is flagged."
     >
       <DataTable
         variant="static"
@@ -116,11 +116,12 @@ function RevokeKey({
         notify.succeeded({ action: REVOKE, subject: `${t.owner}'s key "${t.name}"` });
       },
       onError: (error) =>
-        notify.failed({
+        notify.settle(error, {
           action: REVOKE,
           subject: `${t.owner}'s key "${t.name}"`,
           cause: error.message,
           next: 'The key still works. Try again.',
+          onHeld: close,
         }),
     });
 

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -15,6 +16,13 @@ public interface PersonalTokens {
      * and not one minted without a second factor by an owner who now requires one.
      */
     boolean isLive(UUID tokenId);
+
+    /**
+     * The token's principal as it would authenticate now, pinned to its owner and its own grants and
+     * narrowed by the owner's access at each check; empty when {@link #isLive} is false. It does not
+     * count as the token being used.
+     */
+    Optional<TokenPrincipal> principal(UUID tokenId);
 
     /** Revoke every token of the user that is not already revoked; the number revoked. */
     int revokeAllOf(UUID userId);

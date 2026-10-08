@@ -2,6 +2,9 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.gate.Gated;
+import io.github.sudoitir.artemisstudio.kernel.gate.Operation;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.CatalogueEntry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionScope;
@@ -32,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Custom role CRUD. Built-in roles ({@code ADMIN}/{@code OPERATOR}/{@code VIEWER},
@@ -55,6 +59,8 @@ public class RoleService {
     private final AppUserRepository users;
     private final AccessChanges accessChanges;
     private final SessionTerminator sessions;
+    private final OperationGate gate;
+    private final TransactionTemplate tx;
 
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
     @Transactional(readOnly = true)
@@ -81,13 +87,25 @@ public class RoleService {
                 .toList();
     }
 
+    @Gated("role.create")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-    @Transactional
     public RoleView create(RoleRequest request) {
+        requireNewRole(request);
+        return gate.run(
+                Operation.of(new RoleOperations.CreateRole(
+                        request.name(), request.permissions(), request.requiresMfa(), request.teamAssignable())),
+                GatedWrites.inTx(tx, () -> createNow(request)));
+    }
+
+    private void requireNewRole(RoleRequest request) {
         if (roles.findByName(request.name()).isPresent()) {
             throw new ConflictException("duplicate-role-name", "A role named '" + request.name() + "' already exists.");
         }
         requireConsistent(request);
+    }
+
+    private RoleView createNow(RoleRequest request) {
+        requireNewRole(request);
         RoleEntity role = new RoleEntity(request.name(), false);
         role.setRequiresMfa(request.requiresMfa());
         role.setTeamAssignable(request.teamAssignable());
@@ -98,11 +116,22 @@ public class RoleService {
         return toView(role);
     }
 
+    @Gated("role.update")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-    @Transactional
     public RoleView update(UUID roleId, RoleRequest request) {
+        requireUpdatable(roleId, request);
+        return gate.run(
+                Operation.of(new RoleOperations.UpdateRole(
+                        roleId,
+                        request.name(),
+                        request.permissions(),
+                        request.requiresMfa(),
+                        request.teamAssignable())),
+                GatedWrites.inTx(tx, () -> updateNow(roleId, request)));
+    }
+
+    private RoleEntity requireUpdatable(UUID roleId, RoleRequest request) {
         RoleEntity role = roles.findById(roleId).orElseThrow(() -> new NotFoundException("role", roleId));
-        boolean mfaChanged = role.isRequiresMfa() != request.requiresMfa();
         if (role.isBuiltin()) {
             requireOnlyMfaChanges(role, request);
         } else {
@@ -112,6 +141,14 @@ public class RoleService {
                         "role-in-use",
                         "This role is still the role of a team member or a share, so it must stay a team role.");
             }
+        }
+        return role;
+    }
+
+    private RoleView updateNow(UUID roleId, RoleRequest request) {
+        RoleEntity role = requireUpdatable(roleId, request);
+        boolean mfaChanged = role.isRequiresMfa() != request.requiresMfa();
+        if (!role.isBuiltin()) {
             role.setName(request.name());
             role.setTeamAssignable(request.teamAssignable());
             rolePermissions.deleteByIdRoleId(roleId);
@@ -135,14 +172,25 @@ public class RoleService {
         return toView(role);
     }
 
+    @Gated("role.delete")
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.kernel.security.Permissions).USER_ADMIN)")
-    @Transactional
     public void delete(UUID roleId) {
+        requireDeletable(roleId);
+        gate.run(
+                Operation.of(new RoleOperations.DeleteRole(roleId)), GatedWrites.inTxVoid(tx, () -> deleteNow(roleId)));
+    }
+
+    private RoleEntity requireDeletable(UUID roleId) {
         RoleEntity role = requireEditable(roleId);
         if (userRoles.countByIdRoleId(roleId) > 0 || usedByATeam(roleId)) {
             throw new ConflictException(
                     "role-in-use", "This role is still granted to a user, or is the role of a team member or share.");
         }
+        return role;
+    }
+
+    private void deleteNow(UUID roleId) {
+        RoleEntity role = requireDeletable(roleId);
         roles.delete(role); // cascades role_permission
         audit.changed("ROLE_DELETE", "role", role.getName(), null);
         accessChanges.changed();

@@ -20,10 +20,10 @@ export const securityFeature = defineFeature({
     // Beside the password: changing it ends the other sessions listed here.
     'account.sections': [{ id: 'security-sessions', order: 15, title: 'Sessions', Component: SessionsSection }],
     'admin.tabs': [
-      { id: 'users', order: 10, title: 'Users', Component: UsersPanel },
-      { id: 'roles', order: 20, title: 'Roles', Component: RolesPanel },
-      { id: 'teams', order: 22, title: 'Teams', Component: TeamsPanel },
-      { id: 'group-mappings', order: 40, title: 'Group mappings', Component: GroupMappingPanel },
+      { id: 'users', order: 10, title: 'Users', group: 'access', Component: UsersPanel },
+      { id: 'roles', order: 20, title: 'Roles', group: 'access', Component: RolesPanel },
+      { id: 'teams', order: 22, title: 'Teams', group: 'access', Component: TeamsPanel },
+      { id: 'group-mappings', order: 40, title: 'Group mappings', group: 'access', Component: GroupMappingPanel },
     ],
   },
 });

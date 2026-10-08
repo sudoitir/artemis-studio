@@ -78,6 +78,9 @@ public class PluginInstallEntity {
     @Column(name = "signer_subject")
     private String signerSubject;
 
+    @Column(name = "approval_provider", nullable = false)
+    private boolean approvalProvider;
+
     public PluginInstallEntity(
             String id, String version, String vendor, String sha256, String installedBy, String descriptor) {
         this.id = id;
@@ -141,6 +144,11 @@ public class PluginInstallEntity {
     public void signer(String fingerprint, String subject) {
         this.signerFingerprint = fingerprint;
         this.signerSubject = subject;
+    }
+
+    /** Records whether the version this row runs declares itself the approval provider (ADR-0179). */
+    public void approvalProvider(boolean approvalProvider) {
+        this.approvalProvider = approvalProvider;
     }
 
     /** Records a completed update: the current version becomes previous, the new one current. */

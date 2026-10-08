@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditE
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -91,7 +92,12 @@ public class AuditService {
     private AuditEventEntity entity(
             Actor actor, String action, Subject subject, Map<String, ?> params, boolean dryRun) {
         Map<String, ?> written = params;
-        if (params != null && !params.isEmpty()) {
+        if (AuditScope.APPROVAL.isBound()) {
+            Map<String, Object> withApproval = params == null ? new LinkedHashMap<>() : new LinkedHashMap<>(params);
+            withApproval.put("approval", AuditScope.APPROVAL.get());
+            written = withApproval;
+        }
+        if (written != null && !written.isEmpty()) {
             for (AuditParamsFilter filter : paramsFilter.orderedStream().toList()) {
                 written = filter.filter(written);
             }

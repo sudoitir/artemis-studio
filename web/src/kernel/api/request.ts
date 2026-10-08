@@ -35,6 +35,52 @@ export class ApiError extends Error {
   }
 }
 
+/** What the server says about an operation it held for approval instead of running. */
+export interface HeldOperation {
+  id: string;
+  /** What the operation would do, in words, such as `Purge queue "orders" on prod`. */
+  summary: string;
+  /** When the request lapses unless someone decides it, as an ISO instant. */
+  expiresAt: string;
+  /** The held operation's API path. */
+  link: string;
+}
+
+/** The header a `202` carries when the operation was held for approval rather than run. */
+export const HELD_HEADER = 'X-Studio-Held-Operation';
+
+/**
+ * The operation was not run but held for a second person to approve. It is thrown, not returned, so a
+ * mutation's success path (its toast, its invalidation, the dialog closing on "done") never treats a held
+ * operation as done; `notify.settle` and `ErrorState` show it as sent for approval, not as a failure.
+ */
+export class OperationHeldError extends Error {
+  readonly heldOperation: HeldOperation;
+
+  constructor(heldOperation: HeldOperation) {
+    super(`Sent for approval: ${heldOperation.summary}`);
+    this.name = 'OperationHeldError';
+    this.heldOperation = heldOperation;
+  }
+}
+
+/** The root every held-operation query key starts from, so a held outcome or a `held` signal refreshes all of them. */
+export const heldOperationsKey = ['held-operations'] as const;
+
+/** Reads a held response's body; the header's id wins, so a body that lost it still names the request. */
+function heldOperationOf(id: string, body: Record<string, unknown>): HeldOperation {
+  const held = (
+    typeof body.heldOperation === 'object' && body.heldOperation !== null ? body.heldOperation : {}
+  ) as Record<string, unknown>;
+  const text = (value: unknown, fallback: string) => (typeof value === 'string' && value ? value : fallback);
+  return {
+    id,
+    summary: text(held.summary, 'The operation'),
+    expiresAt: text(held.expiresAt, ''),
+    link: text(held.link, `${BASE}/held-operations/${id}`),
+  };
+}
+
 /**
  * The header that tells the server a person, not a background refresh, made this request, so it
  * counts towards the session's idle timeout (ADR-0145). Polling sends it only while the person is
@@ -97,8 +143,8 @@ export function onLoginPage(): boolean {
   return globalThis.location.pathname.startsWith('/login');
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = (init?.method ?? 'GET').toUpperCase();
+/** The headers every request sends: JSON, the CSRF token on a write, the activity mark, then the caller's own. */
+function requestHeaders(method: string, init?: RequestInit): Headers {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
   };
@@ -110,11 +156,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // The caller's headers add to these, never replace them: replacing dropped the CSRF token.
   const merged = new Headers(headers);
   new Headers(init?.headers).forEach((value, key) => merged.set(key, value));
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'same-origin',
-    ...init,
-    headers: merged,
-  });
+  return merged;
+}
+
+/** Follows the session through a response: a lost one goes to sign-in, and sign-in and sign-out are noted. */
+async function trackSession(res: Response, path: string): Promise<void> {
   if (res.status === 401 && !onLoginPage() && !(await isWrongSecondFactor(res))) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
@@ -122,10 +168,22 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.ok && (path === '/auth/me' || path === '/auth/login')) confirmedSignedIn = true;
   if (path === '/auth/logout') confirmedSignedIn = false;
+}
+
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const res = await fetch(`${BASE}${path}`, {
+    credentials: 'same-origin',
+    ...init,
+    headers: requestHeaders(method, init),
+  });
+  await trackSession(res, path);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
   if (!res.ok) throw new ApiError(res.status, body);
+  const heldId = res.status === 202 ? res.headers.get(HELD_HEADER) : null;
+  if (heldId) throw new OperationHeldError(heldOperationOf(heldId, body));
   return body as T;
 }
 

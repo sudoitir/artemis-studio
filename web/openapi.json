@@ -44,6 +44,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -147,6 +166,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -343,6 +381,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -430,6 +487,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -546,6 +622,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -642,191 +737,24 @@
           "204" : {
             "description" : "No Content"
           },
-          "4XX" : {
-            "description" : "Client error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "5XX" : {
-            "description" : "Server error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "429" : {
-            "description" : "Too many requests. Wait for Retry-After seconds.",
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
             "headers" : {
-              "Retry-After" : {
-                "description" : "Seconds to wait before retrying.",
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Limit" : {
-                "description" : "Requests allowed in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Remaining" : {
-                "description" : "Requests left in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Reset" : {
-                "description" : "Seconds until the window resets (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
+                  "type" : "string",
+                  "format" : "uuid"
                 }
               }
             },
             "content" : {
-              "application/problem+json" : {
+              "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/settings/{key}" : {
-      "put" : {
-        "tags" : [ "settings-controller" ],
-        "operationId" : "put",
-        "parameters" : [ {
-          "name" : "key",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "Idempotency-Key",
-          "in" : "header",
-          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "maxLength" : 255,
-            "minLength" : 1
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/UpdateSettingRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "204" : {
-            "description" : "No Content"
-          },
-          "4XX" : {
-            "description" : "Client error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "5XX" : {
-            "description" : "Server error",
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "429" : {
-            "description" : "Too many requests. Wait for Retry-After seconds.",
-            "headers" : {
-              "Retry-After" : {
-                "description" : "Seconds to wait before retrying.",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Limit" : {
-                "description" : "Requests allowed in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Remaining" : {
-                "description" : "Requests left in the window (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              },
-              "RateLimit-Reset" : {
-                "description" : "Seconds until the window resets (API tokens).",
-                "schema" : {
-                  "type" : "integer",
-                  "format" : "int32"
-                }
-              }
-            },
-            "content" : {
-              "application/problem+json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "settings-controller" ],
-        "operationId" : "reset",
-        "parameters" : [ {
-          "name" : "key",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "Idempotency-Key",
-          "in" : "header",
-          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
-          "required" : false,
-          "schema" : {
-            "type" : "string",
-            "maxLength" : 255,
-            "minLength" : 1
-          }
-        } ],
-        "responses" : {
-          "204" : {
-            "description" : "No Content"
           },
           "4XX" : {
             "description" : "Client error",
@@ -935,6 +863,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -1022,6 +969,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -1125,6 +1091,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/GroupMappingsView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -1431,6 +1416,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -1518,6 +1522,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -1617,6 +1640,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -1928,6 +1970,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -2825,6 +2886,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -2911,6 +2991,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -3092,6 +3191,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -3285,6 +3403,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -3384,6 +3521,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -3573,6 +3729,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/CreatedTokenView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -3866,6 +4041,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -3969,6 +4163,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ShareView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -4080,6 +4293,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -4187,6 +4419,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -4267,11 +4518,234 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/RotationView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/RotationView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/changes" : {
+      "post" : {
+        "tags" : [ "settings-controller" ],
+        "operationId" : "apply",
+        "parameters" : [ {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeSetRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/changes/preview" : {
+      "post" : {
+        "tags" : [ "settings-controller" ],
+        "operationId" : "preview",
+        "parameters" : [ {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeSetRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangePreview"
                 }
               }
             }
@@ -4468,6 +4942,124 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbox/read" : {
+      "post" : {
+        "tags" : [ "inbox-controller" ],
+        "operationId" : "read",
+        "parameters" : [ {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReadRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReadView"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -4654,6 +5246,229 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/GroupMappingView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/held-operations/{id}/decision" : {
+      "post" : {
+        "tags" : [ "held-operation-controller" ],
+        "operationId" : "decide",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HeldDecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOperationDetailView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/held-operations/{id}/cancel" : {
+      "post" : {
+        "tags" : [ "held-operation-controller" ],
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOperationDetailView"
                 }
               }
             }
@@ -5236,6 +6051,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -5302,7 +6136,7 @@
     "/api/v1/data/stores/{id}/preview" : {
       "post" : {
         "tags" : [ "data-controller" ],
-        "operationId" : "preview",
+        "operationId" : "preview_1",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -5548,6 +6382,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ClusterDetail"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -5972,12 +6825,25 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "Started: the run; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/TransferRunView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/TransferRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -6048,7 +6914,7 @@
     "/api/v1/clusters/{clusterId}/transfers/preview" : {
       "post" : {
         "tags" : [ "transfer-controller" ],
-        "operationId" : "preview_1",
+        "operationId" : "preview_2",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -8184,6 +9050,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -8331,6 +9216,25 @@
                   }, {
                     "$ref" : "#/components/schemas/PartialView"
                   } ]
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -9283,7 +10187,7 @@
     "/api/v1/clusters/{clusterId}/config/apply" : {
       "post" : {
         "tags" : [ "broker-config-controller" ],
-        "operationId" : "apply",
+        "operationId" : "apply_1",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -9646,12 +10550,25 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "202" : {
+            "description" : "Started: the run; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/BulkRunView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/BulkRunView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -9722,7 +10639,7 @@
     "/api/v1/clusters/{clusterId}/bulk/preview" : {
       "post" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "preview_2",
+        "operationId" : "preview_3",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -11995,6 +12912,25 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -12090,11 +13026,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PluginPlanView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/PluginPlanView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -12203,6 +13152,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -12298,11 +13266,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PluginPlanView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/PluginPlanView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -12500,6 +13481,25 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -12595,11 +13595,24 @@
         } ],
         "responses" : {
           "202" : {
-            "description" : "Accepted",
+            "description" : "Accepted; or held for approval: the operation has not run",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PluginPlanView"
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/PluginPlanView"
+                  }, {
+                    "$ref" : "#/components/schemas/HeldOutcome"
+                  } ]
                 }
               }
             }
@@ -12861,6 +13874,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -13045,6 +14077,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -13509,6 +14560,25 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -13622,6 +14692,25 @@
                   }, {
                     "$ref" : "#/components/schemas/ClusterConnectionView"
                   } ]
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -13972,6 +15061,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -14203,6 +15311,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/NodeEndpointView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -15059,7 +16186,7 @@
     "/api/v1/teams/{teamId}/patterns/preview" : {
       "get" : {
         "tags" : [ "teams-controller" ],
-        "operationId" : "preview_3",
+        "operationId" : "preview_4",
         "parameters" : [ {
           "name" : "teamId",
           "in" : "path",
@@ -15866,6 +16993,84 @@
         }
       }
     },
+    "/api/v1/me/stream" : {
+      "get" : {
+        "tags" : [ "user-stream-controller" ],
+        "operationId" : "stream_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SseEmitter"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/access" : {
       "get" : {
         "tags" : [ "access-controller" ],
@@ -16228,6 +17433,392 @@
         }
       }
     },
+    "/api/v1/inbox" : {
+      "get" : {
+        "tags" : [ "inbox-controller" ],
+        "operationId" : "list_11",
+        "parameters" : [ {
+          "name" : "unread",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        }, {
+          "name" : "before",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbox/count" : {
+      "get" : {
+        "tags" : [ "inbox-controller" ],
+        "operationId" : "count",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CountView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/held-operations" : {
+      "get" : {
+        "tags" : [ "held-operation-controller" ],
+        "operationId" : "list_12",
+        "parameters" : [ {
+          "name" : "scope",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "MINE",
+            "enum" : [ "MINE", "DECIDABLE" ]
+          }
+        }, {
+          "name" : "state",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "HELD", "APPROVED", "EXECUTING", "REJECTED", "CANCELLED", "EXPIRED", "SUCCEEDED", "FAILED", "REFUSED", "OUTCOME_UNKNOWN" ]
+            },
+            "uniqueItems" : true
+          }
+        }, {
+          "name" : "before",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOperationPageView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/held-operations/{id}" : {
+      "get" : {
+        "tags" : [ "held-operation-controller" ],
+        "operationId" : "get_3",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOperationDetailView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/governance/remask" : {
       "get" : {
         "tags" : [ "governance-controller" ],
@@ -16342,6 +17933,162 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/PagedViewFindingView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gate/status" : {
+      "get" : {
+        "tags" : [ "gate-controller" ],
+        "operationId" : "status_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GateStatusView"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gate/operations" : {
+      "get" : {
+        "tags" : [ "gate-controller" ],
+        "operationId" : "operations",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GatedOperationListView"
                 }
               }
             }
@@ -16860,7 +18607,7 @@
     "/api/v1/clusters/{clusterId}/transfers/runs/{runId}" : {
       "get" : {
         "tags" : [ "transfer-controller" ],
-        "operationId" : "get_3",
+        "operationId" : "get_4",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -17145,7 +18892,7 @@
     "/api/v1/clusters/{clusterId}/sql/stream" : {
       "get" : {
         "tags" : [ "sql-stream-controller" ],
-        "operationId" : "stream_1",
+        "operationId" : "stream_2",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -18838,7 +20585,7 @@
     "/api/v1/clusters/{clusterId}/events" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "list_11",
+        "operationId" : "list_13",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -18979,7 +20726,7 @@
     "/api/v1/clusters/{clusterId}/events/{seq}" : {
       "get" : {
         "tags" : [ "event-controller" ],
-        "operationId" : "get_4",
+        "operationId" : "get_5",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -20720,7 +22467,7 @@
     "/api/v1/clusters/{clusterId}/bulk/runs/{runId}" : {
       "get" : {
         "tags" : [ "bulk-controller" ],
-        "operationId" : "get_5",
+        "operationId" : "get_6",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -20909,7 +22656,7 @@
     "/api/v1/clusters/{clusterId}/audit" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "list_12",
+        "operationId" : "list_14",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -21057,7 +22804,7 @@
     "/api/v1/clusters/{clusterId}/audit/{id}" : {
       "get" : {
         "tags" : [ "audit-controller" ],
-        "operationId" : "get_6",
+        "operationId" : "get_7",
         "parameters" : [ {
           "name" : "clusterId",
           "in" : "path",
@@ -21841,7 +23588,7 @@
     "/api/v1/auth/mfa" : {
       "get" : {
         "tags" : [ "mfa-controller" ],
-        "operationId" : "status_1",
+        "operationId" : "status_2",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -22092,7 +23839,7 @@
     "/api/v1/admin/tokens" : {
       "get" : {
         "tags" : [ "admin-tokens-controller" ],
-        "operationId" : "list_13",
+        "operationId" : "list_15",
         "parameters" : [ {
           "name" : "page",
           "in" : "query",
@@ -22283,7 +24030,7 @@
     "/api/v1/admin/plugins" : {
       "get" : {
         "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "list_14",
+        "operationId" : "list_16",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -22361,7 +24108,7 @@
     "/api/v1/admin/plugins/{id}" : {
       "get" : {
         "tags" : [ "plugin-admin-controller" ],
-        "operationId" : "get_7",
+        "operationId" : "get_8",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -22850,6 +24597,25 @@
               }
             }
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -22962,6 +24728,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -23151,6 +24936,25 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -23249,6 +25053,115 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
+          "4XX" : {
+            "description" : "Client error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "5XX" : {
+            "description" : "Server error",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Too many requests. Wait for Retry-After seconds.",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before retrying.",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Limit" : {
+                "description" : "Requests allowed in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Remaining" : {
+                "description" : "Requests left in the window (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              },
+              "RateLimit-Reset" : {
+                "description" : "Seconds until the window resets (API tokens).",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int32"
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbox/{id}" : {
+      "delete" : {
+        "tags" : [ "inbox-controller" ],
+        "operationId" : "delete_7",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "Idempotency-Key",
+          "in" : "header",
+          "description" : "Makes the request safe to retry. Within 24 hours a repeat by the same user with the same method, path, query and body returns the first result with `Idempotent-Replayed: true` and applies nothing again. The same key with another request is 422 `idempotency-key-reused`; while the first is still running it is 409 `idempotency-in-progress`. 1 to 255 printable ASCII characters; not accepted on multipart uploads. Server errors and 401, 403 and 429 are not recorded, so the retry runs.",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 255,
+            "minLength" : 1
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -23315,7 +25228,7 @@
     "/api/v1/identity/providers/{providerId}/group-mappings/{mappingId}" : {
       "delete" : {
         "tags" : [ "group-mapping-controller" ],
-        "operationId" : "delete_7",
+        "operationId" : "delete_8",
         "parameters" : [ {
           "name" : "providerId",
           "in" : "path",
@@ -23345,6 +25258,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -23566,6 +25498,25 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/LifecycleOutcomeView"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
                 }
               }
             }
@@ -24010,6 +25961,25 @@
           "204" : {
             "description" : "No Content"
           },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
+          },
           "4XX" : {
             "description" : "Client error",
             "content" : {
@@ -24098,6 +26068,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -24188,6 +26177,25 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "202" : {
+            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "headers" : {
+              "X-Studio-Held-Operation" : {
+                "description" : "The held operation's id, when the operation was held.",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uuid"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HeldOutcome"
+                }
+              }
+            }
           },
           "4XX" : {
             "description" : "Client error",
@@ -24326,6 +26334,40 @@
           }
         },
         "required" : [ "disabled", "grants", "id", "mustChangePassword", "passwordAccount", "providerId", "secondFactorRequired", "secondFactors", "username" ]
+      },
+      "HeldOutcome" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "held" ]
+          },
+          "heldOperation" : {
+            "$ref" : "#/components/schemas/HeldRef"
+          }
+        },
+        "required" : [ "heldOperation", "outcome" ]
+      },
+      "HeldRef" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "link" : {
+            "type" : "string",
+            "description" : "The held operation in this API."
+          }
+        },
+        "required" : [ "expiresAt", "id", "link", "summary" ]
       },
       "SetDisabledRequest" : {
         "type" : "object",
@@ -24497,16 +26539,6 @@
           }
         },
         "required" : [ "roleId" ]
-      },
-      "UpdateSettingRequest" : {
-        "type" : "object",
-        "properties" : {
-          "value" : {
-            "type" : "string",
-            "minLength" : 1
-          }
-        },
-        "required" : [ "value" ]
       },
       "RoleRequest" : {
         "type" : "object",
@@ -26184,6 +28216,88 @@
         },
         "required" : [ "fromVersion", "id", "remaining", "rewrapped", "startedAt", "startedBy", "status", "toVersion" ]
       },
+      "ChangeSetRequest" : {
+        "type" : "object",
+        "properties" : {
+          "changes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SettingChangeRequest"
+            },
+            "minItems" : 1
+          }
+        },
+        "required" : [ "changes" ]
+      },
+      "SettingChangeRequest" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "value" : {
+            "type" : "string"
+          },
+          "reset" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "key" ]
+      },
+      "ChangePreview" : {
+        "type" : "object",
+        "properties" : {
+          "outcome" : {
+            "type" : "string",
+            "enum" : [ "RUN", "HOLD", "DENY" ]
+          },
+          "reasonRequired" : {
+            "type" : "boolean"
+          },
+          "policyLabel" : {
+            "type" : "string"
+          },
+          "denyReason" : {
+            "type" : "string"
+          },
+          "fieldErrors" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "fieldErrors", "reasonRequired" ]
+      },
+      "ReadRequest" : {
+        "type" : "object",
+        "properties" : {
+          "ids" : {
+            "type" : [ "array", "null" ],
+            "description" : "The notices to mark read. Exactly one of ids and upTo.",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "upTo" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Mark every notice with an id up to this one read."
+          }
+        }
+      },
+      "ReadView" : {
+        "type" : "object",
+        "properties" : {
+          "updated" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "updated" ]
+      },
       "GroupMappingRequest" : {
         "type" : "object",
         "properties" : {
@@ -26205,6 +28319,259 @@
           }
         },
         "required" : [ "groupName", "roleId", "scopeType" ]
+      },
+      "HeldDecisionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "vote" : {
+            "type" : "string",
+            "enum" : [ "APPROVE", "REJECT" ]
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "description" : "Required to reject; at most 500 characters."
+          },
+          "paramsHash" : {
+            "type" : "string",
+            "description" : "The paramsHash of the request as shown."
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "The version of the request as shown."
+          }
+        },
+        "required" : [ "paramsHash", "version", "vote" ]
+      },
+      "HeldDisplayRowView" : {
+        "type" : "object",
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "from" : {
+            "type" : [ "string", "null" ]
+          },
+          "to" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "label" ]
+      },
+      "HeldEffectView" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "unit" : {
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "count", "unit" ]
+      },
+      "HeldEventView" : {
+        "type" : "object",
+        "properties" : {
+          "seq" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "actorId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "actorUsername" : {
+            "type" : [ "string", "null" ]
+          },
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "at", "kind", "seq" ]
+      },
+      "HeldOperationDetailView" : {
+        "type" : "object",
+        "properties" : {
+          "operation" : {
+            "$ref" : "#/components/schemas/HeldOperationSummaryView"
+          },
+          "typeVersion" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "ON_APPROVAL", "BY_REQUESTER" ]
+          },
+          "traits" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "environmentId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "display" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HeldDisplayRowView"
+            }
+          },
+          "params" : {
+            "type" : "string",
+            "description" : "The canonical parameters, secrets redacted."
+          },
+          "paramsHash" : {
+            "type" : "string",
+            "description" : "Echo it, with version, to decide."
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "tokenName" : {
+            "type" : [ "string", "null" ],
+            "description" : "The name of the API token the requester used; null for a session."
+          },
+          "effect" : {
+            "$ref" : "#/components/schemas/HeldEffectView"
+          },
+          "policy" : {
+            "$ref" : "#/components/schemas/HeldPolicyView"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "approverHint" : {
+            "type" : [ "string", "null" ]
+          },
+          "approverId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "decisionReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "outcomeDetail" : {
+            "type" : [ "string", "null" ]
+          },
+          "link" : {
+            "type" : "string",
+            "description" : "The request's page in the console."
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HeldEventView"
+            }
+          },
+          "mine" : {
+            "type" : "boolean"
+          },
+          "canDecide" : {
+            "type" : "boolean"
+          },
+          "decideRefusal" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why the current user may not decide it."
+          },
+          "canCancel" : {
+            "type" : "boolean"
+          },
+          "mfaVerified" : {
+            "type" : "boolean",
+            "description" : "Whether the current user's session verified a second factor; a policy may need it."
+          },
+          "requesterLacksPermission" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Whether the requester could no longer run it; null when unknown or ended."
+          }
+        },
+        "required" : [ "canCancel", "canDecide", "display", "effect", "events", "link", "mfaVerified", "mine", "mode", "operation", "params", "paramsHash", "policy", "traits", "typeVersion", "version" ]
+      },
+      "HeldOperationSummaryView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "description" : "The operation type, such as queue.purge."
+          },
+          "state" : {
+            "type" : "string",
+            "enum" : [ "HELD", "APPROVED", "EXECUTING", "REJECTED", "CANCELLED", "EXPIRED", "SUCCEEDED", "FAILED", "REFUSED", "OUTCOME_UNKNOWN" ]
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "requesterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "requesterUsername" : {
+            "type" : "string"
+          },
+          "authKind" : {
+            "type" : "string",
+            "enum" : [ "SESSION", "TOKEN", "AGENT" ]
+          },
+          "clusterId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "approverUsername" : {
+            "type" : [ "string", "null" ]
+          },
+          "decidedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "finishedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "authKind", "expiresAt", "id", "requestedAt", "requesterId", "requesterUsername", "state", "summary", "type" ]
+      },
+      "HeldPolicyView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "id", "version" ]
       },
       "FindingView" : {
         "type" : "object",
@@ -28829,8 +31196,14 @@
             "format" : "int64"
           },
           "ruleId" : {
-            "type" : "string",
+            "type" : [ "string", "null" ],
             "format" : "uuid"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : [ "string", "null" ]
           },
           "summary" : {
             "type" : "string"
@@ -28858,7 +31231,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "attempts", "createdAt", "nextAttemptAt", "ruleId", "seq", "state", "summary" ]
+        "required" : [ "attempts", "createdAt", "kind", "nextAttemptAt", "seq", "state", "summary" ]
       },
       "ChannelTestRequest" : {
         "type" : "object",
@@ -30320,6 +32693,29 @@
           }
         }
       },
+      "PendingChange" : {
+        "type" : "object",
+        "properties" : {
+          "heldId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "value" : {
+            "type" : "string"
+          },
+          "reset" : {
+            "type" : "boolean"
+          },
+          "requester" : {
+            "type" : "string"
+          },
+          "requestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "heldId", "requestedAt", "requester", "reset" ]
+      },
       "SettingValue" : {
         "type" : "object",
         "properties" : {
@@ -30343,9 +32739,29 @@
           },
           "kind" : {
             "type" : "string"
+          },
+          "category" : {
+            "type" : "string"
+          },
+          "categoryTitle" : {
+            "type" : "string"
+          },
+          "min" : {
+            "type" : [ "string", "null" ],
+            "description" : "The smallest accepted value, in the kind's own syntax. Always set for an INT; null elsewhere when any positive value is accepted."
+          },
+          "max" : {
+            "type" : [ "string", "null" ],
+            "description" : "The largest accepted value; null for none. A DURATION's \"forever\" also allows forever as a value."
+          },
+          "pending" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PendingChange"
+            }
           }
         },
-        "required" : [ "defaultValue", "group", "hint", "kind", "label", "overridden", "value" ]
+        "required" : [ "category", "categoryTitle", "defaultValue", "group", "hint", "kind", "label", "overridden", "pending", "value" ]
       },
       "SettingsResponse" : {
         "type" : "object",
@@ -30721,6 +33137,100 @@
         },
         "required" : [ "contract", "features", "identityProviders", "permissionCatalogue", "safeMode", "version" ]
       },
+      "ItemView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "Who posted it: a Studio feature or a plugin id."
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string",
+            "enum" : [ "info", "success", "warning", "danger" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "body" : {
+            "type" : [ "string", "null" ]
+          },
+          "link" : {
+            "type" : [ "string", "null" ],
+            "description" : "A path inside Studio."
+          },
+          "data" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "readAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Null while unread."
+          }
+        },
+        "required" : [ "createdAt", "id", "kind", "severity", "source", "title" ]
+      },
+      "PageView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ItemView"
+            }
+          },
+          "next" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Pass as `before` for the next page; null on the last page."
+          }
+        },
+        "required" : [ "items" ]
+      },
+      "CountView" : {
+        "type" : "object",
+        "properties" : {
+          "unread" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capped" : {
+            "type" : "boolean",
+            "description" : "True when there are at least this many; show 99+."
+          }
+        },
+        "required" : [ "capped", "unread" ]
+      },
+      "HeldOperationPageView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HeldOperationSummaryView"
+            }
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid",
+            "description" : "Pass as before for the next page; null at the end."
+          }
+        },
+        "required" : [ "items" ]
+      },
       "PagedViewRuleView" : {
         "type" : "object",
         "properties" : {
@@ -30794,6 +33304,57 @@
           }
         },
         "required" : [ "data", "hasNext", "page", "pageSize" ]
+      },
+      "GateStatusView" : {
+        "type" : "object",
+        "properties" : {
+          "armed" : {
+            "type" : "boolean",
+            "description" : "Whether an approval provider is installed and meant to run."
+          },
+          "providerId" : {
+            "type" : [ "string", "null" ]
+          },
+          "attached" : {
+            "type" : "boolean",
+            "description" : "Whether the provider runs on this Studio instance."
+          },
+          "breakGlass" : {
+            "type" : "boolean",
+            "description" : "Whether break-glass lets operations bypass approval."
+          }
+        },
+        "required" : [ "armed", "attached", "breakGlass" ]
+      },
+      "GatedOperationInfo" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "ON_APPROVAL", "BY_REQUESTER" ]
+          }
+        },
+        "required" : [ "version" ]
+      },
+      "GatedOperationListView" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "description" : "Every operation type the gate covers, ordered by type.",
+            "items" : {
+              "$ref" : "#/components/schemas/GatedOperationInfo"
+            }
+          }
+        },
+        "required" : [ "items" ]
       },
       "PagedViewEnvironmentView" : {
         "type" : "object",

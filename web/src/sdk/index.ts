@@ -30,19 +30,48 @@ export type {
   TopicHandler,
 } from '../kernel/feature.ts';
 export {
+  ADMIN_GROUPS,
   SETTINGS_GROUPS,
+  type AdminGroupId,
   type MessageSelection,
   type QueueSelection,
   type SettingsGroupId,
   type SlotContribution,
   type SlotContributions,
+  type SlotEntry,
   type SlotName,
   type SlotProps,
 } from '../kernel/slots.ts';
 export { NAV_GROUPS, type NavGroupId } from '../kernel/nav/groups.ts';
 export { clusterRoute, rootRoute } from '../kernel/routing/roots.ts';
-export { ApiError, clusterKey, request } from '../kernel/api/request.ts';
+export {
+  ApiError,
+  clusterKey,
+  heldOperationsKey,
+  OperationHeldError,
+  request,
+  type HeldOperation,
+} from '../kernel/api/request.ts';
+export type {
+  HeldDisplayRow,
+  HeldEvent,
+  HeldOperationDetail,
+  HeldOperationSummary,
+  HeldState,
+} from '../kernel/approvals/api.ts';
+export type { InboxItem, InboxSeverity } from '../kernel/inbox/api.ts';
 export { useCan, type AllowedActions, type ResourceWhere } from '../kernel/auth/useCan.ts';
+/**
+ * The step-up an action shows when the server refused it for want of a fresh sign-in, such as an approver's
+ * vote: render it under the control with the mutation's error. It renders nothing for any other error.
+ */
+export { StepUpPrompt } from '../kernel/auth/StepUp.tsx';
+/**
+ * The signed-in user's own stream, which the shell already holds open so their inbox and held operations stay
+ * fresh on every page. A view shares that connection and reads its status, to poll while it is not `live`.
+ */
+export { useUserStream } from '../kernel/stream/useUserStream.ts';
+export type { StreamStatus } from '../kernel/stream/useClusterStream.ts';
 export {
   ACTION_SECTIONS,
   type ActionHost,
@@ -51,6 +80,7 @@ export {
   type ActionSection,
   type ActionTargets,
   type AddressTarget,
+  type ClientTarget,
   type ConnectionTarget,
   type ConsumerTarget,
   type DivertTarget,

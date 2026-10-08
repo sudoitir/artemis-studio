@@ -5,6 +5,7 @@
         displayName = "Queues",
         allowedDependencies = {
             "kernel.core",
+            "kernel.gate",
             "kernel.plugin",
             "kernel.stream",
             "platform.broker",

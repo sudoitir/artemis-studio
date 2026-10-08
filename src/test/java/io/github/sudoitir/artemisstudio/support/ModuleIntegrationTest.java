@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import io.github.sudoitir.artemisstudio.app.StudioFeatures;
+import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceNames;
@@ -68,6 +69,10 @@ public abstract class ModuleIntegrationTest {
     /** The module under test owns every cluster, from the moment it is made (see {@link OwnsEveryCluster}). */
     @TestBean(methodName = "io.github.sudoitir.artemisstudio.support.OwnsEveryCluster#clusterOwnership")
     protected ClusterOwnership clusterOwnership;
+
+    /** The approval engine is not a shared kernel module, so the gate every gated service takes runs actions as they are. */
+    @TestBean(methodName = "io.github.sudoitir.artemisstudio.support.NoApprovalGate#operationGate")
+    protected OperationGate operationGate;
 
     @Autowired
     ConfigurableApplicationContext context;

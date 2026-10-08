@@ -32,6 +32,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginLicenseStore;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.descriptor.PluginDescriptor;
@@ -44,6 +45,9 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.internal.host.StudioRestar
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.trust.PluginTrust;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.ChangesetInfo;
 import io.github.sudoitir.artemisstudio.kernel.plugin.internal.validation.Violation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -132,18 +136,24 @@ public class PluginAdminController {
      * Stores or replaces the plugin's license file, sent as the raw request body of at most 64 KiB, and
      * answers with the license as the plugin's state shows it: unchecked until the plugin reports.
      */
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = PluginLicenseView.class)))
+    @HeldResponse
     @PutMapping(path = "/{id}/license", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public PluginLicenseView uploadLicense(HttpServletRequest request, @PathVariable String id) throws IOException {
         // One byte past the limit is enough to tell an oversize body without reading the rest of it.
         byte[] content = request.getInputStream().readNBytes(PluginLicenseStore.MAX_BYTES + 1);
-        administration.uploadLicense(request, id, content);
+        administration.uploadLicense(id, content, stepUp(request));
         return license(licenses.summary(id));
     }
 
+    @HeldResponse
     @DeleteMapping("/{id}/license")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeLicense(HttpServletRequest request, @PathVariable String id) {
-        administration.removeLicense(request, id);
+        administration.removeLicense(id, stepUp(request));
     }
 
     /** The jar is the raw request body — never multipart, so nothing is parsed before this runs. */
@@ -192,58 +202,76 @@ public class PluginAdminController {
         administration.discardUpload(sha256);
     }
 
+    @HeldResponse
     @PostMapping("/uploads/{sha256}/activate")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public PluginPlanView activate(
             HttpServletRequest request,
             @PathVariable String sha256,
             @RequestParam(defaultValue = "false") boolean acknowledge) {
-        return plan(administration.activate(request, sha256, acknowledge));
+        administration.requireStepUp(request);
+        return plan(administration.activate(sha256, acknowledge));
     }
 
+    @HeldResponse
     @PostMapping("/{id}/enable")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public PluginPlanView enable(
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean acknowledge) {
-        return plan(administration.enable(request, id, acknowledge));
+        administration.requireStepUp(request);
+        return plan(administration.enable(id, acknowledge));
     }
 
+    @HeldResponse
     @PostMapping("/{id}/rollback")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public PluginPlanView rollback(
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean acknowledge) {
-        return plan(administration.rollback(request, id, acknowledge));
+        administration.requireStepUp(request);
+        return plan(administration.rollback(id, acknowledge));
     }
 
     /** Refused while other active plugins require it, unless {@code cascade} disables them too. */
+    @HeldResponse
     @PostMapping("/{id}/disable")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void disable(
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean cascade) {
-        administration.disable(request, id, cascade);
+        administration.requireStepUp(request);
+        administration.disable(id, cascade);
     }
 
     /** Stops and removes the plugin; its data stays until a purge. */
+    @HeldResponse
     @PostMapping("/{id}/uninstall")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void uninstall(
             HttpServletRequest request,
             @PathVariable String id,
             @RequestParam(defaultValue = "false") boolean cascade) {
-        administration.uninstall(request, id, cascade);
+        administration.requireStepUp(request);
+        administration.uninstall(id, cascade);
     }
 
     /** Deletes an uninstalled plugin's data for good; {@code dryRun=true} only estimates it. */
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = PluginPurgePlanView.class)))
+    @HeldResponse
     @PostMapping("/{id}/purge")
     public PluginPurgePlanView purge(
             HttpServletRequest request, @PathVariable String id, @RequestParam(defaultValue = "false") boolean dryRun) {
-        PurgePlan plan = administration.purge(request, id, dryRun);
+        if (!dryRun) {
+            administration.requireStepUp(request);
+        }
+        PurgePlan plan = administration.purge(id, dryRun);
         return new PluginPurgePlanView(
                 plan.schema(),
                 plan.tables().stream()
@@ -267,7 +295,8 @@ public class PluginAdminController {
     @PostMapping("/restart")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void restart(HttpServletRequest request) {
-        administration.restartStudio(request);
+        administration.requireStepUp(request);
+        administration.restartStudio();
     }
 
     @PostMapping("/check-updates")
@@ -303,16 +332,20 @@ public class PluginAdminController {
                         null);
     }
 
+    @HeldResponse
     @PostMapping("/installers")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void grantInstaller(HttpServletRequest request, @Valid @RequestBody GrantInstallerRequest body) {
-        administration.grantInstaller(request, body.username());
+        administration.requireStepUp(request);
+        administration.grantInstaller(body.username());
     }
 
+    @HeldResponse
     @DeleteMapping("/installers/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeInstaller(HttpServletRequest request, @PathVariable UUID userId) {
-        administration.revokeInstaller(request, userId);
+        administration.requireStepUp(request);
+        administration.revokeInstaller(userId);
     }
 
     @GetMapping("/keys")
@@ -324,22 +357,25 @@ public class PluginAdminController {
                 keys.signedPlugins());
     }
 
+    @HeldResponse
     @PostMapping("/keys")
     @ResponseStatus(HttpStatus.CREATED)
     public TrustedKeyView addKey(HttpServletRequest request, @Valid @RequestBody AddKeyRequest body) {
-        return key(administration.addKey(request, body.name(), body.upload(), body.pem()));
+        return key(administration.addKey(body.name(), body.upload(), body.pem(), stepUp(request)));
     }
 
+    @HeldResponse
     @DeleteMapping("/keys/{fingerprint}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeKey(HttpServletRequest request, @PathVariable String fingerprint) {
-        administration.removeKey(request, fingerprint);
+        administration.removeKey(fingerprint, stepUp(request));
     }
 
+    @HeldResponse
     @PutMapping("/trust-policy")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void trustPolicy(HttpServletRequest request, @RequestBody TrustPolicyRequest body) {
-        administration.setAllowUnverified(request, body.allowUnverified());
+        administration.setAllowUnverified(body.allowUnverified(), stepUp(request));
     }
 
     // ---- mapping ------------------------------------------------------------------------------
@@ -499,5 +535,10 @@ public class PluginAdminController {
             total += n;
         }
         return total;
+    }
+
+    /** The step-up an audited action runs inside its own audit row, so a refusal is recorded too. */
+    private Runnable stepUp(HttpServletRequest request) {
+        return () -> administration.requireStepUp(request);
     }
 }

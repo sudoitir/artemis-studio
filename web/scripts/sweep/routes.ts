@@ -14,7 +14,16 @@
  */
 import type { Page } from '@playwright/test';
 
-import { CONNECTION_SCENES, REGISTER_AGAIN_SCENES, REGISTER_SCENES, TEAMS_SCENES } from './scenes.ts';
+import {
+  BELL_SCENES,
+  CONNECTION_SCENES,
+  HELD_QUEUE,
+  HELD_TOAST_SCENES,
+  REGISTER_AGAIN_SCENES,
+  REGISTER_SCENES,
+  SETTINGS_DRAFT_SCENES,
+  TEAMS_SCENES,
+} from './scenes.ts';
 
 export interface DataCall {
   path: string;
@@ -24,7 +33,7 @@ export interface DataCall {
 
 /**
  * A state reached by acting on the page once it has settled: a connection check run, a dialog opened, a
- * field changed. It is captured in every width and scheme, signed in as the administrator, with every check
+ * field changed. It is captured in every width and scheme, signed in as the route's account, with every check
  * of a plain capture; layout shift counts from navigation, so an action that moves the page is a finding.
  */
 export interface Scene {
@@ -33,6 +42,8 @@ export interface Scene {
   act: (page: Page) => Promise<void>;
   /** Statuses the action provokes on purpose, such as a check that a broker refuses. */
   expectedStatus?: number[];
+  /** Who acts, when not the route's account. */
+  auth?: 'admin' | 'requester';
 }
 
 export interface RouteSpec {
@@ -42,8 +53,11 @@ export interface RouteSpec {
   id: string;
   /** The address, with `:cluster` for the seeded cluster's id. */
   path: string;
-  /** Signed in as the administrator unless `none`: the login screen is only shown to a signed-out browser. */
-  auth?: 'admin' | 'none';
+  /**
+   * Who is signed in: the administrator unless named. `none` for the login screen, which is only shown to a
+   * signed-out browser; `requester` for the held-request screens, as `sweep/approval-provider/install.sh` sets up.
+   */
+  auth?: 'admin' | 'requester' | 'none';
   /** The calls that fill the route. Without any, the loading, error and empty states are skipped. */
   data?: DataCall[];
   /** A query string that matches nothing the seed made, for the filtered-empty state. */
@@ -97,10 +111,9 @@ const ADMIN_TABS: { tab: string; data: DataCall[] }[] = [
   { tab: 'diagnostics', data: [{ path: '/diagnostics/summary' }] },
 ];
 
-/** The settings page's sections, each a tab (`settings.sections` contributions). */
+/** The settings page's tabs: its sections (`settings.sections` contributions) and one per settings category. */
 const SETTINGS_TABS = [
   'settings-display',
-  'settings-operational',
   'settings-security',
   'settings-health',
   'clusters-register',
@@ -109,7 +122,13 @@ const SETTINGS_TABS = [
   'clusters-remove',
   'sql-index',
   'alerting-channels',
+  ...['alerting', 'apitokens', 'approvals', 'brokerconfig', 'broker', 'events', 'governance', 'lifecycle'],
+  ...['stream', 'flow', 'inbox', 'mcp', 'transfer', 'identity-local', 'rr', 'scrape', 'security', 'setupreview'],
 ];
+
+/** One held request's page in each state the requester's requests reached, as `approval-provider/install.sh` leaves them. */
+const HELD_STATES = ['HELD', 'SUCCEEDED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'REFUSED'];
+const heldList = (path: string): DataCall => ({ path, empty: { items: [], next: null } });
 
 export const ROUTES: RouteSpec[] = [
   // The shell
@@ -281,9 +300,71 @@ export const ROUTES: RouteSpec[] = [
     id: `settings-${tab.replace(/^settings-/, '')}`,
     path: cluster(`settings?tab=${tab}`),
     data: [{ path: '/settings' }],
-    forbidden: tab === 'settings-operational' || tab === 'settings-security',
-    scenes: tab === 'clusters-connection' ? CONNECTION_SCENES : undefined,
+    forbidden: tab === 'approvals' || tab === 'settings-security',
+    scenes: { 'clusters-connection': CONNECTION_SCENES, approvals: SETTINGS_DRAFT_SCENES }[tab],
   })),
+  {
+    area: 'settings',
+    id: 'settings-search',
+    path: cluster('settings?q=timeout'),
+    data: [{ path: '/settings' }],
+  },
+  { area: 'settings', id: 'settings-search-none', path: cluster(`settings?q=${NO_MATCH}`) },
+  { area: 'settings', id: 'settings-modified', path: cluster('settings?modified=true'), data: [{ path: '/settings' }] },
+  { area: 'settings', id: 'settings-pending', path: cluster('settings?tab=approvals'), auth: 'requester' },
+
+  // Approval requests, the inbox and the bell
+  {
+    area: 'approvals',
+    id: 'approvals',
+    path: '/approvals',
+    data: [heldList('/held-operations')],
+    scenes: BELL_SCENES,
+  },
+  {
+    area: 'approvals',
+    id: 'approvals-mine',
+    path: '/approvals?tab=mine',
+    auth: 'requester',
+    data: [heldList('/held-operations')],
+  },
+  ...HELD_STATES.flatMap((state): RouteSpec[] =>
+    (['admin', 'requester'] as const).map((auth) => ({
+      area: 'approvals',
+      id: `approval-${state.toLowerCase()}-${auth}`,
+      path: `/approvals/:held:${state}`,
+      auth,
+      data: [{ path: '/held-operations/*' }],
+    })),
+  ),
+  stateless('approvals', 'approval-missing', '/approvals/00000000-0000-4000-8000-000000000000', {
+    expectedStatus: [404],
+  }),
+  {
+    area: 'approvals',
+    id: 'inbox',
+    path: '/inbox',
+    data: [{ path: '/inbox', empty: { items: [], next: null } }],
+    filter: '?filter=unread',
+  },
+  {
+    area: 'approvals',
+    id: 'held-toast',
+    path: cluster(`queues/${HELD_QUEUE}/messages`),
+    auth: 'requester',
+    scenes: HELD_TOAST_SCENES,
+  },
+  { area: 'approvals', id: 'inbox-requester', path: '/inbox', auth: 'requester', scenes: BELL_SCENES },
+  // Run with `artemis-studio.gate.break-glass` set in Studio's environment: every page shows the banner.
+  { area: 'breakglass', id: 'break-glass-admin', path: cluster('queues') },
+  { area: 'breakglass', id: 'break-glass-requester', path: '/approvals?tab=mine', auth: 'requester' },
+  {
+    area: 'approvals',
+    id: 'account-requests',
+    path: '/account',
+    auth: 'requester',
+    data: [heldList('/held-operations')],
+  },
   {
     area: 'events',
     id: 'events',

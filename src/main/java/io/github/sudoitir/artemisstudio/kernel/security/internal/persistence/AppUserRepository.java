@@ -35,4 +35,7 @@ public interface AppUserRepository extends JpaRepository<AppUserEntity, UUID> {
     }
 
     List<EnabledAccount> findByProviderIdAndDisabledFalse(String providerId);
+
+    /** Every account that can still sign in, oldest first, for asking who holds a permission. */
+    List<EnabledAccount> findByDisabledFalseOrderByCreatedAt();
 }

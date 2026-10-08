@@ -6,7 +6,15 @@ import type { ReactNode } from 'react';
 
 import { server } from '../../test/setup.ts';
 import { useMe } from '../auth/api.ts';
-import { ACTIVITY_HEADER, ACTIVITY_WINDOW_MS, lifecycleQuery, request } from './request.ts';
+import {
+  ACTIVITY_HEADER,
+  ACTIVITY_WINDOW_MS,
+  ApiError,
+  HELD_HEADER,
+  lifecycleQuery,
+  OperationHeldError,
+  request,
+} from './request.ts';
 
 /**
  * `request<T>()`'s 401 handling (identity-and-sessions spec, task 6.7) — the
@@ -175,5 +183,72 @@ describe('request() activity header', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
 
     expect(await sentHeader('POST')).toBe('1');
+  });
+});
+
+/** A gated operation held for approval answers 202 with the held header (design: "Responses"). */
+describe('request() held operations', () => {
+  const held = {
+    outcome: 'held',
+    heldOperation: {
+      id: 'h-1',
+      summary: 'Purge queue "orders"',
+      expiresAt: '2026-10-08T12:00:00Z',
+      link: '/api/v1/held-operations/h-1',
+    },
+  };
+
+  it('throws OperationHeldError for a 202 with the held header, so no success path runs', async () => {
+    server.use(
+      http.post('*/api/v1/purge', () => HttpResponse.json(held, { status: 202, headers: { [HELD_HEADER]: 'h-1' } })),
+    );
+
+    const error = await request('/purge', { method: 'POST' }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OperationHeldError);
+    expect((error as OperationHeldError).heldOperation).toEqual(held.heldOperation);
+    expect((error as OperationHeldError).message).toBe('Sent for approval: Purge queue "orders"');
+  });
+
+  it('names the request by the header even when the body lost it', async () => {
+    server.use(
+      http.post('*/api/v1/purge', () => HttpResponse.json({}, { status: 202, headers: { [HELD_HEADER]: 'h-2' } })),
+    );
+
+    const error = (await request('/purge', { method: 'POST' }).catch((e: unknown) => e)) as OperationHeldError;
+
+    expect(error.heldOperation).toEqual({
+      id: 'h-2',
+      summary: 'The operation',
+      expiresAt: '',
+      link: '/api/v1/held-operations/h-2',
+    });
+  });
+
+  it('returns the body of a 202 that carries no held header, as any accepted request', async () => {
+    server.use(http.post('*/api/v1/jobs', () => HttpResponse.json({ jobId: 'j1' }, { status: 202 })));
+
+    await expect(request('/jobs', { method: 'POST' })).resolves.toEqual({ jobId: 'j1' });
+  });
+
+  it('keeps a gate refusal an ApiError with its problem type', async () => {
+    server.use(
+      http.post('*/api/v1/purge', () =>
+        HttpResponse.json(
+          {
+            type: 'https://artemis-studio.dev/problems/operation-denied',
+            title: 'Denied',
+            detail: 'Outside the window',
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+
+    const error = (await request('/purge', { method: 'POST' }).catch((e: unknown) => e)) as ApiError;
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.type).toMatch(/operation-denied$/);
+    expect(error.message).toBe('Outside the window');
   });
 });

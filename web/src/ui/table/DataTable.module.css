@@ -191,6 +191,8 @@
 
 .headCell {
   position: relative;
+  /* A native th centres by default; a header starts where its cells start. */
+  text-align: start;
   background: var(--as-grid-header-bg);
   color: var(--as-table-header-text);
   font-size: var(--mantine-font-size-xs);

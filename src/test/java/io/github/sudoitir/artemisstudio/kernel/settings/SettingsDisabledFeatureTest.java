@@ -17,11 +17,14 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.artemisstudio.kernel.plugin.web.FeatureDisabledAdvice;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /** A disabled feature's settings are neither listed nor writable, and its stored values survive (studio-settings spec). */
 class SettingsDisabledFeatureTest {
@@ -32,7 +35,10 @@ class SettingsDisabledFeatureTest {
     private final StudioSettingRepository repo = mock(StudioSettingRepository.class);
     private final AuditService audit = mock(AuditService.class);
 
+    @SuppressWarnings("unchecked")
     private SettingsService settings(boolean rrEnabled) {
+        var permissions = mock(PermissionResolver.class);
+        when(permissions.can(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
         var env = new MockEnvironment().withProperty("artemis-studio.features.rr.enabled", Boolean.toString(rrEnabled));
         var registry = new FeatureRegistry(
                 new InstalledFeatures(List.of(
@@ -57,6 +63,10 @@ class SettingsDisabledFeatureTest {
                 mock(ActorResolver.class),
                 registry,
                 mock(StudioBus.class),
+                permissions,
+                mock(ObjectProvider.class),
+                mock(ObjectProvider.class),
+                mock(PlatformTransactionManager.class),
                 List.of(contribution("scrape", SCRAPE_KEY), contribution("rr", RR_KEY)));
     }
 

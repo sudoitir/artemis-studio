@@ -220,6 +220,14 @@ public final class Subscriber {
         enqueue(COMPLETE);
     }
 
+    /** Drop what is queued, tell the client it was replaced by a newer stream, and complete the emitter. */
+    void evict() {
+        finished = true;
+        outbound.clear();
+        enqueue(new Held(SseHub.EVICTED, System.currentTimeMillis(), null));
+        enqueue(COMPLETE);
+    }
+
     /** Stop the drainer; used when the stream ended by itself. */
     void stopDrain() {
         Thread t = drainer.get();

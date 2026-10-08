@@ -8,6 +8,10 @@
     "kind" : "IDENTITY_PROVIDER",
     "required" : false
   }, {
+    "id" : "approvals",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
     "id" : "audit",
     "kind" : "KERNEL",
     "required" : true
@@ -51,6 +55,10 @@
     "id" : "identity-oidc",
     "kind" : "IDENTITY_PROVIDER",
     "required" : false
+  }, {
+    "id" : "inbox",
+    "kind" : "KERNEL",
+    "required" : true
   }, {
     "id" : "lifecycle",
     "kind" : "KERNEL",

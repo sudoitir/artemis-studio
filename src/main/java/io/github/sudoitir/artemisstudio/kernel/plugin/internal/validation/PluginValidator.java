@@ -47,6 +47,8 @@ public class PluginValidator {
 
     private static final String JAR_UNREADABLE = "jar-unreadable";
     private static final String REUPLOAD = "Re-upload the jar.";
+    private static final String DECLARE_PERMISSION =
+            "Declare that permission under permissions, or name one that is declared.";
 
     private static final Pattern METRIC_NAME = Pattern.compile("[a-z0-9-]+:[a-z][a-z0-9_.]{0,63}");
     private static final String RESOURCE_KINDS_CODE = "permission-resource-kinds";
@@ -378,6 +380,7 @@ public class PluginValidator {
         checkPermissionScopes(descriptor, violations);
         checkMetrics(descriptor, violations);
         checkIdentityProviders(descriptor, violations);
+        checkApprovalProvider(descriptor, violations);
     }
 
     private void checkId(String id, List<Violation> violations) {
@@ -568,7 +571,7 @@ public class PluginValidator {
                         "mcp-tool-permission",
                         "Assistant tool \"%s\" is guarded by \"%s\", which the plugin does not declare."
                                 .formatted(tool.name(), tool.permission()),
-                        "Declare that permission under permissions, or name one that is declared."));
+                        DECLARE_PERMISSION));
             } else if (tool.scope() != null && !tool.scope().equals(permission.scope())) {
                 violations.add(new Violation(
                         "mcp-tool-scope",
@@ -642,7 +645,7 @@ public class PluginValidator {
                         "metric-permission",
                         "Metric \"%s\" is read with \"%s\", which the plugin does not declare."
                                 .formatted(name, metric.permission()),
-                        "Declare that permission under permissions, or name one that is declared."));
+                        DECLARE_PERMISSION));
             }
         }
         checkAlertRules(descriptor, metrics, violations);
@@ -696,6 +699,23 @@ public class PluginValidator {
                                 .formatted(name),
                         "Give the provider a short label such as \"Corporate directory\"."));
             }
+        }
+    }
+
+    /** ADR-0179: the approver permission is one the plugin itself declares, so Studio can offer it in the role editor. */
+    private void checkApprovalProvider(PluginDescriptor descriptor, List<Violation> violations) {
+        var provider = descriptor.approvalProvider();
+        if (provider == null) {
+            return;
+        }
+        String permission = provider.approverPermission();
+        if (permission == null
+                || descriptor.permissions().stream().noneMatch(p -> p.action().equals(permission))) {
+            violations.add(new Violation(
+                    "approval-provider-permission",
+                    "The approval provider names the approver permission \"%s\", which the plugin does not declare under permissions."
+                            .formatted(permission),
+                    DECLARE_PERMISSION));
         }
     }
 }

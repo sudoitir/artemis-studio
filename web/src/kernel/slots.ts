@@ -14,6 +14,7 @@ import type {
   QueueTarget,
   SessionTarget,
 } from './actions/types.ts';
+import type { HeldOperationDetail } from './approvals/api.ts';
 import { useFeatures } from './features.ts';
 import type { MetricRange } from './time/ranges.ts';
 
@@ -70,10 +71,19 @@ export interface SlotProps {
   'settings.sections': { clusterId: string };
   /** A tab of a cluster's Routing page, after Diverts and Bridges, labelled with the contribution's title; its id is the tab's `?tab=`. */
   'routing.tabs': { clusterId: string };
-  /** A tab of the Administration page, labelled with the contribution's title; its id is the tab's `?tab=`. */
+  /**
+   * A tab of the Administration page, labelled with the contribution's title and listed under its
+   * `group`; its id is the tab's `?tab=`.
+   */
   'admin.tabs': object;
   /** A section of the signed-in user's Account page, under the contribution's title. */
   'account.sections': object;
+  /**
+   * On an approval request's page, above Studio's own Approve and Reject: what an installed approval provider
+   * shows an approver, such as its policy's checks or its own decision controls. `heldOperation` is the request
+   * as the page shows it; `refresh` fetches it again after the contribution changed it.
+   */
+  'approval.decision': { heldOperation: HeldOperationDetail; refresh: () => void };
   /**
    * A dialog opened from the user menu. The menu lists the contribution's title after Account and hosts
    * the dialog outside the menu, so it outlives the menu closing.
@@ -121,6 +131,21 @@ export const SETTINGS_GROUPS = [
 
 export type SettingsGroupId = (typeof SETTINGS_GROUPS)[number]['id'];
 
+/**
+ * The closed, ordered headings the Administration page groups its tabs under: who may do what, what
+ * is installed and where, what rules data and changes follow, then what helps when something is
+ * wrong. Every `admin.tabs` contribution names one. Adding one is a kernel change, like a navigation
+ * group (ADR-0070).
+ */
+export const ADMIN_GROUPS = [
+  { id: 'access', label: 'Access' },
+  { id: 'installation', label: 'Installation' },
+  { id: 'governance', label: 'Governance' },
+  { id: 'support', label: 'Support' },
+] as const;
+
+export type AdminGroupId = (typeof ADMIN_GROUPS)[number]['id'];
+
 export interface SlotContribution<P> {
   /** Unique within the slot. */
   id: string;
@@ -128,18 +153,31 @@ export interface SlotContribution<P> {
   order: number;
   /** The heading or tab label, in the slots that show one. */
   title?: string;
-  /** `settings.sections` only: the heading its tab sits under. Without one it is listed under Plugins. */
-  group?: SettingsGroupId;
+  /**
+   * The heading its tab sits under, in the grouped slots: a `SettingsGroupId` for `settings.sections`
+   * (listed under Plugins without one), and an `AdminGroupId`, required, for `admin.tabs`.
+   */
+  group?: string;
   /** `*.actions` only: the menu section the item is listed under. */
   section?: ActionSection;
   Component: ComponentType<P>;
 }
 
-export type SlotContributions = { [K in SlotName]?: SlotContribution<SlotProps[K]>[] };
+/** What a contribution to a grouped slot names as its heading. */
+type SlotGroup<K extends SlotName> = K extends 'admin.tabs'
+  ? { group: AdminGroupId }
+  : K extends 'settings.sections'
+    ? { group?: SettingsGroupId }
+    : object;
+
+/** One contribution to the named slot, with the heading that slot groups it under. */
+export type SlotEntry<K extends SlotName> = SlotContribution<SlotProps[K]> & SlotGroup<K>;
+
+export type SlotContributions = { [K in SlotName]?: SlotEntry<K>[] };
 
 /** The enabled features' contributions to one slot, in order. */
-export function useSlot<K extends SlotName>(name: K): SlotContribution<SlotProps[K]>[] {
+export function useSlot<K extends SlotName>(name: K): SlotEntry<K>[] {
   return useFeatures()
-    .flatMap((feature) => feature.slots?.[name] ?? [])
+    .flatMap((feature): SlotEntry<K>[] => feature.slots?.[name] ?? [])
     .sort((a, b) => a.order - b.order);
 }

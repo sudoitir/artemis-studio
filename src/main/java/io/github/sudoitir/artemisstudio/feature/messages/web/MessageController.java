@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.Messag
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageViews.PartialView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.core.web.ApiExceptionHandler;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -84,6 +85,7 @@ public class MessageController {
     @ApiResponse(
             responseCode = "200",
             content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class, PartialView.class})))
+    @HeldResponse
     @PostMapping("/actions/{action}")
     public ResponseEntity<Object> action(
             @PathVariable UUID clusterId,
@@ -100,6 +102,7 @@ public class MessageController {
     @ApiResponse(
             responseCode = "200",
             content = @Content(schema = @Schema(anyOf = {AffectedView.class, DryRunView.class, PartialView.class})))
+    @HeldResponse
     @DeleteMapping
     public ResponseEntity<Object> purge(
             @PathVariable UUID clusterId,

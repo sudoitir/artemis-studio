@@ -501,6 +501,26 @@ class PluginValidatorTest {
     }
 
     @Test
+    void anApprovalProviderNamingADeclaredPermissionIsAccepted() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField("approvalProvider", java.util.Map.of("approverPermission", "acme-notes:read"));
+        assertThat(validate(jar)).isEmpty();
+    }
+
+    @Test
+    void anApprovalProviderWithoutAnApproverPermissionIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes").descriptorField("approvalProvider", java.util.Map.of());
+        assertThat(has(validate(jar), "approval-provider-permission")).isTrue();
+    }
+
+    @Test
+    void anApprovalProviderNamingAPermissionTheyDoNotDeclareIsRefused() throws Exception {
+        var jar = validPlugin("acme-notes")
+                .descriptorField("approvalProvider", java.util.Map.of("approverPermission", "queue:purge"));
+        assertThat(has(validate(jar), "approval-provider-permission")).isTrue();
+    }
+
+    @Test
     void aWellFormedIdentityProviderIsAccepted() throws Exception {
         var jar = validPlugin("acme-notes")
                 .descriptorField(

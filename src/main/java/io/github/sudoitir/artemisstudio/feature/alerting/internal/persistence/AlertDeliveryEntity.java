@@ -37,8 +37,17 @@ public class AlertDeliveryEntity {
     @EqualsAndHashCode.Include
     private Long seq;
 
-    @Column(name = "rule_id", nullable = false, updatable = false)
+    /** Null for a notice. */
+    @Column(name = "rule_id", updatable = false)
     private UUID ruleId;
+
+    /** {@code alert} or {@code notice}. */
+    @Column(name = "kind", nullable = false, updatable = false)
+    private String kind = ALERT;
+
+    /** The plugin that sent a notice; null for an alert. */
+    @Column(name = "source", updatable = false)
+    private String source;
 
     @Column(name = "channel_id", nullable = false, updatable = false)
     private UUID channelId;
@@ -47,6 +56,8 @@ public class AlertDeliveryEntity {
     @Column(name = "payload", nullable = false, updatable = false)
     private String payload;
 
+    public static final String ALERT = "alert";
+    public static final String NOTICE = "notice";
     private static final String PENDING = "PENDING";
 
     @Column(name = "state", nullable = false)
@@ -68,9 +79,15 @@ public class AlertDeliveryEntity {
     private Instant deliveredAt;
 
     public AlertDeliveryEntity(UUID ruleId, UUID channelId, String payload) {
+        this(ruleId, channelId, payload, ALERT, null);
+    }
+
+    private AlertDeliveryEntity(UUID ruleId, UUID channelId, String payload, String kind, String source) {
         this.ruleId = ruleId;
         this.channelId = channelId;
         this.payload = payload;
+        this.kind = kind;
+        this.source = source;
         this.state = PENDING;
         Instant now = Instant.now();
         this.createdAt = now;

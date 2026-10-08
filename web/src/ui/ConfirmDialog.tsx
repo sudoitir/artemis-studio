@@ -28,6 +28,7 @@ export function ConfirmDialog({
   title,
   consequence,
   confirmLabel,
+  dismissLabel = 'Cancel',
   tone = 'default',
   typedName,
   pending = false,
@@ -51,7 +52,7 @@ export function ConfirmDialog({
       disabled={pending}
       onClick={onClose}
     >
-      {done ? 'Close' : 'Cancel'}
+      {done ? 'Close' : dismissLabel}
     </Button>
   );
   const reason = blocked ? (
@@ -133,6 +134,11 @@ export type ConfirmDialogProps = Readonly<{
   consequence: ReactNode;
   /** The exact action, such as "Delete queue". */
   confirmLabel: string;
+  /**
+   * The button that dismisses without acting; defaults to "Cancel". Name what is kept, such as "Keep
+   * request", when the action itself is a cancel, so the two buttons never both read "Cancel".
+   */
+  dismissLabel?: string;
   /** `danger` for an action that removes or overwrites; defaults to `default`. */
   tone?: 'default' | 'danger';
   /** The resource's name, typed to arm the button. Required for a removal. */

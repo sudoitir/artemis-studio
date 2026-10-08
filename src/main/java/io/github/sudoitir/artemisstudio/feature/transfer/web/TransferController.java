@@ -9,6 +9,10 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Trans
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferRunView;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +45,12 @@ public class TransferController {
         return transfers.preview(clusterId, request);
     }
 
+    /** Starts the run, or, when an approval provider holds it, answers 202 with the held request and starts nothing. */
+    @ApiResponse(
+            responseCode = "202",
+            description = "Started: the run",
+            content = @Content(schema = @Schema(implementation = TransferRunView.class)))
+    @HeldResponse
     @PostMapping("/runs/{runId}/execute")
     public ResponseEntity<TransferRunView> execute(
             @PathVariable UUID clusterId,

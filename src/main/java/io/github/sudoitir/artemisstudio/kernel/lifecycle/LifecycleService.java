@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingChange;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import java.time.Clock;
@@ -94,9 +95,9 @@ public class LifecycleService {
     }
 
     /**
-     * Sets a store's policy. Every value is checked before any is written, so a rejected policy
-     * changes nothing; each written value is its own {@code UPDATE_SETTING} audit event, guarded by
-     * {@code data:write}.
+     * Sets a store's policy as one settings change set of the values that change: every value is checked before any
+     * is written, so a rejected policy changes nothing, and an approval provider holds the policy as one request.
+     * Each written value is its own {@code UPDATE_SETTING} audit event, guarded by {@code data:write}.
      */
     public void update(String storeId, String retention, int quota, int quotaWarnPercent) {
         registry.require(storeId);
@@ -105,10 +106,13 @@ public class LifecycleService {
                 registry.key(storeId, LifecycleSettings.QUOTA), Integer.toString(quota),
                 registry.key(storeId, LifecycleSettings.QUOTA_WARN_PERCENT), Integer.toString(quotaWarnPercent));
         values.forEach(settings::check);
-        values.forEach((key, value) -> {
-            if (!settings.value(key).equals(value)) {
-                settings.put(key, value);
-            }
-        });
+        List<SettingChange> changes = values.entrySet().stream()
+                .filter(e -> !settings.value(e.getKey()).equals(e.getValue()))
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> SettingChange.set(e.getKey(), e.getValue()))
+                .toList();
+        if (!changes.isEmpty()) {
+            settings.apply(changes);
+        }
     }
 }
