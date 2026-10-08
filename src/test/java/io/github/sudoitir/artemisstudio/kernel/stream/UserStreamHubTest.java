@@ -38,15 +38,21 @@ class UserStreamHubTest {
     }
 
     @Test
-    void aSixthStreamIsRefused() {
+    void aSixthStreamEndsTheOldest() throws Exception {
         UUID user = UUID.randomUUID();
-        for (int i = 0; i < UserStreamHub.MAX_STREAMS_PER_USER; i++) {
-            assertThat(hub.register(user, subscriber(mock(SseEmitter.class), null)))
-                    .isTrue();
+        SseEmitter oldest = mock(SseEmitter.class);
+        hub.register(user, subscriber(oldest, null));
+        for (int i = 1; i < UserStreamHub.MAX_STREAMS_PER_USER; i++) {
+            hub.register(user, subscriber(mock(SseEmitter.class), null));
         }
 
-        assertThat(hub.register(user, subscriber(mock(SseEmitter.class), null))).isFalse();
+        SseEmitter newest = mock(SseEmitter.class);
+        hub.register(user, subscriber(newest, null));
+
         assertThat(hub.streamCount(user)).isEqualTo(UserStreamHub.MAX_STREAMS_PER_USER);
+        verify(oldest, timeout(2_000)).complete();
+        hub.onSignal(new ReplicaSignal(UserSignals.INBOX, user.toString()));
+        verify(newest, timeout(2_000)).send(any(SseEmitter.SseEventBuilder.class));
     }
 
     @Test

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -32,27 +33,30 @@ public class UserStreamHub {
     /** The most streams one user may hold open on a replica. */
     public static final int MAX_STREAMS_PER_USER = 5;
 
+    /** Each user's streams in the order they opened, oldest first. */
     private final Map<UUID, Set<Subscriber>> byUser = new ConcurrentHashMap<>();
 
     /**
-     * Adds {@code subscriber} to {@code userId}'s streams and starts its writer.
-     *
-     * @return false, adding nothing, when the user already holds {@link #MAX_STREAMS_PER_USER}
+     * Adds {@code subscriber} to {@code userId}'s streams and starts its writer. A user who already holds {@link
+     * #MAX_STREAMS_PER_USER} loses the oldest. A closed tab's stream is only noticed when a write to it fails, up to a
+     * heartbeat later, so the oldest is most likely one nobody reads any more: refusing the new stream instead would
+     * leave a user who reloads a few times without live updates until the heartbeat.
      */
-    public boolean register(UUID userId, Subscriber subscriber) {
-        boolean[] added = {false};
+    public void register(UUID userId, Subscriber subscriber) {
+        Subscriber[] evicted = {null};
         byUser.compute(userId, (k, set) -> {
-            Set<Subscriber> streams = set == null ? ConcurrentHashMap.newKeySet() : set;
-            if (streams.size() < MAX_STREAMS_PER_USER) {
-                streams.add(subscriber);
-                added[0] = true;
+            Set<Subscriber> streams = set == null ? new CopyOnWriteArraySet<>() : set;
+            if (streams.size() >= MAX_STREAMS_PER_USER) {
+                evicted[0] = streams.iterator().next();
+                streams.remove(evicted[0]);
             }
+            streams.add(subscriber);
             return streams;
         });
-        if (added[0]) {
-            subscriber.startDrain(frame -> write(userId, subscriber, frame), () -> complete(subscriber));
+        if (evicted[0] != null) {
+            evicted[0].discard();
         }
-        return added[0];
+        subscriber.startDrain(frame -> write(userId, subscriber, frame), () -> complete(subscriber));
     }
 
     /** Forget a subscriber whose stream is over, and stop its writer. */
