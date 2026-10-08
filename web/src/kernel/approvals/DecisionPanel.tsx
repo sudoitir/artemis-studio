@@ -23,6 +23,34 @@ type Vote = HeldDecision['vote'];
 /** Why the panel stopped a decision before it was made: the request moved under the decider. */
 type Stale = { kind: 'changed' | 'closed'; detail: string };
 
+/** Why the reader cannot decide: their own request, or one the policy does not let them decide. */
+function CannotDecide({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
+  const fallback = detail.mine
+    ? 'Someone else must approve it. You can cancel it while it waits.'
+    : 'Only an approver the policy names can decide it.';
+  return (
+    <Notice title={detail.mine ? 'Your own request' : 'You cannot decide this request'} tone="neutral">
+      {detail.decideRefusal ?? fallback}
+    </Notice>
+  );
+}
+
+/** A decision stopped because the request moved under the decider. */
+function StaleNotice({ stale }: Readonly<{ stale: Stale }>) {
+  if (stale.kind === 'closed') {
+    return (
+      <Notice tone="neutral" title="Already closed">
+        {stale.detail} Nothing was decided.
+      </Notice>
+    );
+  }
+  return (
+    <Notice tone="warning" title="The request changed">
+      It changed while you were reviewing it, so nothing was decided. Read it again above, then decide.
+    </Notice>
+  );
+}
+
 /**
  * Studio's own decision controls, for anyone the server says may decide: a reason, then Approve or Reject, each
  * confirmed in a dialog that says once more what is being approved. The vote is bound to the parameters and
@@ -82,14 +110,7 @@ export function DecisionPanel({ detail, refresh }: Readonly<{ detail: HeldOperat
   if (operation.state !== 'HELD') return null;
 
   if (!detail.canDecide) {
-    return (
-      <Notice title={detail.mine ? 'Your own request' : 'You cannot decide this request'} tone="neutral">
-        {detail.decideRefusal ??
-          (detail.mine
-            ? 'Someone else must approve it. You can cancel it while it waits.'
-            : 'Only an approver the policy names can decide it.')}
-      </Notice>
-    );
+    return <CannotDecide detail={detail} />;
   }
 
   const open = (vote: Vote) => {
@@ -118,16 +139,7 @@ export function DecisionPanel({ detail, refresh }: Readonly<{ detail: HeldOperat
 
   return (
     <Stack gap="sm">
-      {stale ? (
-        <Notice
-          tone={stale.kind === 'changed' ? 'warning' : 'neutral'}
-          title={stale.kind === 'changed' ? 'The request changed' : 'Already closed'}
-        >
-          {stale.kind === 'changed'
-            ? 'It changed while you were reviewing it, so nothing was decided. Read it again above, then decide.'
-            : `${stale.detail} Nothing was decided.`}
-        </Notice>
-      ) : null}
+      {stale ? <StaleNotice stale={stale} /> : null}
       <Textarea
         label="Reason"
         description="Required to reject, optional to approve. The requester reads it, and it is kept in the audit log."

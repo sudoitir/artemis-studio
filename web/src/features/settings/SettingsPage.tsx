@@ -228,9 +228,10 @@ function DraftedSettings({ search, onClearFilters }: Readonly<{ search: Settings
 /** A category's match count while filtering, and a marker when it holds unsaved edits, both read in words. */
 function TabAside({ matches, edits, title }: Readonly<{ matches: number | undefined; edits: number; title: string }>) {
   if (matches === undefined && edits === 0) return null;
+  const noun = edits === 1 ? 'change' : 'changes';
   const words = [
     matches === undefined ? null : `${matches} matching`,
-    edits === 0 ? null : `${edits} unsaved ${edits === 1 ? 'change' : 'changes'}`,
+    edits === 0 ? null : `${edits} unsaved ${noun}`,
   ].filter(Boolean);
   return (
     <span className={classes.tabAside} title={`${title}: ${words.join(', ')}`}>

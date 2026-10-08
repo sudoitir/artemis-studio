@@ -143,8 +143,8 @@ export function onLoginPage(): boolean {
   return globalThis.location.pathname.startsWith('/login');
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = (init?.method ?? 'GET').toUpperCase();
+/** The headers every request sends: JSON, the CSRF token on a write, the activity mark, then the caller's own. */
+function requestHeaders(method: string, init?: RequestInit): Headers {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
   };
@@ -156,11 +156,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // The caller's headers add to these, never replace them: replacing dropped the CSRF token.
   const merged = new Headers(headers);
   new Headers(init?.headers).forEach((value, key) => merged.set(key, value));
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'same-origin',
-    ...init,
-    headers: merged,
-  });
+  return merged;
+}
+
+/** Follows the session through a response: a lost one goes to sign-in, and sign-in and sign-out are noted. */
+async function trackSession(res: Response, path: string): Promise<void> {
   if (res.status === 401 && !onLoginPage() && !(await isWrongSecondFactor(res))) {
     // The session expired or was never established — bounce to the login screen.
     // A full navigation (not client-side) so every in-flight query state resets.
@@ -168,6 +168,16 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.ok && (path === '/auth/me' || path === '/auth/login')) confirmedSignedIn = true;
   if (path === '/auth/logout') confirmedSignedIn = false;
+}
+
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const res = await fetch(`${BASE}${path}`, {
+    credentials: 'same-origin',
+    ...init,
+    headers: requestHeaders(method, init),
+  });
+  await trackSession(res, path);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};

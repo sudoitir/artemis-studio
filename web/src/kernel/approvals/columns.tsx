@@ -23,9 +23,14 @@ export function valueText(value: string | null | undefined, absent: string): str
 export const namesTargets = (rows: readonly HeldDisplayRow[]) =>
   rows.every((r) => r.from === null || r.from === undefined);
 
-/** One row in words, as a confirmation repeats it: `value`, or `before → after` for a change. */
-export function rowText(row: HeldDisplayRow, targets: boolean): string {
-  return targets ? valueText(row.to, 'Removed') : `${valueText(row.from, 'Not set')} → ${valueText(row.to, 'Removed')}`;
+/** A row that names a target in words, as a confirmation repeats it: its value. */
+export function targetText(row: HeldDisplayRow): string {
+  return valueText(row.to, 'Removed');
+}
+
+/** A change row in words, as a confirmation repeats it: `before → after`. */
+export function changeText(row: HeldDisplayRow): string {
+  return `${valueText(row.from, 'Not set')} → ${valueText(row.to, 'Removed')}`;
 }
 
 function valueCell(value: string | null | undefined, absent: string) {

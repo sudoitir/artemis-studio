@@ -27,7 +27,7 @@ export interface TabGroup {
  * panel, which the tab names, so a keyboard user reads the section they chose rather than staying in
  * the list.
  */
-export function GroupedTabs({ label, groups }: { label: string; groups: TabGroup[] }) {
+export function GroupedTabs({ label, groups }: Readonly<{ label: string; groups: TabGroup[] }>) {
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
   const panels = useRef(new Map<string, HTMLDivElement>());

@@ -14,6 +14,9 @@ const fieldsOf = (settings: Record<string, Setting>) =>
 
 const pathOf = (index: number) => `fields.${index}.value`;
 
+// Defined once, so the form's validators keep their identity across renders and the draft can be memoized.
+const VALIDATE = { fields: { value: localErrorAt } };
+
 /**
  * One draft of setting changes for the whole Settings page, so an edit in one category survives opening
  * another and every change is applied together. A setting's value is in the form; whether it differs from
@@ -27,7 +30,7 @@ export function SettingsDraftProvider({
   const form = useForm<DraftValues>({
     initialValues: { fields: fieldsOf(settings) },
     validateInputOnBlur: true,
-    validate: { fields: { value: (value, values, path) => localError(kindAt(values, path), value) } },
+    validate: VALIDATE,
   });
   // Settings whose value lost focus since it last changed: only those show what the preview said about them.
   const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
@@ -73,82 +76,108 @@ export function SettingsDraftProvider({
   const preview = changes.length > 0 ? previewQuery.data : undefined;
 
   const changedKeys = useMemo(() => new Set(changes.map((c) => c.key)), [changes]);
-  const errorOf = (key: string): string | undefined => {
-    const i = index.get(key);
-    const local = i === undefined ? undefined : form.errors[pathOf(i)];
-    if (typeof local === 'string') return local;
-    if (!changedKeys.has(key)) return undefined;
-    const server = (visited.has(key) ? preview?.fieldErrors[key] : undefined) ?? applyErrors[key];
-    return server === undefined ? undefined : besideField(key, server);
-  };
-  const invalidKeys = fields.map((f) => f.key).filter((key) => errorOf(key) !== undefined);
+  const { errors, setFieldValue, setValues, validate, validateField } = form;
+  const previewError = changes.length > 0 ? previewQuery.error : null;
 
-  const forget = (key: string) => {
-    setVisited((current) => without(current, key));
-    setApplyErrors((current) => omit(current, key));
-  };
-
-  const draft: SettingsDraft = {
-    settings,
-    form,
-    field: (key) => {
+  // `form` is a new object every render, so the draft depends on the parts of it that change only with state.
+  const draft = useMemo<SettingsDraft>(() => {
+    const errorOf = (key: string): string | undefined => {
       const i = index.get(key);
-      return i === undefined ? undefined : { field: fields[i], path: pathOf(i) };
-    },
+      const local = i === undefined ? undefined : errors[pathOf(i)];
+      if (typeof local === 'string') return local;
+      if (!changedKeys.has(key)) return undefined;
+      const server = (visited.has(key) ? preview?.fieldErrors[key] : undefined) ?? applyErrors[key];
+      return server === undefined ? undefined : besideField(key, server);
+    };
+    const invalidKeys = fields.map((f) => f.key).filter((key) => errorOf(key) !== undefined);
+
+    const forget = (key: string) => {
+      setVisited((current) => without(current, key));
+      setApplyErrors((current) => omit(current, key));
+    };
+
+    return {
+      settings,
+      focus: (key) => {
+        const i = index.get(key);
+        if (i !== undefined) document.querySelector<HTMLElement>(`[data-path="${pathOf(i)}"]`)?.focus();
+      },
+      field: (key) => {
+        const i = index.get(key);
+        return i === undefined ? undefined : { field: fields[i], path: pathOf(i) };
+      },
+      changes,
+      changedIn,
+      errorOf,
+      invalidKeys,
+      preview,
+      previewError,
+      previewing: changes.length > 0 && !previewCurrent,
+      previewCurrent,
+      edit: (key, value) => {
+        const i = index.get(key);
+        if (i === undefined) return;
+        setFieldValue(`fields.${i}`, { ...fields[i], value, reset: false });
+        forget(key);
+      },
+      blur: (key) => {
+        const i = index.get(key);
+        if (i !== undefined) validateField(pathOf(i));
+        setVisited((current) => new Set(current).add(key));
+      },
+      stageReset: (key) => {
+        const i = index.get(key);
+        const setting = settings[key];
+        if (i === undefined || !setting) return;
+        setFieldValue(`fields.${i}`, { ...fields[i], value: setting.defaultValue, reset: true });
+        forget(key);
+      },
+      undo: (key) => {
+        const i = index.get(key);
+        const setting = settings[key];
+        if (i === undefined || !setting) return;
+        setFieldValue(`fields.${i}`, fieldOf(key, setting));
+        forget(key);
+      },
+      revealAll: (latest) => {
+        setVisited(new Set(changedKeys));
+        const local = new Set(Object.keys(validate().errors).map((path) => fields[Number(path.split('.')[1])]?.key));
+        const server = { ...(latest ?? preview)?.fieldErrors, ...applyErrors };
+        return fields.map((f) => f.key).filter((key) => local.has(key) || (changedKeys.has(key) && key in server));
+      },
+      setApplyErrors,
+      discard: (fresh) => {
+        if (fresh) server.current = fresh;
+        setValues({ fields: fieldsOf(server.current) });
+        setVisited(new Set());
+        setApplyErrors({});
+      },
+    };
+  }, [
+    settings,
+    fields,
+    index,
     changes,
     changedIn,
-    errorOf,
-    invalidKeys,
+    changedKeys,
+    errors,
+    visited,
+    applyErrors,
     preview,
-    previewError: changes.length > 0 ? previewQuery.error : null,
-    previewing: changes.length > 0 && !previewCurrent,
+    previewError,
     previewCurrent,
-    edit: (key, value) => {
-      const i = index.get(key);
-      if (i === undefined) return;
-      form.setFieldValue(`fields.${i}`, { ...fields[i], value, reset: false });
-      forget(key);
-    },
-    blur: (key) => {
-      const i = index.get(key);
-      if (i !== undefined) form.validateField(pathOf(i));
-      setVisited((current) => new Set(current).add(key));
-    },
-    stageReset: (key) => {
-      const i = index.get(key);
-      const setting = settings[key];
-      if (i === undefined || !setting) return;
-      form.setFieldValue(`fields.${i}`, { ...fields[i], value: setting.defaultValue, reset: true });
-      forget(key);
-    },
-    undo: (key) => {
-      const i = index.get(key);
-      const setting = settings[key];
-      if (i === undefined || !setting) return;
-      form.setFieldValue(`fields.${i}`, fieldOf(key, setting));
-      forget(key);
-    },
-    revealAll: (latest) => {
-      setVisited(new Set(changedKeys));
-      const local = new Set(Object.keys(form.validate().errors).map((path) => fields[Number(path.split('.')[1])]?.key));
-      const server = { ...(latest ?? preview)?.fieldErrors, ...applyErrors };
-      return fields.map((f) => f.key).filter((key) => local.has(key) || (changedKeys.has(key) && key in server));
-    },
-    setApplyErrors,
-    discard: (fresh) => {
-      if (fresh) server.current = fresh;
-      form.setValues({ fields: fieldsOf(server.current) });
-      setVisited(new Set());
-      setApplyErrors({});
-    },
-  };
+    setFieldValue,
+    setValues,
+    validate,
+    validateField,
+  ]);
 
   return <DraftContext.Provider value={draft}>{children}</DraftContext.Provider>;
 }
 
-function kindAt(values: DraftValues, path: string): string {
+function localErrorAt(value: string, values: DraftValues, path: string) {
   const i = Number(path.split('.')[1]);
-  return values.fields[i]?.kind ?? '';
+  return localError(values.fields[i]?.kind ?? '', value);
 }
 
 function without(set: ReadonlySet<string>, key: string): ReadonlySet<string> {
