@@ -30,6 +30,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.OperationScope;
 import io.github.sudoitir.artemisstudio.kernel.gate.PolicyRef;
 import io.github.sudoitir.artemisstudio.kernel.gate.Requester;
 import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginScopedBeans;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.StudioPrincipal;
 import io.github.sudoitir.artemisstudio.kernel.security.TokenPrincipal;
@@ -64,7 +65,9 @@ import tools.jackson.databind.node.ObjectNode;
  */
 @Component
 @Slf4j
-class GateEngine implements OperationGate {
+class GateEngine implements OperationGate, PluginScopedBeans {
+
+    static final String PLUGIN_BEAN_NAME = "operationGate";
 
     static final String REDACTED = "[redacted]";
     static final int MAX_REASON = 500;
@@ -117,6 +120,12 @@ class GateEngine implements OperationGate {
         this.executions = executions;
         this.newTransaction = new TransactionTemplate(transactions);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    /** Each plugin gets the gate for its own operation types only (ADR-0111). */
+    @Override
+    public Map<String, Object> beansFor(String pluginId) {
+        return Map.of(PLUGIN_BEAN_NAME, new ScopedOperationGate(this, operations, pluginId));
     }
 
     @Override
