@@ -20,7 +20,7 @@ cp deploy/compose/.env.example .env      # set DB_*, SECRET_KEY
 docker compose -f deploy/compose/compose.ha.yaml --env-file .env up -d
 ```
 
-Studio is on `http://127.0.0.1:8080` (set `STUDIO_BIND` to change it). `just ha-failover` builds the image and runs the same failover test CI runs:
+`just up` runs this stack from a clone, with generated secrets. Studio is on `http://127.0.0.1:8080` (set `STUDIO_BIND` to change it); Postgres is not published to the host. `just ha-failover` builds the image and runs the same failover test CI runs:
 it kills the replica that owns a cluster, then stops the other gracefully, and checks that no
 request fails during the graceful stop and no stream event is lost. The second replica starts after
 the first is ready, so schema migrations run once. Postgres itself is a single container here: its

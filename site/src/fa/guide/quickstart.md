@@ -20,7 +20,7 @@ git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
 just up
 ```
 
-`just up` ابتدا `just setup` را اجرا می‌کند: روی یک checkout تازه، فایل `deploy/compose/.env` را با یک `SECRET_KEY` و `DB_PASSWORD` تصادفی می‌نویسد و `STUDIO_IMAGE` را به تازه‌ترین تگ منتشرشده پین می‌کند. سپس Studio و Postgres را بالا می‌آورد و منتظر می‌ماند تا Studio پاسخ دهد. آدرس <http://localhost:8080> را باز کنید.
+`just up` ابتدا `just setup` را اجرا می‌کند: روی یک checkout تازه، فایل `deploy/compose/.env` را با یک `SECRET_KEY` و `DB_PASSWORD` تصادفی می‌نویسد و `STUDIO_IMAGE` را به تازه‌ترین تگ منتشرشده پین می‌کند. سپس دو replica از Studio، HAProxy و Postgres را بالا می‌آورد و منتظر می‌ماند تا آماده شوند (`just up-single` فقط یک replica و بدون load balancer بالا می‌آورد). آدرس <http://localhost:8080> را باز کنید.
 
 بعداً برای جلو بردن پین نسخه، دوباره `just setup` را اجرا کنید.
 

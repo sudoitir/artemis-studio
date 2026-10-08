@@ -53,7 +53,7 @@ features:
 
 ```bash
 git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # Studio + Postgres，自动生成密钥，并固定到最新发布版本
+just up          # 两个 Studio 副本 + HAProxy + Postgres，自动生成密钥，并固定到最新发布版本
 ```
 
 你的 Broker 本来就存在——Studio 只负责纳管，不会去启动它们。除了你几乎肯定已经开启的管理端点之外，它不需要你改动 `broker.xml`。[完整快速开始 →](/zh/guide/quickstart)

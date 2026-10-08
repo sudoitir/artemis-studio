@@ -5,7 +5,8 @@ set dotenv-load := true
 
 compose_dev  := "docker compose -f deploy/compose/dev/compose.dev.yaml"
 compose_demo := "docker compose -f deploy/compose/dev/compose.dev.yaml -f deploy/compose/dev/compose.demo.yaml"
-compose_prod := "docker compose -f deploy/compose/compose.prod.yaml"
+compose_ha   := "docker compose --env-file deploy/compose/.env -f deploy/compose/compose.ha.yaml"
+compose_prod := "docker compose --env-file deploy/compose/.env -f deploy/compose/compose.prod.yaml"
 mvn          := "./mvnw"
 npm          := "npm --prefix web"
 # Pinned to match .github/workflows/ci.yml, so a local preview matches the release.
@@ -19,30 +20,42 @@ default:
 
 # ── stack ────────────────────────────────────────────────────────────────────
 
-# Run Artemis Studio + Postgres from the published image. Register your brokers in the UI.
+# Run Artemis Studio from the published image: two replicas behind HAProxy on one Postgres (runs `just setup`).
+# Register your brokers in the UI. Studio is on http://localhost:8080.
 [group('stack')]
 up: setup
-    {{compose_prod}} --env-file deploy/compose/.env up -d
+    {{compose_ha}} up -d --wait --wait-timeout 300
     @echo "→ http://localhost:8080"
-    @echo "→ waiting for Studio to be ready…"
-    @timeout 120 bash -c 'until {{compose_prod}} --env-file deploy/compose/.env logs studio 2>/dev/null | grep -q "Started ArtemisStudioApplication\|Created administrator"; do sleep 2; done' || true
-    @{{compose_prod}} --env-file deploy/compose/.env logs studio 2>/dev/null | grep -A4 'Created administrator' \
+    @{{compose_ha}} logs studio-1 studio-2 2>/dev/null | grep -A4 'Created administrator' \
         || echo "→ admin account already exists (its password was shown on first boot)"
 
-# Stop the stack (keeps the Postgres volume).
+# The same, with one Studio replica and no load balancer (compose.prod.yaml).
+[group('stack')]
+up-single: setup
+    {{compose_prod}} up -d --wait --wait-timeout 300
+    @echo "→ http://localhost:8080"
+    @{{compose_prod}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
+        || echo "→ admin account already exists (its password was shown on first boot)"
+
+# Stop the HA stack (keeps the Postgres volume).
 [group('stack')]
 down:
-    {{compose_prod}} --env-file deploy/compose/.env down
+    {{compose_ha}} down
 
-# Tail logs (all services, or `just logs studio`).
+# Stop the single-replica stack (keeps the Postgres volume).
+[group('stack')]
+down-single:
+    {{compose_prod}} down
+
+# Tail logs of the HA stack (all services, or `just logs studio-1`).
 [group('stack')]
 logs *service:
-    {{compose_prod}} --env-file deploy/compose/.env logs -f {{service}}
+    {{compose_ha}} logs -f {{service}}
 
-# Show stack status.
+# Show HA stack status.
 [group('stack')]
 ps:
-    {{compose_prod}} --env-file deploy/compose/.env ps
+    {{compose_ha}} ps
 
 # Write deploy/compose/.env (generated secrets on first run), pinned to the latest release tag.
 [group('stack')]

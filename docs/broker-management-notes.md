@@ -5,7 +5,7 @@ Verified against the dev compose pair (`deploy/compose/dev/compose.dev.yaml`):
 `:8161` (primary) and `:8261` (backup), Core on `:61616` / `:61617`.
 Credentials `artemis` / `artemis`, role `amq`.
 
-Reproduce: `just up`, then the `curl` calls below. The notification catalogue (section 7) was
+Reproduce: `just dev-up`, then the `curl` calls below. The notification catalogue (section 7) was
 captured by a Phase 0 spike test, `NotificationSpikeIT`, which was run by hand and no longer
 exists. Its successor is `CoreEventClientTest` (`./mvnw test -Dtest=CoreEventClientTest`): it
 starts an Artemis container, provokes broker activity, drains `activemq.notifications` for 12
@@ -416,7 +416,7 @@ Nothing contradicts ADR-0002 or ADR-0004. Reinforcements:
 - **Image gotcha:** `docker-run.sh` copies `etc-override/*` only when creating the
   instance (`if ! [ -f ./etc/broker.xml ]`). A persisted
   `/var/lib/artemis-instance` volume makes later `broker.xml` edits silently
-  ineffective. The dev stack keeps that path ephemeral on purpose; `just down`
+  ineffective. The dev stack keeps that path ephemeral on purpose; `just dev-down`
   (which is `down -v`) is the way to pick up fixture edits.
 
 ---

@@ -124,7 +124,8 @@ one is missing.
 
 ```bash
 just                 # menu of all tasks, grouped
-just up / just down  # Studio + Postgres from the published image (runs `just setup`: .env + version pin)
+just up / just down  # HA stack from the published image: 2 Studio replicas + HAProxy + Postgres (runs `just setup`: .env + version pin)
+just up-single / down-single  # the one-replica compose.prod.yaml stack
 just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + studio, built locally
 just dev             # backend :8080 + vite :5173 (proxied), together
 just verify          # everything CI runs: verify-api + verify-web

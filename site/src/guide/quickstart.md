@@ -26,8 +26,9 @@ just up
 
 `just up` runs `just setup` first: on a clean checkout it writes
 `deploy/compose/.env` with a random `SECRET_KEY` and `DB_PASSWORD`, and pins
-`STUDIO_IMAGE` to the newest published release tag. Then it starts Studio and
-Postgres and waits until Studio answers. Open <http://localhost:8080>.
+`STUDIO_IMAGE` to the newest published release tag. Then it starts two Studio
+replicas behind HAProxy, on one Postgres, and waits until they answer (`just up-single` starts one
+replica and no load balancer). Open <http://localhost:8080>.
 
 Run `just setup` again later to move the version pin forward.
 

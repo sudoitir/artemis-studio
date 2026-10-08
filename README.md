@@ -65,7 +65,7 @@ admin role requires.
 
 ```bash
 git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # the same stack, pinned to the latest release
+just up          # two replicas behind HAProxy, pinned to the latest release (just up-single: one replica)
 ```
 
 ```bash
