@@ -72,9 +72,12 @@ export function changeColumns(): Column<HeldDisplayRow>[] {
   ];
 }
 
-/** A list of requests: what each would do (a link to its page), its state, who asked and when. */
-export function requestColumns(): Column<HeldOperationSummary>[] {
-  return [
+/**
+ * A list of requests: what each would do (a link to its page), its state, who asked and when. The caller's own
+ * requests (`mine`) leave out who asked: it is always them.
+ */
+export function requestColumns({ mine = false }: Readonly<{ mine?: boolean }> = {}): Column<HeldOperationSummary>[] {
+  const columns: Column<HeldOperationSummary>[] = [
     {
       id: 'summary',
       header: 'Request',
@@ -122,4 +125,5 @@ export function requestColumns(): Column<HeldOperationSummary>[] {
       priority: 'low',
     },
   ];
+  return mine ? columns.filter((column) => column.id !== 'requester') : columns;
 }

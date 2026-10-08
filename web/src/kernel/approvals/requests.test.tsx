@@ -124,6 +124,7 @@ describe('ApprovalsView', () => {
     const table = await screen.findByRole('table', { name: 'Requests waiting for your decision' });
     expect(within(table).getByRole('link', { name: 'Purge queue orders.dlq on prod-eu' })).toBeInTheDocument();
     expect(within(table).getByText('carol')).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: /Requested by/ })).toBeInTheDocument();
     expect(asked[0]?.get('scope')).toBe('DECIDABLE');
     expect(asked[0]?.get('state')).toBe('HELD');
   });
@@ -136,6 +137,8 @@ describe('ApprovalsView', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'mine' }));
     const table = await screen.findByRole('table', { name: 'Your requests' });
     expect(within(table).getByText('Succeeded')).toBeInTheDocument();
+    // Every row of the user's own requests was asked by them: the column would only repeat their name.
+    expect(within(table).queryByRole('columnheader', { name: /Requested by/ })).not.toBeInTheDocument();
   });
 
   it('says nothing waits for the user when nothing does', async () => {
