@@ -38,7 +38,6 @@ _Others_
 * `i.g.s.a.k.s.IdentityProviders` (via `i.g.s.a.k.s.internal.PluginSignIn`)
 |Bean references
 |* `i.g.s.a.k.r.StudioBus` (in Replicas)
-* `i.g.s.a.k.g.GateLeases` (in Approval gate contract)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)
 * `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
