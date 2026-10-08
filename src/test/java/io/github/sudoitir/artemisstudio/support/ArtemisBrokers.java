@@ -243,7 +243,7 @@ public final class ArtemisBrokers {
     private static final class Second {
         static final Broker BROKER = start(withBrokerXml(
                 container(),
-                read("deploy/compose/artemis/secondary/broker.xml")
+                read("deploy/compose/dev/artemis/secondary/broker.xml")
                         // The disk check is not under test, and a nearly full developer disk
                         // would make every run wait for capacity.
                         .replace("<max-disk-usage>98</max-disk-usage>", "<max-disk-usage>-1</max-disk-usage>")));

@@ -4,7 +4,7 @@ package io.github.sudoitir.artemisstudio.platform.broker;
  * The {@code broker.xml} fragments an operator must add for live notifications
  * (Phase 4). Both were proven necessary against the dev broker pair in Phase 0
  * and are reproduced here verbatim from the dev {@code broker.xml} files under
- * {@code deploy/compose/artemis/}.
+ * {@code deploy/compose/dev/artemis/}.
  */
 public final class BrokerXmlSnippets {
 

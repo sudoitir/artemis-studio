@@ -3,8 +3,8 @@
 set shell := ["bash", "-uc"]
 set dotenv-load := true
 
-compose_dev  := "docker compose -f deploy/compose/compose.dev.yaml"
-compose_demo := "docker compose -f deploy/compose/compose.dev.yaml -f deploy/compose/compose.demo.yaml"
+compose_dev  := "docker compose -f deploy/compose/dev/compose.dev.yaml"
+compose_demo := "docker compose -f deploy/compose/dev/compose.dev.yaml -f deploy/compose/dev/compose.demo.yaml"
 compose_prod := "docker compose -f deploy/compose/compose.prod.yaml"
 mvn          := "./mvnw"
 npm          := "npm --prefix web"
@@ -119,13 +119,13 @@ qa-up name port demo="":
     #!/usr/bin/env bash
     set -euo pipefail
     export QA_PORT={{port}}
-    files=(-f deploy/compose/compose.dev.yaml)
-    [ -z "{{demo}}" ] || files+=(-f deploy/compose/compose.demo.yaml)
-    files+=(-f deploy/compose/compose.isolated.yaml)
-    [ -z "{{demo}}" ] || files+=(-f deploy/compose/compose.isolated-demo.yaml)
+    files=(-f deploy/compose/dev/compose.dev.yaml)
+    [ -z "{{demo}}" ] || files+=(-f deploy/compose/dev/compose.demo.yaml)
+    files+=(-f deploy/compose/dev/compose.isolated.yaml)
+    [ -z "{{demo}}" ] || files+=(-f deploy/compose/dev/compose.isolated-demo.yaml)
     # QA_JAR runs a jar built on the host in the released runtime image, instead of building the image.
     build=--build
-    if [ -n "${QA_JAR:-}" ]; then files+=(-f deploy/compose/compose.isolated-jar.yaml); build=; fi
+    if [ -n "${QA_JAR:-}" ]; then files+=(-f deploy/compose/dev/compose.isolated-jar.yaml); build=; fi
     export COMPOSE="docker compose -p artemis-studio-qa-{{name}} ${files[*]}"
     export STUDIO=http://127.0.0.1:{{port}}
     auth=web/.sweep/auth
@@ -233,7 +233,7 @@ ha-failover:
     # Requests, event streams and scraping must carry on; web/scripts/ha-failover.ts says what is checked.
     # Throwaway secrets for a stack that lives for one run.
     export DB_PASSWORD="$(openssl rand -hex 16)" SECRET_KEY="$(openssl rand -base64 32)"
-    export COMPOSE="docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml"
+    export COMPOSE="docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml"
     [ -n "${HA_IMAGE_BUILT:-}" ] || docker build -t artemis-studio:ci .
     trap 'status=$?; [ "$status" = 0 ] || $COMPOSE logs --tail 200 studio-1 studio-2 lb; $COMPOSE down -v' EXIT
     $COMPOSE up -d --wait --wait-timeout 300

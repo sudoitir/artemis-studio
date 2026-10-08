@@ -1,5 +1,5 @@
 /**
- * Failover of the reference HA deployment (deploy/compose/compose.ha.yaml with compose.ha.test.yaml): two Studio
+ * Failover of the reference HA deployment (deploy/compose/compose.ha.yaml with dev/compose.ha.test.yaml): two Studio
  * replicas behind HAProxy on one Postgres and one broker. Through the load balancer it registers the broker, holds
  * three event streams and a request loop (a read every 200 ms and a queue created and deleted every 500 ms), then:
  *
@@ -10,8 +10,8 @@
  *
  * Throughout, every persisted broker event between a stream's first and last id must have reached that stream.
  *
- *   COMPOSE='docker compose -p artemis-studio-ha-test --env-file deploy/compose/ha/test.env \
- *            -f deploy/compose/compose.ha.yaml -f deploy/compose/compose.ha.test.yaml' \
+ *   COMPOSE='docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env \
+ *            -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml' \
  *   STUDIO=http://127.0.0.1:18080 node --experimental-strip-types scripts/ha-failover.ts
  *
  * COMPOSE is how this script starts, kills and reads the logs of the stack's containers. The one-time admin

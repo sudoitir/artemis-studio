@@ -48,7 +48,7 @@ class CoreTlsPerClusterTest {
         Path xml = dir.resolve("broker.xml");
         Files.writeString(
                 xml,
-                Files.readString(Path.of("deploy/compose/artemis/primary/broker.xml"))
+                Files.readString(Path.of("deploy/compose/dev/artemis/primary/broker.xml"))
                         .replace(
                                 "tcp://0.0.0.0:61616?",
                                 "tcp://0.0.0.0:61616?sslEnabled=true;keyStoreType=PKCS12;keyStorePath=" + OVERRIDE

@@ -27,7 +27,7 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up 
 # Once the admin has two-step verification (the first run enrols it), the secret that run printed.
 ADMIN_TOTP_SECRET=${ADMIN_TOTP_SECRET:-}
 NEW_PASSWORD=${NEW_PASSWORD:-config-e2e-Passw0rd!}
-COMPOSE=${COMPOSE:-docker compose -f deploy/compose/compose.dev.yaml}
+COMPOSE=${COMPOSE:-docker compose -f deploy/compose/dev/compose.dev.yaml}
 CLUSTER_NAME=${CLUSTER_NAME:-config-e2e}
 
 JAR=/var/lib/artemis-instance/bin/artemis

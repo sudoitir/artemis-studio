@@ -137,7 +137,8 @@ just db-status / db-sql / db-rollback [n] / db-shell
 
 `./mvnw verify` needs Docker (Testcontainers). The frontend build is behind the
 `frontend` Maven profile so day-to-day `./mvnw test` stays fast. Compose files
-live in `deploy/compose/` (`compose.dev.yaml`, `compose.prod.yaml`).
+live in `deploy/compose/`: `compose.prod.yaml` and `compose.ha.yaml` for operators, everything for
+development, demos and tests in `deploy/compose/dev/`.
 
 Pull requests carry the verification: parallel, path-filtered jobs behind the one required
 `ci-ok` check, on a branch up to date with `main`; `gh pr merge <n> --merge --auto` merges a ready PR, and

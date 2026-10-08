@@ -1,6 +1,6 @@
 # Broker management notes — Phase 0 spike
 
-Verified against the dev compose pair (`deploy/compose/compose.dev.yaml`):
+Verified against the dev compose pair (`deploy/compose/dev/compose.dev.yaml`):
 `apache/activemq-artemis:2.44.0`, replication primary/backup, Jolokia on
 `:8161` (primary) and `:8261` (backup), Core on `:61616` / `:61617`.
 Credentials `artemis` / `artemis`, role `amq`.
@@ -402,7 +402,7 @@ Nothing contradicts ADR-0002 or ADR-0004. Reinforcements:
 
 ### Dev fixture changes made this session
 
-- `deploy/compose/artemis/{primary,backup}/broker.xml` — rewritten as **complete**
+- `deploy/compose/dev/artemis/{primary,backup}/broker.xml` — rewritten as **complete**
   configs (the image `cp`s `etc-override/*` over the generated `broker.xml`, it
   does not XML-merge; the old fragments would have booted with no acceptors).
   Baseline from `artemis create` in image 2.44.0. Added: replication `ha-policy`,
@@ -410,7 +410,7 @@ Nothing contradicts ADR-0002 or ADR-0004. Reinforcements:
   `activemq.notifications` create permissions. `max-disk-usage` raised to `98`
   **for dev only** — a laptop past 90% disk otherwise blocks every producer
   (`AMQ212054`).
-- `deploy/compose/compose.dev.yaml` — backup healthcheck added (reads `Started`
+- `deploy/compose/dev/compose.dev.yaml` — backup healthcheck added (reads `Started`
   on `broker="backup"`), backup `depends_on` primary `service_healthy`, stray
   `Origin` header dropped from the primary healthcheck.
 - **Image gotcha:** `docker-run.sh` copies `etc-override/*` only when creating the
