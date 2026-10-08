@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperation;
 import io.github.sudoitir.artemisstudio.kernel.gate.Trait;
 import io.github.sudoitir.artemisstudio.kernel.security.AccessOperation;
 import io.github.sudoitir.artemisstudio.kernel.security.PatternKind;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.persistence.TeamEntity;
@@ -60,6 +61,7 @@ class TeamOperations {
     private final RoleRepository roles;
     private final AppUserRepository users;
     private final ApproverAccess approvers;
+    private final ScopeHierarchy clusters;
 
     TeamOperations(
             TeamRepository teams,
@@ -68,7 +70,8 @@ class TeamOperations {
             TeamShareRepository shares,
             RoleRepository roles,
             AppUserRepository users,
-            ApproverAccess approvers) {
+            ApproverAccess approvers,
+            ScopeHierarchy clusters) {
         this.teams = teams;
         this.patterns = patterns;
         this.members = members;
@@ -76,6 +79,7 @@ class TeamOperations {
         this.roles = roles;
         this.users = users;
         this.approvers = approvers;
+        this.clusters = clusters;
     }
 
     @Bean
@@ -193,7 +197,7 @@ class TeamOperations {
                         DisplayRow.of("Team", team(p.teamId()).getName()),
                         DisplayRow.of("Kind", p.kind().name()),
                         DisplayRow.of("Pattern", p.pattern()),
-                        DisplayRow.of("Cluster", p.clusterId().toString()));
+                        DisplayRow.of("Cluster", clusterLabel(p.clusterId())));
             }
 
             @Override
@@ -229,7 +233,7 @@ class TeamOperations {
                         DisplayRow.of("Team", team(p.teamId()).getName()),
                         DisplayRow.of("Kind", pattern.getKind()),
                         new DisplayRow("Pattern", pattern.getPattern(), null),
-                        DisplayRow.of("Cluster", pattern.getClusterId().toString()));
+                        DisplayRow.of("Cluster", clusterLabel(pattern.getClusterId())));
             }
 
             @Override
@@ -479,5 +483,11 @@ class TeamOperations {
                                 .map(user -> user.getUsername())
                                 .orElse(String.valueOf(p.userId()))
                 : "group " + p.groupName() + " of " + p.providerId();
+    }
+
+    /** The cluster's name for an approver to read, or its id when it no longer exists. */
+    private String clusterLabel(UUID clusterId) {
+        String name = clusters.clusterName(clusterId);
+        return name != null ? name : clusterId.toString();
     }
 }
