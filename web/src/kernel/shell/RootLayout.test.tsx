@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -10,25 +10,29 @@ import { server } from '../../test/setup.ts';
 import { paged } from '../api/paging.ts';
 
 const navigate = vi.fn();
+// Where the mocked router says the address is; a cluster's view unless a test moves it.
+const place = vi.hoisted(() => ({ pathname: '/clusters/c1/queues', clusterId: 'c1' as string | undefined }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
-  useParams: () => ({}),
+  useParams: () => (place.clusterId ? { clusterId: place.clusterId } : {}),
   useNavigate: () => navigate,
-  useLocation: () => ({ pathname: '/' }),
+  useLocation: () => ({ pathname: place.pathname, search: {} }),
   Outlet: () => null,
   Link: ({
     to,
     children,
     className,
     'aria-label': ariaLabel,
+    'aria-current': ariaCurrent,
   }: {
     to: string;
     children?: ReactNode;
     className?: string;
     'aria-label'?: string;
+    'aria-current'?: 'page';
   }) => (
-    <a href={to} className={className} aria-label={ariaLabel}>
+    <a href={to} className={className} aria-label={ariaLabel} aria-current={ariaCurrent}>
       {children}
     </a>
   ),
@@ -95,8 +99,8 @@ describe('RootLayout sidebar collapse', () => {
     localStorage.setItem('as:nav:collapsed', 'true');
     renderWithProviders(<RootLayout />);
 
-    // No cluster is open at this address, so the rail's one control says what it is for.
-    expect(await screen.findByRole('button', { name: 'Choose a cluster' })).toBeInTheDocument();
+    // The rail's one control names the cluster the address is under.
+    expect(await screen.findByRole('button', { name: /^Switch cluster, now prod-emea/ })).toBeInTheDocument();
   });
 });
 
@@ -130,7 +134,7 @@ describe('RootLayout in a narrow window', () => {
     const toggle = await screen.findByRole('button', { name: 'Sidebar stays collapsed in a narrow window' });
     expect(toggle).toBeDisabled();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(await screen.findByRole('button', { name: 'Choose a cluster' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Switch cluster, now prod-emea/ })).toBeInTheDocument();
     // The viewer's own choice is kept for when the window is wide again.
     expect(localStorage.getItem('as:nav:collapsed')).toBe('false');
   });
@@ -244,5 +248,60 @@ describe('RootLayout break-glass banner', () => {
 
     expect(await screen.findByRole('button', { name: 'User menu' })).toBeInTheDocument();
     expect(screen.queryByText('Break-glass is on')).not.toBeInTheDocument();
+  });
+});
+
+describe('RootLayout outside any cluster', () => {
+  afterEach(() => {
+    place.pathname = '/clusters/c1/queues';
+    place.clusterId = 'c1';
+    localStorage.removeItem('as:last-place');
+  });
+
+  function outside(pathname: string) {
+    place.pathname = pathname;
+    place.clusterId = undefined;
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))));
+  }
+
+  it('has no sidebar, and offers to open a cluster when there is no place to go back to', async () => {
+    outside('/inbox');
+    renderWithProviders(<RootLayout />);
+
+    const where = await screen.findByRole('navigation', { name: 'Where you are' });
+    expect(screen.queryByRole('button', { name: 'Collapse sidebar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Cluster views' })).not.toBeInTheDocument();
+    expect(within(where).getByRole('link', { name: 'Open a cluster' })).toHaveAttribute('href', '/');
+    expect(within(where).getByText('Inbox')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('leads straight back to the cluster view the operator came from', async () => {
+    localStorage.setItem(
+      'as:last-place',
+      JSON.stringify({
+        clusterId: 'c1',
+        clusterName: 'prod-emea',
+        label: 'Queues',
+        to: '/clusters/c1/queues',
+        search: {},
+      }),
+    );
+    outside('/admin');
+    renderWithProviders(<RootLayout />);
+
+    const back = await screen.findByRole('link', { name: 'Back to prod-emea · Queues' });
+    expect(back).toHaveAttribute('href', '/clusters/c1/queues');
+  });
+
+  it('keeps the sidebar on a cluster page, with no line above it', async () => {
+    mockAuthenticated();
+    mockEmptyQueues();
+    server.use(http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))));
+    renderWithProviders(<RootLayout />);
+
+    expect(await screen.findByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Where you are' })).not.toBeInTheDocument();
   });
 });

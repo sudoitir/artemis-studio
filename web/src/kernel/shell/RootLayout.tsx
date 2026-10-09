@@ -3,7 +3,7 @@ import { AppShell, Button, Divider, Kbd, ScrollArea, Text } from '@mantine/core'
 import { spotlight } from '@mantine/spotlight';
 import { IconSearch } from '@tabler/icons-react';
 import { useDocumentTitle, useHotkeys } from '@mantine/hooks';
-import { Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, Outlet, useLocation, useNavigate, useParams } from '@tanstack/react-router';
 
 import styles from './RootLayout.module.css';
 import { branding } from '../../branding.ts';
@@ -18,11 +18,13 @@ import { ClusterViewNav } from './ClusterViewNav.tsx';
 import { ColorSchemeToggle } from './ColorSchemeToggle.tsx';
 import { CommandPalette } from './CommandPalette.tsx';
 import { FreshnessBar } from './FreshnessBar.tsx';
+import { GlobalContext } from './GlobalContext.tsx';
 import { NavToggle } from './NavToggle.tsx';
 import { UserMenu } from './UserMenu.tsx';
 import { useNavCollapsed } from './useNavCollapsed.ts';
 import { useCurrentView } from '../nav/currentView.ts';
 import { useTitleParts } from './pageTitle.ts';
+import { recordLastPlace, useLastPlace } from './lastPlace.ts';
 import { recordRecent } from './recents.ts';
 import { ShortcutsHelp } from '../keyboard/ShortcutsHelp.tsx';
 import { useKeySequences } from '../keyboard/useKeySequences.ts';
@@ -106,6 +108,24 @@ export function RootLayout() {
     record();
   }, [recentCluster, recentItem, recentLabel, location.pathname]);
 
+  // The last place in a cluster is what a page outside any cluster leads back to.
+  const lastPlace = useLastPlace();
+  const placeCluster = view?.clusterId;
+  const placeName = titleParts.cluster;
+  const placeLabel = view?.item?.label ?? 'Topology';
+  useEffect(() => {
+    if (!placeCluster || !placeName) return;
+    recordLastPlace({
+      clusterId: placeCluster,
+      clusterName: placeName,
+      label: placeLabel,
+      to: location.pathname,
+      search: (location.search ?? {}) as Record<string, unknown>,
+    });
+    // The search is part of the place, but a filter typed into it is not worth a write per keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeCluster, placeName, placeLabel, location.pathname]);
+
   useHotkeys([['mod+B', toggle]]);
   useKeySequences();
   usePluginsChanged();
@@ -127,7 +147,11 @@ export function RootLayout() {
   return (
     <AppShell
       header={{ height: 56 }}
-      navbar={{ width: collapsed ? 'var(--as-nav-rail-w)' : 'var(--as-nav-w)', breakpoint: 0 }}
+      navbar={
+        // A page outside any cluster has no sidebar: it would hold only a cluster picker, and the space
+        // is the page's. The way back to a cluster is the line above the page (`GlobalContext`).
+        clusterId ? { width: collapsed ? 'var(--as-nav-rail-w)' : 'var(--as-nav-w)', breakpoint: 0 } : undefined
+      }
       padding="lg"
       vars={shellVars}
     >
@@ -137,10 +161,12 @@ export function RootLayout() {
       <AppShell.Header>
         <div className={styles.header}>
           <div className={styles.headerStart}>
-            <img src="/favicon.svg" alt="" width={24} height={24} />
-            <Text fw={600} truncate>
-              {branding.productName}
-            </Text>
+            <Link to={lastPlace?.to ?? '/'} search={lastPlace?.search as never} className={styles.brand}>
+              <img src="/favicon.svg" alt="" width={24} height={24} />
+              <Text fw={600} truncate>
+                {branding.productName}
+              </Text>
+            </Link>
             {header.map(({ id, Component }) => (
               <Component key={id} />
             ))}
@@ -168,20 +194,27 @@ export function RootLayout() {
         </div>
       </AppShell.Header>
 
-      <AppShell.Navbar id={NAVBAR_ID} p="sm">
-        <AppShell.Section>
-          <NavToggle collapsed={collapsed} forced={forced} onToggle={toggle} controls={NAVBAR_ID} />
-        </AppShell.Section>
-        <AppShell.Section grow component={ScrollArea}>
-          {navbar.map(({ id, Component }) => (
-            <Component key={id} collapsed={collapsed} />
-          ))}
-          {clusterId ? <ClusterViewNav clusterId={clusterId} collapsed={collapsed} /> : null}
-        </AppShell.Section>
-      </AppShell.Navbar>
+      {clusterId ? (
+        <AppShell.Navbar id={NAVBAR_ID} p="sm">
+          <AppShell.Section>
+            <NavToggle collapsed={collapsed} forced={forced} onToggle={toggle} controls={NAVBAR_ID} />
+          </AppShell.Section>
+          <AppShell.Section grow component={ScrollArea}>
+            {navbar.map(({ id, Component }) => (
+              <Component key={id} collapsed={collapsed} />
+            ))}
+            {clusterId ? <ClusterViewNav clusterId={clusterId} collapsed={collapsed} /> : null}
+          </AppShell.Section>
+        </AppShell.Navbar>
+      ) : null}
 
       <AppShell.Main id={MAIN_ID} className={styles.main}>
         <BreakGlassBanner />
+        {clusterId || location.pathname === '/' ? null : (
+          <div className={styles.global}>
+            <GlobalContext />
+          </div>
+        )}
         <Outlet />
       </AppShell.Main>
 
