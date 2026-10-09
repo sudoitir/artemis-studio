@@ -7,3 +7,10 @@
   padding-inline: var(--mantine-spacing-md);
   max-inline-size: 35rem;
 }
+
+/* The environment the cluster belongs to, named in words beside its colour. */
+.environment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}

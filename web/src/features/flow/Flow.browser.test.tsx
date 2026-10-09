@@ -156,8 +156,9 @@ describe.each(LAYOUTS)('Flow, $name', ({ tab, search }) => {
       expect(await axeViolations(container)).toEqual([]);
       expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth + 1);
       if (tab !== 'table') {
-        // WCAG 2.2 target size: the overview's own button is at least 24 by 24 CSS px.
-        const button = screen.getByRole('button', { name: 'Hide overview' }).getBoundingClientRect();
+        // WCAG 2.2 target size: the overview's own button is at least 24 by 24 CSS px. It starts open only
+        // where the graph does not fit the canvas.
+        const button = screen.getByRole('button', { name: /^(Show|Hide) overview$/ }).getBoundingClientRect();
         expect(button.width).toBeGreaterThanOrEqual(24);
         expect(button.height).toBeGreaterThanOrEqual(24);
       }

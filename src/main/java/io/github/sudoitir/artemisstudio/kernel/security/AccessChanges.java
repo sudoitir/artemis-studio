@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -29,11 +30,14 @@ public class AccessChanges {
 
     static final String SIGNAL = "access-changed";
 
+    private static final Object GUARDED = new Object();
+
     private final AccessLoader access;
     private final TeamIndex teams;
     private final StudioBus bus;
     private final ActorResolver actors;
     private final JdbcClient jdbc;
+    private final ObjectProvider<AccessChangeGuard> guards;
 
     /** Everyone's access may have changed (a role, a team, a share). */
     public void changed() {
@@ -47,8 +51,29 @@ public class AccessChanges {
 
     private void announce(UUID userId) {
         log(userId);
+        guardBeforeCommit();
         bus.publish(new ReplicaSignal(SIGNAL, userId == null ? null : userId.toString()));
         afterCommit(() -> drop(userId));
+    }
+
+    /** Once per transaction, the guards get to refuse the change just before it commits. */
+    private void guardBeforeCommit() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()
+                || TransactionSynchronizationManager.hasResource(GUARDED)) {
+            return;
+        }
+        TransactionSynchronizationManager.bindResource(GUARDED, Boolean.TRUE);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void beforeCommit(boolean readOnly) {
+                guards.orderedStream().forEach(AccessChangeGuard::beforeCommit);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                TransactionSynchronizationManager.unbindResourceIfPossible(GUARDED);
+            }
+        });
     }
 
     private void log(UUID subjectId) {

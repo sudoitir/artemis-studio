@@ -364,7 +364,6 @@ function Confirmations({
         onClose={onCancel}
         title={pending === 'uninstall' ? `Uninstall ${info.title}` : `Disable ${info.title}`}
         confirmLabel={pending === 'uninstall' ? `Uninstall ${info.title}` : `Disable ${info.title}`}
-        typeToConfirm={pending === 'uninstall' ? plugin.id : undefined}
         danger={pending === 'uninstall'}
         pending={lifecycle.isPending}
         error={lifecycle.error}
@@ -393,7 +392,6 @@ function Confirmations({
         onClose={onCancel}
         title={`Purge ${info.title}'s data`}
         confirmLabel="Delete its data permanently"
-        typeToConfirm={plugin.id}
         danger
         pending={purge.isPending}
         error={purge.error}

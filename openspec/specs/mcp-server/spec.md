@@ -118,7 +118,7 @@ operations a call performs SHALL be attached to that call's event.
 Every mutating primitive SHALL default to a dry run that reports the count that would be
 affected and changes nothing. Acting for real SHALL require the caller to both request a
 real run and supply a confirmation argument that matches the subject of the operation —
-the protocol-level stand-in for the typed confirmation the UI requires and an MCP client
+the protocol-level stand-in for the held confirmation the UI requires and an MCP client
 cannot perform.
 
 The confirmation gate SHALL be independent of the bulk-cap override. The two SHALL be

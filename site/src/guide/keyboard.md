@@ -52,7 +52,7 @@ Each grid is one stop in the tab order. Once inside, the keys work like a spread
 A row's actions menu is the same one right-click and the row's **Actions** button open.
 Items are grouped as Open, Copy, Operate and Destroy. An item you cannot use stays in the
 menu with the reason. Select it and Studio explains why, with the `broker.xml` that
-would enable it. A destructive item opens its usual preview and typed confirmation.
+would enable it. A destructive item opens its usual preview and a confirmation you hold: press and hold Space or Enter on the button until it fills.
 
 ## SQL console
 

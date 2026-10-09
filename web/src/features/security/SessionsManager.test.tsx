@@ -82,7 +82,7 @@ describe('SessionsManager, own sessions', () => {
     await person.click(await screen.findByRole('button', { name: 'Sign out Chrome on Windows at 198.51.100.9' }));
 
     expect(await screen.findByText('Signing out of the session…')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign out of this session' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sign out here, ending this session' })).toBeDisabled();
     release();
 
     const outcome = await screen.findByText('Signed out Chrome on Windows at 198.51.100.9.');
@@ -164,7 +164,7 @@ describe('SessionsManager, own sessions', () => {
     const person = userEvent.setup();
     renderWithProviders(<SessionsManager />);
 
-    await person.click(await screen.findByRole('button', { name: 'Sign out of this session' }));
+    await person.click(await screen.findByRole('button', { name: 'Sign out here, ending this session' }));
 
     await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith('/login'));
     expect(loggedOut).toBe(true);

@@ -363,7 +363,6 @@ function RemovePattern({
       onClose={onClose}
       title={pattern ? `Remove ${pattern.pattern} from ${team.name}` : 'Remove pattern'}
       tone="danger"
-      typedName={pattern?.pattern}
       pending={remove.isPending}
       confirmLabel="Remove pattern"
       consequence={

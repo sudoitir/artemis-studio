@@ -9,6 +9,7 @@ import type { MessageSelection } from '../../kernel/slots.ts';
 import type { OrphanView, TransferRunView } from './api.ts';
 import { clusterHandlers, finding, meHandler, previewHandler, problem, run } from './fixtures.ts';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -203,12 +204,9 @@ describe('TransferDialog', () => {
     expect(within(dialog).getByRole('button', { name: 'Move 1,200 messages' })).toBeDisabled();
 
     await user.click(within(dialog).getByRole('checkbox', { name: /does not persist its duplicate-id cache/ }));
-    const confirm = within(dialog).getByRole('button', { name: 'Move 1,200 messages' });
-    expect(confirm).toBeDisabled();
 
-    // A move is armed only by typing the source queue's name.
-    await user.type(within(dialog).getByRole('textbox', { name: /Type the source queue's name/ }), 'orders');
-    await user.click(within(dialog).getByRole('button', { name: 'Move 1,200 messages' }));
+    // A move is confirmed by holding the button.
+    await holdButton(within(dialog).getByRole('button', { name: 'Move 1,200 messages' }));
 
     await waitFor(() => expect(executed).toHaveLength(1));
     expect(executed[0]).toEqual({
@@ -353,10 +351,8 @@ describe('TransferRunView', () => {
     await user.click(await screen.findByRole('button', { name: 'Return to source…' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/900 messages now, goes back on orders/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Return 900 messages' })).toBeDisabled();
 
-    await user.type(within(dialog).getByRole('textbox', { name: 'Type "orders" to confirm' }), 'orders');
-    await user.click(within(dialog).getByRole('button', { name: 'Return 900 messages' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Return 900 messages' }));
     await waitFor(() => expect(returned).toBe(1));
   });
 
@@ -436,11 +432,7 @@ describe('TransfersView', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Return to…' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(
-      within(dialog).getByRole('textbox', { name: /Type the staging queue's name/ }),
-      'studio.transfer.r9',
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Return the messages' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Return the messages' }));
 
     expect(await within(dialog).findByText('Name the queue the messages go back to.')).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: /Return them to/ })).toHaveFocus();
@@ -481,11 +473,7 @@ describe('TransfersView', () => {
 
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('textbox', { name: /Return them to/ }), 'orders');
-    await user.type(
-      within(dialog).getByRole('textbox', { name: /Type the staging queue's name/ }),
-      'studio.transfer.r9',
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Return the messages' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Return the messages' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));
     expect(bodies[0]).toEqual({ nodeId: 'n1', stagingQueue: 'studio.transfer.r9', targetQueue: 'orders' });

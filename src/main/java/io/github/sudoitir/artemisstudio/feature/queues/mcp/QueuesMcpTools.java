@@ -81,8 +81,7 @@ public class QueuesMcpTools {
             @McpToolParam(required = false) Boolean dryRun,
             @McpToolParam(required = false) String confirm,
             @McpToolParam(required = false) Boolean override,
-            @McpToolParam(required = false) Boolean disconnectConsumers,
-            @McpToolParam(required = false) String approvalReason) {
+            @McpToolParam(required = false) Boolean disconnectConsumers) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String subject = McpArgs.required("name", name);
         LifecycleKind op = McpArgs.enumOf(LifecycleKind.class, "kind", kind, null);
@@ -93,24 +92,22 @@ public class QueuesMcpTools {
             McpArgs.confirm(subject, confirm);
         }
         QueueConfigBody body = parseConfig(config);
-        return McpErrors.guard(
-                approvalReason,
-                () -> lifecycleOutcome(
-                        op,
-                        subject,
-                        dry,
-                        switch (op) {
-                            case CREATE_QUEUE -> lifecycle.createQueue(id, createRequest(subject, body), dry);
-                            case UPDATE_QUEUE -> lifecycle.updateQueue(id, subject, updateRequest(body), dry);
-                            case DELETE_QUEUE -> lifecycle.deleteQueue(id, subject, dry, over, disconnect);
-                            case PAUSE_QUEUE -> lifecycle.setPaused(id, subject, true, dry);
-                            case RESUME_QUEUE -> lifecycle.setPaused(id, subject, false, dry);
-                            case RESET_QUEUE_COUNTER -> lifecycle.resetCounter(id, subject, dry);
-                            case CREATE_ADDRESS -> lifecycle.createAddress(id, addressRequest(subject, body), dry);
-                            case DELETE_ADDRESS -> lifecycle.deleteAddress(id, subject, dry);
-                            case CREATE_DIVERT -> lifecycle.createDivert(id, divertRequest(subject, body), dry);
-                            case DELETE_DIVERT -> lifecycle.deleteDivert(id, subject, dry);
-                        }));
+        return McpErrors.guard(() -> lifecycleOutcome(
+                op,
+                subject,
+                dry,
+                switch (op) {
+                    case CREATE_QUEUE -> lifecycle.createQueue(id, createRequest(subject, body), dry);
+                    case UPDATE_QUEUE -> lifecycle.updateQueue(id, subject, updateRequest(body), dry);
+                    case DELETE_QUEUE -> lifecycle.deleteQueue(id, subject, dry, over, disconnect);
+                    case PAUSE_QUEUE -> lifecycle.setPaused(id, subject, true, dry);
+                    case RESUME_QUEUE -> lifecycle.setPaused(id, subject, false, dry);
+                    case RESET_QUEUE_COUNTER -> lifecycle.resetCounter(id, subject, dry);
+                    case CREATE_ADDRESS -> lifecycle.createAddress(id, addressRequest(subject, body), dry);
+                    case DELETE_ADDRESS -> lifecycle.deleteAddress(id, subject, dry);
+                    case CREATE_DIVERT -> lifecycle.createDivert(id, divertRequest(subject, body), dry);
+                    case DELETE_DIVERT -> lifecycle.deleteDivert(id, subject, dry);
+                }));
     }
 
     private static QueueConfigBody parseConfig(String raw) {

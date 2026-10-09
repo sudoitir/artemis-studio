@@ -113,7 +113,6 @@ export function PurgeQueue({
         consequence={<Consequence queueName={queueName} preview={preview} failure={failure} />}
         confirmLabel={overCap ? 'Purge anyway, over the cap' : 'Purge queue'}
         tone="danger"
-        typedName={queueName}
         pending={purge.isPending}
         onConfirm={confirm}
       />

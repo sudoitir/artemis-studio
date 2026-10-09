@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FlowGraphView } from './api.ts';
-import { layoutSignature, pathThrough, toElkGraph, toReactFlow, COLUMNS } from './flowLayout.ts';
+import { layoutSignature, pathThrough, reuseUnchanged, toElkGraph, toReactFlow, COLUMNS } from './flowLayout.ts';
 import { runLayout } from './useFlowLayout.ts';
 
 const node = (id: string, kind: string, label: string, over: object = {}) => ({ id, kind, label, faults: [], ...over });
@@ -85,6 +85,23 @@ describe('flow layout', () => {
     expect(model.nodes.find((n) => n.id === 'queue:AUDIT')?.data.dimmed).toBe(true);
     expect(model.nodes.find((n) => n.id === 'queue:ORDERS')?.data.dimmed).toBe(false);
     expect(model.edges.find((e) => e.target === 'queue:AUDIT')?.data?.dimmed).toBe(true);
+  });
+
+  it('hands back the elements an emphasis leaves alone, so only the changed ones render again', async () => {
+    const g = graph();
+    const positions = await runLayout(toElkGraph(g));
+    const plain = toReactFlow(g, positions, new Map(), null);
+    const emphasised = toReactFlow(g, positions, new Map(), pathThrough(g, 'queue:ORDERS'));
+
+    const nodes = reuseUnchanged(plain.nodes, emphasised.nodes);
+    const edges = reuseUnchanged(plain.edges, emphasised.edges);
+    const kept = (id: string) => nodes.find((n) => n.id === id) === plain.nodes.find((n) => n.id === id);
+    expect(kept('queue:ORDERS')).toBe(true);
+    expect(kept('lane:QUEUE')).toBe(true);
+    expect(kept('queue:AUDIT')).toBe(false);
+    expect(nodes.find((n) => n.id === 'queue:AUDIT')?.data.dimmed).toBe(true);
+    expect(edges.find((e) => e.target === 'queue:AUDIT')).not.toBe(plain.edges.find((e) => e.target === 'queue:AUDIT'));
+    expect(edges.find((e) => e.target === 'queue:ORDERS')).toBe(plain.edges.find((e) => e.target === 'queue:ORDERS'));
   });
 
   it('labels each column once, and scales queue depth against the deepest shown queue', async () => {

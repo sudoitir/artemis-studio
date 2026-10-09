@@ -183,7 +183,6 @@ export function MessageActions({
         }
         confirmLabel={`${verb} ${messageCount(ids.length)}`}
         tone={destroys(action) ? 'danger' : 'default'}
-        typedName={destroys(action) ? queueName : undefined}
         pending={run.isPending}
         onConfirm={() => submit()}
       />

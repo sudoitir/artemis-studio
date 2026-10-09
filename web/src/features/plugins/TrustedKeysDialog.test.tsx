@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { TrustedKeysView } from './api.ts';
 import { TrustedKeysDialog } from './TrustedKeysDialog.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const ACME = 'AB:CD:EF';
 
@@ -117,9 +118,7 @@ describe('Trusted keys', () => {
     await user.keyboard('{Enter}');
     const again = await screen.findByRole('dialog', { name: 'Remove Acme' });
     const confirm = within(again).getByRole('button', { name: 'Remove Acme' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(again).getByLabelText('Type "Acme" to confirm'), 'Acme');
-    await user.click(confirm);
+    await holdButton(confirm);
     await waitFor(() => expect(removed).toBe(ACME));
     expect(await screen.findByText('Removed key Acme')).toBeInTheDocument();
   });

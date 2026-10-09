@@ -99,18 +99,23 @@ export function FreshnessBar() {
           </time>
         </Text>
       ) : null}
-      {/* Paused is carried three ways, none of them colour: the pressed fill
-          here, `aria-pressed`, and the word in the label beside it. A healthy
-          screen stays near-monochrome, and paused is not an error. */}
-      <Tooltip label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'} withArrow>
+      {/* Paused is carried three ways, none of them colour alone: the pressed
+          fill and edge here, `aria-pressed`, and the word in the label beside
+          it. The edge is the accent, not a warning: paused is not an error. */}
+      <Tooltip label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'} position="bottom">
         <ActionIcon
-          variant="default"
+          variant="subtle"
+          color="graphite"
           className={paused ? styles.pressed : undefined}
           aria-label={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'}
           aria-pressed={paused}
           onClick={() => setPollingPaused(!paused)}
         >
-          {paused ? <IconPlayerPlay size={18} aria-hidden /> : <IconPlayerPause size={18} aria-hidden />}
+          {paused ? (
+            <IconPlayerPlay size={18} stroke={1.5} aria-hidden />
+          ) : (
+            <IconPlayerPause size={18} stroke={1.5} aria-hidden />
+          )}
         </ActionIcon>
       </Tooltip>
     </Group>

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Modal } from '@mantine/core';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -40,6 +40,22 @@ describe('ActionHost (ADR-0107)', () => {
     await user.click(screen.getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Probe' })).not.toBeInTheDocument());
     await waitFor(() => expect(restoreFocus).toHaveBeenCalledTimes(1));
+  });
+
+  it('removes a closed dialog when its exit transition ends, without waiting out the fallback', async () => {
+    const restoreFocus = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<Opener onEntered={() => {}} restoreFocus={restoreFocus} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Probe' });
+    const surface = dialog.closest<HTMLElement>('.mantine-Modal-content') ?? dialog;
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(surface.style.opacity).toBe('0'));
+
+    fireEvent.transitionEnd(surface, { propertyName: 'opacity' });
+    expect(screen.queryByRole('dialog', { name: 'Probe' })).not.toBeInTheDocument();
+    expect(restoreFocus).toHaveBeenCalledTimes(1);
   });
 
   it('does not move focus back when the dialog navigated away', async () => {

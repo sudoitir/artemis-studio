@@ -12,7 +12,7 @@ export const MIN_WIDTH = 2;
 export const MAX_WIDTH = 10;
 
 /** The most dots the whole canvas animates at once, however large the graph. */
-export const DOT_BUDGET = 400;
+export const DOT_BUDGET = 150;
 
 /**
  * Throughput on a square-root scale in `[0, 1]`: 0 for no or unknown rate, 1 at {@link RATE_CAP}.

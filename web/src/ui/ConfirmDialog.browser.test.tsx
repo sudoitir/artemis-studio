@@ -16,12 +16,11 @@ const base: ConfirmDialogProps = {
 
 const VARIANTS: Record<string, ConfirmDialogProps> = {
   plain: base,
-  'danger, typed': { ...base, tone: 'danger', typedName: 'orders.created' },
+  'danger, held': { ...base, tone: 'danger' },
   blocked: { ...base, blocked: 'A purge is already running on this queue. Wait for it to finish, then try again.' },
-  'danger, typed, blocked': {
+  'danger, held, blocked': {
     ...base,
     tone: 'danger',
-    typedName: 'orders.created',
     blocked: 'The queue has consumers. Close them first.',
   },
   'with a result': {
@@ -84,12 +83,15 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
   });
 
-  it('asks for the name before the destructive button can be pressed', async () => {
-    renderThemed(<ConfirmDialog {...VARIANTS['danger, typed']} />, 'light');
-    await openDialog();
-    const field = screen.getByRole('textbox');
+  it('puts the held button under the consequence, naming the action', async () => {
+    renderThemed(<ConfirmDialog {...VARIANTS['danger, held']} />, 'light');
+    const dialog = await openDialog();
+    const consequence = screen.getByText(/Removes every message/).getBoundingClientRect();
     const confirm = screen.getByRole('button', { name: 'Purge queue' });
-    expect(confirm).toBeDisabled();
-    expect(confirm.getBoundingClientRect().top).toBeGreaterThanOrEqual(field.getBoundingClientRect().bottom);
+    expect(confirm.getBoundingClientRect().top).toBeGreaterThanOrEqual(consequence.bottom);
+    expect(confirm).toHaveAccessibleDescription('Press and hold to confirm.');
+    // The dialog's focus starts on Cancel, never on the destructive button.
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
   });
 });

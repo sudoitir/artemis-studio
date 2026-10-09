@@ -11,7 +11,7 @@ import {
   type ConfigImportResultView,
 } from './api.ts';
 import { ApiError } from '../../kernel/api/request.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
@@ -413,15 +413,16 @@ export function AdoptDrawer({
         ) : null}
         {error ? <ErrorState error={error} /> : null}
         {closes.length > 0 ? (
-          <ConfirmByTyping
-            token={declaration.clusterName}
-            label={`Type "${declaration.clusterName}" to record that closing these findings is intended`}
-            confirmLabel={`Save as revision ${declaration.revision + 1}`}
-            tone="default"
-            loading={isPending}
-            disabled={!result}
-            onConfirm={() => saveAdoption(declaration.clusterName)}
-          />
+          <Stack gap="xs">
+            <Text size="sm">Saving records that closing these findings is intended.</Text>
+            <HoldToConfirm
+              label={`Save as revision ${declaration.revision + 1}`}
+              tone="default"
+              loading={isPending}
+              disabled={!result}
+              onConfirm={() => saveAdoption(declaration.clusterName)}
+            />
+          </Stack>
         ) : (
           <Group justify="flex-end" gap="xs">
             <Button variant="default" size="xs" onClick={onClose}>

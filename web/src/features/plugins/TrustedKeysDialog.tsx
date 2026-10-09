@@ -155,7 +155,6 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
         onClose={() => setRemoving(null)}
         title={`Remove ${removing?.name ?? 'key'}`}
         confirmLabel={`Remove ${removing?.name ?? 'key'}`}
-        typeToConfirm={removing?.name}
         danger
         pending={remove.isPending}
         error={remove.error}

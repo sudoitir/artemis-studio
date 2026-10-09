@@ -70,8 +70,7 @@ public class MessagesMcpActionTools {
             @McpToolParam(required = false) String targetQueue,
             @McpToolParam(required = false) Boolean dryRun,
             @McpToolParam(required = false) String confirm,
-            @McpToolParam(required = false) Boolean override,
-            @McpToolParam(required = false) String approvalReason) {
+            @McpToolParam(required = false) Boolean override) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String q = McpArgs.required("queue", queue);
         QueueActionKind kind = McpArgs.enumOf(QueueActionKind.class, "action", action, null);
@@ -80,7 +79,7 @@ public class MessagesMcpActionTools {
         if (!dry) {
             McpArgs.confirm(q, confirm);
         }
-        return McpErrors.guard(approvalReason, () -> {
+        return McpErrors.guard(() -> {
             Attempt<Outcome> attempt = kind == QueueActionKind.PURGE
                     ? messages.purge(id, q, null, dry, over)
                     : messages.execute(

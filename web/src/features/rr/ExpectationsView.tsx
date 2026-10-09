@@ -266,7 +266,6 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
         onClose={() => setRemoveOpen(false)}
         title="Stop tracing this address"
         tone="danger"
-        typedName={removing?.requestAddress}
         pending={remove.isPending}
         confirmLabel="Stop tracing"
         consequence={

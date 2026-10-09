@@ -1,4 +1,5 @@
 import { Button, Paper, PasswordInput, Stack } from '@mantine/core';
+import { useRevalidatePairs } from '../../ui/formPairs.ts';
 import { useForm } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -32,6 +33,8 @@ export function ChangePasswordView() {
       },
     },
   });
+  // A confirmation that did not match is checked again when either password changes.
+  useRevalidatePairs(form, [['newPassword', 'confirm']]);
   const changePassword = useChangePassword();
   const logout = useLogout();
   const me = useMe();

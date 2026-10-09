@@ -13,7 +13,7 @@ import { clearApplyProgress, useApplyProgress } from './applyProgress.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor, type GateVerdict } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
@@ -83,9 +83,7 @@ export function ReviewApplyDrawer({
           ) : null}
 
           {stage === 'result' ? null : <PlanStage flow={flow} declaration={declaration} scope={scope} />}
-          {stage === 'confirm' && previewed ? (
-            <ConfirmStage flow={flow} previewed={previewed} declaration={declaration} />
-          ) : null}
+          {stage === 'confirm' && previewed ? <ConfirmStage flow={flow} previewed={previewed} /> : null}
           {stage === 'result' && result ? (
             <ResultStage flow={flow} result={result} clusterId={declaration.clusterId} onClose={onClose} />
           ) : null}
@@ -590,12 +588,8 @@ function refusalHint(type: string): string {
   return type.endsWith('apply-in-progress') ? 'Wait for it to finish, then plan again.' : '';
 }
 
-/** The confirmation: what will be written, what still blocks it, and the typed name that arms it. */
-function ConfirmStage({
-  flow,
-  previewed,
-  declaration,
-}: Readonly<{ flow: Flow; previewed: ConfigApplyOutcomeView; declaration: ConfigDeclarationView }>) {
+/** The confirmation: what will be written, what still blocks it, and the press-and-hold that confirms it. */
+function ConfirmStage({ flow, previewed }: Readonly<{ flow: Flow; previewed: ConfigApplyOutcomeView }>) {
   const { apply, gate, targets } = flow;
   const { running } = applyActivity(apply);
   const highHazards = previewed.plan.hazards.filter((h) => h.hazardClass === 'HIGH');
@@ -629,9 +623,8 @@ function ConfirmStage({
       ) : null}
       {running ? <ApplyTimeline progress={progress} /> : null}
       <CapabilityGate verdict={gate} what="applying this declaration">
-        <ConfirmByTyping
-          token={declaration.clusterName}
-          confirmLabel={`Apply to ${targets.length} node${plural(targets.length)}, canary first`}
+        <HoldToConfirm
+          label={`Apply to ${targets.length} node${plural(targets.length)}, canary first`}
           loading={running}
           disabled={blockers.length > 0}
           onConfirm={flow.run}

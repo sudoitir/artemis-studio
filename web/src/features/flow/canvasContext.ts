@@ -4,8 +4,8 @@ import type { MenuAnchor } from '../../ui/table/menuAnchor.ts';
 
 /** What every node and edge on the flow canvas reads, set once by the canvas. */
 export interface FlowCanvasState {
-  /** Open the inspector for a node. */
-  select: (id: string) => void;
+  /** Open the inspector for a node; `fromKeyboard` brings it into view without animation. */
+  select: (id: string, fromKeyboard: boolean) => void;
   /** Open a node's menu at `anchor`; focus goes back to `opener` when it closes. */
   openMenu: (id: string, anchor: MenuAnchor, opener: HTMLElement) => void;
   /** Emphasise the path through a node while it is hovered or focused; null clears it. */

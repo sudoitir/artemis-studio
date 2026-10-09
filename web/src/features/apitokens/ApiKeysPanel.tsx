@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Drawer, Modal, Stack, Text } from '@mantine/core';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { DialogActions } from '../../ui/DialogActions.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
@@ -75,8 +76,21 @@ export function ApiKeysPanel() {
         }
       />
 
-      <Modal opened={creating} onClose={closeCreate} title="New API key" size="lg">
-        {minted ? <OneTimeSecret value={minted.value} /> : <MintKeyForm onMinted={setMinted} />}
+      <Modal
+        opened={creating}
+        onClose={closeCreate}
+        title="New API key"
+        size="lg"
+        // While the secret shows, only "I've copied the key" closes the dialog.
+        closeOnEscape={!minted}
+        closeOnClickOutside={!minted}
+        withCloseButton={!minted}
+      >
+        {minted ? (
+          <OneTimeSecret value={minted.value} onDone={closeCreate} />
+        ) : (
+          <MintKeyForm onMinted={setMinted} onCancel={closeCreate} />
+        )}
       </Modal>
 
       <RotateModal token={rotating} onClose={() => setRotating(null)} />
@@ -115,11 +129,20 @@ function RotateModal({ token, onClose }: Readonly<{ token: TokenView | null; onC
     });
 
   return (
-    <Modal opened={token !== null} onClose={close} title={token ? `Rotate ${token.name}` : ''}>
+    <Modal
+      opened={token !== null}
+      onClose={close}
+      title={token ? `Rotate ${token.name}` : ''}
+      closeOnEscape={!rotated && !rotate.isPending}
+      closeOnClickOutside={!rotated && !rotate.isPending}
+      withCloseButton={!rotated}
+      centered={!rotated}
+    >
       {rotated ? (
         <OneTimeSecret
           value={rotated.value}
           note={`The old secret keeps working until ${instantLabel(rotated.token.previousValidUntil)}. Replace it everywhere before then.`}
+          onDone={close}
         />
       ) : (
         <Stack gap="sm">
@@ -127,9 +150,14 @@ function RotateModal({ token, onClose }: Readonly<{ token: TokenView | null; onC
             A new secret replaces this key&apos;s current one. The current secret keeps working for the rotation
             overlap, so you can update whatever uses it. The key keeps its permissions and its expiry.
           </Text>
-          <Button loading={rotate.isPending} onClick={() => token && confirm(token)}>
-            Rotate
-          </Button>
+          <DialogActions>
+            <Button variant="default" disabled={rotate.isPending} onClick={close}>
+              Cancel
+            </Button>
+            <Button loading={rotate.isPending} onClick={() => token && confirm(token)}>
+              Rotate key
+            </Button>
+          </DialogActions>
         </Stack>
       )}
     </Modal>
@@ -170,7 +198,6 @@ function RevokeKey({
       onClose={close}
       title={token ? `Revoke ${token.name}` : 'Revoke key'}
       tone="danger"
-      typedName={token?.name}
       pending={revoke.isPending}
       confirmLabel="Revoke key"
       consequence="Every script or assistant using this key stops working with its next request. This cannot be undone."

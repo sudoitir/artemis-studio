@@ -9,8 +9,10 @@
   text-underline-offset: 0.1875rem;
 }
 
-.link:hover {
-  text-decoration-color: currentColor;
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 .link:focus-visible {

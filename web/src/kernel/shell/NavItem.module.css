@@ -1,14 +1,17 @@
-/* The icon column is one fixed track, so a collapsed row (icon only) and an expanded one keep the icon
-   at the same distance from the rail's edge. */
+/* A row is a full-width block, left-aligned, whose whole surface is the click target. The accent bar of
+   the open row is drawn over the row's edge, so it never moves the label; the open row squares its start
+   corners, so the bar is straight on whichever side the writing direction starts. */
 .item {
-  display: grid;
-  grid-template-columns: 1.125rem 1fr auto;
+  position: relative;
+  display: flex;
   align-items: center;
+  inline-size: 100%;
+  min-block-size: var(--as-nav-row-h);
   gap: var(--mantine-spacing-sm);
-  padding-block: var(--mantine-spacing-sm);
-  padding-inline: var(--mantine-spacing-md);
+  justify-content: flex-start;
+  padding-block: var(--as-nav-pad-block);
+  padding-inline: var(--as-nav-pad-inline);
   border: 0;
-  border-inline-start: 0.125rem solid transparent;
   background: transparent;
   color: var(--as-text-dimmed);
   font: inherit;
@@ -16,29 +19,60 @@
   text-decoration: none;
   cursor: pointer;
   border-radius: var(--mantine-radius-sm);
+  box-sizing: border-box;
+  transition:
+    background-color var(--as-duration-fast) var(--as-ease),
+    color var(--as-duration-fast) var(--as-ease),
+    transform var(--as-duration-fast) var(--as-ease);
 }
 
-.item:hover {
-  color: var(--as-text);
-  background: var(--as-surface-raised);
+.item::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 0.125rem;
+  background: transparent;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .item:hover {
+    color: var(--as-text);
+    background: var(--as-grid-row-hover);
+  }
+}
+
+.item:active {
+  transform: scale(0.98);
+}
+
+/* The weight stays the other rows': a bolder label would widen, and re-truncate one that just fits. */
 .item[data-active] {
   color: var(--as-text);
-  font-weight: 600;
-  border-inline-start-color: var(--as-accent);
-  background: var(--as-surface-raised);
+  background: var(--as-selected);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
 }
 
-/* Disabled: listed, focusable for its reason, never raised on hover. No opacity —
+.item[data-active]::before {
+  background: var(--as-accent);
+}
+
+/* Disabled: listed, focusable for its reason, never raised on hover or pressed. No opacity —
    the label stays at the dimmed token's contrast. */
 .item[data-disabled] {
   cursor: not-allowed;
 }
 
-.item[data-disabled]:hover {
-  color: var(--as-text-dimmed);
-  background: transparent;
+.item[data-disabled]:active {
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .item[data-disabled]:hover {
+    color: var(--as-text-dimmed);
+    background: transparent;
+  }
 }
 
 .item:focus-visible {
@@ -46,41 +80,42 @@
   outline-offset: calc(var(--as-focus-offset) * -1);
 }
 
+/* The icon column is one fixed track, so a collapsed row (icon only) and an expanded one keep the icon
+   at the same distance from the rail's edge. */
 .leading {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: center;
+  inline-size: 1.125rem;
 }
 
 .label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   overflow: hidden;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition:
-    opacity var(--as-duration-fast) var(--as-ease),
-    max-inline-size var(--as-duration-base) var(--as-ease);
 }
 
 .trailing {
+  flex: none;
+  margin-inline-start: auto;
   font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   font-variant-numeric: tabular-nums;
-  transition:
-    opacity var(--as-duration-fast) var(--as-ease),
-    max-inline-size var(--as-duration-base) var(--as-ease);
 }
 
-/* Collapsed: icon-only, centered — the label and trailing count fade out on a
-   shorter timer than the navbar's own width transition, so text clears the
-   rail before it narrows past it (never a smeared collapse). */
+/* Collapsed: icon-only, centred. The label and trailing count are not drawn at all; a collapsed row's
+   name is its `aria-label`. */
 .item[data-collapsed] {
-  grid-template-columns: 1.125rem;
   justify-content: center;
-  justify-items: center;
+  padding-inline: 0;
+  gap: 0;
 }
 
 .item[data-collapsed] .label,
 .item[data-collapsed] .trailing {
-  opacity: 0;
-  max-inline-size: 0;
+  display: none;
 }

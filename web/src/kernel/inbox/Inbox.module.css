@@ -61,8 +61,10 @@ a.title {
   text-decoration: none;
 }
 
-a.title:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  a.title:hover {
+    text-decoration: underline;
+  }
 }
 
 button.title {

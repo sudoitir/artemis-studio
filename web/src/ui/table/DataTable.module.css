@@ -1,3 +1,11 @@
+/* The row's tint is a registered colour, so it can fade: a row the live tail marked fresh loses the mark
+   over a moment rather than at once. */
+@property --row-tint {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 /* The frame: toolbar, table and state slot, as siblings. `--as-row-h` and `--as-cell-pad` are set on it
    from the density in use, so a density change reaches the measurer and the rows in the same render. */
 .frame {
@@ -59,7 +67,8 @@
   overflow: auto;
 }
 
-/* The slot for the refetch bar is always there, so the table does not move when a refetch starts. */
+/* The slot for the refetch bar is always there, so the table does not move when a refetch starts. The bar
+   itself shows only once a refetch has run for 300ms, so a quick one never flashes. */
 .progress {
   block-size: 0.125rem;
   overflow: hidden;
@@ -70,7 +79,17 @@
   block-size: 100%;
   inline-size: 30%;
   background: var(--as-accent);
-  animation: refetch calc(var(--as-duration-slow) * 5) var(--as-ease) infinite;
+  opacity: 0;
+  /* A symmetric curve: the console's ease is for arriving, and a loop never arrives. */
+  animation:
+    refetch-show var(--as-duration-fast) linear 300ms forwards,
+    refetch calc(var(--as-duration-slow) * 5) cubic-bezier(0.4, 0, 0.6, 1) 300ms infinite;
+}
+
+@keyframes refetch-show {
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes refetch {
@@ -144,19 +163,29 @@
 .bodyRow {
   position: absolute;
   inset-inline: 0;
+  transition: --row-tint var(--as-duration-slow) var(--as-ease);
 }
 
 .clickable {
   cursor: pointer;
 }
 
-.clickable:hover,
+/* Hovering, selecting and opening a menu answer at once; only the fade back out takes time. */
+@media (hover: hover) and (pointer: fine) {
+  .clickable:hover {
+    --row-tint: var(--as-grid-row-hover);
+    transition: none;
+  }
+}
+
 .bodyRow[data-menu-open] {
   --row-tint: var(--as-grid-row-hover);
+  transition: none;
 }
 
 .bodyRow[data-selected] {
   --row-tint: var(--as-selected);
+  transition: none;
 }
 
 /* One line per cell: rows are virtualised against a fixed height. `min-inline-size` defeats the grid
@@ -265,16 +294,23 @@
   inset-inline-end: 0;
   inline-size: 0.125rem;
   border-radius: var(--mantine-radius-xs);
-  background: transparent;
+  background-color: transparent;
+  transition: background-color var(--as-duration-fast) var(--as-ease);
 }
 
-.headCell:hover .resizeHandle::after {
-  background: var(--as-border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .headCell:hover .resizeHandle::after {
+    background-color: var(--as-border-strong);
+  }
+
+  .headCell .resizeHandle:hover::after {
+    background-color: var(--as-accent);
+  }
 }
 
-.resizeHandle:hover::after,
-.resizeHandle[data-active]::after {
-  background: var(--as-accent);
+/* As specific as the header's hover, and after it, so a drag keeps the accent under the pointer. */
+.headCell .resizeHandle[data-active]::after {
+  background-color: var(--as-accent);
 }
 
 /* Sticky edges, only when the tracks overflow: the select column, the first data column and the
@@ -379,6 +415,19 @@
   font: inherit;
   padding: 0.125rem var(--mantine-spacing-sm);
   cursor: pointer;
+  transition:
+    background-color var(--as-duration-fast) var(--as-ease),
+    transform var(--as-duration-fast) var(--as-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .revealCopy:hover {
+    background: var(--as-grid-row-hover);
+  }
+}
+
+.revealCopy:active {
+  transform: scale(0.97);
 }
 
 .revealCopy:focus-visible {

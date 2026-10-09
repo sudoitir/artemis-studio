@@ -45,13 +45,14 @@ export function lazySlot<K extends string, P extends object>(
   load: () => Promise<{ [Name in NoInfer<K>]: (props: P) => ReactNode }>,
   exportName: K,
   blockSize = '12rem',
-): ComponentType<P> {
+): ComponentType<P> & { preload: () => void } {
   const Contribution = namedExport(load, exportName);
-  return function LazySlot(props: P) {
-    return (
-      <Suspense fallback={<LoadingState label="Loading" blockSize={blockSize} />}>
-        <Contribution {...props} />
-      </Suspense>
-    );
-  };
+  const LazySlot = (props: P) => (
+    <Suspense fallback={<LoadingState label="Loading" blockSize={blockSize} />}>
+      <Contribution {...props} />
+    </Suspense>
+  );
+  // A section list calls it when the pointer reaches a link, so the code is there when it is opened.
+  LazySlot.preload = () => void Contribution.preload?.();
+  return LazySlot;
 }

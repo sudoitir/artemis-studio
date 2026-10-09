@@ -49,8 +49,10 @@ export function AnchoredMenu({
           if (!next) onClose();
         }}
         position="bottom-start"
+        // Close to the point it opens from, unlike a menu under a trigger.
         offset={2}
-        shadow="md"
+        // Opened by Shift+F10 and right-click, many times a day: it appears at once, and leaves quickly.
+        transitionProps={{ duration: 0, exitDuration: 100 }}
         width="16.25rem"
         returnFocus={false}
         // The anchor is a synthetic point this component keeps inside the viewport, and the grid

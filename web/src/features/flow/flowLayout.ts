@@ -32,6 +32,33 @@ export const DENSE_NODES = 80;
 
 const LANE_OFFSET = 52;
 
+/** How far the tag's point and notch, and the hexagon's points, reach in from the side, in px. */
+export const POINT = 14;
+export const NOTCH = 10;
+
+/** The outline of a tag or a hexagon `w` by `h` px, as SVG polygon points. */
+export function outline(shape: 'tag' | 'hex', w: number, h: number): string {
+  const points =
+    shape === 'tag'
+      ? [
+          [0, 0],
+          [w - POINT, 0],
+          [w, h / 2],
+          [w - POINT, h],
+          [0, h],
+          [NOTCH, h / 2],
+        ]
+      : [
+          [POINT, 0],
+          [w - POINT, 0],
+          [w, h / 2],
+          [w - POINT, h],
+          [POINT, h],
+          [0, h / 2],
+        ];
+  return points.map(([x, y]) => `${x},${y}`).join(' ');
+}
+
 export type Positions = Record<string, { x: number; y: number }>;
 
 export interface FlowNodeData extends Record<string, unknown> {
@@ -201,4 +228,29 @@ export function toReactFlow(
       } satisfies FlowEdgeData,
     }));
   return { nodes, edges };
+}
+
+function sameRecord(a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => Object.is(a[k], b[k]));
+}
+
+/**
+ * `next`, with every element that says the same as its counterpart in `previous` swapped for that
+ * counterpart: a hover that dims two nodes hands React Flow two new nodes, not a whole new graph,
+ * so the memoised nodes and edges it leaves alone do not render again.
+ */
+export function reuseUnchanged<T extends Node | Edge>(previous: readonly T[], next: T[]): T[] {
+  if (previous.length === 0) return next;
+  const before = new Map(previous.map((element) => [element.id, element]));
+  return next.map((element) => {
+    const old = before.get(element.id);
+    if (!old) return element;
+    const { data, position, ...rest } = element as T & { position?: { x: number; y: number } };
+    const { data: oldData, position: oldPosition, ...oldRest } = old as T & { position?: { x: number; y: number } };
+    const samePosition = position?.x === oldPosition?.x && position?.y === oldPosition?.y;
+    return samePosition && sameRecord(rest, oldRest) && sameRecord(data, oldData) ? old : element;
+  });
 }

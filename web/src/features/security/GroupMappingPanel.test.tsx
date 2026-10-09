@@ -8,10 +8,11 @@ import { paged } from '../../kernel/api/paging.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { GroupMappingPanel } from './GroupMappingPanel.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const MAPPING = { id: 'm1', groupName: 'ops', roleId: 'r-viewer', roleName: 'VIEWER', scopeType: 'GLOBAL' };
 
-function serve(mappings: unknown[] = [MAPPING]) {
+function serve(mappings: unknown[] = [MAPPING], defaultRoleId: string | null = null) {
   server.use(
     http.get('*/api/v1/auth/providers', () => HttpResponse.json(paged([{ id: 'okta', label: 'Okta' }]))),
     http.get('*/api/v1/roles', () =>
@@ -25,9 +26,7 @@ function serve(mappings: unknown[] = [MAPPING]) {
       ),
     ),
     http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
-    http.get('*/api/v1/identity/providers/okta/group-mappings', () =>
-      HttpResponse.json({ defaultRoleId: null, mappings }),
-    ),
+    http.get('*/api/v1/identity/providers/okta/group-mappings', () => HttpResponse.json({ defaultRoleId, mappings })),
   );
 }
 
@@ -58,7 +57,7 @@ describe('GroupMappingPanel', () => {
     expect(await screen.findByText('No external identity provider')).toBeInTheDocument();
   });
 
-  it('deletes a mapping only once its group is typed, and announces it', async () => {
+  it('deletes a mapping after one confirmation, since it is added back as easily, and announces it', async () => {
     serve();
     let deleted = false;
     server.use(
@@ -73,12 +72,65 @@ describe('GroupMappingPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete mapping for ops' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete the mapping for ops' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete mapping' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "ops" to confirm'), 'ops');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(deleted).toBe(true));
     expect(await screen.findByRole('status')).toHaveTextContent('Deleted the mapping for ops');
+  });
+
+  it('stages a default role and saves it only after stating old and new', async () => {
+    serve([MAPPING]);
+    const bodies: unknown[] = [];
+    server.use(
+      http.put('*/api/v1/identity/providers/okta/group-mappings/default-role', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ defaultRoleId: 'r-viewer', mappings: [MAPPING] });
+      }),
+    );
+    const user = userEvent.setup();
+    renderMappings();
+
+    await user.click(await screen.findByRole('combobox', { name: /Default role/ }));
+    await user.click(await screen.findByRole('option', { name: 'VIEWER', hidden: true }));
+    expect(bodies).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Save default role' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Change the default role?' });
+    expect(dialog).toHaveTextContent('gets VIEWER at their next sign-in, instead of being refused');
+    await user.click(within(dialog).getByRole('button', { name: 'Save default role' }));
+    await waitFor(() => expect(bodies).toEqual([{ roleId: 'r-viewer' }]));
+  });
+
+  it('confirms clearing the default role as a danger: unmapped users are refused', async () => {
+    serve([MAPPING], 'r-viewer');
+    const user = userEvent.setup();
+    renderMappings();
+
+    const field = await screen.findByRole('combobox', { name: /Default role/ });
+    await waitFor(() => expect(field).toHaveValue('VIEWER'));
+    // Picking the chosen role again clears the choice.
+    await user.click(field);
+    await user.click(await screen.findByRole('option', { name: 'VIEWER', hidden: true }));
+    await user.click(screen.getByRole('button', { name: 'Save default role' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Refuse unmapped users?' });
+    expect(dialog).toHaveTextContent(
+      'is refused sign-in through this provider from their next sign-in, instead of getting VIEWER',
+    );
+    expect(within(dialog).getByRole('button', { name: 'Refuse unmapped users' })).toBeEnabled();
+  });
+
+  it('asks before discarding a half-written mapping on Escape', async () => {
+    serve([]);
+    const user = userEvent.setup();
+    renderMappings();
+
+    await user.click(await screen.findByRole('button', { name: 'New mapping' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New group mapping' });
+    await user.type(within(dialog).getByRole('textbox', { name: /Group/ }), 'dev');
+    await user.keyboard('{Escape}');
+    expect(within(dialog).getByText('Discard changes?')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Keep editing' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('asks for the group and the role on submit, focusing the first missing one', async () => {

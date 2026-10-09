@@ -63,3 +63,5 @@ Every feature goes through OpenSpec (`00-workflow.md`), from proposal to merged 
 | Explaining architecture | `c4-diagrams` |
 | Frontend code (with `20-frontend.md`) | `frontend-development-guide`; Mantine forms, comboboxes, custom components: `mantine-form`, `mantine-combobox`, `mantine-custom-components` |
 | A new screen's visual direction | `ui-ux-pro-max` |
+| A navigation row, a section list, the shell, a way back, scroll or flicker on a section change | `studio-navigation-and-layout` |
+| A form with paired fields, a destructive confirmation, a gated operation or the approver quorum | `studio-safe-interactions` |

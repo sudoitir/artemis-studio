@@ -8,8 +8,11 @@ import { Breadcrumb } from './Breadcrumb.tsx';
 import styles from './ClusterLayout.module.css';
 
 /**
- * One cluster's screen: the context its features contribute (the cluster header is a strip, never a
- * heading), then the routed view, whose own `PageHeader` is the page's one h1 (ADR-0163).
+ * One cluster's screen: one context line, then the routed view, whose own `PageHeader` is the page's
+ * one h1 (ADR-0163). The line is the breadcrumb at its start and, at its end, whatever a
+ * `cluster.header` contribution marks with `data-context-line` (the clusters feature's environment,
+ * nodes and health); every other part of a contribution, such as a health notice, takes a row of its
+ * own below the line. Nothing in it is a heading.
  *
  * It hosts the dialogs row actions open (ADR-0107), and mounts the cluster's one SSE stream, subscribed
  * to the topics of every enabled feature (ADR-0018, ADR-0070). A view never opens a second one for a
@@ -31,7 +34,9 @@ export function ClusterLayout() {
     <ActionHostProvider>
       <div className={styles.layout}>
         <div className={styles.context}>
-          <Breadcrumb />
+          <div className={styles.trail}>
+            <Breadcrumb />
+          </div>
           {header.map(({ id, Component }) => (
             <Component key={id} clusterId={clusterId} />
           ))}

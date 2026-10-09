@@ -34,6 +34,7 @@ _Others_
 * `i.g.s.a.k.s.TeamIndex`
 * `i.g.s.a.k.s.UserAccounts`
 * `i.g.s.a.k.s.UserIdentityFacts`
+* `i.g.s.a.k.s.AccessChangeGuard` (via `i.g.s.a.k.s.internal.ApproverQuorumGuard`)
 * `i.g.s.a.k.s.PermissionHolders` (via `i.g.s.a.k.s.internal.EffectivePermissionHolders`)
 * `i.g.s.a.k.s.IdentityProviders` (via `i.g.s.a.k.s.internal.PluginSignIn`)
 |Bean references

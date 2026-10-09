@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, List, Stack, Text } from '@mantine/core';
+import { Button, ColorSwatch, List, Stack, Text } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -7,7 +7,7 @@ import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
-import { useCluster, useDeleteCluster } from './api.ts';
+import { useCluster, useDeleteCluster, useEnvironments } from './api.ts';
 import classes from './Clusters.module.css';
 import styles from './RemoveClusterSection.module.css';
 
@@ -27,6 +27,7 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
   // While grants load the control is offered; the server is the enforcement point.
   const denied = !loading && !can('cluster:write', clusterId);
   const name = cluster.data?.name;
+  const environment = useEnvironments().data?.find((e) => e.id === cluster.data?.environmentId);
 
   if (cluster.isError) return <ErrorState error={cluster.error} onRetry={() => void cluster.refetch()} />;
   if (!name) return <LoadingState label="Loading the cluster" blockSize="16rem" />;
@@ -73,6 +74,13 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
         title="Remove cluster"
         consequence={
           <Stack gap="xs">
+            {/* Which environment this is, beside the name to type, so a production cluster is not removed for a test one. */}
+            {environment ? (
+              <Text component="span" size="sm" className={styles.environment}>
+                <ColorSwatch component="span" color={environment.colour ?? 'var(--as-border)'} size="0.75rem" />
+                In {environment.name}
+              </Text>
+            ) : null}
             <span>
               Removes <strong>{name}</strong> from Studio, with its registration, nodes, stored broker credentials,
               alert rules, request-reply flows, message-index subscriptions and configuration history. Nothing on the
@@ -90,7 +98,6 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
         }
         confirmLabel="Remove cluster"
         tone="danger"
-        typedName={name}
         pending={remove.isPending}
         onConfirm={() =>
           remove.mutate(clusterId, {

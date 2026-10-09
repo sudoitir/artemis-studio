@@ -785,8 +785,8 @@ exports:
     its grace period: a title in words, a tone (`neutral`, `info`, `warning`, `danger`) and the
     text. A `danger` notice is announced as an alert, every other tone as a status. Use it, not
     Mantine's `Alert`, so a plugin's notices read and contrast like Studio's.
-  - `ConfirmDialog` confirms an action, and for a removal it asks for the resource's name to be
-    typed. `notify` shows a toast for the outcomes of an action: pending, succeeded, failed and
+  - `ConfirmDialog` confirms an action, and a `danger` one is confirmed by pressing and holding its
+    button (`HoldToConfirm` is the same control outside a dialog). `notify` shows a toast for the outcomes of an action: pending, succeeded, failed and
     partial.
 - **`DiagramView`** draws boxes and arrows, laid out for you, for example the steps of a workflow.
   - It is read-only. Pass `nodes` (`id`, `label`, optional `kind`, `detail`) and `edges`
@@ -823,6 +823,32 @@ string into markup or script (Trusted Types):
 React, Mantine and the SDK's components work as they are. A library of your own that sets `innerHTML`
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
+
+### Moving a plugin from contract 12 to 13
+
+Contract 13 changes what an approval provider returns and how a plugin confirms a destructive action.
+Studio refuses a plugin built for contract 12 with "built for extension contract 12", so rebuild it and set
+`<studio.contract>13</studio.contract>` in its `pom.xml`:
+
+- **The requester's reason is gone.** `GateDecision.Hold` is `Hold(policy, ttl, approverHint)`, with no
+  `reasonRequired`; `GateRequest` and `GatePreview` carry no reason; `GateContext.REASON`,
+  `REASON_HEADER` and `REASON_ARGUMENT` and `ApprovalReasonRequiredException` are removed, and Studio
+  ignores the `X-Studio-Approval-Reason` header. A policy that needs context for its approvers reads it from
+  the operation, its effect and its display rows. An approver still gives a reason when rejecting.
+- **A provider can say whether it holds anything.** `ApprovalProvider.enforcing()` defaults to `true`.
+  Return `false` while there is no policy (setup mode), so Studio does not require two approvers of an
+  installation that asks nobody to approve. Inject `ApproverPool` and refuse to start holding while
+  `quorate()` is false: a request needs someone other than its requester, so one approver locks the gate.
+  While the provider enforces, Studio refuses an access change that would take the approvers below
+  two (`approver-quorum`, HTTP 409).
+- **Destructive confirmations are held, not typed.** `ConfirmByTyping` and `ConfirmDialog`'s `typedName` are
+  gone from the SDK. A `ConfirmDialog` with `tone="danger"` is confirmed by pressing and holding its button,
+  and `HoldToConfirm` is exported for a confirmation outside a dialog. Name the action and its count in the
+  label (`Delete 37 queues`). A UI test holds the button (mouse down, wait the hold, mouse up) instead of
+  typing a name.
+- **Administration and Settings are links, not tabs.** A section is `role="link"` with
+  `aria-current="page"` in a navigation named after the page, and its content is a group named by the
+  section; a test that found `role="tab"` finds a link.
 
 ### Moving a plugin from contract 11 to 12
 

@@ -5,7 +5,6 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry.AttachedProvider;
-import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalReasonRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException;
 import io.github.sudoitir.artemisstudio.kernel.gate.AuthKind;
 import io.github.sudoitir.artemisstudio.kernel.gate.CanonicalJson;
@@ -72,7 +71,10 @@ class GateEngine implements OperationGate, PluginScopedBeans {
 
     static final String REDACTED = "[redacted]";
     static final int MAX_REASON = 500;
-    static final String NO_APPROVER = "No other user may approve this.";
+    static final String NO_APPROVER =
+            "No other user may approve this, so it cannot be held. Grant the approver permission to"
+                    + " a second person, or have whoever runs this deployment set the break-glass switch to recover"
+                    + " (see the guide on approvals).";
 
     private static final String PARAMS_HASH = "paramsHash";
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -174,26 +176,22 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         GatedOperation<Record> type = typeOf(operation);
         Optional<String> armed = providers.armedProviderId();
         if (armed.isEmpty() || breakGlass.active()) {
-            return new GatePreview(GatePreview.Outcome.RUN, null, false, null, null);
+            return new GatePreview(GatePreview.Outcome.RUN, null, null, null);
         }
         AttachedProvider provider = attached(armed.get());
         Requester requester = currentRequester().orElse(null);
         if (requester == null) {
             return new GatePreview(
-                    GatePreview.Outcome.DENY,
-                    null,
-                    false,
-                    null,
-                    "Only a signed-in user may run this while approvals are on.");
+                    GatePreview.Outcome.DENY, null, null, "Only a signed-in user may run this while approvals are on.");
         }
         Built built = build(type, operation.params(), requester);
         GateDecision decision =
                 calls.call("decide", () -> provider.provider().decide(built.request(GateRequest.Mode.PREVIEW)));
         return switch (decision) {
             case GateDecision.Allow(var policy) ->
-                new GatePreview(GatePreview.Outcome.RUN, policy, false, built.effect(), null);
+                new GatePreview(GatePreview.Outcome.RUN, policy, built.effect(), null);
             case GateDecision.Deny(var reason) ->
-                new GatePreview(GatePreview.Outcome.DENY, null, false, built.effect(), reason);
+                new GatePreview(GatePreview.Outcome.DENY, null, built.effect(), reason);
             case GateDecision.Hold hold ->
                 rules.eligible(
                                         requester.userId(),
@@ -201,9 +199,8 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                                         provider.approverPermission(),
                                         store.now())
                                 .isEmpty()
-                        ? new GatePreview(GatePreview.Outcome.DENY, hold.policy(), false, built.effect(), NO_APPROVER)
-                        : new GatePreview(
-                                GatePreview.Outcome.HOLD, hold.policy(), hold.reasonRequired(), built.effect(), null);
+                        ? new GatePreview(GatePreview.Outcome.DENY, hold.policy(), built.effect(), NO_APPROVER)
+                        : new GatePreview(GatePreview.Outcome.HOLD, hold.policy(), built.effect(), null);
         };
     }
 
@@ -292,8 +289,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
             String summary,
             List<DisplayRow> display,
             Effect effect,
-            Requester requester,
-            String reason) {
+            Requester requester) {
 
         byte[] hash() {
             return HexFormat.of().parseHex(hashHex);
@@ -312,8 +308,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                     redacted,
                     hashHex,
                     effect,
-                    requester,
-                    reason);
+                    requester);
         }
     }
 
@@ -344,8 +339,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                 type.summary(params),
                 List.copyOf(type.display(params)),
                 effect,
-                requester,
-                reason());
+                requester);
     }
 
     private OperationHeldException hold(Built built, AttachedProvider provider, GateDecision.Hold hold) {
@@ -365,14 +359,6 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                     provider.pluginId(),
                     hold.ttl(),
                     ttl);
-        }
-        if (hold.reasonRequired() && built.reason() == null) {
-            throw new ApprovalReasonRequiredException("This needs approval, and the policy \""
-                    + (hold.policy().name() == null
-                            ? hold.policy().id()
-                            : hold.policy().name())
-                    + "\" asks for a reason. Give one in the " + GateContext.REASON_HEADER + " header and submit"
-                    + " again.");
         }
         Requester requester = built.requester();
         Optional<HeldRow> existing = store.openDuplicate(requester.userId(), built.hash());
@@ -408,9 +394,6 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         auditParams.put("provider", provider.pluginId());
         auditParams.put("policy", policyLabel(hold.policy()));
         auditParams.put(PARAMS_HASH, built.hashHex());
-        if (built.reason() != null) {
-            auditParams.put("reason", built.reason());
-        }
         AuditEvent event = audit.begin(
                 actors.resolve(),
                 "OPERATION_HELD",
@@ -435,7 +418,6 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                         requester.tokenId(),
                         currentTokenName(),
                         built.summary(),
-                        built.reason(),
                         hold.approverHint(),
                         built.traits(),
                         built.redacted(),
@@ -452,7 +434,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
                     return null;
                 }
                 HeldRow stored = store.get(id).orElseThrow();
-                store.event(id, HeldEvent.Kind.REQUESTED, requester.userId(), requester.username(), built.reason());
+                store.event(id, HeldEvent.Kind.REQUESTED, requester.userId(), requester.username(), null);
                 notices.held(stored, approvers, now);
                 return stored;
             });
@@ -506,21 +488,6 @@ class GateEngine implements OperationGate, PluginScopedBeans {
 
     static String policyLabel(PolicyRef policy) {
         return policy.id() + "@" + policy.version();
-    }
-
-    /** The requester's reason from the entry point, trimmed; null when none was given. */
-    private static String reason() {
-        if (!GateContext.REASON.isBound() || GateContext.REASON.get() == null) {
-            return null;
-        }
-        String reason = GateContext.REASON.get().strip();
-        if (reason.isEmpty()) {
-            return null;
-        }
-        if (reason.length() > MAX_REASON) {
-            throw new IllegalArgumentException("A reason is at most " + MAX_REASON + " characters.");
-        }
-        return reason;
     }
 
     /**

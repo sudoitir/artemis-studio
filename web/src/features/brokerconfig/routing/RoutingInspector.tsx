@@ -47,7 +47,7 @@ function NothingSelected() {
       </Text>
       <Text size="sm" c="dimmed">
         Choose an element on the canvas, or enter the graph and move with the arrow keys. Everything it shows is also on
-        the Configuration screen's Declared &amp; live tab, with the same editors.
+        the Configuration screen's declaration sections, with the same editors.
       </Text>
     </Stack>
   );
@@ -108,7 +108,7 @@ function InspectorActions({
 /**
  * The selected element: what it is, what it connects, which of the declared and
  * observed states it is in, and the actions that change it. Its editor is the
- * same drawer the Configuration screen's Declared &amp; live tab opens, so the two
+ * same drawer the Configuration screen's declaration sections opens, so the two
  * presentations cannot drift apart (ADR-0090).
  */
 export function RoutingInspector({

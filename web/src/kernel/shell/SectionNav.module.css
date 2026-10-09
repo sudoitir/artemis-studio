@@ -1,0 +1,52 @@
+/* The list and the open section sit side by side. The root answers to its own width, so a section is
+   never pushed past the window at a high zoom: narrow, the list goes above it and stops being sticky. */
+.frame {
+  container-type: inline-size;
+}
+
+.root {
+  display: grid;
+  grid-template-columns: minmax(13rem, 15rem) minmax(0, 1fr);
+  gap: var(--mantine-spacing-lg);
+  align-items: start;
+}
+
+/* Under the header, taller than the window it scrolls itself. */
+.list {
+  position: sticky;
+  inset-block-start: calc(var(--app-shell-header-offset, 0px) + var(--mantine-spacing-xs));
+  max-block-size: calc(100dvh - var(--app-shell-header-offset, 0px) - var(--mantine-spacing-xl));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: var(--mantine-spacing-xs);
+}
+
+/* Holds a section's height, so a short one does not collapse the page and clamp the scroll position. */
+.panel {
+  min-inline-size: 0;
+  max-inline-size: 64rem;
+  min-block-size: 60dvh;
+  scroll-margin-block-start: calc(var(--app-shell-header-offset, 0px) + var(--mantine-spacing-md));
+}
+
+.panel:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+@container (max-inline-size: 36rem) {
+  .root {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .list {
+    position: static;
+    max-block-size: none;
+  }
+}
+
+/* A section whose form holds unsaved input says so in words beside its title. */
+.unsaved {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}

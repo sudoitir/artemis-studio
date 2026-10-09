@@ -15,7 +15,8 @@ import classes from './Views.module.css';
 /**
  * The signed-in user's own page: who you are, the approval requests you made while approvals are on
  * (what a requester comes back for, so it comes first), then what the features contribute — how to
- * change your password, the keys you hold, and how to connect an assistant with one.
+ * change your password, the keys you hold, how to connect an assistant with one, and your display
+ * preferences. Prose and forms keep a readable width; a section with a table keeps the page's.
  *
  * <p>API keys used to live under Administration, which made a per-user
  * credential look like an operator's tool and hid it from everyone without
@@ -34,7 +35,7 @@ export function AccountView() {
 
   return (
     <div className={classes.page}>
-      <div className={classes.narrow}>
+      <div className={classes.account}>
         <Page>
           <PageHeader
             title="Account"

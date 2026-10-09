@@ -5,6 +5,7 @@ import { needsReauthentication } from '../../kernel/auth/api.ts';
 import { useFreshSignIn } from '../../kernel/auth/freshSignIn.ts';
 import { StepUp } from '../../kernel/auth/StepUp.tsx';
 import { useCan } from '../../kernel/auth/useCan.ts';
+import { absoluteLabel, useServerNow } from '../../kernel/time/time.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -27,8 +28,6 @@ const PROVIDERS: Record<string, string> = {
 const STATUSES: Record<string, string> = { RUNNING: 'Running', SUCCEEDED: 'Succeeded', FAILED: 'Failed' };
 
 const ROTATE: ActionVerb = { verb: 'Start', past: 'Started', progressive: 'Starting' };
-
-const when = (iso: string) => new Date(iso).toLocaleString();
 
 /** The newer key version a rotation would move to, or null when the provider offers none. */
 function targetVersion(s: SecretsStatus): number | null {
@@ -254,7 +253,8 @@ function RotateDialog({
             {explanation} Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
           </Text>
           {needsReauthentication(rotate.error) ? (
-            <StepUp returnTo={`${globalThis.location.pathname}?tab=settings-security`} />
+            // Back to this page as it is, wherever it lives and whatever its address holds.
+            <StepUp returnTo={`${globalThis.location.pathname}${globalThis.location.search}`} />
           ) : null}
         </Stack>
       }
@@ -295,6 +295,7 @@ function nextAction(type: string): string {
 }
 
 function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) {
+  const now = useServerNow();
   const counting = r.status === 'RUNNING' && r.rewrapped + r.remaining === 0;
   // Every row is re-wrapped, but the rotation waits out the settle window so no replica still writes under the old key.
   const settling = r.status === 'RUNNING' && !counting && r.remaining === 0;
@@ -302,7 +303,7 @@ function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) 
     <Section title={`Last rotation: ${STATUSES[r.status] ?? r.status}`} headingLevel={3} variant="card">
       <Stack gap={2}>
         <Text size="sm" className={classes.figure}>
-          Version {r.fromVersion} to version {r.toVersion}, started by {r.startedBy} at {when(r.startedAt)}.
+          Version {r.fromVersion} to version {r.toVersion}, started by {r.startedBy} at {absoluteLabel(r.startedAt)}.
         </Text>
         {r.status === 'RUNNING' && !counting ? (
           <Progress
@@ -321,8 +322,8 @@ function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) 
             finishes within a minute.
           </Text>
         ) : null}
-        {r.status === 'RUNNING' ? <Text size="sm">Running for {elapsed(r.startedAt)}.</Text> : null}
-        {r.finishedAt ? <Text size="sm">Finished at {when(r.finishedAt)}.</Text> : null}
+        {r.status === 'RUNNING' ? <Text size="sm">Running for {elapsed(r.startedAt, now)}.</Text> : null}
+        {r.finishedAt ? <Text size="sm">Finished at {absoluteLabel(r.finishedAt)}.</Text> : null}
         {r.status === 'FAILED' ? (
           <Group gap="xs" align="flex-start" wrap="nowrap" role="alert">
             <StatusBadge tone="danger">Failed</StatusBadge>
@@ -336,7 +337,8 @@ function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) 
   );
 }
 
-function elapsed(startedAt: string): string {
-  const secs = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000));
+/** How long since `startedAt`, by the server's clock, so a browser clock that is off does not skew it. */
+function elapsed(startedAt: string, now: number): string {
+  const secs = Math.max(0, Math.round((now - Date.parse(startedAt)) / 1000));
   return secs < 60 ? `${secs} s` : `${Math.floor(secs / 60)} min ${secs % 60} s`;
 }

@@ -9,6 +9,7 @@ import { server } from '../../test/setup.ts';
 import type { PluginView } from './api.ts';
 import { PluginDrawer } from './PluginDrawer.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const NOW = new Date().toISOString();
 
@@ -421,9 +422,7 @@ describe('PluginDrawer: confirmations', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Uninstall Notes' });
     expect(within(dialog).getByText(/Its data is kept/)).toBeInTheDocument();
     const confirm = within(dialog).getByRole('button', { name: 'Uninstall Notes' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(called).toBe(true));
     expect(await screen.findByText('Uninstalled plugin Notes')).toBeInTheDocument();
@@ -545,8 +544,7 @@ describe('PluginDrawer: confirmations', () => {
       await user.click(screen.getByRole('button', { name: 'Purge its data…' }));
 
       const dialog = await screen.findByRole('dialog', { name: "Purge Notes's data" });
-      await user.type(within(dialog).getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-      await user.click(within(dialog).getByRole('button', { name: 'Delete its data permanently' }));
+      await holdButton(within(dialog).getByRole('button', { name: 'Delete its data permanently' }));
 
       await waitFor(() => expect(purged).toBe(true));
       await waitFor(() => expect(onClose).toHaveBeenCalled());

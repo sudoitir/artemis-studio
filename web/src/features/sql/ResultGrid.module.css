@@ -1,8 +1,8 @@
 /* A row the live tail has just delivered. It sets the row's tint, so the sticky cells carry it too, and
    `div` outranks the table's own `.row` rule, which resets the tint. A selected or hovered row still
-   wins, as those rules are more specific. The hook drops the key after a few seconds, which ends the
-   mark. It is a mark, not a fade: the information is the highlight, and a custom property cannot
-   transition. */
+   wins, as those rules are more specific. The hook drops the key after a few seconds, and the mark
+   fades out over a moment: the table registers the tint as a colour so that it can (DataTable.module.css).
+   It arrives at once, as the information is the highlight. */
 div.fresh {
   --row-tint: var(--as-grid-row-fresh);
 }

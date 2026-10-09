@@ -11,8 +11,10 @@ Before a destructive operation can be confirmed, the system SHALL state what wil
 affected in concrete terms — the resource, the nodes, and the count of data that
 will be destroyed — and SHALL NOT present a confirmation whose text is generic.
 
-The confirmation SHALL require the operator to type the name of the resource being
-acted on, and SHALL arm only on an exact match. It SHALL NOT arm on a checkbox, a
+The confirmation SHALL be a button the operator presses and holds until it fills, and
+SHALL act only when it is full. The button SHALL name the action and its count. A
+click, a double click, or a press let go early SHALL do nothing, and the hold SHALL be
+available from the keyboard. It SHALL NOT be confirmed by typing a name, a checkbox, a
 second click, or a countdown.
 
 Where an estimate is unavailable, the confirmation SHALL say that the count is
@@ -29,10 +31,10 @@ unknown rather than omitting it, because an absent number reads as zero.
 - **WHEN** the affected count cannot be estimated
 - **THEN** the confirmation says so rather than omitting the figure
 
-#### Scenario: Confirmation requires the name
+#### Scenario: Confirmation requires a hold
 
-- **WHEN** an operator has not typed the exact name of the resource
-- **THEN** the confirming control is not armed
+- **WHEN** an operator clicks the confirming control, or lets go before it is full
+- **THEN** nothing is done, and the control says to keep holding
 
 ### Requirement: Every mutation renders four outcomes, not one
 
@@ -241,7 +243,7 @@ Tabular views SHALL use the product's data table: its interactive grid for large
 
 Views SHALL be composed from the product's page parts: one page header, sections, toolbars, and the empty, error and loading states.
 
-Confirmations SHALL use the product's confirmation dialog, and destructive confirmations its typed-confirmation component, rather than a further hand-rolled copy.
+Confirmations SHALL use the product's confirmation dialog, and destructive confirmations its press-and-hold component, rather than a further hand-rolled copy.
 
 Colour, type, spacing, radius, elevation, motion and density SHALL come from the product's semantic token layer. A raw colour literal SHALL NOT appear in a component.
 
@@ -307,12 +309,12 @@ not by colour alone.
 Deleting a capture subscription destroys stored application payload and removes objects from
 every live broker in the cluster. The interface SHALL state, before the action can be armed,
 how many captured messages will be destroyed and which broker objects will be removed from
-which nodes, and SHALL require the subscription's name to be typed.
+which nodes, and SHALL be confirmed by pressing and holding the delete button.
 
 #### Scenario: The blast radius is stated before the action is armed
 
 - **WHEN** an operator begins deleting a capture subscription
-- **THEN** the number of captured messages to be destroyed and the broker objects to be removed are stated, and the action cannot be armed until the subscription's name is typed
+- **THEN** the number of captured messages to be destroyed and the broker objects to be removed are stated, and the action is confirmed only by holding the delete button
 
 ### Requirement: The console keeps its results reachable while it explains itself
 
@@ -477,7 +479,7 @@ run shows:
 - the broker objects to be created;
 - the equivalent broker configuration.
 
-Arming a capture subscription SHALL require typing the pattern. Its bounds — message and
+Starting a capture subscription SHALL be confirmed by pressing and holding the start button, which names the pattern. Its bounds — message and
 byte limits, per-message body limit, ingest rate and filter — SHALL be editable behind a
 disclosure, validated on blur against the server's limits. A value outside those limits
 SHALL be refused with its reason, never silently adjusted.
@@ -485,10 +487,10 @@ SHALL be refused with its reason, never silently adjusted.
 The copy SHALL match the subscription's mode: a captured subscription SHALL NOT be described
 as sampled, and a sampled one SHALL NOT be described as capturing everything.
 
-#### Scenario: Capture cannot be armed without its dry run and typed pattern
+#### Scenario: Capture cannot be started without its dry run and a hold
 
 - **WHEN** an operator starts creating a capture subscription
-- **THEN** the dry run is shown and the action cannot be armed until the pattern has been typed
+- **THEN** the dry run is shown and the action starts only when its button has been held
 
 #### Scenario: An out-of-range bound is refused, not clamped
 
@@ -696,9 +698,9 @@ preview SHALL state, in words:
 It SHALL list every queue with its per-queue figures. It SHALL list refused queues and
 their reasons. It SHALL offer to show only the queues with a refusal or a warning.
 
-A purge or delete SHALL be confirmed by typing the action and the count, e.g.
-`delete 37 queues`. A run over exactly one queue SHALL instead be confirmed by typing
-that queue's name. A pause or resume SHALL be confirmed once. The option to override
+A purge or delete SHALL be confirmed by pressing and holding a button that names the
+action and the count, e.g. `Delete 37 queues`; a run over exactly one queue names that
+queue. A pause or resume SHALL be confirmed once. The option to override
 the message cap SHALL be shown only when the run is over the cap and the operator may
 override it. The option to continue past failures SHALL be off by default.
 
@@ -706,16 +708,16 @@ The confirming control SHALL be busy while the execution request is in flight, a
 NOT be submitted twice. Once the run is accepted, the operator SHALL be taken to the
 run's progress view.
 
-#### Scenario: A destructive bulk run cannot be armed without typing
+#### Scenario: A destructive bulk run is confirmed by a hold
 
 - **WHEN** an operator previews a delete of 37 queues
 - **THEN** the preview states the queues, the nodes, and the messages destroyed, and the
-  delete cannot be confirmed until `delete 37 queues` has been typed
+  delete is confirmed only by holding `Delete 37 queues`
 
-#### Scenario: A one-queue purge is confirmed by name
+#### Scenario: A one-queue purge names the queue
 
 - **WHEN** an operator previews a purge of the one queue `orders`
-- **THEN** the purge cannot be confirmed until `orders` has been typed
+- **THEN** the purge button names `orders` and is confirmed only by a hold
 
 #### Scenario: A keyboard-only operator can complete and abandon the flow
 
@@ -756,15 +758,15 @@ Progress motion SHALL honour the operator's reduced-motion preference.
 
 ### Requirement: Settings is presented as grouped tabs
 
-The Settings page SHALL present each settings section as a tab in a vertical tab list. The tabs SHALL be grouped under fixed headings in this order: the operator's own preferences, Studio-wide configuration, this cluster, and plugins. Studio-wide configuration SHALL have one tab per settings category. Each category SHALL be edited as a form whose inputs fit each setting's kind. A modified setting SHALL show its default and offer a reset.
+The Settings page SHALL be a cluster's, shown to those who hold `settings:read`. It SHALL present each settings section as a tab in a vertical tab list. The tabs SHALL be grouped under fixed headings in this order: Studio-wide configuration, this cluster, and plugins. What is not configuration a cluster's operators share SHALL live elsewhere: the operator's own display preferences on the Account page, which needs no permission, and the installation's encryption keys and Studio's own health under Administration. Studio-wide configuration SHALL have one tab per settings category. Each category SHALL be edited as a form whose inputs fit each setting's kind. A modified setting SHALL show its default and offer a reset.
 
 One search SHALL find settings across all categories, and a filter SHALL show only modified settings. The open tab and the search SHALL be held in the address, so they can be shared and restored.
 
-Edits SHALL form one draft across categories. A marker SHALL show on each category with unsaved changes. Leaving with unsaved changes SHALL ask first. The draft SHALL be applied in one step when no approval is needed. When approval is needed, the draft SHALL be reviewed first, as a list of current and new values, with a reason.
+Edits SHALL form one draft across categories. A marker SHALL show on each category with unsaved changes. Leaving with unsaved changes SHALL ask first. The draft SHALL be applied in one step when no approval is needed. When approval is needed, the draft SHALL be reviewed first, as a list of current and new values, with a reason. Enter in a setting's field SHALL open that review rather than apply the draft; only the footer's primary action SHALL apply it directly.
 
 A change waiting for approval SHALL show beside its setting, with its requester, its age and a way to cancel it.
 
-The tab list SHALL be operable from the keyboard, and changing tab SHALL move focus to the opened section's heading. A section contributed by a plugin SHALL appear under the plugins heading.
+The tab list SHALL be operable from the keyboard, and changing tab SHALL move focus to the opened section's heading. A section contributed by a plugin SHALL appear under the plugins heading. A section whose form holds unsaved input SHALL be marked Unsaved, and changing tab away from it SHALL ask before discarding that input.
 
 #### Scenario: The open tab survives a reload
 
@@ -786,10 +788,20 @@ The tab list SHALL be operable from the keyboard, and changing tab SHALL move fo
 - **WHEN** a team member edits two settings and a provider would hold the change
 - **THEN** the primary action reads "Request approval", and submitting shows both changes as pending beside their settings
 
+#### Scenario: Enter in a field reviews the draft
+
+- **WHEN** an operator edits a setting and presses Enter in its field
+- **THEN** the review of the whole draft opens, and nothing is applied until it is confirmed
+
 #### Scenario: Leaving with unsaved edits
 
 - **WHEN** an operator with unsaved edits navigates away
 - **THEN** Studio asks before discarding them
+
+#### Scenario: Unsaved connection edits survive a stray tab change
+
+- **WHEN** an operator has edited a cluster's connection form and opens another Settings tab
+- **THEN** Studio asks whether to discard the edits, and staying keeps them
 
 ### Requirement: Plugin management states consequences before acting and outcomes after
 
@@ -1056,15 +1068,15 @@ When the caller gives a list of things that can be inserted, each edge the calle
 
 ### Requirement: The operator chooses the colour scheme from the header
 
-The header SHALL offer, on every authenticated screen, one control that cycles the colour scheme through following the operating system, light and dark. The command palette SHALL offer the same action. The control's accessible name SHALL state the scheme it switches to and, while it follows the operating system, the scheme the system is using. The choice SHALL be remembered in that browser across reloads. A first visit SHALL follow the operating system. The page SHALL open in the chosen or system scheme without first showing the other one.
+The header's user menu SHALL offer, on every authenticated screen, the colour scheme as a choice of three: following the operating system, light and dark, with the one in use marked. The command palette SHALL offer an action that cycles the same three; its name SHALL state the scheme it switches to and, while the console follows the operating system, the scheme the system is using. The choice SHALL be remembered in that browser across reloads. A first visit SHALL follow the operating system. The page SHALL open in the chosen or system scheme without first showing the other one.
 
 #### Scenario: A first visit follows the system
 - **WHEN** an operator whose operating system uses a light scheme opens the console for the first time
 - **THEN** the console shows the light scheme
 
-#### Scenario: Switching the scheme
-- **WHEN** an operator activates the control while it follows the operating system
-- **THEN** the console uses the light scheme regardless of the system, and the control now offers the dark scheme
+#### Scenario: Choosing a scheme
+- **WHEN** an operator whose console follows the operating system chooses Light in the user menu
+- **THEN** the console uses the light scheme regardless of the system, and the menu marks Light as the scheme in use
 
 #### Scenario: The choice survives a reload
 - **WHEN** an operator chooses the dark scheme and reloads
@@ -1238,7 +1250,7 @@ like Studio's.
 
 ### Requirement: Administration SHALL use grouped navigation
 
-The Administration page SHALL list its sections in a vertical navigation grouped under Access, Installation, Governance and Support. A plugin's section SHALL declare its group. The open section SHALL be held in the address.
+The Administration page SHALL list its sections in a vertical navigation grouped under Access, Installation, Governance and Support. Encryption keys SHALL be listed under Installation and Studio's own health under Support. A plugin's section SHALL declare its group. The open section SHALL be held in the address. The open section SHALL be marked on its start edge with the accent and the selection tint, as the sidebar marks the open page, and the list SHALL stay in view while a long section scrolls.
 
 #### Scenario: Plugin section
 
@@ -1266,3 +1278,47 @@ The requester SHALL be able to cancel the request from that page. A provider SHA
 
 - **WHEN** the requester cancels from the request page
 - **THEN** the request shows as cancelled, and the approvers' notices are resolved
+
+### Requirement: Sections are one navigation component with one alignment
+
+A page that offers its sections as a list (Settings, Administration, Configuration) SHALL use the
+console's one navigation component: every row a full-width, left-aligned link with the same padding as
+its group heading, so labels and headings share one start edge; the open row marked with a full-row
+highlight, the accent bar and `aria-current="page"`; hover and keyboard focus visible; labels in sentence
+case, truncated with an ellipsis and a tooltip only when cut off. The list SHALL scroll within the window
+when it is taller, with its group headings sticky.
+
+Choosing a section SHALL NOT move the page: the scroll position SHALL be kept unless the section's top is out
+of sight, the section SHALL NOT flash a loading state for a load that is quick, and the section's height
+SHALL be held while it loads. The open section SHALL be in the address.
+
+#### Scenario: Labels and headings share an edge
+
+- **WHEN** Settings or Administration is shown
+- **THEN** every row's label and every group heading start at the same edge, left-aligned
+
+#### Scenario: Choosing a section keeps the page still
+
+- **WHEN** an operator scrolled partway down a page chooses another section
+- **THEN** the scroll position is unchanged and the page does not blink
+
+### Requirement: Pages outside a cluster have no sidebar and lead back
+
+A page that is not about one cluster (Administration, the inbox, the account, approvals) SHALL NOT show the
+cluster sidebar. It SHALL show a line that offers to return to the cluster view the operator came from, with
+the filters they left, and says where they are; with no previous view it SHALL offer to open a cluster.
+
+#### Scenario: Returning from Administration
+
+- **WHEN** an operator opens Administration from a cluster's Queues view
+- **THEN** one click on the line above the page returns to those Queues
+
+### Requirement: Paired fields clear together
+
+A pair of fields that go together SHALL report a problem on the member that is missing, and SHALL be checked
+again whenever either member changes, so the message clears as soon as the pair is complete.
+
+#### Scenario: A username without a password
+
+- **WHEN** an operator enters a username, then a password
+- **THEN** no message remains on either field

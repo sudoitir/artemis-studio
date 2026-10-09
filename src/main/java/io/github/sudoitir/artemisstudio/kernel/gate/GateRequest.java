@@ -12,7 +12,6 @@ import java.util.Set;
  * @param typeVersion its {@link GatedOperation#version()}
  * @param params the canonical parameters with {@link GatedOperation#redactedPaths()} redacted
  * @param paramsHash the hex SHA-256 binding the exact request ({@link CanonicalJson#hash})
- * @param reason the requester's reason, or {@code null}
  */
 @PluginApi
 public record GateRequest(
@@ -27,8 +26,7 @@ public record GateRequest(
         String params,
         String paramsHash,
         Effect effect,
-        Requester requester,
-        String reason) {
+        Requester requester) {
 
     public GateRequest {
         traits = Set.copyOf(traits);

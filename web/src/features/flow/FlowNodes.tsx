@@ -4,7 +4,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { FlowNodeView } from './api.ts';
 import { FlowCanvasContext } from './canvasContext.ts';
 import { FAULT_LABELS, formatCount } from './flowFormat.ts';
-import type { FlowNodeData, LaneData } from './flowLayout.ts';
+import { outline, type FlowNodeData, type LaneData } from './flowLayout.ts';
 import { anchorBelow, clampToViewport } from '../../ui/table/menuAnchor.ts';
 import classes from './FlowCanvas.module.css';
 
@@ -36,17 +36,44 @@ function nodeSentence(view: FlowNodeView): string {
   return `${parts.join(', ')}.`;
 }
 
+type Shape = 'pill' | 'tag' | 'box' | 'hex';
+
+/**
+ * A tag or a hexagon, drawn rather than clipped: the outline carries the fill, the border (dashed for a
+ * hexagon, the fault colour for a fault) and the focus ring, so all three follow the slanted sides.
+ */
+function ShapeOutline({ shape, width, height }: Readonly<{ shape: 'tag' | 'hex'; width: number; height: number }>) {
+  const points = outline(shape, width, height);
+  return (
+    <svg
+      className={classes.outline}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <polygon className={classes.outlineRing} points={points} />
+      <polygon className={classes.outlineGap} points={points} />
+      <polygon className={classes.outlineShape} data-shape={shape} points={points} />
+    </svg>
+  );
+}
+
 function Frame({
   id,
   data,
   shape,
+  width,
+  height,
   inbound,
   outbound,
   children,
 }: Readonly<{
   id: string;
   data: FlowNodeData;
-  shape: 'pill' | 'tag' | 'box' | 'hex';
+  shape: Shape;
+  width?: number;
+  height?: number;
   inbound: boolean;
   outbound: boolean;
   children: ReactNode;
@@ -65,7 +92,7 @@ function Frame({
       role="button"
       tabIndex={0}
       aria-label={nodeSentence(data.view)}
-      onClick={() => select(id)}
+      onClick={() => select(id, false)}
       onContextMenu={(event) => {
         event.preventDefault();
         if (performance.now() < suppressContextMenuUntil.current) return;
@@ -74,7 +101,7 @@ function Frame({
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          select(id);
+          select(id, true);
         } else if ((event.key === 'F10' && event.shiftKey) || event.key === 'ContextMenu') {
           event.preventDefault();
           suppressContextMenuUntil.current = performance.now() + 500;
@@ -86,11 +113,19 @@ function Frame({
       onFocus={() => emphasize(id)}
       onBlur={() => emphasize(null)}
     >
+      {(shape === 'tag' || shape === 'hex') && width && height ? (
+        <ShapeOutline shape={shape} width={width} height={height} />
+      ) : null}
       {inbound ? (
         <Handle type="target" position={Position.Left} className={classes.handle} isConnectable={false} />
       ) : null}
       {children}
-      {faults.length ? <span className={classes.fault}>{faults.join(', ')}</span> : null}
+      {/* A fault takes the place of the last line, so the node keeps the height its layout reserved. */}
+      {faults.length ? (
+        <span className={classes.fault} title={faults.join(', ')}>
+          {faults.join(', ')}
+        </span>
+      ) : null}
       {outbound ? (
         <Handle type="source" position={Position.Right} className={classes.handle} isConnectable={false} />
       ) : null}
@@ -134,13 +169,13 @@ const DELIVERY: Record<string, string> = {
   ANYCAST: 'anycast · queues share',
 };
 
-export const AddressNode = memo(function AddressNode({ id, data }: NodeProps) {
+export const AddressNode = memo(function AddressNode({ id, data, width, height }: NodeProps) {
   const d = data as FlowNodeData;
   const v = d.view;
   const routing = (v.routingTypes ?? []).map((t) => DELIVERY[t] ?? t.toLowerCase());
   const role = v.role ? ADDRESS_ROLE[v.role] : undefined;
   return (
-    <Frame id={id} data={d} shape="tag" inbound outbound>
+    <Frame id={id} data={d} shape="tag" width={width} height={height} inbound outbound>
       <div className={classes.head}>
         <span className={classes.label} title={v.label}>
           {v.label}
@@ -173,11 +208,11 @@ export const QueueNode = memo(function QueueNode({ id, data }: NodeProps) {
   );
 });
 
-export const RemoteNode = memo(function RemoteNode({ id, data }: NodeProps) {
+export const RemoteNode = memo(function RemoteNode({ id, data, width, height }: NodeProps) {
   const d = data as FlowNodeData;
   const v = d.view;
   return (
-    <Frame id={id} data={d} shape="hex" inbound outbound={false}>
+    <Frame id={id} data={d} shape="hex" width={width} height={height} inbound outbound={false}>
       <div className={classes.head}>
         <span className={classes.label} title={v.label}>
           {v.label}

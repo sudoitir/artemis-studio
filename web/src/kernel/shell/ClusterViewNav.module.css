@@ -1,16 +1,4 @@
-.group + .group {
-  margin-block-start: var(--mantine-spacing-sm);
-}
-
-/* Aligned with the row labels: the row's accent edge and its inline padding. */
-.heading {
-  display: block;
-  margin: 0;
-  padding-block: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
-  padding-inline: calc(var(--mantine-spacing-md) + 0.125rem);
-  font-size: var(--mantine-font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--as-text-dimmed);
+/* Clear of the cluster switcher above it: the group gap, the same space as between two groups. */
+.nav {
+  margin-block-start: var(--as-nav-group-gap);
 }

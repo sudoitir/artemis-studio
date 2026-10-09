@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import { ApproverQuorumNotice } from './ApproverQuorumNotice.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -34,6 +35,7 @@ export function ApprovalsView() {
           title="Approval requests"
           description="Operations held until a second person approves them: those waiting for you to decide, and your own."
         />
+        <ApproverQuorumNotice />
         <Tabs value={tab} onChange={setTab} keepMounted={false}>
           <Tabs.List>
             <Tabs.Tab value="waiting">Waiting for me</Tabs.Tab>

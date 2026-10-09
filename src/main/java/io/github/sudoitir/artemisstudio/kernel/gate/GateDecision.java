@@ -21,10 +21,9 @@ public sealed interface GateDecision {
      *
      * @param ttl how long it may wait, at least 1 minute; one longer than Studio's {@code gate.max-hold} (30 days
      *     by default) is shortened to it. A duration, because only the database clock counts
-     * @param reasonRequired whether the requester must give a reason
      * @param approverHint who should decide, in words, such as "a platform lead"; or {@code null}
      */
-    record Hold(PolicyRef policy, Duration ttl, boolean reasonRequired, String approverHint) implements GateDecision {
+    record Hold(PolicyRef policy, Duration ttl, String approverHint) implements GateDecision {
 
         public Hold {
             Objects.requireNonNull(policy, "policy");

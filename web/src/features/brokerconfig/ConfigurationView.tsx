@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react';
-import { Button, Stack, Tabs, Text, Tooltip } from '@mantine/core';
+import { useState } from 'react';
+import { Button, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 
 import {
@@ -20,7 +21,8 @@ import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
-import type { ConfigurationSearch } from './feature.ts';
+import { SectionNav, type SectionGroup } from '../../kernel/shell/SectionNav.tsx';
+import { CONFIGURATION_TABS, type ConfigurationSearch, type ConfigurationTab } from './feature.ts';
 import { AdoptionSuggestion } from './AdoptionSuggestion.tsx';
 import { DeclaredTab } from './DeclaredTab.tsx';
 import { HistoryTab } from './HistoryTab.tsx';
@@ -31,7 +33,14 @@ import { useDeclarationGates } from './gates.ts';
 import { ReviewApplyDrawer, type ApplyScope } from './ReviewApplyDrawer.tsx';
 import { AdoptDrawer, ExportXmlDrawer, ImportXmlDrawer } from './XmlDrawers.tsx';
 import classes from './Configuration.module.css';
-import { appliedWords, CONFIG_MANAGED_REASON } from './words.ts';
+import {
+  appliedWords,
+  asSection,
+  CONFIG_MANAGED_REASON,
+  SECTION_LABEL,
+  sectionDriftCount,
+  type Section,
+} from './words.ts';
 
 type Drawer = 'adopt' | 'import' | 'export' | null;
 
@@ -55,7 +64,7 @@ export function ConfigurationView() {
   const { clusterId } = useParams({ strict: false }) as { clusterId: string };
   const search = useSearch({ strict: false }) as ConfigurationSearch;
   const navigate = useNavigate();
-  const tab = search.tab ?? 'declared';
+  const tab: ConfigurationTab = CONFIGURATION_TABS.find((t) => t === search.tab) ?? CONFIGURATION_TABS[0];
 
   const declaration = useBrokerConfig(clusterId);
   const catalogue = useBrokerConfigCatalogue(clusterId);
@@ -66,6 +75,13 @@ export function ConfigurationView() {
 
   const setSearch = (patch: Partial<ConfigurationSearch>) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
+  // An editor is the open section's, so opening or closing one only touches `item` and `add`.
+  const edit = (section?: Section, item?: string) =>
+    setSearch(
+      section
+        ? { tab: section, item, add: item === undefined ? true : undefined }
+        : { item: undefined, add: undefined },
+    );
 
   const d = declaration.data;
   if (declaration.isError || !d) {
@@ -93,32 +109,57 @@ export function ConfigurationView() {
     </CapabilityGate>
   );
 
-  const panes: Record<NonNullable<ConfigurationSearch['tab']>, ReactNode> = {
-    recommended: (
-      <RecommendedTab
-        clusterId={clusterId}
-        query={recommendations}
-        onReview={() => setScope({})}
-        disabledReason={recommendedReason(d, writeGate)}
-      />
-    ),
-    history: <HistoryTab declaration={d} catalogue={catalogue.data} />,
-    declared: (
-      <Stack gap="xl">
-        <DeclaredTab
-          declaration={d}
-          catalogue={catalogue.data}
-          canWrite={canWrite}
-          applyGate={applyGate}
-          onApply={setScope}
-          openSection={search.section}
-          openItem={search.item}
-          onEdit={(section, item) => setSearch({ section, item })}
-        />
-        <NodesPanel declaration={d} catalogue={catalogue.data} />
-      </Stack>
-    ),
-  };
+  const editorOpen = Boolean(search.item) || Boolean(search.add);
+  const declaredPane = (section: Section) => (
+    <DeclaredTab
+      section={section}
+      declaration={d}
+      catalogue={catalogue.data}
+      canWrite={canWrite}
+      applyGate={applyGate}
+      onApply={setScope}
+      openSection={editorOpen && asSection(tab) === section ? section : undefined}
+      openItem={search.item}
+      onEdit={edit}
+    />
+  );
+  const declaredTab = (section: Section) => ({
+    id: section,
+    title: SECTION_LABEL[section],
+    aside: <SectionAside count={declaredCount(d, section)} differing={sectionDriftCount(d, section)} />,
+    panel: declaredPane(section),
+  });
+  const groups: SectionGroup[] = [
+    {
+      id: 'declaration',
+      label: 'Declaration',
+      tabs: (['addresses', 'addressSettings', 'securitySettings', 'diverts', 'bridges'] as const).map(declaredTab),
+    },
+    {
+      id: 'nodes',
+      label: 'Nodes',
+      tabs: [{ id: 'nodes', title: 'Live nodes', panel: <NodesPanel declaration={d} catalogue={catalogue.data} /> }],
+    },
+    {
+      id: 'changes',
+      label: 'Changes',
+      tabs: [
+        { id: 'history', title: 'History', panel: <HistoryTab declaration={d} catalogue={catalogue.data} /> },
+        {
+          id: 'recommended',
+          title: 'Recommended',
+          panel: (
+            <RecommendedTab
+              clusterId={clusterId}
+              query={recommendations}
+              onReview={() => setScope({})}
+              disabledReason={recommendedReason(d, writeGate)}
+            />
+          ),
+        },
+      ],
+    },
+  ];
 
   return (
     <Page>
@@ -154,22 +195,36 @@ export function ConfigurationView() {
 
       {d.declared ? null : <DeclarePrompt declaration={d} writeGate={writeGate} onAdopt={() => setDrawer('adopt')} />}
 
-      <Tabs value={tab} onChange={(next) => setSearch({ tab: (next as ConfigurationSearch['tab']) ?? undefined })}>
-        <Tabs.List>
-          <Tabs.Tab value="declared">Declared &amp; live</Tabs.Tab>
-          <Tabs.Tab value="history">History</Tabs.Tab>
-          <Tabs.Tab value="recommended">Recommended</Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value={tab} pt="lg">
-          {panes[tab]}
-        </Tabs.Panel>
-      </Tabs>
+      <SectionNav label="Configuration sections" groups={groups} />
 
       <ReviewApplyDrawer declaration={d} scope={scope} opened={scope !== null} onClose={() => setScope(null)} />
       <AdoptDrawer declaration={d} opened={drawer === 'adopt'} onClose={() => setDrawer(null)} />
       <ImportXmlDrawer declaration={d} opened={drawer === 'import'} onClose={() => setDrawer(null)} />
       <ExportXmlDrawer declaration={d} opened={drawer === 'export'} onClose={() => setDrawer(null)} />
     </Page>
+  );
+}
+
+/** How many items a section of the declaration holds. */
+function declaredCount(declaration: ConfigDeclarationView, section: Section): number {
+  const doc = declaration.document;
+  return doc[section].length;
+}
+
+/**
+ * What a section's entry in the list says: how many items it declares, and how many of them differ on
+ * some node, in words for a screen reader and as a mark for everyone, so drift is found without opening
+ * each section.
+ */
+function SectionAside({ count, differing }: Readonly<{ count: number; differing: number }>) {
+  return (
+    <span title={differing > 0 ? `${count} declared, ${differing} differ on a node` : `${count} declared`}>
+      {differing > 0 ? <IconAlertTriangle size={14} aria-hidden style={{ verticalAlign: '-0.15em' }} /> : null}
+      <span aria-hidden> {differing > 0 ? differing : count}</span>
+      <VisuallyHidden>
+        , {count} declared{differing > 0 ? `, ${differing} differ on a node` : ''}
+      </VisuallyHidden>
+    </span>
   );
 }
 

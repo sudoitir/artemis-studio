@@ -28252,9 +28252,6 @@
             "type" : "string",
             "enum" : [ "RUN", "HOLD", "DENY" ]
           },
-          "reasonRequired" : {
-            "type" : "boolean"
-          },
           "policyLabel" : {
             "type" : "string"
           },
@@ -28268,7 +28265,7 @@
             }
           }
         },
-        "required" : [ "fieldErrors", "reasonRequired" ]
+        "required" : [ "fieldErrors" ]
       },
       "ReadRequest" : {
         "type" : "object",
@@ -28452,9 +28449,6 @@
           },
           "policy" : {
             "$ref" : "#/components/schemas/HeldPolicyView"
-          },
-          "reason" : {
-            "type" : [ "string", "null" ]
           },
           "approverHint" : {
             "type" : [ "string", "null" ]
@@ -33322,9 +33316,22 @@
           "breakGlass" : {
             "type" : "boolean",
             "description" : "Whether break-glass lets operations bypass approval."
+          },
+          "enforcing" : {
+            "type" : "boolean",
+            "description" : "Whether the provider holds anything now; false while it has no policy."
+          },
+          "approvers" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "How many enabled users may approve for the whole installation."
+          },
+          "quorate" : {
+            "type" : "boolean",
+            "description" : "Whether there are enough approvers (two) for a request to be decided by someone other than its requester."
           }
         },
-        "required" : [ "armed", "attached", "breakGlass" ]
+        "required" : [ "approvers", "armed", "attached", "breakGlass", "enforcing", "quorate" ]
       },
       "GatedOperationInfo" : {
         "type" : "object",

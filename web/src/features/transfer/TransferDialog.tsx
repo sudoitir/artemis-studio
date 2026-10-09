@@ -9,7 +9,7 @@ import { useCan } from '../../kernel/auth/useCan.ts';
 import type { MessageSelection } from '../../kernel/slots.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
@@ -343,10 +343,8 @@ function FindingsPanel({
             </Text>
           ) : null}
           {typed ? (
-            <ConfirmByTyping
-              token={data.source.queue}
-              label={`Type the source queue's name, "${data.source.queue}", to confirm`}
-              confirmLabel={confirmLabel}
+            <HoldToConfirm
+              label={confirmLabel}
               tone={data.mode === 'MOVE' ? 'danger' : 'default'}
               loading={execute.isPending}
               disabled={unacked > 0 || execute.isPending}

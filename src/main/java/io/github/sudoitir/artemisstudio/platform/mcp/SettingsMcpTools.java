@@ -16,8 +16,7 @@ import org.springframework.stereotype.Component;
  * module must not depend on MCP.
  *
  * <p>A mutating tool (ADR-0045): {@code set} goes through the same service the REST layer calls, so
- * authorization, the approval gate and the audit row are the existing ones. {@code approvalReason} is
- * what the gate shows whoever decides when the change is held.
+ * authorization, the approval gate and the audit row are the existing ones.
  */
 @Component
 @RequiredArgsConstructor
@@ -43,10 +42,9 @@ public class SettingsMcpTools {
     public McpSchema.CallToolResult studioSetting(
             @McpToolParam(required = false) String op,
             @McpToolParam(required = false) String key,
-            @McpToolParam(required = false) String value,
-            @McpToolParam(required = false) String approvalReason) {
+            @McpToolParam(required = false) String value) {
         SettingOp operation = McpArgs.enumOf(SettingOp.class, "op", op, SettingOp.GET);
-        return McpErrors.guard(approvalReason, () -> {
+        return McpErrors.guard(() -> {
             Map<String, SettingValue> effective = settings.effective();
             if (operation == SettingOp.SET) {
                 String k = McpArgs.required("key", key);

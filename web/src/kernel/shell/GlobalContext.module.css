@@ -1,0 +1,26 @@
+/* One line, held whether or not there is a place to go back to, so the page under it never moves. */
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-block-size: var(--as-control-h-xs);
+  padding-block-end: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+
+.back span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.separator {
+  color: var(--as-text-dimmed);
+}

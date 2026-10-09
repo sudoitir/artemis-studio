@@ -3,7 +3,7 @@ import { Button, CopyButton, Group, List, Modal, Stack, Stepper, Text } from '@m
 import { useQuery } from '@tanstack/react-query';
 
 import { request } from '../../kernel/api/request.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import {
@@ -189,10 +189,8 @@ function ConfirmStep({
       {activate.error && !needsReauthentication(activate.error) ? (
         <Refusal error={activate.error} title="Not activated" />
       ) : null}
-      <ConfirmByTyping
-        token={plan.pluginId}
-        label={`Type "${plan.pluginId}" to confirm`}
-        confirmLabel={actionLabel(plan)}
+      <HoldToConfirm
+        label={actionLabel(plan)}
         tone="default"
         loading={activate.isPending}
         disabled={!fresh || plan.missingRequires.length > 0 || unacknowledged}

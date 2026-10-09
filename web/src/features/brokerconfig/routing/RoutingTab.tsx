@@ -183,8 +183,8 @@ export function RoutingTab({
         <Notice tone="info" title="Showing a bounded region of the graph">
           This cluster's routing has {whole.nodes.length} elements, more than the {GRAPH_BOUND} this canvas draws at
           once. It is showing the {graph.nodes.length} reachable from {anchorName ?? 'the first address'};{' '}
-          {bounded.hidden} elements are not drawn. Every one of them is on the Configuration screen's Declared &amp;
-          live tab. Choose another address to draw the region around in the toolbar.
+          {bounded.hidden} elements are not drawn. Every one of them is on the Configuration screen's declaration
+          sections. Choose another address to draw the region around in the toolbar.
         </Notice>
       ) : null}
 

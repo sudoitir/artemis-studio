@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { NotificationChannels } from './NotificationChannels.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 function channel(over: Record<string, unknown> = {}) {
   return {
@@ -194,8 +195,6 @@ describe('NotificationChannels', () => {
     await user.click(trigger);
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/3 rules route to this channel/)).toBeInTheDocument();
-    const confirm = within(dialog).getByRole('button', { name: 'Delete channel' });
-    expect(confirm).toBeDisabled();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -203,8 +202,7 @@ describe('NotificationChannels', () => {
 
     await user.click(trigger);
     const again = await screen.findByRole('dialog');
-    await user.type(within(again).getByLabelText('Type "ops-slack" to confirm'), 'ops-slack');
-    await user.click(within(again).getByRole('button', { name: 'Delete channel' }));
+    await holdButton(within(again).getByRole('button', { name: 'Delete channel' }));
 
     expect(await screen.findByText(/No notification channels configured/)).toBeInTheDocument();
     expect(await screen.findByText('Deleted channel "ops-slack"')).toBeInTheDocument();
@@ -406,8 +404,7 @@ describe('NotificationChannels: the list and its row actions', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete ops-slack' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Type "ops-slack" to confirm'), 'ops-slack');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete channel' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete channel' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not delete channel "ops-slack"');

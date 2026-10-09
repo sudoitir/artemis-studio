@@ -22,6 +22,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useStoreApi,
   type Edge,
   type EdgeProps,
   type Node,
@@ -127,7 +128,8 @@ type OpenMenu =
 interface Roving {
   tabStop: string | null;
   register: (id: string, el: HTMLButtonElement | null) => void;
-  focus: (id: string) => void;
+  /** A box took focus; `fromKeyboard` is false for a pointer press, which needs no reveal. */
+  focus: (id: string, fromKeyboard: boolean) => void;
   select: (id: string) => void;
   /** Opens a box's actions, or null when the diagram offers none. */
   openActions: ((id: string, anchor: MenuAnchor, opener: HTMLElement) => void) | null;
@@ -219,7 +221,7 @@ function CardButton({
       aria-pressed={data.selected}
       aria-keyshortcuts={keys || undefined}
       title={data.name}
-      onFocus={() => focus(id)}
+      onFocus={(event) => focus(id, event.currentTarget.matches(':focus-visible'))}
       onClick={() => select(id)}
       onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
@@ -348,6 +350,28 @@ const nodeTypes = { card: Card };
 const edgeTypes = { line: Line };
 
 /**
+ * Brings a box focused from the keyboard into view, at the operator's zoom and with no animation, when
+ * any of it is outside the frame: arrow keys otherwise move focus to a box no one can see.
+ */
+function RevealFocused({ request }: Readonly<{ request: { id: string; count: number } | null }>) {
+  const flow = useReactFlow();
+  const store = useStoreApi();
+  useEffect(() => {
+    if (!request) return;
+    const node = flow.getInternalNode(request.id);
+    if (!node) return;
+    const { width, height, transform } = store.getState();
+    const [tx, ty, zoom] = transform;
+    const { x, y } = node.internals.positionAbsolute;
+    const left = x * zoom + tx;
+    const top = y * zoom + ty;
+    if (left >= 0 && top >= 0 && left + CARD.width * zoom <= width && top + CARD.height * zoom <= height) return;
+    void flow.setCenter(x + CARD.width / 2, y + CARD.height / 2, { zoom, duration: 0 });
+  }, [flow, store, request]);
+  return null;
+}
+
+/**
  * Fits the view when the boxes or arrows change, and when the frame changes size: a diagram in a
  * panel that is resized, or shown again after being collapsed, would otherwise keep a view of where
  * its boxes were, or were laid out at no size at all.
@@ -428,6 +452,7 @@ export function DiagramView({
     [nodes, layout.positions, vertical],
   );
   const [focused, setFocused] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<{ id: string; count: number } | null>(null);
   const tabStop = pickTabStop(order, focused, selectedId);
   const elements = useRef(new Map<string, HTMLButtonElement>());
   const frameRef = useRef<HTMLDivElement>(null);
@@ -448,7 +473,10 @@ export function DiagramView({
         if (el) elements.current.set(id, el);
         else elements.current.delete(id);
       },
-      focus: setFocused,
+      focus: (id, fromKeyboard) => {
+        setFocused(id);
+        if (fromKeyboard) setReveal((last) => ({ id, count: (last?.count ?? 0) + 1 }));
+      },
       select: (id) => {
         const n = nodes.find((x) => x.id === id);
         if (n) setAnnounce(`Selected ${nodeName(n)}`);
@@ -559,6 +587,7 @@ export function DiagramView({
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} patternClassName={classes.dots} />
             <FitOnLayout signature={layout.ready ? layout.signature : null} frame={frameRef} />
+            <RevealFocused request={reveal} />
           </ReactFlow>
         </RovingContext.Provider>
         <ViewControls fit={FIT} />

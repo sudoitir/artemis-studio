@@ -1,11 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
+import { setShortcutsHelpOpen } from './shortcuts.ts';
 import { ShortcutsHelp } from './ShortcutsHelp.tsx';
 
 describe('ShortcutsHelp', () => {
+  // The open state is shared by the header, the palette and `?`, so it outlives a test's render.
+  afterEach(() => setShortcutsHelpOpen(false));
+
   it('opens from its header button as a popover, and Escape returns focus to the button', async () => {
     renderWithProviders(<ShortcutsHelp />);
     const button = screen.getByRole('button', { name: 'Keyboard shortcuts' });

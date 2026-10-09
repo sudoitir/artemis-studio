@@ -200,7 +200,6 @@ export function RulesPanel({ clusterId }: Readonly<{ clusterId: string }>) {
         onClose={() => setDeleteOpen(false)}
         title="Delete rule"
         tone="danger"
-        typedName={deleting?.name}
         pending={remove.isPending}
         confirmLabel="Delete rule"
         consequence={

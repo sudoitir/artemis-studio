@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.approval;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry.AttachedProvider;
+import io.github.sudoitir.artemisstudio.kernel.gate.ApproverPool;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldEvent;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldOperationView;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldState;
@@ -41,6 +42,7 @@ public class Approvals {
     private final Executions executions;
     private final BreakGlass breakGlass;
     private final SessionAuthentication sessions;
+    private final ApproverPools pool;
 
     Approvals(
             HeldStore store,
@@ -50,7 +52,8 @@ public class Approvals {
             Decisions decisions,
             Executions executions,
             BreakGlass breakGlass,
-            SessionAuthentication sessions) {
+            SessionAuthentication sessions,
+            ApproverPools pool) {
         this.store = store;
         this.rules = rules;
         this.providers = providers;
@@ -59,6 +62,7 @@ public class Approvals {
         this.executions = executions;
         this.breakGlass = breakGlass;
         this.sessions = sessions;
+        this.pool = pool;
     }
 
     /** Which requests a listing shows. */
@@ -99,7 +103,14 @@ public class Approvals {
      * Whether the gate is armed and by whom, whether its provider runs on this instance, and whether break-glass is
      * on, for the console's banner.
      */
-    public record Status(boolean armed, String providerId, boolean attached, boolean breakGlass) {}
+    public record Status(
+            boolean armed,
+            String providerId,
+            boolean attached,
+            boolean breakGlass,
+            boolean enforcing,
+            int approvers,
+            boolean quorate) {}
 
     public Page list(Scope scope, Collection<HeldState> states, UUID before, int limit) {
         StudioPrincipal me = principal();
@@ -151,11 +162,15 @@ public class Approvals {
 
     public Status status() {
         Optional<String> armed = providers.armedProviderId();
+        int approvers = pool.size();
         return new Status(
                 armed.isPresent(),
                 armed.orElse(null),
                 armed.flatMap(providers::attached).isPresent(),
-                breakGlass.active());
+                breakGlass.active(),
+                armed.isPresent() && pool.enforcing(),
+                approvers,
+                approvers >= ApproverPool.QUORUM);
     }
 
     private Detail detail(StudioPrincipal me, HeldRow row) {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { holdButton } from '../../test/hold.ts';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -257,7 +258,7 @@ describe('ApprovalView', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
 
     await user.click(trigger);
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
+    await holdButton(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toEqual({ vote: 'APPROVE', reason: null, paramsHash: 'hash-1', version: 3 });
     expect(await screen.findByText('bob approved it, and Studio is running it now.')).toBeInTheDocument();
@@ -301,7 +302,7 @@ describe('ApprovalView', () => {
     renderPage();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Approve…' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
+    await holdButton(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
     expect(await screen.findByText('The request changed')).toBeInTheDocument();
     expect(screen.getByText(/nothing was decided/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -335,7 +336,7 @@ describe('ApprovalView', () => {
     renderPage();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Approve…' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
+    await holdButton(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
     await user.type(await screen.findByLabelText('Your password'), 'secret');
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(sent).toHaveLength(2));
@@ -352,7 +353,7 @@ describe('ApprovalView', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Approve…' }));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Approve' }));
     expect(
       await within(dialog).findByText('You approved a change to this queue today.', { exact: false }),
     ).toBeVisible();

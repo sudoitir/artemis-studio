@@ -43,12 +43,13 @@ function mockCluster(over: object = {}) {
 }
 
 describe('ClusterHeader', () => {
-  it('is a context strip with no heading: the cluster, its environment and what is known of it', async () => {
+  it('is context with no heading: the environment and what is known of the cluster, not its name again', async () => {
     mockCluster();
     renderWithProviders(<ClusterHeader clusterId="c1" />);
 
     const strip = await screen.findByRole('group', { name: 'Cluster prod-eu' });
-    expect(strip).toHaveTextContent('prod-eu');
+    // The breadcrumb beside it already names the cluster.
+    expect(strip).not.toHaveTextContent('prod-eu');
     await waitFor(() => expect(strip).toHaveTextContent('Production'));
     expect(strip).toHaveTextContent('2 nodes · replication · reachable');
     // Each view's page header is the page's one h1.

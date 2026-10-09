@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { TransferRunView as Run } from './api.ts';
 import { clusterHandlers, END, meHandler, problem, run } from './fixtures.ts';
+import { holdButton } from '../../test/hold.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -408,8 +409,7 @@ describe('TransferRunView commands', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Return the held messages to the source?' });
     expect(dialog).toHaveTextContent('Every message held in staging, 1 message now, goes back on orders on node-a');
     expect(dialog).toHaveTextContent('Messages already delivered to orders stay there.');
-    await user.type(within(dialog).getByRole('textbox'), 'orders');
-    await user.click(within(dialog).getByRole('button', { name: 'Return 1 message' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Return 1 message' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await screen.findByText('Returned the held messages to the source')).toBeInTheDocument();
   });

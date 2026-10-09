@@ -208,14 +208,14 @@ async function edit() {
   const tierA = await screen.findByLabelText('Tier A interval');
   fireEvent.change(tierA, { target: { value: '10s' } });
   fireEvent.click(screen.getByRole('button', { name: /Reset Tier B interval/ }));
-  fireEvent.click(screen.getByRole('tab', { name: /Audit/ }));
+  fireEvent.click(screen.getByRole('link', { name: /Audit/ }));
   const batch = await screen.findByLabelText('Batch size');
   fireEvent.change(batch, { target: { value: '200' } });
-  fireEvent.click(screen.getByRole('tab', { name: /Scrape/ }));
+  fireEvent.click(screen.getByRole('link', { name: /Scrape/ }));
   await screen.findByLabelText('Tier A interval');
 }
 
-const HOLD: ChangePreview = { outcome: 'HOLD', reasonRequired: true, policyLabel: 'Two-person rule', fieldErrors: {} };
+const HOLD: ChangePreview = { outcome: 'HOLD', policyLabel: 'Two-person rule', fieldErrors: {} };
 
 const STATES = [
   { name: 'category', search: '?tab=scrape' },
@@ -225,7 +225,7 @@ const STATES = [
   {
     name: 'dirty',
     search: '?tab=scrape',
-    preview: { outcome: 'RUN', reasonRequired: false, fieldErrors: {} },
+    preview: { outcome: 'RUN', fieldErrors: {} },
     act: edit,
   },
   {
@@ -233,7 +233,6 @@ const STATES = [
     search: '?tab=scrape',
     preview: {
       outcome: undefined,
-      reasonRequired: false,
       fieldErrors: { 'scrape.tier-a': 'scrape.tier-a must be at least 30s' },
     },
     act: async () => {
@@ -246,7 +245,6 @@ const STATES = [
     search: '?tab=scrape',
     preview: {
       outcome: 'DENY',
-      reasonRequired: false,
       denyReason: 'Changes are frozen until the release on Friday.',
       fieldErrors: {},
     },

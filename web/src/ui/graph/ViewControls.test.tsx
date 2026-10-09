@@ -36,6 +36,14 @@ describe('ViewControls', () => {
     expect(flow.fitView).toHaveBeenCalledWith({ padding: 0.1, maxZoom: 1, duration: 0 });
   });
 
+  it('says which move the operator made', async () => {
+    const onViewChange = vi.fn();
+    const user = draw({ onViewChange });
+    await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+    await user.click(screen.getByRole('button', { name: 'Fit the diagram to the view' }));
+    expect(onViewChange.mock.calls).toEqual([['zoom'], ['fit']]);
+  });
+
   it('names what it fits', () => {
     draw({ subject: 'topology' });
     expect(screen.getByRole('button', { name: 'Fit the topology to the view' })).toBeInTheDocument();

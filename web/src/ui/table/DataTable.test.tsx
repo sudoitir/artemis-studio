@@ -307,6 +307,34 @@ describe('DataTable', () => {
     expect(screen.queryByRole('dialog', { name: /full value/i })).not.toBeInTheDocument();
   });
 
+  it('reveals a clipped value to a resting pointer, and swaps it at once to the next clipped cell', async () => {
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const first = screen.getByText('SHIPMENTS').closest(cellSelector) as HTMLElement;
+    const second = screen.getByText('DLQ').closest(cellSelector) as HTMLElement;
+    markClipped(first);
+    markClipped(second);
+
+    fireEvent.pointerEnter(first);
+    expect(screen.queryByRole('dialog', { name: /full value/i })).not.toBeInTheDocument();
+    const panel = await screen.findByRole('dialog', { name: /full value/i });
+    expect(within(panel).getByText('SHIPMENTS')).toBeInTheDocument();
+
+    fireEvent.pointerLeave(first);
+    fireEvent.pointerEnter(second);
+    expect(within(screen.getByRole('dialog', { name: /full value/i })).getByText('DLQ')).toBeInTheDocument();
+  });
+
+  it('does not reveal a value the pointer only passed over', async () => {
+    renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
+    const cell = screen.getByText('SHIPMENTS').closest(cellSelector) as HTMLElement;
+    markClipped(cell);
+
+    fireEvent.pointerEnter(cell);
+    fireEvent.pointerLeave(cell);
+    await new Promise((r) => setTimeout(r, 500));
+    expect(screen.queryByRole('dialog', { name: /full value/i })).not.toBeInTheDocument();
+  });
+
   it('calls onRowClick with the row', async () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
@@ -469,7 +497,7 @@ describe('DataTable: cell values', () => {
   ];
   const cellOf = (text: string) => screen.getByText(text).closest(cellSelector) as HTMLElement;
 
-  it('titles a cell with its text or number, and leaves anything else untitled', () => {
+  it('can reveal a cell’s text or number, and nothing for anything else, without a native title', () => {
     renderWithProviders(
       <Grid
         columns={vcols}
@@ -486,11 +514,12 @@ describe('DataTable: cell values', () => {
     );
 
     const valueCell = (rowId: string) => cellOf(rowId).nextElementSibling as HTMLElement;
-    expect(valueCell('a')).toHaveAttribute('title', 'text');
-    expect(valueCell('b')).toHaveAttribute('title', '42');
-    expect(valueCell('c')).toHaveAttribute('title', '7');
-    expect(valueCell('d')).not.toHaveAttribute('title');
-    expect(valueCell('e')).not.toHaveAttribute('title');
+    expect(valueCell('a')).toHaveAttribute('data-full', 'text');
+    expect(valueCell('b')).toHaveAttribute('data-full', '42');
+    expect(valueCell('c')).toHaveAttribute('data-full', '7');
+    expect(valueCell('d')).not.toHaveAttribute('data-full');
+    expect(valueCell('e')).not.toHaveAttribute('data-full');
+    expect(valueCell('a')).not.toHaveAttribute('title');
     expect(valueCell('e')).toHaveTextContent('true');
     expect(valueCell('f')).toBeEmptyDOMElement();
   });
