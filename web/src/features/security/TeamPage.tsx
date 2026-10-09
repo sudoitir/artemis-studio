@@ -72,6 +72,7 @@ export function TeamPage({
     navigate({
       to: '.',
       search: (prev: Record<string, unknown>) => ({ ...prev, teamTab: next && next !== 'patterns' ? next : undefined }),
+      replace: true,
     });
   // A name chosen in the Unowned tab, carried to the pattern form it pre-fills.
   const [draft, setDraft] = useState<PatternDraft | undefined>();

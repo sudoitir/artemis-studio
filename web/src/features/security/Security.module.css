@@ -97,3 +97,25 @@
   min-inline-size: 0;
   min-block-size: 1.5rem;
 }
+
+/* A long dialog form's actions stay at the dialog's bottom edge while it scrolls, over the body's own
+   bottom padding, so what saving does and the Save button are always in reach. */
+.dialogActions {
+  position: sticky;
+  inset-block-end: calc(-1 * var(--mb-padding, var(--mantine-spacing-md)));
+  z-index: var(--as-z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  margin-block-end: calc(-1 * var(--mb-padding, var(--mantine-spacing-md)));
+  padding-block: var(--mantine-spacing-sm) var(--mb-padding, var(--mantine-spacing-md));
+  background: var(--as-surface);
+  border-block-start: 1px solid var(--as-border);
+}
+
+/* What saving changes in a role's permissions: one line for what is added, one for what is removed. */
+.roleDiff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}

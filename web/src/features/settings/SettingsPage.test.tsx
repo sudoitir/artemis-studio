@@ -167,6 +167,8 @@ const onlyTab = (name: string) => {
 };
 
 const footer = () => screen.getByRole('region', { name: 'Unsaved changes' });
+// The footer rises into place, so the first look waits for it.
+const findFooter = () => screen.findByRole('region', { name: 'Unsaved changes' });
 
 describe('the Settings page', () => {
   // The shell gates on `/auth/me` and lists clusters, environments and firing alerts beside any page.
@@ -313,7 +315,7 @@ describe('the Settings page', () => {
     await user.clear(batch);
     await user.type(batch, '200');
 
-    expect(within(footer()).getByText('2 unsaved changes in 2 categories')).toBeInTheDocument();
+    expect(await within(await findFooter()).findByText('2 unsaved changes in 2 categories')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Scrape, 1 unsaved change' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Audit, 1 unsaved change' })).toBeInTheDocument();
 
@@ -321,7 +323,9 @@ describe('the Settings page', () => {
     expect(await screen.findByLabelText('Tier A interval')).toHaveValue('10s');
 
     await user.click(within(footer()).getByRole('button', { name: 'Discard' }));
-    expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument();
+    // The footer keeps its figures while it leaves, then goes.
+    expect(within(footer()).getByText('2 unsaved changes in 2 categories')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument());
     expect(screen.getByLabelText('Tier A interval')).toHaveValue('5s');
     expect(screen.getByText('Discarded 2 unsaved changes.')).toBeInTheDocument();
   });
@@ -391,6 +395,24 @@ describe('the Settings page', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument());
   });
 
+  it('opens the review on Enter in a field, rather than applying the draft', async () => {
+    const recorded = serve();
+    renderAppAt('/settings-under-test?tab=scrape', features);
+    const user = userEvent.setup();
+
+    const tierA = await screen.findByLabelText('Tier A interval');
+    await user.clear(tierA);
+    await user.type(tierA, '10s');
+    await waitFor(() => expect(within(footer()).getByText('Applies at once, with no restart.')).toBeInTheDocument());
+    await user.type(tierA, '{Enter}');
+
+    const dialog = await screen.findByRole('dialog', { name: 'Review 1 change' });
+    expect(recorded.applies).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Apply 1 change' }));
+    expect(await screen.findByText('Applied 1 setting change')).toBeInTheDocument();
+    expect(recorded.applies).toHaveLength(1);
+  });
+
   it('asks for approval when a policy holds the draft, with no reason to write, then shows the changes as pending', async () => {
     let held = false;
     const pending = (value: string) => [
@@ -420,7 +442,7 @@ describe('the Settings page', () => {
     await user.clear(tierB);
     await user.type(tierB, '90s');
 
-    const primary = await within(footer()).findByRole('button', { name: 'Request approval…' });
+    const primary = await within(await findFooter()).findByRole('button', { name: 'Request approval…' });
     expect(within(footer()).getByText('Needs approval under “Two-person rule”.')).toBeInTheDocument();
     await user.click(primary);
 
@@ -450,7 +472,7 @@ describe('the Settings page', () => {
     ]);
     // The draft is gone, and each change waits beside its setting.
     await waitFor(() => expect(screen.getAllByText('Pending approval')).toHaveLength(2));
-    expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument());
     expect(screen.getByLabelText('Tier A interval')).toHaveValue('5s');
   });
 
@@ -467,7 +489,7 @@ describe('the Settings page', () => {
 
     await user.click(await screen.findByRole('switch', { name: /Read-only/ }));
 
-    expect(await within(footer()).findByText(/Outside the change window\./)).toBeInTheDocument();
+    expect(await within(await findFooter()).findByText(/Outside the change window\./)).toBeInTheDocument();
     expect(within(footer()).getByRole('button', { name: 'Apply 1 change' })).toBeDisabled();
   });
 

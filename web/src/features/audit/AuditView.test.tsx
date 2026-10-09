@@ -304,19 +304,16 @@ describe('AuditView filters', () => {
     navigate.mockReset();
   });
 
-  it('commits a typed user to the address on blur, for someone who cannot list users', async () => {
+  it('commits a typed user to the address once typing pauses, for someone who cannot list users', async () => {
     server.use(grants([]), page([row()]));
     const user = userEvent.setup();
     renderWithProviders(<AuditView />);
 
     const field = await screen.findByRole('textbox', { name: 'Filter by user' });
     await user.type(field, 'ann');
-    await waitFor(() => expect(field).toHaveValue('ann'));
-    // The value committed is the debounced one, so wait for typing to settle before leaving the field.
-    await new Promise((r) => setTimeout(r, 300));
-    await user.tab();
+    expect(field).toHaveFocus();
 
-    await waitFor(() => expect(navigate).toHaveBeenCalled());
+    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
     expect(nextSearch({ page: 4 })).toEqual({ page: undefined, user: 'ann' });
   });
 
@@ -349,17 +346,49 @@ describe('AuditView filters', () => {
     const user = userEvent.setup();
     renderWithProviders(<AuditView />);
 
+    // In words on screen; the recorded value in the address.
     const action = await screen.findByPlaceholderText('Any action');
-    expect(action).toHaveValue('PURGE_QUEUE');
+    expect(action).toHaveValue('Purge queue');
     await user.click(action);
-    await user.click(await screen.findByRole('option', { name: 'MOVE_MESSAGES' }));
+    await user.click(await screen.findByRole('option', { name: 'Move messages' }));
     expect(nextSearch()).toEqual({ action: 'MOVE_MESSAGES', page: undefined });
 
     const outcome = screen.getByPlaceholderText('Any outcome');
-    expect(outcome).toHaveValue('FAILURE');
+    expect(outcome).toHaveValue('Failure');
     await user.click(outcome);
-    await user.click(await screen.findByRole('option', { name: 'SUCCESS' }));
+    await user.click(await screen.findByRole('option', { name: 'Success' }));
     expect(nextSearch()).toEqual({ outcome: 'SUCCESS', page: undefined });
+  });
+
+  it('narrows to a time range from a preset, by the instant it starts', async () => {
+    server.use(grants([]), page([row()]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    await user.click(await screen.findByPlaceholderText('Any time'));
+    const before = Date.now();
+    await user.click(await screen.findByRole('option', { name: 'Last 24 hours' }));
+    const next = nextSearch() as { from: string; to: undefined };
+    expect(next.to).toBeUndefined();
+    expect(before - Date.parse(next.from)).toBeGreaterThan(24 * 3_600_000 - 60_000);
+    expect(before - Date.parse(next.from)).toBeLessThan(24 * 3_600_000 + 60_000);
+  });
+
+  it('names a range from a shared link as it is, and sends it with the query', async () => {
+    search = { from: '2026-09-01T00:00:00Z' };
+    const asked: string[] = [];
+    server.use(
+      grants([]),
+      http.get('*/api/v1/clusters/c1/audit', ({ request }) => {
+        asked.push(new URL(request.url).searchParams.get('from') ?? '');
+        return HttpResponse.json({ data: [row()], count: 1, page: 1, pageSize: 100 });
+      }),
+    );
+    renderWithProviders(<AuditView />);
+
+    const time = (await screen.findByPlaceholderText('Any time')) as HTMLInputElement;
+    expect(time.value).toMatch(/^Since 2026-0[89]-/);
+    await waitFor(() => expect(asked).toContain('2026-09-01T00:00:00Z'));
   });
 });
 

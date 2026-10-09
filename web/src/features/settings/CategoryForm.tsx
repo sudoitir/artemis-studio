@@ -12,7 +12,7 @@ const WRITE_REASON = 'Changing settings needs the settings:write permission. You
 /**
  * One category's settings as a form, under a heading per group in the order their module declares them. Only
  * the settings `shown` are listed, so a search narrows the form rather than hiding the category. Enter in any
- * field does what the page's primary action does.
+ * field opens the review of the whole draft; only the footer's primary button applies it directly.
  */
 export function CategoryForm({
   category,
@@ -69,7 +69,7 @@ export function CategoryForm({
           );
         })}
       </Stack>
-      {/* Enter in a field submits the form; the visible actions are in the page's footer. */}
+      {/* Enter in a field submits the form, which opens the review; the visible actions are in the page's footer. */}
       <button type="submit" hidden aria-hidden tabIndex={-1} />
     </form>
   );

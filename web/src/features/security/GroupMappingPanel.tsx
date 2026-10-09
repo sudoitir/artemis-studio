@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Button, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
 import { useAuthProviders } from '../../kernel/auth/api.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { DialogActions, useDiscardGuard } from '../../ui/DialogActions.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
@@ -12,7 +13,7 @@ import { Section } from '../../ui/Section.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { DataTable } from '../../ui/table/index.ts';
 import { useCreateGroupMapping, useDeleteGroupMapping, useGroupMappings, useRoles, useSetDefaultRole } from './api.ts';
-import type { GroupMappingView } from './api.ts';
+import type { GroupMappingView, RoleView } from './api.ts';
 import { mappingColumns } from './columns.ts';
 import { withNotice } from './outcomes.ts';
 import { ScopeFields } from './ScopeFields.tsx';
@@ -83,7 +84,6 @@ function Providers() {
 function ProviderMappings({ providerId }: Readonly<{ providerId: string }>) {
   const mappings = useGroupMappings(providerId);
   const roles = useRoles();
-  const setDefault = useSetDefaultRole(providerId);
 
   const [adding, setAdding] = useState(false);
   // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
@@ -103,22 +103,15 @@ function ProviderMappings({ providerId }: Readonly<{ providerId: string }>) {
 
   return (
     <Stack gap="md">
-      <Select
-        label="Default role"
-        description="Granted when a user's groups match no mapping. With none, that user is refused sign-in."
-        data={roleOptions}
-        value={mappings.data?.defaultRoleId ?? null}
-        disabled={setDefault.isPending}
-        onChange={(value) =>
-          setDefault.mutate(
-            { roleId: value },
-            withNotice(SET_DEFAULT, 'the default role', 'The default role is unchanged. Try again.'),
-          )
-        }
-        placeholder="None: refuse unmapped users"
-        clearable
-        className={classes.field}
-      />
+      {mappings.data ? (
+        <DefaultRole
+          // A default saved elsewhere starts the field over from it.
+          key={mappings.data.defaultRoleId ?? ''}
+          providerId={providerId}
+          saved={mappings.data.defaultRoleId ?? null}
+          roles={roles.data ?? []}
+        />
+      ) : null}
 
       <Text size="sm" c="dimmed">
         Applied to a user&apos;s grants every time they sign in through this provider.
@@ -161,7 +154,76 @@ function ProviderMappings({ providerId }: Readonly<{ providerId: string }>) {
   );
 }
 
-/** States what removing a mapping does to the next sign-ins before it can be armed, then asks for the group. */
+/**
+ * The role an unmapped user gets. A choice is staged and saved with its own button, after a confirmation that
+ * states old and new; clearing it refuses every unmapped user, so that one is confirmed as a danger.
+ */
+function DefaultRole({
+  providerId,
+  saved,
+  roles,
+}: Readonly<{ providerId: string; saved: string | null; roles: readonly RoleView[] }>) {
+  const setDefault = useSetDefaultRole(providerId);
+  const [staged, setStaged] = useState<string | null>(saved);
+  const [confirming, setConfirming] = useState(false);
+  const changed = staged !== saved;
+  const nameOf = (id: string | null) => roles.find((r) => r.id === id)?.name;
+  const before = nameOf(saved);
+  const after = nameOf(staged);
+  const refusing = staged === null;
+
+  const save = () =>
+    setDefault.mutate(
+      { roleId: staged },
+      withNotice(SET_DEFAULT, 'the default role', 'The default role is unchanged. Try again.', () =>
+        setConfirming(false),
+      ),
+    );
+
+  let consequence: string;
+  if (refusing) {
+    consequence = `A user whose groups match no mapping is refused sign-in through this provider from their next sign-in, instead of getting ${before ?? 'a role'}.`;
+  } else if (saved === null) {
+    consequence = `A user whose groups match no mapping gets ${after ?? 'the chosen role'} at their next sign-in, instead of being refused.`;
+  } else {
+    consequence = `A user whose groups match no mapping gets ${after ?? 'the chosen role'} instead of ${before ?? 'the current role'} at their next sign-in.`;
+  }
+
+  return (
+    <Group align="flex-end" gap="sm">
+      <Select
+        label="Default role"
+        description="Granted when a user's groups match no mapping. With none, that user is refused sign-in."
+        data={roles.map((r) => ({ value: r.id, label: r.name }))}
+        value={staged}
+        onChange={setStaged}
+        placeholder="None: refuse unmapped users"
+        clearable
+        className={classes.field}
+      />
+      {changed ? (
+        <>
+          <Button variant="default" onClick={() => setStaged(saved)}>
+            Undo
+          </Button>
+          <Button onClick={() => setConfirming(true)}>Save default role</Button>
+        </>
+      ) : null}
+      <ConfirmDialog
+        opened={confirming}
+        onClose={() => setConfirming(false)}
+        title={refusing ? 'Refuse unmapped users?' : 'Change the default role?'}
+        tone={refusing ? 'danger' : 'default'}
+        pending={setDefault.isPending}
+        confirmLabel={refusing ? 'Refuse unmapped users' : 'Save default role'}
+        consequence={consequence}
+        onConfirm={save}
+      />
+    </Group>
+  );
+}
+
+/** States what removing a mapping does to the next sign-ins; it is added back as easily, so it asks once. */
 function DeleteMapping({
   providerId,
   mapping,
@@ -219,6 +281,7 @@ function NewMappingModal({
     onClose();
     form.reset();
   };
+  const guard = useDiscardGuard(form.isDirty(), close);
 
   const submit = form.onSubmit(({ groupName, roleId, scope }) => {
     if (!roleId) return;
@@ -243,15 +306,21 @@ function NewMappingModal({
   }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Modal opened={opened} onClose={close} title="New group mapping">
+    <Modal opened={opened} {...guard.modalProps} title="New group mapping">
       <form noValidate onSubmit={submit}>
         <Stack gap="sm">
+          {guard.prompt}
           <TextInput label="Group" {...form.getInputProps('groupName')} required />
           <Select label="Role" data={roleOptions} {...form.getInputProps('roleId')} required />
           <ScopeFields {...form.getInputProps('scope')} />
-          <Button type="submit" loading={create.isPending}>
-            Add mapping
-          </Button>
+          <DialogActions>
+            <Button variant="default" onClick={guard.modalProps.onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={create.isPending}>
+              Add mapping
+            </Button>
+          </DialogActions>
         </Stack>
       </form>
     </Modal>

@@ -758,15 +758,15 @@ Progress motion SHALL honour the operator's reduced-motion preference.
 
 ### Requirement: Settings is presented as grouped tabs
 
-The Settings page SHALL present each settings section as a tab in a vertical tab list. The tabs SHALL be grouped under fixed headings in this order: the operator's own preferences, Studio-wide configuration, this cluster, and plugins. Studio-wide configuration SHALL have one tab per settings category. Each category SHALL be edited as a form whose inputs fit each setting's kind. A modified setting SHALL show its default and offer a reset.
+The Settings page SHALL be a cluster's, shown to those who hold `settings:read`. It SHALL present each settings section as a tab in a vertical tab list. The tabs SHALL be grouped under fixed headings in this order: Studio-wide configuration, this cluster, and plugins. What is not configuration a cluster's operators share SHALL live elsewhere: the operator's own display preferences on the Account page, which needs no permission, and the installation's encryption keys and Studio's own health under Administration. Studio-wide configuration SHALL have one tab per settings category. Each category SHALL be edited as a form whose inputs fit each setting's kind. A modified setting SHALL show its default and offer a reset.
 
 One search SHALL find settings across all categories, and a filter SHALL show only modified settings. The open tab and the search SHALL be held in the address, so they can be shared and restored.
 
-Edits SHALL form one draft across categories. A marker SHALL show on each category with unsaved changes. Leaving with unsaved changes SHALL ask first. The draft SHALL be applied in one step when no approval is needed. When approval is needed, the draft SHALL be reviewed first, as a list of current and new values, with a reason.
+Edits SHALL form one draft across categories. A marker SHALL show on each category with unsaved changes. Leaving with unsaved changes SHALL ask first. The draft SHALL be applied in one step when no approval is needed. When approval is needed, the draft SHALL be reviewed first, as a list of current and new values, with a reason. Enter in a setting's field SHALL open that review rather than apply the draft; only the footer's primary action SHALL apply it directly.
 
 A change waiting for approval SHALL show beside its setting, with its requester, its age and a way to cancel it.
 
-The tab list SHALL be operable from the keyboard, and changing tab SHALL move focus to the opened section's heading. A section contributed by a plugin SHALL appear under the plugins heading.
+The tab list SHALL be operable from the keyboard, and changing tab SHALL move focus to the opened section's heading. A section contributed by a plugin SHALL appear under the plugins heading. A section whose form holds unsaved input SHALL be marked Unsaved, and changing tab away from it SHALL ask before discarding that input.
 
 #### Scenario: The open tab survives a reload
 
@@ -788,10 +788,20 @@ The tab list SHALL be operable from the keyboard, and changing tab SHALL move fo
 - **WHEN** a team member edits two settings and a provider would hold the change
 - **THEN** the primary action reads "Request approval", and submitting shows both changes as pending beside their settings
 
+#### Scenario: Enter in a field reviews the draft
+
+- **WHEN** an operator edits a setting and presses Enter in its field
+- **THEN** the review of the whole draft opens, and nothing is applied until it is confirmed
+
 #### Scenario: Leaving with unsaved edits
 
 - **WHEN** an operator with unsaved edits navigates away
 - **THEN** Studio asks before discarding them
+
+#### Scenario: Unsaved connection edits survive a stray tab change
+
+- **WHEN** an operator has edited a cluster's connection form and opens another Settings tab
+- **THEN** Studio asks whether to discard the edits, and staying keeps them
 
 ### Requirement: Plugin management states consequences before acting and outcomes after
 
@@ -1240,7 +1250,7 @@ like Studio's.
 
 ### Requirement: Administration SHALL use grouped navigation
 
-The Administration page SHALL list its sections in a vertical navigation grouped under Access, Installation, Governance and Support. A plugin's section SHALL declare its group. The open section SHALL be held in the address.
+The Administration page SHALL list its sections in a vertical navigation grouped under Access, Installation, Governance and Support. Encryption keys SHALL be listed under Installation and Studio's own health under Support. A plugin's section SHALL declare its group. The open section SHALL be held in the address. The open section SHALL be marked on its start edge with the accent and the selection tint, as the sidebar marks the open page, and the list SHALL stay in view while a long section scrolls.
 
 #### Scenario: Plugin section
 

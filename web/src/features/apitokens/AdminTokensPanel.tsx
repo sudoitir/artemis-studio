@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Drawer } from '@mantine/core';
+import { Link } from '@tanstack/react-router';
 
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
+import linkClasses from '../../ui/InlineLink.module.css';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -64,7 +66,7 @@ function Inventory() {
   return (
     <Section
       title="API keys"
-      description="Every user's keys. A key unused for longer than the stale period in Settings → API tokens is flagged."
+      description="Every user's keys. A key unused for longer than the stale period (API tokens, in a cluster's Settings) is flagged."
     >
       <DataTable
         variant="static"
@@ -79,7 +81,15 @@ function Inventory() {
           <EmptyState
             kind="empty"
             title="No user has a key yet"
-            description="Users mint keys for scripts and assistants on their account page."
+            description={
+              <>
+                Users mint keys for scripts and assistants on their{' '}
+                <Link to="/account" className={linkClasses.link}>
+                  account page
+                </Link>
+                .
+              </>
+            }
           />
         }
       />

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { Button, Group, Modal, Stack, Text, useMantineTheme } from '@mantine/core';
+import { Button, Modal, Stack, Text, useMantineTheme } from '@mantine/core';
 
+import { DialogActions } from './DialogActions.tsx';
 import { HoldToConfirm } from './HoldToConfirm.tsx';
 import classes from './ConfirmDialog.module.css';
 
@@ -62,7 +63,7 @@ export function ConfirmDialog({
         <fieldset ref={outcome} aria-label="Result" tabIndex={-1} className={classes.outcome}>
           {result}
         </fieldset>
-        <Group justify="flex-end">{cancel}</Group>
+        <DialogActions>{cancel}</DialogActions>
       </>
     );
   } else if (tone === 'danger') {
@@ -76,14 +77,14 @@ export function ConfirmDialog({
           describedBy={blocked ? reasonId : undefined}
           onConfirm={onConfirm}
         />
-        <Group justify="flex-end">{cancel}</Group>
+        <DialogActions>{cancel}</DialogActions>
       </>
     );
   } else {
     controls = (
       <>
         {reason}
-        <Group justify="flex-end">
+        <DialogActions>
           {cancel}
           <Button
             color={color}
@@ -94,7 +95,7 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </Button>
-        </Group>
+        </DialogActions>
       </>
     );
   }

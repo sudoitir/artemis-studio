@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -12,6 +13,7 @@ import { FeatureProvider } from '../FeatureProvider.tsx';
 import { rootRoute } from '../routing/roots.ts';
 import { Section } from '../../ui/Section.tsx';
 import { AdminView } from './AdminView.tsx';
+import { useUnsavedSection } from './SectionNav.tsx';
 
 /**
  * The Administration page: one page with a single h1, a tab per contribution under its group's
@@ -36,6 +38,21 @@ const panel = (title: string, text: string) => () => (
   </Section>
 );
 
+// A panel with a form: what is typed is lost when the tab unmounts, so it says so.
+function UsersPanel() {
+  const [name, setName] = useState('');
+  useUnsavedSection(name !== '');
+  return (
+    <Section title="Users">
+      <p>Who can sign in</p>
+      <label>
+        New user
+        <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
+      </label>
+    </Section>
+  );
+}
+
 // Contributed out of group order, and with no Governance tab, so the page's own order and the hidden
 // empty group are what the tests see.
 const features: StudioFeature[] = [
@@ -52,7 +69,7 @@ const features: StudioFeature[] = [
           group: 'support',
           Component: panel('Diagnostics', 'A bundle'),
         },
-        { id: 'users', order: 10, title: 'Users', group: 'access', Component: panel('Users', 'Who can sign in') },
+        { id: 'users', order: 10, title: 'Users', group: 'access', Component: UsersPanel },
         { id: 'plugins', order: 15, title: 'Plugins', group: 'installation', Component: panel('Plugins', 'Installed') },
         { id: 'teams', order: 22, title: 'Teams', group: 'access', Component: panel('Teams', 'Who owns what') },
       ],
@@ -156,5 +173,29 @@ describe('the Administration page', () => {
     const plugins = await screen.findByRole('group', { name: 'Plugins' });
     await waitFor(() => expect(plugins).toHaveFocus());
     expect(within(plugins).getByRole('heading', { level: 2, name: 'Plugins' })).toBeInTheDocument();
+  });
+
+  it('marks a section with unsaved input, and asks before opening another would discard it', async () => {
+    const { router } = renderAppAt('/admin-under-test', features);
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByRole('textbox', { name: 'New user' }), 'alice');
+    expect(screen.getByRole('link', { name: 'Users, unsaved changes' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Plugins' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Stay on this section' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('textbox', { name: 'New user' })).toHaveValue('alice');
+    expect(router.state.location.search).toEqual({});
+
+    await user.click(screen.getByRole('link', { name: 'Plugins' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {
+        name: 'Discard and open',
+      }),
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'plugins' }));
+    expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
   });
 });

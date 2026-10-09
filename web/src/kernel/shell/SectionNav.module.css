@@ -44,3 +44,9 @@
     max-block-size: none;
   }
 }
+
+/* A section whose form holds unsaved input says so in words beside its title. */
+.unsaved {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}

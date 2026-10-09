@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Button, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
+import { DialogActions } from '../../ui/DialogActions.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Notice } from '../../ui/Notice.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -80,14 +81,14 @@ export function ReviewDialog({
           {error ? (
             <ErrorState variant="inline" error={error} next="Your changes are still in the draft. Try again." />
           ) : null}
-          <Group justify="flex-end" gap="sm">
+          <DialogActions>
             <Button variant="default" onClick={onClose} disabled={pending}>
               Back to editing
             </Button>
             <Button type="submit" loading={pending} data-autofocus>
               {requesting ? 'Request approval' : `Apply ${count}`}
             </Button>
-          </Group>
+          </DialogActions>
         </Stack>
       </form>
     </Modal>

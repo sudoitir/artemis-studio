@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Code, Drawer, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
@@ -22,6 +22,7 @@ import { Section } from '../../ui/Section.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { at, auditColumns, outcome } from './columns.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { absoluteLabel, serverNow } from '../../kernel/time/time.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { useFilterShortcut } from '../../kernel/keyboard/filterShortcut.ts';
 
@@ -48,6 +49,9 @@ type AuditSearch = {
   user?: string;
   action?: string;
   outcome?: string;
+  /** The time range, as instants: events at or after `from`, and before `to`. */
+  from?: string;
+  to?: string;
   parentId?: number;
   event?: number;
   page?: number;
@@ -55,19 +59,74 @@ type AuditSearch = {
 
 type SetParam = (patch: Record<string, unknown>) => unknown;
 
+// The filter offers each action and outcome in words; the address and the query keep the recorded value.
 const ACTIONS = [
-  'SEND_MESSAGE',
-  'MOVE_MESSAGES',
-  'RETRY_MESSAGES',
-  'DELETE_MESSAGES',
-  'EXPIRE_MESSAGES',
-  'PURGE_QUEUE',
-  'REGISTER_CLUSTER',
-  'REDISCOVER_CLUSTER',
-  'DELETE_CLUSTER',
+  { value: 'SEND_MESSAGE', label: 'Send message' },
+  { value: 'MOVE_MESSAGES', label: 'Move messages' },
+  { value: 'RETRY_MESSAGES', label: 'Retry messages' },
+  { value: 'DELETE_MESSAGES', label: 'Delete messages' },
+  { value: 'EXPIRE_MESSAGES', label: 'Expire messages' },
+  { value: 'PURGE_QUEUE', label: 'Purge queue' },
+  { value: 'REGISTER_CLUSTER', label: 'Register cluster' },
+  { value: 'REDISCOVER_CLUSTER', label: 'Rediscover cluster' },
+  { value: 'DELETE_CLUSTER', label: 'Delete cluster' },
 ];
 
-/** The user, action and outcome filters; each commits to the URL, the single source of truth. */
+const OUTCOMES = [
+  { value: 'SUCCESS', label: 'Success' },
+  { value: 'FAILURE', label: 'Failure' },
+  { value: 'REFUSED', label: 'Refused' },
+  { value: 'PENDING', label: 'Pending' },
+];
+
+const HOUR_MS = 3_600_000;
+const RANGES = [
+  { value: '1h', label: 'Last hour', ms: HOUR_MS },
+  { value: '24h', label: 'Last 24 hours', ms: 24 * HOUR_MS },
+  { value: '7d', label: 'Last 7 days', ms: 7 * 24 * HOUR_MS },
+  { value: '30d', label: 'Last 30 days', ms: 30 * 24 * HOUR_MS },
+];
+const CUSTOM = 'custom';
+
+/** A range in the address that no preset chose here, such as a shared link's, in words. */
+function customRange(from: string | undefined, to: string | undefined): string {
+  if (from && to) return `${absoluteLabel(from)} to ${absoluteLabel(to)}`;
+  if (from) return `Since ${absoluteLabel(from)}`;
+  return `Before ${absoluteLabel(to)}`;
+}
+
+/**
+ * The time range: a preset sets `from` to that long before now, by the server's clock, and clears `to`. The
+ * instants are what the address holds, so a shared link shows the same events; a range it holds that was not
+ * picked here is named as it is.
+ */
+function RangeFilter({ search, setParam }: Readonly<{ search: AuditSearch; setParam: SetParam }>) {
+  const [preset, setPreset] = useState<string | null>(null);
+  const ranged = Boolean(search.from || search.to);
+  let value: string | null = null;
+  if (ranged) value = preset ?? CUSTOM;
+  const data = ranged && !preset ? [...RANGES, { value: CUSTOM, label: customRange(search.from, search.to) }] : RANGES;
+  return (
+    <Select
+      label="Time"
+      placeholder="Any time"
+      size="xs"
+      w="13rem"
+      clearable
+      allowDeselect={false}
+      value={value}
+      data={data.map(({ value: v, label }) => ({ value: v, label }))}
+      onChange={(next) => {
+        const range = RANGES.find((r) => r.value === next);
+        setPreset(range ? range.value : null);
+        if (next === CUSTOM) return;
+        void setParam({ from: range ? new Date(serverNow() - range.ms).toISOString() : undefined, to: undefined });
+      }}
+    />
+  );
+}
+
+/** The user, action, outcome and time filters; each commits to the URL, the single source of truth. */
 function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setParam: SetParam }>) {
   // `/` focuses this view's filter (ADR-0109).
   const filterRef = useRef<HTMLInputElement>(null);
@@ -78,10 +137,16 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
 
   const [user, setUser] = useState(search.user ?? '');
   const [debouncedUser] = useDebouncedValue(user, 250);
+  // The free-text field applies once typing pauses, not only when it loses focus.
+  const committed = search.user ?? '';
+  useEffect(() => {
+    if (debouncedUser.trim() !== committed) void setParam({ user: debouncedUser.trim() || undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedUser]);
 
-  // The Select commits to the URL immediately (a discrete choice needs no debounce);
-  // the free-text fallback commits its own debounced value the same way on blur —
-  // either way, the URL's `search.user` is the single source of truth for the query.
+  // The Select commits to the URL immediately (a discrete choice needs no debounce); the
+  // free-text fallback commits its debounced value — either way, the URL's `search.user` is
+  // the single source of truth for the query.
   return (
     <>
       {canListUsers ? (
@@ -103,7 +168,6 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
           placeholder="Filter by user"
           value={user}
           onChange={(e) => setUser(e.currentTarget.value)}
-          onBlur={() => setParam({ user: debouncedUser || undefined })}
           size="xs"
           w="11.25rem"
         />
@@ -126,8 +190,9 @@ function AuditFilters({ search, setParam }: Readonly<{ search: AuditSearch; setP
         clearable
         value={search.outcome ?? null}
         onChange={(v) => setParam({ outcome: v || undefined })}
-        data={['SUCCESS', 'FAILURE', 'REFUSED', 'PENDING']}
+        data={OUTCOMES}
       />
+      <RangeFilter search={search} setParam={setParam} />
     </>
   );
 }
@@ -139,7 +204,7 @@ function AuditEmpty({ filtered, onClearFilters }: Readonly<{ filtered: boolean; 
       <EmptyState
         kind="filtered"
         title="No audit event matches these filters"
-        description="Events are recorded on this cluster, but none has this user, action or outcome, or belongs to the run you are looking at. Clear the filters to see them all."
+        description="Events are recorded on this cluster, but none has this user, action or outcome, falls in this time range, or belongs to the run you are looking at. Clear the filters to see them all."
         onClearFilters={onClearFilters}
       />
     );
@@ -253,6 +318,8 @@ export function AuditView() {
     action: search.action,
     outcome: search.outcome,
     parentId: search.parentId,
+    from: search.from,
+    to: search.to,
     page,
     size: PAGE_SIZE,
   });
@@ -273,10 +340,19 @@ export function AuditView() {
 
   // The user field keeps what was typed in it, so clearing the filters starts it afresh.
   const [filterEpoch, setFilterEpoch] = useState(0);
-  const filtered = Boolean(search.user || search.action || search.outcome || search.parentId != null);
+  const filtered = Boolean(
+    search.user || search.action || search.outcome || search.from || search.to || search.parentId != null,
+  );
   const clearFilters = () => {
     setFilterEpoch((n) => n + 1);
-    void setParam({ user: undefined, action: undefined, outcome: undefined, parentId: undefined });
+    void setParam({
+      user: undefined,
+      action: undefined,
+      outcome: undefined,
+      from: undefined,
+      to: undefined,
+      parentId: undefined,
+    });
   };
 
   return (

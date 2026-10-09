@@ -1,5 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { useSearch } from '@tanstack/react-router';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { VisuallyHidden } from '@mantine/core';
+import { useBlocker, useSearch } from '@tanstack/react-router';
+
+import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 
 import { NavGroup } from './NavGroup.tsx';
 import { NavItem } from './NavItem.tsx';
@@ -21,6 +24,22 @@ export interface SectionGroup {
   tabs: SectionTab[];
 }
 
+/** Lets an open section say it holds input that leaving it would lose. */
+const UnsavedContext = createContext<((dirty: boolean) => void) | null>(null);
+
+/**
+ * Called by a form inside a section with whether it holds unsaved input. While it does, its row says
+ * Unsaved and opening another section asks first, because the section unmounts on a change and the input
+ * would be lost. Outside a section list it does nothing.
+ */
+export function useUnsavedSection(dirty: boolean) {
+  const report = useContext(UnsavedContext);
+  useEffect(() => {
+    report?.(dirty);
+    return () => report?.(false);
+  }, [report, dirty]);
+}
+
 /**
  * A page's sections as a list of links under fixed group headings, the open one beside the list. It is
  * navigation, not an ARIA tab widget: every row is a link to the same page with `?tab=<id>`, the open one
@@ -30,7 +49,8 @@ export interface SectionGroup {
  * Choosing a section never moves the page: the link does not reset the scroll, and the list scrolls the
  * page only when the top of the new section is above the window. A keyboard user who activates a link
  * lands in the section, which is named, so they read what they chose rather than staying in the list.
- * The list is its own scroll area when it is taller than the window, its group headings sticky.
+ * The list is its own scroll area when it is taller than the window, its group headings sticky. Leaving a
+ * section whose form holds unsaved input ({@link useUnsavedSection}) asks first, by link or by history.
  *
  * @param keep the search values that survive a change of section (a filter that applies to every one);
  *   the rest belong to the section that was open and are dropped.
@@ -47,6 +67,8 @@ export function SectionNav({
   const ordered = shown.flatMap((group) => group.tabs);
   const open = ordered.find((candidate) => candidate.id === search.tab) ?? ordered[0];
   const openId = open?.id;
+
+  const [unsaved, setUnsaved] = useState(false);
 
   const kept = Object.fromEntries(keep.filter((key) => search[key] !== undefined).map((key) => [key, search[key]]));
 
@@ -69,45 +91,87 @@ export function SectionNav({
   }, [openId]);
 
   return (
-    <div className={classes.frame}>
-      <div className={classes.root}>
-        <nav
-          aria-label={label}
-          className={classes.list}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') byKeyboard.current = true;
-          }}
-        >
-          {shown.map((group) => (
-            <NavGroup key={group.id} label={group.label} sticky>
-              {group.tabs.map(({ id, title, aside, preload }) => (
-                <NavItem
-                  key={id}
-                  to="."
-                  search={{ ...kept, tab: id }}
-                  current={id === openId}
-                  label={title}
-                  trailing={aside}
-                  onIntent={preload}
-                />
-              ))}
-            </NavGroup>
-          ))}
-        </nav>
-        {open ? (
-          <div
-            key={open.id}
-            ref={panel}
-            role="group"
-            aria-label={open.title}
-            data-section-panel
-            tabIndex={-1}
-            className={classes.panel}
+    <UnsavedContext.Provider value={setUnsaved}>
+      <div className={classes.frame}>
+        <div className={classes.root}>
+          <nav
+            aria-label={label}
+            className={classes.list}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') byKeyboard.current = true;
+            }}
           >
-            {open.panel}
-          </div>
-        ) : null}
+            {shown.map((group) => (
+              <NavGroup key={group.id} label={group.label} sticky>
+                {group.tabs.map(({ id, title, aside, preload }) => (
+                  <NavItem
+                    key={id}
+                    to="."
+                    search={{ ...kept, tab: id }}
+                    current={id === openId}
+                    label={title}
+                    trailing={
+                      unsaved && id === openId ? (
+                        <>
+                          {aside}
+                          <span className={classes.unsaved} aria-hidden>
+                            Unsaved
+                          </span>
+                          <VisuallyHidden>, unsaved changes</VisuallyHidden>
+                        </>
+                      ) : (
+                        aside
+                      )
+                    }
+                    onIntent={preload}
+                  />
+                ))}
+              </NavGroup>
+            ))}
+          </nav>
+          {open ? (
+            <div
+              key={open.id}
+              ref={panel}
+              role="group"
+              aria-label={open.title}
+              data-section-panel
+              tabIndex={-1}
+              className={classes.panel}
+            >
+              {open.panel}
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
+      {unsaved ? <LeaveGuard onDiscard={() => setUnsaved(false)} /> : null}
+    </UnsavedContext.Provider>
+  );
+}
+
+/**
+ * Asks before another section replaces one with unsaved input, whether by a link or by history. Mounted
+ * only while there is something to lose.
+ */
+function LeaveGuard({ onDiscard }: Readonly<{ onDiscard: () => void }>) {
+  const blocker = useBlocker({
+    shouldBlockFn: ({ current, next }) =>
+      current.pathname === next.pathname &&
+      (next.search as Record<string, unknown>).tab !== (current.search as Record<string, unknown>).tab,
+    withResolver: true,
+  });
+  return (
+    <ConfirmDialog
+      opened={blocker.status === 'blocked'}
+      onClose={() => blocker.reset?.()}
+      title="Discard changes?"
+      consequence="This section has changes that are not saved. Opening another section discards them; stay to save them first."
+      confirmLabel="Discard and open"
+      dismissLabel="Stay on this section"
+      onConfirm={() => {
+        blocker.proceed?.();
+        onDiscard();
+      }}
+    />
   );
 }

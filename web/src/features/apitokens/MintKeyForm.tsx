@@ -1,6 +1,7 @@
 import { Button, MultiSelect, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
+import { DialogActions } from '../../ui/DialogActions.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
@@ -68,7 +69,10 @@ function grantsFor(
  * more would only mint keys that silently lose what was ticked), and optionally the MCP tools the
  * key may call.
  */
-export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: CreatedTokenView) => void }>) {
+export function MintKeyForm({
+  onMinted,
+  onCancel,
+}: Readonly<{ onMinted: (created: CreatedTokenView) => void; onCancel: () => void }>) {
   const create = useCreateToken();
   const policy = useTokenPolicy();
   const tools = useMcpTools();
@@ -222,9 +226,14 @@ export function MintKeyForm({ onMinted }: Readonly<{ onMinted: (created: Created
         {create.isError ? (
           <ErrorState variant="inline" error={create.error} next={createFailure(create.error)} />
         ) : null}
-        <Button type="submit" loading={create.isPending}>
-          Create
-        </Button>
+        <DialogActions>
+          <Button variant="default" disabled={create.isPending} onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={create.isPending}>
+            Create key
+          </Button>
+        </DialogActions>
       </Stack>
     </form>
   );
