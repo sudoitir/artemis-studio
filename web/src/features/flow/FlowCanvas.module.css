@@ -8,6 +8,44 @@
   overflow: hidden;
 }
 
+/* The inspector, over the canvas's inline-end edge: opening it narrows nothing and moves no node. */
+.wrapper {
+  --flow-inspector-inline: 21.25rem;
+}
+
+.inspector {
+  position: absolute;
+  inset-block-start: var(--mantine-spacing-sm);
+  inset-inline-end: var(--mantine-spacing-sm);
+  z-index: 6;
+  inline-size: min(var(--flow-inspector-inline), 45%);
+  max-block-size: calc(100% - 2 * var(--mantine-spacing-sm));
+  overflow: auto;
+  border-radius: var(--mantine-radius-md);
+  box-shadow: var(--as-elevation-2);
+}
+
+/* Its header stays in view while its flows scroll beneath. */
+.inspector > aside > section > :first-child {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  margin-block-start: calc(-1 * var(--mantine-spacing-lg));
+  padding-block: var(--mantine-spacing-lg) var(--mantine-spacing-xs);
+  background: var(--as-surface-raised);
+}
+
+/* The view controls and the overview move aside for the inspector, rather than sit under it. */
+.viewControls,
+.wrapper :global(.react-flow__panel.right) {
+  transition: transform var(--as-duration-base) var(--as-ease);
+}
+
+.wrapper[data-inspecting] .viewControls,
+.wrapper[data-inspecting] :global(.react-flow__panel.right) {
+  transform: translateX(calc(-1 * (var(--flow-inspector-inline) + var(--mantine-spacing-sm))));
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -44,24 +82,91 @@
   padding-inline: 1.125rem;
 }
 
-.node[data-shape='tag'] {
-  border-radius: var(--mantine-radius-xs);
-  clip-path: polygon(0 0, calc(100% - 0.875rem) 0, 100% 50%, calc(100% - 0.875rem) 100%, 0 100%, 0.625rem 50%);
-  padding-inline: 1.375rem 1.625rem;
-}
-
 .node[data-shape='box'] {
   border-radius: var(--mantine-radius-sm);
 }
 
+/* A tag and a hexagon are drawn by their outline (FlowNodes.tsx), which carries the fill, the border
+   and the focus ring along the slanted sides; the box itself is only the frame for the text. */
+.node[data-shape='tag'],
 .node[data-shape='hex'] {
-  clip-path: polygon(0.75rem 0, calc(100% - 0.75rem) 0, 100% 50%, calc(100% - 0.75rem) 100%, 0.75rem 100%, 0 50%);
-  padding-inline: 1.375rem;
-  border-style: dashed;
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  background: transparent;
 }
 
-.node:hover {
-  border-color: var(--as-flow-edge-busy);
+.node[data-shape='tag'] {
+  padding-inline: 1.375rem 1.625rem;
+}
+
+.node[data-shape='hex'] {
+  padding-inline: 1.375rem;
+}
+
+.outline {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.outline polygon {
+  stroke-linejoin: miter;
+  fill: none;
+  transition: stroke var(--as-duration-fast) var(--as-ease);
+}
+
+.outlineShape {
+  stroke: var(--as-border);
+  stroke-width: 1px;
+}
+
+.outline .outlineShape {
+  fill: var(--as-flow-node-bg);
+}
+
+.outlineShape[data-shape='hex'] {
+  stroke-dasharray: 4 3;
+}
+
+/* The ring and the gap inside it are strokes centred on the outline, as wide as the ring's reach. */
+.outlineRing,
+.outlineGap {
+  visibility: hidden;
+}
+
+.outlineRing {
+  stroke: var(--as-accent);
+  stroke-width: calc(2 * (0.5px + var(--as-focus-offset) + 0.125rem));
+}
+
+.outlineGap {
+  stroke: var(--as-graph-node-bg);
+  stroke-width: calc(2 * (0.5px + var(--as-focus-offset)));
+}
+
+.node:focus-visible .outlineRing,
+.node:focus-visible .outlineGap {
+  visibility: visible;
+}
+
+/* The tag's notch is set in from its side; its incoming edge meets the notch, not the box's edge. */
+.node[data-shape='tag'] :global(.react-flow__handle-left) {
+  inset-inline-start: 0.625rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .node:hover {
+    border-color: var(--as-flow-edge-busy);
+  }
+
+  .node:hover .outlineShape {
+    stroke: var(--as-flow-edge-busy);
+  }
 }
 
 .node:focus-visible {
@@ -69,12 +174,26 @@
   outline-offset: var(--as-focus-offset);
 }
 
+.node[data-shape='tag']:focus-visible,
+.node[data-shape='hex']:focus-visible {
+  outline: none;
+}
+
 .node[data-fault] {
   border-color: var(--as-flow-fault);
 }
 
+.node[data-fault] .outlineShape {
+  stroke: var(--as-flow-fault);
+}
+
 .node[data-dimmed] {
   opacity: var(--as-flow-dim);
+}
+
+/* A fault stays legible behind someone else's emphasis. */
+.node[data-dimmed][data-fault] {
+  opacity: max(var(--as-flow-dim), 0.6);
 }
 
 .head {
@@ -107,6 +226,14 @@
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--as-flow-fault);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The fault replaces the node's last line, so a node never grows past the height its layout gave it. */
+.node[data-fault] .meta {
+  display: none;
 }
 
 .depth {
@@ -211,6 +338,12 @@
   opacity: var(--as-flow-dim);
 }
 
+/* On a dense graph a refresh would start hundreds of width transitions at once; the weight steps instead. */
+.wrapper[data-dense] .edge,
+.wrapper[data-dense] .edgeInner {
+  transition: opacity var(--as-duration-fast) var(--as-ease);
+}
+
 .dot {
   fill: var(--as-flow-dot);
   /* A surface ring, so the dot reads on a thick line: dot on edge is only 1.5:1 in the dark
@@ -279,8 +412,10 @@
   cursor: pointer;
 }
 
-.minimapButton:hover {
-  color: var(--as-text);
+@media (hover: hover) and (pointer: fine) {
+  .minimapButton:hover {
+    color: var(--as-text);
+  }
 }
 
 /* ── legend ────────────────────────────────────────────────────────────── */
@@ -288,11 +423,24 @@
 .legend {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 1rem;
+  align-items: flex-start;
+  gap: 0.5rem 1.5rem;
   padding-block-start: 0.5rem;
   font-size: 0.6875rem;
   color: var(--as-text-dimmed);
+}
+
+.legendGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  min-inline-size: 0;
+}
+
+.legendTitle {
+  font-weight: 600;
+  color: var(--as-text);
 }
 
 .legendItem {
@@ -301,69 +449,23 @@
   gap: 0.375rem;
 }
 
-.legendShape {
-  inline-size: 1.125rem;
-  block-size: 0.625rem;
-  border: 1px solid var(--as-text-dimmed);
+/* The marks are the canvas's own: a node's outline and an edge's path, with the classes the canvas uses. */
+.legendNode {
+  flex: none;
+  inline-size: 2.25rem;
+  block-size: 0.75rem;
+  overflow: visible;
 }
 
-.legendShape[data-shape='pill'] {
-  border-radius: 100vmax;
-}
-
-.legendShape[data-shape='tag'] {
-  clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%);
-  background: var(--as-text-dimmed);
-}
-
-.legendShape[data-shape='box'] {
-  border-radius: 0.125rem;
+.legendNode .outlineShape {
+  fill: var(--as-flow-node-bg);
+  stroke: var(--as-text-dimmed);
+  vector-effect: non-scaling-stroke;
 }
 
 .legendLine {
-  inline-size: 1.375rem;
-  block-size: 0;
-  border-block-start: 0.125rem solid var(--as-flow-edge);
-}
-
-/* Reference weights, drawn with the canvas's own widthPx (FlowLegend.tsx). */
-.legendLine[data-line='flowing'] {
-  border-block-start-width: var(--edge-width);
-}
-
-.legendLine[data-line='idle'] {
-  border-block-start-style: dashed;
-}
-
-.legendLine[data-line='unknown'] {
-  border-block-start-style: dotted;
-}
-
-.legendLine[data-kind='DIVERT'] {
-  border-block-start-style: dotted;
-  border-block-start-width: 0.125rem;
-}
-
-.legendLine[data-kind='BRIDGE'] {
-  border-block-start-style: double;
-  border-block-start-width: 0.25rem;
-}
-
-.legendLine[data-kind='CLUSTER_HOP'] {
-  border-block-start-style: dashed;
-  border-block-start-width: 0.1875rem;
-}
-
-.legendLine[data-kind='DEAD_LETTER'] {
-  border-block-start-style: dashed;
-  border-block-start-width: 0.125rem;
-}
-
-.legendShape[data-shape='hex'] {
-  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
-  background: var(--as-text-dimmed);
-}
-
-.legendLine[data-fault] {
-  border-block-start-color: var(--as-flow-fault);
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 0.75rem;
+  overflow: visible;
 }

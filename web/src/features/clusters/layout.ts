@@ -17,7 +17,7 @@ export type { NodeKind };
  *
  *   - which side of the group's axis a box sits on = HA role (serving above, standby below)
  *   - both boxes above the axis, in one group = split-brain CRITICAL
- *   - a dashed connecting edge + an offset bottom box = replication behind
+ *   - a dashed connecting edge + a bottom box offset to the inline end = replication behind
  *   - a translucent dashed box = discovered, not yet manageable
  *
  * — with each state's mark distinguished by **shape**, not brightness, and colour
@@ -46,6 +46,8 @@ export const AXIS_Y = LIVE_Y + NODE_H + 18;
 export const BACKUP_Y = AXIS_Y + 30;
 export const GROUP_H = BACKUP_Y + NODE_H + GROUP_PAD;
 const BOX_DX = NODE_W + 20;
+/** How far a standby that is behind sits to the inline end of its slot; within the group's padding. */
+export const OFFSET_DX = 18;
 
 /** Column pitch for a single-endpoint-wide group; kept for callers that lay out by column. */
 export const COL_W = NODE_W + 2 * GROUP_PAD + GROUP_GAP;
@@ -67,6 +69,7 @@ export interface BrokerNodeData extends Record<string, unknown> {
   /** Line 4: the address, or the error that stopped Studio reaching the node. */
   detail: string | null;
   detailIsError: boolean;
+  /** A standby whose replication is behind, drawn offset from its slot (the offset is in the position). */
   offset: boolean;
   /** The broker endpoints this box stands for: one, or every endpoint of a collapsed pair, its head first. */
   nodeIds: string[];
@@ -154,7 +157,11 @@ function brokerNode(
     type: 'broker',
     parentId,
     extent: 'parent',
-    position: { x, y },
+    position: { x: offset ? x + OFFSET_DX : x, y },
+    // Sized up front, so React Flow places the box inside its group on the first pass instead of
+    // clamping an unmeasured box to the group's corner.
+    width: NODE_W,
+    height: NODE_H,
     draggable: false,
     connectable: false,
     data: boxOf(facts, offset),
@@ -218,11 +225,12 @@ function pairChildren(
     brokerNode(groupId, GROUP_PAD + i * BOX_DX, BACKUP_Y, e, logical, logical.replicationBehind),
   );
   const top = above[0];
+  // The id names the slot, not the endpoints, so a failover that swaps the two boxes keeps the same edge.
   const edges: Edge[] =
     axisStatus === 'critical' || !top
       ? []
-      : below.map((bottom) => ({
-          id: `${top.id}--${bottom.id}`,
+      : below.map((bottom, i) => ({
+          id: `${groupId}:replication:${i}`,
           source: top.id,
           target: bottom.id,
           style: {
@@ -264,7 +272,8 @@ function layoutLogicalNode(
     draggable: false,
     connectable: false,
     selectable: false,
-    style: { width, height: GROUP_H },
+    width,
+    height: GROUP_H,
     data: { shortId, axisStatus, axisNote: axisNoteOf(axisStatus) },
   };
 
@@ -310,6 +319,8 @@ function collapsedNode(logical: LogicalNodeView, x: number, y: number): Node<Bro
     id: `collapsed:${logical.artemisNodeId ?? shortId}`,
     type: 'broker',
     position: { x, y },
+    width: NODE_W,
+    height: NODE_H,
     draggable: false,
     connectable: false,
     selectable: false,

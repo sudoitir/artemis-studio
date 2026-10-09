@@ -4,10 +4,12 @@ import {
   useContext,
   useId,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
+  type FocusEvent,
   type KeyboardEvent,
 } from 'react';
 import {
@@ -22,7 +24,8 @@ import {
   useStoreApi,
   type NodeProps,
 } from '@xyflow/react';
-import { Button, Text, VisuallyHidden, useComputedColorScheme } from '@mantine/core';
+import { Button, Text, VisuallyHidden, useComputedColorScheme, useMantineTheme } from '@mantine/core';
+import { useReducedMotion } from '@mantine/hooks';
 
 import { Notice } from '../../ui/Notice.tsx';
 import { ViewControls } from '../../ui/graph/ViewControls.tsx';
@@ -59,7 +62,8 @@ interface CanvasValue {
   /** The box that stands for the chosen node. */
   selectedBox: string | null;
   register: (id: string, element: HTMLButtonElement | null) => void;
-  focus: (id: string) => void;
+  /** A box took focus; `fromKeyboard` is false for a pointer press, which leaves the view where it is. */
+  focus: (id: string, fromKeyboard: boolean) => void;
   select: (id: string) => void;
 }
 
@@ -82,6 +86,15 @@ function PairGroup({ data }: NodeProps) {
       </div>
     </div>
   );
+}
+
+/** Whether focus arrived by keyboard: a pointer press focuses the box too, but the box is already in view. */
+function isKeyboardFocus(event: FocusEvent<HTMLElement>): boolean {
+  try {
+    return event.currentTarget.matches(':focus-visible');
+  } catch {
+    return true;
+  }
 }
 
 /** What the enabled features mark on a box of a live cluster (`topology.node.marks`), such as a firing alert. */
@@ -139,18 +152,17 @@ function BrokerNode({ id, data }: NodeProps) {
           type="button"
           className={styles.node}
           data-kind={d.kind}
-          data-offset={d.offset || undefined}
           data-selected={selected || undefined}
           tabIndex={tabStop === id ? 0 : -1}
           aria-label={d.sentence}
           aria-pressed={selected}
           title={d.sentence}
-          onFocus={() => focus(id)}
+          onFocus={(event) => focus(id, isKeyboardFocus(event))}
         >
           <BoxLines d={d} />
         </button>
       ) : (
-        <div className={styles.node} data-kind={d.kind} data-offset={d.offset || undefined}>
+        <div className={styles.node} data-kind={d.kind}>
           <BoxLines d={d} />
         </div>
       )}
@@ -161,18 +173,15 @@ function BrokerNode({ id, data }: NodeProps) {
 
 const nodeTypes = { broker: BrokerNode, pair: PairGroup };
 
-/**
- * Re-fit when the set of logical nodes changes, so a failover leaves no stale viewport. Only once React
- * Flow has measured the boxes: fitting unmeasured ones drew a frame at the wrong zoom, with the boxes over
- * one another, before the canvas's own first fit corrected it.
- */
-function RefitOnNodeSetChange({ signature }: Readonly<{ signature: string }>) {
-  const flow = useReactFlow();
-  const measured = useNodesInitialized();
-  useEffect(() => {
-    if (measured) void flow.fitView(FIT);
-  }, [flow, signature, measured]);
-  return null;
+/** Each box's place in the pane, as `[id, "x,y"]` entries in a string, so an unchanged layout compares equal. */
+function positionsOf(nodes: TopologyLayout['nodes']): string {
+  const groups = new Map(nodes.filter((n) => !isBrokerNode(n)).map((n) => [n.id, n.position]));
+  return JSON.stringify(
+    nodes.filter(isBrokerNode).map((n) => {
+      const parent = n.parentId ? groups.get(n.parentId) : undefined;
+      return [n.id, `${n.position.x + (parent?.x ?? 0)},${n.position.y + (parent?.y ?? 0)}`];
+    }),
+  );
 }
 
 function Legend() {
@@ -194,6 +203,14 @@ function Legend() {
         <span className={styles.legendAxis} aria-hidden="true" />
         {/* The flex gap spaces the mark from its label. */}
         shared NodeID — serving above, standby below
+      </span>
+      <span className={styles.legendItem}>
+        <span className={styles.legendBox} data-offset aria-hidden="true" />
+        box set off to the side: replication behind
+      </span>
+      <span className={styles.legendItem}>
+        <span className={styles.legendBox} data-kind="unmanaged" aria-hidden="true" />
+        dashed box: no management URL
       </span>
     </div>
   );
@@ -247,7 +264,8 @@ function moveTo(columns: string[][], key: string, id: string): string | null {
  * The boxes and arrows, in React Flow's pane, with the canvas's own keyboard model. It is one tab stop:
  * arrow keys move between the boxes in their columns, Home and End go to the first and the last, Enter and
  * Space choose the focused box and announce it, and Escape clears the choice and keeps focus where it is.
- * The box in focus is kept in view with `setCenter` and no animation.
+ * A box focused from the keyboard is kept in view with `setCenter` and no animation; a click on the pane
+ * clears the choice.
  */
 function Flow({
   model,
@@ -271,20 +289,29 @@ function Flow({
   // React Flow's own chrome follows the scheme Mantine resolved.
   const colorMode = useComputedColorScheme('dark', { getInitialValueInEffect: false });
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
+  // The pairs drawn, and in the reduced-detail grid the boxes, since it has no pairs.
   const signature = useMemo(
     () =>
       model.nodes
-        .filter((n) => !isBrokerNode(n))
+        .filter((n) => !isBrokerNode(n) || n.id.startsWith('collapsed:'))
         .map((n) => n.id)
         .join('|'),
     [model.nodes],
   );
+  const positions = useMemo(() => positionsOf(model.nodes), [model.nodes]);
   const order = useMemo(() => model.columns.flat(), [model.columns]);
   const selectedBox = boxHolding(model, selectedId);
   const [focused, setFocused] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
   const keysId = useId();
   const elements = useRef(new Map<string, HTMLButtonElement>());
+  const wrapper = useRef<HTMLDivElement>(null);
+  // Whether the operator has moved the view since the canvas last fitted itself, which a refit would undo.
+  const operatorMoved = useRef(false);
+  const measured = useNodesInitialized();
+  const [settled, setSettled] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const { motion } = useMantineTheme().other;
   const tabStop = [focused, selectedBox].find((id) => id && order.includes(id)) ?? order[0] ?? null;
 
   /** Brings a box fully into view, at the zoom the operator has, only when it is not already. */
@@ -298,11 +325,45 @@ function Flow({
       const left = x * zoom + tx;
       const top = y * zoom + ty;
       if (left >= 0 && top >= 0 && left + NODE_W * zoom <= width && top + NODE_H * zoom <= frame) return;
+      operatorMoved.current = true;
       // setCenter would otherwise zoom to the instance's maximum.
       void flow.setCenter(x + NODE_W / 2, y + NODE_H / 2, { zoom, duration: 0 });
     },
     [flow, store],
   );
+
+  // The boxes glide only once the first layout has been measured and painted, so they do not slide in
+  // from wherever React Flow put them before it knew their size.
+  useEffect(() => {
+    if (!measured || settled) return;
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, [measured, settled]);
+
+  // Re-fit when the set of logical nodes changes, so a failover leaves no stale viewport, unless the
+  // operator has moved the view since. Only once React Flow has measured the boxes: fitting unmeasured
+  // ones drew a frame at the wrong zoom, with the boxes over one another.
+  useEffect(() => {
+    if (measured && !operatorMoved.current) void flow.fitView(FIT);
+  }, [flow, signature, measured]);
+
+  // Edges are drawn at a box's new place at once while the box glides there, so they are hidden for the
+  // glide and fade back when the boxes arrive.
+  const previousPositions = useRef(positions);
+  useLayoutEffect(() => {
+    const before = new Map<string, string>(JSON.parse(previousPositions.current) as [string, string][]);
+    previousPositions.current = positions;
+    const frame = wrapper.current;
+    if (!frame || !settled || reducedMotion) return;
+    const after = JSON.parse(positions) as [string, string][];
+    if (!after.some(([id, at]) => before.has(id) && before.get(id) !== at)) return;
+    frame.dataset.moving = '';
+    const timer = setTimeout(() => delete frame.dataset.moving, motion.slow);
+    return () => {
+      clearTimeout(timer);
+      delete frame.dataset.moving;
+    };
+  }, [positions, settled, reducedMotion, motion.slow]);
 
   const value = useMemo<CanvasValue>(
     () => ({
@@ -314,9 +375,9 @@ function Flow({
         if (element) elements.current.set(id, element);
         else elements.current.delete(id);
       },
-      focus: (id) => {
+      focus: (id, fromKeyboard) => {
         setFocused(id);
-        keepInView(id);
+        if (fromKeyboard) keepInView(id);
       },
       select: (id) => {
         const box = model.nodes.find((n) => n.id === id);
@@ -328,15 +389,18 @@ function Flow({
     [clusterId, interactive, tabStop, selectedBox, model.nodes, onSelect, keepInView],
   );
 
+  const clear = () => {
+    if (!selectedId) return;
+    onSelect?.(null);
+    setAnnounce('Selection cleared');
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const current = [...elements.current].find(([, element]) => element === event.target)?.[0];
     if (!current) return;
     if (event.key === 'Escape') {
-      if (selectedId) {
-        event.preventDefault();
-        onSelect?.(null);
-        setAnnounce('Selection cleared');
-      }
+      if (selectedId) event.preventDefault();
+      clear();
       elements.current.get(current)?.focus({ preventScroll: true });
       return;
     }
@@ -349,8 +413,10 @@ function Flow({
   return (
     <>
       <div
+        ref={wrapper}
         className={styles.wrapper}
         style={{ ...GEOMETRY, ...(height ? { blockSize: height } : {}) }}
+        data-settled={settled || undefined}
         role={interactive ? 'group' : undefined}
         aria-label={interactive ? 'Cluster topology' : undefined}
         aria-describedby={interactive ? keysId : undefined}
@@ -375,15 +441,26 @@ function Flow({
             // A box's click (a mouse press, or Enter or Space on its button) reaches here. Without a handler
             // React Flow gives its node wrapper `pointer-events: none`, which the button inherits.
             onNodeClick={interactive ? (_, node) => value.select(node.id) : undefined}
+            onPaneClick={interactive ? clear : undefined}
+            onMoveStart={(event) => {
+              if (event) operatorMoved.current = true;
+            }}
             panOnScroll={interactive}
             zoomOnScroll={interactive}
             proOptions={proOptions}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} />
-            <RefitOnNodeSetChange signature={signature} />
           </ReactFlow>
         </CanvasContext.Provider>
-        {interactive ? <ViewControls fit={FIT} subject="topology" /> : null}
+        {interactive ? (
+          <ViewControls
+            fit={FIT}
+            subject="topology"
+            onViewChange={(change) => {
+              operatorMoved.current = change === 'zoom';
+            }}
+          />
+        ) : null}
       </div>
       {interactive ? (
         <VisuallyHidden id={keysId}>

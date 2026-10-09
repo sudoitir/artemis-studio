@@ -44,30 +44,14 @@
   border-block-start: 1px solid var(--as-border);
 }
 
+.motionControl {
+  min-inline-size: 9rem;
+}
+
 /* The table is as tall as the graph, so it fills the same place. */
 .tableFrame {
   block-size: var(--flow-canvas-block);
   min-block-size: 0;
-}
-
-/* Graph beside its inspector; the inspector wraps below the graph when the column is too narrow for both. */
-.graphLayout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--mantine-spacing-md);
-}
-
-.graphMain {
-  flex: 1 1 36rem;
-  min-inline-size: 0;
-}
-
-.inspector {
-  flex: 0 1 21.25rem;
-  min-inline-size: min(100%, 17.5rem);
-  max-block-size: var(--flow-canvas-block);
-  overflow: auto;
 }
 
 /* The Split layout's pane: as tall as the graph beside it, scrolling on its own. */

@@ -46,7 +46,8 @@ const DENSE = 60;
 
 /** Generous gutters, and never larger than life: a small graph is not blown up to fill the frame. */
 const FIT = { padding: 0.16, maxZoom: 1 };
-const ZOOM = { duration: 140 };
+/** The view controls jump, as every canvas's do: nothing on this canvas animates (ADR-0090 D5). */
+const ZOOM = { duration: 0 };
 
 /** The zoom a keyboard-focused element is brought to: life size, where its words can be read. */
 const READABLE = 1;
@@ -61,16 +62,13 @@ const DIRECTION: Record<string, Direction> = {
 /**
  * The toolbar over the canvas: the keyboard's way in, the view controls, and whatever the
  * builder adds at its end. It sits inside the flow provider so the view controls reach the
- * viewport; motion on them is skipped when the operator asks for reduced motion.
+ * viewport. The controls move the view without animation, so reduced motion needs nothing more.
  */
 const CanvasToolbar = forwardRef<
   HTMLButtonElement,
   { onEnter: () => void; canEnter: boolean; leading?: ReactNode; actions?: ReactNode }
 >(function CanvasToolbar({ onEnter, canEnter, leading, actions }, entry) {
   const flow = useReactFlow();
-  const reduced =
-    globalThis.window !== undefined && globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const zoom = reduced ? { duration: 0 } : ZOOM;
   const view = (label: string, icon: ReactNode, onClick: () => void) => (
     <Tooltip label={label} withArrow openDelay={300}>
       <ActionIcon variant="subtle" size="md" aria-label={label} onClick={onClick}>
@@ -88,12 +86,12 @@ const CanvasToolbar = forwardRef<
               Enter the routing graph
             </Button>
             <div className={classes.toolbarGroup}>
-              {view('Zoom out', <IconZoomOut size="1rem" stroke={1.75} />, () => void flow.zoomOut(zoom))}
-              {view('Zoom in', <IconZoomIn size="1rem" stroke={1.75} />, () => void flow.zoomIn(zoom))}
+              {view('Zoom out', <IconZoomOut size="1rem" stroke={1.75} />, () => void flow.zoomOut(ZOOM))}
+              {view('Zoom in', <IconZoomIn size="1rem" stroke={1.75} />, () => void flow.zoomIn(ZOOM))}
               {view(
                 'Fit the graph to the view',
                 <IconFocusCentered size="1rem" stroke={1.75} />,
-                () => void flow.fitView({ ...FIT, ...zoom }),
+                () => void flow.fitView({ ...FIT, ...ZOOM }),
               )}
             </div>
             {leading}
@@ -148,20 +146,26 @@ function useRoutingLayout(graph: RoutingGraph): { positions: Positions; pending:
  * otherwise measures a box that the height measurement is about to change and leaves
  * the graph running off the bottom.
  */
-function FitOnLayout({ signature }: { signature: string | null }) {
+function FitOnLayout({
+  signature,
+  frame: box,
+}: {
+  signature: string | null;
+  frame: React.RefObject<HTMLDivElement | null>;
+}) {
   const flow = useReactFlow();
   useEffect(() => {
     if (!signature) return;
     const fit = () => void flow.fitView(FIT);
     const frame = requestAnimationFrame(fit);
-    const box = document.querySelector(`.${classes.wrapper}`);
-    const observer = box ? new ResizeObserver(fit) : null;
-    if (box && observer) observer.observe(box);
+    const el = box.current;
+    const observer = el && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
+    if (el && observer) observer.observe(el);
     return () => {
       cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [flow, signature]);
+  }, [flow, signature, box]);
   return null;
 }
 
@@ -398,7 +402,7 @@ export function RoutingCanvas({
                 proOptions={{ hideAttribution: true }}
               >
                 <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} patternClassName={classes.dots} />
-                <FitOnLayout signature={layout.pending ? null : layoutSignature(graph)} />
+                <FitOnLayout signature={layout.pending ? null : layoutSignature(graph)} frame={wrapper} />
                 <FollowFocus follow={follow} frame={wrapper} />
               </ReactFlow>
             </RoutingCanvasContext.Provider>

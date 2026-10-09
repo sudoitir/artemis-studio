@@ -4,7 +4,8 @@
 
 .wrapper {
   position: relative;
-  block-size: clamp(26rem, 60vh, 45rem);
+  /* The page sets the frame's height (Topology.module.css), shared with the table and the loading frame. */
+  block-size: var(--topology-frame-block, 26rem);
   border: 1px solid var(--as-border);
   border-radius: var(--mantine-radius-md);
   background: var(--as-graph-node-bg);
@@ -12,9 +13,20 @@
 }
 
 /* A box slides to its place when a failover promotes it. React Flow owns `transform` on its own node
-   wrapper, so the transition has to sit there. The duration is a token, which reduced motion sets to zero. */
-.wrapper :global(.react-flow__node) {
-  transition: transform var(--as-duration-base) var(--as-ease);
+   wrapper, so the transition has to sit there, and only once the first layout has settled, so the boxes
+   do not slide in on first paint. The durations are tokens, which reduced motion sets to zero. */
+.wrapper[data-settled] :global(.react-flow__node) {
+  transition: transform var(--as-duration-slow) var(--as-ease);
+}
+
+/* An edge is drawn at once where the boxes are going, so it is hidden while they glide and fades back. */
+.wrapper :global(.react-flow__edge) {
+  transition: opacity var(--as-duration-fast) var(--as-ease);
+}
+
+.wrapper[data-moving] :global(.react-flow__edge) {
+  opacity: 0;
+  transition: none;
 }
 
 /* One logical node = one group. The axis lives INSIDE the group, in React
@@ -35,7 +47,8 @@
   block-size: 0;
   border-block-start: 0.125rem solid var(--as-axis);
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: center;
   pointer-events: none;
 }
 
@@ -49,15 +62,20 @@
   border-block-start-color: var(--as-node-split-brain);
 }
 
+/* At the inline start, clear of the replication edge, which drops from the middle of the boxes: a long
+   note wraps rather than reaching it. */
 .axisNote {
-  transform: translateY(-50%);
+  max-inline-size: calc(var(--topology-node-w) / 2 - var(--mantine-spacing-sm));
   padding-inline: var(--mantine-spacing-xs);
+  line-height: 1.2;
   font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   background: var(--as-graph-node-bg);
 }
 
+/* A split brain draws no replication edge, so its note has the whole axis. */
 .group[data-status='critical'] .axisNote {
+  max-inline-size: none;
   color: var(--as-danger);
 }
 
@@ -105,8 +123,10 @@ button.node {
     border-color var(--as-duration-fast) var(--as-ease);
 }
 
-button.node:hover {
-  box-shadow: var(--as-elevation-2);
+@media (hover: hover) and (pointer: fine) {
+  button.node:hover {
+    box-shadow: var(--as-elevation-2);
+  }
 }
 
 button.node:focus-visible {
@@ -121,12 +141,27 @@ button.node:focus-visible {
     var(--as-elevation-2);
 }
 
-.node[data-offset] {
-  transform: translateX(1.125rem);
-}
-
 .node[data-kind='unmanaged'] {
   border-style: dashed;
+}
+
+/* A box in trouble says so at its edge as well as in its words, as the diagrams do. */
+.node[data-kind='split'],
+.node[data-kind='down'],
+.node[data-kind='behind'] {
+  border-inline-start-width: 0.25rem;
+}
+
+.node[data-kind='split'] {
+  border-inline-start-color: var(--as-node-split-brain);
+}
+
+.node[data-kind='down'] {
+  border-inline-start-color: var(--as-node-down);
+}
+
+.node[data-kind='behind'] {
+  border-inline-start-color: var(--as-axis-broken);
 }
 
 .head {
@@ -243,6 +278,13 @@ button.node:focus-visible {
   opacity: 0;
 }
 
+/* The chosen node's mark and state, beside its name in the side panel (NodePanel.tsx). */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
 /* A static row under the canvas, not a floating panel that covers nodes when the frame is small. */
 .legend {
   display: flex;
@@ -275,6 +317,38 @@ button.node:focus-visible {
   inline-size: 1.125rem;
   block-size: 0;
   border-block-start: 0.125rem solid var(--as-axis);
+}
+
+/* A box in miniature: one set off from its slot, and one with a dashed edge. */
+.legendBox {
+  position: relative;
+  box-sizing: border-box;
+  inline-size: 1.125rem;
+  block-size: 0.75rem;
+  border: 1px solid var(--as-border-strong);
+  border-radius: 0.125rem;
+}
+
+.legendBox[data-offset] {
+  margin-inline-end: 0.25rem;
+  border-style: dotted;
+  border-color: var(--as-border);
+}
+
+.legendBox[data-offset]::after {
+  content: '';
+  position: absolute;
+  inset-block: -1px;
+  inset-inline-start: 0.25rem;
+  inline-size: 1.125rem;
+  box-sizing: border-box;
+  border: 1px solid var(--as-border-strong);
+  border-inline-start: 0.1875rem solid var(--as-axis-broken);
+  border-radius: 0.125rem;
+}
+
+.legendBox[data-kind='unmanaged'] {
+  border-style: dashed;
 }
 
 .empty {

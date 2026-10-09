@@ -127,8 +127,10 @@
     opacity var(--as-duration-fast) var(--as-ease);
 }
 
-.node:hover {
-  box-shadow: var(--as-elevation-2);
+@media (hover: hover) and (pointer: fine) {
+  .node:hover {
+    box-shadow: var(--as-elevation-2);
+  }
 }
 
 /* The one element this canvas cannot read: its outline says so. */
@@ -210,9 +212,14 @@
   transition: opacity var(--as-duration-fast) var(--as-ease);
 }
 
-:global(.react-flow__node):hover .handle[data-usable],
 :global(.react-flow__node):focus-within .handle[data-usable] {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :global(.react-flow__node):hover .handle[data-usable] {
+    opacity: 1;
+  }
 }
 
 .handle:not([data-usable]) {
@@ -254,9 +261,11 @@
   stroke: var(--as-flow-edge);
   stroke-width: 1.25;
   fill: none;
+  /* Emphasis moves colour, weight and opacity together, so none of the three jumps ahead of the others. */
   transition:
     opacity var(--as-duration-fast) var(--as-ease),
-    stroke var(--as-duration-fast) var(--as-ease);
+    stroke var(--as-duration-fast) var(--as-ease),
+    stroke-width var(--as-duration-fast) var(--as-ease);
 }
 
 .edge[data-emphasis='forward'] {
@@ -279,7 +288,10 @@
   font-size: 0.6875rem;
   line-height: 1.5;
   pointer-events: none;
-  transition: opacity var(--as-duration-fast) var(--as-ease);
+  transition:
+    opacity var(--as-duration-fast) var(--as-ease),
+    color var(--as-duration-fast) var(--as-ease),
+    border-color var(--as-duration-fast) var(--as-ease);
 }
 
 .edgeChip[data-emphasis='forward'] {
