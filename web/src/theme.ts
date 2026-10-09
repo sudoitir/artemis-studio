@@ -1,10 +1,17 @@
 import {
+  Accordion,
+  Collapse,
   createTheme,
   Drawer,
+  Menu,
   Modal,
   Notification,
+  Popover,
+  Progress,
+  Tooltip,
   type CSSVariablesResolver,
   type MantineColorsTuple,
+  type MantineTransition,
 } from '@mantine/core';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,6 +122,23 @@ const other = {
 const FONT_FALLBACK = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO_FALLBACK = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
+/** The console's one easing curve; theme.css defines it next to the durations. */
+const EASE = 'var(--as-ease)';
+
+/**
+ * A surface that grows from where it opens: a dialog from its centre, a dropdown from its trigger
+ * (theme.css points each dropdown's `transform-origin` at the side it opened from). It starts at 0.96,
+ * not from nothing, so it reads as arriving rather than zooming.
+ */
+const grow: MantineTransition = {
+  in: { opacity: 1, transform: 'scale(1)' },
+  out: { opacity: 0, transform: 'scale(0.96)' },
+  transitionProperty: 'opacity, transform',
+};
+
+/** A dropdown leaves faster than it arrives: it is out of the way the moment it is done with. */
+const DROPDOWN_EXIT_MS = 100;
+
 const dialogTitle = {
   fontSize: 'var(--mantine-h3-font-size)',
   fontWeight: 'var(--mantine-h3-font-weight)',
@@ -180,13 +204,81 @@ export const theme = createTheme({
   components: {
     // Mantine's close button is an icon with no name; every dialog and drawer gets the same one. Its
     // title is the dialog's heading, so it reads as one: the h3 size and the heading weight.
+    //
+    // Every timing below comes from `other.motion`, so the console moves at one pace; reduced motion
+    // zeroes Mantine's own transitions (respectReducedMotion) and the CSS durations (theme.css).
     Modal: Modal.extend({
-      defaultProps: { closeButtonProps: { 'aria-label': 'Close' } },
+      defaultProps: {
+        closeButtonProps: { 'aria-label': 'Close' },
+        transitionProps: {
+          transition: { ...grow, common: { transformOrigin: 'center' } },
+          duration: other.motion.base,
+          exitDuration: other.motion.fast,
+          timingFunction: EASE,
+        },
+        // The overlay would otherwise take the dialog's own transition and scale with it.
+        overlayProps: {
+          transitionProps: {
+            transition: 'fade',
+            duration: other.motion.base,
+            exitDuration: other.motion.fast,
+            timingFunction: EASE,
+          },
+        },
+      },
       styles: { title: dialogTitle },
     }),
+    // A drawer keeps the slide its position gives it, at the console's pace.
     Drawer: Drawer.extend({
-      defaultProps: { closeButtonProps: { 'aria-label': 'Close' } },
+      defaultProps: {
+        closeButtonProps: { 'aria-label': 'Close' },
+        transitionProps: { duration: other.motion.slow, exitDuration: other.motion.base, timingFunction: EASE },
+      },
       styles: { title: dialogTitle },
+    }),
+    Popover: Popover.extend({
+      defaultProps: {
+        transitionProps: {
+          transition: grow,
+          duration: other.motion.fast,
+          exitDuration: DROPDOWN_EXIT_MS,
+          timingFunction: EASE,
+        },
+        shadow: 'md',
+        offset: 6,
+      },
+    }),
+    Menu: Menu.extend({
+      defaultProps: {
+        transitionProps: {
+          transition: grow,
+          duration: other.motion.fast,
+          exitDuration: DROPDOWN_EXIT_MS,
+          timingFunction: EASE,
+        },
+        shadow: 'md',
+        offset: 6,
+      },
+    }),
+    // A tooltip waits for a pointer that has settled, so sweeping across a toolbar does not set off
+    // a row of them.
+    Tooltip: Tooltip.extend({
+      defaultProps: {
+        openDelay: 300,
+        transitionProps: { transition: 'fade', duration: other.motion.fast, timingFunction: EASE },
+      },
+    }),
+    Collapse: Collapse.extend({
+      defaultProps: { transitionDuration: other.motion.base, transitionTimingFunction: EASE },
+    }),
+    Accordion: Accordion.extend({
+      defaultProps: { transitionDuration: other.motion.base },
+    }),
+    // Progress is not one of the transitions respectReducedMotion reaches: its fill moves by a CSS
+    // transition, so it takes the token duration, which reduced motion zeroes.
+    Progress: Progress.extend({
+      vars: () => ({ root: { '--progress-transition-duration': 'var(--as-duration-slow)' } }),
+      styles: { section: { transitionTimingFunction: EASE } },
     }),
     // A toast's close button is nameless the same way.
     Notification: Notification.extend({

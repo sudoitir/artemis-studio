@@ -283,6 +283,79 @@
   --section-height-compact-xs: calc(1.5rem * var(--mantine-scale));
 }
 
+/* A dropdown grows out of its trigger: the corner or edge it opened from is the origin of the scale the
+   theme gives it. `transform-origin` has no logical keywords, and floating-ui's placements name the
+   physical side, so these are physical; a mirrored corner on a 0.96 scale over 120ms does not show. */
+.mantine-Popover-dropdown[data-position='bottom'],
+.mantine-Menu-dropdown[data-position='bottom'] {
+  transform-origin: top center;
+}
+
+.mantine-Popover-dropdown[data-position='bottom-start'],
+.mantine-Menu-dropdown[data-position='bottom-start'] {
+  transform-origin: top left;
+}
+
+.mantine-Popover-dropdown[data-position='bottom-end'],
+.mantine-Menu-dropdown[data-position='bottom-end'] {
+  transform-origin: top right;
+}
+
+.mantine-Popover-dropdown[data-position='top'],
+.mantine-Menu-dropdown[data-position='top'] {
+  transform-origin: bottom center;
+}
+
+.mantine-Popover-dropdown[data-position='top-start'],
+.mantine-Menu-dropdown[data-position='top-start'] {
+  transform-origin: bottom left;
+}
+
+.mantine-Popover-dropdown[data-position='top-end'],
+.mantine-Menu-dropdown[data-position='top-end'] {
+  transform-origin: bottom right;
+}
+
+.mantine-Popover-dropdown[data-position='right'],
+.mantine-Menu-dropdown[data-position='right'] {
+  transform-origin: left center;
+}
+
+.mantine-Popover-dropdown[data-position='right-start'],
+.mantine-Menu-dropdown[data-position='right-start'] {
+  transform-origin: left top;
+}
+
+.mantine-Popover-dropdown[data-position='right-end'],
+.mantine-Menu-dropdown[data-position='right-end'] {
+  transform-origin: left bottom;
+}
+
+.mantine-Popover-dropdown[data-position='left'],
+.mantine-Menu-dropdown[data-position='left'] {
+  transform-origin: right center;
+}
+
+.mantine-Popover-dropdown[data-position='left-start'],
+.mantine-Menu-dropdown[data-position='left-start'] {
+  transform-origin: right top;
+}
+
+.mantine-Popover-dropdown[data-position='left-end'],
+.mantine-Menu-dropdown[data-position='left-end'] {
+  transform-origin: right bottom;
+}
+
+/* A pressed control gives a little under the pointer, rather than Mantine's 1px drop. A disabled one
+   does not move: it did nothing. */
+.mantine-active {
+  transition: transform var(--as-duration-fast) var(--as-ease);
+}
+
+.mantine-active:active:not(:disabled, [data-disabled], [data-loading]) {
+  transform: scale(0.97);
+}
+
 /* Reduced motion is a token rule: components animate only through the durations, so none needs a
    branch of its own. (`html:root` outranks the variables the theme injects at run time.) */
 @media (prefers-reduced-motion: reduce) {
