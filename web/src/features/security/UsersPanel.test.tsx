@@ -10,6 +10,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import type { UserView } from './api.ts';
 import { UsersPanel } from './UsersPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 function renderUsers() {
   return renderWithProviders(
@@ -192,12 +193,8 @@ describe('UsersPanel two-step verification', () => {
       "removes alice's authenticator app, passkeys, recovery codes and trusted devices, revokes their API keys and signs them out everywhere",
     );
     const confirm = within(dialog).getByRole('button', { name: 'Reset two-step verification' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alic');
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'e');
     expect(confirm).toBeEnabled();
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(reset).toBe(true));
     expect(await screen.findByRole('status')).toHaveTextContent('Reset two-step verification of alice');
@@ -235,8 +232,7 @@ describe('UsersPanel two-step verification', () => {
 
     await person.click(await screen.findByRole('button', { name: 'Reset two-step verification of alice' }));
     const dialog = await screen.findByRole('dialog');
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
 
     expect(await within(dialog).findByLabelText('Your password')).toBeInTheDocument();
   });
@@ -255,8 +251,7 @@ describe('UsersPanel two-step verification', () => {
 
     await person.click(await screen.findByRole('button', { name: 'Reset two-step verification of alice' }));
     const dialog = await screen.findByRole('dialog');
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(advice);
     // The dialog stays open, so the operator can act on what it says.
@@ -288,9 +283,7 @@ describe('UsersPanel roles and accounts', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Remove VIEWER from alice' });
     expect(dialog).toHaveTextContent('alice loses the permissions that VIEWER gave them');
     const confirm = within(dialog).getByRole('button', { name: 'Remove role' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(removed).toBe(true));
     expect(await screen.findByRole('status')).toHaveTextContent('Removed VIEWER from alice');

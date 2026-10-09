@@ -131,7 +131,6 @@ function RevokeKey({
       onClose={close}
       title={token ? `Revoke ${token.owner}'s key ${token.name}` : 'Revoke key'}
       tone="danger"
-      typedName={token?.name}
       pending={revoke.isPending}
       confirmLabel="Revoke key"
       consequence={

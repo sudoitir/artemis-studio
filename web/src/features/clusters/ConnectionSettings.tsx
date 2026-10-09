@@ -338,7 +338,6 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         }
         confirmLabel="Save connection"
         tone="danger"
-        typedName={cluster.name}
         pending={update.isPending}
         onConfirm={save}
       />

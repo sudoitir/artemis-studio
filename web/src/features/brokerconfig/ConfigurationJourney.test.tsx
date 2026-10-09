@@ -8,6 +8,7 @@ import { server } from '../../test/setup.ts';
 import type { ConfigApplyOutcomeView } from './api.ts';
 import { baseHandlers, declaration, halted, NODE_A, NODE_B, plan } from './fixtures.ts';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 /**
  * The Configuration screen as an operator walks it (ADR-0087): one address, one
@@ -114,8 +115,7 @@ describe('the configuration screen', () => {
 
     await user.click(within(drawer).getByRole('checkbox', { name: /I understand: message loss policy on broker-1/ }));
     await user.click(within(drawer).getByRole('button', { name: 'Continue to confirm' }));
-    await user.type(await within(drawer).findByRole('textbox', { name: /Type "prod" to confirm/ }), 'prod');
-    await user.click(within(drawer).getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await holdButton(within(drawer).getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
 
     // Partial is the outcome that matters most, and it is stated before any row.
     expect(await within(drawer).findByText('Halted — applied to some nodes and not others')).toBeInTheDocument();
@@ -221,8 +221,7 @@ describe('the configuration screen', () => {
 
     await user.click(within(drawer).getByRole('checkbox', { name: /I understand: message loss policy on broker-1/ }));
     await user.click(within(drawer).getByRole('button', { name: 'Continue to confirm' }));
-    await user.type(await within(drawer).findByRole('textbox', { name: /Type "prod" to confirm/ }), 'prod');
-    await user.click(within(drawer).getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await holdButton(within(drawer).getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
     await within(drawer).findByText('Halted — applied to some nodes and not others');
 
     // One small region carrying the stage, so a screen reader is told the

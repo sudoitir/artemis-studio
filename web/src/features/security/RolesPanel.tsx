@@ -261,7 +261,6 @@ function DeleteRole({
       onClose={onClose}
       title={role ? `Delete ${role.name}` : 'Delete role'}
       tone="danger"
-      typedName={role?.name}
       pending={remove.isPending}
       confirmLabel="Delete role"
       consequence={role ? deleteConsequence(role) : ''}

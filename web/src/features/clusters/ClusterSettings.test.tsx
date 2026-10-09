@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { CapabilitiesSection, ConnectionSection } from './ClusterSettings.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const CLUSTER = '11111111-1111-1111-1111-111111111111';
 
@@ -156,9 +157,7 @@ describe('ConnectionSection', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Save the connection' });
     const confirm = within(dialog).getByRole('button', { name: 'Save connection' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(sent.map((s) => s.dryRun)).toEqual([true, false]));
     expect(sent[1].body.management).toEqual({ username: 'artemis', password: 'new-secret' });

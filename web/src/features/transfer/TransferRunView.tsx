@@ -196,7 +196,6 @@ function ReturnDialog({
       }
       confirmLabel={`Return ${plural(run.held, 'message')}`}
       tone="danger"
-      typedName={run.source.queue}
       pending={pending}
       onConfirm={onReturn}
     />

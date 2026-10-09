@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { TeamPatterns } from './TeamPatterns.tsx';
 import { choose, preview, serveLookups, team } from '../../test/teams.ts';
+import { holdButton } from '../../test/hold.ts';
 
 afterEach(() => act(() => notifications.clean()));
 
@@ -200,9 +201,7 @@ describe('TeamPatterns removal', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Remove orders.# from Orders' });
     await waitFor(() => expect(dialog).toHaveTextContent('It matches 7 queues and 0 addresses on prod now.'));
     const confirm = within(dialog).getByRole('button', { name: 'Remove pattern' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "orders.#" to confirm'), 'orders.#');
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(removed).toBe('p1'));
   });

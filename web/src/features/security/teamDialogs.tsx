@@ -142,7 +142,6 @@ export function DeleteTeam({
       onClose={onClose}
       title={team ? `Delete ${team.name}` : 'Delete team'}
       tone="danger"
-      typedName={team?.name}
       pending={remove.isPending}
       confirmLabel="Delete team"
       consequence={team ? deletedWith(team) : ''}

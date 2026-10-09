@@ -119,7 +119,6 @@ export function EnvironmentsPanel() {
         }
         confirmLabel="Delete environment"
         tone="danger"
-        typedName={deleting?.name}
         pending={remove.isPending}
         onConfirm={() =>
           deleting &&

@@ -8,6 +8,7 @@ import { paged } from '../../kernel/api/paging.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { GroupMappingPanel } from './GroupMappingPanel.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const MAPPING = { id: 'm1', groupName: 'ops', roleId: 'r-viewer', roleName: 'VIEWER', scopeType: 'GLOBAL' };
 
@@ -73,9 +74,7 @@ describe('GroupMappingPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete mapping for ops' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete the mapping for ops' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete mapping' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "ops" to confirm'), 'ops');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(deleted).toBe(true));
     expect(await screen.findByRole('status')).toHaveTextContent('Deleted the mapping for ops');

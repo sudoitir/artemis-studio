@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { holdButton } from '../../test/hold.ts';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -238,10 +239,6 @@ describe('deleting a divert', () => {
     expect(await screen.findByText(/AUDIT.IN stops receiving a copy/)).toBeInTheDocument();
 
     const confirm = await screen.findByRole('button', { name: 'Delete on every live node' });
-    expect(confirm).toBeDisabled();
-    await user.type(screen.getByRole('textbox', { name: /audit-copy/ }), 'audit-cop');
-    expect(confirm).toBeDisabled();
-    await user.type(screen.getByRole('textbox', { name: /audit-copy/ }), 'y');
     await waitFor(() => expect(confirm).toBeEnabled());
   });
 
@@ -302,10 +299,9 @@ describe('a divert delete that could not be previewed', () => {
     renderWithProviders(<DeleteDivertAction clusterId="c1" divert={DIVERT} />);
 
     await user.click(await screen.findByRole('button', { name: /^Delete divert/ }));
-    await user.type(await screen.findByRole('textbox', { name: /audit-copy/ }), 'audit-copy');
-    const confirm = screen.getByRole('button', { name: 'Delete on every live node' });
+    const confirm = await screen.findByRole('button', { name: 'Delete on every live node' });
     await waitFor(() => expect(confirm).toBeEnabled());
-    await user.click(confirm);
+    await holdButton(confirm);
 
     expect(await screen.findByText('Applied to all 1 nodes')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();

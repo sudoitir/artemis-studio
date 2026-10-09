@@ -168,7 +168,6 @@ export function CloseDialog({
       onClose={dismiss}
       title={title}
       tone="danger"
-      typedName={target?.confirmToken}
       confirmLabel={title}
       // Only the close itself locks the dialog; the read before it can always be walked away from.
       pending={close.isPending && preview !== null}
@@ -321,7 +320,6 @@ export function CloseAddressConsumers({
       onClose={dismiss}
       title={result ? `Result of closing the consumers on ${address}` : title}
       tone="danger"
-      typedName={address}
       confirmLabel={overCap ? 'Close them anyway, over the cap' : 'Close these consumers'}
       // Also locked while the count is being taken, so the typed name cannot arm a close that has
       // not been shown how many consumers it reaches.

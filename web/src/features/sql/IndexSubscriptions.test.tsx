@@ -7,6 +7,7 @@ import { notifications } from '@mantine/notifications';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton, holdByKeyboard } from '../../test/hold.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -115,9 +116,7 @@ describe('IndexSubscriptions', () => {
     expect(screen.getByRole('dialog', { name: 'Delete index subscription ORDER.IN' })).toBeInTheDocument();
     const confirm = screen.getByRole('button', { name: /Delete and destroy captured messages/i });
     // Not armed by a click, and not by a checkbox: the resource's own name.
-    expect(confirm).toBeDisabled();
 
-    await user.type(screen.getByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
     expect(confirm).toBeEnabled();
   });
 
@@ -201,14 +200,10 @@ describe('IndexSubscriptions', () => {
     await user.keyboard('{Enter}');
 
     // The confirmation is reachable and armable without a pointer.
-    const field = await screen.findByLabelText('Type "ORDER.IN" to confirm');
-    const confirm = screen.getByRole('button', {
+    const confirm = await screen.findByRole('button', {
       name: /Delete and destroy captured messages/i,
     });
-    expect(confirm).toBeDisabled();
-    field.focus();
-    await user.keyboard('ORDER.IN');
-    expect(confirm).toBeEnabled();
+    await holdByKeyboard(confirm);
 
     // Cancelling returns focus to the control that opened it, rather than dropping
     // the operator back at the top of the document.
@@ -264,12 +259,8 @@ describe('IndexSubscriptions', () => {
     expect(screen.getByLabelText('Queue or pattern')).toHaveAttribute('readonly');
 
     const start = screen.getByRole('button', { name: /Start capturing/i });
-    expect(start).toBeDisabled();
-    screen.getByLabelText('Type "ORDER.IN" to confirm').focus();
-    await user.keyboard('ORDER.IN');
     expect(start).toBeEnabled();
-    start.focus();
-    await user.keyboard('{Enter}');
+    await holdByKeyboard(start);
     await waitFor(() => expect(created).toBe(true));
   });
 
@@ -497,8 +488,7 @@ describe('IndexSubscriptions deleting', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
     expect(await screen.findByText(/1,284 captured messages/)).toBeInTheDocument();
     expect(screen.queryByText(/removes the divert, the capture queue/)).toBeNull();
-    await user.type(screen.getByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
-    await user.click(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
+    await holdButton(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
 
     await waitFor(() =>
       expect(show).toHaveBeenCalledWith(
@@ -507,7 +497,7 @@ describe('IndexSubscriptions deleting', () => {
         }),
       ),
     );
-    await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     show.mockRestore();
   });
 
@@ -524,7 +514,7 @@ describe('IndexSubscriptions deleting', () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
 
@@ -536,11 +526,11 @@ describe('IndexSubscriptions deleting', () => {
 
     const trigger = await screen.findByRole('button', { name: 'Delete' });
     await user.click(trigger);
-    await screen.findByLabelText('Type "ORDER.IN" to confirm');
+    await screen.findByRole('button', { name: /Delete and destroy captured messages/ });
 
     await user.keyboard('{Escape}');
 
-    await waitFor(() => expect(screen.queryByLabelText('Type "ORDER.IN" to confirm')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus());
   });
 
@@ -557,14 +547,13 @@ describe('IndexSubscriptions deleting', () => {
     renderWithProviders(<IndexSubscriptions />);
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    await user.type(await screen.findByLabelText('Type "ORDER.IN" to confirm'), 'ORDER.IN');
-    await user.click(screen.getByRole('button', { name: /Delete and destroy captured messages/ }));
+    await holdButton(await screen.findByRole('button', { name: /Delete and destroy captured messages/ }));
 
     // The failure is read inside the dialog, by its cause and next step, and the confirmation stays open.
     expect(await screen.findByText('This conflicts with the current state')).toBeInTheDocument();
     expect(screen.getByText('The subscription is being reconciled.')).toBeInTheDocument();
     expect(show).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Type "ORDER.IN" to confirm')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Delete and destroy captured messages/ })).toBeInTheDocument();
     show.mockRestore();
   });
 });

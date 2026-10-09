@@ -170,7 +170,6 @@ function RevokeKey({
       onClose={close}
       title={token ? `Revoke ${token.name}` : 'Revoke key'}
       tone="danger"
-      typedName={token?.name}
       pending={revoke.isPending}
       confirmLabel="Revoke key"
       consequence="Every script or assistant using this key stops working with its next request. This cannot be undone."

@@ -170,7 +170,6 @@ function DeleteChannel({
       onClose={onClose}
       title="Delete channel"
       tone="danger"
-      typedName={channel?.name}
       pending={remove.isPending}
       confirmLabel="Delete channel"
       consequence={

@@ -16,12 +16,11 @@ const base: ConfirmDialogProps = {
 
 const VARIANTS: Record<string, ConfirmDialogProps> = {
   plain: base,
-  'danger, typed': { ...base, tone: 'danger', typedName: 'orders.created' },
+  'danger, held': { ...base, tone: 'danger' },
   blocked: { ...base, blocked: 'A purge is already running on this queue. Wait for it to finish, then try again.' },
-  'danger, typed, blocked': {
+  'danger, held, blocked': {
     ...base,
     tone: 'danger',
-    typedName: 'orders.created',
     blocked: 'The queue has consumers. Close them first.',
   },
   'with a result': {

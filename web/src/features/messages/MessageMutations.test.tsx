@@ -6,7 +6,7 @@ import { Notifications, notifications } from '@mantine/notifications';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -69,24 +69,6 @@ function withToasts(ui: React.ReactElement) {
   );
 }
 
-describe('ConfirmByTyping', () => {
-  it('arms the button only on an exact token match', async () => {
-    const user = userEvent.setup();
-    const onConfirm = vi.fn();
-    renderWithProviders(<ConfirmByTyping token="ORDERS" confirmLabel="Do it" onConfirm={onConfirm} />);
-    const btn = screen.getByRole('button', { name: 'Do it' });
-    expect(btn).toBeDisabled();
-
-    await user.type(screen.getByRole('textbox'), 'ORDER');
-    expect(btn).toBeDisabled();
-
-    await user.type(screen.getByRole('textbox'), 'S');
-    expect(btn).toBeEnabled();
-    await user.click(btn);
-    expect(onConfirm).toHaveBeenCalled();
-  });
-});
-
 describe('BulkActionPreview', () => {
   const open = (action: 'delete' | 'move' | 'retry') =>
     renderWithProviders(
@@ -114,9 +96,7 @@ describe('BulkActionPreview', () => {
 
     expect(await screen.findByText(/≈ 50 messages/)).toBeInTheDocument();
     const runAnyway = screen.getByRole('button', { name: /Delete 50 messages anyway/i });
-    expect(runAnyway).toBeDisabled();
 
-    await user.type(screen.getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
     expect(runAnyway).toBeEnabled();
   });
 
@@ -173,10 +153,7 @@ describe('BulkActionPreview', () => {
     await user.type(screen.getByLabelText('Selector'), 'a = 1');
     await user.click(screen.getByRole('button', { name: 'Preview' }));
     const confirm = await screen.findByRole('button', { name: 'Delete 3 messages' });
-    expect(confirm).toBeDisabled();
-
-    await user.type(screen.getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     expect(await screen.findByText('Deleted 3 messages in queue "ORDERS"')).toBeInTheDocument();
     expect(bodies).toEqual(['preview', 'run']);
@@ -220,8 +197,7 @@ describe('MessageActions', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete 2 messages' });
-    await user.type(within(dialog).getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete 2 messages' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete 2 messages' }));
 
     // Partial is announced assertively and stays until dismissed, with the ids still where they were.
     const alert = await screen.findByRole('alert');
@@ -242,8 +218,7 @@ describe('MessageActions', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Expire' }));
     const dialog = await screen.findByRole('dialog', { name: 'Expire 2 messages' });
-    await user.type(within(dialog).getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
-    await user.click(within(dialog).getByRole('button', { name: 'Expire 2 messages' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Expire 2 messages' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not expire 2 messages in queue "ORDERS"');
@@ -321,9 +296,7 @@ describe('PurgeQueue', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Purge queue ORDERS' });
     expect(dialog).toHaveTextContent('approximately 4 messages');
     const confirm = within(dialog).getByRole('button', { name: 'Purge queue' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     expect(await screen.findByText('Purged 4 messages in queue "ORDERS"')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Purge queue ORDERS' })).not.toBeInTheDocument());
@@ -343,8 +316,7 @@ describe('PurgeQueue', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Purge queue' }));
     const dialog = await screen.findByRole('dialog', { name: 'Purge queue ORDERS' });
-    await user.type(within(dialog).getByLabelText(/Type "ORDERS" to confirm/), 'ORDERS');
-    await user.click(within(dialog).getByRole('button', { name: 'Purge queue' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Purge queue' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not purge queue "ORDERS"');

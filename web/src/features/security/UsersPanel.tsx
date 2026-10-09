@@ -182,7 +182,6 @@ function RemoveGrantDialog({
         removing ? `Remove ${grantText(removing.grant, scopeLabel)} from ${removing.user.username}` : 'Remove role'
       }
       tone="danger"
-      typedName={removing?.user.username}
       pending={removeGrant.isPending}
       confirmLabel="Remove role"
       consequence={
@@ -233,7 +232,6 @@ function ResetDialog({
       onClose={onClose}
       title={user ? `Reset two-step verification of ${user.username}` : 'Reset two-step verification'}
       tone="danger"
-      typedName={user?.username}
       pending={reset.isPending}
       confirmLabel="Reset two-step verification"
       consequence={

@@ -9,6 +9,7 @@ import { server } from '../../test/setup.ts';
 import type { PermissionView, RoleView } from './api.ts';
 import { RolesPanel } from './RolesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const CATALOGUE: PermissionView[] = [
   {
@@ -118,9 +119,7 @@ describe('RolesPanel list', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete queue-creator' });
     expect(dialog).toHaveTextContent('1 permission');
     const confirm = within(dialog).getByRole('button', { name: 'Delete role' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "queue-creator" to confirm'), 'queue-creator');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(deleted).toBe('r-2'));
     expect(await screen.findByRole('status')).toHaveTextContent('Deleted role "queue-creator"');
@@ -139,8 +138,7 @@ describe('RolesPanel list', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete queue-creator' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Type "queue-creator" to confirm'), 'queue-creator');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete role' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete role' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not delete role "queue-creator"');

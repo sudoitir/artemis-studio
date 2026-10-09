@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { holdButton } from '../../test/hold.ts';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -116,9 +117,10 @@ describe('closing a connection from a row', () => {
     await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
 
     const dialog = await screen.findByRole('dialog');
-    // The typed token is the recognisable name; the connection id is not offered.
-    await screen.findByRole('textbox', { name: /type "orders-worker-7" to confirm/i });
-    expect(within(dialog).queryByLabelText(/type "a3f1c9de"/i)).toBeNull();
+    // The client id is the recognisable name the dialog states; the opaque connection id is not offered.
+    await screen.findByRole('button', { name: /close this connection/i });
+    expect(dialog).toHaveTextContent('orders-worker-7');
+    expect(dialog).not.toHaveTextContent('a3f1c9de');
   });
 
   it('states how many in-flight messages return to their queue before it can be armed', async () => {
@@ -167,7 +169,7 @@ describe('closing a connection from a row', () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
-  it('does not act until the exact client id has been typed', async () => {
+  it('does not act until the button has been held', async () => {
     const closes = vi.fn();
     server.use(
       meHandler(),
@@ -182,15 +184,12 @@ describe('closing a connection from a row', () => {
     renderWithProviders(<Harness />);
 
     await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
-    const field = await screen.findByRole('textbox', {
-      name: /type "orders-worker-7" to confirm/i,
-    });
+    const confirm = await screen.findByRole('button', { name: /close this connection/i });
 
-    await user.type(field, 'orders-worker');
-    expect(screen.getByRole('button', { name: /close this connection/i })).toBeDisabled();
-
-    await user.type(field, '-7');
-    await user.click(screen.getByRole('button', { name: /close this connection/i }));
+    // A click does nothing; only holding the button closes it.
+    await user.click(confirm);
+    expect(closes).not.toHaveBeenCalled();
+    await holdButton(confirm);
     await waitFor(() => expect(closes).toHaveBeenCalledTimes(1));
   });
 });
@@ -203,11 +202,7 @@ describe('the close outcome outlives its row (ADR-0107)', () => {
 
     await user.click(await screen.findByRole('button', { name: /close the connection for/i }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(
-      await within(dialog).findByRole('textbox', { name: /type "orders-worker-7" to confirm/i }),
-      'orders-worker-7',
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Close this connection' }));
+    await holdButton(await within(dialog).findByRole('button', { name: 'Close this connection' }));
     await screen.findByRole('button', { name: 'Close' });
 
     // The listing refetches without the connection, so its row — and the action in it — is gone.
@@ -292,9 +287,8 @@ describe('closing every consumer on an address', () => {
     expect(await within(confirmation).findByText('would close 5 consumers')).toBeInTheDocument();
 
     const confirm = within(confirmation).getByRole('button', { name: 'Close these consumers' });
-    await user.type(within(confirmation).getByRole('textbox'), 'orders');
     await waitFor(() => expect(confirm).toBeEnabled());
-    await user.click(confirm);
+    await holdButton(confirm);
 
     const result = await screen.findByRole('dialog', { name: 'Result of closing the consumers on orders' });
     expect(within(result).getByText('Applied to some nodes and not others')).toBeInTheDocument();

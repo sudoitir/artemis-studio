@@ -193,7 +193,6 @@ function OneMessageDialog({
       }
       confirmLabel={one.confirmLabel}
       tone={action === 'delete' ? 'danger' : 'default'}
-      typedName={action === 'delete' ? String(target.messageId) : undefined}
       pending={run.isPending}
       onConfirm={() => submit()}
     />

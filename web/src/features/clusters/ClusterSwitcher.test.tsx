@@ -70,7 +70,8 @@ describe('ClusterSwitcher', () => {
 
   it('says "Choose a cluster" outside a cluster, in the same row it shows one in', async () => {
     mockApi();
-    renderAppAt('/admin');
+    // A cluster address that names no cluster: the shell has no sidebar outside clusters, so this is the way to one with no cluster chosen.
+    renderAppAt('/clusters/unknown-id/topology');
 
     const trigger = await screen.findByRole('button', { name: 'Choose a cluster' });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');

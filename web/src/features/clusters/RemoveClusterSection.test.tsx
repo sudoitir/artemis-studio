@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { holdByKeyboard } from '../../test/hold.ts';
 import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const navigateSpy = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -59,7 +61,6 @@ describe('RemoveClusterSection', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Remove cluster' });
     expect(dialog).toHaveTextContent('Nothing on the broker changes');
-    expect(within(dialog).getByRole('button', { name: 'Remove cluster' })).toBeDisabled();
   });
 
   it('removes the cluster by keyboard alone, and focus returns to the button when the dialog is dismissed', async () => {
@@ -79,10 +80,8 @@ describe('RemoveClusterSection', () => {
 
     await user.keyboard('{Enter}');
     const again = await screen.findByRole('dialog', { name: 'Remove cluster' });
-    await user.keyboard('prod-eu');
-    await user.tab();
-    expect(within(again).getByRole('button', { name: 'Remove cluster' })).toHaveFocus();
-    await user.keyboard('{Enter}');
+    // Held with the keyboard, which is all this flow needs.
+    await holdByKeyboard(within(again).getByRole('button', { name: 'Remove cluster' }));
 
     await vi.waitFor(() => expect(navigateSpy).toHaveBeenCalledWith({ to: '/' }));
     expect(calls).toEqual([CLUSTER]);
@@ -95,8 +94,7 @@ describe('RemoveClusterSection', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Remove cluster…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove cluster' });
-    await user.type(within(dialog).getByLabelText('Type "prod-eu" to confirm'), 'prod-eu');
-    await user.click(within(dialog).getByRole('button', { name: 'Remove cluster' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Remove cluster' }));
 
     expect(await within(dialog).findByText('The cluster is locked by a running transfer.')).toBeInTheDocument();
     expect(within(dialog).getByText(/It is still registered/)).toBeInTheDocument();

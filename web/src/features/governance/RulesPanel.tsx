@@ -303,7 +303,6 @@ export function RulesPanel() {
         onClose={() => setDeleteOpen(false)}
         title={deleting ? `Delete the rule for ${deleting.selector}` : 'Delete the rule'}
         tone="danger"
-        typedName={deleting?.selector}
         pending={remove.isPending}
         confirmLabel="Delete rule"
         consequence={

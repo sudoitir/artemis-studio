@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { holdButton } from '../../test/hold.ts';
+import { act, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { Notifications, notifications } from '@mantine/notifications';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -349,13 +350,12 @@ describe('BulkPreviewDialog', () => {
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(/Delete 2 queues on 2 nodes/);
 
+    // A press that is let go too early does nothing; the full hold runs it.
     const confirm = within(dialog).getByRole('button', { name: 'Delete 2 queues' });
-    expect(confirm).toBeDisabled();
-    const field = within(dialog).getByRole('textbox', { name: /delete 2 queues/ });
-    await user.type(field, 'delete 2 queue');
-    expect(within(dialog).getByRole('button', { name: 'Delete 2 queues' })).toBeDisabled();
-    await user.type(field, 's');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete 2 queues' }));
+    fireEvent.mouseDown(confirm);
+    fireEvent.mouseUp(confirm);
+    expect(executed).toBeNull();
+    await holdButton(confirm);
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/clusters/c1/bulk/r1' }));
     expect(executed).toEqual({ planHash: 'h1', override: false, continueOnFailure: false });

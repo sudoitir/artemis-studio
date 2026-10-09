@@ -8,6 +8,7 @@ import { stubPasskeys, unstubPasskeys } from '../../test/passkeys.ts';
 import { server } from '../../test/setup.ts';
 import type { MfaStatusView } from './api.ts';
 import { TwoStepSection } from './TwoStepSection.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const FIREFOX = 'Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0';
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -274,9 +275,7 @@ describe('TwoStepSection', () => {
     await user.click(await screen.findByRole('button', { name: 'Remove passkey Work laptop' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove passkey "Work laptop"?' });
     expect(within(dialog).getByText(/Your other methods and your recovery codes keep working/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Remove passkey' })).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "Work laptop" to confirm'), 'Work laptop');
-    await user.click(within(dialog).getByRole('button', { name: 'Remove passkey' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Remove passkey' }));
 
     expect(await within(dialog).findByLabelText('Your password')).toBeInTheDocument();
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
@@ -321,7 +320,7 @@ describe('TwoStepSection', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Remove authenticator app' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove the authenticator app?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Remove authenticator app' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Remove authenticator app' }));
 
     const failure = await screen.findByRole('alert');
     expect(failure).toHaveTextContent('Add another way to sign in first.');

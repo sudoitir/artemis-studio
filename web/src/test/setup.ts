@@ -32,7 +32,11 @@ export const server = setupServer(
 // vitest.config.ts, still bounds).
 configure({ asyncUtilTimeout: 8_000 });
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'error' });
+  // A press-and-hold confirmation reads its length from this token; a test holds for a few milliseconds, not 1.5 s.
+  document.documentElement.style.setProperty('--as-hold-duration', '40ms');
+});
 afterEach(() => {
   cleanup();
   server.resetHandlers();

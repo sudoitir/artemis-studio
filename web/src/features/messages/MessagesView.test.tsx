@@ -6,6 +6,7 @@ import { Notifications, notifications } from '@mantine/notifications';
 
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
+import { holdButton } from '../../test/hold.ts';
 
 // The address is state here, as it is in the app: the open message lives in it (`?message=`).
 let searchState: Record<string, unknown> = {};
@@ -369,7 +370,6 @@ describe('the purge estimate', () => {
     expect(within(dialog).queryByText(/Estimating current depth/)).not.toBeInTheDocument();
 
     // And the confirmation is not left disabled with no reason given.
-    await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
     await vi.waitFor(() => expect(within(dialog).getByRole('button', { name: 'Purge queue' })).toBeEnabled());
   });
 });
@@ -398,8 +398,7 @@ describe('the purge and the bulk safety cap', () => {
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText(/The node timed out after 5s\./)).toBeInTheDocument();
 
-    await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
-    await user.click(within(dialog).getByRole('button', { name: 'Purge queue' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Purge queue' }));
 
     await vi.waitFor(() => expect(urls).toHaveLength(2));
     // The server's cap is the only guard left when Studio cannot state a blast radius.
@@ -426,8 +425,7 @@ describe('the purge and the bulk safety cap', () => {
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText(/over the cap of 1,000/)).toBeInTheDocument();
 
-    await user.type(within(dialog).getByRole('textbox'), 'PHASE3.SRC');
-    await user.click(within(dialog).getByRole('button', { name: 'Purge anyway, over the cap' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Purge anyway, over the cap' }));
 
     await vi.waitFor(() => expect(urls).toHaveLength(2));
     expect(urls.at(-1)).toContain('override=true');
@@ -492,9 +490,7 @@ describe('one message, from its row (ADR-0107)', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Delete message 205' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete this message' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByRole('textbox', { name: /type "205" to confirm/i }), '205');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     // The outcome is announced, politely, and the dialog is out of the way.
     expect(await screen.findByText('Deleted message 205 in queue "PHASE3.SRC"')).toBeInTheDocument();

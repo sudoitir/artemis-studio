@@ -90,7 +90,6 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
         }
         confirmLabel="Remove cluster"
         tone="danger"
-        typedName={name}
         pending={remove.isPending}
         onConfirm={() =>
           remove.mutate(clusterId, {

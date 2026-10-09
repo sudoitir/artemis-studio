@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { ApiKeysPanel } from './ApiKeysPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 function renderKeys() {
   return renderWithProviders(
@@ -254,9 +255,7 @@ describe('ApiKeysPanel', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Revoke laptop' }));
     const confirm = await screen.findByRole('button', { name: 'Revoke key' });
-    expect(confirm).toBeDisabled();
-    await user.type(screen.getByRole('textbox', { name: /Type "laptop" to confirm/ }), 'laptop');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await expect.poll(() => revoked).toBe(true);
     // The dialog closing is not the only signal: the outcome is announced politely.
@@ -276,8 +275,7 @@ describe('ApiKeysPanel', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Revoke laptop' }));
     let dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByRole('textbox', { name: /Type "laptop" to confirm/ }), 'laptop');
-    await user.click(within(dialog).getByRole('button', { name: 'Revoke key' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Revoke key' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not revoke key "laptop"');

@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { AdminTokensPanel } from './AdminTokensPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const LEAKED = {
   id: 't7',
@@ -73,8 +74,7 @@ describe('AdminTokensPanel', () => {
     renderInventory();
 
     await user.click(await screen.findByRole('button', { name: 'Revoke ci-bot of grace' }));
-    await user.type(await screen.findByRole('textbox', { name: /Type "ci-bot" to confirm/ }), 'ci-bot');
-    await user.click(screen.getByRole('button', { name: 'Revoke key' }));
+    await holdButton(screen.getByRole('button', { name: 'Revoke key' }));
 
     await expect.poll(() => revoked).toBe(true);
     expect(await screen.findByRole('status')).toHaveTextContent('Revoked grace\'s key "ci-bot"');
@@ -93,8 +93,7 @@ describe('AdminTokensPanel', () => {
     renderInventory();
 
     await user.click(await screen.findByRole('button', { name: 'Revoke ci-bot of grace' }));
-    await user.type(await screen.findByRole('textbox', { name: /Type "ci-bot" to confirm/ }), 'ci-bot');
-    await user.click(screen.getByRole('button', { name: 'Revoke key' }));
+    await holdButton(screen.getByRole('button', { name: 'Revoke key' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not revoke grace\'s key "ci-bot"');

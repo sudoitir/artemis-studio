@@ -181,7 +181,6 @@ function DeleteMapping({
       onClose={onClose}
       title={mapping ? `Delete the mapping for ${mapping.groupName}` : 'Delete mapping'}
       tone="danger"
-      typedName={mapping?.groupName}
       pending={remove.isPending}
       confirmLabel="Delete mapping"
       consequence={

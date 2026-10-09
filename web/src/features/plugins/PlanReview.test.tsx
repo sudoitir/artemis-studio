@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { holdButton } from '../../test/hold.ts';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -294,14 +295,13 @@ describe('InstallDialog trust', () => {
     renderWithProviders(<InstallDialog source={{ kind: 'resume', sha: SHA }} canInstall onClose={() => undefined} />);
 
     const activate = await screen.findByRole('button', { name: 'Update Notes to 1.0.0' });
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
     expect(activate).toBeDisabled();
     expect(screen.getByText(/It is signed by a different key than the installed version/)).toBeInTheDocument();
     expect(screen.getByText('Tick the confirmation above to activate.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('checkbox', { name: 'I have read this and want to continue' }));
     expect(activate).toBeEnabled();
-    await user.click(activate);
+    await holdButton(activate);
     await waitFor(() => expect(query).toBe('?acknowledge=true'));
   });
 
