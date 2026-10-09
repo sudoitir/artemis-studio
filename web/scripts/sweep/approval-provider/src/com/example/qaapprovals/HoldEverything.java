@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Holds every gated operation of anyone but the built-in administrator, who approves them: the sweep's
- * requester sees each held screen, and the administrator each decision. Settings changes need a reason. A
- * reason containing "expire" holds for the shortest time Studio allows, so the sweep can reach EXPIRED.
+ * requester sees each held screen, and the administrator each decision. A request whose summary names the
+ * {@code held-5} queue holds for the shortest time Studio allows, so the sweep can reach EXPIRED.
  */
 @Component
 public class HoldEverything implements ApprovalProvider {
@@ -28,12 +28,9 @@ public class HoldEverything implements ApprovalProvider {
         if ("admin".equals(request.requester().username())) {
             return new GateDecision.Allow(POLICY);
         }
-        boolean expiring = request.reason() != null && request.reason().contains("expire");
+        boolean expiring = request.summary() != null && request.summary().contains("held-5");
         return new GateDecision.Hold(
-                POLICY,
-                expiring ? Duration.ofMinutes(1) : Duration.ofDays(1),
-                request.type().startsWith("settings."),
-                "an administrator");
+                POLICY, expiring ? Duration.ofMinutes(1) : Duration.ofDays(1), "an administrator");
     }
 
     @Override

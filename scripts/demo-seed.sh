@@ -230,11 +230,13 @@ ensure /environments name staging '{"name": "staging", "sortOrder": 2}' >/dev/nu
 reader=$(ensure /roles name READER '{
   "name": "READER",
   "requiresMfa": false,
+  "teamAssignable": false,
   "permissions": ["cluster:read", "queue:read", "message:read"]
 }')
 operator=$(ensure /roles name OPERATOR '{
   "name": "OPERATOR",
   "requiresMfa": false,
+  "teamAssignable": false,
   "permissions": ["cluster:read", "queue:read", "queue:pause", "message:read", "message:move"]
 }')
 

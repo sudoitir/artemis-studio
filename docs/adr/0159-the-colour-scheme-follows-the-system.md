@@ -1,6 +1,6 @@
 # ADR-0159: The colour scheme follows the system
 
-- **Status**: accepted
+- **Status**: accepted; "one control, one action" in the header is amended by [ADR-0189](0189-console-motion-is-one-set-of-theme-defaults.md)
 - **Date**: 2026-10-01
 - **Deciders**: Mahdi Amirabdollahi
 

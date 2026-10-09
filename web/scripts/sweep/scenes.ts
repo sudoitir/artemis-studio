@@ -107,7 +107,7 @@ export const CONNECTION_SCENES: Scene[] = [
     },
   },
   {
-    id: 'confirm-name',
+    id: 'confirm-credentials',
     act: async (page) => {
       await exact(page, 'Password').fill(ACCOUNT);
       await check(page);
@@ -115,12 +115,17 @@ export const CONNECTION_SCENES: Scene[] = [
     },
   },
   {
-    id: 'confirm-name-typed',
+    // Captured while the confirmation is being held, its fill part-way.
+    id: 'confirm-credentials-holding',
     act: async (page) => {
       await exact(page, 'Password').fill(ACCOUNT);
       await check(page);
       await press(page, 'Save connection');
-      await page.getByRole('dialog').getByRole('textbox').fill('demo');
+      const dialog = page.getByRole('dialog');
+      await dialog.getByText('Press and hold to confirm.').waitFor();
+      await dialog.getByRole('button', { name: 'Save connection' }).hover();
+      await page.mouse.down();
+      await page.waitForTimeout(700);
     },
   },
 ];

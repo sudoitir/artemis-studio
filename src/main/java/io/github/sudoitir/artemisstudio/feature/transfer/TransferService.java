@@ -506,7 +506,8 @@ public class TransferService {
             throw new TransferRefusedException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "transfer-confirmation-mismatch",
-                    "Type the source queue's name, %s, to confirm the move.".formatted(run.getSourceQueue()));
+                    "Send the source queue's name, %s, as confirmQueue to confirm the move."
+                            .formatted(run.getSourceQueue()));
         }
         long cap = settings.intValue(BrokerSettings.BULK_CAP);
         if (!request.override() && run.getEstimate() == null) {
