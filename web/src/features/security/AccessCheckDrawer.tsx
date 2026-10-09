@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Drawer, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Drawer, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
 import { EmptyState } from '../../ui/EmptyState.tsx';
@@ -11,6 +11,7 @@ import { DataTable } from '../../ui/table/index.ts';
 import { useClusters } from '../clusters/index.ts';
 import { useAccessCheck, type AccessCheckView } from './api.ts';
 import { accessColumns } from './columns.ts';
+import { KindField } from './KindField.tsx';
 import { RoleGrants } from './RoleGrants.tsx';
 import { useScopeLabel } from './scope.ts';
 
@@ -70,10 +71,13 @@ function AccessCheck({ userId, place }: Readonly<{ userId: string; place?: Where
   const [draft, setDraft] = useState<Where>(place ?? NOWHERE);
   const [asked, setAsked] = useState<Where>(place ?? NOWHERE);
   const [query, setQuery] = useState('');
+  const [allowedOnly, setAllowedOnly] = useState(false);
   const result = useAccessCheck(userId, asked);
 
   const q = query.trim().toLowerCase();
-  const rows = (result.data ?? []).filter((v) => q === '' || v.action.toLowerCase().includes(q));
+  const rows = (result.data ?? []).filter(
+    (v) => (q === '' || v.action.toLowerCase().includes(q)) && (!allowedOnly || v.allowed),
+  );
   const allowed = (result.data ?? []).filter((v) => v.allowed).length;
   const columns = accessColumns({ scopeLabel });
   const askedCluster = clusters.data?.find((c) => c.id === asked.clusterId)?.name;
@@ -103,24 +107,27 @@ function AccessCheck({ userId, place }: Readonly<{ userId: string; place?: Where
               searchable
               clearable
             />
+          </FieldRow>
+          {/* The kind first, then the name it qualifies, read as one phrase: "Queue orders". */}
+          <FieldRow>
+            <KindField
+              label="Kind"
+              data={[
+                { value: 'QUEUE', label: 'Queue' },
+                { value: 'ADDRESS', label: 'Address' },
+              ]}
+              value={draft.kind}
+              onChange={(kind) => setDraft({ ...draft, kind })}
+              disabled={!draft.clusterId}
+            />
             <TextInput
-              label="Queue or address"
+              label={draft.kind === 'QUEUE' ? 'Queue' : 'Address'}
               description={draft.clusterId ? 'Leave empty to check the cluster as a whole.' : 'Choose a cluster first.'}
               value={draft.name}
               disabled={!draft.clusterId}
               onChange={(e) => setDraft({ ...draft, name: e.currentTarget.value })}
             />
           </FieldRow>
-          <SegmentedControl
-            aria-label="Kind"
-            data={[
-              { value: 'QUEUE', label: 'Queue' },
-              { value: 'ADDRESS', label: 'Address' },
-            ]}
-            value={draft.kind}
-            onChange={(kind) => setDraft({ ...draft, kind: kind as Where['kind'] })}
-            disabled={!draft.clusterId}
-          />
           <div>
             <Button type="submit" loading={result.isFetching && !result.isPending}>
               Check access
@@ -136,12 +143,19 @@ function AccessCheck({ userId, place }: Readonly<{ userId: string; place?: Where
           <Text size="sm" role="status">
             {allowed} of {result.data.length} permissions are allowed on {placeText(asked, askedCluster)}.
           </Text>
-          <TextInput
-            label="Filter by permission"
-            leftSection={<IconSearch size="1rem" aria-hidden />}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-          />
+          <FieldRow>
+            <TextInput
+              label="Filter by permission"
+              leftSection={<IconSearch size="1rem" aria-hidden />}
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+            />
+            <Switch
+              label="Allowed only"
+              checked={allowedOnly}
+              onChange={(e) => setAllowedOnly(e.currentTarget.checked)}
+            />
+          </FieldRow>
           <DataTable
             variant="static"
             label={`Access on ${placeText(asked, askedCluster)}`}
@@ -152,9 +166,14 @@ function AccessCheck({ userId, place }: Readonly<{ userId: string; place?: Where
             empty={
               <EmptyState
                 kind="filtered"
-                title={`Nothing matches “${query}”`}
-                description="No permission has that in its name."
-                onClearFilters={() => setQuery('')}
+                title={query.trim() ? `Nothing matches “${query}”` : 'No permission is allowed here'}
+                description={
+                  query.trim() ? 'No permission has that in its name.' : 'This user holds no permission at this place.'
+                }
+                onClearFilters={() => {
+                  setQuery('');
+                  setAllowedOnly(false);
+                }}
               />
             }
           />

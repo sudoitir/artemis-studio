@@ -27,7 +27,7 @@ const describeSession = (s: AccountSessionView) =>
 
 const endLabel = (s: AccountSessionView, admin: boolean) => {
   if (s.current) {
-    return 'Sign out of this session';
+    return 'Sign out here, ending this session';
   }
   const verb = admin ? 'End' : 'Sign out';
   return `${verb} ${describeSession(s)}`;
@@ -207,19 +207,25 @@ function SessionRows({
           action={
             <Button
               size="xs"
-              variant="subtle"
+              // Signing out where you are ends what you are doing, so it reads as a button, not a quiet link.
+              variant={s.current ? 'default' : 'subtle'}
               aria-label={endLabel(s, admin)}
               loading={ending.isEnding(s)}
               disabled={ending.busy}
               onClick={() => ending.endOne(s)}
             >
-              {admin && !s.current ? 'End' : 'Sign out'}
+              {sessionAction(s, admin)}
             </Button>
           }
         />
       ))}
     </Rows>
   );
+}
+
+function sessionAction(s: AccountSessionView, admin: boolean): string {
+  if (s.current) return 'Sign out here';
+  return admin ? 'End' : 'Sign out';
 }
 
 /** What went wrong and what to do about it, by cause. */

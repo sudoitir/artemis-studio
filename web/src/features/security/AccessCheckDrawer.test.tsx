@@ -92,7 +92,7 @@ describe('AccessCheckDrawer', () => {
 
     await screen.findByRole('row', { name: /queue:read/ });
     await choose(person, screen, 'Cluster', CLUSTER.name);
-    await person.type(screen.getByRole('textbox', { name: /Queue or address/ }), 'orders.in');
+    await person.type(screen.getByRole('textbox', { name: 'Queue' }), 'orders.in');
     await person.click(screen.getByRole('button', { name: 'Check access' }));
 
     await waitFor(() => expect(asked.at(-1)).toEqual({ clusterId: CLUSTER.id, kind: 'QUEUE', name: 'orders.in' }));
@@ -111,7 +111,7 @@ describe('AccessCheckDrawer', () => {
     await screen.findByRole('row', { name: /queue:read/ });
     await choose(person, screen, 'Cluster', CLUSTER.name);
     await person.click(screen.getByRole('radio', { name: 'Address' }));
-    await person.type(screen.getByRole('textbox', { name: /Queue or address/ }), 'orders');
+    await person.type(screen.getByRole('textbox', { name: 'Address' }), 'orders');
     await person.click(screen.getByRole('button', { name: 'Check access' }));
 
     await waitFor(() => expect(asked.at(-1)).toEqual({ clusterId: CLUSTER.id, kind: 'ADDRESS', name: 'orders' }));
@@ -122,7 +122,7 @@ describe('AccessCheckDrawer', () => {
     serve(() => GLOBAL_RESULT);
     renderDrawer();
 
-    const name = await screen.findByRole('textbox', { name: /Queue or address/ });
+    const name = await screen.findByRole('textbox', { name: 'Queue' });
     expect(name).toBeDisabled();
     expect(screen.getByText('Choose a cluster first.')).toBeInTheDocument();
   });
@@ -138,6 +138,19 @@ describe('AccessCheckDrawer', () => {
 
     expect(screen.queryByRole('row', { name: /queue:read/ })).toBeNull();
     expect(screen.getByRole('row', { name: /queue:purge/ })).toBeInTheDocument();
+  });
+
+  it('shows only the allowed permissions when asked', async () => {
+    serveLookups();
+    serve(() => GLOBAL_RESULT);
+    const person = userEvent.setup();
+    renderDrawer();
+
+    await screen.findByRole('row', { name: /queue:purge/ });
+    await person.click(screen.getByRole('switch', { name: 'Allowed only' }));
+
+    expect(screen.queryByRole('row', { name: /queue:purge/ })).toBeNull();
+    expect(screen.getByRole('row', { name: /queue:read/ })).toBeInTheDocument();
   });
 
   it('states why a check failed and retries it', async () => {

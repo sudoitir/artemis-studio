@@ -762,7 +762,7 @@ describe('Administration → Plugins updates', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Check for updates' }));
     expect(
-      await screen.findByText(/1 update\(s\) available\. acme-wiki: could not check \(timed out\)\./),
+      await screen.findByText(/1 update is available\. acme-wiki: could not check \(timed out\)\./),
     ).toBeInTheDocument();
     const notes = screen.getByRole('row', { name: /Notes/ });
     await user.click(within(notes).getByRole('button', { name: '1.1.0 available' }));
