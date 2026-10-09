@@ -40,8 +40,8 @@ behind a per-node rate limiter. Studio must never be the reason a broker falls
 over.
 
 **Safe by default.** Every destructive operation takes `?dryRun=true` and
-returns the affected count without acting. Purge and delete require the
-resource's own name typed into the confirmation. The audit event is written in
+returns the affected count without acting. Purge and delete are confirmed by
+pressing and holding a button that names the action and its count. The audit event is written in
 the same transaction as the command, *before* the broker call, and updated with
 the outcome — so a crash mid-operation leaves a record that it was attempted.
 

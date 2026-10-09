@@ -15,9 +15,10 @@ the alternative misleads someone in that state.
   finished. Where an operation fans out across nodes, partial is the outcome that
   matters most and the one most likely to be skipped.
 - **A destructive action states its blast radius before it can be armed** — the
-  resource, the nodes, and how much data will be destroyed. Confirm by typing the
-  resource's name, using `ui/ConfirmByTyping.tsx`. Never a checkbox, a second
-  click, or a countdown.
+  resource, the nodes, and how much data will be destroyed. Confirm by pressing and
+  holding a button that names the action and its count (`ui/HoldToConfirm.tsx`; a
+  `tone="danger"` `ConfirmDialog` renders it). Never typing a name, a checkbox, a second
+  click, or a countdown (ADR-0186).
 - **An unavailable estimate is stated, never omitted.** An absent number reads as
   zero, which is the most dangerous possible misreading.
 - **The initiating control is busy while in flight** and cannot be re-submitted.
@@ -63,6 +64,31 @@ the alternative misleads someone in that state.
 - **Unreachable is not empty.** A view missing rows because a node did not answer
   says that, rather than presenting an absence as a fact.
 
+## Navigation and layout
+
+Load the `studio-navigation-and-layout` skill before touching any of this.
+
+- **One navigation row and one group heading:** `kernel/shell/NavItem.tsx` and `NavGroup.tsx`. A
+  list of a page's sections is `kernel/shell/SectionNav.tsx` (links to `?tab=<id>`, `aria-current`), never
+  Mantine `Tabs` with a vertical orientation. Horizontal `Tabs` stay for a small set of views of one thing.
+- **Row geometry comes from the `--as-nav-*` tokens**: left-aligned, full-width, one start edge for rows
+  and group headings. A new row or heading CSS is a defect.
+- **A change of the page's own search never moves the scroll.** The router resets it unless told not to;
+  `app/router.ts` keeps it for `to: '.'`. Never `scrollTo(0, 0)` or an unscoped `focus()` after one.
+- **The sidebar is for a cluster.** A page outside any cluster has no sidebar; `GlobalContext` is its way
+  back. Do not add a sidebar section that is not about the open cluster.
+
+## Interaction safety
+
+Load the `studio-safe-interactions` skill before a form with paired fields, a confirmation, or anything
+the approval gate holds.
+
+- **A pair of fields that go together** (a username and its password, a new password and its
+  confirmation) reports on the member that is missing and is re-checked on every edit of either
+  (`ui/formPairs.ts`). A message that stays after the cause is fixed is a bug.
+- **The approval gate asks the requester for nothing.** No reason, note or field per action; plugins add
+  none. The approver's reason for a rejection is the only one.
+
 ## Presentation
 
 - **Colour is never the only carrier of meaning.** State goes in words; colour is
@@ -88,8 +114,8 @@ the alternative misleads someone in that state.
   `Section`, `Toolbar`, `EmptyState`, `ErrorState`, `LoadingState`, `StatusBadge`, `Stat` and
   `DescriptionList`. No `Title order`, no red `Alert` for a failure, no local empty state, and no
   key and value `Table`.
-- Confirmations use `ui/ConfirmDialog.tsx`; a destructive one gives it `typedName`, which embeds
-  `ui/ConfirmByTyping.tsx`. Toasts go through `ui/notify.ts`, never `notifications.show`.
+- Confirmations use `ui/ConfirmDialog.tsx`; a destructive one is `tone="danger"`, which renders
+  `ui/HoldToConfirm.tsx`. Toasts go through `ui/notify.ts`, never `notifications.show`.
 - A per-node result uses `ui/NodeOutcomeSummary.tsx`, for the preview *and* the
   result, so what was confirmed and what happened are comparable.
 - DTOs come from `kernel/api/schema.d.ts`, generated. Never hand-written; a feature

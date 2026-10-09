@@ -1,6 +1,6 @@
 # ADR-0185: Settings apply as one change set, and Settings and Administration are grouped
 
-- **Status**: accepted
+- **Status**: accepted. The tab widgets and the reason field are amended by [ADR-0188](0188-section-navigation-is-one-component-and-pages-outside-a-cluster-have-no-sidebar.md) and [ADR-0187](0187-the-approval-gate-keeps-two-approvers-and-asks-for-no-reason.md).
 - **Date**: 2026-10-07
 - **Deciders**: Mahdi Amirabdollahi
 

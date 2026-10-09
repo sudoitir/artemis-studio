@@ -1,6 +1,6 @@
 # ADR-0179: An approval gate in the service layer asks one plugin provider, and Studio owns held operations
 
-- **Status**: accepted
+- **Status**: accepted. The requester's reason and the approver count are amended by [ADR-0187](0187-the-approval-gate-keeps-two-approvers-and-asks-for-no-reason.md).
 - **Date**: 2026-10-07
 - **Deciders**: Mahdi Amirabdollahi
 

@@ -442,7 +442,7 @@ row and genuinely cannot say which subscriptions received it.
 ## Safety and audit
 
 Every mutating endpoint accepts `?dryRun=true` and returns the affected count
-without acting. Purge/delete require typed confirmation in the UI. Every mutation
+without acting. Purge/delete are confirmed in the UI by press and hold (ADR-0186). Every mutation
 writes an `audit_event` in the same transaction as the command — row created
 before the broker call, updated with the outcome; a dry run is audited too
 (`dry_run = true`). The actor is a real identity (ADR-0041): the authenticated
@@ -456,7 +456,7 @@ keeps its cluster id and name after the cluster is removed.
 `safety.bulk-cap` (a `studio_setting`, default 1000) is rejected with a `422`
 (`bulk-cap-exceeded`, carrying `affectedCount` and `cap`) unless the caller passes
 `?override=true` — which the UI reaches only behind the dry-run preview plus a
-typed confirmation of the queue name (ADR-0022). A cap that lived only in the
+a held confirmation that names the action and count (ADR-0022, ADR-0186). A cap that lived only in the
 browser would not be a cap.
 
 **Broker configuration** (ADR-0067). A cluster's declared address settings,

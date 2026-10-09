@@ -1,6 +1,6 @@
 # ADR-0022: Dry-run is a broker-side estimate; the bulk safety cap is server-enforced
 
-- **Status**: accepted
+- **Status**: accepted. Typed confirmation is superseded by [ADR-0186](0186-destructive-actions-are-confirmed-by-press-and-hold.md).
 - **Date**: 2026-09-04
 - **Deciders**: Mahdi Amirabdollahi
 

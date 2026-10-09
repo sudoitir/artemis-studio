@@ -1,6 +1,6 @@
 # ADR-0163: Pages are built from shared page parts
 
-- **Status**: accepted
+- **Status**: accepted. Typed confirmation is superseded by [ADR-0186](0186-destructive-actions-are-confirmed-by-press-and-hold.md).
 - **Date**: 2026-10-01
 - **Deciders**: Mahdi Amirabdollahi
 
