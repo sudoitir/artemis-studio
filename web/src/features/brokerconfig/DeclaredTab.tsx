@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Button, Stack } from '@mantine/core';
+import { Button } from '@mantine/core';
 
 import type {
   ConfigAddressSettingView,
@@ -134,14 +134,12 @@ function DeclaredSection<T>({
 }
 
 /**
- * The five sections of the declaration, each a table of what is declared beside
- * what the nodes run, with the actions that change either: edit the declaration,
- * or apply this one item to every node (ADR-0087).
- *
- * <p>Nothing is behind a disclosure: the screen's whole job is the comparison,
- * and an accordion made half of it a click away.
+ * One section of the declaration: a table of what is declared beside what the nodes run, with the
+ * actions that change either: edit the declaration, or apply this one item to every node (ADR-0087).
+ * The page's list names the five sections; each is its own pane, so none is below the fold of another.
  */
 export function DeclaredTab({
+  section,
   declaration,
   catalogue,
   canWrite,
@@ -151,6 +149,8 @@ export function DeclaredTab({
   openItem,
   onEdit,
 }: Readonly<{
+  /** The section this pane shows: the page lists them one at a time. */
+  section: Section;
   declaration: ConfigDeclarationView;
   catalogue: ConfigCatalogueView | undefined;
   canWrite: boolean;
@@ -196,7 +196,7 @@ export function DeclaredTab({
 
   return (
     <>
-      <Stack gap="xl">
+      {section === 'addresses' ? (
         <DeclaredSection
           ctx={ctx}
           spec={addressSpec}
@@ -205,6 +205,8 @@ export function DeclaredTab({
           addGate={writeGate}
           addDisabled={!canWrite}
         />
+      ) : null}
+      {section === 'addressSettings' ? (
         <DeclaredSection
           ctx={ctx}
           spec={addressSettingSpec}
@@ -213,6 +215,8 @@ export function DeclaredTab({
           addGate={writeGate}
           addDisabled={!canWrite || !catalogue}
         />
+      ) : null}
+      {section === 'securitySettings' ? (
         <DeclaredSection
           ctx={ctx}
           spec={securitySpec}
@@ -221,6 +225,8 @@ export function DeclaredTab({
           addGate={writeGate}
           addDisabled={!canWrite}
         />
+      ) : null}
+      {section === 'diverts' ? (
         <DeclaredSection
           ctx={ctx}
           spec={divertSpec}
@@ -229,6 +235,8 @@ export function DeclaredTab({
           addGate={writeGate}
           addDisabled={!canWrite}
         />
+      ) : null}
+      {section === 'bridges' ? (
         <DeclaredSection
           ctx={ctx}
           spec={bridgeSpec}
@@ -237,9 +245,9 @@ export function DeclaredTab({
           addGate={writeGate}
           addDisabled={!canWrite}
         />
-      </Stack>
+      ) : null}
 
-      {catalogue ? (
+      {section === 'addressSettings' && catalogue ? (
         <AddressSettingEditor
           declaration={declaration}
           catalogue={catalogue}
@@ -248,7 +256,7 @@ export function DeclaredTab({
           onClose={close}
         />
       ) : null}
-      {catalogue ? (
+      {section === 'securitySettings' && catalogue ? (
         <SecuritySettingEditor
           declaration={declaration}
           catalogue={catalogue}
@@ -257,24 +265,30 @@ export function DeclaredTab({
           onClose={close}
         />
       ) : null}
-      <DivertEditor
-        declaration={declaration}
-        item={openItemIn('diverts', doc.diverts, (i) => i.name)}
-        opened={openSection === 'diverts'}
-        onClose={close}
-      />
-      <BridgeEditor
-        declaration={declaration}
-        item={openItemIn('bridges', doc.bridges, (i) => i.name)}
-        opened={openSection === 'bridges'}
-        onClose={close}
-      />
-      <AddressEditor
-        declaration={declaration}
-        item={openItemIn('addresses', doc.addresses, (i) => i.name)}
-        opened={openSection === 'addresses'}
-        onClose={close}
-      />
+      {section === 'diverts' ? (
+        <DivertEditor
+          declaration={declaration}
+          item={openItemIn('diverts', doc.diverts, (i) => i.name)}
+          opened={openSection === 'diverts'}
+          onClose={close}
+        />
+      ) : null}
+      {section === 'bridges' ? (
+        <BridgeEditor
+          declaration={declaration}
+          item={openItemIn('bridges', doc.bridges, (i) => i.name)}
+          opened={openSection === 'bridges'}
+          onClose={close}
+        />
+      ) : null}
+      {section === 'addresses' ? (
+        <AddressEditor
+          declaration={declaration}
+          item={openItemIn('addresses', doc.addresses, (i) => i.name)}
+          opened={openSection === 'addresses'}
+          onClose={close}
+        />
+      ) : null}
     </>
   );
 }

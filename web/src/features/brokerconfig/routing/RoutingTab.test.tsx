@@ -223,7 +223,7 @@ describe('RoutingTab', () => {
     expect(await screen.findByText(/160 elements, more than the 150 this canvas draws at once/)).toBeInTheDocument();
     expect(screen.getByText(/159 elements are not drawn/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Every one of them is on the Configuration screen's Declared & live tab/),
+      screen.getByText(/Every one of them is on the Configuration screen's declaration sections/),
     ).toBeInTheDocument();
     // The operator chooses what the region is anchored on.
     expect(screen.getByRole('combobox', { name: 'Draw the region around' })).toBeInTheDocument();

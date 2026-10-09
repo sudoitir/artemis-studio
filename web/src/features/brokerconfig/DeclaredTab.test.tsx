@@ -8,20 +8,28 @@ import type { ConfigDeclarationView } from './api.ts';
 import { DeclaredTab } from './DeclaredTab.tsx';
 import { CATALOGUE, declaration } from './fixtures.ts';
 
+const SECTIONS = ['addresses', 'addressSettings', 'securitySettings', 'diverts', 'bridges'] as const;
 const ALLOWED: GateVerdict = { kind: 'allowed', uncertain: false };
 
 function show(d: ConfigDeclarationView = declaration(), over: { canWrite?: boolean; applyGate?: GateVerdict } = {}) {
   const onEdit = vi.fn();
   const onApply = vi.fn();
   renderWithProviders(
-    <DeclaredTab
-      declaration={d}
-      catalogue={CATALOGUE}
-      canWrite={over.canWrite ?? true}
-      applyGate={over.applyGate ?? ALLOWED}
-      onApply={onApply}
-      onEdit={onEdit}
-    />,
+    <>
+      {/* The page shows one section at a time; here all five, so each case reads the one it is about. */}
+      {SECTIONS.map((section) => (
+        <DeclaredTab
+          key={section}
+          section={section}
+          declaration={d}
+          catalogue={CATALOGUE}
+          canWrite={over.canWrite ?? true}
+          applyGate={over.applyGate ?? ALLOWED}
+          onApply={onApply}
+          onEdit={onEdit}
+        />
+      ))}
+    </>,
   );
   return { onEdit, onApply, user: userEvent.setup() };
 }

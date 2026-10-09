@@ -349,8 +349,8 @@ export function RoutingCanvas({
         <div className={classes.layoutError}>
           <ErrorState error={layout.error} />
           <Text size="sm">
-            The graph could not be laid out. Every element it would have drawn is on the Configuration screen's Declared
-            &amp; live tab.
+            The graph could not be laid out. Every element it would have drawn is on the Configuration screen's
+            declaration sections.
           </Text>
         </div>
       ) : null}

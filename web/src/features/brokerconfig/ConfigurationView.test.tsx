@@ -51,13 +51,26 @@ describe('ConfigurationView', () => {
     expect(screen.getByRole('button', { name: 'Why review and apply is unavailable' })).toBeInTheDocument();
   });
 
-  it('has no routing builder tab: the builder is on the Routing screen (ADR-0094)', async () => {
+  it('has no routing builder section: the builder is on the Routing screen (ADR-0094)', async () => {
     server.use(...baseHandlers());
     renderWithProviders(<ConfigurationView />);
 
-    const tabs = await screen.findAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Declared & live', 'History', 'Recommended']);
-    expect(screen.queryByRole('tab', { name: /routing/i })).toBeNull();
+    const list = await screen.findByRole('navigation', { name: 'Configuration sections' });
+    expect(
+      within(list)
+        .getAllByRole('link')
+        .map((t) => t.textContent),
+    ).toEqual([
+      expect.stringMatching(/^Addresses and queues/),
+      expect.stringMatching(/^Address settings/),
+      expect.stringMatching(/^Security settings/),
+      expect.stringMatching(/^Diverts/),
+      expect.stringMatching(/^Bridges/),
+      'Live nodes',
+      'History',
+      'Recommended',
+    ]);
+    expect(within(list).queryByRole('link', { name: /routing/i })).toBeNull();
   });
 
   it('disables apply with the reason when the cluster is managed outside Studio', async () => {
@@ -75,6 +88,7 @@ describe('ConfigurationView', () => {
   it('opens the address-setting editor on the house form pattern: blur validation and focus on the first invalid field', async () => {
     server.use(...baseHandlers());
     const user = userEvent.setup();
+    search.tab = 'addressSettings';
     renderWithProviders(<ConfigurationView />);
 
     await user.click(await screen.findByRole('button', { name: 'Add address setting' }));
@@ -139,7 +153,7 @@ describe('ConfigurationView', () => {
 
   it('keeps the open editor in the URL, so it can be linked and restored', async () => {
     server.use(...baseHandlers());
-    search.section = 'addressSettings';
+    search.tab = 'addressSettings';
     search.item = 'orders.#';
     renderWithProviders(<ConfigurationView />);
 
@@ -152,11 +166,12 @@ describe('ConfigurationView', () => {
     renderWithProviders(<ConfigurationView />);
 
     await user.click(await screen.findByRole('button', { name: 'Edit address orders.request' }));
-    await waitFor(() => expect(search).toMatchObject({ section: 'addresses', item: 'orders.request' }));
+    await waitFor(() => expect(search).toMatchObject({ tab: 'addresses', item: 'orders.request' }));
   });
 
   it('states how far the revision has got, and names the node a row differs on', async () => {
     server.use(...baseHandlers());
+    search.tab = 'addressSettings';
     const { unmount } = renderWithProviders(<ConfigurationView />);
     expect(await screen.findByText('Revision 3 — applied to 2 of 2 live nodes')).toBeInTheDocument();
     expect(screen.getAllByText(/in sync on 2\/2/).length).toBeGreaterThanOrEqual(1);
@@ -399,6 +414,7 @@ describe('ConfigurationView', () => {
       ),
     );
     const user = userEvent.setup();
+    search.tab = 'nodes';
     renderWithProviders(<ConfigurationView />);
 
     // Adoption and a verified apply both read "in sync"; only one of them means
@@ -473,6 +489,7 @@ describe('ConfigurationView', () => {
       ),
     );
     const user = userEvent.setup();
+    search.tab = 'addressSettings';
     renderWithProviders(<ConfigurationView />);
 
     await user.click(await screen.findByRole('button', { name: 'Add address setting' }));
@@ -487,7 +504,6 @@ describe('ConfigurationView', () => {
     expect(
       within(dialog).getByText(/Fills the fields below from this cluster's own ORDERS.DLQ and ORDERS.EXPIRY/),
     ).toBeInTheDocument();
-    delete search.section;
   });
 
   it('suggests adopting the live nodes as revision 1, in counts, and adopts nothing on its own', async () => {
@@ -550,15 +566,14 @@ describe('ConfigurationView', () => {
     expect(await screen.findByText(/nodes evaluated 4m ago, about every 5m/)).toBeInTheDocument();
   });
 
-  it('is one page: a single h1, the sections as h2 and a tab panel named by its tab', async () => {
+  it('is one page: a single h1, the open section as its h2 and a group named by its section', async () => {
     server.use(...baseHandlers());
     renderWithProviders(<ConfigurationView />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Configuration' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Address settings' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Nodes' })).toBeInTheDocument();
-    expect(await screen.findByRole('tabpanel', { name: 'Declared & live' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Addresses and queues' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Addresses and queues' })).toBeInTheDocument();
   });
 
   it('holds the page and says what is loading while the declaration loads', async () => {
@@ -573,7 +588,7 @@ describe('ConfigurationView', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Configuration' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading the declared configuration');
-    expect(await screen.findByRole('heading', { level: 2, name: 'Address settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Addresses and queues' })).toBeInTheDocument();
   });
 
   it('states why the declaration could not be read and reads it again on retry', async () => {
@@ -596,7 +611,7 @@ describe('ConfigurationView', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Configuration' })).toBeInTheDocument();
 
     await user.click(within(alert).getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Address settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Addresses and queues' })).toBeInTheDocument();
   });
 
   it('keeps Evaluate now and Export visible when nothing is declared, each explaining itself', async () => {

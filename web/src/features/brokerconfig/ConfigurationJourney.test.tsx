@@ -91,7 +91,7 @@ describe('the configuration screen', () => {
       ...baseHandlers(drifted),
       applyHandler(() => plan()),
     );
-    await open();
+    await open('/clusters/c1/configuration?tab=addressSettings');
 
     // The sentence a save produces: a revision exists, and a broker has not been written.
     expect(await screen.findByText('Revision 3 — applied to 1 of 2 live nodes')).toBeInTheDocument();
@@ -170,7 +170,7 @@ describe('the configuration screen', () => {
       applyHandler(() => plan({ dryRun: false, outcome: 'APPLIED' }), seen),
     );
     const user = userEvent.setup();
-    await open();
+    await open('/clusters/c1/configuration?tab=addressSettings');
 
     await user.click(await screen.findByRole('button', { name: 'Apply address setting orders.#' }));
     const drawer = await screen.findByRole('dialog', { name: /Review & apply address setting orders.#/ });
@@ -279,7 +279,7 @@ describe('the configuration screen', () => {
       applyHandler(() => plan()),
     );
     const user = userEvent.setup();
-    await open();
+    await open('/clusters/c1/configuration?tab=addressSettings');
 
     await user.click(await screen.findByRole('button', { name: 'Edit address setting orders.#' }));
     const editor = await screen.findByRole('dialog', { name: /Address setting orders/ });
