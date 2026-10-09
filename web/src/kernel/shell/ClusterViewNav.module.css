@@ -1,16 +1,40 @@
+/* Below the cluster switcher: the first group's title (or, on the rail, its rule) is the separator. */
+.nav {
+  margin-block-start: var(--mantine-spacing-xs);
+}
+
 .group + .group {
   margin-block-start: var(--mantine-spacing-sm);
 }
 
-/* Aligned with the row labels: the row's accent edge and its inline padding. */
+/* Aligned with the row labels: the row's accent edge and its inline padding. One line, whatever the
+   width, so the title and the rail's rule that replaces it are the same height. */
 .heading {
+  position: relative;
   display: block;
   margin: 0;
   padding-block: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
   padding-inline: calc(var(--mantine-spacing-md) + 0.125rem);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: var(--mantine-font-size-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--as-text-dimmed);
+}
+
+/* On the rail the words are kept, for a screen reader, and drawn as a rule. */
+.heading[data-collapsed] {
+  color: transparent;
+  text-overflow: clip;
+}
+
+.heading[data-collapsed]::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--mantine-spacing-xs);
+  inset-block-start: 50%;
+  border-block-start: 1px solid var(--as-border);
 }

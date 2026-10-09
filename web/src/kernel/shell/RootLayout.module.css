@@ -54,9 +54,42 @@
   flex: none;
 }
 
-.headerStart > :global(.mantine-Text-root) {
+.headerStart > .brand {
   flex: 0 1 auto;
   min-inline-size: 0;
+}
+
+/* The brand is the way home: the product's mark and name, one link. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding-block: calc(var(--mantine-spacing-xs) / 2);
+  padding-inline: var(--mantine-spacing-xs);
+  margin-inline-start: calc(var(--mantine-spacing-xs) * -1);
+  border-radius: var(--mantine-radius-sm);
+  color: var(--as-text);
+  text-decoration: none;
+  transition: background-color var(--as-duration-fast) var(--as-ease);
+}
+
+.brand > img {
+  flex: none;
+}
+
+.brand > :global(.mantine-Text-root) {
+  min-inline-size: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .brand:hover {
+    background: var(--as-grid-row-hover);
+  }
+}
+
+.brand:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
 }
 
 .headerEnd {
@@ -64,4 +97,58 @@
   flex: none;
   align-items: center;
   gap: var(--mantine-spacing-sm);
+}
+
+/* The palette's trigger reads as a search field, at the height of every other header control (28px,
+   Mantine's default ActionIcon), so the band has one control height. */
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  box-sizing: border-box;
+  block-size: 1.75rem;
+  min-inline-size: 14rem;
+  padding-inline: var(--mantine-spacing-xs);
+  border: 1px solid var(--as-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--as-surface-raised);
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-sm);
+  transition:
+    border-color var(--as-duration-fast) var(--as-ease),
+    color var(--as-duration-fast) var(--as-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .search:hover {
+    border-color: var(--as-border-strong);
+    color: var(--as-text);
+  }
+}
+
+.search:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
+
+.searchText {
+  flex: 1;
+  text-align: start;
+  white-space: nowrap;
+}
+
+/* A key hint is a label, not a key cap: flat, without Mantine's raised lower edge. */
+.kbd {
+  border-block-end-width: 1px;
+}
+
+/* The sidebar's own control sits at its foot: centred on the rail, at the inline end when expanded. */
+.navFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding-block-start: var(--mantine-spacing-xs);
+}
+
+.navFooter[data-collapsed] {
+  justify-content: center;
 }

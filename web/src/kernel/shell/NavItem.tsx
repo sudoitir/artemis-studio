@@ -8,8 +8,8 @@ import styles from './NavItem.module.css';
  * One sidebar row, shared by the cluster switcher and the per-cluster view nav
  * (ADR-0034). Collapsed state hides the label visually but never from a screen
  * reader — `aria-label` carries it, and the `Tooltip` supplies the mouse
- * equivalent, opened late enough (350ms) that sweeping the rail doesn't flicker
- * a tooltip per row.
+ * equivalent. The navbar's `Tooltip.Group` sets the delay: late enough that sweeping
+ * the rail doesn't flicker a tooltip per row, then instant from row to row.
  *
  * A row with a `disabledReason` is not a link. It stays in the tab order, so the
  * reason is reachable by keyboard: the tooltip opens on focus as well as hover,
@@ -42,11 +42,9 @@ export function NavItem({
         <Tooltip
           label={disabledReason}
           position="right"
-          openDelay={350}
           events={{ hover: true, focus: true, touch: true }}
           multiline
           w={240}
-          withArrow
         >
           <span
             className={styles.item}
@@ -70,7 +68,7 @@ export function NavItem({
   }
 
   return (
-    <Tooltip label={label} position="right" openDelay={350} disabled={!collapsed} withArrow>
+    <Tooltip label={label} position="right" disabled={!collapsed}>
       <Link
         to={to}
         className={styles.item}

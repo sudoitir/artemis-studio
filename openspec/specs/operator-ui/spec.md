@@ -1056,15 +1056,15 @@ When the caller gives a list of things that can be inserted, each edge the calle
 
 ### Requirement: The operator chooses the colour scheme from the header
 
-The header SHALL offer, on every authenticated screen, one control that cycles the colour scheme through following the operating system, light and dark. The command palette SHALL offer the same action. The control's accessible name SHALL state the scheme it switches to and, while it follows the operating system, the scheme the system is using. The choice SHALL be remembered in that browser across reloads. A first visit SHALL follow the operating system. The page SHALL open in the chosen or system scheme without first showing the other one.
+The header's user menu SHALL offer, on every authenticated screen, the colour scheme as a choice of three: following the operating system, light and dark, with the one in use marked. The command palette SHALL offer an action that cycles the same three; its name SHALL state the scheme it switches to and, while the console follows the operating system, the scheme the system is using. The choice SHALL be remembered in that browser across reloads. A first visit SHALL follow the operating system. The page SHALL open in the chosen or system scheme without first showing the other one.
 
 #### Scenario: A first visit follows the system
 - **WHEN** an operator whose operating system uses a light scheme opens the console for the first time
 - **THEN** the console shows the light scheme
 
-#### Scenario: Switching the scheme
-- **WHEN** an operator activates the control while it follows the operating system
-- **THEN** the console uses the light scheme regardless of the system, and the control now offers the dark scheme
+#### Scenario: Choosing a scheme
+- **WHEN** an operator whose console follows the operating system chooses Light in the user menu
+- **THEN** the console uses the light scheme regardless of the system, and the menu marks Light as the scheme in use
 
 #### Scenario: The choice survives a reload
 - **WHEN** an operator chooses the dark scheme and reloads

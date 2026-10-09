@@ -44,6 +44,21 @@ describe('UserMenu', () => {
     expect(JSON.parse(window.localStorage.getItem('as:density') ?? 'null')).toBe('comfortable');
   });
 
+  it('offers the system, light and dark colour schemes, marks the one in use and applies a choice', async () => {
+    const user = userEvent.setup();
+    renderAppAt('/');
+
+    await user.click(await screen.findByRole('button', { name: 'User menu' }));
+    // The test harness opens in the dark scheme.
+    expect(await radio('Dark')).toBeChecked();
+
+    await user.click(await radio('Light'));
+
+    expect(document.documentElement).toHaveAttribute('data-mantine-color-scheme', 'light');
+    expect(await radio('Light')).toBeChecked();
+    expect(await radio('System')).not.toBeChecked();
+  });
+
   const item = (name: string) => screen.queryByRole('menuitem', { name, hidden: true });
 
   it('offers Administration to a user administrator, opening its first tab', async () => {

@@ -1,4 +1,4 @@
-import { Divider, Text, VisuallyHidden } from '@mantine/core';
+import { Text } from '@mantine/core';
 
 import { useCan } from '../auth/useCan.ts';
 import { useFeatures } from '../features.ts';
@@ -9,7 +9,8 @@ import { NavItem } from './NavItem.tsx';
 /**
  * The per-cluster view nav (ADR-0034), grouped (ADR-0070). Each enabled feature contributes its
  * views to one of the kernel's groups; a group with no enabled view is not shown. Expanded, a group
- * has a visible title; collapsed, a divider, and its title stays available to a screen reader. The title
+ * has a visible title; collapsed, the same title is drawn as a rule, at the same height so the rail's
+ * icons hold still, and its words stay available to a screen reader. The title
  * names its group but is not a heading: the page's headings are the page's own, starting at its one h1.
  * A view the operator lacks the read permission for stays listed and disabled, with the reason:
  * a missing entry would read as a product that cannot do it. Only rendered while a cluster is the
@@ -22,45 +23,32 @@ export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: s
   const { canAnywhere, loading } = useCan();
 
   return (
-    <>
-      <Divider my="xs" />
-      <nav aria-label="Cluster views">
-        {groups.map((group) => {
-          const headingId = `cluster-views-${group.id}`;
-          const heading = (
-            <Text id={headingId} component="span" className={styles.heading}>
+    <nav aria-label="Cluster views" className={styles.nav}>
+      {groups.map((group) => {
+        const headingId = `cluster-views-${group.id}`;
+        return (
+          <div key={group.id} role="group" aria-labelledby={headingId} className={styles.group}>
+            <Text id={headingId} component="span" className={styles.heading} data-collapsed={collapsed || undefined}>
               {group.label}
             </Text>
-          );
-          return (
-            <div key={group.id} role="group" aria-labelledby={headingId} className={styles.group}>
-              {collapsed ? (
-                <>
-                  <Divider my="xs" />
-                  <VisuallyHidden>{heading}</VisuallyHidden>
-                </>
-              ) : (
-                heading
-              )}
-              {group.items.map((item) => (
-                <NavItem
-                  key={item.path}
-                  to={`/clusters/${clusterId}/${item.path}`}
-                  label={item.label}
-                  collapsed={collapsed}
-                  leading={<item.icon size={18} stroke={1.5} />}
-                  trailing={item.Badge ? <item.Badge clusterId={clusterId} /> : undefined}
-                  disabledReason={
-                    item.permission && !loading && !canAnywhere(item.permission, clusterId)
-                      ? `Opening ${item.label} needs the ${item.permission} permission on this cluster.`
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          );
-        })}
-      </nav>
-    </>
+            {group.items.map((item) => (
+              <NavItem
+                key={item.path}
+                to={`/clusters/${clusterId}/${item.path}`}
+                label={item.label}
+                collapsed={collapsed}
+                leading={<item.icon size={18} stroke={1.5} />}
+                trailing={item.Badge ? <item.Badge clusterId={clusterId} /> : undefined}
+                disabledReason={
+                  item.permission && !loading && !canAnywhere(item.permission, clusterId)
+                    ? `Opening ${item.label} needs the ${item.permission} permission on this cluster.`
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        );
+      })}
+    </nav>
   );
 }

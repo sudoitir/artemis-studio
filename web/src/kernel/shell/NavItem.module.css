@@ -1,5 +1,7 @@
 /* The icon column is one fixed track, so a collapsed row (icon only) and an expanded one keep the icon
-   at the same distance from the rail's edge. */
+   at the same distance from the rail's edge. Every row carries the accent edge's width, transparent,
+   so opening one moves nothing; the open row squares its start corners, so the edge is a straight
+   bar rather than a curved sliver, on whichever side the writing direction starts. */
 .item {
   display: grid;
   grid-template-columns: 1.125rem 1fr auto;
@@ -16,29 +18,47 @@
   text-decoration: none;
   cursor: pointer;
   border-radius: var(--mantine-radius-sm);
+  transition:
+    background-color var(--as-duration-fast) var(--as-ease),
+    color var(--as-duration-fast) var(--as-ease),
+    transform var(--as-duration-fast) var(--as-ease);
 }
 
-.item:hover {
-  color: var(--as-text);
-  background: var(--as-surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .item:hover {
+    color: var(--as-text);
+    background: var(--as-grid-row-hover);
+  }
 }
 
+.item:active {
+  transform: scale(0.98);
+}
+
+/* The weight stays the same as the other rows': a bolder label would widen and jump. */
 .item[data-active] {
   color: var(--as-text);
-  font-weight: 600;
+  background: var(--as-selected);
   border-inline-start-color: var(--as-accent);
-  background: var(--as-surface-raised);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
 }
 
-/* Disabled: listed, focusable for its reason, never raised on hover. No opacity —
+/* Disabled: listed, focusable for its reason, never raised on hover or pressed. No opacity —
    the label stays at the dimmed token's contrast. */
 .item[data-disabled] {
   cursor: not-allowed;
 }
 
-.item[data-disabled]:hover {
-  color: var(--as-text-dimmed);
-  background: transparent;
+.item[data-disabled]:active {
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .item[data-disabled]:hover {
+    color: var(--as-text-dimmed);
+    background: transparent;
+  }
 }
 
 .item:focus-visible {
@@ -56,23 +76,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition:
-    opacity var(--as-duration-fast) var(--as-ease),
-    max-inline-size var(--as-duration-base) var(--as-ease);
 }
 
 .trailing {
   font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   font-variant-numeric: tabular-nums;
-  transition:
-    opacity var(--as-duration-fast) var(--as-ease),
-    max-inline-size var(--as-duration-base) var(--as-ease);
 }
 
-/* Collapsed: icon-only, centered — the label and trailing count fade out on a
-   shorter timer than the navbar's own width transition, so text clears the
-   rail before it narrows past it (never a smeared collapse). */
+/* Collapsed: icon-only, centred. The label and trailing count are not drawn at all, so the one-track
+   grid has nothing to push into rows below it; a collapsed row's name is its `aria-label`. */
 .item[data-collapsed] {
   grid-template-columns: 1.125rem;
   justify-content: center;
@@ -81,6 +94,5 @@
 
 .item[data-collapsed] .label,
 .item[data-collapsed] .trailing {
-  opacity: 0;
-  max-inline-size: 0;
+  display: none;
 }

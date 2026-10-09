@@ -1,0 +1,23 @@
+/* The avatar is the whole control: a ring on hover says it opens something, and it gives under a press. */
+.trigger {
+  display: flex;
+  border-radius: 50%;
+  transition:
+    box-shadow var(--as-duration-fast) var(--as-ease),
+    transform var(--as-duration-fast) var(--as-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover {
+    box-shadow: 0 0 0 0.125rem var(--as-border-strong);
+  }
+}
+
+.trigger:active {
+  transform: scale(0.98);
+}
+
+.trigger:focus-visible {
+  outline: var(--as-focus-ring);
+  outline-offset: var(--as-focus-offset);
+}
