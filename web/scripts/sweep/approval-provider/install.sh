@@ -89,9 +89,9 @@ done
 ADMIN_COOKIES=$COOKIES
 COOKIES=$BUILD/requester.cookies
 (ADMIN_USER=qa-requester ADMIN_PASSWORD=$REQUESTER_PASSWORD ADMIN_TOTP_SECRET= studio_sign_in "") || exit 1
-# purge QUEUE [REASON] → the held request's id
+# purge QUEUE → the held request's id
 purge() {
-  api DELETE "/clusters/$cluster/queues/qa.reconciliation.$1/messages" ${2:+-H "X-Studio-Approval-Reason: $2"} \
+  api DELETE "/clusters/$cluster/queues/qa.reconciliation.$1/messages" \
     | python3 -c 'import json,sys; print(json.load(sys.stdin)["heldOperation"]["id"])'
 }
 purge held-1 >/dev/null
@@ -99,9 +99,9 @@ approved=$(purge held-2)
 rejected=$(purge held-3)
 cancelled=$(purge held-4)
 refused=$(purge held-6)
-purge held-5 "Nightly batch is stuck; let this expire if nobody looks" >/dev/null
+purge held-5 >/dev/null
 api POST "/held-operations/$cancelled/cancel" -f -o /dev/null
-api POST /settings/changes -o /dev/null -H 'X-Studio-Approval-Reason: Approvers in the EU team need more time over the weekend' \
+api POST /settings/changes -o /dev/null \
   -d '{"changes":[{"key":"gate.run-window","value":"30m"},{"key":"gate.max-open-per-requester","value":"40"}]}'
 COOKIES=$ADMIN_COOKIES
 # decide ID VOTE REASON

@@ -413,11 +413,12 @@ if (PLUGIN_JAR) {
       }
       await click(page, dialog.getByRole('button', { name: 'Continue' }));
 
-      const confirm = dialog.getByRole('textbox', { name: /to confirm/ });
-      await click(page, confirm);
-      await type(page, 'acme-notes');
-      await hold(page, 500);
-      await click(page, dialog.getByRole('button', { name: /^Install/ }).last());
+      // The confirmation is held: the button fills while the mouse stays down.
+      const install = dialog.getByRole('button', { name: /^Install/ }).last();
+      await install.hover();
+      await page.mouse.down();
+      await hold(page, 1_800);
+      await page.mouse.up();
       await dialog.getByText(/is active/).waitFor({ timeout: 90_000 });
       await hold(page, 1_800);
 
