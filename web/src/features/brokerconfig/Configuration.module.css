@@ -8,7 +8,9 @@
 .summaryBar {
   position: sticky;
   inset-block-start: var(--app-shell-header-offset, 0);
-  z-index: var(--as-z-sticky);
+  /* Above the tables' sticky headers (Mantine's own z-index), which stick at the same offset and
+     would otherwise slide over the bar. */
+  z-index: calc(var(--as-z-sticky) + 3);
   display: flex;
   flex-wrap: wrap;
   gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
