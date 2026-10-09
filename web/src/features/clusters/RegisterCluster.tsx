@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ActionIcon, Button, Collapse, PasswordInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+
+import { pairProblems, useRevalidatePairs } from '../../ui/formPairs.ts';
 import { IconChevronDown, IconChevronRight, IconX } from '@tabler/icons-react';
 import { Link, useNavigate } from '@tanstack/react-router';
 
@@ -66,11 +68,6 @@ function seedProblem(value: string): string | null {
   if (first?.url === null) return `Couldn't make sense of: ${first.original}`;
   if (first && new URL(first.url).username) return 'Put the account in the Management account fields, not in the URL.';
   return null;
-}
-
-/** A username and password go together; one without the other is the mistake to name. */
-function unpairedProblem(username: string, password: string, message: string): string | null {
-  return Boolean(username) !== Boolean(password) ? message : null;
 }
 
 /** Why registering is not offered yet. */
@@ -202,8 +199,10 @@ function seedsOf(f: Fields): { urls: string[]; problems: Record<string, string> 
   return { urls, problems };
 }
 
-const USERNAME_PAIR = 'Provide both a username and a password, or neither.';
-const CORE_PAIR = 'Provide both a Core username and password, or neither.';
+const PAIRS: [string, string][] = [
+  ['username', 'password'],
+  ['coreUsername', 'corePassword'],
+];
 
 /** What is wrong with the values as they stand, by field: the form can be sent only when this is empty. */
 function problemsOf(values: Fields): Record<string, string> {
@@ -211,9 +210,33 @@ function problemsOf(values: Fields): Record<string, string> {
   if (values.pattern && !isValidPattern(values.pattern)) {
     problems.pattern = 'Use http(s)://{host}[:port][/path], with {host} as the whole host.';
   }
-  if (unpairedProblem(values.username, values.password, USERNAME_PAIR)) problems.username = USERNAME_PAIR;
-  if (unpairedProblem(values.coreUsername, values.corePassword, CORE_PAIR)) problems.coreUsername = CORE_PAIR;
-  return problems;
+  return {
+    ...problems,
+    ...pairProblems(
+      {
+        name: 'username',
+        value: values.username,
+        missing: 'Enter the username for this password, or clear the password.',
+      },
+      {
+        name: 'password',
+        value: values.password,
+        missing: 'Enter the password for this username, or clear the username.',
+      },
+    ),
+    ...pairProblems(
+      {
+        name: 'coreUsername',
+        value: values.coreUsername,
+        missing: 'Enter the Core username for this password, or clear the password.',
+      },
+      {
+        name: 'corePassword',
+        value: values.corePassword,
+        missing: 'Enter the Core password for this username, or clear the username.',
+      },
+    ),
+  };
 }
 
 /**
@@ -237,6 +260,7 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
     validate: problemsOf,
   });
   const f = form.values;
+  useRevalidatePairs(form, PAIRS);
 
   const { urls: seedList } = seedsOf(f);
   const rewritten = [f.seed, ...f.moreSeeds.map((row) => row.url)]
