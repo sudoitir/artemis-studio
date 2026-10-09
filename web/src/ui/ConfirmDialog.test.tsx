@@ -66,7 +66,8 @@ describe('ConfirmDialog', () => {
     expect(confirm).toBeDisabled();
     await user.keyboard('order');
     expect(confirm).toBeDisabled();
-    await user.keyboard('s{Tab}{Enter}');
+    // Enter in the armed field confirms, as the form's submit.
+    await user.keyboard('s{Enter}');
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
@@ -157,7 +158,7 @@ describe('ConfirmDialog', () => {
     await user.keyboard('{Enter}');
     const dialog = await screen.findByRole('dialog', { name: 'Delete queue' });
     await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus());
-    await user.keyboard('orders{Tab}{Enter}');
+    await user.keyboard('orders{Enter}');
 
     // The confirm controls give way to the outcome, which holds focus; what was confirmed stays above it.
     const outcome = await screen.findByRole('group', { name: 'Result' });

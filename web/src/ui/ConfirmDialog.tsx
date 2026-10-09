@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { Button, Group, Modal, Stack, Text, useMantineTheme } from '@mantine/core';
+import { Button, Modal, Stack, Text, useMantineTheme } from '@mantine/core';
 
 import { ConfirmByTyping } from './ConfirmByTyping.tsx';
+import { DialogActions } from './DialogActions.tsx';
 import classes from './ConfirmDialog.module.css';
 
 /**
@@ -10,7 +11,8 @@ import classes from './ConfirmDialog.module.css';
  *
  * <ul>
  *   <li>With `typedName` the button arms only when that name is typed, through
- *       {@link ConfirmByTyping}; use it for anything that removes a resource.
+ *       {@link ConfirmByTyping}; use it for an irreversible removal or a lock-out. A removal that can be
+ *       redone in a moment (a grant, a mapping) takes the plain confirmation: friction matches risk.
  *   <li>Focus enters the dialog (the cancel button, or the name field when one is asked for),
  *       Escape closes it, and focus returns to the control that opened it.
  *   <li>While `pending` the button is busy and cannot be pressed again, and the dialog stays
@@ -67,7 +69,7 @@ export function ConfirmDialog({
         <fieldset ref={outcome} aria-label="Result" tabIndex={-1} className={classes.outcome}>
           {result}
         </fieldset>
-        <Group justify="flex-end">{cancel}</Group>
+        <DialogActions>{cancel}</DialogActions>
       </>
     );
   } else if (typedName) {
@@ -81,16 +83,16 @@ export function ConfirmDialog({
           loading={pending}
           disabled={Boolean(blocked)}
           describedBy={blocked ? reasonId : undefined}
+          dismiss={cancel}
           onConfirm={onConfirm}
         />
-        <Group justify="flex-end">{cancel}</Group>
       </>
     );
   } else {
     controls = (
       <>
         {reason}
-        <Group justify="flex-end">
+        <DialogActions>
           {cancel}
           <Button
             color={color}
@@ -101,7 +103,7 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </Button>
-        </Group>
+        </DialogActions>
       </>
     );
   }
@@ -141,7 +143,7 @@ export type ConfirmDialogProps = Readonly<{
   dismissLabel?: string;
   /** `danger` for an action that removes or overwrites; defaults to `default`. */
   tone?: 'default' | 'danger';
-  /** The resource's name, typed to arm the button. Required for a removal. */
+  /** The resource's name, typed to arm the button. Required for an irreversible removal or lock-out. */
   typedName?: string;
   /** The action is running: the button is busy and the dialog cannot be dismissed. */
   pending?: boolean;

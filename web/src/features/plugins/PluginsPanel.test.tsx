@@ -433,7 +433,7 @@ describe('Administration → Plugins', () => {
     await user.keyboard('{Enter}');
     const again = await screen.findByRole('dialog', { name: "Purge Notes's data" });
     await user.type(within(again).getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.tab();
+    // Enter in the armed name field confirms.
     await user.keyboard('{Enter}');
     await waitFor(() => expect(purged).toBe(true));
   });
