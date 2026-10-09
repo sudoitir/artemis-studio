@@ -31,7 +31,7 @@ on one long tab.
    scroll; the section's height is held; loading frames fade in after 150 ms; a section's code loads when the
    pointer reaches its link. The router never resets the scroll for a change of the page's own search.
 4. **No sidebar outside a cluster.** The shell shows it only under `/clusters/$id`. Other pages get a line
-   above them: "Back to <cluster> · <view>" (the exact view and filters, kept in `lastPlace`) and where they are.
+   above them: "Back to `<cluster>` · `<view>`" (the exact view and filters, kept in `lastPlace`) and where they are.
    The header brand goes to the same place.
 5. **Configuration is a section list:** Declaration (five sections, each with its count and, in words and a
    mark, how many differ on a node), Nodes, Changes (history, recommended); `?tab=` names the section and
