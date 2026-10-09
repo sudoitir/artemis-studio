@@ -6,7 +6,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useMe } from '../../kernel/auth/api.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useManifest } from '../../kernel/manifest.ts';
-import { GroupedTabs, type GroupedTab } from '../../kernel/shell/GroupedTabs.tsx';
+import { SectionNav, type SectionTab } from '../../kernel/shell/SectionNav.tsx';
 import { SETTINGS_GROUPS, useSlot } from '../../kernel/slots.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -154,7 +154,7 @@ function SearchBox({ value, onChange }: Readonly<{ value: string; onChange: (val
 }
 
 /** A tab for a settings category, with the heading it sits under. */
-type CategoryTab = GroupedTab & { group: 'studio' | 'plugins' };
+type CategoryTab = SectionTab & { group: 'studio' | 'plugins' };
 
 /** The categories as forms, the draft's footer and the guard against leaving with unsaved edits. */
 function DraftedSettings({ search, onClearFilters }: Readonly<{ search: SettingsSearch; onClearFilters: () => void }>) {
@@ -175,7 +175,9 @@ function DraftedSettings({ search, onClearFilters }: Readonly<{ search: Settings
   const changedKeys = new Set(draft.changes.map((c) => c.key));
   // After the draft is applied or sent, focus returns to the open section rather than to the page's start.
   const flow = useApplyFlow(categories, () =>
-    requestAnimationFrame(() => tabsRef.current?.querySelector<HTMLElement>('[role="tabpanel"]')?.focus()),
+    requestAnimationFrame(() =>
+      tabsRef.current?.querySelector<HTMLElement>('[data-section-panel]')?.focus({ preventScroll: true }),
+    ),
   );
 
   const tabs: CategoryTab[] = [];
@@ -277,6 +279,7 @@ function SettingsTabs({
             <Component clusterId={clusterId} />
           </Section>
         ),
+        preload: (Component as { preload?: () => void }).preload,
       }));
     // A group's settings categories come first: they are what most visits here are for.
     const categories = categoryTabs.filter((tab) => tab.group === group.id);
@@ -298,5 +301,5 @@ function SettingsTabs({
     );
   }
 
-  return <GroupedTabs label="Settings sections" groups={groups} />;
+  return <SectionNav label="Settings sections" groups={groups} keep={['q', 'modified']} />;
 }

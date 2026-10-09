@@ -1,0 +1,25 @@
+.group + .group {
+  margin-block-start: var(--as-nav-group-gap);
+}
+
+/* On the same start edge as the rows under it: both use the nav's inline padding. Quiet, small, and
+   uppercase, so it reads as a label for the group and never as a row. */
+.heading {
+  display: block;
+  margin: 0;
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--as-nav-pad-inline);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--as-text-dimmed);
+}
+
+/* In a list that scrolls, the heading of the group in view stays at the top of it. */
+.heading[data-sticky] {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--as-surface);
+}

@@ -1,9 +1,9 @@
-import { Divider, Text, VisuallyHidden } from '@mantine/core';
+import { Divider } from '@mantine/core';
 
 import { useCan } from '../auth/useCan.ts';
 import { useFeatures } from '../features.ts';
 import { navGroups } from '../registry.ts';
-import styles from './ClusterViewNav.module.css';
+import { NavGroup } from './NavGroup.tsx';
 import { NavItem } from './NavItem.tsx';
 
 /**
@@ -25,41 +25,25 @@ export function ClusterViewNav({ clusterId, collapsed }: Readonly<{ clusterId: s
     <>
       <Divider my="xs" />
       <nav aria-label="Cluster views">
-        {groups.map((group) => {
-          const headingId = `cluster-views-${group.id}`;
-          const heading = (
-            <Text id={headingId} component="span" className={styles.heading}>
-              {group.label}
-            </Text>
-          );
-          return (
-            <div key={group.id} role="group" aria-labelledby={headingId} className={styles.group}>
-              {collapsed ? (
-                <>
-                  <Divider my="xs" />
-                  <VisuallyHidden>{heading}</VisuallyHidden>
-                </>
-              ) : (
-                heading
-              )}
-              {group.items.map((item) => (
-                <NavItem
-                  key={item.path}
-                  to={`/clusters/${clusterId}/${item.path}`}
-                  label={item.label}
-                  collapsed={collapsed}
-                  leading={<item.icon size={18} stroke={1.5} />}
-                  trailing={item.Badge ? <item.Badge clusterId={clusterId} /> : undefined}
-                  disabledReason={
-                    item.permission && !loading && !canAnywhere(item.permission, clusterId)
-                      ? `Opening ${item.label} needs the ${item.permission} permission on this cluster.`
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          );
-        })}
+        {groups.map((group) => (
+          <NavGroup key={group.id} label={group.label} collapsed={collapsed}>
+            {group.items.map((item) => (
+              <NavItem
+                key={item.path}
+                to={`/clusters/${clusterId}/${item.path}`}
+                label={item.label}
+                collapsed={collapsed}
+                leading={<item.icon size={18} stroke={1.5} />}
+                trailing={item.Badge ? <item.Badge clusterId={clusterId} /> : undefined}
+                disabledReason={
+                  item.permission && !loading && !canAnywhere(item.permission, clusterId)
+                    ? `Opening ${item.label} needs the ${item.permission} permission on this cluster.`
+                    : undefined
+                }
+              />
+            ))}
+          </NavGroup>
+        ))}
       </nav>
     </>
   );

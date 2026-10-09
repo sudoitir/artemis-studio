@@ -10,3 +10,15 @@
 .root[data-variant='inline'] {
   display: inline-flex;
 }
+
+/* The frame is there at once; what it shows fades in after a short wait, so a load that finishes at
+   once never flashes a spinner. */
+.root > * {
+  animation: appear var(--as-duration-base) var(--as-ease) 150ms backwards;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}

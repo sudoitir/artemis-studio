@@ -1,14 +1,16 @@
-/* The icon column is one fixed track, so a collapsed row (icon only) and an expanded one keep the icon
-   at the same distance from the rail's edge. */
+/* A row is a full-width block, left-aligned, whose whole surface is the click target. The accent bar of
+   the open row is drawn over the row's edge, so it never moves the label. */
 .item {
-  display: grid;
-  grid-template-columns: 1.125rem 1fr auto;
+  position: relative;
+  display: flex;
   align-items: center;
+  inline-size: 100%;
+  min-block-size: var(--as-nav-row-h);
   gap: var(--mantine-spacing-sm);
-  padding-block: var(--mantine-spacing-sm);
-  padding-inline: var(--mantine-spacing-md);
+  justify-content: flex-start;
+  padding-block: var(--as-nav-pad-block);
+  padding-inline: var(--as-nav-pad-inline);
   border: 0;
-  border-inline-start: 0.125rem solid transparent;
   background: transparent;
   color: var(--as-text-dimmed);
   font: inherit;
@@ -16,6 +18,16 @@
   text-decoration: none;
   cursor: pointer;
   border-radius: var(--mantine-radius-sm);
+  box-sizing: border-box;
+}
+
+.item::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 0.125rem;
+  background: transparent;
 }
 
 .item:hover {
@@ -26,8 +38,11 @@
 .item[data-active] {
   color: var(--as-text);
   font-weight: 600;
-  border-inline-start-color: var(--as-accent);
   background: var(--as-surface-raised);
+}
+
+.item[data-active]::before {
+  background: var(--as-accent);
 }
 
 /* Disabled: listed, focusable for its reason, never raised on hover. No opacity —
@@ -46,14 +61,21 @@
   outline-offset: calc(var(--as-focus-offset) * -1);
 }
 
+/* The icon column is one fixed track, so a collapsed row (icon only) and an expanded one keep the icon
+   at the same distance from the rail's edge. */
 .leading {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: center;
+  inline-size: 1.125rem;
 }
 
 .label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   overflow: hidden;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition:
@@ -62,6 +84,8 @@
 }
 
 .trailing {
+  flex: none;
+  margin-inline-start: auto;
   font-size: var(--mantine-font-size-xs);
   color: var(--as-text-dimmed);
   font-variant-numeric: tabular-nums;
@@ -74,13 +98,17 @@
    shorter timer than the navbar's own width transition, so text clears the
    rail before it narrows past it (never a smeared collapse). */
 .item[data-collapsed] {
-  grid-template-columns: 1.125rem;
   justify-content: center;
-  justify-items: center;
+  padding-inline: 0;
 }
 
 .item[data-collapsed] .label,
 .item[data-collapsed] .trailing {
   opacity: 0;
   max-inline-size: 0;
+  flex: 0 0 0;
+}
+
+.item[data-collapsed] {
+  gap: 0;
 }

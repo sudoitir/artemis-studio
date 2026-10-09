@@ -93,6 +93,16 @@
   --as-field-message-line: calc((var(--mantine-font-size-sm) - 0.125rem) * 1.2);
   --as-field-message-h: calc(var(--mantine-spacing-xs) / 2 + var(--as-field-message-line));
 
+  /* Navigation rows (the sidebar and every section list share them): one geometry, so a label and the
+     heading above it start on the same edge. */
+  --as-nav-pad-inline: 1rem;
+  --as-nav-pad-block: 0.5rem;
+  --as-nav-row-h: 2.375rem;
+  --as-nav-group-gap: 1rem;
+  /* How long a press must be held to confirm a destructive action. A function, not decoration, so
+     reduced motion leaves it alone. */
+  --as-hold-duration: 1500ms;
+
   /* Focus. Mantine's own focus ring (.mantine-focus-auto) is pointed at it below. */
   --as-focus-ring: 0.125rem solid var(--as-accent);
   --as-focus-offset: 0.125rem;

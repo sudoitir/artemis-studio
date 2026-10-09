@@ -163,8 +163,8 @@ function serve({
 
 /** The only tab listed, found by its whole accessible name. */
 const onlyTab = (name: string) => {
-  expect(within(screen.getByRole('tablist', { name: 'Settings sections' })).getAllByRole('tab')).toHaveLength(1);
-  return screen.getByRole('tab', { name });
+  expect(within(screen.getByRole('navigation', { name: 'Settings sections' })).getAllByRole('link')).toHaveLength(1);
+  return screen.getByRole('link', { name });
 };
 
 const footer = () => screen.getByRole('region', { name: 'Unsaved changes' });
@@ -196,7 +196,7 @@ describe('the Settings page', () => {
     serve();
     renderAppAt('/settings-under-test', features);
 
-    const list = await screen.findByRole('tablist', { name: 'Settings sections' });
+    const list = await screen.findByRole('navigation', { name: 'Settings sections' });
     await waitFor(() =>
       expect(list.textContent).toBe(
         'YoursDisplayStudioAuditMCP serverScrapeStudio healthThis clusterBroker credentialsPluginsAcme notesPlugin notes',
@@ -231,9 +231,9 @@ describe('the Settings page', () => {
     const { router } = renderAppAt('/settings-under-test?tab=credentials', features);
 
     expect(await screen.findByText('Rotate them')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Broker credentials' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('link', { name: 'Broker credentials' })).toHaveAttribute('aria-current', 'page');
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Audit' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Audit' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'audit' }));
     expect(screen.getByLabelText('Batch size')).toHaveValue('100');
   });
@@ -245,20 +245,20 @@ describe('the Settings page', () => {
     expect(await screen.findByText('Yours alone')).toBeInTheDocument();
   });
 
-  it('moves between tabs with the arrows and opens one with Enter, focusing its section', async () => {
+  it('is reached with Tab and opens a section with Enter, focusing its section', async () => {
     serve();
     renderAppAt('/settings-under-test', features);
     const user = userEvent.setup();
 
-    const first = await screen.findByRole('tab', { name: 'Display' });
-    await screen.findByRole('tab', { name: 'Audit' });
+    const first = await screen.findByRole('link', { name: 'Display' });
+    await screen.findByRole('link', { name: 'Audit' });
     first.focus();
-    await user.keyboard('{ArrowDown}');
-    expect(screen.getByRole('tab', { name: 'Audit' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'Audit' })).toHaveFocus();
     expect(screen.getByText('Yours alone')).toBeInTheDocument();
 
     await user.keyboard('{Enter}');
-    const panel = await screen.findByRole('tabpanel', { name: 'Audit' });
+    const panel = await screen.findByRole('group', { name: 'Audit' });
     await waitFor(() => expect(panel).toHaveFocus());
     expect(within(panel).getByRole('heading', { level: 2, name: 'Audit' })).toBeInTheDocument();
   });
@@ -268,7 +268,7 @@ describe('the Settings page', () => {
     const { router } = renderAppAt('/settings-under-test', features);
     const user = userEvent.setup();
 
-    await screen.findByRole('tab', { name: 'Audit' });
+    await screen.findByRole('link', { name: 'Audit' });
     await user.type(screen.getByRole('searchbox', { name: 'Search settings' }), 'interval');
 
     await waitFor(() => onlyTab('Scrape, 2 matching'));
@@ -295,7 +295,7 @@ describe('the Settings page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
 
     await waitFor(() => expect(router.state.location.search).toEqual({}));
-    expect(await screen.findByRole('tab', { name: 'Display' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Display' })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: 'Search settings' })).toHaveValue('');
   });
 
@@ -309,16 +309,16 @@ describe('the Settings page', () => {
     await user.type(tierA, '10s');
     expect(screen.getByText('Edited · was 5s')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Audit' }));
+    await user.click(screen.getByRole('link', { name: 'Audit' }));
     const batch = await screen.findByLabelText('Batch size');
     await user.clear(batch);
     await user.type(batch, '200');
 
     expect(within(footer()).getByText('2 unsaved changes in 2 categories')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Scrape, 1 unsaved change' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Audit, 1 unsaved change' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Scrape, 1 unsaved change' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Audit, 1 unsaved change' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Scrape, 1 unsaved change' }));
+    await user.click(screen.getByRole('link', { name: 'Scrape, 1 unsaved change' }));
     expect(await screen.findByLabelText('Tier A interval')).toHaveValue('10s');
 
     await user.click(within(footer()).getByRole('button', { name: 'Discard' }));
@@ -336,7 +336,7 @@ describe('the Settings page', () => {
     await user.type(tierA, '0');
 
     // Changing tab or search stays on the page and keeps the draft.
-    await user.click(screen.getByRole('tab', { name: 'Audit' }));
+    await user.click(screen.getByRole('link', { name: 'Audit' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     void router.navigate({ to: '/elsewhere' });
@@ -372,7 +372,7 @@ describe('the Settings page', () => {
     const tierA = await screen.findByLabelText('Tier A interval');
     await user.clear(tierA);
     await user.type(tierA, '10s');
-    await user.click(screen.getByRole('tab', { name: 'Audit' }));
+    await user.click(screen.getByRole('link', { name: 'Audit' }));
     const batch = await screen.findByLabelText('Batch size');
     await user.clear(batch);
     await user.type(batch, '200');
@@ -498,7 +498,7 @@ describe('the Settings page', () => {
     expect(await screen.findByText('Must be a positive duration.')).toBeInTheDocument();
     expect(tierA).toHaveAccessibleDescription(/Must be a positive duration/);
 
-    await user.click(screen.getByRole('tab', { name: /Audit/ }));
+    await user.click(screen.getByRole('link', { name: /Audit/ }));
     await user.click(within(footer()).getByRole('button', { name: 'Apply 1 change' }));
     await waitFor(() => expect(screen.getByLabelText('Tier A interval')).toHaveFocus());
     expect(recorded.applies).toEqual([]);
@@ -585,9 +585,9 @@ describe('the Settings page', () => {
     server.use(http.get('*/api/v1/settings', () => HttpResponse.json({ title: 'Forbidden' }, { status: 403 })));
     renderAppAt('/settings-under-test?tab=configuration', features);
 
-    const panel = await screen.findByRole('tabpanel', { name: 'Configuration' });
+    const panel = await screen.findByRole('group', { name: 'Configuration' });
     expect(await within(panel).findByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Display' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Display' })).toBeInTheDocument();
   });
 });
 
