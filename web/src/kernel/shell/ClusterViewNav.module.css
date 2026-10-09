@@ -1,0 +1,4 @@
+/* Clear of the cluster switcher above it: the group gap, the same space as between two groups. */
+.nav {
+  margin-block-start: var(--as-nav-group-gap);
+}

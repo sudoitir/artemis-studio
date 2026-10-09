@@ -1,22 +1,19 @@
-/* The cluster's context, one wrapping line: name, environment, then what is known of its health. A
-   cluster's name is broker-supplied and can be a long unbroken host string, so it breaks anywhere
-   rather than widening the page. It holds the height of one line, which is also the height of its loading
-   state, so the page below does not move when the cluster arrives. */
+/* The cluster's facts, at the end of the shell's context line: environment, then what is known of its
+   nodes and health, all dimmed so the breadcrumb and the page's heading lead. It holds the height of
+   the breadcrumb's line, which is also the height of its loading state, so the page below does not
+   move when the cluster arrives. */
 .strip {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
   min-inline-size: 0;
   margin: 0;
   padding: 0;
   border: 0;
-  min-block-size: calc(var(--mantine-font-size-md) * var(--mantine-line-height-md));
-}
-
-.name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  min-block-size: calc(var(--mantine-font-size-xs) * var(--mantine-line-height));
 }
 
 /* The colour is the administrator's own mark for the environment; the name beside it carries the meaning. */
@@ -24,8 +21,5 @@
   display: inline-flex;
   align-items: center;
   gap: var(--mantine-spacing-xs);
-}
-
-.meta {
-  color: var(--as-text-dimmed);
+  overflow-wrap: anywhere;
 }

@@ -10,8 +10,9 @@ import styles from './NavItem.module.css';
  * Administration, Configuration) use it, so they look and behave alike. It is a full-width block whose
  * whole surface is the link, with its label on the same start edge as the group heading above it
  * (`NavGroup`). Collapsed state hides the label visually but never from a screen reader: `aria-label`
- * carries it, and the `Tooltip` supplies the mouse equivalent, opened late enough (350ms) that sweeping
- * the rail doesn't flicker a tooltip per row. A label that is cut off by its ellipsis gets a `title`.
+ * carries it, and the `Tooltip` supplies the mouse equivalent. The navbar's `Tooltip.Group` sets the
+ * delay: late enough that sweeping the rail doesn't flicker a tooltip per row, then instant from row to
+ * row. A label that is cut off by its ellipsis gets a `title`.
  *
  * A row with a `disabledReason` is not a link. It stays in the tab order, so the reason is reachable by
  * keyboard: the tooltip opens on focus as well as hover, and a screen reader hears the reason as the
@@ -67,11 +68,9 @@ export function NavItem({
         <Tooltip
           label={disabledReason}
           position="right"
-          openDelay={350}
           events={{ hover: true, focus: true, touch: true }}
           multiline
           w={240}
-          withArrow
         >
           <span
             className={styles.item}
@@ -94,7 +93,7 @@ export function NavItem({
 
   const explicit = current !== undefined;
   return (
-    <Tooltip label={label} position="right" openDelay={350} disabled={!collapsed} withArrow>
+    <Tooltip label={label} position="right" disabled={!collapsed}>
       <Link
         to={to}
         search={search as never}

@@ -45,8 +45,9 @@ function Source({
  * A view the operator may not open is still listed, disabled, with the reason: the rail shows it the
  * same way.
  *
- * Pause and the colour scheme are here too, so every header control is reachable from the keyboard
- * without a hotkey of its own (ADR-0052, ADR-0118), and so is the table density (ADR-0162).
+ * Pause is here too, so every header control is reachable from the keyboard without a hotkey of its
+ * own (ADR-0052, ADR-0118), and so are the user menu's colour scheme and table density (ADR-0159,
+ * ADR-0162).
  */
 export function CommandPalette() {
   const navigate = useNavigate();
@@ -173,6 +174,8 @@ export function CommandPalette() {
             : 'Nothing matches. Queues are searched by name; live views are offered as searches.'
         }
         highlightQuery
+        // Opened by ⌘K all day: it is there at once, not animated in.
+        transitionProps={{ duration: 0 }}
         scrollable
         maxHeight={480}
         searchProps={{

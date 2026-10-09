@@ -6,9 +6,9 @@ type Scheme = 'auto' | 'light' | 'dark';
 const NEXT: Record<Scheme, Scheme> = { auto: 'light', light: 'dark', dark: 'auto' };
 
 /**
- * The colour scheme control's state and its name, shared with the command palette's entry. It cycles
- * following the system, light, dark (ADR-0159). The name says where the control goes, not where it is, and
- * while the system decides it also says what the system chose.
+ * The command palette's colour scheme action and its name (the user menu offers the three schemes as a
+ * choice). It cycles following the system, light, dark (ADR-0159). The name says where the action goes,
+ * not where it is, and while the system decides it also says what the system chose.
  */
 export function useColorSchemeToggle() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();

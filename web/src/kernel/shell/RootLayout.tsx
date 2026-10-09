@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent } from 'react';
-import { AppShell, Button, Divider, Kbd, ScrollArea, Text } from '@mantine/core';
+import { AppShell, Divider, Kbd, ScrollArea, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { spotlight } from '@mantine/spotlight';
 import { IconSearch } from '@tabler/icons-react';
 import { useDocumentTitle, useHotkeys } from '@mantine/hooks';
@@ -15,7 +15,6 @@ import { useGateStatus } from '../approvals/api.ts';
 import { InboxBell } from '../inbox/InboxBell.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { ClusterViewNav } from './ClusterViewNav.tsx';
-import { ColorSchemeToggle } from './ColorSchemeToggle.tsx';
 import { CommandPalette } from './CommandPalette.tsx';
 import { FreshnessBar } from './FreshnessBar.tsx';
 import { GlobalContext } from './GlobalContext.tsx';
@@ -26,20 +25,13 @@ import { useCurrentView } from '../nav/currentView.ts';
 import { useTitleParts } from './pageTitle.ts';
 import { recordLastPlace, useLastPlace } from './lastPlace.ts';
 import { recordRecent } from './recents.ts';
+import { modShortcut } from '../keyboard/keys.ts';
 import { ShortcutsHelp } from '../keyboard/ShortcutsHelp.tsx';
 import { useKeySequences } from '../keyboard/useKeySequences.ts';
 
 const NAVBAR_ID = 'as-navbar';
 const MAIN_ID = 'as-main';
 const PUBLIC_PATHS = new Set(['/login', '/change-password', '/enrol-second-factor']);
-
-/** The shell's transitions run on the theme's motion tokens, which reduced motion sets to zero. */
-const shellVars = () => ({
-  root: {
-    '--app-shell-transition-duration': 'var(--as-duration-base)',
-    '--app-shell-transition-timing-function': 'var(--as-ease)',
-  },
-});
 
 /**
  * The desktop workspace chrome: a fixed header, the collapsible sidebar (the features' way between
@@ -48,11 +40,12 @@ const shellVars = () => ({
  *
  * The sidebar collapses to an icon rail rather than disappearing: `AppShell`'s
  * own `collapsed` prop removes the navbar's width entirely, which is the wrong
- * shape for a rail that stays present with icons. Animating `navbar.width`
- * instead lets `AppShell` transition both the navbar and the `Main` offset in
- * lockstep under one duration (design.md Decision 7). Both widths are theme
- * tokens (`--as-nav-w`, `--as-nav-rail-w`), and the rail is also what a window
- * narrower than 64rem gets (`useNavCollapsed`).
+ * shape for a rail that stays present with icons, so `navbar.width` switches
+ * between two theme tokens (`--as-nav-w`, `--as-nav-rail-w`) instead. The switch
+ * is instant: `AppShell` animates neither the navbar's width nor anything but the
+ * main column's padding, so a transition only reflowed the whole page for its
+ * length, and ⌘B is a keyboard action repeated all day. The rail is also what a
+ * window narrower than 64rem gets (`useNavCollapsed`).
  */
 export function RootLayout() {
   const { collapsed, forced, toggle } = useNavCollapsed();
@@ -153,7 +146,7 @@ export function RootLayout() {
         clusterId ? { width: collapsed ? 'var(--as-nav-rail-w)' : 'var(--as-nav-w)', breakpoint: 0 } : undefined
       }
       padding="lg"
-      vars={shellVars}
+      transitionDuration={0}
     >
       <a href={`#${MAIN_ID}`} className={styles.skipLink}>
         Skip to content
@@ -163,7 +156,7 @@ export function RootLayout() {
           <div className={styles.headerStart}>
             <Link to={lastPlace?.to ?? '/'} search={lastPlace?.search as never} className={styles.brand}>
               <img src="/favicon.svg" alt="" width={24} height={24} />
-              <Text fw={600} truncate>
+              <Text component="span" fw={600} truncate>
                 {branding.productName}
               </Text>
             </Link>
@@ -171,40 +164,44 @@ export function RootLayout() {
               <Component key={id} />
             ))}
           </div>
-          <div className={styles.headerEnd}>
-            <FreshnessBar />
-            {/* The data's state on the left of the rule, the console's own controls on the right. */}
-            <Divider orientation="vertical" />
-            <ColorSchemeToggle />
-            <InboxBell />
-            {/* A visible way into the palette: a shortcut nobody can see is one nobody finds. */}
-            <Button
-              size="xs"
-              variant="default"
-              leftSection={<IconSearch size={14} aria-hidden />}
-              rightSection={<Kbd size="xs">⌘K</Kbd>}
-              onClick={() => spotlight.open()}
-              aria-keyshortcuts="Meta+K Control+K"
-            >
-              Search
-            </Button>
-            <ShortcutsHelp />
-            <UserMenu me={me.data} />
-          </div>
+          <Tooltip.Group openDelay={500} closeDelay={80}>
+            <div className={styles.headerEnd}>
+              {/* A visible way into the palette: a shortcut nobody can see is one nobody finds. */}
+              <UnstyledButton
+                className={styles.search}
+                onClick={() => spotlight.open()}
+                aria-keyshortcuts="Meta+K Control+K"
+              >
+                <IconSearch size={16} stroke={1.5} aria-hidden />
+                <span className={styles.searchText}>Search or jump to…</span>
+                <Kbd size="xs" className={styles.kbd}>
+                  {modShortcut('K')}
+                </Kbd>
+              </UnstyledButton>
+              <FreshnessBar />
+              {/* The data's state on the left of the rule, the console's own controls on the right. */}
+              <Divider orientation="vertical" />
+              <InboxBell />
+              <ShortcutsHelp />
+              <UserMenu me={me.data} />
+            </div>
+          </Tooltip.Group>
         </div>
       </AppShell.Header>
 
       {clusterId ? (
         <AppShell.Navbar id={NAVBAR_ID} p="sm">
-          <AppShell.Section>
-            <NavToggle collapsed={collapsed} forced={forced} onToggle={toggle} controls={NAVBAR_ID} />
-          </AppShell.Section>
-          <AppShell.Section grow component={ScrollArea}>
-            {navbar.map(({ id, Component }) => (
-              <Component key={id} collapsed={collapsed} />
-            ))}
-            {clusterId ? <ClusterViewNav clusterId={clusterId} collapsed={collapsed} /> : null}
-          </AppShell.Section>
+          <Tooltip.Group openDelay={350} closeDelay={80}>
+            <AppShell.Section grow component={ScrollArea}>
+              {navbar.map(({ id, Component }) => (
+                <Component key={id} collapsed={collapsed} />
+              ))}
+              {clusterId ? <ClusterViewNav clusterId={clusterId} collapsed={collapsed} /> : null}
+            </AppShell.Section>
+            <AppShell.Section className={styles.navFooter} data-collapsed={collapsed || undefined}>
+              <NavToggle collapsed={collapsed} forced={forced} onToggle={toggle} controls={NAVBAR_ID} />
+            </AppShell.Section>
+          </Tooltip.Group>
         </AppShell.Navbar>
       ) : null}
 

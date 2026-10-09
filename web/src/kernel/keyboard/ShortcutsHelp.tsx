@@ -85,8 +85,8 @@ export function ShortcutsHelp() {
       position="bottom-end"
       // Never wider than the window, so at 200% zoom it still fits beside nothing.
       width="min(30rem, calc(100vw - 2 * var(--mantine-spacing-md)))"
-      shadow="md"
-      withArrow
+      // Opened from the keyboard (?) as often as by pointer: it appears at once rather than animating in.
+      transitionProps={{ duration: 0 }}
       trapFocus
       returnFocus
       // Its trigger sits in the fixed header and is never scrolled away; hiding a "detached" popover only
@@ -94,7 +94,7 @@ export function ShortcutsHelp() {
       hideDetached={false}
     >
       <Popover.Target>
-        <Tooltip label="Keyboard shortcuts (?)" disabled={opened}>
+        <Tooltip label="Keyboard shortcuts (?)" position="bottom" disabled={opened}>
           <ActionIcon
             variant="subtle"
             color="graphite"
@@ -104,7 +104,7 @@ export function ShortcutsHelp() {
             aria-haspopup="dialog"
             onClick={() => setShortcutsHelpOpen(!opened)}
           >
-            <IconKeyboard size="1.125rem" aria-hidden />
+            <IconKeyboard size={18} stroke={1.5} aria-hidden />
           </ActionIcon>
         </Tooltip>
       </Popover.Target>

@@ -129,10 +129,15 @@ describe('RootLayout in a narrow window', () => {
     );
     localStorage.setItem('as:nav:collapsed', 'false');
     narrowWindow();
+    const user = userEvent.setup();
     renderWithProviders(<RootLayout />);
 
+    // Not `disabled`: it keeps its focus, so the reason is reachable by keyboard.
     const toggle = await screen.findByRole('button', { name: 'Sidebar stays collapsed in a narrow window' });
-    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).toBeEnabled();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(await screen.findByRole('button', { name: /^Switch cluster, now prod-emea/ })).toBeInTheDocument();
     // The viewer's own choice is kept for when the window is wide again.

@@ -23,3 +23,20 @@
   z-index: 1;
   background: var(--as-surface);
 }
+
+/* The rail: the heading keeps its box, so the rows under it hold still, and draws a rule instead of its
+   name, which a screen reader still reads. */
+.heading[data-collapsed] {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  color: transparent;
+}
+
+.heading[data-collapsed]::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--mantine-spacing-sm);
+  inset-block-start: 50%;
+  border-block-start: 1px solid var(--as-border);
+}

@@ -1,3 +1,14 @@
+function isApplePlatform(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+  return /mac|iphone|ipad/i.test(nav.userAgentData?.platform ?? nav.platform ?? '');
+}
+
+/** A modified shortcut as this platform names it: `⌘K` on a Mac, `Ctrl+K` everywhere else. */
+export function modShortcut(key: string): string {
+  return isApplePlatform() ? `⌘${key}` : `Ctrl+${key}`;
+}
+
 /**
  * The printable key an event stands for, in the Latin layout the shortcuts are named in. On a
  * non-Latin layout (Persian, Russian, Greek) `event.key` is that script's letter, so the physical

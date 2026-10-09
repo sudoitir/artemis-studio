@@ -22,8 +22,8 @@
 
 .dot[data-state='reconnecting'] {
   background: var(--as-offline);
-  /* Six slow durations, about 1.4s; reduced motion zeroes the duration, so the pulse stops. */
-  animation: as-freshness-pulse calc(var(--as-duration-slow) * 6) var(--as-ease) infinite;
+  /* Six slow durations, about 1.4s each way; reduced motion zeroes the duration, so the pulse stops. */
+  animation: as-freshness-pulse calc(var(--as-duration-slow) * 6) ease-in-out infinite alternate;
 }
 
 .dot[data-state='offline'] {
@@ -31,16 +31,18 @@
 }
 
 @keyframes as-freshness-pulse {
-  50% {
+  to {
     opacity: 0.3;
   }
 }
 
-/* The paused control reads as held down: a filled well with a border, matching
-   the outlined `paused` dot. Shape, not colour — paused is not an error. */
-.pressed {
-  background: var(--as-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--as-border);
+/* The paused control reads as held down: the selection fill inside an accent border, which a subtle
+   control otherwise never has. The accent, not a warning colour — paused is not an error. */
+/* Mantine sets the control's colours inline as variables, so the properties themselves are overridden. */
+.pressed,
+.pressed:hover {
+  background: var(--as-selected);
+  border-color: var(--as-accent);
 }
 
 .label {

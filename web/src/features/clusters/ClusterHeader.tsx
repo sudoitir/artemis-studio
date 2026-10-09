@@ -19,7 +19,7 @@ function capabilityGaps(caps: CapabilitiesView | undefined): string[] {
   );
 }
 
-/** The strip's one-line summary: how many nodes, whether they replicate, and whether they were reached. */
+/** The line's summary: how many nodes, whether they replicate, and whether they were reached. */
 function clusterMeta({ topology, health }: ClusterDetail): string {
   const nodeCount = topology.nodes.reduce((n, node) => n + node.endpoints.length, 0);
   const hasPair = topology.nodes.some((n) => n.endpoints.length > 1);
@@ -31,13 +31,15 @@ function clusterMeta({ topology, health }: ClusterDetail): string {
 }
 
 /**
- * Above every view of a cluster (`cluster.header`): a context strip with the cluster's name, its
- * environment beside the environment's colour, and what is known of its health, then the health banner
- * and a notice for a capability the connection lacks.
+ * Above every view of a cluster (`cluster.header`): the cluster's facts at the end of the shell's
+ * context line (`data-context-line`), its environment beside the environment's colour and what is
+ * known of its nodes and health, then the health banner and a notice for a capability the connection
+ * lacks, each below the line.
  *
- * It holds no heading. Each view's `PageHeader` renders the page's one h1 (ADR-0163), so the cluster
- * is stated beside it as context, not as a second top-level heading. How current the data is stays
- * with the shell's freshness indicator, which answers it for every route.
+ * The name is not repeated here: the breadcrumb at the line's start already says it, and the facts
+ * are named for it. It holds no heading. Each view's `PageHeader` renders the page's one h1
+ * (ADR-0163). How current the data is stays with the shell's freshness indicator, which answers it
+ * for every route.
  */
 export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   const { data, isPending, isError, error, refetch } = useCluster(clusterId);
@@ -56,10 +58,10 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
   // returns below so the hook order never depends on the query state.
   const [capsDismissed, dismissCaps] = useDismissedNotice(`capabilities:${clusterId}:${gaps.join(',')}`);
 
-  // The strip's own box, holding the line's height, so the page below does not move when the cluster arrives.
+  // The facts' own box, holding the line's height, so the page below does not move when the cluster arrives.
   if (isPending) {
     return (
-      <div className={styles.strip}>
+      <div className={styles.strip} data-context-line>
         <LoadingState label="Loading the cluster" variant="inline" />
       </div>
     );
@@ -72,17 +74,17 @@ export function ClusterHeader({ clusterId }: Readonly<{ clusterId: string }>) {
 
   return (
     <>
-      <fieldset aria-label={`Cluster ${data.name}`} className={styles.strip}>
-        <Text component="span" size="md" className={styles.name}>
-          {data.name}
-        </Text>
+      <fieldset aria-label={`Cluster ${data.name}`} className={styles.strip} data-context-line>
         {environment ? (
-          <Text component="span" size="sm" className={styles.environment}>
-            <ColorSwatch component="span" color={environment.colour ?? 'var(--as-border)'} size="0.75rem" />
-            {environment.name}
-          </Text>
+          <>
+            <Text component="span" size="xs" className={styles.environment}>
+              <ColorSwatch component="span" color={environment.colour ?? 'var(--as-border)'} size="0.625rem" />
+              {environment.name}
+            </Text>
+            <span aria-hidden="true">·</span>
+          </>
         ) : null}
-        <Text component="span" size="sm" className={styles.meta}>
+        <Text component="span" size="xs">
           {meta}
         </Text>
       </fieldset>
