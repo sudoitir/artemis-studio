@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { RulesPanel } from './RulesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 function rule(over: Record<string, unknown> = {}) {
   return {
@@ -316,7 +317,6 @@ describe('RulesPanel', () => {
     await user.click(trigger);
     const dialog = await screen.findByRole('dialog', { name: 'Delete rule' });
     expect(dialog).toHaveTextContent('stops being evaluated, so it no longer fires or notifies its 2 channels');
-    expect(within(dialog).getByRole('button', { name: 'Delete rule' })).toBeDisabled();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -324,8 +324,7 @@ describe('RulesPanel', () => {
 
     await user.click(trigger);
     const again = await screen.findByRole('dialog');
-    await user.type(within(again).getByLabelText('Type "Deep queue" to confirm'), 'Deep queue');
-    await user.click(within(again).getByRole('button', { name: 'Delete rule' }));
+    await holdButton(within(again).getByRole('button', { name: 'Delete rule' }));
 
     expect(await screen.findByText('Deleted rule "Deep queue"')).toBeInTheDocument();
     expect(await screen.findByText('No rules yet')).toBeInTheDocument();
@@ -344,8 +343,7 @@ describe('RulesPanel', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete Deep queue' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Type "Deep queue" to confirm'), 'Deep queue');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete rule' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete rule' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not delete rule "Deep queue"');

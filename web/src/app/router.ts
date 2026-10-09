@@ -17,7 +17,7 @@ export function createAppRouter(queryClient: QueryClient, features: StudioFeatur
     ...features.flatMap((feature) => feature.routes?.root ?? []),
     clusterRoute.addChildren([...features.flatMap((feature) => feature.routes?.cluster ?? []), pluginClusterFallback]),
   ]);
-  return createRouter({
+  const router = createRouter({
     routeTree,
     history,
     context: { queryClient },
@@ -26,6 +26,21 @@ export function createAppRouter(queryClient: QueryClient, features: StudioFeatur
     defaultNotFoundComponent: RouteNotFound,
     scrollRestoration: true,
   });
+  keepScrollOnSamePage(router);
+  return router;
+}
+
+/**
+ * A change of the page's own search (a filter, the open section, the sort) must not throw the reader
+ * back to the top: the router resets the scroll on every navigation unless told not to, and the 40 or
+ * so call sites that navigate to `.` would each have to say so. Moving to another page still does.
+ */
+function keepScrollOnSamePage(router: { navigate: (options: never) => Promise<void> }) {
+  const navigate = router.navigate.bind(router) as (options: Record<string, unknown>) => Promise<void>;
+  router.navigate = ((options: Record<string, unknown>) =>
+    navigate(
+      options.to === '.' && options.resetScroll === undefined ? { ...options, resetScroll: false } : options,
+    )) as never;
 }
 
 export type AppRouter = ReturnType<typeof createAppRouter>;

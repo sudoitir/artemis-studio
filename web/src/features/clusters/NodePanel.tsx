@@ -8,6 +8,7 @@ import { Section } from '../../ui/Section.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { LogicalNodeView } from './api.ts';
 import { lastSeenWords, nodeFacts, pairVerdict, type NodeFacts } from './nodeFacts.ts';
+import canvas from './TopologyCanvas.module.css';
 
 const NOT_REPORTED = 'Not reported';
 
@@ -88,7 +89,17 @@ export function NodePanel({
 }>) {
   const { verdict, tone } = pairVerdict(logical);
   return (
-    <Section title={facts.name} variant="card">
+    <Section
+      title={facts.name}
+      variant="card"
+      // The node's state beside its name, with the mark its box draws, so the panel opens on the answer.
+      actions={
+        <span className={canvas.state}>
+          <span className={canvas.mark} data-kind={facts.mark} aria-hidden="true" />
+          <StatusBadge tone={facts.liveness.tone}>{facts.liveness.label}</StatusBadge>
+        </span>
+      }
+    >
       <DescriptionList items={items(facts, now)} label="Node facts" />
       {facts.manageable ? null : (
         <div>

@@ -111,25 +111,19 @@ public final class SettingsViews {
      * What applying a change set would do now.
      *
      * @param outcome {@code RUN}, {@code HOLD} (needs approval) or {@code DENY}; absent when a value is invalid
-     * @param reasonRequired whether the request must carry a reason when it is held
      * @param policyLabel the approval policy that decided, when one did
      * @param denyReason why it would be denied
      * @param fieldErrors the reason for each invalid setting, by key
      */
     public record ChangePreview(
             GatePreview.Outcome outcome,
-            @Schema(requiredMode = REQUIRED) boolean reasonRequired,
             String policyLabel,
             String denyReason,
             @Schema(requiredMode = REQUIRED) Map<String, String> fieldErrors) {
 
         public static ChangePreview of(SettingsChangePreview preview) {
             return new ChangePreview(
-                    preview.outcome(),
-                    preview.reasonRequired(),
-                    preview.policyLabel(),
-                    preview.denyReason(),
-                    preview.fieldErrors());
+                    preview.outcome(), preview.policyLabel(), preview.denyReason(), preview.fieldErrors());
         }
     }
 }

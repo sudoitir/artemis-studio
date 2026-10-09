@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Anchor, Button, Indicator, Popover, VisuallyHidden } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Indicator, Popover, Tooltip, VisuallyHidden } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 
@@ -94,11 +94,13 @@ export function InboxBell() {
         disabled={unread === 0}
         label={<span aria-hidden>{unreadLabel(count.data)}</span>}
       >
-        <Popover opened={opened} onChange={setOpened} position="bottom-end" shadow="md" trapFocus returnFocus>
+        <Popover opened={opened} onChange={setOpened} position="bottom-end" trapFocus returnFocus>
           <Popover.Target>
-            <ActionIcon variant="subtle" color="graphite" aria-label={name} onClick={() => setOpened((o) => !o)}>
-              <IconBell size={18} aria-hidden />
-            </ActionIcon>
+            <Tooltip label="Notifications" position="bottom" disabled={opened}>
+              <ActionIcon variant="subtle" color="graphite" aria-label={name} onClick={() => setOpened((o) => !o)}>
+                <IconBell size={18} stroke={1.5} aria-hidden />
+              </ActionIcon>
+            </Tooltip>
           </Popover.Target>
           <Popover.Dropdown aria-label="Notifications">
             <div className={classes.dropdown}>

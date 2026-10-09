@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Button, Modal, PasswordInput, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
-import { needsReauthentication } from '../../kernel/auth/api.ts';
+import { needsReauthentication, useMe } from '../../kernel/auth/api.ts';
 import { StepUpPrompt } from '../../kernel/auth/StepUp.tsx';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { DialogActions, useDiscardGuard } from '../../ui/DialogActions.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
@@ -50,6 +51,9 @@ export function UsersPanel() {
   const setDisabled = useSetUserDisabled();
   const [resetting, setResetting] = useState<UserView | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+  // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
+  const [disabling, setDisabling] = useState<UserView | null>(null);
+  const [disableOpen, setDisableOpen] = useState(false);
   const [removing, setRemoving] = useState<{ user: UserView; grant: UserGrant } | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -58,15 +62,25 @@ export function UsersPanel() {
   const [inspectingSessions, setInspectingSessions] = useState<{ id: string; username: string } | null>(null);
   const scopeLabel = useScopeLabel();
 
-  const toggle = (u: UserView) =>
+  const change = (u: UserView, onDone?: () => void) =>
     setDisabled.mutate(
       { userId: u.id, disabled: !u.disabled },
       withNotice(
         u.disabled ? ENABLE : DISABLE,
         `${u.username}`,
         `The account is still ${u.disabled ? 'disabled' : 'enabled'}. Try again.`,
+        onDone,
       ),
     );
+  // Enabling gives access back and asks nothing; disabling signs someone out, so it is confirmed first.
+  const toggle = (u: UserView) => {
+    if (u.disabled) {
+      change(u);
+      return;
+    }
+    setDisabling(u);
+    setDisableOpen(true);
+  };
 
   // Built each render: the cells carry what is busy right now.
   const columns = userColumns({
@@ -133,6 +147,13 @@ export function UsersPanel() {
           reset.reset();
         }}
       />
+      <DisableDialog
+        user={disabling}
+        opened={disableOpen}
+        pending={setDisabled.isPending}
+        onClose={() => setDisableOpen(false)}
+        onConfirm={(u) => change(u, () => setDisableOpen(false))}
+      />
       <RemoveGrantDialog
         removing={removing}
         scopeLabel={scopeLabel}
@@ -145,7 +166,46 @@ export function UsersPanel() {
   );
 }
 
-/** States what removing a role takes from the user before it can be armed, then asks for their name. */
+/** States what disabling an account stops; your own account cannot be disabled from here. */
+function DisableDialog({
+  user,
+  opened,
+  pending,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  user: UserView | null;
+  opened: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (user: UserView) => void;
+}>) {
+  const me = useMe().data;
+  const self = user !== null && me?.id === user.id;
+  return (
+    <ConfirmDialog
+      opened={opened}
+      onClose={onClose}
+      title={user ? `Disable ${user.username}?` : 'Disable account?'}
+      tone="danger"
+      pending={pending}
+      blocked={
+        self
+          ? 'You cannot disable your own account: it would sign you out with no way back in. Ask another administrator.'
+          : undefined
+      }
+      confirmLabel="Disable account"
+      consequence={
+        user
+          ? `${user.username} is signed out everywhere and cannot sign in, their API keys stop working and their trusted devices are forgotten. Enabling the account again restores sign-in.`
+          : ''
+      }
+      onConfirm={() => user && onConfirm(user)}
+    />
+  );
+}
+
+/** States what removing a role takes from the user; it is granted again as easily, so it asks once. */
 function RemoveGrantDialog({
   removing,
   opened,
@@ -182,7 +242,6 @@ function RemoveGrantDialog({
         removing ? `Remove ${grantText(removing.grant, scopeLabel)} from ${removing.user.username}` : 'Remove role'
       }
       tone="danger"
-      typedName={removing?.user.username}
       pending={removeGrant.isPending}
       confirmLabel="Remove role"
       consequence={
@@ -233,7 +292,6 @@ function ResetDialog({
       onClose={onClose}
       title={user ? `Reset two-step verification of ${user.username}` : 'Reset two-step verification'}
       tone="danger"
-      typedName={user?.username}
       pending={reset.isPending}
       confirmLabel="Reset two-step verification"
       consequence={
@@ -282,6 +340,7 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
     createUser.reset();
     form.reset();
   };
+  const guard = useDiscardGuard(form.isDirty(), close);
 
   const submit = form.onSubmit(({ username, email, password }) => {
     const subject = `user ${username.trim()}`;
@@ -312,9 +371,10 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
   }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Modal opened={opened} onClose={close} title="New user">
+    <Modal opened={opened} {...guard.modalProps} title="New user">
       <form noValidate onSubmit={submit}>
         <Stack gap="sm">
+          {guard.prompt}
           <TextInput label="Username" {...form.getInputProps('username')} required />
           <TextInput label="Email" {...form.getInputProps('email')} />
           <PasswordInput
@@ -323,9 +383,14 @@ function NewUserModal({ opened, onClose }: Readonly<{ opened: boolean; onClose: 
             {...form.getInputProps('password')}
             required
           />
-          <Button type="submit" loading={createUser.isPending}>
-            Create
-          </Button>
+          <DialogActions>
+            <Button variant="default" onClick={guard.modalProps.onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={createUser.isPending}>
+              Create user
+            </Button>
+          </DialogActions>
         </Stack>
       </form>
     </Modal>
@@ -346,6 +411,7 @@ function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose
     onClose();
     form.reset();
   };
+  const guard = useDiscardGuard(form.isDirty(), close);
 
   const submit = form.onSubmit(({ roleId, scope }) => {
     if (!user || !roleId) return;
@@ -357,9 +423,14 @@ function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose
   }, focusFirstInvalid(form.getInputNode));
 
   return (
-    <Modal opened={user !== null} onClose={close} title={user ? `Grant a role to ${user.username}` : 'Grant a role'}>
+    <Modal
+      opened={user !== null}
+      {...guard.modalProps}
+      title={user ? `Grant a role to ${user.username}` : 'Grant a role'}
+    >
       <form noValidate onSubmit={submit}>
         <Stack gap="sm">
+          {guard.prompt}
           <Select
             label="Role"
             data={roleOptions}
@@ -368,9 +439,14 @@ function GrantModal({ user, onClose }: Readonly<{ user: UserView | null; onClose
             required
           />
           <ScopeFields {...form.getInputProps('scope')} />
-          <Button type="submit" loading={addGrant.isPending}>
-            Grant
-          </Button>
+          <DialogActions>
+            <Button variant="default" onClick={guard.modalProps.onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={addGrant.isPending}>
+              Grant role
+            </Button>
+          </DialogActions>
         </Stack>
       </form>
     </Modal>

@@ -10,6 +10,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import type { UserView } from './api.ts';
 import { UsersPanel } from './UsersPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 function renderUsers() {
   return renderWithProviders(
@@ -192,12 +193,8 @@ describe('UsersPanel two-step verification', () => {
       "removes alice's authenticator app, passkeys, recovery codes and trusted devices, revokes their API keys and signs them out everywhere",
     );
     const confirm = within(dialog).getByRole('button', { name: 'Reset two-step verification' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alic');
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'e');
     expect(confirm).toBeEnabled();
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(reset).toBe(true));
     expect(await screen.findByRole('status')).toHaveTextContent('Reset two-step verification of alice');
@@ -235,8 +232,7 @@ describe('UsersPanel two-step verification', () => {
 
     await person.click(await screen.findByRole('button', { name: 'Reset two-step verification of alice' }));
     const dialog = await screen.findByRole('dialog');
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
 
     expect(await within(dialog).findByLabelText('Your password')).toBeInTheDocument();
   });
@@ -255,8 +251,7 @@ describe('UsersPanel two-step verification', () => {
 
     await person.click(await screen.findByRole('button', { name: 'Reset two-step verification of alice' }));
     const dialog = await screen.findByRole('dialog');
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Reset two-step verification' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(advice);
     // The dialog stays open, so the operator can act on what it says.
@@ -270,7 +265,7 @@ const withGrant = (name: string): UserView => ({
 });
 
 describe('UsersPanel roles and accounts', () => {
-  it('removes a role only once the username is typed, says what is lost, and announces it', async () => {
+  it('removes a role after one confirmation, says what is lost, and announces it', async () => {
     const state = { users: [withGrant('alice')] };
     serveUsers(state);
     let removed = false;
@@ -288,9 +283,7 @@ describe('UsersPanel roles and accounts', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Remove VIEWER from alice' });
     expect(dialog).toHaveTextContent('alice loses the permissions that VIEWER gave them');
     const confirm = within(dialog).getByRole('button', { name: 'Remove role' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(removed).toBe(true));
     expect(await screen.findByRole('status')).toHaveTextContent('Removed VIEWER from alice');
@@ -309,10 +302,46 @@ describe('UsersPanel roles and accounts', () => {
     renderUsers();
 
     await person.click(await screen.findByRole('switch', { name: 'Disable alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Disable alice?' });
+    expect(dialog).toHaveTextContent('alice is signed out everywhere and cannot sign in');
+    await holdButton(within(dialog).getByRole('button', { name: 'Disable account' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not disable alice');
     expect(alert).toHaveTextContent('The database is down. The account is still enabled. Try again.');
+  });
+
+  it('enables a disabled account without asking', async () => {
+    serveUsers({ users: [{ ...user('alice', null), disabled: true }] });
+    let body: unknown;
+    server.use(
+      http.put('*/api/v1/users/id-alice/disabled', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...user('alice', null), disabled: false });
+      }),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('switch', { name: 'Enable alice' }));
+    await waitFor(() => expect(body).toEqual({ disabled: false }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('will not disable your own account, and says why', async () => {
+    serveUsers({ users: [user('alice', null)] });
+    server.use(
+      http.get('*/api/v1/auth/me', () =>
+        HttpResponse.json({ id: 'id-alice', username: 'alice', mustChangePassword: false, grants: [] }),
+      ),
+    );
+    const person = userEvent.setup();
+    renderUsers();
+
+    await person.click(await screen.findByRole('switch', { name: 'Disable alice' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Disable alice?' });
+    expect(await within(dialog).findByText(/You cannot disable your own account/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Disable account' })).toBeDisabled();
   });
 
   it('asks which role to grant on submit, beside the field, and puts focus there', async () => {
@@ -322,7 +351,7 @@ describe('UsersPanel roles and accounts', () => {
 
     await person.click(await screen.findByRole('button', { name: 'Grant a role to alice' }));
     const dialog = await screen.findByRole('dialog', { name: 'Grant a role to alice' });
-    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant role' }));
 
     expect(await within(dialog).findByText('Choose the role to grant.')).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: /Role/ })).toHaveFocus();
@@ -335,7 +364,7 @@ describe('UsersPanel roles and accounts', () => {
 
     await person.click(await screen.findByRole('button', { name: 'New user' }));
     const dialog = await screen.findByRole('dialog', { name: 'New user' });
-    await person.click(within(dialog).getByRole('button', { name: 'Create' }));
+    await person.click(within(dialog).getByRole('button', { name: 'Create user' }));
 
     expect(await within(dialog).findByText('Enter the username they sign in with.')).toBeInTheDocument();
     expect(within(dialog).getByText('Enter an initial password.')).toBeInTheDocument();
@@ -406,7 +435,7 @@ describe('UsersPanel grant scope', () => {
     await person.click(await option('Cluster'));
     await person.click(within(dialog).getByRole('combobox', { name: /Cluster/ }));
     await person.click(await option('prod'));
-    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant role' }));
 
     await waitFor(() => expect(body).toEqual({ roleId: 'r-viewer', scopeType: 'CLUSTER', scopeId: 'c-prod' }));
   });
@@ -427,7 +456,7 @@ describe('UsersPanel grant scope', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Grant a role to alice' });
     await person.click(within(dialog).getByRole('combobox', { name: /Role/ }));
     await person.click(await option('VIEWER'));
-    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant role' }));
 
     await waitFor(() => expect(body).toEqual({ roleId: 'r-viewer', scopeType: 'GLOBAL' }));
   });
@@ -450,7 +479,7 @@ describe('UsersPanel grant scope', () => {
     await person.click(await option('VIEWER'));
     await person.click(within(dialog).getByRole('combobox', { name: 'Scope' }));
     await person.click(await option('Environment'));
-    await person.click(within(dialog).getByRole('button', { name: 'Grant' }));
+    await person.click(within(dialog).getByRole('button', { name: 'Grant role' }));
 
     expect(await within(dialog).findByText('Choose the environment the role applies to.')).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: /Environment/ })).toHaveFocus();

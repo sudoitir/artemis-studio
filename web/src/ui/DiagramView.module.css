@@ -42,11 +42,16 @@
   transition: opacity var(--as-duration-fast) var(--as-ease);
 }
 
-.card:hover .more,
 .card:focus-within .more,
 .more[data-selected],
 .more[aria-expanded='true'] {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .more {
+    opacity: 1;
+  }
 }
 
 /* An arrow's label chip and its "+", side by side at the arrow's middle. */
@@ -93,8 +98,10 @@
     border-color var(--as-duration-fast) var(--as-ease);
 }
 
-.node:hover {
-  box-shadow: var(--as-elevation-2);
+@media (hover: hover) and (pointer: fine) {
+  .node:hover {
+    box-shadow: var(--as-elevation-2);
+  }
 }
 
 .node[data-state='error'] {

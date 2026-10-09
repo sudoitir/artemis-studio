@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { MessageSelection } from '../../kernel/slots.ts';
 import { clusterHandlers, endpoint, finding, meHandler, previewHandler, run } from './fixtures.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -321,9 +322,8 @@ describe('TransferDialog preview', () => {
       ),
     ).toBeInTheDocument();
     expect(within(dialog).getByText('The target can accept it.')).toBeInTheDocument();
-    // Without a count the action is named without one, and a move is still armed by typing.
-    expect(within(dialog).getByRole('button', { name: 'Move messages' })).toBeDisabled();
-    expect(within(dialog).getByRole('textbox', { name: /Type the source queue's name/ })).toBeInTheDocument();
+    // Without a count the action is named without one.
+    expect(within(dialog).getByRole('button', { name: /^Move/ })).toBeInTheDocument();
   });
 
   it('counts the warnings still to acknowledge and lets each be withdrawn again', async () => {
@@ -360,7 +360,6 @@ describe('TransferDialog preview', () => {
     const { dialog, user } = await previewed({ mode: 'COPY', estimateBytes: null });
 
     expect(within(dialog).getByText(/Copy 1,200 messages \(size unknown\)/)).toBeInTheDocument();
-    expect(within(dialog).queryByRole('textbox', { name: /Type the source queue's name/ })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Copy 1,200 messages' })).toBeEnabled();
 
     await user.click(within(dialog).getByRole('button', { name: 'Change the destination' }));
@@ -378,7 +377,7 @@ describe('TransferDialog preview', () => {
       }),
     );
     navigate.mockClear();
-    const { dialog, user, onClose, onStarted } = await previewed({
+    const { dialog, onClose, onStarted } = await previewed({
       mode: 'COPY',
       overCap: true,
       estimate: 20_000,
@@ -392,9 +391,7 @@ describe('TransferDialog preview', () => {
     expect(alert).toHaveTextContent('recorded in the audit log');
 
     const confirm = within(dialog).getByRole('button', { name: 'Copy 20,000 messages' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByRole('textbox', { name: /Type the source queue's name/ }), 'orders');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() =>
       expect(executed).toEqual([{ planHash: 'h1', override: true, acknowledged: [], confirmQueue: 'orders' }]),
@@ -424,7 +421,6 @@ describe('TransferDialog preview', () => {
     expect(within(dialog).queryByText('Over the safety cap')).toBeNull();
     expect(within(dialog).getByText('Refused')).toBeInTheDocument();
     expect(within(dialog).getByText('node-b has no room.')).toBeInTheDocument();
-    expect(within(dialog).queryByRole('textbox', { name: /Type the source queue's name/ })).toBeNull();
     // Only the way back is left.
     expect(within(dialog).getByRole('button', { name: 'Change the destination' })).toBeInTheDocument();
   });

@@ -524,7 +524,6 @@ function RemovePasskeyConfirm({
       title={passkey ? `Remove passkey "${passkey.label}"?` : ''}
       consequence={removalConsequence('You can no longer sign in with it.', factors, status)}
       confirmLabel="Remove passkey"
-      typedName={passkey?.label}
       pending={removePasskey.isPending}
       error={removePasskey.error}
       onClose={close}
@@ -641,7 +640,6 @@ function ConfirmChange({
   title,
   consequence,
   confirmLabel,
-  typedName,
   tone = 'danger',
   pending,
   error,
@@ -652,8 +650,6 @@ function ConfirmChange({
   title: string;
   consequence: string;
   confirmLabel: string;
-  /** The name of what is removed, typed to arm the button. */
-  typedName?: string;
   tone?: 'default' | 'danger';
   pending: boolean;
   error: ApiError | null;
@@ -675,7 +671,6 @@ function ConfirmChange({
       }
       confirmLabel={confirmLabel}
       tone={tone}
-      typedName={typedName}
       pending={pending}
       onConfirm={onConfirm}
     />

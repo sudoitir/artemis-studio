@@ -7,7 +7,8 @@ import classes from './Breadcrumb.module.css';
 
 /**
  * Where the operator is inside a cluster (ADR-0109): cluster › group › view › open resource. The
- * last crumb is the current page; the ones before it that are places are links back to them.
+ * last crumb is the current page, at text colour; the ones before it that are places are dimmed links
+ * back to them, and a group, which is not a place, is dimmed text.
  */
 export function Breadcrumb() {
   const view = useCurrentView();
@@ -33,7 +34,7 @@ export function Breadcrumb() {
             <Text
               key={crumb.to ?? crumb.label}
               size="xs"
-              c="dimmed"
+              className={last ? classes.current : classes.dimmed}
               aria-current={last ? 'page' : undefined}
               truncate
               maw="40ch"
@@ -41,7 +42,14 @@ export function Breadcrumb() {
               {crumb.label}
             </Text>
           ) : (
-            <Anchor key={crumb.to ?? crumb.label} component={Link} to={crumb.to} size="xs" c="dimmed">
+            <Anchor
+              key={crumb.to ?? crumb.label}
+              component={Link}
+              to={crumb.to}
+              size="xs"
+              underline="never"
+              className={classes.link}
+            >
               {crumb.label}
             </Anchor>
           );

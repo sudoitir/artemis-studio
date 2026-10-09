@@ -15,6 +15,7 @@ import { server } from '../../test/setup.ts';
 import type { PluginPlanView, PluginsView, PluginView } from './api.ts';
 import { PluginsPanel } from './PluginsPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton, holdByKeyboard } from '../../test/hold.ts';
 
 const NOW = new Date().toISOString();
 
@@ -346,9 +347,7 @@ describe('Administration → Plugins', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     const confirm = screen.getByRole('button', { name: 'Install Notes 1.0.0 (1 database change)' });
-    expect(confirm).toBeDisabled();
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     expect(await screen.findByText(/You can close this; it carries on/)).toBeInTheDocument();
     status = 'active';
@@ -386,7 +385,6 @@ describe('Administration → Plugins', () => {
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
 
     expect(screen.getByText('Confirm it is you')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
     expect(screen.getByRole('button', { name: 'Install Notes 1.0.0' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
@@ -432,9 +430,8 @@ describe('Administration → Plugins', () => {
 
     await user.keyboard('{Enter}');
     const again = await screen.findByRole('dialog', { name: "Purge Notes's data" });
-    await user.type(within(again).getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.tab();
-    await user.keyboard('{Enter}');
+    // Held with the keyboard: Space down on the focused button for the length of the hold.
+    await holdByKeyboard(within(again).getByRole('button', { name: 'Delete its data permanently' }));
     await waitFor(() => expect(purged).toBe(true));
   });
 
@@ -687,7 +684,7 @@ describe('Administration → Plugins inventory', () => {
     const user = userEvent.setup();
     renderPanel('/admin?tab=plugins&upload=abc123');
     const dialog = await screen.findByRole('dialog', { name: 'Install Notes 1.0.0 (1 database change)' });
-    expect(within(dialog).getByLabelText('Type "acme-notes" to confirm')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /^Install Notes 1\.0\.0/ })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -762,7 +759,7 @@ describe('Administration → Plugins updates', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Check for updates' }));
     expect(
-      await screen.findByText(/1 update\(s\) available\. acme-wiki: could not check \(timed out\)\./),
+      await screen.findByText(/1 update is available\. acme-wiki: could not check \(timed out\)\./),
     ).toBeInTheDocument();
     const notes = screen.getByRole('row', { name: /Notes/ });
     await user.click(within(notes).getByRole('button', { name: '1.1.0 available' }));

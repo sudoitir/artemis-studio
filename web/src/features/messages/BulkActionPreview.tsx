@@ -150,7 +150,6 @@ export function BulkActionPreview({
         }
         confirmLabel={`${verb} ${messageCount(preview?.affectedCount ?? 0)}${overCap ? ' anyway' : ''}`}
         tone={armed ? 'danger' : 'default'}
-        typedName={armed ? queueName : undefined}
         pending={run.isPending}
         onConfirm={execute}
       />

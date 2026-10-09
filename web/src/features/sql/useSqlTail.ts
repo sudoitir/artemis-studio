@@ -4,9 +4,9 @@ import { ApiError, request as apiRequest } from '../../kernel/api/request.ts';
 import { type SqlNodeOutcomeView, type SqlResultView, type SqlRowView, type SqlTailStatusView } from './api.ts';
 
 /**
- * How long a newly arrived row is marked fresh. Long enough to catch the eye on a
- * glance away from the screen, short enough that a busy tail is not one solid
- * block of highlight.
+ * How long a newly arrived row is marked fresh, before the mark fades. Long enough to
+ * catch the eye on a glance away from the screen, short enough that a busy tail is not
+ * one solid block of highlight.
  */
 const FRESH_MS = 4_000;
 

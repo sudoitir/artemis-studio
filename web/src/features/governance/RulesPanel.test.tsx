@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { RulesPanel } from './RulesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const BUILT_IN = {
   id: 'b1',
@@ -138,9 +139,7 @@ describe('RulesPanel', () => {
     await user.click(trigger);
     const dialog = await screen.findByRole('dialog', { name: 'Delete the rule for customerEmail' });
     expect(dialog).toHaveTextContent('Values this rule masks become visible');
-    expect(screen.getByRole('button', { name: 'Delete rule' })).toBeDisabled();
 
-    await user.type(screen.getByRole('textbox', { name: /Type "customerEmail" to confirm/ }), 'customerEmail');
     expect(screen.getByRole('button', { name: 'Delete rule' })).toBeEnabled();
 
     await user.keyboard('{Escape}');
@@ -208,8 +207,7 @@ describe('RulesPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete the rule for customerEmail' }));
     let dialog = await screen.findByRole('dialog');
     reply = HttpResponse.json({ title: 'Locked', detail: 'The policy is being re-masked.' }, { status: 409 });
-    await user.type(within(dialog).getByRole('textbox', { name: /Type "customerEmail" to confirm/ }), 'customerEmail');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete rule' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete rule' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not delete the rule for customerEmail');
@@ -218,7 +216,7 @@ describe('RulesPanel', () => {
 
     reply = new HttpResponse(null, { status: 204 });
     dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete rule' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete rule' }));
     expect(await screen.findByText('Deleted the rule for customerEmail')).toBeInTheDocument();
   });
 });

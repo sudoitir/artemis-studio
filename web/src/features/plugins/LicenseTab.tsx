@@ -142,7 +142,6 @@ export function LicenseTab({
         onClose={() => setRemoving(false)}
         title={`Remove the license of ${info.title}`}
         confirmLabel="Remove the license"
-        typeToConfirm={plugin.id}
         danger
         pending={remove.isPending}
         error={remove.error}

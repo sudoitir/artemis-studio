@@ -205,7 +205,6 @@ export function DeleteQueueDialog({
       onClose={dismiss}
       title={result ? `Result of deleting ${queue.queueName}` : `Delete ${queue.queueName}`}
       tone="danger"
-      typedName={queue.queueName}
       confirmLabel={overCap ? 'Delete anyway, over the cap' : 'Delete this queue'}
       // Also locked while the preview is being taken, so the typed name cannot arm a delete that
       // has not been shown its blast radius.

@@ -123,7 +123,7 @@ describe('TopologyCanvas boxes', () => {
     expect(b).toHaveTextContent('Primary · paired with alpha-backup, in sync');
     expect(b).toHaveTextContent('node:8161');
     expect(await box(names.b2)).toHaveTextContent('Not polled');
-    expect(await box(names.b2)).toHaveTextContent('node:61616'.replace('node', 'node'));
+    expect(await box(names.b2)).toHaveTextContent('node:61616');
   });
 
   it('mark the chosen node', async () => {

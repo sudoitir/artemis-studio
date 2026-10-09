@@ -1,14 +1,16 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Modal, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { DescriptionList } from '../../ui/DescriptionList.tsx';
+import { DialogActions, useDiscardGuard } from '../../ui/DialogActions.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { LoadingState } from '../../ui/LoadingState.tsx';
+import { Notice } from '../../ui/Notice.tsx';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { Section } from '../../ui/Section.tsx';
 import { DataTable } from '../../ui/table/index.ts';
@@ -44,6 +46,12 @@ export function RolesPanel() {
   // The dialog keeps what it was about while it fades out, so its words do not change under the reader.
   const [deleting, setDeleting] = useState<RoleView | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const closeEditor = () => {
+    setEditing(null);
+    setDirty(false);
+  };
+  const guard = useDiscardGuard(dirty, closeEditor);
 
   const columns = roleColumns({
     onEdit: setEditing,
@@ -94,12 +102,19 @@ export function RolesPanel() {
       {/* Remounted per role, so the editor never shows a previous role's values. */}
       <Modal
         opened={editing !== null}
-        onClose={() => setEditing(null)}
+        {...guard.modalProps}
         title={editing === 'new' ? 'New role' : `Edit "${editing?.name ?? ''}"`}
         size="lg"
       >
+        {guard.prompt}
         {editing === null ? null : (
-          <RoleEditor key={editing === 'new' ? 'new' : editing.id} role={editing} onDone={() => setEditing(null)} />
+          <RoleEditor
+            key={editing === 'new' ? 'new' : editing.id}
+            role={editing}
+            onDirtyChange={setDirty}
+            onCancel={guard.modalProps.onClose}
+            onDone={closeEditor}
+          />
         )}
       </Modal>
 
@@ -110,7 +125,17 @@ export function RolesPanel() {
 }
 
 /** The role form: a name and permissions for a custom role, only the two-step setting for a built-in one. */
-function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone: () => void }>) {
+function RoleEditor({
+  role,
+  onDirtyChange,
+  onCancel,
+  onDone,
+}: Readonly<{
+  role: RoleView | 'new';
+  onDirtyChange: (dirty: boolean) => void;
+  onCancel: () => void;
+  onDone: () => void;
+}>) {
   const catalogue = usePermissionsCatalogue();
   const create = useCreateRole();
   const update = useUpdateRole();
@@ -126,8 +151,12 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
     validate: { name: (v) => (edited?.builtin || v.trim() ? null : NAME_ERROR) },
   });
 
+  const dirty = form.isDirty();
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
   // What a role grants applies to its members' next request; only a new second-factor requirement ends sessions.
   const endsSessions = edited !== null && form.values.requiresMfa !== edited.requiresMfa;
+  const diff = edited && !edited.builtin ? diffRoles(edited.permissions, form.values.permissions) : null;
 
   const save = form.onSubmit((body) => {
     const subject = `role "${body.name}"`;
@@ -202,23 +231,48 @@ function RoleEditor({ role, onDone }: Readonly<{ role: RoleView | 'new'; onDone:
                 teamRole={form.values.teamAssignable}
               />
             ))}
-        <Stack gap={4}>
-          <Switch
-            label="Require two-step verification"
-            description="Applies to local accounts. Single sign-on users rely on their identity provider."
-            {...form.getInputProps('requiresMfa', { type: 'checkbox' })}
-          />
+        <Switch
+          label="Require two-step verification"
+          description="Applies to local accounts. Single sign-on users rely on their identity provider."
+          {...form.getInputProps('requiresMfa', { type: 'checkbox' })}
+        />
+        <div className={classes.dialogActions}>
+          {diff ? <PermissionDiff added={diff.onlyB} removed={diff.onlyA} /> : null}
           {endsSessions ? (
-            <Text size="xs" c="dimmed">
+            <Notice tone="warning" title="Signs everyone out">
               Saving signs out everyone who holds this role.
-            </Text>
+            </Notice>
           ) : null}
-        </Stack>
-        <Button type="submit" loading={create.isPending || update.isPending}>
-          Save
-        </Button>
+          <DialogActions>
+            <Button variant="default" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={create.isPending || update.isPending}>
+              {edited === null ? 'Create role' : 'Save role'}
+            </Button>
+          </DialogActions>
+        </div>
       </Stack>
     </form>
+  );
+}
+
+/** What saving changes in the role's permissions, by name; nothing while the permissions are as they were. */
+function PermissionDiff({ added, removed }: Readonly<{ added: string[]; removed: string[] }>) {
+  if (added.length === 0 && removed.length === 0) return null;
+  return (
+    <output aria-label="Permission changes" className={classes.roleDiff}>
+      {added.length > 0 ? (
+        <Text size="sm">
+          +{added.length} added: <span className={classes.code}>{added.join(', ')}</span>
+        </Text>
+      ) : null}
+      {removed.length > 0 ? (
+        <Text size="sm">
+          −{removed.length} removed: <span className={classes.code}>{removed.join(', ')}</span>
+        </Text>
+      ) : null}
+    </output>
   );
 }
 
@@ -259,9 +313,8 @@ function DeleteRole({
     <ConfirmDialog
       opened={opened}
       onClose={onClose}
-      title={role ? `Delete ${role.name}` : 'Delete role'}
+      title={role ? `Delete "${role.name}"` : 'Delete role'}
       tone="danger"
-      typedName={role?.name}
       pending={remove.isPending}
       confirmLabel="Delete role"
       consequence={role ? deleteConsequence(role) : ''}

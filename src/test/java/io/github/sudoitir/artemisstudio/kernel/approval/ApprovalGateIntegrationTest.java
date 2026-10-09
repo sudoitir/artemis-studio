@@ -20,8 +20,8 @@ import io.github.sudoitir.artemisstudio.kernel.approval.GateTestKit.TestState;
 import io.github.sudoitir.artemisstudio.kernel.approval.GateTestKit.TokenParams;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry;
-import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalReasonRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException;
+import io.github.sudoitir.artemisstudio.kernel.gate.ApproverQuorumException;
 import io.github.sudoitir.artemisstudio.kernel.gate.AuthKind;
 import io.github.sudoitir.artemisstudio.kernel.gate.EventCursor;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
@@ -389,8 +389,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         handoff.runAs(worker, () -> service.purge(new PurgeParams("a", null)));
         assertThat(provider.decisions).hasValue(1);
 
-        provider.decide =
-                request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), false, "a platform lead");
+        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), "a platform lead");
         approversAre(approver());
 
         assertThatThrownBy(() -> handoff.runAs(worker, () -> service.purge(new PurgeParams("b", null))))
@@ -567,22 +566,6 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aPolicyThatAsksForAReasonGetsOne() {
-        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), true, null);
-        Person alice = requester();
-        approversAre(approver());
-        signIn(alice);
-
-        assertThatThrownBy(() -> service.purge(ORDERS)).isInstanceOf(ApprovalReasonRequiredException.class);
-        assertThatThrownBy(() -> purgeWithReason("Poison messages since 09:00"))
-                .isInstanceOf(OperationHeldException.class);
-
-        assertThat(jdbc.queryForObject(
-                        "SELECT reason FROM held_operation WHERE requester_id = ?", String.class, alice.id()))
-                .isEqualTo("Poison messages since 09:00");
-    }
-
-    @Test
     void withNoOtherApproverTheRequestIsDenied() {
         Person alice = newUser(GateTestKit.SERVICE_PERMISSION, GateTestKit.APPROVER_PERMISSION);
         approversAre(alice);
@@ -609,7 +592,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aProviderHoldUnderTheMinimumFailsClosed() {
-        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofSeconds(5), false, null);
+        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofSeconds(5), null);
         approversAre(approver());
         signIn(requester());
 
@@ -618,7 +601,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aProviderHoldOverTheMaximumIsShortenedToIt() {
-        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofDays(365), false, null);
+        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofDays(365), null);
         approversAre(approver());
         signIn(requester());
 
@@ -1015,6 +998,72 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         assertThat(service.purged).isEmpty();
     }
 
+    /** Disables {@code person} the way the user service does: a write and the announcement, in one transaction. */
+    private void disable(Person person) {
+        tx.executeWithoutResult(status -> {
+            AppUserEntity entity = users.findById(person.id()).orElseThrow();
+            entity.setDisabled(true);
+            users.save(entity);
+            accessChanges.changedFor(person.id());
+        });
+    }
+
+    /** The suite's users accumulate; a quorum test starts from none, so the approvers it makes are all there are. */
+    private void startWithNoOneEnabled() {
+        jdbc.update("UPDATE app_user SET disabled = true");
+        // The registry reads the approver permission from the installed descriptor, as it does in production.
+        jdbc.update(
+                "UPDATE plugin_install SET descriptor = ?::jsonb WHERE id = ?",
+                "{\"approvalProvider\":{\"approverPermission\":\"" + GateTestKit.APPROVER_PERMISSION + "\"}}",
+                PROVIDER);
+    }
+
+    @Test
+    void anAccessChangeThatLeavesOneApproverIsRefusedAndNothingIsChanged() {
+        startWithNoOneEnabled();
+        approver();
+        Person second = approver();
+
+        assertThatThrownBy(() -> disable(second)).isInstanceOf(ApproverQuorumException.class);
+
+        assertThat(users.findById(second.id()).orElseThrow().isDisabled()).isFalse();
+    }
+
+    @Test
+    void anAccessChangeThatLeavesTwoApproversIsAllowed() {
+        startWithNoOneEnabled();
+        approver();
+        approver();
+        Person third = approver();
+
+        disable(third);
+
+        assertThat(users.findById(third.id()).orElseThrow().isDisabled()).isTrue();
+    }
+
+    @Test
+    void aChangeThatDoesNotLowerTheApproversIsNeverRefusedEvenBelowQuorum() {
+        startWithNoOneEnabled();
+        approver();
+        Person unrelated = requester();
+
+        disable(unrelated);
+
+        assertThat(users.findById(unrelated.id()).orElseThrow().isDisabled()).isTrue();
+    }
+
+    @Test
+    void nothingIsRefusedWhileTheProviderHoldsNothing() {
+        startWithNoOneEnabled();
+        provider.enforcing = false;
+        approver();
+        Person second = approver();
+
+        disable(second);
+
+        assertThat(users.findById(second.id()).orElseThrow().isDisabled()).isTrue();
+    }
+
     @Test
     void aDisabledRequesterIsRefusedAtRunTime() {
         Person alice = requester();
@@ -1202,10 +1251,6 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
     private int purgeCoveredBy(GateTicket ticket) throws Exception {
         return ScopedValue.where(GateScope.COVERED, ticket).call(() -> service.purge(ORDERS));
-    }
-
-    private int purgeWithReason(String reason) throws Exception {
-        return ScopedValue.where(GateContext.REASON, reason).call(() -> service.purge(ORDERS));
     }
 
     private void decideAsAssistant(UUID id, String hash, int version) throws Exception {
@@ -1404,11 +1449,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         approversAre(bob);
         Browser a = new Browser().signIn(alice);
 
-        HttpResponse<String> held = a.send(
-                "POST",
-                "/api/v1/test-gate/purge",
-                "{\"queue\":\"orders\"}",
-                Map.of(GateContext.REASON_HEADER, "Poison%20messages%20%E2%9C%93"));
+        HttpResponse<String> held = a.send("POST", "/api/v1/test-gate/purge", "{\"queue\":\"orders\"}", Map.of());
 
         assertThat(held.statusCode()).isEqualTo(202);
         String id = held.headers().firstValue(GateContext.HELD_HEADER).orElseThrow();
@@ -1417,8 +1458,6 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         assertThat(JsonPath.<String>read(held.body(), "$.heldOperation.id")).isEqualTo(id);
         assertThat(JsonPath.<String>read(held.body(), "$.heldOperation.summary"))
                 .isEqualTo("Purge queue orders");
-        assertThat(jdbc.queryForObject("SELECT reason FROM held_operation WHERE id = ?::uuid", String.class, id))
-                .isEqualTo("Poison messages ✓");
         assertThat(JsonPath.<String>read(
                         a.send("GET", "/api/v1/held-operations?scope=MINE", null, Map.of())
                                 .body(),
@@ -1461,12 +1500,6 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         HttpResponse<String> denied = a.send("POST", "/api/v1/test-gate/purge", "{\"queue\":\"q\"}", Map.of());
         assertThat(denied.statusCode()).isEqualTo(403);
         assertThat(JsonPath.<String>read(denied.body(), "$.type")).endsWith("/operation-denied");
-
-        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), true, null);
-        approversAre(approver());
-        HttpResponse<String> reason = a.send("POST", "/api/v1/test-gate/purge", "{\"queue\":\"q\"}", Map.of());
-        assertThat(reason.statusCode()).isEqualTo(422);
-        assertThat(JsonPath.<String>read(reason.body(), "$.type")).endsWith("/approval-reason-required");
 
         providers.detach(handle);
         HttpResponse<String> unavailable = a.send("POST", "/api/v1/test-gate/purge", "{\"queue\":\"q\"}", Map.of());

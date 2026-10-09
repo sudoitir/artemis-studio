@@ -3,7 +3,7 @@ import { Button, Checkbox, Group, Modal, Stack, Switch, Text } from '@mantine/co
 import { useNavigate } from '@tanstack/react-router';
 
 import type { QueueSelection } from '../../kernel/slots.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
@@ -94,10 +94,9 @@ function PreviewStatus({
   );
 }
 
-/** How the run behaves on failure, and the control that starts it — armed by typing when it destroys. */
+/** How the run behaves on failure, and the control that starts it — confirmed by holding when it destroys. */
 function RunControls({
   op,
-  acting,
   execute,
   continueOnFailure,
   onContinueOnFailure,
@@ -108,7 +107,6 @@ function RunControls({
   onRetry,
 }: Readonly<{
   op: (typeof OPERATIONS)[BulkOperation];
-  acting: BulkItemView[];
   execute: ReturnType<typeof useBulkExecute>;
   continueOnFailure: boolean;
   onContinueOnFailure: (on: boolean) => void;
@@ -144,11 +142,8 @@ function RunControls({
       ) : null}
 
       {op.destructive ? (
-        <ConfirmByTyping
-          // One queue is confirmed by its name, as a single-queue destroy is everywhere else;
-          // many are confirmed by the action and the count.
-          token={acting.length === 1 ? acting[0].queueName : `${op.verb.toLowerCase()} ${acting.length} queues`}
-          confirmLabel={confirmLabel}
+        <HoldToConfirm
+          label={confirmLabel}
           loading={execute.isPending}
           disabled={(overCap && !override) || execute.isPending}
           onConfirm={onStart}
@@ -326,7 +321,6 @@ export function BulkPreviewDialog({
         {data && acting.length > 0 ? (
           <RunControls
             op={op}
-            acting={acting}
             execute={execute}
             continueOnFailure={continueOnFailure}
             onContinueOnFailure={setContinueOnFailure}

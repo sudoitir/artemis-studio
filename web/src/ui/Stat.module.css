@@ -54,4 +54,16 @@
   block-size: 1em;
   border-radius: var(--mantine-radius-sm);
   background: var(--as-skeleton);
+  animation: pulse calc(var(--as-duration-slow) * 5) ease-in-out infinite alternate;
+}
+
+/* The table skeleton's pulse (DataTable.module.css), so every placeholder breathes alike. */
+@keyframes pulse {
+  from {
+    opacity: 0.5;
+  }
+
+  to {
+    opacity: 1;
+  }
 }

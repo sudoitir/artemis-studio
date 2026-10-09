@@ -1,10 +1,15 @@
-/* The padding of a routed view that sits directly in the application's main area. */
+/* A routed view that sits directly in the application's main area: the shell already pads it. */
 .page {
-  padding: var(--mantine-spacing-lg);
   min-inline-size: 0;
 }
 
-/* The account page reads as one column of prose and forms, so it keeps a readable width. */
+/* A page that reads as one column of prose and forms keeps a readable width. */
 .narrow {
+  max-inline-size: 40rem;
+}
+
+/* The account page: its prose and forms keep a readable width, while a section holding a table keeps the
+   page's width, so its columns are not squeezed. */
+.account section:not(:has(table, [role='grid'], [role='table'])) {
   max-inline-size: 40rem;
 }

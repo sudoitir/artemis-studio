@@ -10,6 +10,7 @@ import type { PluginLicenseView, PluginView } from './api.ts';
 import { info, me, plugin } from './fixtures.ts';
 import { LICENSE_LABEL } from './words.ts';
 import { PluginDrawer } from './PluginDrawer.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -179,9 +180,7 @@ describe('uploading and removing', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Remove the license of Notes' });
     const confirm = within(dialog).getByRole('button', { name: 'Remove the license' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByRole('textbox'), 'acme-notes');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(removed).toBe(true));
   });

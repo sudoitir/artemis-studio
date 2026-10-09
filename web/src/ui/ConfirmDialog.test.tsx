@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { holdButton, holdByKeyboard } from '../test/hold.ts';
 import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -53,20 +54,21 @@ describe('ConfirmDialog', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  it('arms a destructive action only on the typed name, by keyboard', async () => {
+  it('confirms a destructive action only by holding it, by keyboard, with focus starting on Cancel', async () => {
     const onConfirm = vi.fn();
     const user = userEvent.setup();
-    renderWithProviders(<Host tone="danger" typedName="orders" onConfirm={onConfirm} />);
+    renderWithProviders(<Host tone="danger" onConfirm={onConfirm} />);
     const trigger = screen.getByRole('button', { name: 'Open' });
     trigger.focus();
     await user.keyboard('{Enter}');
-    const field = await screen.findByRole('textbox', { name: 'Type "orders" to confirm' });
-    await waitFor(() => expect(field).toHaveFocus());
+    const cancel = await screen.findByRole('button', { name: 'Cancel' });
+    await waitFor(() => expect(cancel).toHaveFocus());
     const confirm = screen.getByRole('button', { name: 'Delete queue' });
-    expect(confirm).toBeDisabled();
-    await user.keyboard('order');
-    expect(confirm).toBeDisabled();
-    await user.keyboard('s{Tab}{Enter}');
+    // A click, or a key pressed and let go, is not a confirmation.
+    await user.click(confirm);
+    await user.keyboard('{Enter}');
+    expect(onConfirm).not.toHaveBeenCalled();
+    await holdByKeyboard(confirm);
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
@@ -126,15 +128,16 @@ describe('ConfirmDialog', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  it('keeps a typed confirmation unarmed while blocked, even with the name typed', async () => {
+  it('keeps a held confirmation unarmed while blocked, even when held', async () => {
     const onConfirm = vi.fn();
     const user = userEvent.setup();
-    renderWithProviders(<Host tone="danger" typedName="orders" blocked="The queue is in use." onConfirm={onConfirm} />);
+    renderWithProviders(<Host tone="danger" blocked="The queue is in use." onConfirm={onConfirm} />);
     await user.click(screen.getByRole('button', { name: 'Open' }));
-    await user.type(await screen.findByRole('textbox', { name: 'Type "orders" to confirm' }), 'orders');
-    const confirm = screen.getByRole('button', { name: 'Delete queue' });
+    const confirm = await screen.findByRole('button', { name: 'Delete queue' });
     expect(confirm).toBeDisabled();
-    expect(confirm).toHaveAccessibleDescription('The queue is in use.');
+    await holdButton(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(confirm).toHaveAccessibleDescription(/^The queue is in use\./);
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
   });
 
@@ -144,7 +147,6 @@ describe('ConfirmDialog', () => {
       return (
         <Host
           tone="danger"
-          typedName="orders"
           result={result ? <p>{result}</p> : undefined}
           onConfirm={() => setResult('Deleted queue orders on 3 nodes.')}
         />
@@ -156,8 +158,7 @@ describe('ConfirmDialog', () => {
     trigger.focus();
     await user.keyboard('{Enter}');
     const dialog = await screen.findByRole('dialog', { name: 'Delete queue' });
-    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus());
-    await user.keyboard('orders{Tab}{Enter}');
+    await holdByKeyboard(await screen.findByRole('button', { name: 'Delete queue' }));
 
     // The confirm controls give way to the outcome, which holds focus; what was confirmed stays above it.
     const outcome = await screen.findByRole('group', { name: 'Result' });
@@ -165,7 +166,6 @@ describe('ConfirmDialog', () => {
     await waitFor(() => expect(outcome).toHaveFocus());
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(dialog).toHaveTextContent('Removes queue orders on 3 nodes');
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete queue' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
 

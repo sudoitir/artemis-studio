@@ -1,6 +1,7 @@
 import { ActionIcon, Button, Group, Stack, Switch, Text } from '@mantine/core';
 import { IconPencil, IconTrash, IconX } from '@tabler/icons-react';
 
+import { absoluteLabel } from '../../kernel/time/time.ts';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { AccessCheckView, EffectivePermissionView, GroupMappingView, RoleView, UserView } from './api.ts';
 import classes from './Security.module.css';
@@ -17,9 +18,7 @@ export function UserName({ user }: Readonly<{ user: UserView }>) {
         </Text>
       ) : null}
       {user.lockedUntil ? (
-        <StatusBadge tone="warning">
-          {`Locked until ${new Date(user.lockedUntil).toLocaleTimeString([], { timeStyle: 'short' })}`}
-        </StatusBadge>
+        <StatusBadge tone="warning">{`Locked until ${absoluteLabel(user.lockedUntil)}`}</StatusBadge>
       ) : null}
     </Stack>
   );
@@ -154,7 +153,7 @@ export function UserGrants({ user: u, controls }: Readonly<{ user: UserView; con
   );
 }
 
-/** The enabled switch. */
+/** The enabled switch. Turning it off asks first; turning it on does not. */
 export function UserEnabled({ user: u, controls }: Readonly<{ user: UserView; controls: UserControls }>) {
   return (
     <Switch

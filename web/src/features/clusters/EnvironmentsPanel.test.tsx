@@ -8,6 +8,7 @@ import { holding } from '../../test/access.ts';
 import { server } from '../../test/setup.ts';
 import { EnvironmentsPanel } from './EnvironmentsPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 function env(over: Record<string, unknown> = {}) {
   return { id: 'e1', name: 'production', colour: '#e03131', sortOrder: 0, ...over };
@@ -68,9 +69,7 @@ describe('EnvironmentsPanel', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete environment' });
     expect(dialog).toHaveTextContent('Its clusters stay registered');
     const confirm = within(dialog).getByRole('button', { name: 'Delete environment' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "production" to confirm'), 'production');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     expect(await screen.findByText(/^0 environments\./)).toBeInTheDocument();
   });

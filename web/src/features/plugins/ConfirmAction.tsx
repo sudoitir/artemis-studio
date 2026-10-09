@@ -22,7 +22,6 @@ export function ConfirmAction({
   title,
   children,
   confirmLabel,
-  typeToConfirm,
   danger,
   pending,
   error,
@@ -34,8 +33,6 @@ export function ConfirmAction({
   title: string;
   children: ReactNode;
   confirmLabel: string;
-  /** Required for destructive actions: the plugin's id. */
-  typeToConfirm?: string;
   danger?: boolean;
   pending: boolean;
   error: ApiError | null;
@@ -59,7 +56,6 @@ export function ConfirmAction({
       }
       confirmLabel={confirmLabel}
       tone={danger ? 'danger' : 'default'}
-      typedName={typeToConfirm}
       pending={pending}
       blocked={fresh ? undefined : 'Confirm it is you above first.'}
       onConfirm={onConfirm}

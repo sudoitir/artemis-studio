@@ -219,7 +219,7 @@ async function main() {
   await editor.getByRole('textbox', { name: /^Name/ }).fill(roleName);
   await editor.getByRole('textbox', { name: 'Search permissions' }).fill(ID);
   await editor.getByRole('checkbox', { name: 'Select all in Notes' }).check();
-  await editor.getByRole('button', { name: 'Save' }).click();
+  await editor.getByRole('button', { name: 'Create role' }).click();
   await editor.waitFor({ state: 'hidden' });
   const roles = await list<{ id: string; name: string; permissions: string[] }>(api, '/roles');
   const role = roles.find((r) => r.name === roleName);

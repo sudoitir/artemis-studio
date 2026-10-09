@@ -169,7 +169,7 @@ one moves is a comparison they will get wrong.
 
 The plan SHALL be re-computed and its hash compared on the way into the confirmation,
 and a cluster that moved SHALL be reported as a new plan to review — never as a refusal
-after the operator has typed the cluster's name. Acknowledgements SHALL survive returning
+after the operator has held the apply button. Acknowledgements SHALL survive returning
 to the plan from the confirmation, and SHALL NOT survive a plan that changed.
 
 #### Scenario: The cluster moves between the plan and the confirmation
@@ -204,7 +204,7 @@ At least the following SHALL be recognised:
 
 A real run SHALL require every high-class hazard to be acknowledged by its identifier and
 SHALL be refused, listing the missing ones, otherwise. The user interface SHALL arm a real
-run by typing the cluster's name; acknowledgement alone SHALL NOT arm it.
+run by pressing and holding the apply button; acknowledgement alone SHALL NOT confirm it.
 
 The system SHALL refuse to apply an unknown key, because the broker accepts one and does
 nothing, and SHALL validate a page size against a match's merged maximum size, because the
@@ -375,7 +375,7 @@ save in one action, and SHALL NOT write anything to a broker in doing so. The sa
 records its source as `RECOMMENDED`, so the audit trail distinguishes it from a hand edit, an
 import, and an adoption.
 
-Applying that revision is the ordinary apply, with the ordinary plan, hazards, canary and typed
+Applying that revision is the ordinary apply, with the ordinary plan, hazards, canary and held
 confirmation (D8): the recommendation is a suggestion, and the operator is still the one who acts.
 
 A recommended security setting grants permissions that the broker checks against the account

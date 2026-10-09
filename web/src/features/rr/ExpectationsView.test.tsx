@@ -8,6 +8,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { ExpectationsView } from './ExpectationsView.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
@@ -278,11 +279,9 @@ describe('ExpectationsView', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Stop tracing this address' });
     expect(within(dialog).getByText(/Flows already recorded stay/)).toBeInTheDocument();
     const confirm = within(dialog).getByRole('button', { name: 'Stop tracing' });
-    expect(confirm).toBeDisabled();
     expect(deleted).toBe(0);
 
-    await user.type(within(dialog).getByRole('textbox'), 'orders.request');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(deleted).toBe(1));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

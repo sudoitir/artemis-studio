@@ -2,3 +2,23 @@
 .line {
   min-block-size: calc(var(--mantine-font-size-xs) * var(--mantine-line-height));
 }
+
+.current {
+  color: var(--as-text);
+  font-weight: 500;
+}
+
+.dimmed,
+.link {
+  color: var(--as-text-dimmed);
+}
+
+.link {
+  transition: color var(--as-duration-fast) var(--as-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    color: var(--as-text);
+  }
+}

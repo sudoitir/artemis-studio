@@ -189,7 +189,6 @@ export function DeleteCell({
         }
         confirmLabel="Delete and destroy captured messages"
         tone="danger"
-        typedName={pattern}
         pending={remove.isPending}
         onConfirm={() =>
           remove.mutate(subscription.id ?? '', {

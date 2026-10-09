@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import type { CapabilityView, QueueView } from './api.ts';
 import { QueueLifecycleActions } from './QueueLifecycleActions.tsx';
+import { holdButton, holdByKeyboard } from '../../test/hold.ts';
 
 const AVAILABLE: CapabilityView = { status: 'AVAILABLE', reason: 'ok', brokerXmlSnippet: null };
 
@@ -247,15 +248,7 @@ describe('the destructive flow is keyboard-complete', () => {
     expect(within(dialog).getByText('node-a')).toBeInTheDocument();
 
     const confirm = within(dialog).getByRole('button', { name: 'Delete this queue' });
-    expect(confirm).toBeDisabled();
-
-    // A near-miss must not arm it.
-    const field = within(dialog).getByRole('textbox');
-    await user.type(field, 'order');
-    expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toBeDisabled();
-
-    await user.type(field, 's');
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toBeEnabled());
+    await waitFor(() => expect(confirm).toBeEnabled());
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -326,11 +319,7 @@ describe('the destructive flow is keyboard-complete', () => {
     expect(urls.at(-1)).toContain('disconnectConsumers=true');
     expect(urls.at(-1)).toContain('dryRun=true');
 
-    within(dialog).getByRole('textbox').focus();
-    await user.keyboard('orders');
-    await user.tab();
-    expect(within(dialog).getByRole('button', { name: 'Delete this queue' })).toHaveFocus();
-    await user.keyboard('{Enter}');
+    await holdByKeyboard(within(dialog).getByRole('button', { name: 'Delete this queue' }));
 
     const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
     expect(await within(result).findByText('applied')).toBeInTheDocument();
@@ -379,8 +368,7 @@ describe('the destructive flow is keyboard-complete', () => {
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
 
-    await user.type(within(dialog).getByRole('textbox'), 'orders');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete this queue' }));
 
     const disconnect = within(dialog).getByRole('checkbox', { name: /Disconnect this queue's consumers/ });
     await waitFor(() => expect(disconnect).toBeDisabled());
@@ -428,8 +416,7 @@ describe('a delete that failed everywhere', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
-    await user.type(within(dialog).getByRole('textbox'), 'orders');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete this queue' }));
 
     const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
     expect(await within(result).findByText('Failed on every node')).toBeInTheDocument();
@@ -475,8 +462,7 @@ describe('a delete no node was live for', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('would destroy 12 messages')).toBeInTheDocument();
-    await user.type(within(dialog).getByRole('textbox'), 'orders');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete this queue' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete this queue' }));
 
     const result = await screen.findByRole('dialog', { name: /result of deleting orders/i });
     expect(await within(result).findByText('No node was live, so nothing was applied')).toBeInTheDocument();
@@ -595,8 +581,7 @@ describe('the delete result', () => {
     const trigger = await screen.findByRole('button', { name: 'Delete queue' });
     await user.click(trigger);
     const confirmation = await screen.findByRole('dialog', { name: 'Delete orders' });
-    await user.type(await within(confirmation).findByRole('textbox'), 'orders');
-    await user.click(within(confirmation).getByRole('button', { name: 'Delete this queue' }));
+    await holdButton(within(confirmation).getByRole('button', { name: 'Delete this queue' }));
 
     // Partial is read per node, where the typed confirmation was.
     const result = await screen.findByRole('dialog', { name: 'Result of deleting orders' });

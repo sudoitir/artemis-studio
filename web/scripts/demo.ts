@@ -366,7 +366,7 @@ await clip('sql-console', async (page, _clusterId, mark) => {
 
 // ── 4. Installing a plugin ───────────────────────────────────────────────────
 // What an administrator sees before anything runs: what the plugin may do, the database changes it
-// brings (the SQL itself, one click away), and a typed confirmation. Then it is live without a restart.
+// brings (the SQL itself, one click away), and a held confirmation. Then it is live without a restart.
 if (PLUGIN_JAR) {
   await clip(
     'plugin-install',
@@ -413,11 +413,12 @@ if (PLUGIN_JAR) {
       }
       await click(page, dialog.getByRole('button', { name: 'Continue' }));
 
-      const confirm = dialog.getByRole('textbox', { name: /to confirm/ });
-      await click(page, confirm);
-      await type(page, 'acme-notes');
-      await hold(page, 500);
-      await click(page, dialog.getByRole('button', { name: /^Install/ }).last());
+      // The confirmation is held: the button fills while the mouse stays down.
+      const confirm = dialog.getByRole('button', { name: /^Install/ }).last();
+      await confirm.hover();
+      await page.mouse.down();
+      await hold(page, 1_800);
+      await page.mouse.up();
       await dialog.getByText(/is active/).waitFor({ timeout: 90_000 });
       await hold(page, 1_800);
 

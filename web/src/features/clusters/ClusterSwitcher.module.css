@@ -19,11 +19,23 @@
 
 button.face {
   cursor: pointer;
+  transition:
+    background-color var(--as-duration-fast) var(--as-ease),
+    transform var(--as-duration-fast) var(--as-ease);
 }
 
-button.face:hover,
+@media (hover: hover) and (pointer: fine) {
+  button.face:hover {
+    background: var(--as-surface-raised);
+  }
+}
+
 button.face[aria-expanded='true'] {
   background: var(--as-surface-raised);
+}
+
+button.face:active {
+  transform: scale(0.98);
 }
 
 button.face:focus-visible {
@@ -31,9 +43,11 @@ button.face:focus-visible {
   outline-offset: var(--as-focus-offset);
 }
 
+/* On the rail the monogram carries its own border; a second one round it would box a box. */
 .face[data-collapsed] {
   justify-content: center;
   padding-inline: 0;
+  border-color: transparent;
 }
 
 .text {
@@ -151,8 +165,10 @@ button.face:focus-visible {
   color: var(--as-text);
 }
 
-.row:hover {
-  background: var(--as-surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--as-surface-raised);
+  }
 }
 
 /* The keyboard's cursor: a ring, not Mantine's filled primary, which the dimmed words inside would not read on. */
@@ -172,7 +188,7 @@ button.face:focus-visible {
 .register {
   position: sticky;
   inset-block-end: calc(var(--combobox-padding) * -1);
-  background: var(--mantine-color-body);
+  background: var(--as-surface-raised);
   display: flex;
   align-items: center;
   gap: var(--mantine-spacing-xs);

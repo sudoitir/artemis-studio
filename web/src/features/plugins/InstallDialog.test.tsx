@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { info, inventory, me, plan, plugin } from './fixtures.ts';
 import { InstallDialog, type Source } from './InstallDialog.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 const SHA = 'b'.repeat(64);
 const upload = (over = {}) => ({ sha256: SHA, plan: plan(over), warnings: [] });
@@ -199,7 +200,6 @@ describe('InstallDialog review and confirmation', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
     expect(screen.getByText('It requires acme-core first.')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
 
     expect(screen.getByRole('button', { name: 'Install Notes 1.0.0' })).toBeDisabled();
     expect(screen.queryByText('Confirm it is you above first.')).not.toBeInTheDocument();
@@ -232,8 +232,7 @@ describe('InstallDialog review and confirmation', () => {
     const { user } = open(JAR);
 
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.click(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
+    await holdButton(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Not activated');
@@ -252,8 +251,7 @@ describe('InstallDialog review and confirmation', () => {
     const { user } = open(JAR);
 
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.click(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
+    await holdButton(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
 
     expect(await screen.findByText('Another activation is running.')).toBeInTheDocument();
   });
@@ -272,8 +270,7 @@ describe('InstallDialog review and confirmation', () => {
     const { user } = open(JAR);
 
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.click(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
+    await holdButton(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Install Notes 1.0.0' })).toBeEnabled());
     expect(screen.queryByText('Not activated')).not.toBeInTheDocument();
@@ -292,7 +289,7 @@ describe('InstallDialog resuming an inspected upload', () => {
     open(RESUME);
 
     expect(await screen.findByText('Reading the upload again.')).toBeInTheDocument();
-    expect(await screen.findByLabelText('Type "acme-notes" to confirm')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Update Notes to 1\.1\.0/ })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Update Notes to 1.1.0' })).toBeInTheDocument();
   });
 
@@ -306,7 +303,7 @@ describe('InstallDialog resuming an inspected upload', () => {
     open(RESUME);
 
     expect(await screen.findByText('That upload expired.')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Type "acme-notes" to confirm')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(Install|Update|Activate) / })).not.toBeInTheDocument();
   });
 });
 
@@ -338,8 +335,7 @@ describe('InstallDialog progress', () => {
     const { user, onClose } = open(JAR);
 
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('Type "acme-notes" to confirm'), 'acme-notes');
-    await user.click(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
+    await holdButton(screen.getByRole('button', { name: 'Install Notes 1.0.0' }));
 
     expect(await screen.findByText(/You can close this; it carries on/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close — it carries on' })).toBeInTheDocument();

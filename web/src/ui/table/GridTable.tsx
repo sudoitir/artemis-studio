@@ -59,8 +59,13 @@ const HEADER = null;
 /** The elements that take focus themselves when they are a cell's one control. */
 const WIDGETS = 'a[href], button, input, select, textarea, [role="button"], [role="checkbox"]';
 const OVERSCAN = 10;
+/**
+ * How long the pointer rests on a clipped cell before its full value shows, so sweeping across the
+ * grid does not flicker a panel under every cell. Once one is showing, the next opens at once.
+ */
+const REVEAL_INTENT_MS = 400;
 
-/** The hover title for a cell, when its value is something a tooltip can say. */
+/** The full value a cell can reveal, when its value is something plain text can say. */
 function plainText(value: unknown): string | undefined {
   if (typeof value === 'string') return value || undefined;
   if (typeof value === 'number' || typeof value === 'bigint') return String(value);
@@ -147,7 +152,7 @@ interface OpenMenu {
 
 /** What the rows call, kept stable so toggling one row re-renders that row alone. */
 interface RowHandlers<T> {
-  reveal: (el: HTMLElement) => void;
+  hover: (el: HTMLElement) => void;
   hide: (e: SyntheticEvent) => void;
   activate: (e: MouseEvent, row: T) => void;
   toggleRow: (key: string) => void;
@@ -232,10 +237,9 @@ function DataCell<T>({ column, row, col, first, handlers }: Readonly<DataCellPro
       data-grid-col={col}
       data-first={first || undefined}
       className={`${classes.cell} ${first ? classes.stickyFirst : ''}`}
-      // A clipped cell is still readable in full: the title is the always-there fallback; the shared
-      // panel (hover / keyboard focus) adds copy.
-      title={full}
-      onPointerEnter={(e) => handlers.reveal(e.currentTarget)}
+      // A clipped cell is still readable in full: the shared panel shows it, with a copy control, on a
+      // resting pointer or at once on keyboard focus. The value stays in the cell for a screen reader.
+      onPointerEnter={(e) => handlers.hover(e.currentTarget)}
       onPointerLeave={handlers.hide}
     >
       {content}
@@ -506,12 +510,38 @@ export function GridTable<T>({
     const rect = el.getBoundingClientRect();
     setReveal({ text, x: isRtl() ? globalThis.innerWidth - rect.right : rect.left, y: rect.bottom + 4 });
   }, []);
-  const closeReveal = useCallback((e: SyntheticEvent) => {
-    // Keep the panel while focus/pointer moves into it (the copy button lives there).
-    const next = (e as FocusEvent).relatedTarget as Node | null;
-    if (next instanceof Node && panelRef.current?.contains(next)) return;
-    setReveal(null);
-  }, []);
+  // A pointer's reveal waits for intent, unless a panel is showing or has just closed: moving from one
+  // clipped cell to the next swaps the panel without the wait.
+  const revealShown = useRef(false);
+  revealShown.current = reveal !== null;
+  const lastShownAt = useRef(Number.NEGATIVE_INFINITY);
+  const intent = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cancelIntent = useCallback(() => globalThis.clearTimeout(intent.current), []);
+  useEffect(() => cancelIntent, [cancelIntent]);
+  const hoverReveal = useCallback(
+    (el: HTMLElement) => {
+      cancelIntent();
+      if (revealShown.current || performance.now() - lastShownAt.current < REVEAL_INTENT_MS) {
+        openReveal(el);
+        return;
+      }
+      intent.current = globalThis.setTimeout(() => {
+        if (el.isConnected) openReveal(el);
+      }, REVEAL_INTENT_MS);
+    },
+    [cancelIntent, openReveal],
+  );
+  const closeReveal = useCallback(
+    (e: SyntheticEvent) => {
+      cancelIntent();
+      // Keep the panel while focus/pointer moves into it (the copy button lives there).
+      const next = (e as FocusEvent).relatedTarget as Node | null;
+      if (next instanceof Node && panelRef.current?.contains(next)) return;
+      if (revealShown.current) lastShownAt.current = performance.now();
+      setReveal(null);
+    },
+    [cancelIntent],
+  );
 
   // The header's height, so a row scrolled into view is not left under the sticky header.
   const [headerHeight, setHeaderHeight] = useState(rowHeight);
@@ -596,10 +626,14 @@ export function GridTable<T>({
     [virtualizer],
   );
 
-  const openMenu = useCallback((key: string, anchor: MenuAnchor) => {
-    setReveal(null);
-    setMenu({ key, anchor });
-  }, []);
+  const openMenu = useCallback(
+    (key: string, anchor: MenuAnchor) => {
+      cancelIntent();
+      setReveal(null);
+      setMenu({ key, anchor });
+    },
+    [cancelIntent],
+  );
 
   const menuRef = useRef(menu);
   menuRef.current = menu;
@@ -632,6 +666,7 @@ export function GridTable<T>({
     if (key !== active.key || colIds[pos.col] !== active.col) setActive({ key, col: colIds[pos.col] });
     // The reveal follows focus: it closes on the cell focus left, and opens on the one it reached
     // if that cell's value is clipped.
+    cancelIntent();
     setReveal(null);
     const cell = e.target.closest<HTMLElement>('[data-grid-col]');
     if (cell && e.target === cell) openReveal(cell);
@@ -807,11 +842,11 @@ export function GridTable<T>({
   };
 
   // The rows call these through one stable object, however often the grid renders.
-  const latest = useRef({ onRowClick, onToggleRow, menu, closeMenu, openMenu, openReveal, closeReveal });
-  latest.current = { onRowClick, onToggleRow, menu, closeMenu, openMenu, openReveal, closeReveal };
+  const latest = useRef({ onRowClick, onToggleRow, menu, closeMenu, openMenu, hoverReveal, closeReveal });
+  latest.current = { onRowClick, onToggleRow, menu, closeMenu, openMenu, hoverReveal, closeReveal };
   const handlers = useMemo<RowHandlers<T>>(
     () => ({
-      reveal: (el) => latest.current.openReveal(el),
+      hover: (el) => latest.current.hoverReveal(el),
       hide: (e) => latest.current.closeReveal(e),
       activate: (e, row) => {
         // A control inside the row acts for itself, not for the row.
@@ -844,7 +879,10 @@ export function GridTable<T>({
       data-capped={model.maxRows === undefined ? undefined : true}
       style={scrollStyle(model, selectable, hasMenu)}
       onScroll={(e) => {
-        if (reveal && performance.now() > quietScrollUntil.current) setReveal(null);
+        if (performance.now() > quietScrollUntil.current) {
+          cancelIntent();
+          if (reveal) setReveal(null);
+        }
         if (menu) closeMenu(false);
         const atTop = e.currentTarget.scrollTop <= 4;
         interaction.set('scrolled', !atTop);

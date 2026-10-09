@@ -9,6 +9,7 @@ import { server } from '../../test/setup.ts';
 import type { PermissionView, RoleView } from './api.ts';
 import { RolesPanel } from './RolesPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
+import { holdButton } from '../../test/hold.ts';
 
 const CATALOGUE: PermissionView[] = [
   {
@@ -115,12 +116,10 @@ describe('RolesPanel list', () => {
     renderRoles();
 
     await user.click(await screen.findByRole('button', { name: 'Delete queue-creator' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Delete queue-creator' });
+    const dialog = await screen.findByRole('dialog', { name: 'Delete "queue-creator"' });
     expect(dialog).toHaveTextContent('1 permission');
     const confirm = within(dialog).getByRole('button', { name: 'Delete role' });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByLabelText('Type "queue-creator" to confirm'), 'queue-creator');
-    await user.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(deleted).toBe('r-2'));
     expect(await screen.findByRole('status')).toHaveTextContent('Deleted role "queue-creator"');
@@ -139,8 +138,7 @@ describe('RolesPanel list', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete queue-creator' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Type "queue-creator" to confirm'), 'queue-creator');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete role' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete role' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not delete role "queue-creator"');
@@ -173,7 +171,7 @@ describe('RolesPanel editor', () => {
     const dialog = await screen.findByRole('dialog', { name: 'New role' });
     await user.type(within(dialog).getByRole('textbox', { name: /Name/ }), 'new-role');
     await user.click(await within(dialog).findByRole('checkbox', { name: 'Select all in Queues' }));
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create role' }));
 
     await waitFor(() =>
       expect(body).toEqual({
@@ -218,7 +216,7 @@ describe('RolesPanel editor', () => {
 
     expect(await within(dialog).findByRole('button', { name: /Queues, 0 of 1 selected/ })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('checkbox', { name: 'Select all in Queues' }));
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create role' }));
 
     await waitFor(() =>
       expect(body).toEqual({
@@ -261,7 +259,7 @@ describe('RolesPanel editor', () => {
     expect(await within(dialog).findByRole('button', { name: /Queues, 1 of 2 selected/ })).toBeInTheDocument();
     await user.clear(name);
     await user.type(name, 'queue-maker');
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save role' }));
 
     await waitFor(() =>
       expect(put).toEqual({
@@ -269,6 +267,21 @@ describe('RolesPanel editor', () => {
         body: { name: 'queue-maker', permissions: ['queue:create'], requiresMfa: false, teamAssignable: false },
       }),
     );
+  });
+
+  it('states what saving adds to and removes from a role’s permissions, by name', async () => {
+    serve();
+    const user = userEvent.setup();
+    renderRoles();
+
+    await user.click(await screen.findByRole('button', { name: 'Edit queue-operator' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit "queue-operator"' });
+    expect(within(dialog).queryByRole('status', { name: 'Permission changes' })).not.toBeInTheDocument();
+    await user.click(await within(dialog).findByRole('checkbox', { name: /queue:delete/ }));
+
+    const diff = within(dialog).getByRole('status', { name: 'Permission changes' });
+    expect(diff).toHaveTextContent('−1 removed: queue:delete');
+    expect(diff).not.toHaveTextContent('added');
   });
 
   it('keeps the editor open and says why when a save is refused', async () => {
@@ -287,17 +300,19 @@ describe('RolesPanel editor', () => {
     await user.click(await screen.findByRole('button', { name: 'New role' }));
     let dialog = await screen.findByRole('dialog', { name: 'New role' });
     await user.type(within(dialog).getByRole('textbox', { name: /Name/ }), 'x');
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create role' }));
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not create role "x"');
     expect(alert).toHaveTextContent('A role named "x" already exists. No role was created. Try again.');
     expect(screen.getByRole('dialog', { name: 'New role' })).toBeInTheDocument();
 
+    // A typed name is unsaved input: Escape asks before it is thrown away.
     await user.keyboard('{Escape}');
+    await user.click(within(dialog).getByRole('button', { name: 'Discard changes' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New role' })).toBeNull());
     await user.click(screen.getByRole('button', { name: 'Edit queue-creator' }));
     dialog = await screen.findByRole('dialog', { name: 'Edit "queue-creator"' });
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save role' }));
     await waitFor(() =>
       expect(screen.getAllByRole('alert').map((a) => a.textContent)).toContainEqual(
         expect.stringContaining('Unknown permission. The role is unchanged. Try again.'),
@@ -312,7 +327,7 @@ describe('RolesPanel editor', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New role' }));
     const dialog = await screen.findByRole('dialog', { name: 'New role' });
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create role' }));
 
     expect(await within(dialog).findByText('Name the role after what its holders do.')).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: /Name/ })).toHaveFocus();

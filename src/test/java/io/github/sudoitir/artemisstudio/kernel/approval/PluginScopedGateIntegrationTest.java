@@ -98,7 +98,7 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
                         public class HoldEverything implements ApprovalProvider {
                             public GateDecision decide(GateRequest request) {
                                 return new GateDecision.Hold(
-                                        new PolicyRef("everything", "1", "Hold everything"), Duration.ofHours(1), false,
+                                        new PolicyRef("everything", "1", "Hold everything"), Duration.ofHours(1),
                                         "Anyone who may approve");
                             }
                             public VoteCheck checkVote(HeldOperationView held, Approver approver, Vote vote) {

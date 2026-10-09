@@ -185,7 +185,7 @@ function brokenTokens(root: Element): string[] {
 }
 
 describe.each([
-  { name: 'declared and live', search: '', ready: 'Address settings' },
+  { name: 'addresses and queues', search: '', ready: 'Addresses and queues' },
   { name: 'history', search: '?tab=history', ready: 'Revisions' },
 ])('Configuration, $name, with 200-character names', ({ search, ready }) => {
   it.each(SCHEMES)('shows every name on one line in the %s scheme', async (scheme) => {

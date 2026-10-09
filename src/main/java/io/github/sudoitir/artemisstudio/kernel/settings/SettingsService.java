@@ -377,11 +377,10 @@ public class SettingsService {
         try {
             set = prepare(changes);
         } catch (SettingsInvalidException e) {
-            return new SettingsChangePreview(null, false, null, null, e.fieldErrors());
+            return new SettingsChangePreview(null, null, null, e.fieldErrors());
         }
         GatePreview preview = gate.getObject().preview(Operation.of(set));
-        return new SettingsChangePreview(
-                preview.outcome(), preview.reasonRequired(), policyLabel(preview.policy()), preview.reason(), Map.of());
+        return new SettingsChangePreview(preview.outcome(), policyLabel(preview.policy()), preview.reason(), Map.of());
     }
 
     private static String policyLabel(PolicyRef policy) {

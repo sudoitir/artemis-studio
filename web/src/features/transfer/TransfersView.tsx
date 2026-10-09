@@ -9,7 +9,7 @@ import { useCan } from '../../kernel/auth/useCan.ts';
 import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
 import { gateFor } from '../../ui/capabilityGate.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
@@ -124,10 +124,8 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
             {returnOrphan.isError ? (
               <ErrorState error={returnOrphan.error} next="Nothing was returned. Check the queue, then try again." />
             ) : null}
-            <ConfirmByTyping
-              token={chosen.stagingQueue}
-              label={`Type the staging queue's name, "${chosen.stagingQueue}", to confirm`}
-              confirmLabel="Return the messages"
+            <HoldToConfirm
+              label="Return the messages"
               loading={returnOrphan.isPending}
               disabled={returnOrphan.isPending}
               onConfirm={() => returnMessages()}

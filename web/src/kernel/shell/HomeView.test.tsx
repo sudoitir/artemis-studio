@@ -45,7 +45,7 @@ describe('the landing page', () => {
   it('is one page with a single h1, and shows what the features contribute for it', async () => {
     renderAppAt('/home-under-test', features);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Clusters' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByText('Register your first cluster')).toBeInTheDocument();
   });

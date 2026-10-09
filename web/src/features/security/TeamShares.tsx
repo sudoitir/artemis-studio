@@ -264,7 +264,6 @@ function RemoveShare({
       onClose={onClose}
       title={share ? `Stop sharing ${share.pattern} with ${share.targetTeamName}` : 'Remove share'}
       tone="danger"
-      typedName={share?.pattern}
       pending={remove.isPending}
       confirmLabel="Remove share"
       consequence={

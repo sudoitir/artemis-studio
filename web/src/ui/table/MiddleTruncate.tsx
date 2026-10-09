@@ -75,7 +75,15 @@ function Shortened({
   );
   if (!tooltip) return shown;
   return (
-    <Tooltip label={text} disabled={!clipped} withArrow multiline w={320} style={{ overflowWrap: 'anywhere' }}>
+    <Tooltip
+      label={text}
+      disabled={!clipped}
+      openDelay={400}
+      withArrow
+      multiline
+      w={320}
+      style={{ overflowWrap: 'anywhere' }}
+    >
       {shown}
     </Tooltip>
   );

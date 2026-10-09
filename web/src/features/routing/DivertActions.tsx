@@ -418,7 +418,6 @@ export function DeleteDivertDialog({
       onClose={close}
       title={`Delete divert "${divert.name}"`}
       tone="danger"
-      typedName={preview ? divert.name : undefined}
       confirmLabel="Delete on every live node"
       // Only the delete itself locks the dialog; the preview before it can always be walked away from.
       pending={remove.isPending && preview !== null}

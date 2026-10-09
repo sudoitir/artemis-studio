@@ -284,7 +284,6 @@ function RemoveMember({
       onClose={onClose}
       title={member ? `Remove ${name} from ${team.name}` : 'Remove member'}
       tone="danger"
-      typedName={member ? (member.username ?? member.groupName ?? undefined) : undefined}
       pending={remove.isPending}
       confirmLabel="Remove member"
       consequence={

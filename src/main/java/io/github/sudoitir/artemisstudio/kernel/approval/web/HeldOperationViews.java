@@ -163,7 +163,6 @@ public final class HeldOperationViews {
 
             @Schema(requiredMode = REQUIRED) HeldEffectView effect,
             @Schema(requiredMode = REQUIRED) HeldPolicyView policy,
-            @Schema(nullable = true) String reason,
             @Schema(nullable = true) String approverHint,
             @Schema(nullable = true) UUID approverId,
             @Schema(nullable = true) String decisionReason,
@@ -206,7 +205,6 @@ public final class HeldOperationViews {
                     detail.tokenName(),
                     HeldEffectView.of(view.effect()),
                     HeldPolicyView.of(view.policy()),
-                    view.reason(),
                     detail.approverHint(),
                     view.approverId(),
                     view.decisionReason(),
@@ -250,5 +248,21 @@ public final class HeldOperationViews {
             boolean attached,
 
             @Schema(requiredMode = REQUIRED, description = "Whether break-glass lets operations bypass approval.")
-            boolean breakGlass) {}
+            boolean breakGlass,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether the provider holds anything now; false while it has no policy.")
+            boolean enforcing,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "How many enabled users may approve for the whole installation.")
+            int approvers,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Whether there are enough approvers (two) for a request to be decided by"
+                            + " someone other than its requester.")
+            boolean quorate) {}
 }

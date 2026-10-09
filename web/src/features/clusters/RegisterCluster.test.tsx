@@ -383,8 +383,36 @@ describe('RegisterClusterForm', () => {
     await user.type(screen.getByLabelText('Username'), 'artemis');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
-    expect(await screen.findByText('Provide both a username and a password, or neither.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Username')).toHaveFocus();
+    expect(await screen.findByText('Enter the password for this username, or clear the username.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toHaveFocus();
+  });
+
+  it('clears the message on the username as soon as the password is filled in, with no retyping', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText('Username'), 'artemis');
+    await user.tab();
+    // Leaving the username is not yet a mistake: the password it belongs with has not been reached.
+    await user.type(screen.getByLabelText('Password'), 'secret');
+    await user.tab();
+
+    expect(screen.queryByText(/for this (username|password)/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Username')).toBeValid();
+  });
+
+  it('moves the message to the member that is missing when one is cleared again', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterClusterForm />);
+
+    await user.type(screen.getByLabelText('Username'), 'artemis');
+    await user.type(screen.getByLabelText('Password'), 'secret');
+    await user.clear(screen.getByLabelText('Username'));
+    await user.tab();
+    expect(await screen.findByText('Enter the username for this password, or clear the password.')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Username'), 'artemis');
+    await waitFor(() => expect(screen.queryByText(/for this (username|password)/)).not.toBeInTheDocument());
   });
 
   it('registers a checked cluster, announces it by name and opens its topology', async () => {

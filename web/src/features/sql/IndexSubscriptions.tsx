@@ -10,7 +10,7 @@ import {
   type SqlIndexSubscriptionRequest,
 } from './api.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
-import { ConfirmByTyping } from '../../ui/ConfirmByTyping.tsx';
+import { HoldToConfirm } from '../../ui/HoldToConfirm.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
@@ -290,9 +290,8 @@ function SubmitControls({
       <Stack gap="xs">
         <CapturePreview preview={preview} />
         {preview.refusal ? null : (
-          <ConfirmByTyping
-            token={body.queuePattern ?? ''}
-            confirmLabel="Start capturing"
+          <HoldToConfirm
+            label={`Start capturing ${body.queuePattern ?? ''}`.trim()}
             loading={creating}
             disabled={!canCapture}
             onConfirm={onStart}

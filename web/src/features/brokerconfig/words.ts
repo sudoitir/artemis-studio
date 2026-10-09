@@ -353,3 +353,21 @@ export function findingRows(
       return { key: isSetting ? prettyKey(key, catalogue) : key, declared, observed, differs: declared !== observed };
     });
 }
+
+/**
+ * How many declared items of a section differ on some node: what the section's entry in the page's list
+ * says, so a section with a difference is found without opening each. A bridge that is not forwarding is
+ * a fault, not drift, and undeclared items are not the declaration's own.
+ */
+export function sectionDriftCount(declaration: ConfigDeclarationView, section: Section): number {
+  const wire = WIRE_SECTIONS[section];
+  const differing = new Set<string>();
+  for (const node of declaration.nodes) {
+    for (const f of node.findings) {
+      if (!wire.includes(f.section as WireSection)) continue;
+      if (f.kind === 'UNDECLARED' || f.kind === 'NOT_CONNECTED' || f.kind === 'NOT_EVALUATED') continue;
+      differing.add(`${f.section}:${f.key}`);
+    }
+  }
+  return differing.size;
+}

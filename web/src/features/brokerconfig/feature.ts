@@ -7,7 +7,6 @@ import { lazyFeatureView, lazySlot } from '../../kernel/routing/lazy.tsx';
 import { configTopic } from './applyProgress.ts';
 import { RegistrationRecommendations } from './RegistrationRecommendations.tsx';
 import { DIFF_FILTERS, type DiffFilter } from './configDiffRows.ts';
-import { asSection, type Section } from './words.ts';
 
 /**
  * The declaration's navigable state: which mode is open and which editor (ADR-0067, ADR-0087).
@@ -15,19 +14,35 @@ import { asSection, type Section } from './words.ts';
  * the Routing screen (ADR-0094).
  */
 export interface ConfigurationSearch {
-  tab?: 'declared' | 'history' | 'recommended';
-  section?: Section;
+  /** The open section: one of the declaration's, the live nodes, the history or the recommendations. */
+  tab?: ConfigurationTab;
+  /** The declared item whose editor is open in the open section. */
   item?: string;
+  /** The editor for a new entry is open in the open section. */
+  add?: true;
 }
+
+/** The sections of the Configuration page, in the order its list shows them. */
+export const CONFIGURATION_TABS = [
+  'addresses',
+  'addressSettings',
+  'securitySettings',
+  'diverts',
+  'bridges',
+  'nodes',
+  'history',
+  'recommended',
+] as const;
+
+export type ConfigurationTab = (typeof CONFIGURATION_TABS)[number];
 
 function validateConfigurationSearch(raw: Record<string, unknown>): ConfigurationSearch {
   const out: ConfigurationSearch = {};
-  if (typeof raw.tab === 'string' && ['declared', 'history', 'recommended'].includes(raw.tab)) {
-    out.tab = raw.tab as ConfigurationSearch['tab'];
+  if (typeof raw.tab === 'string' && (CONFIGURATION_TABS as readonly string[]).includes(raw.tab)) {
+    out.tab = raw.tab as ConfigurationTab;
   }
-  const section = asSection(raw.section);
-  if (section) out.section = section;
   if (typeof raw.item === 'string' && raw.item) out.item = raw.item;
+  else if (raw.add === true || raw.add === 'true') out.add = true;
   return out;
 }
 

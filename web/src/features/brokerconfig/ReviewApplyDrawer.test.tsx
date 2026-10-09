@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 
@@ -10,6 +10,7 @@ import { server } from '../../test/setup.ts';
 import type { ConfigApplyOutcomeView, ConfigDeclarationView } from './api.ts';
 import { cluster, declaration, halted, meHandler, NODE_A, NODE_B, plan } from './fixtures.ts';
 import { ReviewApplyDrawer, type ApplyScope } from './ReviewApplyDrawer.tsx';
+import { holdButton } from '../../test/hold.ts';
 
 /** What the drawer asked the server, in order. */
 type Call = { dryRun: boolean; override: boolean; body: Record<string, unknown> };
@@ -97,7 +98,7 @@ async function acknowledge(user: ReturnType<typeof userEvent.setup>, d: ReturnTy
 async function toConfirm(user: ReturnType<typeof userEvent.setup>, d: ReturnType<typeof within>) {
   await acknowledge(user, d);
   await user.click(d.getByRole('button', { name: 'Continue to confirm' }));
-  return d.findByRole('textbox', { name: /Type "prod" to confirm/ });
+  return d.findByRole('button', { name: 'Apply to 2 nodes, canary first' });
 }
 
 describe('ReviewApplyDrawer: the plan', () => {
@@ -302,11 +303,10 @@ describe('ReviewApplyDrawer: confirming', () => {
 
   it('confirms with the nodes named, then applies for real naming the plan it was shown', async () => {
     const { user, d } = await planned();
-    const name = await toConfirm(user, d);
+    await toConfirm(user, d);
 
     expect(d.getByText(/2 management writes on broker-1, broker-2, canary first/)).toBeInTheDocument();
-    await user.type(name, 'prod');
-    await user.click(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await holdButton(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
 
     await d.findByText('Applied to all 2 live nodes');
     expect(announcement()).toBe('Applied to every targeted node.');
@@ -348,8 +348,7 @@ describe('ReviewApplyDrawer: confirming', () => {
     expect(d.getByText(/over the step cap of 1/)).toBeInTheDocument();
     await acknowledge(user, d);
     await user.click(d.getByRole('button', { name: 'Continue to confirm' }));
-    const name = await d.findByRole('textbox', { name: /Type "prod" to confirm/ });
-    await user.type(name, 'prod');
+    await d.findByRole('button', { name: 'Apply to 2 nodes, canary first' });
 
     expect(d.getByText('The plan has 2 steps, over the cap of 1. Override it above to continue.')).toBeInTheDocument();
     expect(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' })).toBeDisabled();
@@ -357,8 +356,7 @@ describe('ReviewApplyDrawer: confirming', () => {
     await user.click(d.getByRole('button', { name: 'Back to the plan' }));
     await user.click(d.getByRole('switch', { name: /Override the step cap \(2 steps, cap 1\)/ }));
     await user.click(d.getByRole('button', { name: 'Continue to confirm' }));
-    await user.type(await d.findByRole('textbox', { name: /Type "prod" to confirm/ }), 'prod');
-    await user.click(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await holdButton(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
 
     await waitFor(() => expect(calls.at(-1)).toMatchObject({ dryRun: false, override: true }));
   });
@@ -371,8 +369,8 @@ describe('ReviewApplyDrawer: confirming', () => {
       return HttpResponse.json(plan({ dryRun: false, outcome: 'APPLIED' }));
     };
     const { user, d } = await planned();
-    await user.type(await toConfirm(user, d), 'prod');
-    await user.click(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await toConfirm(user, d);
+    await holdButton(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
 
     await waitFor(() => expect(announcement()).toBe('Applying, canary first.'));
     release();
@@ -385,8 +383,8 @@ describe('ReviewApplyDrawer: confirming', () => {
   ])('explains a refusal of type %s', async (type, hint) => {
     real = () => HttpResponse.json({ type, title: 'Refused', detail: 'Refused by the server.' }, { status: 409 });
     const { user, d } = await planned();
-    await user.type(await toConfirm(user, d), 'prod');
-    await user.click(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await toConfirm(user, d);
+    await holdButton(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
 
     const alert = await d.findByRole('alert');
     expect(alert).toHaveTextContent('Refused by the server.');
@@ -396,8 +394,8 @@ describe('ReviewApplyDrawer: confirming', () => {
   it('gives an unknown refusal no hint', async () => {
     real = () => HttpResponse.json({ title: 'Broken', detail: 'Something else.' }, { status: 500 });
     const { user, d } = await planned();
-    await user.type(await toConfirm(user, d), 'prod');
-    await user.click(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await toConfirm(user, d);
+    await holdButton(d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
 
     const alert = await d.findByRole('alert');
     expect(alert).toHaveTextContent('Something else.');
@@ -405,9 +403,9 @@ describe('ReviewApplyDrawer: confirming', () => {
   });
 });
 
-/** Types the cluster's name without the pointer, which a gated control does not take. */
+/** Waits for the confirmation's button, which a gated control leaves disabled. */
 async function typeName(d: ReturnType<typeof within>) {
-  fireEvent.change(await d.findByRole('textbox', { name: /Type "prod" to confirm/ }), { target: { value: 'prod' } });
+  await d.findByRole('button', { name: 'Apply to 2 nodes, canary first' });
 }
 
 describe('ReviewApplyDrawer: the gate', () => {
@@ -461,8 +459,8 @@ describe('ReviewApplyDrawer: the result', () => {
   async function applyWith(outcome: () => ConfigApplyOutcomeView) {
     real = () => HttpResponse.json(outcome());
     const opened = await planned();
-    await opened.user.type(await toConfirm(opened.user, opened.d), 'prod');
-    await opened.user.click(opened.d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
+    await toConfirm(opened.user, opened.d);
+    await holdButton(opened.d.getByRole('button', { name: 'Apply to 2 nodes, canary first' }));
     return opened;
   }
 

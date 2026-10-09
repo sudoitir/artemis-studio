@@ -95,7 +95,7 @@ export { CapabilityGate } from '../ui/CapabilityGate.tsx';
 export { gateFor, type GateScope, type GateVerdict } from '../ui/capabilityGate.ts';
 export { useMe } from '../kernel/auth/api.ts';
 export { CodeEditor, type CodeDiagnostic, type CodeEditorProps } from '../ui/CodeEditor.tsx';
-export { ConfirmByTyping } from '../ui/ConfirmByTyping.tsx';
+export { HoldToConfirm } from '../ui/HoldToConfirm.tsx';
 export { ConfirmDialog, type ConfirmDialogProps } from '../ui/ConfirmDialog.tsx';
 export {
   DiagramView,

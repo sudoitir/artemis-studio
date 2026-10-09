@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { useState } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,6 +13,7 @@ import { FeatureProvider } from '../FeatureProvider.tsx';
 import { rootRoute } from '../routing/roots.ts';
 import { Section } from '../../ui/Section.tsx';
 import { AdminView } from './AdminView.tsx';
+import { useUnsavedSection } from './SectionNav.tsx';
 
 /**
  * The Administration page: one page with a single h1, a tab per contribution under its group's
@@ -36,6 +38,21 @@ const panel = (title: string, text: string) => () => (
   </Section>
 );
 
+// A panel with a form: what is typed is lost when the tab unmounts, so it says so.
+function UsersPanel() {
+  const [name, setName] = useState('');
+  useUnsavedSection(name !== '');
+  return (
+    <Section title="Users">
+      <p>Who can sign in</p>
+      <label>
+        New user
+        <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
+      </label>
+    </Section>
+  );
+}
+
 // Contributed out of group order, and with no Governance tab, so the page's own order and the hidden
 // empty group are what the tests see.
 const features: StudioFeature[] = [
@@ -52,7 +69,7 @@ const features: StudioFeature[] = [
           group: 'support',
           Component: panel('Diagnostics', 'A bundle'),
         },
-        { id: 'users', order: 10, title: 'Users', group: 'access', Component: panel('Users', 'Who can sign in') },
+        { id: 'users', order: 10, title: 'Users', group: 'access', Component: UsersPanel },
         { id: 'plugins', order: 15, title: 'Plugins', group: 'installation', Component: panel('Plugins', 'Installed') },
         { id: 'teams', order: 22, title: 'Teams', group: 'access', Component: panel('Teams', 'Who owns what') },
       ],
@@ -77,61 +94,108 @@ describe('the Administration page', () => {
     );
   });
 
-  it('lists its tabs under Access, Installation, Governance and Support, leaving out an empty group', async () => {
+  it('lists its sections under Access, Installation, Governance and Support, leaving out an empty group', async () => {
     renderAppAt('/admin-under-test', features);
 
-    const list = await screen.findByRole('tablist', { name: 'Administration sections' });
-    expect(list).toHaveAttribute('aria-orientation', 'vertical');
+    const list = await screen.findByRole('navigation', { name: 'Administration sections' });
     expect(list.textContent).toBe('AccessUsersTeamsInstallationPluginsSupportDiagnostics');
-    expect(screen.getByRole('tab', { name: 'Users' })).toHaveAttribute('aria-selected', 'true');
+    expect(
+      within(list)
+        .getAllByRole('group')
+        .map((group) => group.getAttribute('aria-labelledby')),
+    ).toHaveLength(3);
+    // The open section is the one link marked as the current page; the first opens when the address names none.
+    expect(
+      within(list)
+        .getAllByRole('link', { current: 'page' })
+        .map((link) => link.textContent),
+    ).toEqual(['Users']);
     expect(screen.getByText('Who can sign in')).toBeInTheDocument();
   });
 
   it('is one page: a single h1, and the open panel brings its h2', async () => {
     renderAppAt('/admin-under-test', features);
 
-    await screen.findByRole('tablist', { name: 'Administration sections' });
+    await screen.findByRole('navigation', { name: 'Administration sections' });
     expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Administration']);
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Users']);
   });
 
-  it('opens the tab the address names, as a reload or a shared link does, and keeps a chosen tab there', async () => {
+  it('opens the section the address names, as a reload or a shared link does, and keeps a chosen one there', async () => {
     const { router } = renderAppAt('/admin-under-test?tab=plugins', features);
 
     expect(await screen.findByText('Installed')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Plugins' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('link', { name: 'Plugins' })).toHaveAttribute('aria-current', 'page');
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Diagnostics' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Diagnostics' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'diagnostics' }));
     expect(screen.getByText('A bundle')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Diagnostics' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Plugins' })).not.toHaveAttribute('aria-current');
   });
 
   it('opens Teams for the link a team administrator follows', async () => {
     renderAppAt('/admin-under-test?tab=teams', features);
 
-    const teams = await screen.findByRole('tabpanel', { name: 'Teams' });
+    const teams = await screen.findByRole('group', { name: 'Teams' });
     expect(within(teams).getByText('Who owns what')).toBeInTheDocument();
   });
 
-  it('falls back to the first tab for an address naming none it has', async () => {
+  it('falls back to the first section for an address naming none it has', async () => {
     renderAppAt('/admin-under-test?tab=gone', features);
 
     expect(await screen.findByText('Who can sign in')).toBeInTheDocument();
   });
 
-  it('moves between tabs with the arrows and opens one with Enter, focusing its panel', async () => {
+  it('does not scroll the page when a section is chosen with the pointer', async () => {
+    renderAppAt('/admin-under-test', features);
+    const plugins = await screen.findByRole('link', { name: 'Plugins' });
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+
+    await userEvent.click(plugins);
+    expect(await screen.findByText('Installed')).toBeInTheDocument();
+    expect(scrollTo.mock.calls).toEqual([]);
+    scrollTo.mockRestore();
+  });
+
+  it('is reached with Tab, opened with Enter, and moves focus into the section', async () => {
     renderAppAt('/admin-under-test', features);
     const user = userEvent.setup();
 
-    (await screen.findByRole('tab', { name: 'Users' })).focus();
-    await user.keyboard('{ArrowDown}{ArrowDown}');
-    // Across a group heading: the heading is not a tab, so the arrows skip it.
-    expect(screen.getByRole('tab', { name: 'Plugins' })).toHaveFocus();
+    const users = await screen.findByRole('link', { name: 'Users' });
+    users.focus();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'Plugins' })).toHaveFocus();
     expect(screen.getByText('Who can sign in')).toBeInTheDocument();
 
     await user.keyboard('{Enter}');
-    const plugins = await screen.findByRole('tabpanel', { name: 'Plugins' });
+    const plugins = await screen.findByRole('group', { name: 'Plugins' });
     await waitFor(() => expect(plugins).toHaveFocus());
     expect(within(plugins).getByRole('heading', { level: 2, name: 'Plugins' })).toBeInTheDocument();
+  });
+
+  it('marks a section with unsaved input, and asks before opening another would discard it', async () => {
+    const { router } = renderAppAt('/admin-under-test', features);
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByRole('textbox', { name: 'New user' }), 'alice');
+    expect(screen.getByRole('link', { name: 'Users, unsaved changes' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Plugins' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Stay on this section' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('textbox', { name: 'New user' })).toHaveValue('alice');
+    expect(router.state.location.search).toEqual({});
+
+    await user.click(screen.getByRole('link', { name: 'Plugins' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {
+        name: 'Discard and open',
+      }),
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'plugins' }));
+    expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
   });
 });

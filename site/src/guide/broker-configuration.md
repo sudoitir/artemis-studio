@@ -202,16 +202,15 @@ Medium and Low hazards (a divert replaced, a DLQ moved, auto-delete enabled,
 an owned item removed) are stated and need no acknowledgement.
 
 **Confirm.** The blast radius is restated — how many writes, on which nodes,
-canary first — and you type the cluster's name. Acknowledging hazards is not
-confirming; both are needed. There is deliberately no button that types the
-name for you: a click that fills the field turns a typed confirmation back into
-a second click.
+canary first — and you press and hold the apply button until it fills. A click,
+a double click or a key let go early does nothing. Acknowledging hazards is not
+confirming; both are needed.
 
 Going back to the plan and returning keeps your acknowledgements. Continuing to
 the confirmation re-plans first and compares the hash: if a node moved in the
 meantime you get *the cluster moved — this is a new plan* with the difference on
 screen and the acknowledgements cleared, instead of a 409 after you had already
-typed the name.
+held the button.
 
 **Result.** The first live node (the canary; pick another on the plan) receives
 every step and is read back before any other node is touched. You watch that

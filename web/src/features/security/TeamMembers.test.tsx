@@ -9,6 +9,7 @@ import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { TeamMembers } from './TeamMembers.tsx';
 import { choose, serveLookups, team, TEAM_OPERATOR, TEAM_VIEWER } from '../../test/teams.ts';
+import { holdButton } from '../../test/hold.ts';
 
 afterEach(() => act(() => notifications.clean()));
 
@@ -146,9 +147,7 @@ describe('TeamMembers', () => {
     await person.click(await screen.findByRole('button', { name: 'Remove alice' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remove alice from Orders' });
     const confirm = within(dialog).getByRole('button', { name: 'Remove member' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "alice" to confirm'), 'alice');
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(removed).toBe('m1'));
   });

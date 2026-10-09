@@ -32,7 +32,6 @@ public record HeldOperationView(
         Effect effect,
         PolicyRef policy,
         Requester requester,
-        String reason,
         UUID approverId,
         String approverUsername,
         String decisionReason,

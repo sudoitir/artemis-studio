@@ -219,10 +219,10 @@ const BY_TYPE: Readonly<Record<string, (problem: Problem) => Reading>> = {
     next: 'Nothing was changed. Try again in a moment, or ask an administrator to check the approval provider.',
     retry: true,
   }),
-  'approval-reason-required': ({ detail }) => ({
-    title: 'A reason is required',
-    cause: detail ?? 'This operation needs a reason before it can be sent for approval.',
-    next: 'Nothing was changed. Give a reason for the request, then submit again.',
+  'approver-quorum': ({ detail }) => ({
+    title: 'Too few approvers',
+    cause: detail ?? 'This would leave fewer than two people who can approve, so nothing could be approved.',
+    next: 'Nothing was changed. Grant the approver permission to another person first, or remove the approval policies.',
     retry: false,
   }),
   'vote-refused': ({ detail }) => ({

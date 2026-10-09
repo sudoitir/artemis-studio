@@ -234,7 +234,7 @@ describe('ErrorState', () => {
   it.each([
     ['operation-denied', 403, 'The approval policy denied this', 'Outside the change window.'],
     ['approval-unavailable', 503, 'Approvals are unavailable', 'Outside the change window.'],
-    ['approval-reason-required', 422, 'A reason is required', 'Outside the change window.'],
+    ['approver-quorum', 409, 'Too few approvers', 'This would leave one approver.'],
   ])('reads the gate refusal %s by its type, saying nothing was changed', (slug, status, title, detail) => {
     renderWithProviders(
       <ErrorState error={apiError(status, { detail }, { type: `https://artemis-studio.dev/problems/${slug}` })} />,

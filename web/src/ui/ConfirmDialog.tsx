@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { Button, Group, Modal, Stack, Text, useMantineTheme } from '@mantine/core';
+import { Button, Modal, Stack, Text, useMantineTheme } from '@mantine/core';
 
-import { ConfirmByTyping } from './ConfirmByTyping.tsx';
+import { DialogActions } from './DialogActions.tsx';
+import { HoldToConfirm } from './HoldToConfirm.tsx';
 import classes from './ConfirmDialog.module.css';
 
 /**
@@ -9,10 +10,11 @@ import classes from './ConfirmDialog.module.css';
  * the consequence first and names the action on its button.
  *
  * <ul>
- *   <li>With `typedName` the button arms only when that name is typed, through
- *       {@link ConfirmByTyping}; use it for anything that removes a resource.
- *   <li>Focus enters the dialog (the cancel button, or the name field when one is asked for),
- *       Escape closes it, and focus returns to the control that opened it.
+ *   <li>With `tone="danger"` the action is confirmed by pressing and holding the button until it
+ *       fills ({@link HoldToConfirm}), never by a click or by typing; use it for anything that removes
+ *       or overwrites. The button names the action and its count, such as "Delete 37 queues".
+ *   <li>Focus enters the dialog on Cancel, Escape closes it, and focus returns to the control that
+ *       opened it.
  *   <li>While `pending` the button is busy and cannot be pressed again, and the dialog stays
  *       open: Escape, the overlay and Cancel are inert until the caller settles it.
  *   <li>With `blocked` the button cannot be armed, and the reason is stated beside it; the dialog
@@ -30,7 +32,6 @@ export function ConfirmDialog({
   confirmLabel,
   dismissLabel = 'Cancel',
   tone = 'default',
-  typedName,
   pending = false,
   blocked,
   result,
@@ -46,12 +47,7 @@ export function ConfirmDialog({
     if (done) outcome.current?.focus();
   }, [done]);
   const cancel = (
-    <Button
-      variant="default"
-      data-autofocus={typedName || done ? undefined : true}
-      disabled={pending}
-      onClick={onClose}
-    >
+    <Button variant="default" data-autofocus={done ? undefined : true} disabled={pending} onClick={onClose}>
       {done ? 'Close' : dismissLabel}
     </Button>
   );
@@ -67,30 +63,28 @@ export function ConfirmDialog({
         <fieldset ref={outcome} aria-label="Result" tabIndex={-1} className={classes.outcome}>
           {result}
         </fieldset>
-        <Group justify="flex-end">{cancel}</Group>
+        <DialogActions>{cancel}</DialogActions>
       </>
     );
-  } else if (typedName) {
+  } else if (tone === 'danger') {
     controls = (
       <>
         {reason}
-        <ConfirmByTyping
-          token={typedName}
-          confirmLabel={confirmLabel}
-          tone={tone}
+        <HoldToConfirm
+          label={confirmLabel}
           loading={pending}
           disabled={Boolean(blocked)}
           describedBy={blocked ? reasonId : undefined}
           onConfirm={onConfirm}
         />
-        <Group justify="flex-end">{cancel}</Group>
+        <DialogActions>{cancel}</DialogActions>
       </>
     );
   } else {
     controls = (
       <>
         {reason}
-        <Group justify="flex-end">
+        <DialogActions>
           {cancel}
           <Button
             color={color}
@@ -101,7 +95,7 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </Button>
-        </Group>
+        </DialogActions>
       </>
     );
   }
@@ -139,10 +133,8 @@ export type ConfirmDialogProps = Readonly<{
    * request", when the action itself is a cancel, so the two buttons never both read "Cancel".
    */
   dismissLabel?: string;
-  /** `danger` for an action that removes or overwrites; defaults to `default`. */
+  /** `danger` for an action that removes or overwrites, confirmed by holding; defaults to `default`. */
   tone?: 'default' | 'danger';
-  /** The resource's name, typed to arm the button. Required for a removal. */
-  typedName?: string;
   /** The action is running: the button is busy and the dialog cannot be dismissed. */
   pending?: boolean;
   /**

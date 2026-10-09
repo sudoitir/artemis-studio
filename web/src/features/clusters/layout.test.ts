@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { layout, isBrokerNode, LIVE_Y, BACKUP_Y, GROUP_PAD, DENSE_THRESHOLD, COL_W, NODE_H } from './layout.ts';
+import {
+  layout,
+  isBrokerNode,
+  LIVE_Y,
+  BACKUP_Y,
+  GROUP_PAD,
+  DENSE_THRESHOLD,
+  COL_W,
+  NODE_H,
+  NODE_W,
+  OFFSET_DX,
+} from './layout.ts';
 import type { Node } from '@xyflow/react';
 import type { BrokerNodeData, TopologyLayout } from './layout.ts';
 import type { HealthView, NodeEndpointView, TopologyView } from './api.ts';
@@ -81,6 +92,37 @@ describe('topology layout', () => {
     expect(groups(model)[0].data.axisStatus).toBe('ok');
   });
 
+  it('sizes every box and group up front, so nothing is clamped before React Flow measures it', () => {
+    const model = layout(
+      topo({
+        artemisNodeId: 'NID',
+        splitBrain: 'NONE',
+        replicationBehind: false,
+        endpoints: [endpoint({ id: 'p', active: true }), endpoint({ id: 'b', active: false })],
+      }),
+      health(),
+    );
+    expect(boxes(model).every((n) => n.width === NODE_W && n.height === NODE_H)).toBe(true);
+    expect(groups(model).every((n) => n.width !== undefined && n.height !== undefined)).toBe(true);
+  });
+
+  it('keeps the replication edge id when a failover swaps the boxes', () => {
+    const pair = (pActive: boolean) =>
+      layout(
+        topo({
+          artemisNodeId: 'NID',
+          splitBrain: 'NONE',
+          replicationBehind: false,
+          endpoints: [endpoint({ id: 'p', active: pActive }), endpoint({ id: 'b', active: !pActive })],
+        }),
+        health(),
+      );
+    const before = pair(true);
+    const after = pair(false);
+    expect(after.edges.map((e) => e.id)).toEqual(before.edges.map((e) => e.id));
+    expect([before.edges[0].source, after.edges[0].source]).toEqual(['p', 'b']);
+  });
+
   it('replication behind: dashed edge, offset standby, behind axis', () => {
     const model = layout(
       topo({
@@ -97,6 +139,9 @@ describe('topology layout', () => {
 
     expect(model.edges[0].style?.strokeDasharray).toBe('6 4');
     expect(box(model, 'b').data.offset).toBe(true);
+    // The offset is in the position, so the box's handles and its edge move with it.
+    expect(box(model, 'b').position.x).toBe(box(model, 'p').position.x + OFFSET_DX);
+    expect(box(model, 'b').position.x + NODE_W).toBeLessThanOrEqual(groups(model)[0].width!);
     expect(box(model, 'b').data.kind).toBe('behind');
     expect(groups(model)[0].data.axisStatus).toBe('behind');
   });
@@ -216,7 +261,7 @@ describe('topology layout', () => {
     expect(boxes(model).every((n) => n.parentId === 'pair:NID')).toBe(true);
     expect(boxes(model).every((n) => n.position.y === LIVE_Y)).toBe(true);
     // The group widens to hold both boxes rather than letting one escape it.
-    const width = groups(model)[0].style?.width as number;
+    const width = groups(model)[0].width!;
     const rightmost = Math.max(...boxes(model).map((n) => n.position.x));
     expect(width).toBeGreaterThan(rightmost + GROUP_PAD);
   });
@@ -406,7 +451,7 @@ describe('topology layout: every endpoint is drawn', () => {
     expect(boxes(model).every((b) => b.position.y === BACKUP_Y)).toBe(true);
     expect(box(model, 'y').position.x).toBeGreaterThan(box(model, 'x').position.x);
     expect(model.columns).toEqual([['x'], ['y']]);
-    const width = groups(model)[0].style?.width as number;
+    const width = groups(model)[0].width!;
     expect(width).toBeGreaterThan(box(model, 'y').position.x + GROUP_PAD);
   });
 

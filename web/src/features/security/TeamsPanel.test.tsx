@@ -9,6 +9,7 @@ import { notify } from '../../ui/notify.ts';
 import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { preview, serveLookups, summary, team } from '../../test/teams.ts';
+import { holdButton } from '../../test/hold.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -200,9 +201,7 @@ describe('the Teams tab', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete Orders' });
     expect(dialog).toHaveTextContent("team's 1 pattern, 2 members and 0 shares");
     const confirm = within(dialog).getByRole('button', { name: 'Delete team' });
-    expect(confirm).toBeDisabled();
-    await person.type(within(dialog).getByLabelText('Type "Orders" to confirm'), 'Orders');
-    await person.click(confirm);
+    await holdButton(confirm);
 
     await waitFor(() => expect(deleted).toBe('t-orders'));
   });
@@ -216,8 +215,7 @@ describe('the Teams tab', () => {
 
     await person.click(await screen.findByRole('button', { name: 'Delete Orders' }));
     const dialog = await screen.findByRole('dialog', { name: 'Delete Orders' });
-    await person.type(within(dialog).getByLabelText('Type "Orders" to confirm'), 'Orders');
-    await person.click(within(dialog).getByRole('button', { name: 'Delete team' }));
+    await holdButton(within(dialog).getByRole('button', { name: 'Delete team' }));
 
     expect(await screen.findByRole('table', { name: 'Teams' })).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ tab: 'teams' });
