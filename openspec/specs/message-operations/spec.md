@@ -202,7 +202,7 @@ It SHALL NOT be reported as a plain failure that implies nothing changed.
 ### Requirement: A queue can be purged
 
 The system SHALL expose removing every message from one queue of one node. The
-frontend SHALL require the queue name to be typed to confirm before a purge is
+frontend SHALL require the confirming button, which names the queue, to be held before a purge is
 sent.
 
 #### Scenario: Purge empties the queue
@@ -210,10 +210,10 @@ sent.
 - **WHEN** an operator confirms a purge
 - **THEN** every message is removed and the removed count is reported
 
-#### Scenario: Purge needs typed confirmation in the UI
+#### Scenario: Purge needs a held confirmation in the UI
 
 - **WHEN** an operator initiates a purge from the frontend
-- **THEN** the action is disabled until the exact queue name is typed
+- **THEN** the purge happens only when its button, which names the queue, has been held
 
 ### Requirement: Every mutation supports a dry run that does not act
 
@@ -239,8 +239,8 @@ mark the count as a point-in-time estimate.
 The system SHALL refuse any mutation whose dry-run affected count exceeds the
 configured bulk cap, returning an error that names the count and the cap, unless
 the request carries an explicit override flag. The frontend SHALL only send the
-override flag after showing the dry-run preview and requiring the queue name to
-be typed.
+override flag after showing the dry-run preview and requiring the confirming button to
+be held.
 
 #### Scenario: Over the cap without override is refused
 

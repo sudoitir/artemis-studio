@@ -226,3 +226,22 @@ The requester SHALL be notified in Studio when their request is approved, reject
 
 - **WHEN** an approver rejects a request with a reason
 - **THEN** the requester gets an inbox item with the reason, linked to the request
+
+### Requirement: The gate needs two approvers while it holds anything
+
+While the armed provider holds requests, at least two enabled users SHALL hold its approver permission for the
+whole installation. Studio SHALL refuse, before it commits, an access change that would leave fewer than two
+and fewer than before, with `approver-quorum`; a change that does not lower the count SHALL NOT be refused. The
+gate status SHALL report whether the provider is enforcing, how many approvers there are and whether that is
+enough, and Administration and Approvals SHALL say when it is not. A request SHALL NOT carry a reason from the
+requester; a rejection SHALL still carry the approver's.
+
+#### Scenario: Removing the second approver
+
+- **WHEN** an administrator disables one of two approvers while the provider enforces
+- **THEN** the change is refused with `approver-quorum` and nothing is changed
+
+#### Scenario: A provider with no policy yet
+
+- **WHEN** the provider reports that it holds nothing
+- **THEN** access changes are not refused for want of approvers

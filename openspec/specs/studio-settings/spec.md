@@ -254,7 +254,7 @@ when its maximum is `forever`.
 
 ### Requirement: Settings changes SHALL be applied as one change set
 
-Studio SHALL accept several setting changes and resets as one change set, applied together or not at all. Studio SHALL offer a preview that validates a change set and says whether it would apply now, be held for approval (with the policy and whether a reason is needed), or be denied. A single-setting write SHALL be a change set of one.
+Studio SHALL accept several setting changes and resets as one change set, applied together or not at all. Studio SHALL offer a preview that validates a change set and says whether it would apply now, be held for approval (with the policy), or be denied. A single-setting write SHALL be a change set of one.
 
 #### Scenario: All or nothing
 
@@ -264,7 +264,7 @@ Studio SHALL accept several setting changes and resets as one change set, applie
 #### Scenario: Preview says held
 
 - **WHEN** an operator previews a change set that a provider would hold
-- **THEN** the preview says it needs approval and whether a reason is required
+- **THEN** the preview says it needs approval
 
 ### Requirement: Settings SHALL be described by category, default and pending state
 
