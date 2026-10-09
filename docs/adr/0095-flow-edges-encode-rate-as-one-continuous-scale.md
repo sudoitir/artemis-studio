@@ -1,6 +1,6 @@
 # ADR-0095: Flow edges encode rate as one continuous scale for width, speed and density
 
-- **Status**: accepted
+- **Status**: accepted; the 400-dot budget is lowered to 150 by [ADR-0189](0189-console-motion-is-one-set-of-theme-defaults.md)
 - **Date**: 2026-09-21
 - **Deciders**: maintainers
 

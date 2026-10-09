@@ -143,7 +143,7 @@ take the operator away from the removed cluster.
 #### Scenario: Removal is guarded in the UI
 
 - **WHEN** a user removes a cluster from the frontend
-- **THEN** the UI requires the cluster name to be typed to confirm
+- **THEN** the UI confirms it by pressing and holding the remove button, never by a click or a typed name
 
 #### Scenario: Removal lives in settings
 

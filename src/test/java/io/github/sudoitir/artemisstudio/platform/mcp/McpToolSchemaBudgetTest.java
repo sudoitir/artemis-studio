@@ -58,8 +58,7 @@ class McpToolSchemaBudgetTest extends PostgresIntegrationTest {
     /**
      * The average a tool may cost across the whole listing (ADR-0050). A tool that
      * needs more than this must move its detail into {@link McpToolCatalog}, where a
-     * model pays for it only once it has chosen that tool. Raised from 135 to 136 when the
-     * tools that can be held for approval gained their {@code approvalReason} argument.
+     * model pays for it only once it has chosen that tool.
      */
     private static final int AVERAGE_TOKEN_BUDGET_PER_TOOL = 136;
 
