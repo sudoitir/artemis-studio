@@ -78,7 +78,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} defaultColorScheme="auto">
       <CodeHighlightAdapterProvider adapter={shikiAdapter}>
-        <Notifications position="top-right" />
+        {/* Under the header (theme.css), three at most: a fourth waits its turn rather than pushing a
+            column of them down the page. */}
+        <Notifications position="top-right" limit={3} transitionDuration={theme.other?.motion.slow} />
         <BootNotice />
         <QueryClientProvider client={queryClient}>
           <FeatureProvider features={features}>

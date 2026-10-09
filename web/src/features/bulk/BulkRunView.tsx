@@ -209,7 +209,7 @@ export function BulkRunView() {
           {run.error ? <Text size="sm">{run.error}</Text> : null}
         </Stack>
 
-        {/* The theme honours reduced motion, so the bar's transition drops out for those who ask. */}
+        {/* The bar fills on the theme's motion token, which reduced motion zeroes, so it jumps instead. */}
         <Progress
           aria-label="Queues settled"
           value={run.total === 0 ? 0 : (done / run.total) * 100}

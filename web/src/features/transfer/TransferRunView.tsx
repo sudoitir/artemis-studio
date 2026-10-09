@@ -412,7 +412,7 @@ export function TransferRunView() {
 
         <Pipeline run={run} staging={staging} />
 
-        {/* The theme honours reduced motion, so the bar's transition drops out for those who ask. */}
+        {/* The bar fills on the theme's motion token, which reduced motion zeroes, so it jumps instead. */}
         <DeliveredProgress run={run} tone={toneColor(state.tone)} />
         <Text size="sm" className={classes.figures}>
           {pace(run, rate, left)}
