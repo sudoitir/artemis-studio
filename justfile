@@ -26,7 +26,7 @@ default:
 up: setup
     {{compose_ha}} up -d --wait --wait-timeout 300
     @echo "→ http://localhost:8080"
-    @{{compose_ha}} logs studio-1 studio-2 2>/dev/null | grep -A4 'Created administrator' \
+    @{{compose_ha}} logs studio-1 studio-2 2>/dev/null | grep -A8 'Created administrator' \
         || echo "→ admin account already exists (its password was shown on first boot)"
 
 # The same, with one Studio replica and no load balancer (compose.prod.yaml).
@@ -34,7 +34,7 @@ up: setup
 up-single: setup
     {{compose_prod}} up -d --wait --wait-timeout 300
     @echo "→ http://localhost:8080"
-    @{{compose_prod}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
+    @{{compose_prod}} logs studio 2>/dev/null | grep -A8 'Created administrator' \
         || echo "→ admin account already exists (its password was shown on first boot)"
 
 # Stop the HA stack (keeps the Postgres volume).
@@ -88,7 +88,7 @@ setup:
 dev-up:
     {{compose_dev}} up --build -d --wait --wait-timeout 180
     @echo "→ http://localhost:8080   (Artemis console: http://localhost:8161)"
-    @{{compose_dev}} logs studio 2>/dev/null | grep -A4 'Created administrator' \
+    @{{compose_dev}} logs studio 2>/dev/null | grep -A8 'Created administrator' \
         || echo "→ admin account already exists (reset with 'just dev-down' then 'just dev-up')"
 
 # Dev stack plus a second and a third live/backup pair, filled with realistic traffic.
