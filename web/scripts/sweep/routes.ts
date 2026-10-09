@@ -108,14 +108,13 @@ const ADMIN_TABS: { tab: string; data: DataCall[] }[] = [
   { tab: 'governance-rules', data: [paged('/governance/rules')] },
   { tab: 'governance-findings', data: [paged('/governance/findings')] },
   { tab: 'plugins', data: [{ path: '/admin/plugins' }] },
+  { tab: 'encryption-keys', data: [{ path: '/settings' }] },
   { tab: 'diagnostics', data: [{ path: '/diagnostics/summary' }] },
+  { tab: 'studio-health', data: [{ path: '/settings' }] },
 ];
 
 /** The settings page's tabs: its sections (`settings.sections` contributions) and one per settings category. */
 const SETTINGS_TABS = [
-  'settings-display',
-  'settings-security',
-  'settings-health',
   'clusters-register',
   'clusters-connection',
   'clusters-capabilities',
@@ -283,7 +282,18 @@ export const ROUTES: RouteSpec[] = [
     path: cluster('setup-review'),
     data: [{ path: cluster('setup-review') }],
   },
-  ...(['declared', 'history', 'recommended'] as const).map((tab): RouteSpec => ({
+  ...(
+    [
+      'addresses',
+      'addressSettings',
+      'securitySettings',
+      'diverts',
+      'bridges',
+      'nodes',
+      'history',
+      'recommended',
+    ] as const
+  ).map((tab): RouteSpec => ({
     area: 'brokerconfig',
     id: `configuration-${tab}`,
     path: cluster(`configuration?tab=${tab}`),
@@ -300,7 +310,7 @@ export const ROUTES: RouteSpec[] = [
     id: `settings-${tab.replace(/^settings-/, '')}`,
     path: cluster(`settings?tab=${tab}`),
     data: [{ path: '/settings' }],
-    forbidden: tab === 'approvals' || tab === 'settings-security',
+    forbidden: tab === 'approvals',
     scenes: { 'clusters-connection': CONNECTION_SCENES, approvals: SETTINGS_DRAFT_SCENES }[tab],
   })),
   {
