@@ -158,7 +158,7 @@ describe('ApiKeysPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'New key' }));
     await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'agent');
     await user.click(await screen.findByRole('checkbox', { name: 'Select all in Clusters' }));
-    await user.click(screen.getByRole('button', { name: 'Create' }));
+    await user.click(screen.getByRole('button', { name: 'Create key' }));
 
     expect(await screen.findByDisplayValue('as_zzzz_secret-value')).toBeInTheDocument();
     expect(posted.grants).toEqual([{ action: 'cluster:read', scopeType: 'GLOBAL', scopeId: null }]);
@@ -190,7 +190,7 @@ describe('ApiKeysPanel', () => {
     await user.click(screen.getByRole('combobox', { name: 'Limit to' }));
     await user.click(await screen.findByRole('option', { name: 'Queues whose names match a pattern', hidden: true }));
     await user.type(await screen.findByRole('textbox', { name: /Name pattern/ }), 'orders.#');
-    await user.click(screen.getByRole('button', { name: 'Create' }));
+    await user.click(screen.getByRole('button', { name: 'Create key' }));
 
     expect(await screen.findByDisplayValue('as_zzzz_secret')).toBeInTheDocument();
     expect(posted.grants).toEqual(
@@ -217,7 +217,7 @@ describe('ApiKeysPanel', () => {
     await user.click(await screen.findByRole('checkbox', { name: 'Select all in Messages' }));
     await user.click(screen.getByRole('combobox', { name: 'Limit to' }));
     await user.click(await screen.findByRole('option', { name: 'Queues whose names match a pattern', hidden: true }));
-    await user.click(screen.getByRole('button', { name: 'Create' }));
+    await user.click(screen.getByRole('button', { name: 'Create key' }));
 
     expect(await screen.findByText('Give the pattern the names must match, such as orders.#')).toBeInTheDocument();
   });
@@ -234,10 +234,35 @@ describe('ApiKeysPanel', () => {
     renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'Rotate laptop' }));
-    await user.click(await screen.findByRole('button', { name: 'Rotate' }));
+    await user.click(await screen.findByRole('button', { name: 'Rotate key' }));
 
     expect(await screen.findByDisplayValue('as_new_secret')).toBeInTheDocument();
     expect(screen.getByText(/The old secret keeps working until/)).toBeInTheDocument();
+  });
+
+  it('keeps a one-time secret on screen until it is confirmed copied', async () => {
+    mockBaseApis([], [token()]);
+    server.use(
+      http.post('*/api/v1/tokens/t1/rotate', () =>
+        HttpResponse.json({ token: token({ previousValidUntil: new Date().toISOString() }), value: 'as_new_secret' }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderKeys();
+
+    await user.click(await screen.findByRole('button', { name: 'Rotate laptop' }));
+    await user.click(await screen.findByRole('button', { name: 'Rotate key' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Rotate laptop' });
+    await within(dialog).findByDisplayValue('as_new_secret');
+    expect(within(dialog).queryByRole('button', { name: /close/i })).not.toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('dialog', { name: 'Rotate laptop' })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Copy key' }));
+    expect(await within(dialog).findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: "I've copied the key" }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('revokes a key only once its name is typed, and announces it', async () => {
@@ -348,12 +373,12 @@ describe('ApiKeysPanel', () => {
     renderKeys();
 
     await user.click(await screen.findByRole('button', { name: 'New key' }));
-    await user.click(await screen.findByRole('button', { name: 'Create' }));
+    await user.click(await screen.findByRole('button', { name: 'Create key' }));
     expect(await screen.findByText('Name the key after where it will be used.')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveFocus();
 
     await user.type(screen.getByRole('textbox', { name: /Name/ }), 'agent');
-    await user.click(screen.getByRole('button', { name: 'Create' }));
+    await user.click(screen.getByRole('button', { name: 'Create key' }));
     expect(await screen.findByText(/Choose at least one permission/)).toBeInTheDocument();
   });
 
@@ -399,7 +424,7 @@ describe('ApiKeysPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'New key' }));
     await user.type(await screen.findByRole('textbox', { name: /Name/ }), 'agent');
     await user.click(await screen.findByRole('checkbox', { name: 'Select all in Clusters' }));
-    await user.click(screen.getByRole('button', { name: 'Create' }));
+    await user.click(screen.getByRole('button', { name: 'Create key' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(advice);
   });

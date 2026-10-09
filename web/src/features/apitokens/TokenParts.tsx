@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ActionIcon, CopyButton, SegmentedControl, Stack, Text, TextInput, VisuallyHidden } from '@mantine/core';
-import { IconCopy } from '@tabler/icons-react';
+import { Button, CopyButton, SegmentedControl, Stack, Text, TextInput, VisuallyHidden } from '@mantine/core';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 
+import { DialogActions } from '../../ui/DialogActions.tsx';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -13,8 +14,11 @@ import { useTokenUsage, type UsagePeriod } from './api.ts';
 import { usageColumns } from './columns.ts';
 import classes from './TokenParts.module.css';
 
-/** A secret disclosed once, at minting or rotation, with a copy control. */
-export function OneTimeSecret({ value, note }: Readonly<{ value: string; note?: string }>) {
+/**
+ * A secret disclosed once, at minting or rotation, with a copy control that says when it copied. The dialog
+ * around it cannot be dismissed by a stray click or key: only `onDone`, the explicit "I've copied the key".
+ */
+export function OneTimeSecret({ value, note, onDone }: Readonly<{ value: string; note?: string; onDone: () => void }>) {
   return (
     <Stack gap="sm">
       <div>
@@ -27,14 +31,24 @@ export function OneTimeSecret({ value, note }: Readonly<{ value: string; note?: 
         <CopyButton value={value}>
           {({ copy, copied }) => (
             <>
-              <ActionIcon onClick={copy} aria-label="Copy key">
-                <IconCopy size="1rem" aria-hidden />
-              </ActionIcon>
-              <VisuallyHidden role="status">{copied ? 'Key copied' : ''}</VisuallyHidden>
+              <Button
+                variant="default"
+                leftSection={copied ? <IconCheck size="1rem" aria-hidden /> : <IconCopy size="1rem" aria-hidden />}
+                onClick={copy}
+              >
+                {copied ? 'Copied' : 'Copy key'}
+              </Button>
+              <VisuallyHidden role="status">{copied ? 'Key copied to the clipboard.' : ''}</VisuallyHidden>
             </>
           )}
         </CopyButton>
       </FieldRow>
+      <Text size="xs" c="dimmed">
+        This window stays open until you confirm below, so the key is not lost by a stray click or key press.
+      </Text>
+      <DialogActions>
+        <Button onClick={onDone}>I&apos;ve copied the key</Button>
+      </DialogActions>
     </Stack>
   );
 }
