@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ActionIcon, Button, Collapse, PasswordInput, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChevronDown, IconChevronRight, IconX } from '@tabler/icons-react';
+import { IconChevronRight, IconX } from '@tabler/icons-react';
 import { Link, useNavigate } from '@tanstack/react-router';
 
 import {
@@ -221,7 +221,14 @@ function problemsOf(values: Fields): Record<string, string> {
  * the form has nothing left to do: a cluster was registered, or the operator went to the cluster that
  * already holds the brokers.
  */
-export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }>) {
+export function RegisterClusterForm({
+  onDone,
+  onDirtyChange,
+}: Readonly<{
+  onDone?: () => void;
+  /** Told whether the form holds input, so a dialog around it can keep that input from a stray click. */
+  onDirtyChange?: (dirty: boolean) => void;
+}>) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [checkedInputs, setCheckedInputs] = useState<string | null>(null);
   const [adoptChoice, setAdoptChoice] = useState<boolean | null>(null);
@@ -237,6 +244,8 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
     validate: problemsOf,
   });
   const f = form.values;
+  const dirty = form.isDirty();
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const { urls: seedList } = seedsOf(f);
   const rewritten = [f.seed, ...f.moreSeeds.map((row) => row.url)]
@@ -407,7 +416,7 @@ export function RegisterClusterForm({ onDone }: Readonly<{ onDone?: () => void }
           onClick={() => setAdvancedOpen((o) => !o)}
           aria-expanded={advancedOpen}
           leftSection={
-            advancedOpen ? <IconChevronDown size={16} aria-hidden /> : <IconChevronRight size={16} aria-hidden />
+            <IconChevronRight size={16} aria-hidden className={classes.chevron} data-open={advancedOpen || undefined} />
           }
         >
           Advanced: management URL pattern and TLS

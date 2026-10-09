@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { paged } from '../../kernel/api/paging.ts';
 import { renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 
@@ -49,6 +50,24 @@ describe('RemoveClusterSection', () => {
     grants(['cluster:read', 'cluster:write']);
   });
 
+  it('names the environment beside the name to type', async () => {
+    grants(['cluster:read', 'cluster:write', 'environment:read']);
+    server.use(
+      http.get('*/api/v1/clusters/:id', () =>
+        HttpResponse.json({ id: CLUSTER, name: 'prod-eu', environmentId: 'e-live' }),
+      ),
+      http.get('*/api/v1/environments', () =>
+        HttpResponse.json(paged([{ id: 'e-live', name: 'Production', colour: null, sortOrder: 1 }])),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Remove cluster…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove cluster' });
+    expect(await within(dialog).findByText('In Production')).toBeInTheDocument();
+  });
+
   it('states what goes and what stays before the typed name arms the button', async () => {
     const user = userEvent.setup();
     renderWithProviders(<RemoveClusterSection clusterId={CLUSTER} />);
@@ -80,8 +99,8 @@ describe('RemoveClusterSection', () => {
     await user.keyboard('{Enter}');
     const again = await screen.findByRole('dialog', { name: 'Remove cluster' });
     await user.keyboard('prod-eu');
-    await user.tab();
-    expect(within(again).getByRole('button', { name: 'Remove cluster' })).toHaveFocus();
+    expect(within(again).getByRole('button', { name: 'Remove cluster' })).toBeEnabled();
+    // Enter in the armed name field confirms.
     await user.keyboard('{Enter}');
 
     await vi.waitFor(() => expect(navigateSpy).toHaveBeenCalledWith({ to: '/' }));

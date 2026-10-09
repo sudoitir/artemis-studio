@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ActionIcon, Button, Collapse, PasswordInput, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChevronDown, IconChevronRight, IconX } from '@tabler/icons-react';
+import { IconChevronRight, IconX } from '@tabler/icons-react';
 
+import { useUnsavedTab } from '../../kernel/shell/GroupedTabs.tsx';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
@@ -151,6 +152,8 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
       ...(passwordsRequired(values, connection).core && !values.corePassword ? { corePassword: AGAIN('Core') } : {}),
     }),
   });
+  // The settings tabs unmount this form on a switch: while it holds edits, its tab asks before letting go.
+  useUnsavedTab(form.isDirty());
   const f = form.values;
   const request = requestOf(f, connection);
   const signature = JSON.stringify(request);
@@ -195,21 +198,21 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
 
   return (
     <form className={classes.settingsForm} noValidate onSubmit={runCheck}>
-      <TextInput label="Name" {...form.getInputProps('name')} size="xs" />
-      <TextInput label="Description" {...form.getInputProps('description')} size="xs" />
+      <TextInput label="Name" {...form.getInputProps('name')} size="sm" />
+      <TextInput label="Description" {...form.getInputProps('description')} size="sm" />
 
       <TextInput
         label="Broker management URL"
         description="The addresses you gave. Studio derives the rest from the pattern."
         {...form.getInputProps('seed')}
-        size="xs"
+        size="sm"
       />
       {f.moreSeeds.map((row, i) => (
         <FieldRow key={row.key}>
           <TextInput
             label={`Another management URL (${i + 2})`}
             {...form.getInputProps(`moreSeeds.${i}.url`)}
-            size="xs"
+            size="sm"
           />
           <ActionIcon
             variant="subtle"
@@ -229,17 +232,17 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         Add another seed
       </Button>
 
-      <Text size="xs" fw={600}>
+      <Text size="sm" fw={600}>
         Management account
       </Text>
       <FieldRow>
-        <TextInput label="Username" autoComplete="off" {...form.getInputProps('username')} size="xs" />
+        <TextInput label="Username" autoComplete="off" {...form.getInputProps('username')} size="sm" />
         <PasswordInput
           label="Password"
           description="Leave empty to keep the stored password."
           autoComplete="new-password"
           {...form.getInputProps('password')}
-          size="xs"
+          size="sm"
         />
       </FieldRow>
 
@@ -247,17 +250,17 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         label="Use a separate Core account"
         description="Off: Core connections use the management account."
         {...form.getInputProps('separateCore', { type: 'checkbox' })}
-        size="xs"
+        size="sm"
       />
       {f.separateCore ? (
         <FieldRow>
-          <TextInput label="Core username" autoComplete="off" {...form.getInputProps('coreUsername')} size="xs" />
+          <TextInput label="Core username" autoComplete="off" {...form.getInputProps('coreUsername')} size="sm" />
           <PasswordInput
             label="Core password"
             description="Leave empty to keep the stored password."
             autoComplete="new-password"
             {...form.getInputProps('corePassword')}
-            size="xs"
+            size="sm"
           />
         </FieldRow>
       ) : null}
@@ -268,9 +271,7 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         className={classes.start}
         onClick={() => setAdvancedOpen((o) => !o)}
         aria-expanded={advancedOpen}
-        leftSection={
-          advancedOpen ? <IconChevronDown size={14} aria-hidden /> : <IconChevronRight size={14} aria-hidden />
-        }
+        leftSection={<IconChevronRight size={14} aria-hidden className={classes.chevron} data-open={advancedOpen || undefined} />}
       >
         Advanced: management URL pattern and TLS
       </Button>
@@ -280,13 +281,13 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
             label="Management URL pattern"
             description="Each node's host replaces {host}. A broker answering there is accepted only when it is that node."
             {...form.getInputProps('pattern')}
-            size="xs"
+            size="sm"
           />
           <TextInput
             label="TLS bundle"
             description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
             {...form.getInputProps('tlsBundle')}
-            size="xs"
+            size="sm"
           />
         </Stack>
       </Collapse>
@@ -310,11 +311,11 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
             {blocked}
           </Text>
         ) : null}
-        <Button type="submit" size="xs" variant="default" loading={check.isPending}>
+        <Button type="submit" size="sm" variant="default" loading={check.isPending}>
           Check connection
         </Button>
         <Button
-          size="xs"
+          size="sm"
           disabled={!passed}
           loading={update.isPending && !confirming}
           onClick={() => (credentials ? setConfirming(true) : save())}

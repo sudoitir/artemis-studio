@@ -70,3 +70,18 @@
 .settingsForm :focus {
   scroll-margin-block-end: 5rem;
 }
+
+/* A disclosure's chevron turns to point at what it opened: one icon, rotated, rather than two swapped. */
+.chevron {
+  transition: transform var(--as-duration-fast) var(--as-ease);
+}
+
+.chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

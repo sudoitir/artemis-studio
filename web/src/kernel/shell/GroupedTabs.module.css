@@ -5,7 +5,11 @@
   gap: var(--mantine-spacing-lg);
 }
 
+/* The list stays in view while a long section scrolls past it. */
 .list {
+  position: sticky;
+  inset-block-start: var(--mantine-spacing-md);
+  align-self: flex-start;
   min-inline-size: 13rem;
   padding-inline-end: var(--mantine-spacing-md);
 }
@@ -15,6 +19,26 @@
 .tab {
   justify-content: flex-start;
   padding-inline: var(--mantine-spacing-sm);
+}
+
+/* The open tab is marked as the sidebar marks the open page: an accent edge on the start side and the
+   selection tint, not Mantine's end-side line. */
+.tab.tab {
+  border-width: 0;
+  border-inline-start: 0.125rem solid transparent;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.tab.tab[data-active] {
+  border-inline-start-color: var(--as-accent);
+  background: var(--as-selected);
+  font-weight: 600;
+}
+
+/* A tab whose form holds unsaved input says so in words beside its title. */
+.unsaved {
+  color: var(--as-text-dimmed);
+  font-size: var(--mantine-font-size-xs);
 }
 
 /* Room between two sections of a group; a group heading keeps its own spacing. */
