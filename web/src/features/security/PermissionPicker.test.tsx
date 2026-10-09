@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders } from '../../test/render.tsx';
@@ -176,56 +176,44 @@ describe('PermissionPicker', () => {
     expect(note).toHaveTextContent('Added queue:read, required by queue:purge');
   });
 
-  it('adds nothing when a wildcard already holds the requirement', async () => {
-    const user = userEvent.setup();
+  it('shows what a wildcard grants as granted through it, counted as held, with the group open', async () => {
     renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:*']} />);
 
-    await user.click(screen.getByRole('button', { name: /Queues, 0 of 3 selected/ }));
-    await user.click(await screen.findByRole('checkbox', { name: /queue:purge/ }));
-
-    expect(selected()).toBe('queue:*,queue:purge');
-    expect(screen.queryByRole('status', { name: 'Permissions added' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Queues, 3 of 3 selected/ })).toHaveAttribute('aria-expanded', 'true');
+    const purge = screen.getByRole('checkbox', { name: /queue:purge/ });
+    expect(purge).toBeChecked();
+    expect(purge).toBeDisabled();
+    expect(purge).toHaveAccessibleDescription(/Granted through queue:\*\./);
+    expect(screen.getByRole('checkbox', { name: 'Select all in Queues' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Brokers, 0 of 1 selected/ })).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('asks before removing a permission that others require, and removes them too', async () => {
+  it('removes a permission others require at once, with them, says which, and undoes it', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:read', 'queue:purge', 'queue:delete']} />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Queues, 3 of 3 selected/ }));
     await user.click(await screen.findByRole('checkbox', { name: /queue:read/ }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Remove queue:read' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(selected()).toBe('');
+    const notice = screen.getByText('Removed with it').closest('output')!;
+    expect(notice).toHaveTextContent('queue:purge (needs queue:read)');
+    expect(notice).toHaveTextContent('queue:delete (needs queue:purge)');
+
+    await user.click(within(notice).getByRole('button', { name: 'Undo' }));
     expect(selected()).toBe('queue:delete,queue:purge,queue:read');
-    expect(dialog).toHaveTextContent('queue:purge (needs queue:read)');
-    expect(dialog).toHaveTextContent('queue:delete (needs queue:purge)');
-
-    await user.click(within(dialog).getByRole('button', { name: 'Remove them all' }));
-    await waitFor(() => expect(selected()).toBe(''));
-  });
-
-  it('keeps everything when the removal is cancelled', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:read', 'queue:purge']} />);
-
-    await user.click(screen.getByRole('button', { name: /Queues, 2 of 3 selected/ }));
-    await user.click(await screen.findByRole('checkbox', { name: /queue:read/ }));
-    const dialog = await screen.findByRole('dialog', { name: 'Remove queue:read' });
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(selected()).toBe('queue:purge,queue:read');
+    expect(screen.queryByText('Removed with it')).not.toBeInTheDocument();
   });
 
   it('removes a permission nobody requires without asking', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness catalogue={RESOURCE_CATALOGUE} initial={['queue:read', 'queue:purge']} />);
 
-    await user.click(screen.getByRole('button', { name: /Queues, 2 of 3 selected/ }));
     await user.click(await screen.findByRole('checkbox', { name: /queue:purge/ }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Removed with it')).not.toBeInTheDocument();
     expect(selected()).toBe('queue:read');
   });
 
@@ -253,20 +241,18 @@ describe('PermissionPicker', () => {
   });
 
   it('keeps a held permission the catalogue lacks, under its own group', async () => {
-    const user = userEvent.setup();
     renderWithProviders(<Harness initial={['gone:read']} />);
 
-    await user.click(screen.getByRole('button', { name: /Not in the catalogue, 1 of 1 selected/ }));
+    expect(screen.getByRole('button', { name: /Not in the catalogue, 1 of 1 selected/ })).toBeInTheDocument();
     expect(await screen.findByRole('checkbox', { name: /gone:read/ })).toBeChecked();
     expect(selected()).toBe('gone:read');
   });
 
   it('shows a held wildcard as a wildcard, not as missing', async () => {
-    const user = userEvent.setup();
     renderWithProviders(<Harness initial={['queue:*']} />);
 
     expect(screen.queryByRole('button', { name: /Not in the catalogue/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Wildcards, 1 of 1 selected/ }));
+    expect(screen.getByRole('button', { name: /Wildcards, 1 of 1 selected/ })).toBeInTheDocument();
     expect(await screen.findByText(/Grants every queue: permission/)).toBeInTheDocument();
   });
 });

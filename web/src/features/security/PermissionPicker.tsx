@@ -13,12 +13,17 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 
-import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { Notice } from '../../ui/Notice.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PermissionView } from './api.ts';
-import { dependentsOf, withRequired, type AddedPermission, type DependentPermission } from './permissionRequires.ts';
+import {
+  dependentsOf,
+  grantedThrough,
+  withRequired,
+  type AddedPermission,
+  type DependentPermission,
+} from './permissionRequires.ts';
 import classes from './Security.module.css';
 
 const UNCATALOGUED = '__uncatalogued__';
@@ -116,8 +121,9 @@ function pickerNotice(groupCount: number, visibleCount: number, query: string, c
 /**
  * The role editor's permission picker (operator-ui spec): grouped by module or plugin, searchable,
  * with each permission's description and the scope it acts at, and select-all or clear per group,
- * announced. Choosing a permission adds the ones it requires, with a note; removing one that others
- * require asks first. `teamRole` offers only what a team role may hold.
+ * announced. A permission a held wildcard already gives shows as granted through it. Choosing a
+ * permission adds the ones it requires, with a note; removing one that others require removes them
+ * too, says which, and offers Undo. `teamRole` offers only what a team role may hold.
  */
 export function PermissionPicker({
   catalogue,
@@ -131,10 +137,13 @@ export function PermissionPicker({
   teamRole?: boolean;
 }>) {
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [added, setAdded] = useState<AddedPermission[]>([]);
-  const [removal, setRemoval] = useState<{ actions: string[]; dependents: DependentPermission[] } | null>(null);
+  const [removed, setRemoved] = useState<{
+    actions: string[];
+    dependents: DependentPermission[];
+    before: string[];
+  } | null>(null);
 
   const offered = useMemo(() => (teamRole ? catalogue.filter(teamRoleMay) : catalogue), [catalogue, teamRole]);
   const groups = useMemo(() => groupPermissions(offered, value, teamRole), [offered, value, teamRole]);
@@ -142,24 +151,27 @@ export function PermissionPicker({
     .map((g) => ({ ...g, entries: g.entries.filter((e) => matches(e, query)) }))
     .filter((g) => g.entries.length > 0);
   const selected = new Set(value);
+  // A permission held only through a wildcard: shown granted, and not something to tick or clear here.
+  const through = (action: string) => (selected.has(action) ? null : grantedThrough(selected, action));
+  const heldIn = (entries: Entry[]) => entries.filter((e) => selected.has(e.action) || through(e.action)).length;
+  // A group that holds something starts open, so what the role grants is in view.
+  const [open, setOpen] = useState<string[]>(() => groups.filter((g) => heldIn(g.entries) > 0).map((g) => g.id));
   const barred = teamRole ? value.filter((a) => !offered.some((p) => p.action === a)) : [];
 
   function add(actions: string[]) {
     const result = withRequired(catalogue, value, actions);
     setAdded(result.added);
+    setRemoved(null);
     onChange(result.next);
   }
 
-  /** Removes at once, or asks first when a held permission needs one of them. Whether it removed. */
-  function remove(actions: string[]): boolean {
+  /** Removes them, and the held permissions that would stop working without them, saying which. */
+  function remove(actions: string[]) {
     const dependents = dependentsOf(catalogue, value, actions);
-    if (dependents.length > 0) {
-      setRemoval({ actions, dependents });
-      return false;
-    }
+    const gone = new Set([...actions, ...dependents.map((d) => d.permission)]);
     setAdded([]);
-    onChange(value.filter((a) => !actions.includes(a)));
-    return true;
+    setRemoved(dependents.length > 0 ? { actions, dependents, before: value } : null);
+    onChange(value.filter((a) => !gone.has(a)));
   }
 
   function toggle(action: string) {
@@ -171,19 +183,18 @@ export function PermissionPicker({
     const actions = group.entries.map((e) => e.action);
     const total = actions.length;
     if (on) {
-      add(actions.filter((a) => !selected.has(a)));
+      add(actions.filter((a) => !selected.has(a) && !through(a)));
       setAnnouncement(`${total} of ${total} permissions selected in ${group.title}`);
-    } else if (remove(actions.filter((a) => selected.has(a)))) {
-      setAnnouncement(`0 of ${total} permissions selected in ${group.title}`);
+    } else {
+      remove(actions.filter((a) => selected.has(a)));
+      setAnnouncement(`${heldIn(group.entries.filter((e) => !selected.has(e.action)))} of ${total} permissions selected in ${group.title}`);
     }
   }
 
-  function confirmRemoval() {
-    if (!removal) return;
-    const gone = new Set([...removal.actions, ...removal.dependents.map((d) => d.permission)]);
-    setAdded([]);
-    onChange(value.filter((a) => !gone.has(a)));
-    setRemoval(null);
+  function undo() {
+    if (!removed) return;
+    onChange(removed.before);
+    setRemoved(null);
   }
 
   return (
@@ -230,6 +241,20 @@ export function PermissionPicker({
         </Stack>
       ) : null}
 
+      {removed ? (
+        <Notice
+          title="Removed with it"
+          tone="warning"
+          action={
+            <Button size="xs" variant="default" onClick={undo}>
+              Undo
+            </Button>
+          }
+        >
+          {removalConsequence(removed.actions, removed.dependents)}
+        </Notice>
+      ) : null}
+
       {pickerNotice(groups.length, visible.length, query, () => setQuery('')) ?? (
         <Accordion
           multiple
@@ -239,7 +264,9 @@ export function PermissionPicker({
         >
           {visible.map((group) => {
             const all = groups.find((g) => g.id === group.id)!.entries;
-            const held = all.filter((e) => selected.has(e.action)).length;
+            const held = heldIn(all);
+            // Every permission here comes through a wildcard: there is nothing to clear in this group.
+            const onlyThrough = held === all.length && all.every((e) => !selected.has(e.action));
             return (
               <Accordion.Item key={group.id} value={group.id}>
                 <Center>
@@ -247,6 +274,7 @@ export function PermissionPicker({
                     aria-label={`Select all in ${group.title}`}
                     checked={held === all.length}
                     indeterminate={held > 0 && held < all.length}
+                    disabled={onlyThrough}
                     onChange={() => setGroup({ ...group, entries: all }, held < all.length)}
                     size="md"
                     ms="sm"
@@ -266,6 +294,7 @@ export function PermissionPicker({
                   <Stack gap="xs">
                     {group.entries.map((e) => {
                       const badge = scopeBadge(e, teamRole);
+                      const wildcard = through(e.action);
                       return (
                         <Checkbox
                           key={e.action}
@@ -277,8 +306,11 @@ export function PermissionPicker({
                               {badge ? <StatusBadge>{badge}</StatusBadge> : null}
                             </Group>
                           }
-                          description={describe(e, teamRole)}
-                          checked={selected.has(e.action)}
+                          description={
+                            wildcard ? `${describe(e, teamRole)} Granted through ${wildcard}.` : describe(e, teamRole)
+                          }
+                          checked={selected.has(e.action) || wildcard !== null}
+                          disabled={wildcard !== null}
                           onChange={() => toggle(e.action)}
                         />
                       );
@@ -290,15 +322,6 @@ export function PermissionPicker({
           })}
         </Accordion>
       )}
-
-      <ConfirmDialog
-        opened={removal !== null}
-        onClose={() => setRemoval(null)}
-        title={removal ? `Remove ${removal.actions.join(', ')}` : 'Remove permission'}
-        confirmLabel="Remove them all"
-        consequence={removal ? removalConsequence(removal.actions, removal.dependents) : ''}
-        onConfirm={confirmRemoval}
-      />
     </Stack>
   );
 }
@@ -306,6 +329,6 @@ export function PermissionPicker({
 /** What removing permissions takes with it: the ones that need them, by name. */
 function removalConsequence(actions: string[], dependents: DependentPermission[]): string {
   const needing = dependents.map((d) => `${d.permission} (needs ${d.needs})`).join(', ');
-  const are = dependents.length === 1 ? 'it is' : 'they are';
-  return `${needing} would stop working without ${actions.join(', ')}, so ${are} removed too.`;
+  const were = dependents.length === 1 ? 'it was' : 'they were';
+  return `${needing} would stop working without ${actions.join(', ')}, so ${were} removed too.`;
 }

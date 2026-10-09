@@ -13,10 +13,16 @@ export interface DependentPermission {
 }
 
 /** Whether the held permissions give `action`, directly or through `*` or `resource:*`. */
-function holds(held: ReadonlySet<string>, action: string): boolean {
-  if (held.has(action) || held.has('*')) return true;
-  const resource = action.split(':')[0];
-  return held.has(`${resource}:*`);
+export function holds(held: ReadonlySet<string>, action: string): boolean {
+  return held.has(action) || grantedThrough(held, action) !== null;
+}
+
+/** The wildcard that gives `action` when it is not held itself, `resource:*` before `*`; null when none does. */
+export function grantedThrough(held: ReadonlySet<string>, action: string): string | null {
+  const resource = `${action.split(':')[0]}:*`;
+  if (resource !== action && held.has(resource)) return resource;
+  if (action !== '*' && held.has('*')) return '*';
+  return null;
 }
 
 const requiresOf = (catalogue: readonly PermissionView[]) =>

@@ -3,6 +3,7 @@ import { useForm } from '@mantine/form';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
+import { DialogActions } from '../../ui/DialogActions.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
 import { useCreateTeam, useDeleteTeam, useRenameTeam, type TeamSummary, type TeamView } from './api.ts';
@@ -31,7 +32,13 @@ export function TeamNameDialog({
       title={naming === 'new' ? 'New team' : `Rename ${naming?.name ?? ''}`}
     >
       {naming === null ? null : (
-        <TeamNameForm key={naming === 'new' ? 'new' : naming.id} team={naming} onDone={onDone} onHeld={onClose} />
+        <TeamNameForm
+          key={naming === 'new' ? 'new' : naming.id}
+          team={naming}
+          onDone={onDone}
+          onHeld={onClose}
+          onCancel={onClose}
+        />
       )}
     </Modal>
   );
@@ -42,7 +49,8 @@ function TeamNameForm({
   team,
   onDone,
   onHeld,
-}: Readonly<{ team: Naming; onDone: (team: TeamView) => void; onHeld: () => void }>) {
+  onCancel,
+}: Readonly<{ team: Naming; onDone: (team: TeamView) => void; onHeld: () => void; onCancel: () => void }>) {
   const create = useCreateTeam();
   const rename = useRenameTeam();
   const form = useForm({
@@ -89,11 +97,14 @@ function TeamNameForm({
           {...form.getInputProps('name')}
           required
         />
-        <div>
+        <DialogActions>
+          <Button variant="default" disabled={pending} onClick={onCancel}>
+            Cancel
+          </Button>
           <Button type="submit" loading={pending}>
             {team === 'new' ? 'Create team' : 'Rename team'}
           </Button>
-        </div>
+        </DialogActions>
       </Stack>
     </form>
   );

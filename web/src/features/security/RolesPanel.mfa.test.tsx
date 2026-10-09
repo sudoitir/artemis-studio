@@ -95,7 +95,7 @@ describe('RolesPanel two-step verification', () => {
     expect(within(dialog).queryByText('Saving signs out everyone who holds this role.')).not.toBeInTheDocument();
     await user.click(mfa);
     expect(within(dialog).getByText('Saving signs out everyone who holds this role.')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save role' }));
 
     await waitFor(() =>
       expect(sent).toEqual({ name: 'VIEWER', permissions: ['cluster:read'], requiresMfa: true, teamAssignable: false }),
@@ -119,7 +119,7 @@ describe('RolesPanel two-step verification', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByLabelText(/^Name/)).toHaveValue('AUDITOR');
     await user.click(within(dialog).getByRole('switch', { name: /^Require two-step verification/ }));
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save role' }));
 
     await waitFor(() =>
       expect(sent).toEqual({ name: 'AUDITOR', permissions: ['audit:read'], requiresMfa: true, teamAssignable: false }),
