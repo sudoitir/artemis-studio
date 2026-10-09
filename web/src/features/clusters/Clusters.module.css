@@ -52,14 +52,17 @@
 }
 
 /* The actions of a long form stay at the window's bottom edge while the form scrolls, so Check and Save
-   are always in reach and a check's result, arriving below the fields, never moves them. */
+   are always in reach and a check's result, arriving below the fields, never moves them. The same sticky
+   action bar look as the settings draft's footer. */
 .stickyActions {
   position: sticky;
   inset-block-end: 0;
-  z-index: 1;
-  padding-block: var(--mantine-spacing-sm);
-  background: var(--as-surface);
-  border-block-start: 1px solid var(--as-border);
+  z-index: var(--as-z-sticky);
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  background: var(--as-surface-raised);
+  border: 1px solid var(--as-border-strong);
+  border-radius: var(--mantine-radius-md);
+  box-shadow: var(--mantine-shadow-md);
 }
 
 /* A field that takes focus scrolls clear of the sticky actions, so the bar never hides it (WCAG 2.4.11). */

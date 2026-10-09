@@ -110,7 +110,8 @@
   color: var(--as-accent);
 }
 
-/* The draft's footer: stays at the bottom of the window while there is anything unsaved, over the page. */
+/* The draft's footer: stays at the bottom of the window while there is anything unsaved, over the page.
+   One sticky action bar look across the console: the clusters' `.stickyActions` carries the same surface. */
 .footer {
   position: sticky;
   inset-block-end: 0;
@@ -135,6 +136,11 @@
 
 .footerSummary {
   min-inline-size: 0;
+}
+
+/* A field that takes focus scrolls clear of the footer, so the bar never hides it (WCAG 2.4.11). */
+.settings :focus {
+  scroll-margin-block-end: 8rem;
 }
 
 /* A fault the operator must read first: a hairline in the danger token around words that state it. */
