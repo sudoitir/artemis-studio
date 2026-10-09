@@ -520,6 +520,8 @@ function MotionControl({ paused, onToggle }: Readonly<{ paused: boolean; onToggl
     <Button
       size="xs"
       variant="default"
+      // As wide as the longer label, so the toolbar does not shift when the label changes.
+      className={classes.motionControl}
       aria-pressed={paused}
       leftSection={
         paused ? <IconPlayerPlay size="0.875rem" aria-hidden /> : <IconPlayerPause size="0.875rem" aria-hidden />
@@ -529,6 +531,11 @@ function MotionControl({ paused, onToggle }: Readonly<{ paused: boolean; onToggl
       {paused ? 'Resume motion' : 'Pause motion'}
     </Button>
   );
+}
+
+/** What the operator asked the graph to show; a change gives the next layout a fresh fit. */
+function viewKeyOf(search: FlowSearch): string {
+  return [search.focus, search.hops, search.limit, search.rank, search.groupBy, search.layers].join('|');
 }
 
 /** The chosen view: the graph with its inspector, the table, or the two split with a monitoring pane. */
@@ -572,7 +579,14 @@ function FlowPane({
         attributes={{ handle: { 'aria-label': 'Resize the monitoring pane' } }}
       >
         <Splitter.Pane defaultSize={validSplit(split) ? split[0] : DEFAULT_SPLIT[0]} min={GRAPH_MIN}>
-          <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={onSelect} paused={paused} />
+          <FlowCanvas
+            clusterId={clusterId}
+            graph={data}
+            selectedId={selected}
+            onSelect={onSelect}
+            paused={paused}
+            viewKey={viewKeyOf(search)}
+          />
         </Splitter.Pane>
         <Splitter.Pane defaultSize={validSplit(split) ? split[1] : DEFAULT_SPLIT[1]} min={PANE_MIN} collapsible>
           <FlowMonitorPane
@@ -590,20 +604,23 @@ function FlowPane({
   }
   if (tab === 'graph') {
     return (
-      <div className={classes.graphLayout}>
-        <div className={classes.graphMain}>
-          <FlowCanvas clusterId={clusterId} graph={data} selectedId={selected} onSelect={onSelect} paused={paused} />
-        </div>
-        {selected ? (
+      <FlowCanvas
+        clusterId={clusterId}
+        graph={data}
+        selectedId={selected}
+        onSelect={onSelect}
+        paused={paused}
+        viewKey={viewKeyOf(search)}
+        inspector={(nodeId) => (
           <FlowInspector
             graph={data}
-            nodeId={selected}
+            nodeId={nodeId}
             clusterId={clusterId}
             onClose={onCloseInspector}
             onFocus={onFocusOn}
           />
-        ) : null}
-      </div>
+        )}
+      />
     );
   }
   return (

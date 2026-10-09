@@ -61,23 +61,16 @@ function nodeFacts(node: FlowNodeView): DescriptionItem[] {
   return facts;
 }
 
-/** Where the node can be followed up — focus the view, or open the screen that owns it. */
+/** Where the node can be followed up: the screen that owns it. Focusing the view is in the header. */
 function InspectorActions({
   node,
-  onFocus,
   open,
 }: Readonly<{
   node: FlowNodeView;
-  onFocus: (focus: string) => void;
   open: (path: string, search?: Record<string, string | undefined>) => unknown;
 }>) {
   return (
     <Stack gap="xs">
-      {focusOf(node) ? (
-        <Button size="xs" variant="default" onClick={() => onFocus(focusOf(node)!)}>
-          Focus the view on this
-        </Button>
-      ) : null}
       {node.kind === 'QUEUE' && !node.role ? (
         <Button size="xs" variant="subtle" onClick={() => open('queues', { queue: node.label })}>
           Open in Queues
@@ -176,7 +169,6 @@ export function FlowInspector({
   return (
     // Escape closes it from anywhere inside, and the caller returns focus to what opened it.
     <aside
-      className={classes.inspector}
       aria-label={`Details of ${KIND_WORD[node.kind ?? ''] ?? 'node'} ${node.label}`}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -190,7 +182,16 @@ export function FlowInspector({
         headingLevel={3}
         title={node.label ?? ''}
         description={KIND_WORD[node.kind ?? '']}
-        actions={<CloseButton ref={close} aria-label="Close details" onClick={onClose} />}
+        actions={
+          <>
+            {focusOf(node) ? (
+              <Button size="xs" variant="default" onClick={() => onFocus(focusOf(node)!)}>
+                Focus the view on this
+              </Button>
+            ) : null}
+            <CloseButton ref={close} aria-label="Close details" onClick={onClose} />
+          </>
+        }
       >
         {faults.length ? (
           <Text size="sm" fw={600} className={classes.alarm}>
@@ -203,7 +204,7 @@ export function FlowInspector({
         {flowList('Flow in', inbound, (e) => e.source)}
         {flowList('Flow out', outbound, (e) => e.target)}
 
-        <InspectorActions node={node} onFocus={onFocus} open={open} />
+        <InspectorActions node={node} open={open} />
       </Section>
     </aside>
   );

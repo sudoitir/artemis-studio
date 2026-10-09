@@ -16,11 +16,14 @@ import classes from './ViewControls.module.css';
 export function ViewControls({
   fit,
   subject = 'diagram',
+  className,
   onViewChange,
 }: Readonly<{
   fit: FitViewOptions;
   /** What the fit button fits, as a noun: "diagram", "topology". */
   subject?: string;
+  /** Added to the group's own class, for a diagram that moves the controls aside. */
+  className?: string;
   /** The operator zoomed or fitted the view with one of these buttons. */
   onViewChange?: (change: 'zoom' | 'fit') => void;
 }>) {
@@ -52,7 +55,10 @@ export function ViewControls({
     },
   ];
   return (
-    <ActionIcon.Group orientation="vertical" className={classes.controls}>
+    <ActionIcon.Group
+      orientation="vertical"
+      className={className ? `${classes.controls} ${className}` : classes.controls}
+    >
       {controls.map((c) => (
         <Tooltip key={c.label} label={c.label} position="left" withArrow openDelay={300}>
           <ActionIcon variant="default" size="md" aria-label={c.label} onClick={c.run}>

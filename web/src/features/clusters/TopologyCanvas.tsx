@@ -311,7 +311,7 @@ function Flow({
   const measured = useNodesInitialized();
   const [settled, setSettled] = useState(false);
   const reducedMotion = useReducedMotion();
-  const { motion } = useMantineTheme().other as { motion: { slow: number } };
+  const { motion } = useMantineTheme().other;
   const tabStop = [focused, selectedBox].find((id) => id && order.includes(id)) ?? order[0] ?? null;
 
   /** Brings a box fully into view, at the zoom the operator has, only when it is not already. */
