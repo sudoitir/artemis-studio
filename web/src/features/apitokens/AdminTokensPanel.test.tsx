@@ -4,7 +4,7 @@ import { Notifications, notifications } from '@mantine/notifications';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { renderWithProviders } from '../../test/render.tsx';
+import { renderAppAt, renderWithProviders } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
 import { AdminTokensPanel } from './AdminTokensPanel.tsx';
 import { paged } from '../../kernel/api/paging.ts';
@@ -101,12 +101,19 @@ describe('AdminTokensPanel', () => {
     expect(alert).toHaveTextContent('Database unavailable The key still works. Try again.');
   });
 
-  it('teaches that nobody has a key yet', async () => {
+  it('teaches that nobody has a key yet, with a link to where keys are minted', async () => {
     me(['token:admin']);
-    server.use(http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([]))));
-    renderInventory();
+    server.use(
+      http.get('*/api/v1/admin/tokens', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/clusters', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/environments', () => HttpResponse.json(paged([]))),
+      http.get('*/api/v1/alerts/firing', () => HttpResponse.json(paged([]))),
+    );
+    // The app's router, so the link to the account page is a real one.
+    renderAppAt('/admin?tab=api-keys');
 
     expect(await screen.findByText('No user has a key yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'account page' })).toHaveAttribute('href', '/account');
   });
 
   it('explains the missing permission instead of an empty list', async () => {

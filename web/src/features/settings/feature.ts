@@ -4,7 +4,7 @@ import { createRoute } from '@tanstack/react-router';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute } from '../../kernel/routing/roots.ts';
 import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
-import { DisplaySection, HealthSection, SecuritySection } from './sections.tsx';
+import { DisplaySection, EncryptionKeysPanel, StudioHealthPanel } from './sections.tsx';
 import { settingsSearch } from './SettingsPage.tsx';
 
 const settingsRoute = createRoute({
@@ -16,7 +16,10 @@ const settingsRoute = createRoute({
   validateSearch: settingsSearch,
 });
 
-/** The Settings page: Studio's settings by category, and its sections for display, encryption keys and health. */
+/**
+ * A cluster's Settings page, behind `settings:read`: Studio's settings by category. What is not a cluster's lives
+ * elsewhere: display preferences on the account page, encryption keys and Studio's health under Administration.
+ */
 export const settingsFeature = defineFeature({
   contract: CONTRACT,
   id: 'settings',
@@ -32,10 +35,17 @@ export const settingsFeature = defineFeature({
     },
   ],
   slots: {
-    'settings.sections': [
-      { id: 'settings-display', order: 10, group: 'personal', title: 'Display', Component: DisplaySection },
-      { id: 'settings-security', order: 30, group: 'studio', title: 'Encryption keys', Component: SecuritySection },
-      { id: 'settings-health', order: 40, group: 'studio', title: 'Studio health', Component: HealthSection },
+    // Yours alone and ungated, so it sits with the rest of what is yours.
+    'account.sections': [{ id: 'settings-display', order: 40, title: 'Display', Component: DisplaySection }],
+    'admin.tabs': [
+      {
+        id: 'encryption-keys',
+        order: 55,
+        title: 'Encryption keys',
+        group: 'installation',
+        Component: EncryptionKeysPanel,
+      },
+      { id: 'studio-health', order: 80, title: 'Studio health', group: 'support', Component: StudioHealthPanel },
     ],
   },
 });

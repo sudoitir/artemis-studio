@@ -45,9 +45,10 @@ export function settingsSearch(raw: Record<string, unknown>): SettingsSearch {
 }
 
 /**
- * A cluster's Settings page: one tab per section the features contribute and one per settings category,
- * under fixed headings in the order an operator's reach widens — their own preferences, what Studio
- * shares, this cluster, then what plugins added (operator-ui spec). One search finds settings across every
+ * A cluster's Settings page, behind `settings:read`: one tab per section the features contribute and one per
+ * settings category, under fixed headings in the order an operator's reach widens — what Studio shares, this
+ * cluster, then what plugins added (operator-ui spec). Personal display preferences are on the account page,
+ * and the installation's encryption keys and health under Administration. One search finds settings across every
  * category. Edits form one draft across categories, applied together from the footer. The open tab and the
  * search are in the address.
  */
@@ -100,7 +101,7 @@ export function SettingsPage() {
     <Page>
       <PageHeader
         title="Settings"
-        description="Your own preferences, what Studio shares across clusters, and this cluster's configuration."
+        description="What Studio shares across clusters, and this cluster's configuration."
       />
       <Toolbar
         label="Find settings"
