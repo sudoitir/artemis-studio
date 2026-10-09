@@ -760,7 +760,7 @@ The Settings page SHALL present each settings section as a tab in a vertical tab
 
 One search SHALL find settings across all categories, and a filter SHALL show only modified settings. The open tab and the search SHALL be held in the address, so they can be shared and restored.
 
-Edits SHALL form one draft across categories. A marker SHALL show on each category with unsaved changes. Leaving with unsaved changes SHALL ask first. The draft SHALL be applied in one step when no approval is needed. When approval is needed, the draft SHALL be reviewed first, as a list of current and new values, with a reason.
+Edits SHALL form one draft across categories. A marker SHALL show on each category with unsaved changes. Leaving with unsaved changes SHALL ask first. The draft SHALL be applied in one step when no approval is needed. When approval is needed, the draft SHALL be reviewed first, as a list of current and new values, with a reason. Enter in a setting's field SHALL open that review rather than apply the draft; only the footer's primary action SHALL apply it directly.
 
 A change waiting for approval SHALL show beside its setting, with its requester, its age and a way to cancel it.
 
@@ -785,6 +785,11 @@ The tab list SHALL be operable from the keyboard, and changing tab SHALL move fo
 
 - **WHEN** a team member edits two settings and a provider would hold the change
 - **THEN** the primary action reads "Request approval", and submitting shows both changes as pending beside their settings
+
+#### Scenario: Enter in a field reviews the draft
+
+- **WHEN** an operator edits a setting and presses Enter in its field
+- **THEN** the review of the whole draft opens, and nothing is applied until it is confirmed
 
 #### Scenario: Leaving with unsaved edits
 

@@ -208,7 +208,7 @@ function DraftedSettings({ search, onClearFilters }: Readonly<{ search: Settings
             terms={terms}
             canWrite={canWrite}
             username={me?.username}
-            onSubmit={flow.primary}
+            onSubmit={flow.reviewFromField}
           />
         </Section>
       ),

@@ -18,7 +18,8 @@ const APPLY: ActionVerb = { verb: 'Apply', past: 'Applied', progressive: 'Applyi
 /**
  * Applying the draft. The primary action follows the latest preview: it applies at once when the change
  * would run, opens the review to ask for approval when a policy holds it, and is disabled with the policy's
- * reason when it would be denied. An invalid value stops it, opens the value's category and focuses it.
+ * reason when it would be denied. An invalid value stops it, opens the value's category and focuses it. Enter
+ * in a field opens the review instead, so a keystroke never applies the draft unseen.
  */
 export function useApplyFlow(categories: Category[], onSettled: () => void) {
   const draft = useSettingsDraft();
@@ -117,6 +118,18 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
     setReview({ mode: hold ? 'request' : 'apply', reasonRequired: hold && Boolean(draft.preview?.reasonRequired) });
   };
 
+  // Enter in a field never applies the whole draft: it shows every change first, after the values are valid.
+  const reviewFromField = () => {
+    if (count === 0 || apply.isPending) return;
+    const invalid = draft.revealAll();
+    if (invalid.length > 0) {
+      focusInvalid(invalid);
+      return;
+    }
+    if (draft.previewCurrent && draft.preview?.outcome === 'DENY') return;
+    openReview();
+  };
+
   const titles = new Map(categories.map((c) => [c.id, c.title]));
   const rows: ReviewRow[] = draft.changes.flatMap((change) => {
     const setting = draft.settings[change.key];
@@ -132,8 +145,8 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
     ];
   });
 
-  // The footer's primary action, and what Enter in a field does.
-  return { primary: () => void primary(), apply, review, setReview, openReview, submit, rows };
+  // `primary` is the footer's primary button alone; Enter in a field is `reviewFromField`.
+  return { primary: () => void primary(), apply, review, setReview, openReview, reviewFromField, submit, rows };
 }
 
 export type ApplyFlow = ReturnType<typeof useApplyFlow>;
