@@ -4165,7 +4165,6 @@ export interface components {
         ChangePreview: {
             /** @enum {string} */
             outcome?: "RUN" | "HOLD" | "DENY";
-            reasonRequired: boolean;
             policyLabel?: string;
             denyReason?: string;
             fieldErrors: {
@@ -4248,7 +4247,6 @@ export interface components {
             tokenName?: string | null;
             effect: components["schemas"]["HeldEffectView"];
             policy: components["schemas"]["HeldPolicyView"];
-            reason?: string | null;
             approverHint?: string | null;
             /** Format: uuid */
             approverId?: string | null;
@@ -6240,6 +6238,15 @@ export interface components {
             attached: boolean;
             /** @description Whether break-glass lets operations bypass approval. */
             breakGlass: boolean;
+            /** @description Whether the provider holds anything now; false while it has no policy. */
+            enforcing: boolean;
+            /**
+             * Format: int32
+             * @description How many enabled users may approve for the whole installation.
+             */
+            approvers: number;
+            /** @description Whether there are enough approvers (two) for a request to be decided by someone other than its requester. */
+            quorate: boolean;
         };
         GatedOperationInfo: {
             type?: string;

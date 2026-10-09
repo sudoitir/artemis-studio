@@ -192,6 +192,11 @@ public class ApprovalProviderRegistry implements PluginBridge {
     private record PluginBound(PluginHandle handle, ApprovalProvider bean) implements ApprovalProvider {
 
         @Override
+        public boolean enforcing() {
+            return inPlugin(handle, bean::enforcing);
+        }
+
+        @Override
         public GateDecision decide(GateRequest request) {
             return inPlugin(handle, () -> bean.decide(request));
         }

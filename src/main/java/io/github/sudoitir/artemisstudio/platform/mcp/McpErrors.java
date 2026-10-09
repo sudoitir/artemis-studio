@@ -3,9 +3,7 @@ package io.github.sudoitir.artemisstudio.platform.mcp;
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
-import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalReasonRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException;
-import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationDeniedException;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationHeldException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -86,10 +84,7 @@ public final class McpErrors {
             // Not a failure: the operation waits for a second person, and the agent must not retry it.
             return error("Held for approval: " + e.summary() + " (request " + e.heldId()
                     + "). A second person must approve it in Studio: /approvals/" + e.heldId());
-        } catch (ConflictException
-                | OperationDeniedException
-                | ApprovalUnavailableException
-                | ApprovalReasonRequiredException e) {
+        } catch (ConflictException | OperationDeniedException | ApprovalUnavailableException e) {
             return error(e.getMessage());
         } catch (BrokerConnectionException e) {
             return error("The broker could not be reached: " + e.kind().defaultMessage()
@@ -114,17 +109,6 @@ public final class McpErrors {
             return error("That operation failed inside Studio. The server log has the detail; "
                     + "this is a bug rather than something the call can be corrected to avoid.");
         }
-    }
-
-    /**
-     * As {@link #guard(Supplier)}, with the reason the agent gave for the approval gate to show whoever decides. A
-     * blank reason is none.
-     */
-    public static McpSchema.CallToolResult guard(String approvalReason, Supplier<Object> body) {
-        if (approvalReason == null || approvalReason.isBlank()) {
-            return guard(body);
-        }
-        return ScopedValue.where(GateContext.REASON, approvalReason.strip()).call(() -> guard(body));
     }
 
     /** A JSON-RPC {@code -32602}: the call itself was malformed. */

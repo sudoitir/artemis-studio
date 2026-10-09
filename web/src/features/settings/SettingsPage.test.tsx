@@ -124,10 +124,10 @@ function settings(over: Record<string, Partial<Setting>> = {}): Record<string, S
   return Object.fromEntries(Object.entries(base).map(([key, value]) => [key, setting({ ...value, ...over[key] })]));
 }
 
-const RUN: ChangePreview = { outcome: 'RUN', reasonRequired: false, fieldErrors: {} };
+const RUN: ChangePreview = { outcome: 'RUN', fieldErrors: {} };
 
 interface Recorded {
-  applies: { changes: SettingChange[]; reason: string | null }[];
+  applies: { changes: SettingChange[] }[];
   previews: SettingChange[][];
 }
 
@@ -153,8 +153,7 @@ function serve({
     }),
     http.post('*/api/v1/settings/changes', async ({ request }) => {
       const { changes } = (await request.json()) as { changes: SettingChange[] };
-      const reason = request.headers.get('X-Studio-Approval-Reason');
-      recorded.applies.push({ changes, reason: reason === null ? null : decodeURIComponent(reason) });
+      recorded.applies.push({ changes });
       return apply();
     }),
   );
@@ -387,13 +386,12 @@ describe('the Settings page', () => {
           { key: 'scrape.tier-a', value: '10s' },
           { key: 'audit.batch', value: '200' },
         ],
-        reason: null,
       },
     ]);
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Unsaved changes' })).not.toBeInTheDocument());
   });
 
-  it('asks for approval with a reason when a policy holds the draft, then shows the changes as pending', async () => {
+  it('asks for approval when a policy holds the draft, with no reason to write, then shows the changes as pending', async () => {
     let held = false;
     const pending = (value: string) => [
       { heldId: 'h-1', value, reset: false, requester: 'ops', requestedAt: new Date().toISOString() },
@@ -403,7 +401,7 @@ describe('the Settings page', () => {
         held
           ? settings({ 'scrape.tier-a': { pending: pending('10s') }, 'scrape.tier-b': { pending: pending('90s') } })
           : settings(),
-      preview: () => ({ outcome: 'HOLD', reasonRequired: true, policyLabel: 'Two-person rule', fieldErrors: {} }),
+      preview: () => ({ outcome: 'HOLD', policyLabel: 'Two-person rule', fieldErrors: {} }),
       apply: () => {
         held = true;
         return HttpResponse.json(
@@ -435,12 +433,10 @@ describe('the Settings page', () => {
     ]);
     expect(within(dialog).getByText(/Two-person rule/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Request approval' }));
-    expect(await within(dialog).findByText(/Give a reason/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('textbox', { name: 'Reason' })).toHaveFocus();
+    // Nothing to write: a request is the changes and who holds them.
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
     expect(recorded.applies).toEqual([]);
 
-    await user.type(within(dialog).getByRole('textbox', { name: 'Reason' }), 'Brokers are overloaded, é');
     await user.click(within(dialog).getByRole('button', { name: 'Request approval' }));
 
     expect(await screen.findByText('Sent for approval')).toBeInTheDocument();
@@ -450,7 +446,6 @@ describe('the Settings page', () => {
           { key: 'scrape.tier-a', value: '10s' },
           { key: 'scrape.tier-b', value: '90s' },
         ],
-        reason: 'Brokers are overloaded, é',
       },
     ]);
     // The draft is gone, and each change waits beside its setting.
@@ -463,7 +458,6 @@ describe('the Settings page', () => {
     serve({
       preview: () => ({
         outcome: 'DENY',
-        reasonRequired: false,
         denyReason: 'Outside the change window.',
         fieldErrors: {},
       }),
@@ -481,7 +475,6 @@ describe('the Settings page', () => {
     const recorded = serve({
       preview: (changes): ChangePreview => ({
         outcome: undefined,
-        reasonRequired: false,
         fieldErrors: Object.fromEntries(
           changes.filter((c) => c.key === 'scrape.tier-a').map((c) => [c.key, `${c.key} must be a positive duration`]),
         ),
@@ -540,9 +533,7 @@ describe('the Settings page', () => {
     expect(within(dialog).getByText('30s (default)')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Apply 1 change' }));
 
-    await waitFor(() =>
-      expect(recorded.applies).toEqual([{ changes: [{ key: 'scrape.tier-b', reset: true }], reason: null }]),
-    );
+    await waitFor(() => expect(recorded.applies).toEqual([{ changes: [{ key: 'scrape.tier-b', reset: true }] }]));
   });
 
   it('lets the requester cancel a pending change, and not anyone else', async () => {

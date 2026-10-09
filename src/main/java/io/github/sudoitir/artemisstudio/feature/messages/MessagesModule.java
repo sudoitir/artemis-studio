@@ -54,8 +54,7 @@ public final class MessagesModule {
                                             + "additionally needs targetQueue."),
                             McpToolDef.Param.note("dryRun", McpToolDef.DRY_RUN),
                             McpToolDef.Param.note("confirm", McpToolDef.CONFIRM),
-                            McpToolDef.Param.note("override", McpToolDef.OVERRIDE),
-                            McpToolDef.Param.note("approvalReason", McpToolDef.APPROVAL_REASON))))
+                            McpToolDef.Param.note("override", McpToolDef.OVERRIDE))))
             .mcpTool(new McpToolDef(
                     "send_message",
                     McpToolDef.Posture.MUTATE,

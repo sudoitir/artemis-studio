@@ -27,8 +27,6 @@ export type PoolHealth = Schemas['PoolHealth'];
 
 export const SETTINGS_KEY = ['settings'] as const;
 
-/** The header a change set's reason for approval travels in. */
-const REASON_HEADER = 'X-Studio-Approval-Reason';
 const SECRETS_KEY = ['settings', 'secrets'] as const;
 const HEALTH_KEY = ['system', 'health'] as const;
 
@@ -42,13 +40,11 @@ export function useSettings(): UseQueryResult<SettingsResponse, ApiError> {
 /** Applies a change set together or not at all; a held one throws `OperationHeldError`. Refreshes the settings either way. */
 export function useApplyChanges() {
   const qc = useQueryClient();
-  return useMutation<void, ApiError, { changes: SettingChange[]; reason?: string }>({
-    mutationFn: ({ changes, reason }) =>
+  return useMutation<void, ApiError, { changes: SettingChange[] }>({
+    mutationFn: ({ changes }) =>
       request('/settings/changes', {
         method: 'POST',
         body: JSON.stringify({ changes }),
-        // A header carries only Latin-1, so the reason travels URL-encoded and the server decodes it.
-        headers: reason ? { [REASON_HEADER]: encodeURIComponent(reason) } : undefined,
       }),
     // Awaited, so the draft is cleared against the values the server now holds rather than the old ones.
     onSettled: () => qc.invalidateQueries({ queryKey: SETTINGS_KEY }),

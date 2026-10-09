@@ -109,11 +109,17 @@ class GateTestKit {
 
     static final class TestProvider implements ApprovalProvider {
         volatile Function<GateRequest, GateDecision> decide =
-                request -> new GateDecision.Hold(POLICY, Duration.ofHours(1), false, "a platform lead");
+                request -> new GateDecision.Hold(POLICY, Duration.ofHours(1), "a platform lead");
         volatile VoteCheck vote = VoteCheck.allow();
         volatile RunCheck run = RunCheck.allow();
+        volatile boolean enforcing = true;
         final AtomicInteger decisions = new AtomicInteger();
         final List<GateRequest> requests = new CopyOnWriteArrayList<>();
+
+        @Override
+        public boolean enforcing() {
+            return enforcing;
+        }
 
         @Override
         public GateDecision decide(GateRequest request) {
@@ -133,9 +139,10 @@ class GateTestKit {
         }
 
         void reset() {
-            decide = request -> new GateDecision.Hold(POLICY, Duration.ofHours(1), false, "a platform lead");
+            decide = request -> new GateDecision.Hold(POLICY, Duration.ofHours(1), "a platform lead");
             vote = VoteCheck.allow();
             run = RunCheck.allow();
+            enforcing = true;
             decisions.set(0);
             requests.clear();
         }

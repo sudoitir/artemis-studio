@@ -46,7 +46,7 @@ class HeldStore {
 
     private static final String COLUMNS = """
             id, type, type_version, state, mode, auth_kind, provider_id, requester_id, requester_username, token_id,
-            token_name, approver_id, approver_username, summary, reason, approver_hint, decision_reason, outcome_detail, traits,
+            token_name, approver_id, approver_username, summary, approver_hint, decision_reason, outcome_detail, traits,
             params::text AS params, display::text AS display, effect::text AS effect, policy::text AS policy,
             params_hash, sealed_payload, sealed_decision, cluster_id, environment_id, requested_at, expires_at,
             decided_at, run_deadline, claimed_at, claimed_by, finished_at, request_audit_id, version""";
@@ -78,7 +78,6 @@ class HeldStore {
             UUID tokenId,
             String tokenName,
             String summary,
-            String reason,
             String approverHint,
             Set<Trait> traits,
             String params,
@@ -212,10 +211,10 @@ class HeldStore {
     boolean insert(NewHeld held) {
         return jdbc.update("""
                         INSERT INTO held_operation (id, type, type_version, mode, auth_kind, provider_id, requester_id,
-                            requester_username, token_id, token_name, summary, reason, approver_hint, traits, params,
+                            requester_username, token_id, token_name, summary, approver_hint, traits, params,
                             display, effect, policy, params_hash, sealed_payload, cluster_id, environment_id,
                             expires_at, request_audit_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?, ?,
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?, ?,
                             ?, now() + make_interval(secs => ?), ?)
                         ON CONFLICT (requester_id, params_hash) WHERE state IN ('HELD', 'APPROVED', 'EXECUTING')
                         DO NOTHING""", ps -> {
@@ -230,10 +229,9 @@ class HeldStore {
                     ps.setObject(9, held.tokenId());
                     ps.setString(10, held.tokenName());
                     ps.setString(11, held.summary());
-                    ps.setString(12, held.reason());
-                    ps.setString(13, held.approverHint());
+                    ps.setString(12, held.approverHint());
                     ps.setArray(
-                            14,
+                            13,
                             ps.getConnection()
                                     .createArrayOf(
                                             "text",
@@ -241,16 +239,16 @@ class HeldStore {
                                                     .map(Trait::name)
                                                     .sorted()
                                                     .toArray()));
-                    ps.setString(15, held.params());
-                    ps.setString(16, JSON.writeValueAsString(held.display()));
-                    ps.setString(17, JSON.writeValueAsString(held.effect()));
-                    ps.setString(18, JSON.writeValueAsString(held.policy()));
-                    ps.setBytes(19, held.paramsHash());
-                    ps.setBytes(20, held.sealedPayload());
-                    ps.setObject(21, held.clusterId());
-                    ps.setObject(22, held.environmentId());
-                    ps.setDouble(23, held.ttl().toMillis() / 1000.0);
-                    ps.setLong(24, held.requestAuditId());
+                    ps.setString(14, held.params());
+                    ps.setString(15, JSON.writeValueAsString(held.display()));
+                    ps.setString(16, JSON.writeValueAsString(held.effect()));
+                    ps.setString(17, JSON.writeValueAsString(held.policy()));
+                    ps.setBytes(18, held.paramsHash());
+                    ps.setBytes(19, held.sealedPayload());
+                    ps.setObject(20, held.clusterId());
+                    ps.setObject(21, held.environmentId());
+                    ps.setDouble(22, held.ttl().toMillis() / 1000.0);
+                    ps.setLong(23, held.requestAuditId());
                 })
                 == 1;
     }
@@ -369,7 +367,6 @@ class HeldStore {
                 rs.getObject("approver_id", UUID.class),
                 rs.getString("approver_username"),
                 rs.getString("summary"),
-                rs.getString("reason"),
                 rs.getString("approver_hint"),
                 rs.getString("decision_reason"),
                 rs.getString("outcome_detail"),

@@ -334,10 +334,9 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
 
         whileDisarmed(() -> assertThat(settings.preview(change).outcome()).isEqualTo(GatePreview.Outcome.RUN));
 
-        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), true, "a lead");
+        provider.decide = request -> new GateDecision.Hold(GateTestKit.POLICY, Duration.ofHours(1), "a lead");
         assertThat(settings.preview(change)).satisfies(preview -> {
             assertThat(preview.outcome()).isEqualTo(GatePreview.Outcome.HOLD);
-            assertThat(preview.reasonRequired()).isTrue();
             assertThat(preview.policyLabel()).isEqualTo("Two people for purges");
         });
 
@@ -536,8 +535,7 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
         String body = "{\"changes\":[{\"key\":\"%s\",\"value\":\"3\"}]}".formatted(BrokerSettings.BULK_CAP);
 
         HttpResponse<String> preview = a.send("POST", "/api/v1/settings/changes/preview", body, Map.of());
-        HttpResponse<String> held = a.send(
-                "POST", "/api/v1/settings/changes", body, Map.of(GateContext.REASON_HEADER, "Raise%20the%20cap"));
+        HttpResponse<String> held = a.send("POST", "/api/v1/settings/changes", body, Map.of());
         HttpResponse<String> invalid = a.send(
                 "POST",
                 "/api/v1/settings/changes",

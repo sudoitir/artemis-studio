@@ -79,7 +79,6 @@ export function ApplyBar({ state }: Readonly<{ state: ApplyFlow }>) {
         rows={rows}
         mode={review?.mode ?? 'apply'}
         preview={draft.preview}
-        reasonRequired={review?.reasonRequired ?? false}
         pending={apply.isPending}
         error={review && apply.error && !heldOf(apply.error) ? apply.error : null}
         onSubmit={submit}

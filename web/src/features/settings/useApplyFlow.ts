@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import { problemSlug } from '../../kernel/approvals/api.ts';
 import { ApiError } from '../../kernel/api/request.ts';
 import { heldOf } from '../../ui/held.ts';
 import { notify, type ActionVerb } from '../../ui/notify.ts';
@@ -25,7 +24,7 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
   const apply = useApplyChanges();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [review, setReview] = useState<{ mode: ReviewMode; reasonRequired: boolean } | null>(null);
+  const [review, setReview] = useState<{ mode: ReviewMode } | null>(null);
   const count = draft.changes.length;
   const subject = plural(count, 'setting change', 'setting changes');
 
@@ -41,10 +40,10 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
     }).then(() => requestAnimationFrame(() => draft.focus(key)));
   };
 
-  const submit = (reason: string | undefined) => {
+  const submit = () => {
     const changes = draft.changes;
     apply.mutate(
-      { changes, reason },
+      { changes },
       {
         onSuccess: () => {
           setReview(null);
@@ -66,10 +65,6 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
             const errors = Object.fromEntries(error.fieldErrors.map((e) => [e.field, e.message]));
             draft.setApplyErrors(errors);
             focusInvalid(changes.map((c) => c.key).filter((key) => key in errors));
-            return;
-          }
-          if (problemSlug(error) === 'approval-reason-required') {
-            setReview({ mode: 'request', reasonRequired: true });
             return;
           }
           // In the review, the failure shows in place; from the footer, it is a toast.
@@ -105,16 +100,16 @@ export function useApplyFlow(categories: Category[], onSettled: () => void) {
     if (preview?.outcome === 'DENY') return;
     if (preview?.outcome === 'HOLD') {
       apply.reset();
-      setReview({ mode: 'request', reasonRequired: preview.reasonRequired });
+      setReview({ mode: 'request' });
       return;
     }
-    submit(undefined);
+    submit();
   };
 
   const openReview = () => {
     apply.reset();
     const hold = draft.preview?.outcome === 'HOLD';
-    setReview({ mode: hold ? 'request' : 'apply', reasonRequired: hold && Boolean(draft.preview?.reasonRequired) });
+    setReview({ mode: hold ? 'request' : 'apply' });
   };
 
   const titles = new Map(categories.map((c) => [c.id, c.title]));

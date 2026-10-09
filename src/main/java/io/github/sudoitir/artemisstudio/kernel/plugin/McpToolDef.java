@@ -55,11 +55,6 @@ public record McpToolDef(
             "A separate gate from confirm: it answers \"this many messages really is intended\", against the "
                     + "server's bulk cap. Defaults to false and is never satisfied by confirm.";
 
-    /** The {@code approvalReason} note every tool that can be held for approval shares. */
-    public static final String APPROVAL_REASON =
-            "Why the change is wanted. When an approval provider holds the operation, the person who decides reads it. "
-                    + "Some policies refuse the request without one.";
-
     /** Whether a tool reads or changes something — the axis tools may not be grouped across. */
     public enum Posture {
         READ,

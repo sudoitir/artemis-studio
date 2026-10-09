@@ -337,7 +337,6 @@ function requestItems(detail: HeldOperationDetail, refresh: () => void): Descrip
     { term: 'Requested by', value: operation.requesterUsername },
     { term: 'Signed in with', value: signedInWith(operation.authKind, detail.tokenName) },
     { term: 'Requested', value: absoluteLabel(operation.requestedAt) },
-    { term: 'Reason', value: detail.reason || 'None given' },
     { term: 'Policy', value: policy.name ?? policy.id, hint: `Version ${policy.version}` },
   ];
   if (detail.approverHint) items.push({ term: 'Who can approve', value: detail.approverHint });

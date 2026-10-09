@@ -34,8 +34,7 @@ class ApprovalNotices {
 
     /** A request was held: every eligible approver is asked to decide it. */
     void held(HeldRow row, Collection<UUID> approvers, Instant now) {
-        String body =
-                "Requested by " + row.requesterUsername() + (row.reason() == null ? "." : ": “" + row.reason() + "”");
+        String body = "Requested by " + row.requesterUsername() + ".";
         Duration ttl = Duration.between(now, row.expiresAt());
         inbox.post(
                 SOURCE,

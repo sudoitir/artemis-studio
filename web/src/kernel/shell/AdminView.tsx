@@ -1,3 +1,4 @@
+import { ApproverQuorumNotice } from '../approvals/ApproverQuorumNotice.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { ADMIN_GROUPS, useSlot } from '../slots.ts';
@@ -32,6 +33,7 @@ export function AdminView() {
           title="Administration"
           description="What applies to the whole installation: who can sign in and what they may do, the environments, and what is installed."
         />
+        <ApproverQuorumNotice />
         <SectionNav label="Administration sections" groups={groups} />
       </Page>
     </div>

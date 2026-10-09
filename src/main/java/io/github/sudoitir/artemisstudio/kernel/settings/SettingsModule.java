@@ -23,8 +23,7 @@ public final class SettingsModule {
                     "Read or change an operational setting: scrape cadence, rate limit, retention, bulk cap.",
                     List.of(
                             McpToolDef.Param.values("op", List.of("get", "set"), "Default get."),
-                            McpToolDef.Param.note("key", "Omit on get for every setting."),
-                            McpToolDef.Param.note("approvalReason", McpToolDef.APPROVAL_REASON))))
+                            McpToolDef.Param.note("key", "Omit on get for every setting."))))
             .build();
 
     private SettingsModule() {}

@@ -43,7 +43,6 @@ export function detail(
     tokenName: null,
     effect: { count: 1204, unit: 'messages', detail: null },
     policy: { id: 'default', version: '2', name: 'Two people for destructive changes' },
-    reason: 'Poison messages block the consumer',
     approverHint: 'Anyone with the operator role on prod-eu',
     approverId: null,
     decisionReason: null,

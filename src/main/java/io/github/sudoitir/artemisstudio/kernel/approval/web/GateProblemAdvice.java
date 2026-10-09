@@ -3,8 +3,8 @@ package io.github.sudoitir.artemisstudio.kernel.approval.web;
 import io.github.sudoitir.artemisstudio.kernel.approval.TooManyHeldOperationsException;
 import io.github.sudoitir.artemisstudio.kernel.approval.VoteRefusedException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
-import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalReasonRequiredException;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException;
+import io.github.sudoitir.artemisstudio.kernel.gate.ApproverQuorumException;
 import io.github.sudoitir.artemisstudio.kernel.gate.GateContext;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldOutcome;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationDeniedException;
@@ -46,10 +46,9 @@ public class GateProblemAdvice {
                 HttpStatus.SERVICE_UNAVAILABLE, "approval-unavailable", "Approval unavailable", e.getMessage());
     }
 
-    @ExceptionHandler(ApprovalReasonRequiredException.class)
-    ProblemDetail onReasonRequired(ApprovalReasonRequiredException e) {
-        return Problems.of(
-                HttpStatus.UNPROCESSABLE_ENTITY, "approval-reason-required", "A reason is needed", e.getMessage());
+    @ExceptionHandler(ApproverQuorumException.class)
+    ProblemDetail onQuorum(ApproverQuorumException e) {
+        return Problems.of(HttpStatus.CONFLICT, "approver-quorum", "Too few approvers", e.getMessage());
     }
 
     @ExceptionHandler(TooManyHeldOperationsException.class)

@@ -13,6 +13,16 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 @PluginApi
 public interface ApprovalProvider {
 
+    /**
+     * Whether this provider holds anything right now. A provider with no policy yet allows everything (setup mode)
+     * and returns {@code false}, so Studio does not require {@link ApproverPool#QUORUM} approvers of an installation
+     * that is not asking anyone to approve. The default is {@code true}: a provider that does not say enforces.
+     * Answered from the provider's own state; it must be quick and must not throw.
+     */
+    default boolean enforcing() {
+        return true;
+    }
+
     /** Allow, hold or deny. In {@link GateRequest.Mode#PREVIEW} nothing is stored either way. */
     GateDecision decide(GateRequest request);
 

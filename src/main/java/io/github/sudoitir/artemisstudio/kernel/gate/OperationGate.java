@@ -18,7 +18,6 @@ public interface OperationGate {
      * @throws OperationHeldException when the provider holds it for approval
      * @throws OperationDeniedException when the provider denies it
      * @throws ApprovalUnavailableException when a provider is armed but cannot answer
-     * @throws ApprovalReasonRequiredException when the policy needs a reason and none was given
      */
     <R> R run(Operation operation, Supplier<R> action);
 

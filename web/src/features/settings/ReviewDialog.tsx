@@ -1,6 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { Button, Group, Modal, Stack, Text, Textarea } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useMemo } from 'react';
+import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 
 import type { ApiError } from '../../kernel/api/request.ts';
 import { ErrorState } from '../../ui/ErrorState.tsx';
@@ -9,14 +8,12 @@ import { DataTable } from '../../ui/table/index.ts';
 import type { ChangePreview } from './api.ts';
 import { reviewColumns, type ReviewRow } from './reviewColumns.ts';
 
-/** What the review asks of its submit: apply now, or request approval with a reason. */
+/** What the review asks of its submit: apply now, or request approval. */
 export type ReviewMode = 'apply' | 'request';
 
-const REASON_NEEDED = 'Give a reason: the approval policy asks for one, and approvers read it to decide.';
-
 /**
- * The draft before it goes: every change as Setting | Current | New, and, when a policy holds it, who decides
- * and a reason for them. The dialog stays open while the request is in flight and shows a failure in place.
+ * The draft before it goes: every change as Setting | Current | New, and, when a policy holds it, that a second
+ * person decides. The dialog stays open while the request is in flight and shows a failure in place.
  */
 export function ReviewDialog({
   opened,
@@ -24,7 +21,6 @@ export function ReviewDialog({
   rows,
   mode,
   preview,
-  reasonRequired,
   pending,
   error,
   onSubmit,
@@ -34,30 +30,13 @@ export function ReviewDialog({
   rows: ReviewRow[];
   mode: ReviewMode;
   preview: ChangePreview | undefined;
-  /** A reason is required: the preview said so, or the server refused a request without one. */
-  reasonRequired: boolean;
   pending: boolean;
   error: ApiError | null;
-  onSubmit: (reason: string | undefined) => void;
+  onSubmit: () => void;
 }>) {
-  const form = useForm({
-    initialValues: { reason: '' },
-    validateInputOnBlur: true,
-    validate: { reason: (value) => (reasonRequired && !value.trim() ? REASON_NEEDED : null) },
-  });
-  // A dialog opened again starts with an empty reason, not the one written for an earlier draft.
-  useEffect(() => {
-    if (opened) form.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
-
   const columns = useMemo(reviewColumns, []);
   const count = rows.length === 1 ? '1 change' : `${rows.length} changes`;
   const requesting = mode === 'request';
-  const submit = form.onSubmit(
-    ({ reason }) => onSubmit(requesting ? reason.trim() || undefined : undefined),
-    () => form.getInputNode('reason')?.focus(),
-  );
 
   return (
     <Modal
@@ -71,7 +50,13 @@ export function ReviewDialog({
       title={requesting ? `Request approval for ${count}` : `Review ${count}`}
       closeButtonProps={{ 'aria-label': 'Close the review' }}
     >
-      <form noValidate onSubmit={submit}>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
         <Stack gap="md">
           {requesting ? (
             <Notice tone="info" title="Needs approval">
@@ -92,19 +77,6 @@ export function ReviewDialog({
             height={{ maxRows: rows.length }}
             empty={null}
           />
-          {requesting ? (
-            <Textarea
-              label="Reason"
-              description="Approvers read this. Say what the change is for and why now."
-              autosize
-              minRows={2}
-              maxRows={6}
-              withAsterisk={reasonRequired}
-              // Focus enters on the one thing to write, not on the dialog's close button.
-              data-autofocus
-              {...form.getInputProps('reason')}
-            />
-          ) : null}
           {error ? (
             <ErrorState variant="inline" error={error} next="Your changes are still in the draft. Try again." />
           ) : null}
@@ -112,7 +84,7 @@ export function ReviewDialog({
             <Button variant="default" onClick={onClose} disabled={pending}>
               Back to editing
             </Button>
-            <Button type="submit" loading={pending}>
+            <Button type="submit" loading={pending} data-autofocus>
               {requesting ? 'Request approval' : `Apply ${count}`}
             </Button>
           </Group>

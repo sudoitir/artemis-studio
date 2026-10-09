@@ -21,7 +21,13 @@ public class GateController {
     public HeldOperationViews.GateStatusView status() {
         Approvals.Status status = approvals.status();
         return new HeldOperationViews.GateStatusView(
-                status.armed(), status.providerId(), status.attached(), status.breakGlass());
+                status.armed(),
+                status.providerId(),
+                status.attached(),
+                status.breakGlass(),
+                status.enforcing(),
+                status.approvers(),
+                status.quorate());
     }
 
     /** Every operation type the gate covers, Studio's and the plugins', so the console can name them. */
