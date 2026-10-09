@@ -208,10 +208,10 @@ async function edit() {
   const tierA = await screen.findByLabelText('Tier A interval');
   fireEvent.change(tierA, { target: { value: '10s' } });
   fireEvent.click(screen.getByRole('button', { name: /Reset Tier B interval/ }));
-  fireEvent.click(screen.getByRole('tab', { name: /Audit/ }));
+  fireEvent.click(screen.getByRole('link', { name: /Audit/ }));
   const batch = await screen.findByLabelText('Batch size');
   fireEvent.change(batch, { target: { value: '200' } });
-  fireEvent.click(screen.getByRole('tab', { name: /Scrape/ }));
+  fireEvent.click(screen.getByRole('link', { name: /Scrape/ }));
   await screen.findByLabelText('Tier A interval');
 }
 

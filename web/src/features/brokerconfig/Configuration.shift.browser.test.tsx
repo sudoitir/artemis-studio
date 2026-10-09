@@ -193,11 +193,25 @@ function watchShift(): () => number {
 
 const PAGES = [
   {
-    name: 'Configuration, declared and live',
+    name: 'Configuration, addresses and queues',
     view: ConfigurationView,
     path: '/clusters/$clusterId/configuration',
     search: '',
+    ready: 'Addresses and queues',
+  },
+  {
+    name: 'Configuration, address settings',
+    view: ConfigurationView,
+    path: '/clusters/$clusterId/configuration',
+    search: '?tab=addressSettings',
     ready: 'Address settings',
+  },
+  {
+    name: 'Configuration, live nodes',
+    view: ConfigurationView,
+    path: '/clusters/$clusterId/configuration',
+    search: '?tab=nodes',
+    ready: 'Nodes',
   },
   {
     name: 'Configuration, history',
