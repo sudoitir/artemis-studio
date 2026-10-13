@@ -102,9 +102,13 @@ class AuditFeedTest extends PostgresIntegrationTest {
     }
 
     private AuditPosition latest() {
-        return jdbc.queryForObject(
-                "SELECT pos_txid::text, pos_seq FROM audit_event ORDER BY pos_txid DESC, pos_seq DESC LIMIT 1",
-                (rs, i) -> new AuditPosition(Long.parseLong(rs.getString(1)), rs.getLong(2)));
+        return jdbc
+                .query(
+                        "SELECT pos_txid::text, pos_seq FROM audit_event ORDER BY pos_txid DESC, pos_seq DESC LIMIT 1",
+                        (rs, i) -> new AuditPosition(Long.parseLong(rs.getString(1)), rs.getLong(2)))
+                .stream()
+                .findFirst()
+                .orElse(AuditPosition.START);
     }
 
     private List<String> actions(AuditPosition from, String prefix) {
