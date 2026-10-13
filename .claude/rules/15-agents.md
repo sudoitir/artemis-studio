@@ -16,8 +16,11 @@ Pick the smallest harness that does the job. Most tasks need neither agents nor 
 | Review, adversarial check | `reviewer` | Opus | low |
 | Implement a settled task | `implementer` | Sonnet | medium |
 | Run checks, report pass/fail | `verifier` | Sonnet | low |
+| Exploration, search, reading many files, other low-end jobs | `explorer` (in `~/.claude/agents`) | Haiku | n/a |
 
-- The session runs on Opus at medium. Other subagents default to Sonnet (`CLAUDE_CODE_SUBAGENT_MODEL`).
+- The session runs on Opus at medium. Every subagent takes its model from the table, never from
+  `CLAUDE_CODE_SUBAGENT_MODEL`: that variable overrides every agent's `model` frontmatter, so never set it.
+  Exploration goes to `explorer` (Haiku), never to the built-in `Explore`.
   `ANTHROPIC_DEFAULT_OPUS_MODEL` / `ANTHROPIC_DEFAULT_SONNET_MODEL` pin the aliases to 5.5.
 - **Never `high`, `xhigh` or `max`** for any agent: Sonnet runs at low or medium, Opus at low or medium. `maxEffortLevel: high` in `settings.json` is only the hard ceiling.
 - Never set `CLAUDE_CODE_EFFORT_LEVEL`: it overrides every agent's `effort` frontmatter.
