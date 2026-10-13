@@ -18,6 +18,7 @@ import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusMessage;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
@@ -38,7 +39,7 @@ class SseHubTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final StudioBus bus = mock(StudioBus.class);
-    private final SseHub hub = new SseHub(bus, mapper, (s, c, f) -> f);
+    private final SseHub hub = new SseHub(bus, mapper, (s, c, f) -> f, new SimpleMeterRegistry());
 
     /** What the bus would do: hand the message back to this replica, which is how every frame arrives. */
     private void loopback() {
@@ -260,7 +261,7 @@ class SseHubTest {
 
         long start = System.nanoTime();
         for (int i = 0; i < 3; i++) {
-            hub.onFrame(new BusFrame(clusterId, "queues", null, null));
+            hub.onFrame(new BusFrame(clusterId, "queues", null, null, BusFrame.About.queue("orders." + i)));
         }
 
         assertThat(Duration.ofNanos(System.nanoTime() - start)).as("dispatch").isLessThan(Duration.ofSeconds(1));
@@ -341,17 +342,22 @@ class SseHubTest {
 
     @Test
     void aSubscriberIsSentOnlyWhatItsAccessLeavesOfAFrame() throws IOException {
-        SseHub trimming = new SseHub(bus, mapper, (subscriber, clusterId, frame) -> {
-            if (frame.about() == null) {
-                return null;
-            }
-            List<String> kept = frame.about().queues().stream()
-                    .filter(q -> q.startsWith("orders."))
-                    .toList();
-            return kept.isEmpty()
-                    ? null
-                    : new Subscriber.Held(frame.topic(), frame.data(), frame.id(), BusFrame.About.of(kept, List.of()));
-        });
+        SseHub trimming = new SseHub(
+                bus,
+                mapper,
+                (subscriber, clusterId, frame) -> {
+                    if (frame.about() == null) {
+                        return null;
+                    }
+                    List<String> kept = frame.about().queues().stream()
+                            .filter(q -> q.startsWith("orders."))
+                            .toList();
+                    return kept.isEmpty()
+                            ? null
+                            : new Subscriber.Held(
+                                    frame.topic(), frame.data(), frame.id(), BusFrame.About.of(kept, List.of()));
+                },
+                new SimpleMeterRegistry());
         doAnswer(invocation -> {
                     trimming.onFrame((BusFrame) invocation.getArgument(0));
                     return null;

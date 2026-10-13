@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
@@ -40,7 +41,8 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>Delivery never blocks the caller, which is the bus dispatch thread: a frame is queued on each
  * subscriber, whose own virtual thread writes it ({@link Subscriber}). A client that stops reading
- * loses its queued frames to one {@link #RESYNC}; it does not delay the others.
+ * loses its queued frames to one {@link #RESYNC}, and one that keeps doing so is told to {@link #RECONNECT} and
+ * closed (ADR-0197); it does not delay the others.
  */
 @Component
 @PluginApi
@@ -69,11 +71,13 @@ public class SseHub {
     private final StudioBus bus;
     private final ObjectMapper mapper;
     private final StreamAccess access;
+    private final MeterRegistry meters;
 
-    public SseHub(StudioBus bus, ObjectMapper mapper, StreamAccess access) {
+    public SseHub(StudioBus bus, ObjectMapper mapper, StreamAccess access, MeterRegistry meters) {
         this.bus = bus;
         this.mapper = mapper;
         this.access = access;
+        this.meters = meters;
     }
 
     /** Whether {@code event} is a control event, sent to every subscriber, rather than a topic. */
@@ -83,7 +87,17 @@ public class SseHub {
 
     public void register(UUID clusterId, Subscriber subscriber) {
         byCluster.computeIfAbsent(clusterId, k -> ConcurrentHashMap.newKeySet()).add(subscriber);
-        subscriber.startDrain(frame -> sendTo(clusterId, subscriber, frame), () -> complete(subscriber));
+        subscriber.startDrain(
+                frame -> sendTo(clusterId, subscriber, frame),
+                () -> complete(subscriber),
+                new Subscriber.Listener(
+                        (reason, frames) -> meters.counter("studio.sse.dropped", "reason", reason)
+                                .increment(frames),
+                        () -> {
+                            unregister(clusterId, subscriber);
+                            log.warn("An SSE client kept falling behind or stopped reading; its stream is closed and it"
+                                    + " reconnects with its last event id");
+                        }));
     }
 
     /** Forget a subscriber whose stream is over, and stop its writer. */

@@ -12,6 +12,7 @@ import io.github.sudoitir.artemisstudio.kernel.replica.BusFrame;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.replica.StudioBus;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -51,7 +52,7 @@ class SseHubStalledClientTest extends PostgresIntegrationTest {
                 signals.add(signal);
             }
         });
-        hub[0] = new SseHub(bus, mapper, (s, c, f) -> f);
+        hub[0] = new SseHub(bus, mapper, (s, c, f) -> f, new SimpleMeterRegistry());
         CountDownLatch stall = new CountDownLatch(1);
         UUID clusterId = UUID.randomUUID();
         SseEmitter stalled = mock(SseEmitter.class);
@@ -68,8 +69,8 @@ class SseHubStalledClientTest extends PostgresIntegrationTest {
         try {
             await().atMost(Duration.ofSeconds(10)).until(bus::isListening);
 
-            hub[0].publish(clusterId, "queues");
-            hub[0].publish(clusterId, "queues");
+            hub[0].publishAbout(clusterId, "queues", List.of("orders.a"), List.of());
+            hub[0].publishAbout(clusterId, "queues", List.of("orders.b"), List.of());
             bus.publish(new ReplicaSignal("settings", "after"));
 
             await().atMost(Duration.ofSeconds(5)).until(() -> !signals.isEmpty());
