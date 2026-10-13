@@ -27,10 +27,13 @@ RUN mvn -q -B clean package -DskipTests
 FROM eclipse-temurin:25-jre-resolute@sha256:628f28c18211e8633d02cefb9698489abcbd43337c61fba67837e4ffb86d50d6 AS runtime
 # The distribution's security updates are applied at build time: a fix often reaches the Ubuntu
 # archive days before a new base image does, and the image scan fails on a fixable high finding.
+# Ubuntu's base also ships Pebble, a service manager outside any package, so no upgrade patches it;
+# Studio never runs it, so it is removed with its Go runtime and that runtime's vulnerabilities.
 RUN groupadd -r studio && useradd -r -g studio studio \
     && apt-get update && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/bin/pebble /var/lib/pebble
 WORKDIR /app
 COPY --from=app /src/target/artemis-studio-exec.jar app.jar
 USER studio
