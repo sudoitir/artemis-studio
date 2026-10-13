@@ -32,7 +32,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -66,7 +65,6 @@ public class ConfigDiffService {
      * @param only narrows the comparison to these nodes; {@code null} or empty compares every
      *     node of the cluster
      */
-    @Transactional(readOnly = true)
     public ConfigDiffView compare(UUID clusterId, Set<UUID> only) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         List<ClusterNode> nodes = selected(brokerNodes.nodes(clusterId), only);
@@ -208,7 +206,6 @@ public class ConfigDiffService {
      * reason, never as an empty configuration — an absence presented as a fact is the
      * failure mode this whole feature area exists to avoid.
      */
-    @Transactional(readOnly = true)
     public NodeConfigView nodeConfig(UUID clusterId, UUID nodeId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         ClusterNode node = brokerNodes.nodes(clusterId).stream()

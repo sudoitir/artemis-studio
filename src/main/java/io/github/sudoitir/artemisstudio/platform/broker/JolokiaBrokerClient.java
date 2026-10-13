@@ -220,6 +220,7 @@ public class JolokiaBrokerClient {
     }
 
     private <T> T post(Object payload, Class<T> responseType) {
+        BrokerCallGuard.check();
         try {
             T body = exchange(payload, responseType);
             if (callHealth != null) {

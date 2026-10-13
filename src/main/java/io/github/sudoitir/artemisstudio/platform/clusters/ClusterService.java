@@ -376,8 +376,8 @@ public class ClusterService {
 
     /**
      * Registers a cluster. What asks a broker for its management URL (the seeds, the topology, each derived
-     * address) happens before the transaction opens, and the rows are saved in one transaction (ADR-0078); the
-     * capability probe and the adoption's reads stay inside it, as they were.
+     * address), the capability probe and the adoption's reads happen before the transaction opens, and the rows
+     * are saved in one transaction (ADR-0078).
      */
     @PreAuthorize("@perm.can(T(io.github.sudoitir.artemisstudio.platform.clusters.ClusterPermissions).CLUSTER_WRITE)")
     public Attempt<ClusterDetail> register(RegisterClusterRequest request) {
@@ -430,7 +430,20 @@ public class ClusterService {
         // assessment; it is read here so that no broker call is made inside the registration transaction.
         BrokerCapabilities capabilities =
                 capabilityProbe.probe(reachable.get(0).client(), new SubscriptionVerdict.NotAttempted());
-        return transactions.execute(status -> saveRegistration(request, inputs, survey, found, capabilities));
+        RegistrationAdoption.Reading adopted = request.adopts() ? readAdoption(found, inputs) : null;
+        return transactions.execute(status -> saveRegistration(request, inputs, survey, found, capabilities, adopted));
+    }
+
+    /** What the live nodes run, read before the registration transaction opens (ADR-0176). */
+    private RegistrationAdoption.Reading readAdoption(TopologyDiscovery.Preview found, ConnectionInputs inputs) {
+        return adoption.orElseThrow()
+                .read(endpoints(found.topology()).stream()
+                        .filter(e -> e.active() && e.jolokiaUrl() != null)
+                        .map(e -> new RegistrationAdoption.LiveNode(
+                                e.name(), clientFactory.forNode(inputs.management(), e.jolokiaUrl())))
+                        .toList())
+                .orElseThrow(() -> new ConflictException(
+                        "no-live-node", "No live node could be read, so there is nothing to adopt."));
     }
 
     private Attempt<ClusterDetail> saveRegistration(
@@ -438,7 +451,8 @@ public class ClusterService {
             ConnectionInputs inputs,
             TopologyDiscovery.Survey survey,
             TopologyDiscovery.Preview found,
-            BrokerCapabilities capabilities) {
+            BrokerCapabilities capabilities,
+            RegistrationAdoption.Reading adopted) {
         ClusterIdentity identity = survey.identity();
         ClusterEntity cluster = new ClusterEntity(
                 request.name() != null
@@ -491,7 +505,7 @@ public class ClusterService {
 
         ClusterTopology topology = topologyDiscovery.discover(clusterId, survey, found.proofs());
         if (request.adopts()) {
-            adoption.orElseThrow().adopt(clusterId);
+            adoption.orElseThrow().adopt(clusterId, adopted);
         }
         eventPublisher.publishEvent(new ClusterRegistered(clusterId));
         environmentIndex.invalidate();

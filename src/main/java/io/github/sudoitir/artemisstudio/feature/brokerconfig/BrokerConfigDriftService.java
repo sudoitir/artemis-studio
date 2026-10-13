@@ -31,8 +31,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.ObjectMapper;
@@ -91,7 +89,6 @@ public class BrokerConfigDriftService {
      * the same cluster read the same nodes twice and raced to write the same rows,
      * last one winning.
      */
-    @Transactional
     public Report evaluate(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         AtomicReference<Report> report = new AtomicReference<>();
@@ -154,15 +151,9 @@ public class BrokerConfigDriftService {
     }
 
     /**
-     * Re-evaluate right after an apply so the drift tab reflects what was just written.
-     *
-     * <p>Called from the apply's {@code afterCommit} hook, where the committed
-     * transaction's resources are still bound and any write would join it and be
-     * discarded (Spring's documented {@code afterCommit} contract). A new transaction
-     * is therefore required, not merely preferred: without it the node states written
-     * here never reach the database and the tab keeps saying "not evaluated".
+     * Re-evaluate right after an apply so the drift tab reflects what was just written. Not transactional: the
+     * nodes are read over the network, and each node-state row is saved in its own short transaction.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void evaluateAfterApply(UUID clusterId) {
         try {
             evaluateInternal(clusterId);

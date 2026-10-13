@@ -71,8 +71,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -138,7 +140,8 @@ class BrokerConfigApplyEngineTest {
                 lock,
                 secrets,
                 hub,
-                mapper);
+                mapper,
+                new TransactionTemplate(mock(PlatformTransactionManager.class)));
         when(configs.current(CLUSTER))
                 .thenAnswer(invocation -> Optional.of(new CurrentRevision(1L, 3, document, header, Source.EDIT)));
         when(configs.clusterName(CLUSTER)).thenReturn("prod");

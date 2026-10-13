@@ -67,7 +67,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -131,7 +130,6 @@ public class MessageService {
 
     // ---- browse -----------------------------------------------------------
 
-    @Transactional(readOnly = true)
     public MessagePageView browse(
             UUID clusterId, String queueName, UUID nodeId, String filter, int page, int requestedSize) {
         clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), MessagePermissions.MESSAGE_READ);
@@ -163,7 +161,6 @@ public class MessageService {
                 result.servedBy().name());
     }
 
-    @Transactional(readOnly = true)
     public MessageDetailView detail(UUID clusterId, String queueName, long messageId, UUID nodeId, String filter) {
         clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), MessagePermissions.MESSAGE_READ);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
