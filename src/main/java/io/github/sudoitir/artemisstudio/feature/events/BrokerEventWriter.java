@@ -44,6 +44,14 @@ public class BrokerEventWriter implements BrokerEventSink {
 
     private static final int BATCH_MAX = 500;
 
+    /**
+     * Held, for the transaction, by whoever is inserting. An identity value is taken when a row is inserted
+     * and becomes visible when its transaction commits, so two replicas flushing at once could commit a
+     * lower {@code seq} after a client was already sent a higher one, and a replay from that id would skip it.
+     * One writer at a time makes commit order follow {@code seq} (ADR-0197).
+     */
+    static final String WRITE_LOCK = "broker_event.write";
+
     private static final String INSERT = """
             INSERT INTO broker_event
               (occurred_at, type, address, routing_name, consumer_name, session_name,
@@ -201,6 +209,7 @@ public class BrokerEventWriter implements BrokerEventSink {
      * only when that transaction commits, so a rollback announces nothing.
      */
     private void write(List<BrokerEvent> batch) {
+        jdbc.getJdbcOperations().query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> {}, WRITE_LOCK);
         SqlParameterSource[] params = batch.stream().map(this::params).toArray(SqlParameterSource[]::new);
         KeyHolder keys = new GeneratedKeyHolder();
         jdbc.batchUpdate(INSERT, params, keys, new String[] {"seq"});

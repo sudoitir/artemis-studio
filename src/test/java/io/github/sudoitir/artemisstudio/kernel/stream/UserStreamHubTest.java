@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
@@ -17,7 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 class UserStreamHubTest {
 
-    private final UserStreamHub hub = new UserStreamHub();
+    private final UserStreamHub hub = new UserStreamHub(new SimpleMeterRegistry());
 
     private static Subscriber subscriber(SseEmitter emitter, String sessionId) {
         return new Subscriber(emitter, Set.of(), sessionId, null, null);

@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.stream;
 import io.github.sudoitir.artemisstudio.kernel.replica.BusResumed;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.kernel.security.SessionIdChanged;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
@@ -36,6 +37,12 @@ public class UserStreamHub {
     /** Each user's streams in the order they opened, oldest first. */
     private final Map<UUID, Set<Subscriber>> byUser = new ConcurrentHashMap<>();
 
+    private final MeterRegistry meters;
+
+    public UserStreamHub(MeterRegistry meters) {
+        this.meters = meters;
+    }
+
     /**
      * Adds {@code subscriber} to {@code userId}'s streams and starts its writer. A user who already holds {@link
      * #MAX_STREAMS_PER_USER} loses the oldest. A closed tab's stream is only noticed when a write to it fails, up to a
@@ -58,7 +65,17 @@ public class UserStreamHub {
         if (evicted[0] != null) {
             evicted[0].evict();
         }
-        subscriber.startDrain(frame -> write(userId, subscriber, frame), () -> complete(subscriber));
+        subscriber.startDrain(
+                frame -> write(userId, subscriber, frame),
+                () -> complete(subscriber),
+                new Subscriber.Listener(
+                        (reason, frames) -> meters.counter("studio.sse.dropped", "reason", reason)
+                                .increment(frames),
+                        () -> {
+                            unregister(userId, subscriber);
+                            log.warn(
+                                    "A user stream kept falling behind or stopped reading; it is closed and reconnects");
+                        }));
     }
 
     /** Forget a subscriber whose stream is over, and stop its writer. */
