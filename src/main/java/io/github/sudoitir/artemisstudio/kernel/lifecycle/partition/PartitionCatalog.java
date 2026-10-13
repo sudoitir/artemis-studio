@@ -53,6 +53,13 @@ final class PartitionCatalog {
      * Runs {@code statements}, each as its own auto-committed statement, on one connection with the long
      * statement timeout, and puts the connection's own timeout back afterwards.
      */
+    private static void setStatementTimeout(java.sql.Connection connection, String value) throws SQLException {
+        try (var set = connection.prepareStatement("SELECT set_config('statement_timeout', ?, false)")) {
+            set.setString(1, value);
+            set.execute();
+        }
+    }
+
     static void outsideTransaction(JdbcTemplate jdbc, String... statements) {
         jdbc.execute((java.sql.Connection connection) -> {
             try (Statement statement = connection.createStatement()) {
@@ -61,13 +68,13 @@ final class PartitionCatalog {
                     rs.next();
                     previous = rs.getString(1);
                 }
-                statement.execute("SET statement_timeout = " + StatementTimeout.LONG.toMillis());
+                setStatementTimeout(connection, Long.toString(StatementTimeout.LONG.toMillis()));
                 try {
                     for (String sql : statements) {
                         statement.execute(sql);
                     }
                 } finally {
-                    statement.execute("SET statement_timeout = '" + previous + "'");
+                    setStatementTimeout(connection, previous);
                 }
             } catch (SQLException e) {
                 throw jdbc.getExceptionTranslator().translate("partition maintenance", null, e);

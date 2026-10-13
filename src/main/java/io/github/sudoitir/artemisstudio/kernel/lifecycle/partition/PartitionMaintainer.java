@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle.partition;
 
 import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
+import io.github.sudoitir.artemisstudio.kernel.core.SqlIdentifier;
 import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionCatalog.Child;
 import java.sql.Timestamp;
@@ -108,11 +109,13 @@ public class PartitionMaintainer implements PartitionProvisioner, SmartLifecycle
             String name = spec.grain().name(spec.table(), start);
             // Identifiers cannot be bound: the name is the spec's table plus a formatted date, and the
             // bounds are formatted dates, so nothing here carries caller-supplied text.
+            String partition = SqlIdentifier.quote(name);
+            String parent = SqlIdentifier.quote(spec.table());
             jdbc.execute("CREATE TABLE IF NOT EXISTS %s (LIKE %s INCLUDING DEFAULTS INCLUDING CONSTRAINTS)%s"
-                    .formatted(name, spec.table(), with(spec)));
+                    .formatted(partition, parent, with(spec)));
             if (!PartitionCatalog.attached(jdbc, spec, name)) {
                 jdbc.execute("ALTER TABLE %s ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
-                        .formatted(spec.table(), name, BOUND.format(start), BOUND.format(next)));
+                        .formatted(parent, partition, BOUND.format(start), BOUND.format(next)));
                 log.info("Created {} partition {}", spec.table(), name);
             }
             start = next;
@@ -123,22 +126,27 @@ public class PartitionMaintainer implements PartitionProvisioner, SmartLifecycle
         return spec.storageParams().isEmpty() ? "" : " WITH (" + spec.storageParams() + ")";
     }
 
+    private static boolean dueToFreeze(PartitionSpec spec, Child child, Instant now) {
+        if (child.start() == null || child.detachPending() || child.frozen()) {
+            return false;
+        }
+        Instant closed = spec.grain().next(child.start()).atStartOfDay().toInstant(ZoneOffset.UTC);
+        return !closed.plus(FREEZE_AFTER).isAfter(now);
+    }
+
     /** Freezes and analyzes a partition once its period has closed, and marks it so it is not done again. */
     private void freezeClosed(PartitionSpec spec) {
         Instant now = clock.instant();
         for (Child child : PartitionCatalog.children(jdbc, spec)) {
-            if (child.start() == null || child.detachPending() || child.frozen()) {
-                continue;
-            }
-            Instant closed = spec.grain().next(child.start()).atStartOfDay().toInstant(ZoneOffset.UTC);
-            if (closed.plus(FREEZE_AFTER).isAfter(now)) {
+            if (!dueToFreeze(spec, child, now)) {
                 continue;
             }
             try {
                 PartitionCatalog.outsideTransaction(
                         jdbc,
-                        "VACUUM (FREEZE, ANALYZE) " + child.name(),
-                        "COMMENT ON TABLE " + child.name() + " IS '" + PartitionCatalog.FROZEN + "'");
+                        "VACUUM (FREEZE, ANALYZE) " + SqlIdentifier.quote(child.name()),
+                        "COMMENT ON TABLE " + SqlIdentifier.quote(child.name()) + " IS '" + PartitionCatalog.FROZEN
+                                + "'");
             } catch (RuntimeException e) {
                 log.warn("Could not freeze {}; the next run tries again", child.name(), e);
             }

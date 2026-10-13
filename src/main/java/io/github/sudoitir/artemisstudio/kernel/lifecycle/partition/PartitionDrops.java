@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle.partition;
 
+import io.github.sudoitir.artemisstudio.kernel.core.SqlIdentifier;
 import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionCatalog.Child;
@@ -41,7 +42,7 @@ public class PartitionDrops {
             long bytes = 0;
             for (String name : expired(spec, cutoff)) {
                 // Names come from the catalog, not from a caller: see expired.
-                rows += jdbc.queryForObject("SELECT count(*) FROM " + name, Long.class);
+                rows += jdbc.queryForObject("SELECT count(*) FROM " + SqlIdentifier.quote(name), Long.class);
                 bytes += jdbc.queryForObject("SELECT pg_total_relation_size(to_regclass(?))", Long.class, name);
             }
             return new PurgeEstimate(rows, bytes);
@@ -71,18 +72,22 @@ public class PartitionDrops {
     /** Detaches {@code name} without blocking writers and drops it. Must not run inside a transaction. */
     public long drop(PartitionSpec spec, String name) {
         long rows = PartitionCatalog.rows(jdbc, name);
+        String partition = SqlIdentifier.quote(name);
         PartitionCatalog.outsideTransaction(
                 jdbc,
-                "ALTER TABLE " + spec.table() + " DETACH PARTITION " + name + " CONCURRENTLY",
-                "DROP TABLE " + name);
+                "ALTER TABLE " + SqlIdentifier.quote(spec.table()) + " DETACH PARTITION " + partition + " CONCURRENTLY",
+                "DROP TABLE " + partition);
         log.info("Dropped expired {} partition {}", spec.table(), name);
         return Math.max(1, rows);
     }
 
     private long finish(PartitionSpec spec, String name) {
         long rows = PartitionCatalog.rows(jdbc, name);
+        String partition = SqlIdentifier.quote(name);
         PartitionCatalog.outsideTransaction(
-                jdbc, "ALTER TABLE " + spec.table() + " DETACH PARTITION " + name + " FINALIZE", "DROP TABLE " + name);
+                jdbc,
+                "ALTER TABLE " + SqlIdentifier.quote(spec.table()) + " DETACH PARTITION " + partition + " FINALIZE",
+                "DROP TABLE " + partition);
         log.info("Finished the detach of {} partition {} and dropped it", spec.table(), name);
         return Math.max(1, rows);
     }

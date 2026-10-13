@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditPosition;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Plan;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Purged;
+import io.github.sudoitir.artemisstudio.kernel.core.SqlIdentifier;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.Grain;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
@@ -152,7 +153,7 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
     private long dropIfWhollyEligible(String partition, Instant cutoff, Plan plan) {
         // Names come from the catalog, not from a caller: see PartitionDrops.expired.
         Boolean keep = jdbc.query(
-                "SELECT EXISTS (SELECT 1 FROM " + partition + " e WHERE NOT (" + ELIGIBLE + "))",
+                "SELECT EXISTS (SELECT 1 FROM " + SqlIdentifier.quote(partition) + " e WHERE NOT (" + ELIGIBLE + "))",
                 binder(cutoff, plan, null),
                 rs -> rs.next() && rs.getBoolean(1));
         if (Boolean.TRUE.equals(keep)) {
@@ -162,7 +163,8 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
         if (unacknowledged.size() > MAX_GAP_ROWS) {
             return 0;
         }
-        Timestamp newestTs = jdbc.queryForObject("SELECT max(ts) FROM " + partition, Timestamp.class);
+        Timestamp newestTs =
+                jdbc.queryForObject("SELECT max(ts) FROM " + SqlIdentifier.quote(partition), Timestamp.class);
         Instant newest = newestTs == null ? null : newestTs.toInstant();
         List<Purged> purged = new ArrayList<>(unacknowledged);
         if (newest != null) {
@@ -170,14 +172,14 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
             purged.add(new Purged(plan.floor() == null ? AuditPosition.START : plan.floor(), newest));
         }
         tx.executeWithoutResult(status -> guard.recordPurged(purged));
-        Long rows = jdbc.queryForObject("SELECT count(*) FROM " + partition, Long.class);
+        Long rows = jdbc.queryForObject("SELECT count(*) FROM " + SqlIdentifier.quote(partition), Long.class);
         drops.drop(PARTITIONS, partition);
         return rows == null ? 0 : rows;
     }
 
     private List<Purged> unacknowledged(String partition, AuditPosition floor) {
         return jdbc.query(
-                "SELECT pos_txid::text, pos_seq, ts FROM " + partition
+                "SELECT pos_txid::text, pos_seq, ts FROM " + SqlIdentifier.quote(partition)
                         + " WHERE (pos_txid, pos_seq) > (?::text::xid8, ?::bigint) LIMIT " + (MAX_GAP_ROWS + 1),
                 (rs, i) -> new Purged(
                         new AuditPosition(Long.parseLong(rs.getString(1)), rs.getLong(2)),
