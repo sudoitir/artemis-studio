@@ -266,7 +266,7 @@ compromised, remove it. Plugin authors: see [Sign your plugin](https://github.co
 
 ## Capacity
 
-Each active plugin takes up to 3 database connections, next to Studio's own 10. Activation is
+Each active plugin takes up to 3 database connections, next to Studio's own 16 (the pool size, `ARTEMIS_STUDIO_DB_POOL_SIZE`). Activation is
 refused, with the reason, once that would exceed 80% of Postgres' `max_connections`. The Plugins tab
 shows the current count.
 
