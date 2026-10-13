@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Text } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
@@ -7,16 +7,20 @@ import { useCluster } from './api.ts';
 import { CapabilityLedger } from './CapabilityLedger.tsx';
 import { ConnectionForm } from './ConnectionSettings.tsx';
 import { RegisterClusterButton } from './RegisterClusterButton.tsx';
+import classes from './Clusters.module.css';
 
 /** Settings section: register another cluster. */
 export function RegisterSection() {
   return (
     <>
-      <Text size="sm" c="dimmed" mb="sm">
+      <Text size="sm" c="dimmed" mb="sm" className={classes.intro}>
         Register another cluster; remove this one under This cluster → Remove cluster. Studio finds brokers that join a
         registered cluster on its own.
       </Text>
-      <RegisterClusterButton />
+      {/* A button is as wide as its words, not the section's. */}
+      <Group>
+        <RegisterClusterButton />
+      </Group>
     </>
   );
 }
@@ -42,7 +46,7 @@ export function ConnectionSection({ clusterId }: Readonly<{ clusterId: string }>
   const cluster = useCluster(clusterId);
   return (
     <>
-      <Text size="sm" c="dimmed" mb="sm">
+      <Text size="sm" c="dimmed" mb="sm" className={classes.intro}>
         How Studio reaches <strong>{cluster.data?.name ?? 'this cluster'}</strong>: the management address you gave, the
         pattern that gives every other node its own, and the management and Core accounts, which are stored separately.
         Check a change first; nothing is saved until you save it.
@@ -65,7 +69,7 @@ export function CapabilitiesSection({ clusterId }: Readonly<{ clusterId: string 
   const cluster = useCluster(clusterId);
   return (
     <>
-      <Text size="sm" c="dimmed" mb="sm">
+      <Text size="sm" c="dimmed" mb="sm" className={classes.intro}>
         What this connection can and cannot do over Jolokia. Rows that are not plainly available expand with the reason
         and the exact <code>broker.xml</code> change to close the gap.
       </Text>

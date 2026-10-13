@@ -1,3 +1,8 @@
+/* A section's opening paragraph keeps a reading measure while the section below it uses the page's width. */
+.intro {
+  max-inline-size: 70ch;
+}
+
 /* The registration form: one column at a readable width. */
 .register {
   max-inline-size: 40rem;
@@ -33,12 +38,28 @@
   font-family: var(--mantine-font-family-monospace);
 }
 
-/* A form of a settings section: fields that stay a readable width instead of stretching across the page. */
+/* A form of a settings section: its groups of fields side by side across the panel, each a column of fields,
+   stacking when there is no room for two. What the form reports and its actions run across the whole form. */
 .settingsForm {
+  display: grid;
+  /* Two columns at most: each takes at least half the row, and the whole row once half is under 24rem. */
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(min(100%, 24rem), calc((100% - var(--mantine-spacing-xl)) / 2)), 1fr)
+  );
+  align-items: start;
+  gap: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+}
+
+.settingsForm > :not(.formGroup) {
+  grid-column: 1 / -1;
+}
+
+.formGroup {
   display: flex;
   flex-direction: column;
   gap: var(--mantine-spacing-xs);
-  max-inline-size: 30rem;
+  min-inline-size: 0;
 }
 
 .start {

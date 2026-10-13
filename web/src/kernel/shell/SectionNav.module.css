@@ -21,10 +21,11 @@
   padding-inline-end: var(--mantine-spacing-xs);
 }
 
-/* Holds a section's height, so a short one does not collapse the page and clamp the scroll position. */
+/* Fills the column beside the list: a section's tables and rows use the page's width, and only prose keeps a
+   reading measure of its own. Holds a section's height, so a short one does not collapse the page and clamp the
+   scroll position. */
 .panel {
   min-inline-size: 0;
-  max-inline-size: 64rem;
   min-block-size: 60dvh;
   scroll-margin-block-start: calc(var(--app-shell-header-offset, 0px) + var(--mantine-spacing-md));
 }
