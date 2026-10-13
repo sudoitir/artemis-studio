@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditExportR
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
@@ -130,6 +131,9 @@ public class AuditQueryService {
         long[] written = {0};
         try {
             transactions.executeWithoutResult(tx -> {
+                entityManager
+                        .createNativeQuery(StatementTimeout.setLocal(StatementTimeout.LONG))
+                        .executeUpdate();
                 try (Stream<AuditEventEntity> rows =
                         events.streamFiltered(filter(export.clusterId, export.scope, export.query))) {
                     rows.forEach(e -> {

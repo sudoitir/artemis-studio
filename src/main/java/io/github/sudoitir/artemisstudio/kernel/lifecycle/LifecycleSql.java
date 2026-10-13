@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 
+import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -38,8 +39,10 @@ public final class LifecycleSql {
 
     /** Counts the rows {@link #deleteBatch} would remove, and prices them at the table's average row size. */
     public static PurgeEstimate estimate(JdbcTemplate jdbc, String table, String predicate, Instant cutoff) {
-        Long rows = jdbc.queryForObject(
-                "SELECT count(*) FROM " + table + " WHERE " + predicate, Long.class, Timestamp.from(cutoff));
+        Long rows = StatementTimeout.inLongTransaction(
+                jdbc,
+                () -> jdbc.queryForObject(
+                        "SELECT count(*) FROM " + table + " WHERE " + predicate, Long.class, Timestamp.from(cutoff)));
         StoreUsage usage = usage(jdbc, java.util.List.of(table));
         long bytesPerRow = usage.rows() > 0 ? usage.bytes() / usage.rows() : 0;
         long n = rows == null ? 0 : rows;

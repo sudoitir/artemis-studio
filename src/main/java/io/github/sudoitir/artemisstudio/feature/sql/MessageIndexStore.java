@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
+import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.HousekeepingContributor;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleSql;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.ManagedStore;
@@ -72,12 +73,17 @@ public class MessageIndexStore implements HousekeepingContributor, ManagedStore 
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        long rows = 0;
-        long bytes = 0;
-        for (String name : expiredPartitions(cutoff)) {
-            rows += jdbc.queryForObject("SELECT count(*) FROM " + name, Long.class);
-            bytes += jdbc.queryForObject("SELECT pg_total_relation_size(?::regclass)", Long.class, name);
-        }
+        long[] total = StatementTimeout.inLongTransaction(jdbc, () -> {
+            long rows = 0;
+            long bytes = 0;
+            for (String name : expiredPartitions(cutoff)) {
+                rows += jdbc.queryForObject("SELECT count(*) FROM " + name, Long.class);
+                bytes += jdbc.queryForObject("SELECT pg_total_relation_size(?::regclass)", Long.class, name);
+            }
+            return new long[] {rows, bytes};
+        });
+        long rows = total[0];
+        long bytes = total[1];
         PurgeEstimate inDefault = LifecycleSql.estimate(jdbc, DEFAULT_PARTITION, DEFAULT_PREDICATE, cutoff);
         return new PurgeEstimate(rows + inDefault.rows(), bytes + inDefault.bytes());
     }
@@ -93,8 +99,11 @@ public class MessageIndexStore implements HousekeepingContributor, ManagedStore 
         // Plain DETACH, not CONCURRENTLY: Postgres refuses a concurrent detach on a partitioned
         // table that keeps a DEFAULT partition, and this one does. The catalog update takes
         // ACCESS EXCLUSIVE for milliseconds and scans no rows.
-        jdbc.execute("ALTER TABLE " + TABLE + " DETACH PARTITION " + name);
-        jdbc.execute("DROP TABLE " + name);
+        StatementTimeout.inLongTransaction(jdbc, () -> {
+            jdbc.execute("ALTER TABLE " + TABLE + " DETACH PARTITION " + name);
+            jdbc.execute("DROP TABLE " + name);
+            return null;
+        });
         log.info("Dropped expired message_index partition {}", name);
         return Math.max(1, rows);
     }
