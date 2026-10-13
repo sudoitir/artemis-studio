@@ -16,7 +16,6 @@ import liquibase.changelog.ChangeLogParameters;
 import liquibase.changelog.ChangeSet;
 import liquibase.changelog.DatabaseChangeLog;
 import liquibase.command.CommandScope;
-import liquibase.command.core.ReleaseLocksCommandStep;
 import liquibase.command.core.RollbackCommandStep;
 import liquibase.command.core.TagCommandStep;
 import liquibase.command.core.UpdateCommandStep;
@@ -88,7 +87,6 @@ public class PluginMigrations {
                 Set<String> publicBefore = publicRelations(connection);
 
                 withResourceAccessor(jarPath, accessor -> {
-                    releaseLocks(database);
                     CommandScope tagCmd = new CommandScope(TagCommandStep.COMMAND_NAME);
                     tagCmd.addArgumentValue(TagCommandStep.TAG_ARG, tag);
                     provideDatabase(tagCmd, database);
@@ -271,12 +269,6 @@ public class PluginMigrations {
     private void provideDatabase(CommandScope command, Database database) {
         command.provideDependency(Database.class, database);
         command.addArgumentValue(DbUrlConnectionArgumentsCommandStep.DATABASE_ARG, database);
-    }
-
-    private void releaseLocks(Database database) throws liquibase.exception.CommandExecutionException {
-        CommandScope releaseLocks = new CommandScope(ReleaseLocksCommandStep.COMMAND_NAME);
-        provideDatabase(releaseLocks, database);
-        releaseLocks.execute();
     }
 
     private void acquireAdvisoryLock(Connection connection, String pluginId) throws java.sql.SQLException {

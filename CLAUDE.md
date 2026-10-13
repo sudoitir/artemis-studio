@@ -93,11 +93,14 @@ one is missing.
    (integer, text, jsonb, bytea, inet), then uuid and boolean last — the PK is not
    first, on purpose. High-churn tables carry per-table `autovacuum` / `fillfactor`
    storage parameters in the same changeset. Server-level tuning lives in
-   `deploy/postgres/postgresql.tuning.conf` (and inline in the compose files).
-   Never edit a released changeset — add a new one. Each module owns its tables and
+   `deploy/postgres/postgresql.conf`. Every table has a primary key, every uuid key
+   defaults to `uuidv7()` (bearer handles excepted), every foreign key leads an index, and
+   `SchemaLintTest` checks the migrated catalog (ADR-0192). Until the first stable release
+   each module keeps one `changes/0001-baseline.sql` and a schema change edits it; operators
+   recreate the database (ADR-0192, amending ADR-0072). After the stable release a released
+   changeset is never edited: add a new one. Each module owns its tables and
    its changelog under `db/changelog/<layer>/<id>/`; a cross-module foreign key follows
-   an allowed dependency. The per-module re-baseline (ADR-0072) was a one-time,
-   recorded exception to this rule, not a precedent.
+   an allowed dependency.
 8. **Logical CSS properties** (`inline-start`, `block-end`), never `left`/`right`.
 9. **State has one owner.** Server state via TanStack Query; navigable state in the
    URL; local state stays local. No global store for what a URL can hold.

@@ -43,7 +43,7 @@ public class InboxService implements PluginScopedBeans {
     private static final String POST = """
             INSERT INTO inbox_item
                 (recipient_id, source, kind, severity, title, body, link, dedupe_key, data, created_at, expires_at)
-            SELECT r.id, ?, ?, ?, ?, ?, ?, ?, ?::json, ?, ?
+            SELECT r.id, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?
             FROM unnest(?) AS r(id) JOIN app_user u ON u.id = r.id
             ON CONFLICT (recipient_id, source, dedupe_key) WHERE dedupe_key IS NOT NULL
             DO UPDATE SET kind = EXCLUDED.kind, severity = EXCLUDED.severity, title = EXCLUDED.title,

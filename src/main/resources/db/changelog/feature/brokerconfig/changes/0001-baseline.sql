@@ -1,9 +1,8 @@
 --liquibase formatted sql
 
--- The feature/brokerconfig module's schema as of the per-module re-baseline (ADR-0072), generated
--- from a database migrated by the previous changelog and split by owner. Column order
--- (non-negotiable #7), storage parameters, partitions and indexes are as they were.
--- Never edit this file once released; add a new changeset beside it.
+-- The feature/brokerconfig module's schema (ADR-0192): the final shape of its tables, written in one file.
+-- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
+-- Until the first stable release a change edits this file, and operators recreate the database.
 
 --changeset artemis-studio:feature-brokerconfig-0001-baseline splitStatements:true
 CREATE TABLE broker_config_apply (
@@ -23,15 +22,6 @@ CREATE TABLE broker_config_apply (
     CONSTRAINT ck_broker_config_apply_outcome CHECK ((outcome = ANY (ARRAY['DRY_RUN'::text, 'APPLIED'::text, 'HALTED'::text, 'FAILED'::text])))
 );
 
-ALTER TABLE broker_config_apply ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME broker_config_apply_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
 CREATE TABLE broker_config_declaration (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     current_revision_id bigint NOT NULL,
@@ -44,14 +34,14 @@ CREATE TABLE broker_config_declaration (
 
 CREATE TABLE broker_config_node_state (
     evaluated_at timestamp with time zone DEFAULT now() NOT NULL,
+    basis_ref bigint,
     verified_revision integer,
     findings jsonb DEFAULT '[]'::jsonb NOT NULL,
     state text NOT NULL,
     detail text,
+    basis text,
     cluster_id uuid NOT NULL,
     node_id uuid NOT NULL,
-    basis_ref bigint,
-    basis text,
     CONSTRAINT ck_broker_config_node_state_basis CHECK (((basis IS NULL) OR (basis = ANY (ARRAY['VERIFIED_APPLY'::text, 'ADOPTED'::text, 'OBSERVED_MATCH'::text])))),
     CONSTRAINT ck_broker_config_node_state_state CHECK ((state = ANY (ARRAY['IN_SYNC'::text, 'DRIFTED'::text, 'NOT_EVALUATED'::text, 'UNREACHABLE'::text])))
 )
@@ -63,7 +53,7 @@ CREATE TABLE broker_config_owned_item (
     kind text NOT NULL,
     item_key text NOT NULL,
     cluster_id uuid NOT NULL,
-    CONSTRAINT ck_broker_config_owned_item_kind CHECK ((kind = ANY (ARRAY['ADDRESS_SETTING'::text, 'SECURITY_SETTING'::text, 'DIVERT'::text])))
+    CONSTRAINT ck_broker_config_owned_item_kind CHECK ((kind = ANY (ARRAY['ADDRESS_SETTING'::text, 'SECURITY_SETTING'::text, 'DIVERT'::text, 'BRIDGE'::text])))
 );
 
 CREATE TABLE broker_config_revision (
@@ -76,6 +66,15 @@ CREATE TABLE broker_config_revision (
     created_by text NOT NULL,
     cluster_id uuid NOT NULL,
     CONSTRAINT ck_broker_config_revision_source CHECK ((source = ANY (ARRAY['EDIT'::text, 'IMPORT_XML'::text, 'ADOPT'::text, 'MCP'::text, 'RECOMMENDED'::text])))
+);
+
+ALTER TABLE broker_config_apply ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME broker_config_apply_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
 );
 
 ALTER TABLE broker_config_revision ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -107,6 +106,12 @@ ALTER TABLE ONLY broker_config_revision
 
 CREATE INDEX ix_broker_config_apply_cluster ON broker_config_apply USING btree (cluster_id, started_at DESC);
 
+CREATE INDEX ix_broker_config_apply_revision_id ON broker_config_apply USING btree (revision_id);
+
+CREATE INDEX ix_broker_config_declaration_current_revision_id ON broker_config_declaration USING btree (current_revision_id);
+
+CREATE INDEX ix_broker_config_node_state_node_id ON broker_config_node_state USING btree (node_id);
+
 ALTER TABLE ONLY broker_config_apply
     ADD CONSTRAINT fk_broker_config_apply_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;
 
@@ -130,8 +135,8 @@ ALTER TABLE ONLY broker_config_owned_item
 
 ALTER TABLE ONLY broker_config_revision
     ADD CONSTRAINT fk_broker_config_revision_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;
+--rollback DROP TABLE IF EXISTS broker_config_revision CASCADE;
 --rollback DROP TABLE IF EXISTS broker_config_owned_item CASCADE;
 --rollback DROP TABLE IF EXISTS broker_config_node_state CASCADE;
---rollback DROP TABLE IF EXISTS broker_config_apply CASCADE;
 --rollback DROP TABLE IF EXISTS broker_config_declaration CASCADE;
---rollback DROP TABLE IF EXISTS broker_config_revision CASCADE;
+--rollback DROP TABLE IF EXISTS broker_config_apply CASCADE;

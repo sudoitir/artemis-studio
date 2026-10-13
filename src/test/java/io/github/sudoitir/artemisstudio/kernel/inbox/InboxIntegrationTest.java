@@ -314,7 +314,7 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
     private void insertRaw(Person to, String title, String link, String data) {
         jdbc.update(
                 "INSERT INTO inbox_item (recipient_id, source, kind, severity, title, link, data, created_at)"
-                        + " VALUES (?, 's', 'k', 'info', ?, ?, ?::json, now())",
+                        + " VALUES (?, 's', 'k', 'info', ?, ?, ?::jsonb, now())",
                 to.id(),
                 title,
                 link,

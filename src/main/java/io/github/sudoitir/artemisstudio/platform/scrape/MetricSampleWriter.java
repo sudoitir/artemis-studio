@@ -16,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Appends {@code metric_sample} rows for swept queues (ADR-0006 — Studio owns the
  * timeseries in Postgres). Six points per queue per tier-B/C tick for the counters
  * the queue grid, the charts and the consumer-health verdict care about. Append-only,
- * JDBC batch — the table is range-partitioned and insert-tuned (changeset 005).
+ * JDBC batch — the table is range-partitioned and insert-tuned. Its key is the lookup
+ * (cluster, subject, metric, time), so a sample the key already holds is skipped.
  *
  * <p>{@code deliveringCount} and {@code messagesExpired} are sampled for ADR-0089:
  * in-flight depth is what separates a stalled consumer from a starved one, and both
@@ -31,11 +32,13 @@ public class MetricSampleWriter {
     private static final String INSERT = """
             INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
             VALUES (now(), :value, 'QUEUE', :subjectName, :metric, :clusterId, :nodeId)
+            ON CONFLICT DO NOTHING
             """;
 
     private static final String PLUGIN_INSERT = """
             INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
             VALUES (now(), :value, 'PLUGIN', :subjectName, :metric, :clusterId, NULL)
+            ON CONFLICT DO NOTHING
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
