@@ -3,14 +3,21 @@ package io.github.sudoitir.artemisstudio.kernel.auditfeed;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditDelivery;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditFeed;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditGap;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditPosition;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditReceiver;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditRecord;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.FakeHandle;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.TestReceiver;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Purged;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -35,6 +42,12 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
 
     @Autowired
     AuditService audit;
+
+    @Autowired
+    AuditRetentionGuard guard;
+
+    @Autowired
+    AuditFeed feed;
 
     @Autowired
     JdbcTemplate jdbc;
@@ -62,6 +75,7 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
     void detach() {
         receivers.detach(handle);
         jdbc.update("DELETE FROM audit_receiver WHERE plugin_id = ?", pluginId);
+        jdbc.update("UPDATE audit_feed_state SET retained_from = NULL");
     }
 
     private AuditEvent write(String name) {
@@ -198,5 +212,30 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_receiver WHERE plugin_id = ?", Long.class, pluginId))
                 .isZero();
+    }
+
+    @Test
+    void aGapIsToldToTheReceiverAndAuditedOnce() {
+        Instant first = Instant.parse("2026-01-01T00:00:00Z");
+        Instant last = Instant.parse("2026-01-02T00:00:00Z");
+        guard.recordPurged(List.of(
+                new Purged(new AuditPosition(Long.MAX_VALUE / 2, 1), first),
+                new Purged(new AuditPosition(Long.MAX_VALUE / 2, 2), last)));
+
+        job.tick();
+        job.tick();
+
+        assertThat(jdbc.queryForList(
+                        "SELECT affected_count FROM audit_event WHERE action = 'AUDIT_GAP' AND target_type = 'PLUGIN' AND target_name = ?",
+                        Long.class,
+                        pluginId))
+                .containsExactly(2L);
+        assertThat(receiver.batches).extracting(AuditDelivery::gap).contains(new AuditGap(2, first, last));
+        assertThat(jdbc.queryForObject(
+                        "SELECT delivered_at IS NOT NULL AND audited_at IS NOT NULL FROM audit_receiver_gap WHERE plugin_id = ?",
+                        Boolean.class,
+                        pluginId))
+                .isTrue();
+        assertThat(feed.retainedFrom()).contains(last);
     }
 }

@@ -6,6 +6,7 @@
         displayName = "Data lifecycle",
         allowedDependencies = {
             "kernel.audit",
+            "kernel.auditfeed",
             "kernel.gate",
             "kernel.jobs",
             "kernel.plugin",

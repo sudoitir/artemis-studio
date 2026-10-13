@@ -5,26 +5,21 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditFeed;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditGap;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditPosition;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditReceiver;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditRecord;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceivers.Attached;
 import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
-import jakarta.annotation.PreDestroy;
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -57,7 +52,7 @@ class AuditDeliveryJob {
     private final AuditService audit;
     private final AuditReceivers receivers;
     private final SettingsService settings;
-    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final PluginCalls calls;
 
     /** One delivery to a receiver at a time, whichever thread asks. */
     private final Map<String, Object> locks = new ConcurrentHashMap<>();
@@ -68,18 +63,15 @@ class AuditDeliveryJob {
             AuditFeed feed,
             AuditService audit,
             AuditReceivers receivers,
+            PluginCalls calls,
             SettingsService settings) {
         this.jdbc = jdbc;
         this.tx = tx;
         this.feed = feed;
         this.audit = audit;
         this.receivers = receivers;
+        this.calls = calls;
         this.settings = settings;
-    }
-
-    @PreDestroy
-    void close() {
-        executor.shutdownNow();
     }
 
     /** One tick: records the gaps retention left, then serves every due receiver attached here, in parallel. */
@@ -87,10 +79,10 @@ class AuditDeliveryJob {
         auditGaps();
         List<String> due =
                 jdbc.queryForList("SELECT plugin_id FROM audit_receiver WHERE next_attempt_at <= now()", String.class);
-        List<? extends Future<?>> running = receivers.attached().stream()
+        List<? extends Future<?>> running = receivers.receivers().stream()
                 .map(a -> a.handle().id())
                 .filter(due::contains)
-                .map(id -> executor.submit(() -> deliver(id)))
+                .map(id -> calls.run(() -> deliver(id)))
                 .toList();
         for (Future<?> f : running) {
             try {
@@ -115,7 +107,7 @@ class AuditDeliveryJob {
 
     /** Whether the receiver took a full batch, so that more is probably waiting. */
     private boolean deliverBatch(String pluginId) {
-        Attached target = receivers.attached(pluginId);
+        Attached<AuditReceiver> target = receivers.receiver(pluginId);
         AuditPosition from = position(pluginId);
         if (target == null || from == null) {
             return false;
@@ -126,7 +118,14 @@ class AuditDeliveryJob {
             return false;
         }
         try {
-            call(target, new AuditDelivery(records, merge(gaps)));
+            AuditDelivery delivery = new AuditDelivery(records, merge(gaps));
+            calls.call(
+                    target.handle(),
+                    () -> {
+                        target.bean().receive(delivery);
+                        return null;
+                    },
+                    settings.duration(AuditFeedSettings.TIMEOUT));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return false;
@@ -136,25 +135,6 @@ class AuditDeliveryJob {
         }
         AuditPosition to = records.isEmpty() ? from : records.getLast().position();
         return acknowledge(pluginId, from, to, gaps) && records.size() == BATCH;
-    }
-
-    private void call(Attached target, AuditDelivery delivery) throws Exception {
-        Duration timeout = settings.duration(AuditFeedSettings.TIMEOUT);
-        Future<Object> call = executor.submit(() -> target.handle().runInPlugin(() -> {
-            target.receiver().receive(delivery);
-            return null;
-        }));
-        try {
-            call.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw e.getCause() instanceof Exception cause ? cause : e;
-        } catch (TimeoutException e) {
-            call.cancel(true);
-            throw new TimeoutException("The receiver did not return within " + timeout);
-        } catch (InterruptedException e) {
-            call.cancel(true);
-            throw e;
-        }
     }
 
     /** Moves the cursor from {@code from} to {@code to} and marks the gaps told; false when another replica moved it first. */

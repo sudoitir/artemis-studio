@@ -51,10 +51,15 @@ public class AuditFeed {
         return jdbc.query(SELECT + " WHERE id > ? ORDER BY id LIMIT ?", AuditFeed::record, afterId, capped(limit));
     }
 
-    /** The time of the oldest record still held, empty when there is none. */
+    /**
+     * The time from which the trail is complete: the newest record retention has removed once any
+     * was, otherwise the oldest record held. Empty when there is neither.
+     */
     @Transactional(readOnly = true)
     public Optional<Instant> retainedFrom() {
-        return Optional.ofNullable(jdbc.queryForObject("SELECT min(ts) FROM audit_event", Timestamp.class))
+        return Optional.ofNullable(jdbc.queryForObject(
+                        "SELECT coalesce((SELECT retained_from FROM audit_feed_state), (SELECT min(ts) FROM audit_event))",
+                        Timestamp.class))
                 .map(Timestamp::toInstant);
     }
 

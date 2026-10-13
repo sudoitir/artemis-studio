@@ -1,12 +1,24 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditHold;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditReceiver;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditRetentionHold;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditFeedSettings;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditPurgeRefused;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.FakeHandle;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.TestHold;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.TestReceiver;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceivers;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +49,12 @@ class AuditStoreTest extends PostgresIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    AuditReceivers receivers;
+
+    @Autowired
+    PurgeStatus purgeStatus;
+
     @BeforeEach
     void events() {
         jdbc.update("DELETE FROM audit_event WHERE action = 'PURGE_STORE' AND target_name = 'audit'");
@@ -49,6 +67,8 @@ class AuditStoreTest extends PostgresIntegrationTest {
     @AfterEach
     void cleanUp() {
         settings.reset(RETENTION);
+        settings.reset(AuditFeedSettings.MAX_UNACKNOWLEDGED_AGE);
+        jdbc.update("DELETE FROM audit_receiver WHERE plugin_id LIKE 'audit-store-test-%'");
         jdbc.update("DELETE FROM audit_event WHERE action IN (?, ?, 'PURGE_STORE')", OLD, RECENT);
     }
 
@@ -117,5 +137,126 @@ class AuditStoreTest extends PostgresIntegrationTest {
                         "SELECT affected_count FROM audit_event WHERE action = 'PURGE_STORE' AND target_name = 'audit'",
                         Long.class))
                 .containsExactly(old);
+    }
+
+    private FakeHandle holder(TestHold hold) {
+        String id = "audit-store-test-hold";
+        AuditReceiverFixtures.installHolder(jdbc, id);
+        FakeHandle handle = new FakeHandle(id, false, true, Map.of(AuditRetentionHold.class, hold));
+        receivers.attach(handle);
+        return handle;
+    }
+
+    private void release(FakeHandle handle) {
+        receivers.detach(handle);
+        AuditReceiverFixtures.removeHolder(jdbc, handle.id());
+    }
+
+    private long purgeAll() {
+        Instant cutoff = Instant.now().minus(Duration.ofDays(30));
+        long purged = 0;
+        long batch;
+        do {
+            batch = store.purgeBatch(cutoff, 100);
+            purged += batch;
+        } while (batch > 0);
+        return purged;
+    }
+
+    @Test
+    void aHeldRecordIsLeftAloneWhateverTheRetention() {
+        TestHold hold = new TestHold();
+        hold.holds = java.util.List.of(new AuditHold(null, null, null, null, OLD, null, null));
+        FakeHandle handle = holder(hold);
+        try {
+            purgeAll();
+
+            assertThat(count(OLD)).isEqualTo(5);
+
+            hold.holds = java.util.List.of();
+            purgeAll();
+
+            assertThat(count(OLD)).isZero();
+        } finally {
+            release(handle);
+        }
+    }
+
+    @Test
+    void aHoldThatThrowsRefusesThePurgeAndTheRunReportsWhy() {
+        TestHold hold = new TestHold();
+        hold.failure = new IllegalStateException("evidence store offline");
+        FakeHandle handle = holder(hold);
+        try {
+            settings.put(RETENTION, "30d");
+
+            assertThatThrownBy(this::purgeAll)
+                    .isInstanceOf(AuditPurgeRefused.class)
+                    .hasMessageContaining("audit-store-test-hold")
+                    .hasMessageContaining("evidence store offline");
+            housekeeper.purgeAll();
+
+            assertThat(count(OLD)).isEqualTo(5);
+            assertThat(purgeStatus.all().get("audit").error()).contains("evidence store offline");
+        } finally {
+            release(handle);
+        }
+    }
+
+    @Test
+    void aHoldPluginThatIsNotRunningHereRefusesThePurge() {
+        AuditReceiverFixtures.installHolder(jdbc, "audit-store-test-hold");
+        try {
+            assertThatThrownBy(this::purgeAll)
+                    .isInstanceOf(AuditPurgeRefused.class)
+                    .hasMessageContaining("not running on this replica");
+            assertThat(count(OLD)).isEqualTo(5);
+        } finally {
+            AuditReceiverFixtures.removeHolder(jdbc, "audit-store-test-hold");
+        }
+    }
+
+    @Test
+    void aHoldThatNamesTooManyRefusesThePurge() {
+        TestHold hold = new TestHold();
+        hold.holds = java.util.Collections.nCopies(201, new AuditHold(null, null, null, null, "NOTHING", null, null));
+        FakeHandle handle = holder(hold);
+        try {
+            assertThatThrownBy(this::purgeAll)
+                    .isInstanceOf(AuditPurgeRefused.class)
+                    .hasMessageContaining("201");
+            assertThat(count(OLD)).isEqualTo(5);
+        } finally {
+            release(handle);
+        }
+    }
+
+    @Test
+    void recordsAReceiverHasNotAcknowledgedAreKeptUntilTheMaximumAgeThenPurgedWithAGap() {
+        String pluginId = "audit-store-test-receiver";
+        FakeHandle handle = new FakeHandle(pluginId, true, false, Map.of(AuditReceiver.class, new TestReceiver()));
+        receivers.attach(handle);
+        try {
+            settings.put(AuditFeedSettings.MAX_UNACKNOWLEDGED_AGE, "90d");
+
+            purgeAll();
+
+            assertThat(count(OLD)).isEqualTo(5);
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM audit_receiver_gap WHERE plugin_id = ?", Long.class, pluginId))
+                    .isZero();
+
+            settings.put(AuditFeedSettings.MAX_UNACKNOWLEDGED_AGE, "45d");
+            purgeAll();
+
+            assertThat(count(OLD)).isZero();
+            assertThat(jdbc.queryForObject(
+                            "SELECT sum(count) FROM audit_receiver_gap WHERE plugin_id = ? AND delivered_at IS NULL",
+                            Long.class,
+                            pluginId))
+                    .isGreaterThanOrEqualTo(5);
+        } finally {
+            receivers.detach(handle);
+        }
     }
 }
