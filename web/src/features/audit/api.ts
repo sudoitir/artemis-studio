@@ -1,6 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { type PagedView } from '../../kernel/api/paging.ts';
-import { ApiError, request } from '../../kernel/api/request.ts';
+import { ApiError, BASE, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
@@ -31,6 +31,21 @@ export function useAuditEvent(clusterId: string, id: number | undefined): UseQue
     enabled: clusterId !== '' && id !== undefined,
     retry: false,
   });
+}
+
+export type AuditExportFormat = 'csv' | 'json' | 'ndjson';
+
+/**
+ * The URL that streams the filtered trail as a file, for a link the browser follows itself so the download goes
+ * straight to disk and can be cancelled. The page and size of the list do not apply to it.
+ */
+export function auditExportHref(clusterId: string, filter: AuditFilter, format: AuditExportFormat): string {
+  const sp = new URLSearchParams({ format });
+  for (const key of ['user', 'action', 'outcome', 'parentId', 'from', 'to'] as const) {
+    const value = filter[key];
+    if (value !== undefined && value !== '') sp.set(key, String(value));
+  }
+  return `${BASE}/clusters/${clusterId}/audit/export?${sp.toString()}`;
 }
 
 export function useAudit(clusterId: string, filter: AuditFilter = {}): UseQueryResult<AuditPageView, ApiError> {

@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Code, Drawer, Group, Select, Stack, Text, TextInput } from '@mantine/core';
-import { IconLink } from '@tabler/icons-react';
+import { Button, Code, Drawer, Group, Menu, Select, Stack, Text, TextInput } from '@mantine/core';
+import { IconDownload, IconLink } from '@tabler/icons-react';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useDebouncedValue } from '@mantine/hooks';
 
-import { useAudit, useAuditEvent, type AuditEventView } from './api.ts';
+import {
+  auditExportHref,
+  useAudit,
+  useAuditEvent,
+  type AuditEventView,
+  type AuditExportFormat,
+  type AuditFilter,
+} from './api.ts';
 import { useUsers } from '../security/index.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
 import { useActionHost } from '../../kernel/actions/hostContext.ts';
 import { absoluteHref, clusterHref } from '../../kernel/routing/href.ts';
+import { CapabilityGate } from '../../ui/CapabilityGate.tsx';
+import { gateFor } from '../../ui/capabilityGate.ts';
 import { ActionMenuItem } from '../../ui/ActionMenuItem.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
@@ -297,6 +306,43 @@ function AuditEventDetail({
 }
 
 /** The audit-log screen (non-negotiable #3): every mutating call, filterable, newest first. */
+const EXPORT_FORMATS: readonly { format: AuditExportFormat; label: string }[] = [
+  { format: 'csv', label: 'CSV' },
+  { format: 'json', label: 'JSON' },
+  { format: 'ndjson', label: 'NDJSON' },
+];
+
+/**
+ * Downloads what the filters show, oldest first. Each format is a plain link the browser follows, so the file
+ * streams to disk and a long export can be cancelled there.
+ */
+function ExportMenu({ clusterId, filter }: Readonly<{ clusterId: string; filter: AuditFilter }>) {
+  const { can, loading } = useCan();
+  const gate = gateFor(can('audit:export', clusterId), 'Export the audit trail', undefined, loading);
+  return (
+    <CapabilityGate verdict={gate} what="exporting the audit log">
+      <Menu shadow="md" position="bottom-end">
+        <Menu.Target>
+          <Button
+            variant="default"
+            leftSection={<IconDownload size="1rem" aria-hidden />}
+            disabled={gate.kind === 'blocked'}
+          >
+            Export
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {EXPORT_FORMATS.map(({ format, label }) => (
+            <Menu.Item key={format} component="a" href={auditExportHref(clusterId, filter, format)} download>
+              {label}
+            </Menu.Item>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
+    </CapabilityGate>
+  );
+}
+
 export function AuditView() {
   // Absolute timestamps here read the display zone from module state, so this
   // subscribes the view to a zone change (`app/timezone.ts`).
@@ -313,13 +359,16 @@ export function AuditView() {
       search: (prev: Record<string, unknown>) => ({ ...prev, ...patch, page: undefined }),
     });
 
-  const query = useAudit(clusterId, {
+  const filter: AuditFilter = {
     user: search.user,
     action: search.action,
     outcome: search.outcome,
     parentId: search.parentId,
     from: search.from,
     to: search.to,
+  };
+  const query = useAudit(clusterId, {
+    ...filter,
     page,
     size: PAGE_SIZE,
   });
@@ -360,6 +409,7 @@ export function AuditView() {
       <PageHeader
         title="Audit log"
         description="Every operation that changed something, newest first, with who ran it and how it ended."
+        actions={<ExportMenu clusterId={clusterId} filter={filter} />}
       />
 
       <Toolbar label="Audit filters" start={<AuditFilters key={filterEpoch} search={search} setParam={setParam} />} />

@@ -485,3 +485,47 @@ describe('AuditView event detail', () => {
     expect(nextSearch({ parentId: 7, user: 'ann' })).toEqual({ user: 'ann', parentId: undefined, page: undefined });
   });
 });
+
+describe('AuditView export', () => {
+  beforeEach(() => {
+    search = {};
+    navigate.mockClear();
+  });
+
+  it('offers each format as a download link carrying the filters in the address', async () => {
+    search = { user: 'ann', outcome: 'FAILURE', from: '2026-09-04T00:00:00.000Z', page: 3, event: 5 };
+    server.use(grants(['audit:export']), page([row()]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    await user.click(await screen.findByRole('button', { name: 'Export' }));
+
+    for (const [label, format] of [
+      ['CSV', 'csv'],
+      ['JSON', 'json'],
+      ['NDJSON', 'ndjson'],
+    ]) {
+      const link = await screen.findByRole('menuitem', { name: label });
+      const url = new URL(link.getAttribute('href') ?? '', 'http://studio');
+      expect(url.pathname).toBe('/api/v1/clusters/c1/audit/export');
+      expect(Object.fromEntries(url.searchParams)).toEqual({
+        format,
+        user: 'ann',
+        outcome: 'FAILURE',
+        from: '2026-09-04T00:00:00.000Z',
+      });
+      expect(link).toHaveAttribute('download');
+    }
+  });
+
+  it('is disabled with its reason for someone who may not export', async () => {
+    server.use(grants(['cluster:read']), page([row()]));
+    const user = userEvent.setup();
+    renderWithProviders(<AuditView />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Why exporting the audit log is unavailable' }));
+
+    expect(await screen.findByText(/Export the audit trail/)).toBeInTheDocument();
+  });
+});
